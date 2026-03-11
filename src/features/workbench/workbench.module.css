@@ -1,0 +1,293 @@
+.page {
+  min-height: 100vh;
+  padding: 32px;
+  display: grid;
+  gap: 24px;
+}
+
+.hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.heroCopy {
+  max-width: 760px;
+}
+
+.kicker {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 14px 0 0;
+  font-size: clamp(36px, 5vw, 64px);
+  line-height: 0.95;
+}
+
+.subtitle {
+  color: var(--muted);
+  max-width: 64ch;
+  line-height: 1.6;
+}
+
+.statusPill {
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  padding: 12px 16px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.statusOnline {
+  background: rgba(216, 255, 114, 0.1);
+}
+
+.statusOffline {
+  background: rgba(255, 123, 114, 0.12);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.workspaceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+}
+
+.stack {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionLabel {
+  font-size: 12px;
+  color: var(--muted);
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.chipList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.chip,
+.chipActive {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.chipActive {
+  border-color: rgba(216, 255, 114, 0.45);
+  background: rgba(216, 255, 114, 0.12);
+}
+
+.panel {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  padding: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.025));
+  backdrop-filter: blur(12px);
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-start;
+  margin-bottom: 20px;
+}
+
+.panelEyebrow {
+  color: var(--muted);
+  font-size: 12px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.panelTitle {
+  margin: 8px 0 0;
+  font-size: 24px;
+}
+
+.modeSwitch {
+  display: inline-flex;
+  gap: 8px;
+  padding: 4px;
+  background: rgba(255, 255, 255, 0.04);
+  border-radius: 999px;
+}
+
+.modeButton,
+.modeButtonActive,
+.primaryButton,
+.secondaryButton {
+  border: 0;
+  cursor: pointer;
+  transition: opacity 120ms ease;
+}
+
+.modeButton,
+.modeButtonActive {
+  min-width: 88px;
+  border-radius: 999px;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.modeButtonActive {
+  background: var(--accent);
+  color: #111;
+}
+
+.form {
+  display: grid;
+  gap: 16px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.field input {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 14px 16px;
+  border-radius: 16px;
+  outline: none;
+}
+
+.field input:focus {
+  border-color: rgba(216, 255, 114, 0.5);
+}
+
+.field select {
+  width: 100%;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+  padding: 14px 16px;
+  border-radius: 16px;
+  outline: none;
+}
+
+.primaryButton,
+.secondaryButton {
+  border-radius: 16px;
+  padding: 14px 16px;
+  font-weight: 600;
+}
+
+.primaryButton {
+  background: var(--accent);
+  color: #111;
+}
+
+.secondaryButton {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text);
+}
+
+.primaryButton:disabled,
+.secondaryButton:disabled,
+.modeButton:disabled,
+.modeButtonActive:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.errorBox,
+.hintBox,
+.sessionCard,
+.emptyState {
+  border-radius: 18px;
+  padding: 14px 16px;
+}
+
+.errorBox {
+  border: 1px solid rgba(255, 123, 114, 0.4);
+  background: rgba(255, 123, 114, 0.08);
+  color: #ffd0cc;
+}
+
+.hintBox {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  color: var(--muted);
+}
+
+.sessionCard {
+  margin-top: 18px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.inviteList,
+.activityList {
+  display: grid;
+  gap: 10px;
+}
+
+.inlineCard {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  padding: 12px 14px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.boardRegion {
+  border: 1px solid var(--border);
+  border-radius: 32px;
+  background: rgba(255, 255, 255, 0.025);
+  padding: 24px;
+}
+
+.emptyState {
+  min-height: 320px;
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  gap: 10px;
+}
+
+.emptyTitle {
+  margin: 0;
+  font-size: 28px;
+}
+
+@media (max-width: 900px) {
+  .page {
+    padding: 20px;
+  }
+
+  .hero {
+    flex-direction: column;
+  }
+}

@@ -1,0 +1,239 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ArrowRight, Hexagon, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+
+const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+export default function SignupPage() {
+  const router = useRouter();
+  const [form, setForm] = useState({
+    displayName: "",
+    username: "",
+    email: "",
+    password: "",
+    confirm: "",
+  });
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+
+    if (form.password !== form.confirm) {
+      setError("Passwords do not match.");
+      return;
+    }
+    if (form.password.length < 8) {
+      setError("Password must be at least 8 characters.");
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`${API}/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          displayName: form.displayName.trim(),
+          username: form.username.trim().toLowerCase(),
+          email: form.email.trim().toLowerCase(),
+          password: form.password,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data?.message ?? "Registration failed. Please try again.");
+        return;
+      }
+
+      const data = await res.json();
+      // Persist session exactly like the login page
+      document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
+      localStorage.setItem("killio_refresh", data.refreshToken);
+      localStorage.setItem("killio_user", JSON.stringify(data.user));
+
+      router.push("/");
+    } catch {
+      setError("Could not reach the server. Is the backend running?");
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  const passwordStrength =
+    form.password.length === 0
+      ? null
+      : form.password.length < 8
+      ? "weak"
+      : form.password.length < 12
+      ? "medium"
+      : "strong";
+
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 z-0 bg-background">
+        <div className="absolute inset-x-0 -top-40 -z-10 transform-gpu overflow-hidden blur-3xl sm:-top-80">
+          <div
+            className="relative left-[calc(50%+11rem)] aspect-[1155/678] w-[36.125rem] -translate-x-1/2 rotate-[-30deg] bg-gradient-to-tr from-[#4ade80] to-[#3b82f6] opacity-15 sm:left-[calc(50%+20rem)] sm:w-[72.1875rem]"
+            style={{ clipPath: "polygon(74.1% 44.1%, 100% 61.6%, 97.5% 26.9%, 85.5% 0.1%, 80.7% 2%, 72.5% 32.5%, 60.2% 62.4%, 52.4% 68.1%, 47.5% 58.3%, 45.2% 34.5%, 27.5% 76.7%, 0.1% 64.9%, 17.9% 100%, 27.6% 76.8%, 76.1% 97.7%, 74.1% 44.1%)" }}
+          />
+        </div>
+      </div>
+
+      <div className="z-10 w-full max-w-sm px-4 py-8">
+        <div className="flex flex-col items-center space-y-6">
+          <div className="flex items-center space-x-2">
+            <Hexagon className="h-8 w-8 text-accent" />
+            <span className="text-2xl font-bold tracking-tight">Killio</span>
+          </div>
+
+          <div className="w-full rounded-xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-sm">
+            <div className="mb-6 flex flex-col space-y-2 text-center">
+              <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+              <p className="text-sm text-muted-foreground">
+                Join Killio and start organizing your work
+              </p>
+            </div>
+
+            {error && (
+              <div className="mb-4 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
+                <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <form className="space-y-4" onSubmit={handleSubmit}>
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="displayName">Full Name</label>
+                <input
+                  id="displayName"
+                  type="text"
+                  placeholder="Ronald García"
+                  value={form.displayName}
+                  onChange={update("displayName")}
+                  required
+                  autoComplete="name"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="username">Username</label>
+                  <input
+                    id="username"
+                    type="text"
+                    placeholder="ronald"
+                    value={form.username}
+                    onChange={update("username")}
+                    required
+                    autoComplete="username"
+                    pattern="[a-zA-Z0-9_\-]+"
+                    title="Letters, numbers, underscores, hyphens only"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-sm font-medium" htmlFor="email">Email</label>
+                  <input
+                    id="email"
+                    type="email"
+                    placeholder="name@example.com"
+                    value={form.email}
+                    onChange={update("email")}
+                    required
+                    autoComplete="email"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="password">Password</label>
+                <input
+                  id="password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  value={form.password}
+                  onChange={update("password")}
+                  required
+                  autoComplete="new-password"
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                />
+                {passwordStrength && (
+                  <div className="flex gap-1 mt-1">
+                    {["weak", "medium", "strong"].map((level, i) => (
+                      <div
+                        key={level}
+                        className={`h-1 flex-1 rounded-full transition-colors ${
+                          passwordStrength === "weak" && i === 0
+                            ? "bg-destructive"
+                            : passwordStrength === "medium" && i <= 1
+                            ? "bg-yellow-400"
+                            : passwordStrength === "strong" && i <= 2
+                            ? "bg-green-500"
+                            : "bg-muted"
+                        }`}
+                      />
+                    ))}
+                    <span className="text-xs text-muted-foreground ml-1 capitalize">{passwordStrength}</span>
+                  </div>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium" htmlFor="confirm">Confirm Password</label>
+                <div className="relative">
+                  <input
+                    id="confirm"
+                    type="password"
+                    placeholder="Repeat your password"
+                    value={form.confirm}
+                    onChange={update("confirm")}
+                    required
+                    autoComplete="new-password"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                  />
+                  {form.confirm && form.password === form.confirm && (
+                    <CheckCircle2 className="absolute right-3 top-3 h-4 w-4 text-green-500" />
+                  )}
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors bg-primary/90 hover:bg-primary text-primary-foreground shadow h-10 w-full mt-2 group disabled:opacity-60"
+              >
+                {isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    Create Account
+                    <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center text-sm text-muted-foreground">
+              Already have an account?{" "}
+              <Link href="/login" className="font-medium text-accent hover:underline">
+                Sign in
+              </Link>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
