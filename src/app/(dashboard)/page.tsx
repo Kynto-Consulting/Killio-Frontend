@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Clock, Layout, Users, Sparkles } from "lucide-react";
+import { Plus, Clock, Layout, Users, Sparkles, Loader2 } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal } from "@/components/ui/create-board-modal";
 import { useSession } from "@/components/providers/session-provider";
@@ -81,7 +81,12 @@ export default function WorkspacesPage() {
         </div>
 
         {/* Board Cards */}
-        {boards.map((board) => (
+        {isLoading ? (
+          <div className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground">
+            <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary/50" />
+            <p>Gathering your workspaces...</p>
+          </div>
+        ) : boards.map((board) => (
           <Link href={`/b/${board.id}`} key={board.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
             <div className={`h-24 ${board.coverImageUrl || 'bg-gradient-to-tr from-accent to-primary/60'} w-full border-b border-border/50 relative`}>
                <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>

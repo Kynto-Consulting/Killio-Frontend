@@ -3,18 +3,13 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, CheckSquare, MessageSquare, Paperclip } from "lucide-react";
+import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
+import { CardView, TextBrick, MediaBrick } from "@/lib/api/contracts";
 
-interface CardData {
-  id: string;
-  title: string;
-  tags?: string[];
-  priority?: "low" | "normal" | "high" | "urgent";
-}
-
-export function KanbanCard({ card }: { card: CardData }) {
+export function KanbanCard({ card, listName, boardName, boardId }: { card: CardView, listName?: string, boardName?: string, boardId?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
 
@@ -31,27 +26,66 @@ export function KanbanCard({ card }: { card: CardData }) {
     urgent: "bg-red-500/20 text-red-500 border border-red-500/30",
   };
 
+  const blocks = card.blocks || [];
+  const textBlocks = blocks.filter((b): b is TextBrick => b.kind === 'text');
+  const mediaBlocks = blocks.filter((b): b is MediaBrick => b.kind === 'media');
+  
+  const hasDescription = textBlocks.some(b => b.displayStyle === 'paragraph' && b.markdown && b.markdown.trim().length > 0);
+  
+  const checklists = textBlocks.filter(b => b.displayStyle === 'checklist');
+  let totalChecklistItems = 0;
+  let completedChecklistItems = 0;
+  checklists.forEach(cl => {
+    (cl.tasks || []).forEach(t => {
+      totalChecklistItems++;
+      if (t.checked) completedChecklistItems++;
+    });
+  });
+
+  const attachmentsCount = mediaBlocks.length;
+
   return (
     <>
       <div
         ref={setNodeRef}
         style={style}
-        onClick={() => setIsModalOpen(true)}
+        onClick={() => !isMenuOpen && setIsModalOpen(true)}
         className={`group relative flex flex-col gap-3 rounded-lg border ${
           isDragging ? "border-accent shadow-lg ring-1 ring-accent" : "border-border shadow-sm hover:border-accent/40"
         } bg-card p-3 cursor-grab active:cursor-grabbing transition-colors`}
         {...attributes}
         {...listeners}
       >
-      <div className="flex flex-wrap gap-1.5">
-        {card.tags?.map((tag) => (
-          <span key={tag} className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-primary/10 text-foreground/80">
-            {tag}
+      
+      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            setIsMenuOpen(!isMenuOpen);
+          }}
+          className="h-6 w-6 rounded bg-background/80 hover:bg-muted flex items-center justify-center text-muted-foreground"
+        >
+          <MoreHorizontal className="h-4 w-4" />
+        </button>
+        {isMenuOpen && (
+          <div className="absolute right-0 top-8 w-40 bg-popover border border-border rounded-md shadow-lg py-1 z-50 text-sm">
+            <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Card...</button>
+            <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Tags...</button>
+            <div className="my-1 border-t border-border" />
+            <button onClick={(e) => { e.stopPropagation(); alert("Delete card functionality coming soon.") }} className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive">Delete Card</button>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 pr-6">
+        {(card.tags || []).map((tag) => (
+          <span key={tag.id} className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-primary/10 text-foreground/80">
+            {tag.name}
           </span>
         ))}
-        {card.priority && card.priority !== "normal" && (
-          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase ${priorityColors[card.priority]}`}>
-            {card.priority}
+        {card.urgency && card.urgency !== "normal" && (
+          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase ${priorityColors[card.urgency as keyof typeof priorityColors]}`}>
+            {card.urgency}
           </span>
         )}
       </div>
@@ -62,29 +96,50 @@ export function KanbanCard({ card }: { card: CardData }) {
       
       <div className="flex items-center justify-between text-muted-foreground mt-1">
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors">
-            <AlignLeft className="h-3.5 w-3.5" />
-          </div>
-          <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors">
-            <CheckSquare className="h-3.5 w-3.5" />
-            <span>0/3</span>
-          </div>
-          <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors">
-            <MessageSquare className="h-3.5 w-3.5" />
-            <span>2</span>
-          </div>
+          {hasDescription && (
+            <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="This card has a description">
+              <AlignLeft className="h-3.5 w-3.5" />
+            </div>
+          )}
+          {totalChecklistItems > 0 && (
+            <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Checklist items">
+              <CheckSquare className="h-3.5 w-3.5" />
+              <span>{completedChecklistItems}/{totalChecklistItems}</span>
+            </div>
+          )}
+          {/* No comments for now */ false ? (
+            <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Comments">
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span>{/*card.commentsCount*/}</span>
+            </div>
+          ) : null}
+          {attachmentsCount > 0 ? (
+            <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Attachments">
+              <Paperclip className="h-3.5 w-3.5" />
+              <span>{attachmentsCount}</span>
+            </div>
+          ) : null}
         </div>
         
-        <div className="h-5 w-5 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-[9px] border border-border shadow-sm">
-          RO
-        </div>
+        {false && ( /* Members hidden */
+          <div className="flex -space-x-1.5">
+            {/*card.members.map((member: any) => (
+              <div key={member.id} title={member.name} className="h-5 w-5 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-[9px] border border-border shadow-sm">
+                {member.initials}
+              </div>
+            ))*/}
+          </div>
+        )}
       </div>
       </div>
       
-      <CardDetailModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)} 
-        cardTitle={card.title} 
+      <CardDetailModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        card={card}
+        listName={listName || ""}
+        boardName={boardName || ""}
+        boardId={boardId}
       />
     </>
   );

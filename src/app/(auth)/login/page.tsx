@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { useSession } from "@/components/providers/session-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login } = useSession();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -33,11 +35,13 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-      // Store tokens
+      // Store tokens for the current active view (this still maintains basic current session)
       document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
       localStorage.setItem("killio_refresh", data.refreshToken);
       localStorage.setItem("killio_user", JSON.stringify(data.user));
 
+      // This will manage the accounts array for the multi-switch
+      login(data.user, data.accessToken, data.refreshToken);
       router.push("/");
     } catch {
       setError("Could not reach the server. Is the backend running?");

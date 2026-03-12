@@ -43,6 +43,17 @@ export type InviteSummary = {
   createdAt: string;
 };
 
+export type TeamMemberSummary = {
+  id: string;
+  userId: string;
+  role: string;
+  status: string;
+  displayName: string;
+  primaryEmail: string;
+  avatarUrl: string | null;
+  joinedAt: string | null;
+};
+
 type BrickBase = {
   id: string;
   position: number;
@@ -126,12 +137,21 @@ export type BrickMutationInput =
       confidence: number | null;
     };
 
+export type TagView = {
+  id: string;
+  name: string;
+  slug: string;
+  color: string | null;
+  tag_kind: 'priority' | 'ux' | 'bug' | 'feature' | 'custom';
+};
+
 export type CardView = {
   id: string;
   title: string;
   dueAt: string | null;
   urgency: 'normal' | 'urgent';
   blocks: BoardBrick[];
+  tags?: TagView[];
 };
 
 export type ListView = {
@@ -145,6 +165,7 @@ export type BoardView = {
   name: string;
   description: string | null;
   coverImageUrl: string | null;
+  visibility: 'private' | 'team' | 'public_link';
   lists: ListView[];
 };
 
@@ -273,6 +294,49 @@ export function getApiBaseUrl(): string {
   return API_BASE_URL;
 }
 
+export async function createTag(
+  data: {
+    scopeType: 'global' | 'team' | 'board' | 'list';
+    scopeId: string;
+    name: string;
+    color?: string;
+    tagKind?: 'priority' | 'ux' | 'bug' | 'feature' | 'custom';
+  },
+  accessToken: string
+): Promise<TagView> {
+  const res = await fetch(`${API_BASE_URL}/tags`, {
+    method: 'POST',
+    headers: {
+      ...authHeaders(accessToken),
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res));
+  }
+
+  return res.json();
+}
+
+export async function getTagsByScope(
+  scopeType: 'global' | 'team' | 'board' | 'list',
+  scopeId: string,
+  accessToken: string
+): Promise<TagView[]> {
+  const res = await fetch(`${API_BASE_URL}/tags/scope/${scopeType}/${scopeId}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+
+  if (!res.ok) {
+    throw new Error(await readErrorMessage(res));
+  }
+
+  return res.json();
+}
+
 export async function getBackendHealth(): Promise<BackendHealth> {
   return request<BackendHealth>('/health', { method: 'GET' });
 }
@@ -335,8 +399,51 @@ export async function createBoard(payload: CreateBoardPayload, teamId: string, a
   });
 }
 
+export async function createList(
+  boardId: string,
+  payload: { name: string; position?: number },
+  accessToken?: string
+): Promise<ListView> {
+  const url = `${API_BASE_URL}/boards/${boardId}/lists`;
+  const options: RequestInit = {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  };
+  if (accessToken) {
+    (options.headers as any)['Authorization'] = `Bearer ${accessToken}`;
+  }
+  const res = await fetch(url, options);
+  if (!res.ok) throw new Error('Failed to create list');
+  return res.json();
+}
+
+
+export async function createCard(body: { listId: string; title: string; summary?: string; dueAt?: string; urgency?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
+  return request<CardView>(`/cards`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function updateCard(cardId: string, updates: Record<string, any>, accessToken?: string): Promise<CardView> {
+  return request<CardView>(`/cards/${cardId}`, {
+    method: 'PATCH',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(updates),
+  });
+}
+
 export async function listTeamInvites(teamId: string, accessToken: string): Promise<InviteSummary[]> {
   return request<InviteSummary[]>(`/teams/${teamId}/invites`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function listTeamMembers(teamId: string, accessToken: string): Promise<TeamMemberSummary[]> {
+  return request<TeamMemberSummary[]>(`/teams/${teamId}/members`, {
     method: 'GET',
     headers: authHeaders(accessToken),
   });
@@ -399,6 +506,76 @@ export async function reorderCardBricks(
 
 export async function deleteCardBrick(cardId: string, brickId: string, accessToken: string): Promise<DeleteCardBrickResult> {
   return request<DeleteCardBrickResult>(`/cards/${cardId}/bricks/${brickId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function addCardTag(cardId: string, tagId: string, accessToken: string): Promise<{ cardId: string; tagId: string }> {
+  return request<{ cardId: string; tagId: string }>(`/cards/${cardId}/tags/${tagId}`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function removeCardTag(cardId: string, tagId: string, accessToken: string): Promise<{ cardId: string; tagId: string }> {
+  return request<{ cardId: string; tagId: string }>(`/cards/${cardId}/tags/${tagId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+// ------ BOARD SHARING & VISIBILITY ------
+
+export interface BoardMemberSummary {
+  id: string;
+  email: string;
+  displayName: string | null;
+  role: string;
+  avatarUrl: string | null;
+}
+
+export async function updateBoardVisibility(
+  boardId: string, 
+  visibility: 'private' | 'team' | 'public_link', 
+  accessToken: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/visibility`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visibility }),
+  });
+}
+
+export async function getBoardMembers(
+  boardId: string, 
+  accessToken: string
+): Promise<BoardMemberSummary[]> {
+  return request<BoardMemberSummary[]>(`/boards/${boardId}/members`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function addBoardMember(
+  boardId: string, 
+  email: string, 
+  role: string, 
+  accessToken: string
+): Promise<{ id: string }> {
+  return request<{ id: string }>(`/boards/${boardId}/members`, {
+    method: 'POST',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export async function removeBoardMember(
+  boardId: string, 
+  memberId: string, 
+  accessToken: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/members/${memberId}`, {
     method: 'DELETE',
     headers: authHeaders(accessToken),
   });

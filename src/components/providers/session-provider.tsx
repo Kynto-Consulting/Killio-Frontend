@@ -4,13 +4,23 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthResponse } from "@/lib/api/contracts";
 
+export interface SessionAccount {
+  user: AuthResponse["user"];
+  accessToken: string;
+  refreshToken: string | null;
+  activeTeamId: string | null;
+}
+
 export type SessionContextType = {
   user: AuthResponse["user"] | null;
   activeTeamId: string | null;
   accessToken: string | null;
+  accounts: SessionAccount[];
   setActiveTeamId: (id: string) => void;
   isLoading: boolean;
   logout: () => void;
+  login: (userData: AuthResponse["user"], token: string, refreshToken?: string) => void;
+  switchAccount: (userId: string) => void;
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -19,16 +29,43 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AuthResponse["user"] | null>(null);
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [accounts, setAccounts] = useState<SessionAccount[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // On mount, load user from local storage
+    // On mount, load accounts from local storage
     try {
+      const storedAccountsRaw = localStorage.getItem("killio_accounts");
+      let loadedAccounts: SessionAccount[] = [];
+      if (storedAccountsRaw) {
+        loadedAccounts = JSON.parse(storedAccountsRaw);
+        setAccounts(loadedAccounts);
+      }
+
       const storedUser = localStorage.getItem("killio_user");
       if (storedUser) {
-        setUser(JSON.parse(storedUser));
+        const parsedUser = JSON.parse(storedUser);
+        setUser(parsedUser);
+        
+        // Migrate legacy single account to array if needed
+        if (loadedAccounts.length === 0) {
+          const t = document.cookie.split("; ").find((row) => row.startsWith("killio_token="))?.split("=")[1];
+          const rt = localStorage.getItem("killio_refresh");
+          const team = localStorage.getItem("killio_active_team");
+          if (t) {
+            const legacyAccount: SessionAccount = {
+              user: parsedUser,
+              accessToken: t,
+              refreshToken: rt,
+              activeTeamId: team
+            };
+            setAccounts([legacyAccount]);
+            localStorage.setItem("killio_accounts", JSON.stringify([legacyAccount]));
+          }
+        }
       }
+      
       const storedTeam = localStorage.getItem("killio_active_team");
       if (storedTeam) {
         setActiveTeamId(storedTeam);
@@ -50,6 +87,15 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const handleSetActiveTeam = (id: string) => {
     setActiveTeamId(id);
     localStorage.setItem("killio_active_team", id);
+    
+    // Update team id in accounts list too
+    if (user) {
+      setAccounts(prev => {
+        const newAccs = prev.map(acc => acc.user.id === user.id ? { ...acc, activeTeamId: id } : acc);
+        localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+        return newAccs;
+      });
+    }
   };
 
   const logout = () => {
@@ -57,10 +103,59 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("killio_refresh");
     localStorage.removeItem("killio_user");
     localStorage.removeItem("killio_active_team");
+    
+    // Also remove current user from accounts
+    if (user) {
+      setAccounts(prev => {
+        const newAccs = prev.filter(a => a.user.id !== user.id);
+        localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+        return newAccs;
+      });
+    }
+
     setUser(null);
     setActiveTeamId(null);
     setAccessToken(null);
     router.push("/login");
+  };
+
+  const login = (userData: AuthResponse["user"], token: string, refreshToken?: string) => {
+    setUser(userData);
+    setAccessToken(token);
+    
+    // Update accounts list
+    setAccounts(prev => {
+      const existing = prev.filter(a => a.user.id !== userData.id);
+      const newAccs = [...existing, {
+        user: userData,
+        accessToken: token,
+        refreshToken: refreshToken || null,
+        activeTeamId: null
+      }];
+      localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+      return newAccs;
+    });
+  };
+
+  const switchAccount = (userId: string) => {
+    const target = accounts.find(a => a.user.id === userId);
+    if (!target) return;
+    
+    setUser(target.user);
+    setAccessToken(target.accessToken);
+    setActiveTeamId(target.activeTeamId);
+    
+    // Update browser artifacts
+    document.cookie = `killio_token=${target.accessToken}; path=/; max-age=604800`;
+    localStorage.setItem("killio_user", JSON.stringify(target.user));
+    if (target.refreshToken) localStorage.setItem("killio_refresh", target.refreshToken);
+    else localStorage.removeItem("killio_refresh");
+    
+    if (target.activeTeamId) localStorage.setItem("killio_active_team", target.activeTeamId);
+    else localStorage.removeItem("killio_active_team");
+
+    // Force a hard reload to reset completely or just push to home
+    window.location.href = "/";
   };
 
   return (
@@ -69,9 +164,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         user,
         activeTeamId,
         accessToken,
+        accounts,
         setActiveTeamId: handleSetActiveTeam,
         isLoading,
         logout,
+        login,
+        switchAccount
       }}
     >
       {children}

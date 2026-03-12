@@ -208,7 +208,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
-        <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md">
+          <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md z-40">
           <div className="flex flex-1 items-center">
             {/* Global Search / Command Palette trigger */}
             <button 

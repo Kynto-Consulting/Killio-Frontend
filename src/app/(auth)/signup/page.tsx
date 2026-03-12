@@ -4,11 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { useSession } from "@/components/providers/session-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function SignupPage() {
   const router = useRouter();
+  const { login } = useSession();
   const [form, setForm] = useState({
     displayName: "",
     username: "",
@@ -60,6 +62,7 @@ export default function SignupPage() {
       localStorage.setItem("killio_refresh", data.refreshToken);
       localStorage.setItem("killio_user", JSON.stringify(data.user));
 
+      login(data.user, data.accessToken);
       router.push("/");
     } catch {
       setError("Could not reach the server. Is the backend running?");
