@@ -2,8 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Hexagon, LayoutDashboard, Settings, Users, History, Bell, Search, Plus } from "lucide-react";
+import { LayoutDashboard, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
+import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
+import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
+import { AppPreferencesModal } from "@/components/ui/preferences-modal";
+import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
+import { useSession } from "@/components/providers/session-provider";
+import { useEffect, useState } from "react";
+import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView } from "@/lib/api/contracts";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -11,18 +18,87 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navigation = [
     { name: "Workspaces", href: "/", icon: LayoutDashboard },
     { name: "Teams", href: "/teams", icon: Users },
-    { name: "History", href: "/history", icon: History },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { name: "Activity History", href: "/history", icon: History },
   ];
+
+  const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
+  const [teams, setTeams] = useState<TeamView[]>([]);
+  const [boards, setBoards] = useState<BoardSummary[]>([]);
+  const [isFetchingBoards, setIsFetchingBoards] = useState(false);
+  const [isTeamSwitcherOpen, setIsTeamSwitcherOpen] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
+  const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  useEffect(() => {
+    if (!accessToken) return;
+    
+    listTeams(accessToken).then((fetchedTeams) => {
+      setTeams(fetchedTeams);
+      if (fetchedTeams.length > 0 && !activeTeamId) {
+        setActiveTeamId(fetchedTeams[0].id);
+      }
+    }).catch(console.error);
+  }, [accessToken, activeTeamId, setActiveTeamId]);
+
+  useEffect(() => {
+    if (!accessToken || !activeTeamId) return;
+    
+    setIsFetchingBoards(true);
+    listTeamBoards(activeTeamId, accessToken)
+      .then((fetchedBoards) => {
+        setBoards(fetchedBoards);
+      })
+      .catch(console.error)
+      .finally(() => setIsFetchingBoards(false));
+  }, [accessToken, activeTeamId]);
+
+  const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: string}[] }) => {
+    if (!accessToken) return;
+    const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `ws-${Date.now()}`;
+    
+    const newTeam = await createTeam({ name: payload.name, slug, icon: payload.icon }, accessToken);
+    
+    // Dispatch invites if any
+    if (payload.invites.length > 0) {
+      await Promise.allSettled(
+        payload.invites.map(invite => createInvite(invite, newTeam.id, accessToken))
+      );
+    }
+
+    const updatedTeams = [...teams, newTeam];
+    setTeams(updatedTeams);
+    setActiveTeamId(newTeam.id);
+  };
 
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
+      <CreateWorkspaceModal 
+        isOpen={isCreateWorkspaceModalOpen}
+        onClose={() => setIsCreateWorkspaceModalOpen(false)}
+        onSubmit={handleCreateTeamSubmit}
+      />
+      <ProfileSettingsModal 
+        isOpen={isProfileModalOpen}
+        onClose={() => setIsProfileModalOpen(false)}
+      />
+      <AppPreferencesModal 
+        isOpen={isPreferencesModalOpen}
+        onClose={() => setIsPreferencesModalOpen(false)}
+      />
+      <SwitchAccountModal
+        isOpen={isSwitchAccountModalOpen}
+        onClose={() => setIsSwitchAccountModalOpen(false)}
+      />
       {/* Sidebar */}
       <aside className="hidden w-64 flex-col border-r border-border bg-card/30 backdrop-blur-sm md:flex">
         <div className="flex h-14 items-center border-b border-border px-4">
           <Link href="/" className="flex items-center space-x-2 transition-opacity hover:opacity-80">
-            <Hexagon className="h-6 w-6 text-accent" />
+            <img src="/killio_white.webp" alt="Killio" className="h-6 w-auto" />
             <span className="font-semibold tracking-tight text-lg">Killio</span>
           </Link>
         </div>
@@ -37,8 +113,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   href={item.href}
                   className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
                     isActive 
-                      ? "bg-accent/10 text-accent" 
-                      : "text-muted-foreground hover:bg-accent/5 hover:text-foreground"
+                      ? "bg-accent/20 text-accent font-semibold" 
+                      : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
                   }`}
                 >
                   <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
@@ -53,31 +129,79 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Recent Boards
             </h3>
             <div className="mt-3 space-y-1">
-              {["Marketing Q3", "Backend Overhaul", "Product Hunt Launch"].map((board) => (
-                <Link
-                  key={board}
-                  href={`/b/board_${board.toLowerCase().replace(" ", "_")}`}
-                  className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-muted-foreground hover:bg-accent/5 hover:text-foreground transition-all"
-                >
-                  <span className="truncate">{board}</span>
-                </Link>
-              ))}
+              {isFetchingBoards ? (
+                <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              ) : boards.length > 0 ? (
+                boards.slice(0, 5).map((board) => (
+                  <Link
+                    key={board.id}
+                    href={`/b/${board.id}`}
+                    className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-foreground/70 hover:bg-accent/10 hover:text-accent font-medium transition-all"
+                  >
+                    <span className="truncate">{board.name}</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground px-3 py-1">No boards yet</div>
+              )}
             </div>
           </div>
         </div>
 
-        <div className="border-t border-border p-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="h-8 w-8 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-xs border border-border shadow-sm">
-                RO
+        <div className="border-t border-border p-4 relative">
+          <button 
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            className="flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent"
+          >
+            <div className="flex items-center space-x-2 overflow-hidden">
+              <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-xs border border-border shadow-sm">
+                {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : "US"}
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium">Ronald</span>
-                <span className="text-xs text-muted-foreground">Admin</span>
+              <div className="flex flex-col items-start overflow-hidden">
+                <span className="text-sm font-medium w-full text-left truncate">{user?.displayName || "Loading..."}</span>
+                <span className="text-xs text-muted-foreground w-full text-left truncate">
+                  {user?.email || "Account"}
+                </span>
               </div>
             </div>
-          </div>
+            <ChevronsUpDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0 ml-2" />
+          </button>
+
+          {isSettingsOpen && (
+            <div className="absolute bottom-16 left-4 w-60 rounded-xl border border-border bg-card p-2 shadow-lg z-50 animate-in fade-in slide-in-from-bottom-2">
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account</div>
+              
+              <button 
+                onClick={() => { setIsSettingsOpen(false); setIsProfileModalOpen(true); }} 
+                className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
+              >
+                <UserCircle className="mr-2 h-4 w-4" /> Profile Settings
+              </button>
+              
+              <button 
+                onClick={() => { setIsSettingsOpen(false); setIsPreferencesModalOpen(true); }} 
+                className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
+              >
+                <Settings className="mr-2 h-4 w-4" /> App Preferences
+              </button>
+              
+              <div className="h-px bg-border/50 my-1"></div>
+              
+              <button 
+                onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }} 
+                className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
+              >
+                <ArrowRightLeft className="mr-2 h-4 w-4" /> Switch Account
+              </button>
+              
+              <button 
+                onClick={logout} 
+                className="w-full text-left px-2 py-2 text-sm hover:bg-destructive/10 text-destructive rounded-md transition-colors flex items-center"
+              >
+                <LogOut className="mr-2 h-4 w-4" /> Sign Out
+              </button>
+            </div>
+          )}
         </div>
       </aside>
 
@@ -99,14 +223,84 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
           </div>
           
-          <div className="flex items-center space-x-4">
-            <button className="flex h-8 w-8 items-center justify-center rounded-full text-muted-foreground hover:bg-accent/10 hover:text-foreground transition-colors relative">
-              <Bell className="h-4 w-4" />
-              <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-background"></span>
-            </button>
-            <Link href="/login" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
-              Sign out
-            </Link>
+          <div className="flex items-center space-x-1 sm:space-x-3">
+            {/* Team Switcher */}
+            <div className="relative">
+              <button 
+                onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
+                className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
+              >
+                <div className="h-5 w-5 rounded bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                  {teams.find(t => t.id === activeTeamId)?.icon || teams.find(t => t.id === activeTeamId)?.name.substring(0, 1).toUpperCase() || "W"}
+                </div>
+                <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
+                  {teams.find(t => t.id === activeTeamId)?.name || "Select Workspace"}
+                </span>
+                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+
+              {isTeamSwitcherOpen && (
+                <div className="absolute top-10 right-0 w-56 rounded-xl border border-border bg-card p-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-2">
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Workspaces</div>
+                  <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
+                    {teams.map(team => (
+                      <button 
+                        key={team.id}
+                        onClick={() => {
+                          setActiveTeamId(team.id);
+                          setIsTeamSwitcherOpen(false);
+                        }}
+                        className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center justify-between"
+                      >
+                        <div className="flex items-center truncate">
+                          <span className="mr-2 text-base leading-none">{team.icon || team.name.charAt(0).toUpperCase()}</span>
+                          <span className="truncate pr-2">{team.name}</span>
+                        </div>
+                        {activeTeamId === team.id && <Check className="h-4 w-4 text-primary shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="h-px bg-border/50 my-1"></div>
+                  <button onClick={() => {
+                     setIsTeamSwitcherOpen(false);
+                     setIsCreateWorkspaceModalOpen(true);
+                  }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
+                    <Plus className="h-4 w-4 mr-2" /> Create Workspace
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div className="h-4 w-px bg-border/80 hidden sm:block mx-1"></div>
+
+            <div className="relative">
+              <button 
+                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
+                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors relative ${isNotificationsOpen ? 'bg-accent/20 text-accent' : 'text-muted-foreground hover:bg-accent/20 hover:text-foreground'}`}
+                title="Notifications"
+              >
+                <Bell className="h-4 w-4" />
+                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-background"></span>
+              </button>
+              
+              {isNotificationsOpen && (
+                <div className="absolute top-10 right-0 w-80 rounded-xl border border-border bg-card shadow-lg z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
+                  <div className="p-3 border-b border-border/50 flex items-center justify-between bg-muted/30">
+                    <span className="text-sm font-semibold tracking-tight">Notifications</span>
+                    <button className="text-xs text-accent hover:underline font-medium">Mark all read</button>
+                  </div>
+                  <div className="max-h-80 overflow-y-auto p-2">
+                    <div className="flex flex-col items-center justify-center py-8 text-center px-4">
+                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
+                        <Bell className="h-5 w-5 text-primary/40" />
+                      </div>
+                      <p className="text-sm font-medium">No new notifications</p>
+                      <p className="text-xs text-muted-foreground mt-1">When someone mentions you or assigns you to a card, it will show up here.</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

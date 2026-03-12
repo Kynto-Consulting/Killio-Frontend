@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Hexagon, Loader2, AlertCircle } from "lucide-react";
+import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -61,7 +61,7 @@ export default function LoginPage() {
       <div className="z-10 w-full max-w-sm px-4">
         <div className="flex flex-col items-center space-y-6">
           <div className="flex items-center space-x-2">
-            <Hexagon className="h-8 w-8 text-accent" />
+            <img src="/killio_white.webp" alt="Killio" className="h-8 w-auto" />
             <span className="text-2xl font-bold tracking-tight">Killio</span>
           </div>
 

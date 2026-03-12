@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   try {
     const rest = new Ably.Rest({ key: apiKey });
     const tokenRequest = await rest.auth.createTokenRequest({
+      clientId: '*',
       capability: { '*': ['subscribe', 'publish', 'presence'] },
       ttl: 3600 * 1000, // 1 hour
     });

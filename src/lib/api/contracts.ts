@@ -21,6 +21,8 @@ export type TeamView = {
   name: string;
   slug: string;
   description: string | null;
+  icon?: string | null;
+  isPersonal?: boolean;
 };
 
 export type BoardSummary = {
@@ -195,12 +197,14 @@ type CreateTeamPayload = {
   name: string;
   slug: string;
   description?: string;
+  icon?: string;
 };
 
 type CreateBoardPayload = {
   name: string;
   slug: string;
   description?: string;
+  coverImageUrl?: string;
 };
 
 type InvitePayload = {

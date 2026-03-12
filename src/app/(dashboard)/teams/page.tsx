@@ -1,6 +1,22 @@
-import { Users, UserPlus, Shield, MoreHorizontal } from "lucide-react";
+"use client";
+
+import { Users, UserPlus, Shield, MoreHorizontal, Lock } from "lucide-react";
+import { useSession } from "@/components/providers/session-provider";
+import { useEffect, useState } from "react";
+import { listTeams, TeamView } from "@/lib/api/contracts";
 
 export default function TeamsPage() {
+  const { accessToken, activeTeamId } = useSession();
+  const [activeTeam, setActiveTeam] = useState<TeamView | null>(null);
+
+  useEffect(() => {
+    if (!accessToken || !activeTeamId) return;
+    listTeams(accessToken).then((teams) => {
+      const team = teams.find(t => t.id === activeTeamId);
+      if (team) setActiveTeam(team);
+    }).catch(console.error);
+  }, [accessToken, activeTeamId]);
+
   const members = [
     { name: "Ronald (You)", email: "ronald@killio.app", role: "Owner", status: "Online", avatar: "RO" },
     { name: "Alice Johnson", email: "alice@killio.app", role: "Admin", status: "Offline", avatar: "AJ" },
@@ -12,11 +28,22 @@ export default function TeamsPage() {
     <div className="container mx-auto p-6 lg:p-10 max-w-5xl">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Teams & Access</h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1 className="text-3xl font-bold tracking-tight">Teams & Access</h1>
+            {activeTeam?.isPersonal && (
+              <span className="flex items-center text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded-md">
+                <Lock className="w-3 h-3 mr-1" /> Personal Workspace
+              </span>
+            )}
+          </div>
           <p className="text-muted-foreground">Manage your team members and their permissions across the workspace.</p>
         </div>
-        <button className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group">
-          <UserPlus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
+        <button 
+          disabled={activeTeam?.isPersonal}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
+          title={activeTeam?.isPersonal ? "You cannot invite members to your Personal Workspace." : ""}
+        >
+          {activeTeam?.isPersonal ? <Lock className="mr-2 h-4 w-4 opacity-70" /> : <UserPlus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" /> }
           Invite People
         </button>
       </div>

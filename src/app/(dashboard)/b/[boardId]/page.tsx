@@ -7,44 +7,52 @@ import { SortableContext, arrayMove, sortableKeyboardCoordinates, horizontalList
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { MessageSquare } from "lucide-react";
-
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { useSession } from "@/components/providers/session-provider";
+import { useParams } from "next/navigation";
+import { getBoard } from "@/lib/api/contracts";
+import { useEffect } from "react";
 
-// Mock Data
-const initialLists = [
-  {
-    id: "list-1",
-    title: "To Do",
-    cards: [
-      { id: "c1", title: "Analyze CSV requirements", tags: ["UX"], priority: "urgent" as const },
-      { id: "c2", title: "Set up Tailwind global styles", tags: [], priority: "normal" as const }
-    ]
-  },
-  {
-    id: "list-2",
-    title: "In Progress",
-    cards: [
-      { id: "c3", title: "Implement Kanban Board UI", tags: ["Frontend"], priority: "high" as const }
-    ]
-  },
-  {
-    id: "list-3",
-    title: "Done",
-    cards: [
-      { id: "c4", title: "Project initialization", tags: ["Setup"], priority: "normal" as const }
-    ]
-  }
-];
-
-const MOCK_BOARD_ID = "board-demo-1";
 
 export default function BoardPage() {
-  const [lists, setLists] = useState(initialLists);
+  const params = useParams();
+  const boardId = params.boardId as string;
+  const { accessToken, user } = useSession();
+  
+  const members = useBoardPresence(boardId, user);
+
+  const [lists, setLists] = useState<any[]>([]);
+  const [boardName, setBoardName] = useState("Loading...");
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
 
+  useEffect(() => {
+    if (!accessToken || !boardId) return;
+
+    getBoard(boardId, accessToken)
+      .then((board) => {
+        setBoardName(board.name);
+        const mappedLists = board.lists.map(list => ({
+          id: list.id,
+          title: list.name,
+          cards: list.cards.map(card => ({
+            id: card.id,
+            title: card.title,
+            priority: card.urgency,
+            tags: []
+          }))
+        }));
+        setLists(mappedLists);
+      })
+      .catch((err) => {
+        console.error("Failed to fetch board", err);
+        setBoardName("Error loading board");
+      });
+  }, [accessToken, boardId]);
+
   // Subscribe to Ably realtime events for this board
-  useBoardRealtime(MOCK_BOARD_ID, (event: BoardEvent) => {
+  useBoardRealtime(boardId, (event: BoardEvent) => {
     setRealtimeLog((prev) => [`[${event.type}] ${JSON.stringify(event.payload)}`, ...prev].slice(0, 5));
   });
 
@@ -66,7 +74,7 @@ export default function BoardPage() {
       {/* Board Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm z-10 w-full shrink-0">
         <div className="flex items-center space-x-4">
-          <h1 className="text-xl font-bold tracking-tight">Engineering Team Board</h1>
+          <h1 className="text-xl font-bold tracking-tight">{boardName}</h1>
           <div className="h-4 w-[1px] bg-border/80"></div>
           <button className="flex items-center text-sm px-2.5 py-1 rounded-md bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors">
             <span className="w-2 h-2 rounded-full bg-accent mr-2 animate-pulse"></span>
@@ -76,11 +84,25 @@ export default function BoardPage() {
         
         <div className="flex items-center space-x-2">
           <div className="flex -space-x-2 mr-4 hidden sm:flex">
-            <div className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-tr from-blue-500 to-purple-500"></div>
-            <div className="w-8 h-8 rounded-full border-2 border-background bg-gradient-to-tr from-orange-400 to-red-500"></div>
-            <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-medium text-muted-foreground">
-              +3
-            </div>
+            {members.slice(0, 4).map((m, i) => {
+               const initials = m.data?.displayName ? m.data.displayName.substring(0, 2).toUpperCase() : m.clientId.substring(0, 2).toUpperCase();
+               const gradients = ["from-blue-500 to-purple-500", "from-orange-400 to-red-500", "from-emerald-400 to-teal-500", "from-pink-500 to-rose-500"];
+               return (
+                 <div key={m.clientId} title={m.data?.displayName || m.clientId} className={`w-8 h-8 rounded-full border-2 border-background bg-gradient-to-tr ${gradients[i % gradients.length]} flex items-center justify-center text-[10px] font-bold text-white shadow-sm`}>
+                   {initials}
+                 </div>
+               );
+            })}
+            {members.length > 4 && (
+              <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shadow-sm">
+                +{members.length - 4}
+              </div>
+            )}
+            {members.length === 0 && (
+              <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shadow-sm animate-pulse" title="Connecting...">
+                ...
+              </div>
+            )}
           </div>
           
           <button 
