@@ -10,13 +10,13 @@ export type PresenceMember = {
   };
 };
 
-export function useBoardPresence(boardId: string | null | undefined, user: any) {
+export function useBoardPresence(boardId: string | null | undefined, user: any, accessToken: string | null | undefined) {
   const [members, setMembers] = useState<PresenceMember[]>([]);
 
   useEffect(() => {
-    if (!boardId || !user?.id) return;
+    if (!boardId || !user?.id || !accessToken) return;
 
-    const ably = getAblyClient();
+    const ably = getAblyClient(accessToken);
     const channel = ably.channels.get(`board:${boardId}`);
 
     const updateMembers = async () => {
@@ -37,17 +37,17 @@ export function useBoardPresence(boardId: string | null | undefined, user: any) 
     channel.presence.subscribe('leave', updateMembers);
     channel.presence.subscribe('update', updateMembers);
 
-    // Enter presence identifying by user.id
-    channel.presence.enterClient(user.id, {
+    // Enter presence — clientId comes from the Ably token (= user.id)
+    channel.presence.enter({
       displayName: user.displayName,
       email: user.email,
     }).then(updateMembers).catch(console.error);
 
     return () => {
-      channel.presence.leaveClient(user.id).catch(console.error);
+      channel.presence.leave().catch(console.error);
       channel.presence.unsubscribe();
     };
-  }, [boardId, user?.id]);
+  }, [boardId, user?.id, accessToken]);
 
   return members;
 }

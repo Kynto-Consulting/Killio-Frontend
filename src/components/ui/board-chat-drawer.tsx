@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { X, Send, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
+import { useSession } from "../providers/session-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -23,6 +24,7 @@ export function BoardChatDrawer({
   onClose: () => void;
   boardId?: string;
 }) {
+  const { accessToken } = useSession();
   const [messages, setMessages] = useState<Message[]>([
     { id: 0, role: "system", content: "Board Copilot connected. Ask me anything about this board." },
     {
@@ -43,7 +45,7 @@ export function BoardChatDrawer({
       content: `🔔 Realtime: ${event.type.replace(".", " ")} — ${JSON.stringify(event.payload)}`,
     };
     setMessages((prev) => [...prev, msg]);
-  });
+  }, accessToken);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });

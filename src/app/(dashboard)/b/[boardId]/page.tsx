@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2 } from "lucide-react";
-import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent } from "@dnd-kit/core";
+import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
@@ -21,7 +21,7 @@ export default function BoardPage() {
   const boardId = params.boardId as string;
   const { accessToken, user } = useSession();
   
-  const members = useBoardPresence(boardId, user);
+  const members = useBoardPresence(boardId, user, accessToken);
 
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState("Loading...");
@@ -87,19 +87,107 @@ export default function BoardPage() {
   // Subscribe to Ably realtime events for this board
   useBoardRealtime(boardId, (event: BoardEvent) => {
     setRealtimeLog((prev) => [`[${event.type}] ${JSON.stringify(event.payload)}`, ...prev].slice(0, 5));
-  });
+  }, accessToken);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  function handleDragOver(event: DragOverEvent) {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
+
+    if (activeId === overId) return;
+
+    const isActiveAList = lists.some(l => l.id === activeId);
+    if (isActiveAList) return;
+
+    const activeContainerId = lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
+    const overContainerId = lists.some(l => l.id === overId) 
+      ? overId 
+      : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
+
+    if (!activeContainerId || !overContainerId || activeContainerId === overContainerId) {
+      return;
+    }
+
+    setLists((prev) => {
+      const activeContainerIndex = prev.findIndex((l) => l.id === activeContainerId);
+      const overContainerIndex = prev.findIndex((l) => l.id === overContainerId);
+
+      const activeList = prev[activeContainerIndex];
+      const overList = prev[overContainerIndex];
+
+      const activeCardIndex = activeList.cards.findIndex((c: any) => c.id === activeId);
+      let overCardIndex = overList.cards.findIndex((c: any) => c.id === overId);
+      
+      const newActiveCards = [...activeList.cards];
+      const [movedCard] = newActiveCards.splice(activeCardIndex, 1);
+
+      const newOverCards = [...overList.cards];
+      
+      const isOverAList = overId === overContainerId;
+      if (isOverAList) {
+        newOverCards.push(movedCard);
+      } else {
+        const overIndex = overCardIndex >= 0 ? overCardIndex : newOverCards.length;
+        newOverCards.splice(overIndex, 0, movedCard);
+      }
+
+      const newLists = [...prev];
+      newLists[activeContainerIndex] = { ...activeList, cards: newActiveCards };
+      newLists[overContainerIndex] = { ...overList, cards: newOverCards };
+      return newLists;
+    });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over) return;
     
-    // Simple drag for lists (ignoring cross-list card dragging for the UI mockup)
-    // For a real app, cross-list logic is more complex in dnd-kit. This is a visual baseline.
+    const activeId = active.id.toString();
+    const overId = over.id.toString();
+
+    if (activeId === overId) return;
+
+    const isActiveAList = lists.some(l => l.id === activeId);
+    if (isActiveAList) {
+      const activeListIndex = lists.findIndex((l) => l.id === activeId);
+      const overListIndex = lists.findIndex((l) => l.id === overId);
+      
+      if (activeListIndex !== -1 && overListIndex !== -1) {
+         setLists(arrayMove(lists, activeListIndex, overListIndex));
+      }
+      return;
+    }
+
+    const activeContainerId = lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
+    const overContainerId = lists.some(l => l.id === overId) 
+      ? overId 
+      : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
+
+    if (!activeContainerId || !overContainerId) return;
+
+    if (activeContainerId === overContainerId) {
+       const containerIndex = lists.findIndex(l => l.id === activeContainerId);
+       const activeIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === activeId);
+       const overIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === overId);
+
+       if (activeIndex !== overIndex) {
+         setLists(prev => {
+            const newLists = [...prev];
+            newLists[containerIndex] = {
+               ...newLists[containerIndex],
+               cards: arrayMove(newLists[containerIndex].cards, activeIndex, overIndex)
+            };
+            return newLists;
+         });
+       }
+    }
   }
 
   const allAvailableTags = Array.from(new Set(
@@ -227,7 +315,7 @@ export default function BoardPage() {
       {/* Kanban Canvas */}
       <main className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="h-full p-6 inline-flex items-start space-x-4">
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragEnd={handleDragEnd}>
+          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
             <SortableContext items={filteredLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
               {filteredLists.map((list) => (
                 <ListColumn key={list.id} list={list} boardId={boardId} boardName={boardName} />

@@ -5,88 +5,7 @@ import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, Gri
 import { updateCard, addCardTag, removeCardTag, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers } from "../../lib/api/contracts";
 import type { BoardBrick } from "../../lib/api/contracts";
 import { useSession } from "../providers/session-provider";
-
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-} from '@dnd-kit/core';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-
-function SortableBrickItem({
-  block,
-  handleCreateBlock,
-  handleUpdateBlockContent,
-  handleBlockKeyDown,
-  handleDeleteBlock
-}: any) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging
-  } = useSortable({ id: block.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    zIndex: isDragging ? 10 : 1,
-    opacity: isDragging ? 0.8 : 1,
-  };
-
-  return (
-    <div ref={setNodeRef} style={style} className="group relative flex items-start -ml-8 pl-8">
-      {/* Block Drag Handle (Hover) */}
-      <div className="absolute left-0 top-1.5 opacity-0 group-hover:opacity-100 flex items-center space-x-1 transition-opacity text-muted-foreground bg-background rounded border border-border shadow-sm">
-        <button className="hover:bg-accent/10 rounded p-1" onClick={() => handleCreateBlock()}><Plus className="h-4 w-4" /></button>
-        <button className="hover:bg-accent/10 rounded p-1 cursor-grab" {...attributes} {...listeners}><GripVertical className="h-4 w-4" /></button>
-      </div>
-
-      {/* Block Content Render */}
-      <div className="flex-1 min-h-[1.5rem] py-1 outline-none text-foreground/90 leading-relaxed group-focus-within:bg-accent/5 rounded px-2 -mx-2 transition-colors">
-        {block.kind === "text" && (
-          <textarea
-            className="w-full bg-transparent border-none resize-none outline-none focus:ring-0 p-0 m-0 overflow-hidden break-words"
-            value={block.markdown}
-            onChange={(e) => {
-              e.target.style.height = 'auto';
-              e.target.style.height = `${e.target.scrollHeight}px`;
-              handleUpdateBlockContent(block.id, e.target.value);
-            }}
-            onKeyDown={(e) => handleBlockKeyDown(e, block.id, block.markdown)}
-            rows={1}
-          />
-        )}
-        {block.kind === "media" && block.mediaType === "image" && (
-          <div className="my-4 relative rounded-lg overflow-hidden border border-border group/img">
-            <img src={block.url || ""} alt={block.title || "Block image"} className="w-full h-auto object-cover" />
-            <div className="absolute top-2 right-2 opacity-0 group-hover/img:opacity-100 flex gap-2 transition-opacity">
-              <button 
-                className="bg-red-500/80 hover:bg-red-500 text-white backdrop-blur text-xs px-2 py-1 rounded border border-red-500/50"
-                onClick={() => handleDeleteBlock(block.id)}
-              >
-                Delete
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import { createPortal } from "react-dom";
 
 export function CardDetailModal({ 
   isOpen, 
@@ -112,8 +31,7 @@ export function CardDetailModal({
   const [localUrgency, setLocalUrgency] = useState(card?.urgency || "normal");
   const [localTags, setLocalTags] = useState<any[]>(card?.tags || []);
   const [localAssignees, setLocalAssignees] = useState<any[]>(card?.assignees || []);
-  const [blocks, setBlocks] = useState<BoardBrick[]>(card?.blocks || []);
-  
+
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
@@ -121,6 +39,41 @@ export function CardDetailModal({
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [boardMembers, setBoardMembers] = useState<any[]>([]);
+  const [isCreating, setIsCreating] = useState(false);
+
+  const [isEditingDescription, setIsEditingDescription] = useState(false);
+  const editorRef = useRef<HTMLDivElement>(null);
+
+  const handleSaveDescription = () => {
+    if (editorRef.current) {
+      const html = editorRef.current.innerHTML;
+      setLocalSummary(html);
+      handleUpdateField('summary', html);
+    }
+    setIsEditingDescription(false);
+  };
+
+  const handlePasteDescription = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    let hasImage = false;
+    for (const item of items) {
+      if (item.type.indexOf('image') === 0) {
+        hasImage = true;
+        const blob = item.getAsFile();
+        if (blob) {
+          const reader = new FileReader();
+          reader.onload = (event) => {
+            const img = `<img src="${event.target?.result}" class="my-4 max-w-full rounded-lg border border-border" />`;
+            document.execCommand('insertHTML', false, img);
+          };
+          reader.readAsDataURL(blob);
+        }
+      }
+    }
+    if (hasImage) {
+      e.preventDefault();
+    }
+  };
 
   useEffect(() => {
     if (isOpen && boardId && accessToken) {
@@ -130,9 +83,9 @@ export function CardDetailModal({
 
       getBoardMembers(boardId, accessToken).then((res) => {
         setBoardMembers(res.map((m: any) => ({
-          id: m.userId,
-          name: m.userEmail, // Mock initials/names for UI
-          initials: m.userEmail.substring(0, 2).toUpperCase()
+          id: m.id,
+          name: m.displayName || m.email,
+          initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
         })));
       }).catch(console.error);
     }
@@ -146,39 +99,8 @@ export function CardDetailModal({
       setLocalUrgency(card.urgency || "normal");
       setLocalTags(card.tags || []);
       setLocalAssignees(card.assignees || []);
-      
-      const sortedBlocks = (card.blocks || []).sort((a: any, b: any) => (a.position || 0) - (b.position || 0));
-      setBlocks(sortedBlocks);
     }
   }, [isOpen, card]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragEnd = async (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = blocks.findIndex((b) => b.id === active.id);
-      const newIndex = blocks.findIndex((b) => b.id === over.id);
-      
-      const newBlocks = arrayMove(blocks, oldIndex, newIndex);
-      setBlocks(newBlocks);
-
-      if (card?.id && accessToken) {
-        try {
-          const brickIds = newBlocks.map(b => b.id);
-          const mockClientId = `reorder-${Date.now()}`;
-          await reorderCardBricks(card.id, { clientId: mockClientId, brickIds }, accessToken);
-        } catch (err) {
-          console.error("Failed to reorder logic", err);
-        }
-      }
-    }
-  };
 
   const handleAddTag = async (tag: any) => {
     if (localTags.find(t => (t.id || t.name || t) === tag.id || (t.name || t) === tag.name)) return;
@@ -223,91 +145,22 @@ export function CardDetailModal({
     if (field === 'due_at') setLocalDueAt(value);
     if (field === 'urgency_state') setLocalUrgency(value);
 
-    if (!card?.id) return;
+    if (!card?.id || !accessToken) return;
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     
     debounceTimer.current = setTimeout(async () => {
       try {
-        await updateCard(card.id, { [field]: value }, accessToken);
+        await updateCard(card.id, { [field]: (value === null || value === "") ? undefined : value }, accessToken);
       } catch (err) {
         console.error("Failed to update card", err);
       }
     }, 500);
   }, [card?.id, accessToken]);
 
-  const updateBrickDebounceTimer = useRef<Record<string, NodeJS.Timeout>>({});
-
-  const handleCreateBlock = async () => {
-    const optimisticId = `temp-${Date.now()}`;
-    const newBrick: BoardBrick = { 
-      id: optimisticId, 
-      kind: 'text', 
-      displayStyle: 'paragraph', 
-      markdown: '', 
-      position: blocks.length, 
-      parentBlockId: null,
-      tasks: []
-    } as BoardBrick;
-    
-    setBlocks(prev => [...prev, newBrick]);
-
-    if (!card?.id || !accessToken) return;
-    
-    try {
-      const res = await createCardBrick(card.id, { kind: 'text', displayStyle: 'paragraph', markdown: '' }, accessToken);
-      setBlocks(prev => prev.map(b => b.id === optimisticId ? res.brick : b));
-    } catch (err) {
-      console.error("Failed to create block", err);
-      setBlocks(prev => prev.filter(b => b.id !== optimisticId));
-    }
-  };
-
-  const handleUpdateBlockContent = (brickId: string, newContent: string) => {
-    setBlocks(prev => prev.map(b => {
-      if (b.id === brickId && b.kind === 'text') {
-        return { ...b, markdown: newContent };
-      }
-      return b;
-    }));
-
-    if (!card?.id || !accessToken) return;
-
-    if (updateBrickDebounceTimer.current[brickId]) {
-      clearTimeout(updateBrickDebounceTimer.current[brickId]);
-    }
-
-    updateBrickDebounceTimer.current[brickId] = setTimeout(async () => {
-      try {
-        await updateCardBrick(card.id, brickId, { kind: 'text', displayStyle: 'paragraph', markdown: newContent }, accessToken);
-      } catch (err) {
-        console.error("Failed to update block", err);
-      }
-    }, 500);
-  };
-
-  const handleDeleteBlock = async (brickId: string) => {
-    setBlocks(prev => prev.filter(b => b.id !== brickId));
-    if (!card?.id || !accessToken || brickId.startsWith("temp-")) return;
-    try {
-      await deleteCardBrick(card.id, brickId, accessToken);
-    } catch (err) {
-      console.error("Failed to delete block", err);
-    }
-  };
-
-  const handleBlockKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>, brickId: string, content: string) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleCreateBlock();
-    } else if (e.key === 'Backspace' && content === '') {
-      e.preventDefault();
-      handleDeleteBlock(brickId);
-    }
-  };
-
   const submitCreate = async () => {
-    if (!listId || !accessToken) return;
+    if (!listId || !accessToken || isCreating) return;
+    setIsCreating(true);
     try {
       const newCard = await createCard({
         listId,
@@ -319,29 +172,20 @@ export function CardDetailModal({
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
 
-      // Save blocks sequentially
-      if (blocks.length > 0) {
-        for (let i = 0; i < blocks.length; i++) {
-          await createCardBrick(newCard.id, {
-            kind: blocks[i].kind as 'text'|'media', 
-            displayStyle: blocks[i].displayStyle as any, 
-            markdown: blocks[i].markdown 
-          } as any, accessToken);
-        }
-      }
-
       onClose(); // Then it can refresh or reload implicitly.
       window.location.reload();
     } catch (err) {
       console.error("Failed to create card", err);
+    } finally {
+      setIsCreating(false);
     }
   };
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-      <div className="relative w-full max-w-5xl rounded-xl border border-border bg-background shadow-2xl flex flex-col max-h-[95vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+  const content = (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-hidden">
+      <div className="relative w-full max-w-5xl rounded-2xl border border-border/80 bg-background shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
@@ -356,9 +200,10 @@ export function CardDetailModal({
             {!card?.id && (
               <button
                 onClick={submitCreate}
-                className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 rounded text-sm font-medium transition-colors"
+                disabled={isCreating}
+                className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                Create
+                {isCreating ? "Creating..." : "Create"}
               </button>
             )}
             <button
@@ -457,13 +302,40 @@ export function CardDetailModal({
                   </div>
                 </div>
 
+                <div className="mt-8 flex justify-between items-center">
+                  <h3 className="font-semibold text-lg text-foreground">Description</h3>
+                  {!isEditingDescription && (
+                    <button 
+                      onClick={() => setIsEditingDescription(true)}
+                      className="px-3 py-1.5 text-sm bg-accent/20 hover:bg-accent/40 text-foreground font-medium rounded-md transition-colors border border-border"
+                    >
+                      Edit
+                    </button>
+                  )}
+                  {isEditingDescription && (
+                    <button 
+                      onClick={handleSaveDescription}
+                      className="px-3 py-1.5 text-sm bg-primary text-primary-foreground font-medium rounded-md transition-colors hover:bg-primary/90"
+                    >
+                      Save
+                    </button>
+                  )}
+                </div>
                 <div className="mt-4">
-                  <textarea 
-                    value={localSummary}
-                    onChange={(e) => handleUpdateField('summary', e.target.value)}
-                    placeholder="Add a description..."
-                    className="w-full bg-transparent border-none resize-none outline-none focus:ring-1 focus:ring-accent rounded p-2 text-foreground/80 placeholder:text-muted-foreground min-h-[60px]"
-                  />
+                  {isEditingDescription ? (
+                    <div 
+                      ref={editorRef}
+                      contentEditable 
+                      onPaste={handlePasteDescription}
+                      className="w-full min-h-[150px] p-4 bg-background border border-accent rounded-lg outline-none focus:ring-2 focus:ring-primary/20 text-foreground text-base leading-relaxed break-words whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{ __html: localSummary || '' }}
+                    />
+                  ) : (
+                    <div 
+                      className="w-full min-h-[100px] p-4 bg-background/50 border border-transparent rounded-lg text-foreground/90 text-base leading-relaxed break-words whitespace-pre-wrap"
+                      dangerouslySetInnerHTML={{ __html: localSummary || '<p class="text-muted-foreground italic">Add a deeper description...</p>' }}
+                    />
+                  )}
                 </div>
 
                 {/* Tags Area */}
@@ -515,42 +387,6 @@ export function CardDetailModal({
                         </div>
                       </div>
                     )}
-                  </div>
-                </div>
-              </div>
-
-              {/* Notion Bricks / Blocks DnD Context */}
-              <div className="mt-8 space-y-2 pb-12">
-                <DndContext 
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={handleDragEnd}
-                >
-                  <SortableContext 
-                    items={blocks.map(b => b.id)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {blocks.map((block) => (
-                      <SortableBrickItem 
-                        key={block.id} 
-                        block={block} 
-                        handleCreateBlock={handleCreateBlock}
-                        handleUpdateBlockContent={handleUpdateBlockContent}
-                        handleBlockKeyDown={handleBlockKeyDown}
-                        handleDeleteBlock={handleDeleteBlock}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-
-                {/* Empty placeholder for new block */}
-                <div 
-                  className="group relative flex items-center -ml-8 pl-8 mt-2 opacity-50 text-muted-foreground hover:opacity-100 transition-opacity cursor-text"
-                  onClick={() => handleCreateBlock()}
-                >
-                  <div className="absolute left-2 top-1.5 opacity-0 group-hover:opacity-100"><Plus className="h-4 w-4" /></div>
-                  <div className="flex-1 py-1 px-2 -mx-2 text-sm italic">
-                    Type '/' for commands or click to start typing...
                   </div>
                 </div>
               </div>
@@ -624,13 +460,10 @@ export function CardDetailModal({
           </div>
           
         </div>
-
-        {/* Action Sidebar / Footer for Mobile - simplified since we integrated into tabs/header */}
-        {/* <div className="border-t border-border bg-card/30 p-2 flex items-center justify-between sm:hidden overflow-x-auto shrink-0 hide-scrollbar">
-          ...
-        </div> */}
         
       </div>
     </div>
   );
+
+  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
 }

@@ -18,14 +18,15 @@ export type BoardEvent = {
 export function useBoardRealtime(
   boardId: string | null | undefined,
   onEvent: (event: BoardEvent) => void,
+  accessToken: string | null | undefined,
 ) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
   useEffect(() => {
-    if (!boardId) return;
+    if (!boardId || !accessToken) return;
 
-    const ably = getAblyClient();
+    const ably = getAblyClient(accessToken);
     const channel = ably.channels.get(`board:${boardId}`);
 
     const eventsToSubscribe: BoardEvent['type'][] = [
@@ -46,7 +47,8 @@ export function useBoardRealtime(
 
     return () => {
       channel.unsubscribe();
-      channel.detach();
+      // Don't detach — the singleton Ably client reuses the channel
+      // and detach() leaves it in a terminal state that blocks reattachment.
     };
-  }, [boardId]);
+  }, [boardId, accessToken]);
 }

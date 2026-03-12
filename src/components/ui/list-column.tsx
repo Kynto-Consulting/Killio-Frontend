@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSortable } from "@dnd-kit/sortable";
+import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { Plus, MoreHorizontal } from "lucide-react";
 import { KanbanCard } from "./kanban-card";
@@ -67,9 +67,11 @@ export function ListColumn({ list, boardName, boardId }: { list: ListData, board
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
-        {list.cards.map((card) => (
-           <KanbanCard key={card.id} card={card} listName={list.title} boardName={boardName || ""} boardId={boardId} />
-        ))}
+        <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          {list.cards.map((card) => (
+            <KanbanCard key={card.id} card={card} listName={list.title} boardName={boardName || ""} boardId={boardId} />
+          ))}
+        </SortableContext>
         
         <button 
           onClick={() => setIsModalOpen(true)}
