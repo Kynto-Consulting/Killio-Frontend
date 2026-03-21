@@ -1,23 +1,25 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MoreHorizontal, Filter, Share, Maximize2 } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2 } from "lucide-react";
 import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { ShareModal } from "@/components/ui/share-modal";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { MessageSquare } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { useSession } from "@/components/providers/session-provider";
-import { useParams } from "next/navigation";
-import { getBoard, createList } from "@/lib/api/contracts";
+import { useParams, useRouter } from "next/navigation";
+import { getBoard, createList, deleteBoard } from "@/lib/api/contracts";
 import { useEffect } from "react";
 
 
 export default function BoardPage() {
   const params = useParams();
+  const router = useRouter();
   const boardId = params.boardId as string;
   const { accessToken, user } = useSession();
   
@@ -29,6 +31,21 @@ export default function BoardPage() {
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+
+  const handleDeleteBoard = async () => {
+    if (!accessToken) return;
+    setIsDeleting(true);
+    try {
+      await deleteBoard(boardId, accessToken);
+      router.push("/");
+    } catch (e) {
+      console.error(e);
+      alert("Failed to delete board");
+      setIsDeleting(false);
+    }
+  };
 
   const handleAddList = async () => {
     if (!newListName.trim() || !accessToken) return;
@@ -64,7 +81,7 @@ export default function BoardPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
-  useEffect(() => {
+  const loadBoard = () => {
     if (!accessToken || !boardId) return;
 
     getBoard(boardId, accessToken)
@@ -82,11 +99,24 @@ export default function BoardPage() {
         console.error("Failed to fetch board", err);
         setBoardName("Error loading board");
       });
+  };
+
+  useEffect(() => {
+    loadBoard();
+    
+    const unlisten = () => {};
+    const handleRefresh = () => loadBoard();
+    window.addEventListener('board:refresh', handleRefresh);
+
+    return () => {
+      window.removeEventListener('board:refresh', handleRefresh);
+    };
   }, [accessToken, boardId]);
 
   // Subscribe to Ably realtime events for this board
   useBoardRealtime(boardId, (event: BoardEvent) => {
     setRealtimeLog((prev) => [`[${event.type}] ${JSON.stringify(event.payload)}`, ...prev].slice(0, 5));
+    loadBoard();
   }, accessToken);
 
   const sensors = useSensors(
@@ -306,8 +336,13 @@ export default function BoardPage() {
             <Share className="h-4 w-4 mr-2" />
             Share
           </button>
-          <button className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent/10 hover:text-foreground text-muted-foreground">
-            <MoreHorizontal className="h-4 w-4" />
+          <button 
+            title="Delete Board"
+            disabled={isDeleting}
+            onClick={() => setIsDeleteModalOpen(true)}
+            className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground"
+          >
+            <Trash2 className="h-4 w-4" />
           </button>
         </div>
       </header>
@@ -380,6 +415,14 @@ export default function BoardPage() {
         boardName={boardName} 
         initialVisibility={boardVisibility} 
         accessToken={accessToken!} 
+      />
+
+      <ConfirmDeleteModal 
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+        onConfirm={handleDeleteBoard}
+        title="Delete Board"
+        description="Are you sure you want to delete this board? This action cannot be undone."
       />
     </div>
   );

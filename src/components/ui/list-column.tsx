@@ -86,7 +86,6 @@ export function ListColumn({ list, boardName, boardId }: { list: ListData, board
     <CardDetailModal
       isOpen={isModalOpen}
       onClose={() => setIsModalOpen(false)}
-      card={{ title: "" }}
       listId={list.id}
       listName={list.title}
       boardName={boardName || ""}

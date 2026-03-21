@@ -2,12 +2,13 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Clock, Layout, Users, Sparkles, Loader2 } from "lucide-react";
+import { Plus, Clock, Layout, Users, Sparkles, Loader2, Trash2 } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal } from "@/components/ui/create-board-modal";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { useSession } from "@/components/providers/session-provider";
 import { useEffect } from "react";
-import { listTeamBoards, BoardSummary, createBoard } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, createBoard, deleteBoard } from "@/lib/api/contracts";
 
 export default function WorkspacesPage() {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function WorkspacesPage() {
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
+  const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -43,8 +45,28 @@ export default function WorkspacesPage() {
     setBoards([...boards, newBoard]);
   };
 
+  const handleDeleteBoard = async () => {
+    if (!accessToken || !boardToDelete) return;
+
+    try {
+      await deleteBoard(boardToDelete.id, accessToken);
+      setBoards(boards.filter(b => b.id !== boardToDelete.id));
+      setBoardToDelete(null);
+    } catch (error) {
+      console.error("Failed to delete board", error);
+      alert("Failed to delete board");
+    }
+  };
+
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
+      <ConfirmDeleteModal 
+        isOpen={!!boardToDelete}
+        onClose={() => setBoardToDelete(null)}
+        onConfirm={handleDeleteBoard}
+        title="Delete Board"
+        description={`Are you sure you want to delete the board "${boardToDelete?.name}"? This action cannot be undone.`}
+      />
       <CreateBoardModal 
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
@@ -92,7 +114,20 @@ export default function WorkspacesPage() {
                <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>
             </div>
             <div className="p-5 flex flex-col flex-1">
-              <h3 className="text-xl font-semibold mb-2 group-hover:text-accent transition-colors">{board.name}</h3>
+              <div className="flex items-start justify-between">
+                <h3 className="text-xl font-semibold mb-2 group-hover:text-accent transition-colors">{board.name}</h3>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setBoardToDelete({ id: board.id, name: board.name });
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-2 text-muted-foreground hover:bg-destructive/10 hover:text-destructive rounded transition-all focus:opacity-100"
+                  aria-label="Delete board"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
               
               <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
                 <div className="flex items-center">

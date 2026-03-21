@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, AlertCircle, Tag as TagIcon, Users, UserPlus } from "lucide-react";
-import { updateCard, addCardTag, removeCardTag, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment } from "../../lib/api/contracts";
 import type { BoardBrick } from "../../lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
 
 export function CardDetailModal({ 
   isOpen, 
@@ -36,6 +37,9 @@ export function CardDetailModal({
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
+  const [activities, setActivities] = useState<any[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const router = useRouter();
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [boardMembers, setBoardMembers] = useState<any[]>([]);
@@ -44,13 +48,29 @@ export function CardDetailModal({
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
 
-  const handleSaveDescription = () => {
+  const handleSaveDescription = async (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     if (editorRef.current) {
       const html = editorRef.current.innerHTML;
       setLocalSummary(html);
-      handleUpdateField('summary', html);
+      setIsEditingDescription(false);
+      
+      if (card?.id && accessToken) {
+        try {
+          await updateCard(card.id, { summary: html === "" ? null : html }, accessToken);
+          router.refresh();
+      window.dispatchEvent(new Event('board:refresh'));
+
+        } catch (err) {
+          console.error("Failed to update summary", err);
+        }
+      }
+    } else {
+      setIsEditingDescription(false);
     }
-    setIsEditingDescription(false);
   };
 
   const handlePasteDescription = (e: React.ClipboardEvent) => {
@@ -88,17 +108,31 @@ export function CardDetailModal({
           initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
         })));
       }).catch(console.error);
+      
+      if (card?.id) {
+        getCardActivity(card.id, accessToken).then(setActivities).catch(console.error);
+      }
     }
   }, [isOpen, boardId, accessToken]);
 
   useEffect(() => {
-    if (isOpen && card) {
-      setLocalTitle(card.title || "");
-      setLocalSummary(card.summary || "");
-      setLocalDueAt(card.dueAt || "");
-      setLocalUrgency(card.urgency || "normal");
-      setLocalTags(card.tags || []);
-      setLocalAssignees(card.assignees || []);
+    if (isOpen) {
+      if (card) {
+        setLocalTitle(card.title || "");
+        setLocalSummary(card.summary || "");
+        setLocalDueAt(card.dueAt || "");
+        setLocalUrgency(card.urgency || "normal");
+        setLocalTags(card.tags || []);
+        setLocalAssignees(card.assignees || []);
+      } else {
+        setLocalTitle("New Card");
+        setLocalSummary("");
+        setLocalDueAt("");
+        setLocalUrgency("normal");
+        setLocalTags([]);
+        setLocalAssignees([]);
+      }
+      setIsEditingDescription(!card?.id);
     }
   }, [isOpen, card]);
 
@@ -137,9 +171,23 @@ export function CardDetailModal({
     }
   };
 
+  const handleAddComment = async () => {
+    if (!newComment.trim() || !card?.id || !accessToken) return;
+    try {
+      await addCardComment(card.id, newComment.trim(), accessToken);
+      setNewComment("");
+      const logs = await getCardActivity(card.id, accessToken);
+      setActivities(logs);
+      router.refresh();
+      window.dispatchEvent(new Event('board:refresh'));
+    } catch (err) {
+      console.error("Failed to add comment", err);
+    }
+  };
+
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
-  const handleUpdateField = useCallback((field: string, value: any) => {
+const handleUpdateField = useCallback((field: string, value: any, instant: boolean = true) => {
     if (field === 'title') setLocalTitle(value);
     if (field === 'summary') setLocalSummary(value);
     if (field === 'due_at') setLocalDueAt(value);
@@ -148,24 +196,38 @@ export function CardDetailModal({
     if (!card?.id || !accessToken) return;
 
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
-    
-    debounceTimer.current = setTimeout(async () => {
+
+    const doUpdate = async () => {
       try {
-        await updateCard(card.id, { [field]: (value === null || value === "") ? undefined : value }, accessToken);
+        await updateCard(card.id, { [field]: (value === null || value === "") ? null : value }, accessToken);
+        router.refresh();
+      window.dispatchEvent(new Event('board:refresh'));
       } catch (err) {
         console.error("Failed to update card", err);
       }
-    }, 500);
+    };
+
+    if (instant) {
+      doUpdate();
+    } else {
+      debounceTimer.current = setTimeout(doUpdate, 500);
+    }
   }, [card?.id, accessToken]);
 
   const submitCreate = async () => {
     if (!listId || !accessToken || isCreating) return;
     setIsCreating(true);
+
+    let finalSummary = localSummary;
+    if (isEditingDescription && editorRef.current) {
+      finalSummary = editorRef.current.innerHTML;
+    }
+
     try {
       const newCard = await createCard({
         listId,
         title: localTitle || "New Card",
-        summary: localSummary,
+        summary: finalSummary,
         dueAt: localDueAt || undefined,
         urgency: localUrgency,
         tags: localTags.map(t => t.id),
@@ -181,10 +243,29 @@ export function CardDetailModal({
     }
   };
 
+  const handleClose = async () => {
+    if (isEditingDescription && editorRef.current && card?.id && accessToken) {
+      const html = editorRef.current.innerHTML;
+      try {
+        await updateCard(card.id, { summary: html === "" ? null : html }, accessToken);
+      } catch (err) {
+        console.error("Failed to update card summary on close", err);
+      }
+    }
+    router.refresh();
+      window.dispatchEvent(new Event('board:refresh'));
+    setTimeout(() => onClose(), 50);
+  };
+
   if (!isOpen) return null;
 
   const content = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-hidden">
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-hidden"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) handleClose();
+      }}
+    >
       <div className="relative w-full max-w-5xl rounded-2xl border border-border/80 bg-background shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -207,7 +288,7 @@ export function CardDetailModal({
               </button>
             )}
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="rounded-full p-1.5 hover:bg-accent/10 hover:text-foreground transition-colors text-muted-foreground"
             >
               <X className="h-5 w-5" />
@@ -339,53 +420,85 @@ export function CardDetailModal({
                 </div>
 
                 {/* Tags Area */}
-                <div className="flex items-center flex-wrap gap-2 mt-2 text-sm text-muted-foreground">
+                <div className="flex flex-wrap items-center gap-1.5 mt-6 border-t border-border pt-4">
+                  <div className="w-full text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <TagIcon className="h-3 w-3" /> Tags
+                  </div>
                   {localTags.map((tag: any) => (
-                    <span key={tag.id || tag.name || tag} className="bg-primary/10 text-foreground/80 px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase flex items-center space-x-1 group">
+                    <span 
+                      key={tag.id || tag.name || tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-secondary text-secondary-foreground border border-border/50 group transition-colors hover:bg-secondary/80"
+                    >
                       <span>{tag.name || tag}</span>
-                      <button 
-                        onClick={() => handleRemoveTag(tag)}
-                        className="opacity-0 group-hover:opacity-100 hover:text-red-500 transition-opacity"
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleRemoveTag(tag); }}
+                        className="ml-1.5 opacity-40 group-hover:opacity-100 hover:text-destructive transition-all"
+                        title="Remove tag"
                       >
                         <X className="h-3 w-3" />
                       </button>
                     </span>
                   ))}
-                  
+
                   <div className="relative">
-                    <button 
-                      onClick={() => setIsTagDropdownOpen(prev => !prev)}
-                      className="flex items-center space-x-1 border border-dashed border-border px-2 py-0.5 rounded text-[10px] uppercase font-semibold text-muted-foreground hover:bg-accent/5 hover:text-foreground transition-colors"
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setIsTagDropdownOpen(prev => !prev); }}
+                      className="inline-flex items-center justify-center h-6 w-6 rounded-md border border-dashed border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground transition-all hover:bg-secondary/50"
+                      title="Add Tag"
                     >
-                      <Plus className="h-3 w-3" />
-                      <span>Add Tag</span>
+                      <Plus className="h-3.5 w-3.5" />
                     </button>
-                    
+
                     {isTagDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 w-48 bg-card border border-border rounded-md shadow-lg z-10 overflow-hidden">
-                        <div className="p-2 border-b border-border">
-                          <input
-                            type="text"
-                            placeholder="Search tags..."
-                            value={tagSearch}
-                            onChange={e => setTagSearch(e.target.value)}
-                            className="w-full bg-transparent border border-border rounded px-2 py-1 text-xs outline-none focus:border-accent text-foreground"
-                            autoFocus
-                          />
+                      <>
+                        <div 
+                          className="fixed inset-0 z-40" 
+                          onClick={() => setIsTagDropdownOpen(false)}
+                        />
+                        <div className="absolute top-full left-0 mt-2 w-56 bg-popover text-popover-foreground border border-border rounded-lg shadow-xl z-50 overflow-hidden animate-in fade-in-0 zoom-in-95 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95">
+                          <div className="p-2 border-b border-border/50 bg-muted/20">
+                            <div className="relative flex items-center">
+                              <input
+                                type="text"
+                                placeholder="Search or create tag..."
+                                value={tagSearch}
+                                onChange={e => setTagSearch(e.target.value)}
+                                className="w-full bg-background border border-input rounded-md px-3 py-1.5 text-xs outline-none focus-visible:ring-1 focus-visible:ring-ring transition-all placeholder:text-muted-foreground"
+                                autoFocus
+                              />
+                            </div>
+                          </div>
+                          <div className="max-h-[200px] overflow-y-auto p-1.5 scrollbar-thin scrollbar-thumb-border">
+                            {availableTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase())).length === 0 ? (
+                              <div className="px-2 py-3 text-center text-xs text-muted-foreground">
+                                No tags found.
+                              </div>
+                            ) : (
+                              availableTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => {
+                                const isSelected = localTags.some((t: any) => (t.id || t) === tag.id || (t.name || t) === tag.name);
+                                return (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => {
+                                      if (!isSelected) handleAddTag(tag);
+                                      else handleRemoveTag(tag);
+                                    }}
+                                    className={`w-full text-left px-2.5 py-1.5 text-xs rounded-md flex items-center justify-between transition-colors mb-0.5 ${
+                                      isSelected ? 'bg-primary/10 text-primary font-medium' : 'hover:bg-accent hover:text-accent-foreground text-foreground/90'
+                                    }`}
+                                  >
+                                    <div className="flex items-center space-x-2">
+                                      <div className={`w-2 h-2 rounded-full ${isSelected ? 'bg-primary' : 'bg-muted-foreground/30'}`} />
+                                      <span>{tag.name}</span>
+                                    </div>
+                                    {isSelected && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>}
+                                  </button>
+                                );
+                              })
+                            )}
+                          </div>
                         </div>
-                        <div className="max-h-40 overflow-y-auto p-1">
-                            {availableTags.filter(t => t.name.toLowerCase().includes(tagSearch.toLowerCase())).map(tag => (
-                            <button
-                              key={tag.id}
-                              onClick={() => handleAddTag(tag)}
-                              className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/10 rounded flex items-center space-x-2 text-foreground/90"
-                            >
-                              <TagIcon className="h-3 w-3 text-muted-foreground" />
-                              <span>{tag.name}</span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      </>
                     )}
                   </div>
                 </div>
@@ -416,30 +529,45 @@ export function CardDetailModal({
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {activeTab === 'comments' ? (
                 <>
-                  <div className="text-sm text-muted-foreground text-center mt-10 p-4 border border-dashed border-border rounded-lg bg-background/50">
-                    No comments yet. Start a discussion!
-                  </div>
-                  {/* Example placeholder comment bubble */}
-                  {/* <div className="flex space-x-3 mt-4">
-                    <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center font-bold text-xs shrink-0">JD</div>
-                    <div className="bg-background border border-border p-3 rounded-lg rounded-tl-none text-sm space-y-1 w-full">
-                      <div className="font-semibold text-xs">Jane Doe <span className="text-muted-foreground font-normal ml-2">2h ago</span></div>
-                      <p>We need to refactor the database schema before landing this.</p>
+                  {activities.filter(a => a.action === 'card.commented').length === 0 && (
+                    <div className="text-sm text-muted-foreground text-center mt-10 p-4 border border-dashed border-border rounded-lg bg-background/50">
+                      No comments yet. Start a discussion!
                     </div>
-                  </div> */}
+                  )}
+                  {activities.filter(a => a.action === 'card.commented').map(log => {
+                    const author = boardMembers.find(m => m.id === log.actorId);
+                    return (
+                      <div key={log.id} className="flex space-x-3 mt-4 animate-in fade-in zoom-in-95 duration-200">
+                        <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center font-bold text-xs shrink-0 text-accent-foreground">
+                          {author?.initials || '??'}
+                        </div>
+                        <div className="bg-background border border-border p-3 rounded-lg rounded-tl-none text-sm space-y-1 w-full">
+                          <div className="font-semibold text-xs flex justify-between">
+                            <span>{author?.name || log.actorId}</span>
+                            <span className="text-muted-foreground font-normal ml-2">{new Date(log.createdAt).toLocaleDateString()}</span>
+                          </div>
+                          <p className="text-foreground/90 whitespace-pre-wrap mt-1">{log.payload?.text}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </>
               ) : (
                 <div className="space-y-4 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                  <div className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                    <div className="flex items-center justify-center w-4 h-4 rounded-full border border-primary bg-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow ml-3 md:ml-0"></div>
-                    <div className="w-[calc(100%-3rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg border border-border bg-background shadow-sm">
-                      <div className="flex items-center justify-between space-x-2 mb-1">
-                        <div className="font-bold text-xs">System</div>
-                        <time className="text-xs text-muted-foreground">Today</time>
+                  {activities.map(log => {
+                    const author = boardMembers.find(m => m.id === log.actorId);
+                    return (
+                    <div key={log.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active mt-4">
+                      <div className="flex items-center justify-center w-4 h-4 rounded-full border border-primary bg-background shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow ml-3 md:ml-0 z-10"></div>
+                      <div className="w-[calc(100%-3rem)] md:w-[calc(50%-1.5rem)] p-3 rounded-lg border border-border bg-background shadow-sm z-10">
+                        <div className="flex items-center justify-between space-x-2 mb-1">
+                          <div className="font-bold text-xs">{author?.name || log.actorId}</div>
+                          <time className="text-xs text-muted-foreground">{new Date(log.createdAt).toLocaleDateString()}</time>
+                        </div>
+                        <div className="text-xs text-muted-foreground break-words">{log.action === 'card.commented' ? 'Commented' : log.action}</div>
                       </div>
-                      <div className="text-xs text-muted-foreground">Card created.</div>
                     </div>
-                  </div>
+                  )})}
                 </div>
               )}
             </div>
@@ -447,12 +575,24 @@ export function CardDetailModal({
             {/* Input area for comments */}
             <div className="p-4 border-t border-border bg-background/50 shrink-0">
               <div className="relative">
-                <textarea 
-                  placeholder={activeTab === 'comments' ? "Write a comment..." : "Take a note..."}
+                <textarea
+                  placeholder={activeTab === 'comments' ? "Write a comment..." : "Notes available in comments tab..."}
                   className="w-full bg-background border border-border rounded-lg px-3 py-2 pr-10 text-sm outline-none focus:border-primary resize-none placeholder:text-muted-foreground"
                   rows={2}
+                  disabled={activeTab !== 'comments'}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handleAddComment();
+                    }
+                  }}
                 />
-                <button className="absolute right-2 bottom-2 p-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90">
+                <button 
+                  onClick={handleAddComment} 
+                  disabled={activeTab !== 'comments' || !newComment.trim()} 
+                  className="absolute right-2 bottom-2 p-1.5 bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed">
                   <CornerDownRight className="w-3 h-3" />
                 </button>
               </div>

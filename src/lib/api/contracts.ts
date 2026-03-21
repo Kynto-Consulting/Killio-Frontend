@@ -148,10 +148,12 @@ export type TagView = {
 export type CardView = {
   id: string;
   title: string;
+  summary: string | null;
   dueAt: string | null;
   urgency: 'normal' | 'urgent';
   blocks: BoardBrick[];
   tags?: TagView[];
+  assignees?: any[];
 };
 
 export type ListView = {
@@ -399,6 +401,13 @@ export async function createBoard(payload: CreateBoardPayload, teamId: string, a
   });
 }
 
+export async function deleteBoard(boardId: string, accessToken: string): Promise<void> {
+  return request<void>(`/boards/${boardId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export async function createList(
   boardId: string,
   payload: { name: string; position?: number },
@@ -508,6 +517,21 @@ export async function deleteCardBrick(cardId: string, brickId: string, accessTok
   return request<DeleteCardBrickResult>(`/cards/${cardId}/bricks/${brickId}`, {
     method: 'DELETE',
     headers: authHeaders(accessToken),
+  });
+}
+
+export async function getCardActivity(cardId: string, accessToken: string): Promise<any[]> {
+  return request<any[]>(`/activity/card/${cardId}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function addCardComment(cardId: string, text: string, accessToken: string): Promise<void> {
+  return request<void>(`/cards/${cardId}/comments`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ text }),
   });
 }
 
