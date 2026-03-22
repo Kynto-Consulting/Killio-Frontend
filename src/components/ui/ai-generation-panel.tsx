@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, UploadCloud, FileText, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, Check, ChevronDown, List as ListIcon, Layout, ExternalLink } from "lucide-react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
@@ -9,15 +9,43 @@ import { CardDetailModal } from "./card-detail-modal";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 interface GeneratedCard {
+  id: string;
   title: string;
   description: string;
   suggestedBoard?: string;
   suggestedList?: string;
-  // added local state
-  selectedBoardId?: string;
-  selectedListId?: string;
+  isSelected: boolean;
+  customBoardId?: string;
+  customListId?: string;
   availableLists?: ListView[];
 }
+
+interface ToastMessage {
+  id: string;
+  variant: "success" | "error" | "info";
+  text: string;
+}
+
+type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "text";
+
+const inferSourceKind = (file: File): ExtractSourceKind => {
+  const fileType = (file.type || "").toLowerCase();
+  const fileName = (file.name || "").toLowerCase();
+
+  if (fileType === "application/pdf" || fileName.endsWith(".pdf")) return "pdf";
+  if (fileType.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac|webm)$/.test(fileName)) return "audio";
+  if (fileType.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif|bmp|tiff)$/.test(fileName)) return "image";
+  if (
+    fileType.includes("spreadsheet") ||
+    fileType.includes("excel") ||
+    fileName.endsWith(".xls") ||
+    fileName.endsWith(".xlsx") ||
+    fileName.endsWith(".csv")
+  ) {
+    return "excel";
+  }
+  return "text";
+};
 
 export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { accessToken, activeTeamId } = useSession();
@@ -37,8 +65,17 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [defaultLists, setDefaultLists] = useState<ListView[]>([]);
   const [defaultListId, setDefaultListId] = useState<string>("");
 
+  // Draft review modal state
+  const [editingDraftId, setEditingDraftId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [editingDescription, setEditingDescription] = useState("");
+
+  // Dispatch state
+  const [isDispatchingSelected, setIsDispatchingSelected] = useState(false);
+
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
   // Target Card Modal states
-  const [creatingCardIndex, setCreatingCardIndex] = useState<number | null>(null);
   const [activeCardDetails, setActiveCardDetails] = useState<{
     card: any;
     listId: string;
@@ -46,6 +83,14 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     boardId: string;
     boardName: string;
   } | null>(null);
+  const [createdCardsQueue, setCreatedCardsQueue] = useState<Array<{
+    card: any;
+    listId: string;
+    listName: string;
+    boardId: string;
+    boardName: string;
+  }>>([]);
+  const [createdCardsQueueIndex, setCreatedCardsQueueIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (isOpen && accessToken && activeTeamId) {
@@ -116,17 +161,19 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       if (selectedFile) {
           const fileType = selectedFile.type;
           const fileName = selectedFile.name.toLowerCase();
+          const sourceKind = inferSourceKind(selectedFile);
           
           // Read plain text formats directly in the browser
           if (fileType.includes("text") || fileType.includes("json") || fileType.includes("csv") || fileName.endsWith(".md") || fileName.endsWith(".txt") || fileName.endsWith(".csv")) {
               extractedText = await selectedFile.text();
           } 
-          // Parse PDF via Backend API
-          else if (fileType === "application/pdf" || fileName.endsWith(".pdf")) {
+          // Parse binary / complex formats via Backend API
+          else {
               const formData = new FormData();
               formData.append("file", selectedFile);
+            formData.append("sourceKind", sourceKind);
               
-              const pdfRes = await fetch(`${API}/ai/extract-pdf`, {
+            const extractRes = await fetch(`${API}/ai/extract`, {
                  method: "POST",
                  headers: {
                     "Authorization": `Bearer ${accessToken}`
@@ -134,17 +181,22 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                  body: formData
               });
               
-              if (pdfRes.ok) {
-                 const pdfData = await pdfRes.json();
-                 extractedText = pdfData.text || "";
+            if (extractRes.ok) {
+             const extractData: { text?: string; warnings?: string[] } = await extractRes.json();
+             extractedText = extractData.text || "";
+
+             if (Array.isArray(extractData.warnings) && extractData.warnings.length > 0) {
+               pushToast("info", extractData.warnings[0]);
+             }
+
+             if (!extractedText.trim()) {
+               extractedText = `(No se pudo extraer texto util del archivo ${selectedFile.name}. Usa el campo de contexto para guiar a la IA.)`;
+             }
               } else {
-                 console.error("PDF extraction failed");
-                 extractedText = `(No se pudo extraer el texto del PDF ${selectedFile.name})`;
+             console.error("File extraction failed");
+             pushToast("error", "No se pudo extraer el archivo. Se intentara continuar con el contexto manual.");
+             extractedText = `(No se pudo extraer el contenido de ${selectedFile.name})`;
               }
-          } 
-          // Unsupported formats
-          else {
-              extractedText = `(Archivo binario subido: ${selectedFile.name}. No se puede extraer el contenido en este formato de momento. Extrae lo que puedas basado en el contexto y título.)`;
           }
       }
 
@@ -172,22 +224,28 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         body: JSON.stringify({ scopeId: "personal", rawContent: finalContent }),
       });
       
-      const cards: GeneratedCard[] = await res.json();
+        const cards: Array<Omit<GeneratedCard, "id" | "isSelected"> & Partial<Pick<GeneratedCard, "id" | "isSelected">>> = await res.json();
       
-      // Initialize local state for each card to use the default board/list
-      const enrichedCards = (Array.isArray(cards) ? cards : []).map(c => ({
+        const enrichedCards = (Array.isArray(cards) ? cards : []).map((c, index) => ({
           ...c,
-          selectedBoardId: defaultBoardId,
-          selectedListId: defaultListId,
-          availableLists: defaultLists
+          id: c.id || `draft-${Date.now()}-${index}`,
+          isSelected: true,
+          customBoardId: undefined,
+          customListId: undefined,
+          availableLists: defaultLists,
       }));
 
       setPreviewCards(enrichedCards);
       setGenerationProgress(100);
     } catch {
       setPreviewCards([{ 
+          id: `draft-error-${Date.now()}`,
           title: "Error connecting to AI", 
           description: "No se pudo conectar con el servicio de Inteligencia Artificial. Revisa tu configuración.", 
+          isSelected: false,
+          customBoardId: undefined,
+          customListId: undefined,
+          availableLists: defaultLists,
       }]);
     } finally {
       clearInterval(progressInterval);
@@ -198,71 +256,223 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     }
   };
 
-  const handleCardBoardChange = async (index: number, boardId: string) => {
-      const newCards = [...previewCards];
-      newCards[index].selectedBoardId = boardId;
-      setPreviewCards(newCards);
+    const handleToggleCardSelection = (id: string) => {
+      setPreviewCards((prev) => prev.map((card) => card.id === id ? { ...card, isSelected: !card.isSelected } : card));
+    };
 
-      if (boardId && accessToken) {
-          try {
-             const boardData = await getBoard(boardId, accessToken);
-             const nextCards = [...previewCards];
-             nextCards[index].availableLists = boardData.lists;
-             nextCards[index].selectedListId = boardData.lists.length > 0 ? boardData.lists[0].id : "";
-             setPreviewCards(nextCards);
-          } catch(e) {
-             console.error(e);
+    const pushToast = (variant: ToastMessage["variant"], text: string) => {
+      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      setToasts((prev) => [...prev, { id, variant, text }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((toast) => toast.id !== id));
+      }, 3500);
+    };
+
+    const handleToggleSelectAll = () => {
+      const allSelected = previewCards.length > 0 && previewCards.every((card) => card.isSelected);
+      setPreviewCards((prev) => prev.map((card) => ({ ...card, isSelected: !allSelected })));
+    };
+
+    const openDraftEditor = (cardId: string) => {
+      const target = previewCards.find((card) => card.id === cardId);
+      if (!target) return;
+      setEditingDraftId(cardId);
+      setEditingTitle(target.title);
+      setEditingDescription(target.description);
+    };
+
+    const handleSaveDraftEditor = () => {
+      if (!editingDraftId) return;
+      setPreviewCards((prev) => prev.map((card) => card.id === editingDraftId
+      ? {
+        ...card,
+        title: editingTitle.trim() || "Tarjeta sin titulo",
+        description: editingDescription,
+        }
+      : card
+      ));
+      setEditingDraftId(null);
+      setEditingTitle("");
+      setEditingDescription("");
+      pushToast("success", "Borrador actualizado.");
+    };
+
+    const handleEnableCustomDestination = (cardId: string) => {
+      setPreviewCards((prev) => prev.map((card) => card.id === cardId
+        ? {
+            ...card,
+            customBoardId: defaultBoardId || card.customBoardId,
+            customListId: defaultListId || card.customListId,
+            availableLists: defaultLists,
           }
-      }
-  };
+        : card
+      ));
+    };
 
-  const handleCardListChange = (index: number, listId: string) => {
-      const newCards = [...previewCards];
-      newCards[index].selectedListId = listId;
-      setPreviewCards(newCards);
-  };
+    const handleDisableCustomDestination = (cardId: string) => {
+      setPreviewCards((prev) => prev.map((card) => card.id === cardId
+        ? {
+            ...card,
+            customBoardId: undefined,
+            customListId: undefined,
+          }
+        : card
+      ));
+    };
 
+    const handleCustomBoardChange = async (cardId: string, boardId: string) => {
+      if (!accessToken) return;
+      setPreviewCards((prev) => prev.map((card) => card.id === cardId
+        ? {
+            ...card,
+            customBoardId: boardId,
+            customListId: "",
+            availableLists: [],
+          }
+        : card
+      ));
 
-  const handleCreateAndEdit = async (index: number) => {
-      const draftCard = previewCards[index];
-      if (!draftCard.selectedBoardId || !draftCard.selectedListId || !accessToken) {
-          alert("Selecciona un tablero y lista válidos para esta tarjeta.");
-          return;
-      }
-      
-      setCreatingCardIndex(index);
       try {
-          // 1. Create the card in the backend
-          const newCard = await createCard({
-              listId: draftCard.selectedListId,
-              title: draftCard.title,
-              summary: draftCard.description, // HTML is fine, markdown is fine
-              urgency: "normal"
-          }, accessToken);
-          
-          // 2. Remove the draft from the preview list
-          const nextCards = previewCards.filter((_, i) => i !== index);
-          setPreviewCards(nextCards);
+        const board = await getBoard(boardId, accessToken);
+        setPreviewCards((prev) => prev.map((card) => card.id === cardId
+          ? {
+              ...card,
+              availableLists: board.lists,
+              customListId: board.lists[0]?.id || "",
+            }
+          : card
+        ));
+      } catch (error) {
+        console.error("Error fetching board lists", error);
+        pushToast("error", "No se pudieron cargar las listas del tablero elegido.");
+      }
+    };
 
-          // 3. Open the rich detail modal
-          const boardName = boards.find(b => b.id === draftCard.selectedBoardId)?.name || 'Board';
-          const listName = draftCard.availableLists?.find(l => l.id === draftCard.selectedListId)?.name || 'List';
+    const handleCustomListChange = (cardId: string, listId: string) => {
+      setPreviewCards((prev) => prev.map((card) => card.id === cardId
+        ? {
+            ...card,
+            customListId: listId,
+          }
+        : card
+      ));
+    };
 
-          setActiveCardDetails({
-              card: newCard,
-              listId: draftCard.selectedListId,
-              listName: listName,
-              boardId: draftCard.selectedBoardId,
-              boardName: boardName
+    const closeCardDetailsAndAdvance = () => {
+      if (createdCardsQueueIndex === null || createdCardsQueue.length === 0) {
+        setActiveCardDetails(null);
+        return;
+      }
+
+      const nextIndex = createdCardsQueueIndex + 1;
+      if (nextIndex < createdCardsQueue.length) {
+        setCreatedCardsQueueIndex(nextIndex);
+        setActiveCardDetails(createdCardsQueue[nextIndex]);
+        return;
+      }
+
+      setCreatedCardsQueue([]);
+      setCreatedCardsQueueIndex(null);
+      setActiveCardDetails(null);
+    };
+
+    const handleDispatchSelected = async () => {
+      if (!defaultBoardId || !defaultListId || !accessToken) {
+        pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
+        return;
+      }
+
+      const selectedDrafts = previewCards.filter((card) => card.isSelected);
+      if (selectedDrafts.length === 0) {
+        pushToast("info", "Selecciona al menos una tarjeta para enviar.");
+        return;
+      }
+
+      setIsDispatchingSelected(true);
+      try {
+          const payloads = selectedDrafts.map((draft) => {
+            const boardId = draft.customBoardId || defaultBoardId;
+            const listId = draft.customListId || defaultListId;
+            return {
+              draft,
+              boardId,
+              listId,
+            };
           });
 
+          const invalidTargets = payloads.filter((p) => !p.boardId || !p.listId);
+          if (invalidTargets.length > 0) {
+            pushToast("error", "Hay tarjetas con destino incompleto. Revisa tablero/lista antes de enviar.");
+            return;
+          }
+
+          const results = await Promise.allSettled(
+            payloads.map((entry) =>
+              createCard(
+                {
+                  listId: entry.listId,
+                  title: entry.draft.title?.trim() || "Tarjeta sin titulo",
+                  summary: entry.draft.description || "",
+                  urgency: "normal",
+                },
+                accessToken,
+              ),
+            ),
+          );
+
+          const createdCards: Array<{
+            card: any;
+            listId: string;
+            listName: string;
+            boardId: string;
+            boardName: string;
+          }> = [];
+          const createdDraftIds = new Set<string>();
+        const failedCount = results.filter((res) => res.status === "rejected").length;
+          results.forEach((result, index) => {
+          if (result.status === "fulfilled") {
+            const payload = payloads[index];
+            const boardName = boards.find((board) => board.id === payload.boardId)?.name || "Board";
+            const listName = (payload.draft.availableLists || defaultLists).find((list) => list.id === payload.listId)?.name || "List";
+
+            createdCards.push({
+              card: result.value,
+              listId: payload.listId,
+              listName,
+              boardId: payload.boardId,
+              boardName,
+            });
+            createdDraftIds.add(payload.draft.id);
+          }
+        });
+
+        if (createdCards.length > 0) {
+            setPreviewCards((prev) => prev.filter((card) => !createdDraftIds.has(card.id)));
+        }
+
+        if (createdCards.length > 0) {
+          setCreatedCardsQueue(createdCards);
+          setCreatedCardsQueueIndex(0);
+          setActiveCardDetails(createdCards[0]);
+          if (createdCards.length > 1) {
+            pushToast("info", `Se abrira una por una. Cierra cada tarjeta para pasar a la siguiente (${createdCards.length} en total).`);
+          }
+        }
+
+        if (failedCount > 0) {
+          pushToast("error", `Se enviaron ${createdCards.length} tarjetas, pero ${failedCount} fallaron.`);
+        } else if (createdCards.length > 1) {
+          pushToast("success", `Se enviaron ${createdCards.length} tarjetas correctamente.`);
+        } else if (createdCards.length === 1) {
+          pushToast("success", "Tarjeta enviada y abierta para detalle.");
+        }
       } catch (err: any) {
-          console.error("Error dispatching card:", err);
-          alert("Hubo un error al enviar la tarjeta: " + (err.message || "Error desconocido"));
+        console.error("Error dispatching selected cards:", err);
+        pushToast("error", "Hubo un error al enviar las tarjetas: " + (err?.message || "Error desconocido"));
       } finally {
-          setCreatingCardIndex(null);
+        setIsDispatchingSelected(false);
       }
-  };
+    };
 
   return (
     <>
@@ -381,6 +591,13 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
                               {previewCards.length} en espera
                           </span>
+                          <button
+                            onClick={handleToggleSelectAll}
+                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-input hover:bg-accent/5"
+                          >
+                            <CheckSquare className="h-3.5 w-3.5 mr-1" />
+                            {previewCards.every((card) => card.isSelected) ? "Deseleccionar" : "Seleccionar"} todas
+                          </button>
                       </div>
                   )}
               </div>
@@ -397,70 +614,146 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 </div>
               ) : (
                 <div className="space-y-4 flex-1 pb-10">
-                  <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg mb-6 text-sm flex items-start">
+                  <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
-                      <p className="text-muted-foreground">Revisa las tarjetas creadas por la IA. Selecciona a qué lista pertenece cada una y haz clic en "<strong>Guardar y Detallar</strong>" para abrir el editor avanzado y añadir asignar, etiquetas o adjuntar imágenes.</p>
+                      <p className="text-muted-foreground">
+                        Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
+                      </p>
                   </div>
 
-                  {previewCards.map((card, i) => (
-                    <div key={i} className="relative rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-all p-5 overflow-hidden flex flex-col group">
+                  <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
+                    <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">Paso 2: Destino</div>
+                    <div className="flex-1 min-w-[160px] relative">
+                      <select
+                        className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
+                        value={defaultBoardId}
+                        onChange={(e) => setDefaultBoardId(e.target.value)}
+                      >
+                        <option value="" disabled>Selecciona tablero...</option>
+                        {boards.map((board) => (
+                          <option key={board.id} value={board.id}>{board.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                    </div>
+                    <div className="flex-1 min-w-[160px] relative">
+                      <select
+                        className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
+                        value={defaultListId}
+                        onChange={(e) => setDefaultListId(e.target.value)}
+                        disabled={!defaultBoardId || defaultLists.length === 0}
+                      >
+                        <option value="" disabled>
+                          {!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
+                        </option>
+                        {defaultLists.map((list) => (
+                          <option key={list.id} value={list.id}>{list.name}</option>
+                        ))}
+                      </select>
+                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                    </div>
+                    <button
+                      onClick={handleDispatchSelected}
+                      disabled={isDispatchingSelected || !defaultBoardId || !defaultListId || !previewCards.some((card) => card.isSelected)}
+                      className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground font-semibold hover:bg-accent/90 text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
+                    >
+                      {isDispatchingSelected ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <>
+                          <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar seleccionadas
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {previewCards.map((card) => (
+                    <div
+                      key={card.id}
+                      className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 overflow-hidden flex flex-col group cursor-pointer ${card.isSelected ? "border-accent/40" : "border-border"}`}
+                      onClick={() => openDraftEditor(card.id)}
+                    >
                       <div className="flex justify-between items-start gap-4 mb-3">
+                          <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={card.isSelected}
+                              onChange={() => handleToggleCardSelection(card.id)}
+                              className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                            />
+                          </label>
                           <h4 className="text-base font-semibold leading-tight text-foreground/90 group-hover:text-accent transition-colors">
                             {card.title}
                           </h4>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDraftEditor(card.id);
+                            }}
+                            className="inline-flex items-center h-8 px-2.5 rounded-md border border-input text-xs font-medium hover:bg-accent/5"
+                          >
+                            <Edit3 className="h-3.5 w-3.5 mr-1" /> Revisar
+                          </button>
                       </div>
                       
-                      <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed mb-4">
+                      <p className="text-sm text-muted-foreground leading-relaxed mb-2 whitespace-pre-wrap max-h-24 overflow-hidden">
                           {card.description || <span className="italic opacity-50">Sin descripción...</span>}
                       </p>
+                      <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Destino individual (opcional)</span>
+                          {card.customBoardId ? (
+                            <button
+                              onClick={() => handleDisableCustomDestination(card.id)}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              Usar destino global
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleEnableCustomDestination(card.id)}
+                              className="text-xs text-accent hover:underline"
+                            >
+                              Definir destino propio
+                            </button>
+                          )}
+                        </div>
 
-                      <div className="mt-auto pt-4 border-t border-border/50 flex flex-wrap lg:flex-nowrap items-center gap-3">
-                          {/* Board Dropdown */}
-                          <div className="flex-1 min-w-[140px] relative">
-                              <select 
-                                  className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
-                                  value={card.selectedBoardId || ""}
-                                  onChange={(e) => handleCardBoardChange(i, e.target.value)}
+                        {card.customBoardId && (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            <div className="relative">
+                              <select
+                                className="w-full h-8 appearance-none bg-background border border-input rounded-md pl-2.5 pr-7 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
+                                value={card.customBoardId}
+                                onChange={(e) => handleCustomBoardChange(card.id, e.target.value)}
                               >
-                                  <option value="" disabled>Tablero...</option>
-                                  {boards.map(b => (
-                                      <option key={b.id} value={b.id}>{b.name}</option>
-                                  ))}
+                                <option value="" disabled>Tablero...</option>
+                                {boards.map((board) => (
+                                  <option key={board.id} value={board.id}>{board.name}</option>
+                                ))}
                               </select>
                               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                          </div>
-
-                          {/* List Dropdown */}
-                          <div className="flex-1 min-w-[140px] relative">
-                              <select 
-                                  className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
-                                  value={card.selectedListId || ""}
-                                  onChange={(e) => handleCardListChange(i, e.target.value)}
-                                  disabled={!card.selectedBoardId || (card.availableLists || []).length === 0}
+                            </div>
+                            <div className="relative">
+                              <select
+                                className="w-full h-8 appearance-none bg-background border border-input rounded-md pl-2.5 pr-7 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
+                                value={card.customListId || ""}
+                                onChange={(e) => handleCustomListChange(card.id, e.target.value)}
+                                disabled={!card.customBoardId || (card.availableLists || []).length === 0}
                               >
-                                  <option value="" disabled>
-                                      {!card.selectedBoardId ? "Tablero primero" : (card.availableLists || []).length === 0 ? "Sin listas" : "Lista de destino..."}
-                                  </option>
-                                  {(card.availableLists || []).map(l => (
-                                      <option key={l.id} value={l.id}>{l.name}</option>
-                                  ))}
+                                <option value="" disabled>Lista...</option>
+                                {(card.availableLists || []).map((list) => (
+                                  <option key={list.id} value={list.id}>{list.name}</option>
+                                ))}
                               </select>
                               <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                            </div>
                           </div>
-
-                          <button 
-                              onClick={() => handleCreateAndEdit(i)}
-                              disabled={creatingCardIndex === i || !card.selectedListId || !card.selectedBoardId}
-                              className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent/10 text-accent font-semibold hover:bg-accent hover:text-accent-foreground text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
-                          >
-                              {creatingCardIndex === i ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                  <>
-                                      <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Guardar y Detallar
-                                  </>
-                              )}
-                          </button>
+                        )}
+                      </div>
+                      <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
+                          <span>{card.isSelected ? "Seleccionada para enviar" : "No seleccionada"}</span>
+                          <span className="text-accent">Haz click para editar</span>
                       </div>
                     </div>
                   ))}
@@ -476,13 +769,87 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       {activeCardDetails && (
           <CardDetailModal 
             isOpen={true} 
-            onClose={() => setActiveCardDetails(null)} 
+            onClose={closeCardDetailsAndAdvance} 
             card={activeCardDetails.card} 
             listId={activeCardDetails.listId}
             listName={activeCardDetails.listName}
             boardId={activeCardDetails.boardId}
             boardName={activeCardDetails.boardName}
           />
+      )}
+
+      {toasts.length > 0 && (
+        <div className="fixed top-4 right-4 z-[150] flex flex-col gap-2 w-full max-w-sm">
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              className={`rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${toast.variant === "success"
+                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+                : toast.variant === "error"
+                ? "bg-red-500/10 border-red-500/30 text-red-200"
+                : "bg-sky-500/10 border-sky-500/30 text-sky-200"
+              }`}
+            >
+              {toast.text}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {editingDraftId && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Revisar Borrador</h3>
+              <button
+                onClick={() => setEditingDraftId(null)}
+                className="rounded-full p-2 hover:bg-accent/10 text-muted-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Titulo</label>
+                <input
+                  value={editingTitle}
+                  onChange={(e) => setEditingTitle(e.target.value)}
+                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+                  placeholder="Titulo de la tarjeta"
+                />
+              </div>
+
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Descripcion</label>
+                <textarea
+                  value={editingDescription}
+                  onChange={(e) => setEditingDescription(e.target.value)}
+                  className="w-full min-h-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
+                  placeholder="Revisa y edita el contenido antes de enviarlo..."
+                />
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Luego en el detalle de la card creada podras adjuntar imagenes, etiquetas y asignados.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex items-center justify-end gap-2">
+              <button
+                onClick={() => setEditingDraftId(null)}
+                className="inline-flex items-center justify-center h-9 px-4 rounded-md border border-input text-sm hover:bg-accent/5"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveDraftEditor}
+                className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90"
+              >
+                Guardar cambios
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   );

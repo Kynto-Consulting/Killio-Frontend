@@ -12,6 +12,7 @@ import {
   BrickMutationInput,
   deleteCardBrick,
   InviteSummary,
+  TeamRole,
   TeamView,
   createBoard,
   createCardBrick,
@@ -74,7 +75,7 @@ export function Workbench() {
   const [boardSlug, setBoardSlug] = useState('');
   const [boardDescription, setBoardDescription] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('member');
+  const [inviteRole, setInviteRole] = useState<Exclude<TeamRole, 'owner'>>('member');
   const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -572,7 +573,7 @@ export function Workbench() {
                 </label>
                 <label className={styles.field}>
                   <span>Role</span>
-                  <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value)}>
+                  <select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as Exclude<TeamRole, 'owner'>)}>
                     <option value="member">Member</option>
                     <option value="admin">Admin</option>
                     <option value="guest">Guest</option>

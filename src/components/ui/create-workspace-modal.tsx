@@ -2,27 +2,30 @@
 
 import { useState } from "react";
 import { X, Loader2, Building2 } from "lucide-react";
+import type { TeamRole } from "@/lib/api/contracts";
+
+type InviteRole = Exclude<TeamRole, "owner">;
 
 interface CreateWorkspaceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (payload: { name: string; icon?: string; invites: {email: string; role: string}[] }) => Promise<void>;
+  onSubmit: (payload: { name: string; icon?: string; invites: {email: string; role: InviteRole}[] }) => Promise<void>;
 }
 
 const EMOJI_OPTIONS = ["🚀", "🏢", "🎨", "💻", "🧠", "🔥", "🌍", "⭐", "📦", "📚", "🎯", "⚡"];
-const ROLE_OPTIONS = [
+const ROLE_OPTIONS: Array<{ value: InviteRole; label: string }> = [
   { value: "admin", label: "Admin" },
-  { value: "editor", label: "Editor" },
-  { value: "visualizer", label: "Visualizer" }
+  { value: "member", label: "Member" },
+  { value: "guest", label: "Guest" }
 ];
 
 export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorkspaceModalProps) {
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("🏢");
   const [showIconPicker, setShowIconPicker] = useState(false);
-  const [invites, setInvites] = useState<{email: string; role: string}[]>([]);
+  const [invites, setInvites] = useState<{email: string; role: InviteRole}[]>([]);
   const [newInviteEmail, setNewInviteEmail] = useState("");
-  const [newInviteRole, setNewInviteRole] = useState("editor");
+  const [newInviteRole, setNewInviteRole] = useState<InviteRole>("member");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -147,7 +150,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
                 />
                 <select 
                   value={newInviteRole}
-                  onChange={(e) => setNewInviteRole(e.target.value)}
+                  onChange={(e) => setNewInviteRole(e.target.value as InviteRole)}
                   className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
                   {ROLE_OPTIONS.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}

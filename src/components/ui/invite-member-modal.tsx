@@ -1,34 +1,86 @@
 "use client";
 
-import { useState } from "react";
-import { X, Search, UserPlus, Check, Mail } from "lucide-react";
+import { useEffect, useState } from "react";
+import { X, UserPlus, Check, Mail, Shield, Loader2 } from "lucide-react";
+import { createInvite, TeamRole } from "@/lib/api/contracts";
 
 export function InviteMemberModal({
   isOpen,
   onClose,
-  teamName = "Workspace"
+  teamName = "Workspace",
+  teamId,
+  accessToken,
+  inviterRole,
+  onInvited,
 }: {
   isOpen: boolean;
   onClose: () => void;
   teamName?: string;
+  teamId: string;
+  accessToken: string;
+  inviterRole: TeamRole;
+  onInvited?: () => void | Promise<void>;
 }) {
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("member");
+  const [role, setRole] = useState<Exclude<TeamRole, 'owner'>>('member');
   const [invited, setInvited] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const roleOptionsByInviter: Record<TeamRole, Array<{ value: Exclude<TeamRole, 'owner'>; label: string; help: string }>> = {
+    owner: [
+      { value: 'admin', label: 'Admin', help: 'Gestiona miembros, invitaciones y contenido del workspace.' },
+      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
+      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+    ],
+    admin: [
+      { value: 'admin', label: 'Admin', help: 'Gestiona miembros, invitaciones y contenido del workspace.' },
+      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
+      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+    ],
+    member: [
+      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
+      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+    ],
+    guest: [{ value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' }],
+  };
+
+  const allowedRoleOptions = roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest;
+
+  const currentRoleAllowed = allowedRoleOptions.some((option) => option.value === role);
+
+  useEffect(() => {
+    if (!currentRoleAllowed && allowedRoleOptions[0]?.value) {
+      setRole(allowedRoleOptions[0].value);
+    }
+  }, [currentRoleAllowed, allowedRoleOptions]);
 
   if (!isOpen) return null;
 
-  const handleInvite = (e: React.FormEvent) => {
+  const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    
-    // Simulate API call
-    setInvited(true);
-    setTimeout(() => {
-      setInvited(false);
+    if (!email.trim() || isInviting) return;
+
+    setIsInviting(true);
+    setError(null);
+
+    try {
+      await createInvite({ email: email.trim(), role }, teamId, accessToken);
+      setInvited(true);
       setEmail("");
-      onClose();
-    }, 2000);
+      if (onInvited) {
+        await onInvited();
+      }
+      setTimeout(() => {
+        setInvited(false);
+        onClose();
+      }, 900);
+    } catch (err: any) {
+      const message = typeof err?.message === 'string' ? err.message : 'No se pudo enviar la invitacion.';
+      setError(message);
+    } finally {
+      setIsInviting(false);
+    }
   };
 
   return (
@@ -89,26 +141,45 @@ export function InviteMemberModal({
               <select 
                 id="role"
                 value={role}
-                onChange={(e) => setRole(e.target.value)}
+                onChange={(e) => setRole(e.target.value as Exclude<TeamRole, 'owner'>)}
                 className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="member">Member (Can edit and create boards)</option>
-                <option value="viewer">Viewer (Read-only access)</option>
-                <option value="admin">Admin (Full access, including billing)</option>
+                {allowedRoleOptions.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
+              <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 p-2">
+                {allowedRoleOptions.map((option) => (
+                  <div key={option.value} className="text-xs text-muted-foreground flex items-start gap-2">
+                    <Shield className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />
+                    <span><strong className="text-foreground">{option.label}:</strong> {option.help}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+
+          {error && (
+            <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+              {error}
+            </div>
+          )}
 
           <div className="pt-2">
             <button 
               type="submit"
-              disabled={!email || invited}
+              disabled={!email || invited || isInviting}
               className="w-full inline-flex h-10 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               {invited ? (
                 <>
                   <Check className="w-4 h-4 mr-2" />
                   Invite sent!
+                </>
+              ) : isInviting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Sending invite...
                 </>
               ) : (
                 "Send invite"
@@ -117,12 +188,8 @@ export function InviteMemberModal({
           </div>
         </form>
 
-        {/* Footer info / link mockup */}
-        <div className="px-6 py-4 bg-muted/30 border-t border-border/50 text-sm flex items-center justify-between">
-          <span className="text-muted-foreground text-xs">Anyone with the link can join</span>
-          <button type="button" className="text-primary hover:underline text-xs font-medium">
-            Copy invite link
-          </button>
+        <div className="px-6 py-4 bg-muted/30 border-t border-border/50 text-sm">
+          <span className="text-muted-foreground text-xs">Las invitaciones se envian por email y respetan los permisos del rol seleccionado.</span>
         </div>
       </div>
     </div>

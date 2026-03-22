@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2 } from "lucide-react";
-import { DndContext, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent } from "@dnd-kit/core";
+import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { SortableContext, arrayMove, sortableKeyboardCoordinates, horizontalListSortingStrategy } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
@@ -13,7 +13,7 @@ import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard, createList, deleteBoard } from "@/lib/api/contracts";
+import { getBoard, createList, deleteBoard, updateCard } from "@/lib/api/contracts";
 import { useEffect } from "react";
 
 
@@ -33,6 +33,19 @@ export default function BoardPage() {
   const [newListName, setNewListName] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [dragVisual, setDragVisual] = useState<{
+    activeId: string | null;
+    activeTitle: string | null;
+    targetListId: string | null;
+    targetIndex: number | null;
+  }>({
+    activeId: null,
+    activeTitle: null,
+    targetListId: null,
+    targetIndex: null,
+  });
+  const lastOverIdRef = useRef<string | null>(null);
+  const dragStateRef = useRef<{ activeId: string; sourceListId: string | null; targetListId: string | null; targetIndex: number | null } | null>(null);
 
   const handleDeleteBoard = async () => {
     if (!accessToken) return;
@@ -124,6 +137,26 @@ export default function BoardPage() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  function handleDragStart(event: DragStartEvent) {
+    const activeId = event.active.id.toString();
+    const sourceListId = lists.find((l) => l.cards.some((c: any) => c.id === activeId))?.id ?? null;
+    const activeCard = lists.flatMap((l) => l.cards).find((c: any) => c.id === activeId);
+
+    dragStateRef.current = {
+      activeId,
+      sourceListId,
+      targetListId: sourceListId,
+      targetIndex: null,
+    };
+
+    setDragVisual({
+      activeId,
+      activeTitle: activeCard?.title ?? 'Card',
+      targetListId: sourceListId,
+      targetIndex: null,
+    });
+  }
+
   function handleDragOver(event: DragOverEvent) {
     const { active, over } = event;
     if (!over) return;
@@ -131,58 +164,69 @@ export default function BoardPage() {
     const activeId = active.id.toString();
     const overId = over.id.toString();
 
+    if (overId !== activeId) {
+      lastOverIdRef.current = overId;
+    }
+
     if (activeId === overId) return;
 
     const isActiveAList = lists.some(l => l.id === activeId);
     if (isActiveAList) return;
 
-    const activeContainerId = lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
+    const activeContainerId =
+      dragStateRef.current?.activeId === activeId
+        ? dragStateRef.current.sourceListId
+        : lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
     const overContainerId = lists.some(l => l.id === overId) 
       ? overId 
       : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
 
-    if (!activeContainerId || !overContainerId || activeContainerId === overContainerId) {
+    if (!activeContainerId || !overContainerId) {
       return;
     }
 
-    setLists((prev) => {
-      const activeContainerIndex = prev.findIndex((l) => l.id === activeContainerId);
-      const overContainerIndex = prev.findIndex((l) => l.id === overContainerId);
+    const overContainer = lists.find((l) => l.id === overContainerId);
+    if (!overContainer) return;
 
-      const activeList = prev[activeContainerIndex];
-      const overList = prev[overContainerIndex];
+    const insertIndex = overId === overContainerId
+      ? overContainer.cards.length
+      : (() => {
+          const idx = overContainer.cards.findIndex((c: any) => c.id === overId);
+          return idx >= 0 ? idx : overContainer.cards.length;
+        })();
 
-      const activeCardIndex = activeList.cards.findIndex((c: any) => c.id === activeId);
-      let overCardIndex = overList.cards.findIndex((c: any) => c.id === overId);
-      
-      const newActiveCards = [...activeList.cards];
-      const [movedCard] = newActiveCards.splice(activeCardIndex, 1);
+    dragStateRef.current = {
+      activeId,
+      sourceListId: activeContainerId,
+      targetListId: overContainerId,
+      targetIndex: insertIndex,
+    };
 
-      const newOverCards = [...overList.cards];
-      
-      const isOverAList = overId === overContainerId;
-      if (isOverAList) {
-        newOverCards.push(movedCard);
-      } else {
-        const overIndex = overCardIndex >= 0 ? overCardIndex : newOverCards.length;
-        newOverCards.splice(overIndex, 0, movedCard);
-      }
-
-      const newLists = [...prev];
-      newLists[activeContainerIndex] = { ...activeList, cards: newActiveCards };
-      newLists[overContainerIndex] = { ...overList, cards: newOverCards };
-      return newLists;
-    });
+    setDragVisual((prev) => ({
+      ...prev,
+      targetListId: overContainerId,
+      targetIndex: insertIndex,
+    }));
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over) return;
-    
     const activeId = active.id.toString();
-    const overId = over.id.toString();
 
-    if (activeId === overId) return;
+    const eventOverId = over?.id?.toString() ?? null;
+    const fallbackOverId = lastOverIdRef.current;
+    const resolvedOverId = eventOverId && eventOverId !== activeId
+      ? eventOverId
+      : fallbackOverId && fallbackOverId !== activeId
+        ? fallbackOverId
+        : eventOverId;
+
+    if (!resolvedOverId) {
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
+      return;
+    }
+
+    const overId = resolvedOverId;
 
     const isActiveAList = lists.some(l => l.id === activeId);
     if (isActiveAList) {
@@ -192,6 +236,8 @@ export default function BoardPage() {
       if (activeListIndex !== -1 && overListIndex !== -1) {
          setLists(arrayMove(lists, activeListIndex, overListIndex));
       }
+      lastOverIdRef.current = null;
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
       return;
     }
 
@@ -200,24 +246,91 @@ export default function BoardPage() {
       ? overId 
       : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
 
-    if (!activeContainerId || !overContainerId) return;
+    const dragMeta = dragStateRef.current?.activeId === activeId ? dragStateRef.current : null;
+    const sourceListId = dragMeta?.sourceListId ?? activeContainerId ?? null;
+    const targetListId = dragMeta?.targetListId ?? overContainerId ?? null;
+    const targetIndexFromMeta = dragMeta?.targetIndex ?? null;
 
-    if (activeContainerId === overContainerId) {
-       const containerIndex = lists.findIndex(l => l.id === activeContainerId);
-       const activeIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === activeId);
-       const overIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === overId);
-
-       if (activeIndex !== overIndex) {
-         setLists(prev => {
-            const newLists = [...prev];
-            newLists[containerIndex] = {
-               ...newLists[containerIndex],
-               cards: arrayMove(newLists[containerIndex].cards, activeIndex, overIndex)
-            };
-            return newLists;
-         });
-       }
+    if (!sourceListId || !targetListId) {
+      lastOverIdRef.current = null;
+      dragStateRef.current = null;
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
+      return;
     }
+
+    const sourceListIndex = lists.findIndex((l) => l.id === sourceListId);
+    const targetListIndex = lists.findIndex((l) => l.id === targetListId);
+    if (sourceListIndex === -1 || targetListIndex === -1) {
+      lastOverIdRef.current = null;
+      dragStateRef.current = null;
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
+      return;
+    }
+
+    const sourceCards = lists[sourceListIndex].cards;
+    const sourceCardIndex = sourceCards.findIndex((c: any) => c.id === activeId);
+    if (sourceCardIndex === -1) {
+      lastOverIdRef.current = null;
+      dragStateRef.current = null;
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
+      return;
+    }
+
+    const baseTargetIndex =
+      targetIndexFromMeta ??
+      (overId === targetListId
+        ? lists[targetListIndex].cards.length
+        : (() => {
+            const idx = lists[targetListIndex].cards.findIndex((c: any) => c.id === overId);
+            return idx >= 0 ? idx : lists[targetListIndex].cards.length;
+          })());
+
+    const finalIndex = sourceListId === targetListId
+      ? Math.max(0, Math.min(baseTargetIndex, sourceCards.length - 1))
+      : Math.max(0, Math.min(baseTargetIndex, lists[targetListIndex].cards.length));
+
+    setLists((prev) => {
+      const next = [...prev];
+      const srcIndex = next.findIndex((l) => l.id === sourceListId);
+      const dstIndex = next.findIndex((l) => l.id === targetListId);
+      if (srcIndex === -1 || dstIndex === -1) return prev;
+
+      const srcCards = [...next[srcIndex].cards];
+      const movingIndex = srcCards.findIndex((c: any) => c.id === activeId);
+      if (movingIndex === -1) return prev;
+
+      if (srcIndex === dstIndex) {
+        if (movingIndex === finalIndex) return prev;
+        next[srcIndex] = {
+          ...next[srcIndex],
+          cards: arrayMove(srcCards, movingIndex, finalIndex),
+        };
+        return next;
+      }
+
+      const [movedCard] = srcCards.splice(movingIndex, 1);
+      const dstCards = [...next[dstIndex].cards];
+      const boundedTargetIndex = Math.max(0, Math.min(finalIndex, dstCards.length));
+      dstCards.splice(boundedTargetIndex, 0, movedCard);
+
+      next[srcIndex] = { ...next[srcIndex], cards: srcCards };
+      next[dstIndex] = { ...next[dstIndex], cards: dstCards };
+      return next;
+    });
+
+    if (accessToken) {
+      try {
+        await updateCard(activeId, { list_id: targetListId, position: finalIndex }, accessToken);
+      } catch (err) {
+        console.error("Failed to persist card move", err);
+      } finally {
+        loadBoard();
+      }
+    }
+
+    lastOverIdRef.current = null;
+    dragStateRef.current = null;
+    setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
   }
 
   const allAvailableTags = Array.from(new Set(
@@ -350,12 +463,39 @@ export default function BoardPage() {
       {/* Kanban Canvas */}
       <main className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="h-full p-6 inline-flex items-start space-x-4">
-          <DndContext sensors={sensors} collisionDetection={closestCorners} onDragOver={handleDragOver} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => {
+              lastOverIdRef.current = null;
+              dragStateRef.current = null;
+            }}
+          >
             <SortableContext items={filteredLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
               {filteredLists.map((list) => (
-                <ListColumn key={list.id} list={list} boardId={boardId} boardName={boardName} />
+                <ListColumn
+                  key={list.id}
+                  list={list}
+                  boardId={boardId}
+                  boardName={boardName}
+                  isDropTarget={dragVisual.targetListId === list.id}
+                  dropHintIndex={dragVisual.targetListId === list.id ? dragVisual.targetIndex : null}
+                  draggingCardId={dragVisual.activeId}
+                />
               ))}
             </SortableContext>
+
+            <DragOverlay>
+              {dragVisual.activeId ? (
+                <div className="w-72 rounded-lg border border-accent/60 bg-card/95 shadow-2xl ring-2 ring-accent/30 px-3 py-2 backdrop-blur-sm">
+                  <div className="text-[10px] uppercase tracking-wider text-accent/90 font-semibold mb-1">Moving card</div>
+                  <div className="text-sm font-medium text-foreground truncate">{dragVisual.activeTitle ?? 'Card'}</div>
+                </div>
+              ) : null}
+            </DragOverlay>
           </DndContext>
 
           {/* Add List Button / Form */}
@@ -406,7 +546,7 @@ export default function BoardPage() {
         </div>
       </main>
 
-      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} />
+      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} />
 
       <ShareModal 
         isOpen={isShareModalOpen} 

@@ -4,8 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { X, Send, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "../providers/session-provider";
-
-const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+import { getBoard, listTeamActivity, chatWithAiScope, type BoardView, type ActivityLogEntry } from "@/lib/api/contracts";
 
 type Message = {
   id: number;
@@ -24,21 +23,104 @@ export function BoardChatDrawer({
   onClose: () => void;
   boardId?: string;
 }) {
-  const { accessToken } = useSession();
+  const { accessToken, activeTeamId } = useSession();
   const [messages, setMessages] = useState<Message[]>([
-    { id: 0, role: "system", content: "Board Copilot connected. Ask me anything about this board." },
+    { id: 0, role: "system", content: "Team Chat conectado. Contexto completo del tablero habilitado." },
     {
       id: 1,
       role: "bot",
-      content: "Hi! I'm your AI Copilot for this board. Ask me about tasks, blockers, or priorities.",
+      content: "Hola. Puedo analizar todas las cards de este tablero. Preguntame por el plan de la semana, tareas de UX, riesgos o bloqueos.",
     },
   ]);
   const [inputVal, setInputVal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [realtimeEvents, setRealtimeEvents] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  const cleanText = (value?: string | null) => {
+    if (!value) return "";
+    return value
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n")
+      .replace(/<[^>]*>/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  };
+
+  const summarizeCard = (card: any) => {
+    const tags = (card.tags || []).map((t: any) => t.name).filter(Boolean).join(", ") || "none";
+    const assignees = (card.assignees || []).map((a: any) => a.name || a.displayName || a.email).filter(Boolean).join(", ") || "none";
+    const textBricks = (card.blocks || []).filter((b: any) => b.kind === "text");
+    const checklistBricks = textBricks.filter((b: any) => b.displayStyle === "checklist");
+    const checklistTotal = checklistBricks.reduce((acc: number, b: any) => acc + (b.tasks?.length || 0), 0);
+    const checklistDone = checklistBricks.reduce((acc: number, b: any) => acc + (b.tasks || []).filter((t: any) => t.checked).length, 0);
+    const summary = cleanText(card.summary);
+    const shortSummary = summary ? summary.slice(0, 220) : "No summary";
+
+    return [
+      `Card: ${card.title}`,
+      `status: ${card.urgency || "normal"}`,
+      `due: ${card.dueAt || "none"}`,
+      `tags: ${tags}`,
+      `assignees: ${assignees}`,
+      `bricks: ${(card.blocks || []).length}`,
+      `checklist: ${checklistDone}/${checklistTotal}`,
+      `summary: ${shortSummary}`,
+    ].join(" | ");
+  };
+
+  const buildBoardContextSummary = (
+    board: BoardView,
+    activity: ActivityLogEntry[],
+    realtime: string[],
+  ) => {
+    const cardCount = board.lists.reduce((acc, l) => acc + l.cards.length, 0);
+
+    const listLines = board.lists.map((list) => {
+      const cards = list.cards.map((card) => `  - ${summarizeCard(card)}`).join("\n");
+      return `List: ${list.name} (${list.cards.length} cards)\n${cards || "  - No cards"}`;
+    });
+
+    const activityLines = activity.slice(0, 40).map((entry) => {
+      const payload = entry.payload && typeof entry.payload === "object" ? JSON.stringify(entry.payload).slice(0, 280) : "{}";
+      return `- [${entry.createdAt}] ${entry.action} (${entry.scope}:${entry.scopeId}) payload=${payload}`;
+    });
+
+    const realtimeLines = realtime.slice(0, 20).map((e) => `- ${e}`);
+
+    const summary = [
+      `Board: ${board.name}`,
+      `Description: ${board.description || "none"}`,
+      `Visibility: ${board.visibility}`,
+      `Totals: ${board.lists.length} lists, ${cardCount} cards`,
+      "",
+      "Board structure and cards:",
+      ...listLines,
+      "",
+      "Recent board/card activity logs:",
+      ...(activityLines.length > 0 ? activityLines : ["- No activity logs available"]),
+      "",
+      "Recent realtime events:",
+      ...(realtimeLines.length > 0 ? realtimeLines : ["- No realtime events recorded in this session"]),
+    ].join("\n");
+
+    return summary.slice(0, 15000);
+  };
+
+  const filterBoardActivity = (all: ActivityLogEntry[], targetBoardId?: string) => {
+    if (!targetBoardId) return [];
+    return all.filter((entry) => {
+      const payloadBoardId = (entry.payload as Record<string, unknown> | undefined)?.boardId;
+      if (entry.scope === "board" && entry.scopeId === targetBoardId) return true;
+      if (typeof payloadBoardId === "string" && payloadBoardId === targetBoardId) return true;
+      return false;
+    });
+  };
 
   // Subscribe to Ably realtime events for this board
   useBoardRealtime(boardId, (event: BoardEvent) => {
+    const compactEvent = `${event.type}: ${JSON.stringify(event.payload).slice(0, 240)}`;
+    setRealtimeEvents((prev) => [compactEvent, ...prev].slice(0, 25));
     const msg: Message = {
       id: Date.now(),
       role: "bot",
@@ -64,16 +146,26 @@ export function BoardChatDrawer({
     setIsLoading(true);
 
     try {
-      const res = await fetch(`${API}/ai/scope/board/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      const [boardData, teamActivity] = await Promise.all([
+        accessToken && boardId ? getBoard(boardId, accessToken) : Promise.resolve(null),
+        accessToken && activeTeamId ? listTeamActivity(activeTeamId, accessToken) : Promise.resolve([] as ActivityLogEntry[]),
+      ]);
+
+      const scopedActivity = filterBoardActivity(teamActivity, boardId);
+      const contextSummary = boardData
+        ? buildBoardContextSummary(boardData, scopedActivity, realtimeEvents)
+        : "No board context could be loaded.";
+
+      const data = await chatWithAiScope(
+        {
+          scope: "board",
           scopeId: boardId ?? "unknown",
           message: inputVal,
-          contextSummary: "Kanban board with To Do, In Progress, and Done lists.",
-        }),
-      });
-      const data = await res.json();
+          contextSummary,
+        },
+        accessToken ?? undefined,
+      );
+
       const botMsg: Message = { id: Date.now() + 2, role: "bot", content: data.text ?? "Sorry, no response." };
       setMessages((prev) => [...prev.filter((m) => !m.loading), botMsg]);
     } catch {
@@ -90,7 +182,7 @@ export function BoardChatDrawer({
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
         <div className="flex items-center space-x-2">
           <Bot className="h-5 w-5 text-accent" />
-          <h3 className="font-semibold text-sm">Board Copilot & Chat</h3>
+          <h3 className="font-semibold text-sm">Team Chat</h3>
           {isLoading && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted-foreground" />}
         </div>
         <button onClick={onClose} className="rounded-md p-1.5 hover:bg-accent/10 text-muted-foreground transition-colors">
@@ -151,7 +243,7 @@ export function BoardChatDrawer({
             type="text"
             value={inputVal}
             onChange={(e) => setInputVal(e.target.value)}
-            placeholder="Ask AI or chat with team..."
+            placeholder="Pregunta por plan semanal, UX, bloqueos, prioridades..."
             className="w-full bg-card border border-input rounded-full pr-10 pl-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-accent transition-all placeholder:text-muted-foreground"
           />
           <button

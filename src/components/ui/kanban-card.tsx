@@ -3,13 +3,15 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
+import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal, Flag } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
-import { CardView, TextBrick, MediaBrick } from "@/lib/api/contracts";
+import { CardView, TextBrick, MediaBrick, deleteCard } from "@/lib/api/contracts";
+import { useSession } from "../providers/session-provider";
 
-export function KanbanCard({ card, listName, boardName, boardId }: { card: CardView, listName?: string, boardName?: string, boardId?: string }) {
+export function KanbanCard({ card, listId, listName, boardName, boardId }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { accessToken } = useSession();
   
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
 
@@ -19,11 +21,10 @@ export function KanbanCard({ card, listName, boardName, boardId }: { card: CardV
     opacity: isDragging ? 0.3 : 1,
   };
 
-  const priorityColors = {
-    low: "bg-blue-500/20 text-blue-500",
-    normal: "bg-muted text-muted-foreground",
-    high: "bg-orange-500/20 text-orange-500",
-    urgent: "bg-red-500/20 text-red-500 border border-red-500/30",
+  const normalizeColor = (raw?: string | null) => {
+    if (!raw) return '#64748b';
+    if (raw.startsWith('#')) return raw;
+    return `#${raw}`;
   };
 
   const blocks = card.blocks || [];
@@ -43,6 +44,11 @@ export function KanbanCard({ card, listName, boardName, boardId }: { card: CardV
   });
 
   const attachmentsCount = mediaBlocks.length;
+  const isPriority = (card.tags || []).some((tag: any) => {
+    const normalizedName = String(tag?.name || '').trim().toLowerCase();
+    const normalizedSlug = String(tag?.slug || '').trim().toLowerCase();
+    return tag?.tag_kind === 'priority' || normalizedName === 'prioridad' || normalizedName === 'priority' || normalizedSlug === 'prioridad' || normalizedSlug === 'priority';
+  });
 
   return (
     <>
@@ -51,11 +57,21 @@ export function KanbanCard({ card, listName, boardName, boardId }: { card: CardV
         style={style}
         onClick={() => !isMenuOpen && setIsModalOpen(true)}
         className={`group relative flex flex-col gap-3 rounded-lg border ${
-          isDragging ? "border-accent shadow-lg ring-1 ring-accent" : "border-border shadow-sm hover:border-accent/40"
-        } bg-card p-3 cursor-grab active:cursor-grabbing transition-colors`}
+          isDragging
+            ? "border-accent shadow-lg ring-1 ring-accent"
+            : isPriority
+              ? "border-rose-400/80 bg-card shadow-sm ring-1 ring-rose-500/20 hover:border-rose-400"
+              : "border-border shadow-sm hover:border-accent/40"
+        } p-3 cursor-grab active:cursor-grabbing transition-colors`}
         {...attributes}
         {...listeners}
       >
+
+      {isPriority && (
+        <div className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-100/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-900">
+          <Flag className="h-3 w-3" /> Prioridad
+        </div>
+      )}
       
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
@@ -72,27 +88,55 @@ export function KanbanCard({ card, listName, boardName, boardId }: { card: CardV
             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Card...</button>
             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Tags...</button>
             <div className="my-1 border-t border-border" />
-            <button onClick={(e) => { e.stopPropagation(); alert("Delete card functionality coming soon.") }} className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive">Delete Card</button>
+            <button
+              onClick={async (e) => {
+                e.stopPropagation();
+                setIsMenuOpen(false);
+
+                if (!accessToken) {
+                  console.error("Missing access token for deleteCard");
+                  return;
+                }
+
+                const confirmed = window.confirm("Delete this card permanently? This action cannot be undone.");
+                if (!confirmed) return;
+
+                try {
+                  await deleteCard(card.id, accessToken);
+                  window.dispatchEvent(new Event('board:refresh'));
+                } catch (err) {
+                  console.error("Failed to delete card", err);
+                }
+              }}
+              className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive"
+            >
+              Delete Card
+            </button>
           </div>
         )}
       </div>
 
-      <div className="flex flex-wrap gap-1.5 pr-6">
-        {(card.tags || []).map((tag) => (
-          <span key={tag.id} className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase bg-primary/10 text-foreground/80">
-            {tag.name}
-          </span>
-        ))}
-        {card.urgency && card.urgency !== "normal" && (
-          <span className={`px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase ${priorityColors[card.urgency as keyof typeof priorityColors]}`}>
-            {card.urgency}
-          </span>
-        )}
-      </div>
-      
-      <p className="text-sm font-medium leading-tight text-foreground/90 group-hover:text-accent transition-colors">
+      <p className={`text-sm font-medium leading-tight transition-colors ${isPriority ? 'text-foreground pr-6 pt-5' : 'text-foreground/90 group-hover:text-accent'}`}>
         {card.title}
       </p>
+
+      {(card.tags || []).length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pr-6">
+          {(card.tags || []).map((tag) => (
+            <span
+              key={tag.id}
+              className="px-2 py-0.5 rounded text-[10px] font-semibold tracking-wider uppercase border"
+              style={{
+                color: normalizeColor(tag.color),
+                borderColor: `${normalizeColor(tag.color)}66`,
+                backgroundColor: `${normalizeColor(tag.color)}22`,
+              }}
+            >
+              {tag.name}
+            </span>
+          ))}
+        </div>
+      )}
       
       <div className="flex items-center justify-between text-muted-foreground mt-1">
         <div className="flex items-center space-x-3">
@@ -137,6 +181,7 @@ export function KanbanCard({ card, listName, boardName, boardId }: { card: CardV
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         card={card}
+        listId={listId}
         listName={listName || ""}
         boardName={boardName || ""}
         boardId={boardId}

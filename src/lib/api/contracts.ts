@@ -25,6 +25,8 @@ export type TeamView = {
   isPersonal?: boolean;
 };
 
+export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';
+
 export type BoardSummary = {
   id: string;
   teamId: string;
@@ -37,16 +39,40 @@ export type BoardSummary = {
 export type InviteSummary = {
   id: string;
   email: string;
-  role: string;
+  role: TeamRole;
   status: string;
   deliveryStatus: string;
   createdAt: string;
 };
 
+export type AcceptInviteResult = {
+  inviteId: string;
+  teamId: string;
+  teamName: string;
+  role: TeamRole;
+  accepted: true;
+};
+
+export type RevokeInviteResult = {
+  inviteId: string;
+  revoked: true;
+};
+
+export type UpdateTeamMemberRoleResult = {
+  membershipId: string;
+  role: TeamRole;
+  updated: true;
+};
+
+export type RemoveTeamMemberResult = {
+  membershipId: string;
+  removed: true;
+};
+
 export type TeamMemberSummary = {
   id: string;
   userId: string;
-  role: string;
+  role: TeamRole;
   status: string;
   displayName: string;
   primaryEmail: string;
@@ -232,7 +258,7 @@ type CreateBoardPayload = {
 
 type InvitePayload = {
   email: string;
-  role: string;
+  role: Exclude<TeamRole, 'owner'>;
 };
 
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000').replace(/\/$/, '');
@@ -436,11 +462,58 @@ export async function createCard(body: { listId: string; title: string; summary?
   });
 }
 
+export async function improveCardWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list';
+    scopeId: string;
+    currentTitle: string;
+    currentDescription?: string;
+  },
+  accessToken?: string,
+): Promise<{ title: string; description: string }> {
+  return request<{ title: string; description: string }>(`/ai/scope/${body.scope}/improve-card`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify({
+      scopeId: body.scopeId,
+      currentTitle: body.currentTitle,
+      currentDescription: body.currentDescription,
+    }),
+  });
+}
+
+export async function chatWithAiScope(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list';
+    scopeId: string;
+    message: string;
+    contextSummary?: string;
+  },
+  accessToken?: string,
+): Promise<{ text: string; citations?: string[] }> {
+  return request<{ text: string; citations?: string[] }>(`/ai/scope/${body.scope}/chat`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify({
+      scopeId: body.scopeId,
+      message: body.message,
+      contextSummary: body.contextSummary,
+    }),
+  });
+}
+
 export async function updateCard(cardId: string, updates: Record<string, any>, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards/${cardId}`, {
     method: 'PATCH',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteCard(cardId: string, accessToken?: string): Promise<{ cardId: string; deleted: true }> {
+  return request<{ cardId: string; deleted: true }>(`/cards/${cardId}`, {
+    method: 'DELETE',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
   });
 }
 
@@ -463,6 +536,41 @@ export async function createInvite(payload: InvitePayload, teamId: string, acces
     method: 'POST',
     headers: authHeaders(accessToken),
     body: JSON.stringify(payload),
+  });
+}
+
+export async function acceptTeamInvite(token: string, accessToken: string): Promise<AcceptInviteResult> {
+  return request<AcceptInviteResult>(`/teams/invites/accept`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ token }),
+  });
+}
+
+export async function revokeTeamInvite(teamId: string, inviteId: string, accessToken: string): Promise<RevokeInviteResult> {
+  return request<RevokeInviteResult>(`/teams/${teamId}/invites/${inviteId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function updateTeamMemberRole(
+  teamId: string,
+  memberId: string,
+  role: Exclude<TeamRole, 'owner'>,
+  accessToken: string,
+): Promise<UpdateTeamMemberRoleResult> {
+  return request<UpdateTeamMemberRoleResult>(`/teams/${teamId}/members/${memberId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ role }),
+  });
+}
+
+export async function removeTeamMember(teamId: string, memberId: string, accessToken: string): Promise<RemoveTeamMemberResult> {
+  return request<RemoveTeamMemberResult>(`/teams/${teamId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
   });
 }
 

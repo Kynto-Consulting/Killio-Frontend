@@ -1,11 +1,12 @@
  'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { CardDetailModal } from '@/components/ui/card-detail-modal';
 import { CommandPalette } from '@/features/command-palette/command-palette';
 import { BrickStack } from '@/features/bricks/brick-stack';
-import { BoardView, BrickMutationInput } from '@/lib/api/contracts';
+import { BoardView, BrickMutationInput, updateCard } from '@/lib/api/contracts';
+import { useSession } from '@/components/providers/session-provider';
 
 type BoardShellProps = {
   board: BoardView;
@@ -22,7 +23,9 @@ import { SortableItem } from './sortable-item';
 export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBricks, onDeleteBrick }: BoardShellProps) {
   const actions = ['Create card', 'Move card', 'Ask AI', 'Open board chat'];
   const cards = useMemo(() => board.lists.flatMap((list) => list.cards), [board]);
+  const { accessToken } = useSession();
   const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
+  const lastOverIdRef = useRef<string | null>(null);
   
   // Optional local state for optimistic DND
   const [lists, setLists] = useState(board.lists);
@@ -42,6 +45,10 @@ export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBrick
 
     const activeId = active.id.toString();
     const overId = over.id.toString();
+
+    if (overId !== activeId) {
+      lastOverIdRef.current = overId;
+    }
 
     if (activeId === overId) return;
 
@@ -86,13 +93,21 @@ export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBrick
 
   const handleDragEnd = (event: any) => {
     const { active, over } = event;
-    if (!over) return;
+    const activeId = active.id.toString();
+    const eventOverId = over?.id?.toString() ?? null;
+    const fallbackOverId = lastOverIdRef.current;
+    const resolvedOverId = eventOverId && eventOverId !== activeId
+      ? eventOverId
+      : fallbackOverId && fallbackOverId !== activeId
+        ? fallbackOverId
+        : eventOverId;
+
+    if (!resolvedOverId) return;
     
     // Select card on click/drag end visualization
     setSelectedCardId(active.id); 
 
-    const activeId = active.id.toString();
-    const overId = over.id.toString();
+    const overId = resolvedOverId;
 
     if (activeId === overId) return;
 
@@ -101,12 +116,17 @@ export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBrick
       ? overId 
       : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
 
-    if (!activeContainerId || !overContainerId) return;
+    if (!activeContainerId || !overContainerId) {
+      lastOverIdRef.current = null;
+      return;
+    }
 
     if (activeContainerId === overContainerId) {
        const containerIndex = lists.findIndex(l => l.id === activeContainerId);
        const activeIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === activeId);
        const overIndex = lists[containerIndex].cards.findIndex((c: any) => c.id === overId);
+
+       let finalIndex = overIndex === -1 ? 0 : overIndex;
 
        if (activeIndex !== overIndex) {
          setLists(prev => {
@@ -118,7 +138,19 @@ export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBrick
             return newLists;
          });
        }
+
+       if (accessToken) {
+         updateCard(activeId, { list_id: activeContainerId, position: finalIndex }, accessToken).catch(err => {
+           console.error("Failed to update card position", err);
+         });
+       }
+    } else {
+       if (accessToken) {
+         updateCard(activeId, { list_id: overContainerId }, accessToken).catch(console.error);
+       }
     }
+
+    lastOverIdRef.current = null;
   };
 
 

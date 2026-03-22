@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 
@@ -10,6 +10,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useSession();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -42,7 +43,9 @@ export default function LoginPage() {
 
       // This will manage the accounts array for the multi-switch
       login(data.user, data.accessToken, data.refreshToken);
-      router.push("/");
+      const from = searchParams.get('from');
+      const safeFrom = from && from.startsWith('/') ? from : '/';
+      router.push(safeFrom);
     } catch {
       setError("Could not reach the server. Is the backend running?");
     } finally {

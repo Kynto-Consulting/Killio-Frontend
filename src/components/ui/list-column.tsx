@@ -13,7 +13,21 @@ interface ListData {
   cards: any[];
 }
 
-export function ListColumn({ list, boardName, boardId }: { list: ListData, boardName?: string, boardId: string }) {
+export function ListColumn({
+  list,
+  boardName,
+  boardId,
+  isDropTarget,
+  dropHintIndex,
+  draggingCardId,
+}: {
+  list: ListData;
+  boardName?: string;
+  boardId: string;
+  isDropTarget?: boolean;
+  dropHintIndex?: number | null;
+  draggingCardId?: string | null;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -29,7 +43,9 @@ export function ListColumn({ list, boardName, boardId }: { list: ListData, board
     <div
       ref={setNodeRef}
       style={style}
-      className={`w-72 shrink-0 flex flex-col rounded-xl bg-card/60 border ${isDragging ? "border-accent" : "border-border"} backdrop-blur-sm max-h-full`}
+      className={`w-72 shrink-0 flex flex-col rounded-xl bg-card/60 border backdrop-blur-sm max-h-full transition-all ${
+        isDragging ? "border-accent" : isDropTarget ? "border-accent/80 ring-2 ring-accent/30 shadow-lg" : "border-border"
+      }`}
     >
       <div 
         className="p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing border-b border-border/40"
@@ -68,10 +84,23 @@ export function ListColumn({ list, boardName, boardId }: { list: ListData, board
 
       <div className="flex-1 overflow-y-auto p-2 space-y-2">
         <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          {list.cards.map((card) => (
-            <KanbanCard key={card.id} card={card} listName={list.title} boardName={boardName || ""} boardId={boardId} />
+          {list.cards.map((card, index) => (
+            <div key={card.id} className="space-y-2">
+              {isDropTarget && dropHintIndex === index && draggingCardId !== card.id ? (
+                <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
+                  <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">Drop here</span>
+                </div>
+              ) : null}
+              <KanbanCard card={card} listId={list.id} listName={list.title} boardName={boardName || ""} boardId={boardId} />
+            </div>
           ))}
         </SortableContext>
+
+        {isDropTarget && dropHintIndex === list.cards.length ? (
+          <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
+            <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">Drop here</span>
+          </div>
+        ) : null}
         
         <button 
           onClick={() => setIsModalOpen(true)}

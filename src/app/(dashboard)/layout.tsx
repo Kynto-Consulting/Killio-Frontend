@@ -10,7 +10,7 @@ import { AppPreferencesModal } from "@/components/ui/preferences-modal";
 import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
 import { useSession } from "@/components/providers/session-provider";
 import { useEffect, useState } from "react";
-import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView } from "@/lib/api/contracts";
+import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .finally(() => setIsFetchingBoards(false));
   }, [accessToken, activeTeamId]);
 
-  const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: string}[] }) => {
+  const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: Exclude<TeamRole, 'owner'>}[] }) => {
     if (!accessToken) return;
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `ws-${Date.now()}`;
     
