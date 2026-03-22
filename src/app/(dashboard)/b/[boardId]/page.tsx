@@ -1,4 +1,5 @@
 "use client";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 import { useRef, useState } from "react";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2 } from "lucide-react";
@@ -119,10 +120,16 @@ export default function BoardPage() {
     
     const unlisten = () => {};
     const handleRefresh = () => loadBoard();
+    const handleOpenBoardChat = () => setIsChatOpen(true);
+    const handleOpenBoardShare = () => setIsShareModalOpen(true);
     window.addEventListener('board:refresh', handleRefresh);
+    window.addEventListener('board:open-chat', handleOpenBoardChat);
+    window.addEventListener('board:open-share', handleOpenBoardShare);
 
     return () => {
       window.removeEventListener('board:refresh', handleRefresh);
+      window.removeEventListener('board:open-chat', handleOpenBoardChat);
+      window.removeEventListener('board:open-share', handleOpenBoardShare);
     };
   }, [accessToken, boardId]);
 
@@ -361,13 +368,16 @@ export default function BoardPage() {
         
         <div className="flex items-center space-x-2">
           <div className="flex -space-x-2 mr-4 hidden sm:flex">
-            {members.slice(0, 4).map((m, i) => {
-               const initials = m.data?.displayName ? m.data.displayName.substring(0, 2).toUpperCase() : m.clientId.substring(0, 2).toUpperCase();
-               const gradients = ["from-blue-500 to-purple-500", "from-orange-400 to-red-500", "from-emerald-400 to-teal-500", "from-pink-500 to-rose-500"];
+            {members.slice(0, 4).map((m) => {
+               const avatarUrl = getUserAvatarUrl(m.data?.avatar_url, m.data?.email, 32);
                return (
-                 <div key={m.clientId} title={m.data?.displayName || m.clientId} className={`w-8 h-8 rounded-full border-2 border-background bg-gradient-to-tr ${gradients[i % gradients.length]} flex items-center justify-center text-[10px] font-bold text-white shadow-sm`}>
-                   {initials}
-                 </div>
+                 <img
+                   key={m.clientId}
+                   src={avatarUrl}
+                   alt={m.data?.displayName || m.clientId}
+                   title={m.data?.displayName || m.clientId}
+                   className="w-8 h-8 rounded-full border-2 border-background shadow-sm object-cover"
+                 />
                );
             })}
             {members.length > 4 && (

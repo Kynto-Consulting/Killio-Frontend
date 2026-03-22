@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { Command } from "cmdk";
@@ -80,6 +80,132 @@ type AutocompleteSuggestion = {
   available: boolean;
   availabilityNote?: string;
 };
+
+type NoticeVariant = "success" | "error" | "info";
+
+type PaletteNotice = {
+  id: string;
+  variant: NoticeVariant;
+  text: string;
+};
+
+type PaletteLocale = "es" | "en";
+
+type SuggestionArgToken = {
+  key: string;
+  required?: boolean;
+};
+
+const i18n = {
+  es: {
+    placeholder: {
+      global: "Comando global. Ej: history, teams, board 2",
+      board: "Comando de tablero. Ej: board share, list add Sprint, card 1 from 2 rename Titulo",
+      cards: "Comando de cards. Ej: cards done all, card done login",
+      lists: "Comando de listas. Ej: list add In Review",
+      system: "Sistema. Ej: settings, help, logout",
+    },
+    hint: {
+      tabComplete: "Tab completa por token",
+      enterRun: "Enter ejecuta",
+      nextToken: "Siguiente token",
+      argStyle: "Args estilo Discord",
+    },
+    arg: {
+      card: "card",
+      list: "list",
+      title: "title",
+      tag: "tag",
+      user: "user",
+      query: "query",
+      board: "board",
+      name: "name",
+    },
+    fallback: {
+      commandUnavailable: "Comando no disponible en este contexto.",
+      runError: "No se pudo ejecutar el comando.",
+      settingsTriggered: "Settings abierto",
+    },
+  },
+  en: {
+    placeholder: {
+      global: "Global command. Ex: history, teams, board 2",
+      board: "Board command. Ex: board share, list add Sprint, card 1 from 2 rename Title",
+      cards: "Cards command. Ex: cards done all, card done login",
+      lists: "Lists command. Ex: list add In Review",
+      system: "System. Ex: settings, help, logout",
+    },
+    hint: {
+      tabComplete: "Tab completes by token",
+      enterRun: "Enter runs command",
+      nextToken: "Next token",
+      argStyle: "Discord-style args",
+    },
+    arg: {
+      card: "card",
+      list: "list",
+      title: "title",
+      tag: "tag",
+      user: "user",
+      query: "query",
+      board: "board",
+      name: "name",
+    },
+    fallback: {
+      commandUnavailable: "Command is unavailable in this context.",
+      runError: "Could not execute command.",
+      settingsTriggered: "Settings opened",
+    },
+  },
+} as const;
+
+const suggestionArgTemplates: Array<{ match: RegExp; args: SuggestionArgToken[] }> = [
+  { match: /^board\s+/i, args: [{ key: "board", required: true }] },
+  { match: /^list\s+add\s*/i, args: [{ key: "name", required: true }] },
+  { match: /^card\s+done\s+/i, args: [{ key: "query", required: true }] },
+  { match: /^card\s+active\s+/i, args: [{ key: "query", required: true }] },
+  { match: /^due\s+clear\s+/i, args: [{ key: "query", required: true }] },
+  {
+    match: /^card\s+.+\s+from\s+.+\s+rename\s+/i,
+    args: [
+      { key: "card", required: true },
+      { key: "list", required: true },
+      { key: "title", required: true },
+    ],
+  },
+  {
+    match: /^card\s+.+\s+from\s+.+\s+tag\s+add\s+/i,
+    args: [
+      { key: "card", required: true },
+      { key: "list", required: true },
+      { key: "tag", required: true },
+    ],
+  },
+  {
+    match: /^card\s+.+\s+from\s+.+\s+tag\s+remove\s+/i,
+    args: [
+      { key: "card", required: true },
+      { key: "list", required: true },
+      { key: "tag", required: true },
+    ],
+  },
+  {
+    match: /^card\s+.+\s+from\s+.+\s+assign\s+/i,
+    args: [
+      { key: "card", required: true },
+      { key: "list", required: true },
+      { key: "user", required: true },
+    ],
+  },
+  {
+    match: /^card\s+.+\s+from\s+.+\s+unassign\s+/i,
+    args: [
+      { key: "card", required: true },
+      { key: "list", required: true },
+      { key: "user", required: true },
+    ],
+  },
+];
 
 const contextMeta: Record<
   PaletteContext,
@@ -170,17 +296,11 @@ const contextTemplates: Record<PaletteContext, string[]> = {
   system: ["ctx up", "settings", "help", "logout"],
 };
 
-const contextPlaceholder: Record<PaletteContext, string> = {
-  global: "Comando global. Ej: history, teams, board 2",
-  board: "Comando de tablero. Ej: board share, list add Sprint, card 1 from 2 rename Titulo",
-  cards: "Comando de cards. Ej: cards done all, card done login",
-  lists: "Comando de listas. Ej: list add In Review",
-  system: "Sistema. Ej: settings, help, logout",
-};
-
 export function CommandPalette() {
+  const [locale, setLocale] = useState<PaletteLocale>("es");
   const [open, setOpen] = useState(false);
   const [isRunningAction, setIsRunningAction] = useState(false);
+  const [notices, setNotices] = useState<PaletteNotice[]>([]);
   const [boardSnapshot, setBoardSnapshot] = useState<BoardSnapshot | null>(null);
   const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
   const [boardMembers, setBoardMembers] = useState<BoardMemberSummary[]>([]);
@@ -193,12 +313,47 @@ export function CommandPalette() {
   const pathname = usePathname();
   const { accessToken, activeTeamId } = useSession();
 
+  const t = i18n[locale];
+
+  const pushNotice = (variant: NoticeVariant, text: string) => {
+    const id = `palette-toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setNotices((prev) => [...prev, { id, variant, text }]);
+    setTimeout(() => {
+      setNotices((prev) => prev.filter((notice) => notice.id !== id));
+    }, 3000);
+  };
+
+  const notifyInfo = (message: string) => {
+    pushNotice("info", message);
+  };
+
+  const alertError = (message: string) => {
+    pushNotice("error", message);
+  };
+
+  const alertSuccess = (message: string) => {
+    pushNotice("success", message);
+  };
+
   const boardIdFromPath = useMemo(() => {
     const match = pathname?.match(/\/b\/([^/]+)/);
     return match?.[1] || null;
   }, [pathname]);
 
   const isBoardContext = Boolean(boardIdFromPath && accessToken);
+
+  useEffect(() => {
+    const rawLang = typeof navigator !== "undefined" ? navigator.language : "es";
+    setLocale(rawLang.toLowerCase().startsWith("en") ? "en" : "es");
+  }, []);
+
+  const localizedPlaceholder: Record<PaletteContext, string> = {
+    global: t.placeholder.global,
+    board: t.placeholder.board,
+    cards: t.placeholder.cards,
+    lists: t.placeholder.lists,
+    system: t.placeholder.system,
+  };
 
   const availableContexts = useMemo(() => {
     return contextOrder.filter((ctx) => !contextMeta[ctx].boardOnly || isBoardContext);
@@ -217,7 +372,7 @@ export function CommandPalette() {
 
   const switchContext = (next: PaletteContext) => {
     if (contextMeta[next].boardOnly && !isBoardContext) {
-      alert("Ese contexto solo esta disponible dentro de un tablero.");
+      notifyInfo("Ese contexto solo esta disponible dentro de un tablero.");
       return;
     }
     setCurrentContext(next);
@@ -231,10 +386,10 @@ export function CommandPalette() {
       await fn();
       window.dispatchEvent(new Event("board:refresh"));
       setOpen(false);
-      alert(label);
+      alertSuccess(label);
     } catch (error) {
       console.error(`Command failed: ${label}`, error);
-      alert("No se pudo ejecutar el comando.");
+      alertError(t.fallback.runError);
     } finally {
       setIsRunningAction(false);
     }
@@ -427,47 +582,98 @@ export function CommandPalette() {
     };
   };
 
+  const getSuggestionArgTokens = (command: string): SuggestionArgToken[] => {
+    const lower = normalize(command);
+    const matched = suggestionArgTemplates.find((template) => template.match.test(lower));
+    return matched?.args ?? [];
+  };
+
+  const localizeArgToken = (token: SuggestionArgToken) => {
+    const base = t.arg[token.key as keyof typeof t.arg] ?? token.key;
+    return token.required ? `${base}*` : base;
+  };
+
+  const applyAutocomplete = () => {
+    if (!firstAutocomplete) return;
+
+    const current = commandQuery;
+    const target = firstAutocomplete.command;
+
+    if (!current.trim()) {
+      setCommandQuery(target);
+      return;
+    }
+
+    const hasTrailingSpace = /\s$/.test(current);
+    const currentTokens = current.trim().split(/\s+/).filter(Boolean);
+    const targetTokens = target.split(/\s+/).filter(Boolean);
+
+    if (hasTrailingSpace) {
+      const nextIndex = currentTokens.length;
+      if (nextIndex < targetTokens.length) {
+        setCommandQuery(`${current}${targetTokens[nextIndex]} `);
+        return;
+      }
+      setCommandQuery(target);
+      return;
+    }
+
+    const tokenIndex = currentTokens.length - 1;
+    const currentToken = currentTokens[tokenIndex] ?? "";
+    const targetToken = targetTokens[tokenIndex] ?? "";
+
+    if (targetToken.toLowerCase().startsWith(currentToken.toLowerCase())) {
+      const prefixTokens = currentTokens.slice(0, -1);
+      const rebuilt = [...prefixTokens, targetToken].join(" ");
+      const endsWithSpace = tokenIndex < targetTokens.length - 1;
+      setCommandQuery(endsWithSpace ? `${rebuilt} ` : rebuilt);
+      return;
+    }
+
+    setCommandQuery(target);
+  };
+
   const enqueueTransactionAction = (action: TransactionAction) => {
     const nextCount = txQueue.length + 1;
     setTxQueue((prev) => [...prev, action]);
-    alert(`[TX] Encolado: ${action.label}. Pendientes: ${nextCount}`);
+    notifyInfo(`[TX] Encolado: ${action.label}. Pendientes: ${nextCount}`);
   };
 
   const startTransaction = async () => {
     if (!isBoardContext) {
-      alert("Las transacciones requieren contexto de tablero.");
+      notifyInfo("Las transacciones requieren contexto de tablero.");
       return;
     }
     if (txActive) {
-      alert("Ya hay una transaccion activa.");
+      notifyInfo("Ya hay una transaccion activa.");
       return;
     }
     await reloadBoardSnapshot();
     setTxActive(true);
     setTxQueue([]);
-    alert("[TX] begin transaction - cola iniciada.");
+    notifyInfo("[TX] begin transaction - cola iniciada.");
   };
 
   const rollbackQueuedTransaction = () => {
     if (!txActive) {
-      alert("No hay transaccion activa.");
+      notifyInfo("No hay transaccion activa.");
       return;
     }
     const dropped = txQueue.length;
     setTxQueue([]);
     setTxActive(false);
     setCommandQuery("");
-    alert(`[TX] rollback transaction - descartadas ${dropped} acciones.`);
+    notifyInfo(`[TX] rollback transaction - descartadas ${dropped} acciones.`);
   };
 
   const commitTransaction = async () => {
     if (!txActive) {
-      alert("No hay transaccion activa.");
+      notifyInfo("No hay transaccion activa.");
       return;
     }
     if (txQueue.length === 0) {
       setTxActive(false);
-      alert("[TX] end transaction - no habia acciones en cola.");
+      notifyInfo("[TX] end transaction - no habia acciones en cola.");
       return;
     }
 
@@ -485,7 +691,7 @@ export function CommandPalette() {
       setCommandQuery("");
       setOpen(false);
       window.dispatchEvent(new Event("board:refresh"));
-      alert(`[TX] end transaction - commit OK (${executed.length} acciones).`);
+      notifyInfo(`[TX] end transaction - commit OK (${executed.length} acciones).`);
     } catch (error) {
       console.error("Transaction commit failed", error);
 
@@ -505,9 +711,9 @@ export function CommandPalette() {
       window.dispatchEvent(new Event("board:refresh"));
 
       if (rollbackFailures > 0) {
-        alert(`[TX] fallo el commit. Se intento rollback con ${rollbackFailures} errores.`);
+        notifyInfo(`[TX] fallo el commit. Se intento rollback con ${rollbackFailures} errores.`);
       } else {
-        alert("[TX] fallo el commit. Se revirtieron los cambios aplicados.");
+        notifyInfo("[TX] fallo el commit. Se revirtieron los cambios aplicados.");
       }
     } finally {
       setIsRunningAction(false);
@@ -548,7 +754,7 @@ export function CommandPalette() {
       if (contextCmd === "up") {
         const parent = contextMeta[currentContext].parent;
         if (!parent) {
-          alert("Ya estas en el contexto mas alto.");
+          notifyInfo("Ya estas en el contexto mas alto.");
           return;
         }
         switchContext(parent);
@@ -574,7 +780,7 @@ export function CommandPalette() {
     }
 
     if (lower === "tx status" || lower === "transaction status") {
-      alert(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.");
+      notifyInfo(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.");
       return;
     }
 
@@ -598,19 +804,19 @@ export function CommandPalette() {
 
     if (lower.startsWith("board ") && lower !== "board refresh" && lower !== "board chat" && lower !== "board share") {
       if (!accessToken || !activeTeamId) {
-        alert("Necesitas sesion y equipo activo para abrir boards por query.");
+        notifyInfo("Necesitas sesion y equipo activo para abrir boards por query.");
         return;
       }
 
       const selector = input.slice("board ".length).trim();
       if (!selector) {
-        alert("Uso: board <idx|nombre>");
+        notifyInfo("Uso: board <idx|nombre>");
         return;
       }
 
       const board = resolveBySelector(selector, teamBoards, (b) => b.name);
       if (!board) {
-        alert("No encontre un board con ese indice/nombre.");
+        notifyInfo("No encontre un board con ese indice/nombre.");
         return;
       }
 
@@ -621,7 +827,7 @@ export function CommandPalette() {
 
     if (lower === "settings") {
       setOpen(false);
-      alert("Settings triggered");
+      notifyInfo(t.fallback.settingsTriggered);
       return;
     }
 
@@ -632,7 +838,7 @@ export function CommandPalette() {
     }
 
     if (lower === "help") {
-      alert(
+      notifyInfo(
         "Comandos clave: ctx global|board|cards|lists|system, ctx up, dashboard, teams, history, board <idx|nombre>, begin/end/rollback transaction, list add <nombre>, cards done all, cards active all, cards clear-due, card done <texto>, card active <texto>, due clear <texto>, card <card> from <lista> rename <titulo>, card <card> from <lista> tag add <tag>, card <card> from <lista> tag remove <tag>, card <card> from <lista> assign <miembro>, card <card> from <lista> unassign <miembro>, board refresh/chat/share"
       );
       return;
@@ -657,7 +863,7 @@ export function CommandPalette() {
     }
 
     if (!isBoardContext || !accessToken || !boardIdFromPath) {
-      alert("Este comando requiere estar dentro de un board.");
+      notifyInfo("Este comando requiere estar dentro de un board.");
       return;
     }
 
@@ -665,20 +871,20 @@ export function CommandPalette() {
     if (cardQuery) {
       const list = resolveListFromSelector(cardQuery.listSelector);
       if (!list) {
-        alert("No encontre la lista indicada.");
+        notifyInfo("No encontre la lista indicada.");
         return;
       }
 
       const targetCard = resolveBySelector(cardQuery.cardSelector, list.cards, (card) => card.title);
       if (!targetCard) {
-        alert("No encontre la card indicada dentro de esa lista.");
+        notifyInfo("No encontre la card indicada dentro de esa lista.");
         return;
       }
 
       if (cardQuery.action === "rename") {
         const nextTitle = cardQuery.value.trim();
         if (!nextTitle) {
-          alert("Uso: card <card> from <lista> rename <nuevo titulo>");
+          notifyInfo("Uso: card <card> from <lista> rename <nuevo titulo>");
           return;
         }
 
@@ -706,7 +912,7 @@ export function CommandPalette() {
       if (cardQuery.action === "tag_add") {
         const tagName = cardQuery.value.trim();
         if (!tagName) {
-          alert("Uso: card <card> from <lista> tag add <tag>");
+          notifyInfo("Uso: card <card> from <lista> tag add <tag>");
           return;
         }
 
@@ -717,7 +923,7 @@ export function CommandPalette() {
         }
 
         if (targetCard.tags.some((existing) => existing.id === tag.id)) {
-          alert("La card ya tiene ese tag.");
+          notifyInfo("La card ya tiene ese tag.");
           return;
         }
 
@@ -744,12 +950,12 @@ export function CommandPalette() {
       if (cardQuery.action === "tag_remove") {
         const tag = resolveTagFromSelector(cardQuery.value);
         if (!tag) {
-          alert("No encontre ese tag en el board.");
+          notifyInfo("No encontre ese tag en el board.");
           return;
         }
 
         if (!targetCard.tags.some((existing) => existing.id === tag.id)) {
-          alert("La card no tiene ese tag.");
+          notifyInfo("La card no tiene ese tag.");
           return;
         }
 
@@ -775,12 +981,12 @@ export function CommandPalette() {
 
       const member = resolveMemberFromSelector(cardQuery.value);
       if (!member) {
-        alert("No encontre ese miembro del board.");
+        notifyInfo("No encontre ese miembro del board.");
         return;
       }
 
       if (txActive) {
-        alert("assign/unassign no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
+        notifyInfo("assign/unassign no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
         return;
       }
 
@@ -802,12 +1008,12 @@ export function CommandPalette() {
     if (lower.startsWith("list add ")) {
       const name = input.slice("list add ".length).trim();
       if (!name) {
-        alert("Uso: list add <nombre>");
+        notifyInfo("Uso: list add <nombre>");
         return;
       }
 
       if (txActive) {
-        alert("list add no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
+        notifyInfo("list add no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
         return;
       }
 
@@ -821,7 +1027,7 @@ export function CommandPalette() {
       if (txActive) {
         const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
         if (targets.length === 0) {
-          alert("No hay cards para actualizar.");
+          notifyInfo("No hay cards para actualizar.");
           return;
         }
         enqueueTransactionAction({
@@ -847,7 +1053,7 @@ export function CommandPalette() {
       if (txActive) {
         const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
         if (targets.length === 0) {
-          alert("No hay cards para actualizar.");
+          notifyInfo("No hay cards para actualizar.");
           return;
         }
         enqueueTransactionAction({
@@ -875,7 +1081,7 @@ export function CommandPalette() {
           .filter((card) => Boolean(card.dueAt))
           .map((card) => ({ id: card.id, prevDueAt: card.dueAt }));
         if (withDue.length === 0) {
-          alert("No hay cards con fecha limite.");
+          notifyInfo("No hay cards con fecha limite.");
           return;
         }
         enqueueTransactionAction({
@@ -902,7 +1108,7 @@ export function CommandPalette() {
       const query = normalize(input.slice("card done ".length));
       const target = boardCards.find((card) => normalize(card.title).includes(query));
       if (!target) {
-        alert("No encontre una card que coincida.");
+        notifyInfo("No encontre una card que coincida.");
         return;
       }
 
@@ -931,7 +1137,7 @@ export function CommandPalette() {
       const query = normalize(input.slice("card active ".length));
       const target = boardCards.find((card) => normalize(card.title).includes(query));
       if (!target) {
-        alert("No encontre una card que coincida.");
+        notifyInfo("No encontre una card que coincida.");
         return;
       }
 
@@ -960,13 +1166,13 @@ export function CommandPalette() {
       const query = normalize(input.slice("due clear ".length));
       const target = boardCards.find((card) => normalize(card.title).includes(query));
       if (!target) {
-        alert("No encontre una card que coincida.");
+        notifyInfo("No encontre una card que coincida.");
         return;
       }
 
       if (txActive) {
         if (!target.dueAt) {
-          alert("Esa card no tiene fecha limite para limpiar.");
+          notifyInfo("Esa card no tiene fecha limite para limpiar.");
           return;
         }
         const prevDueAt = target.dueAt;
@@ -989,7 +1195,7 @@ export function CommandPalette() {
       return;
     }
 
-    alert("Comando no reconocido. Escribe 'help' para ver ejemplos.");
+    notifyInfo("Comando no reconocido. Escribe 'help' para ver ejemplos.");
   };
 
   const autocompleteSuggestions = useMemo(() => {
@@ -1111,10 +1317,27 @@ export function CommandPalette() {
   const firstAutocomplete =
     autocompleteSuggestions.find((s) => s.command.toLowerCase() !== commandQuery.trim().toLowerCase() && s.available) || null;
 
-  const applyAutocomplete = () => {
-    if (!firstAutocomplete) return;
-    setCommandQuery(firstAutocomplete.command);
-  };
+  const nextTokenHint = useMemo(() => {
+    if (!firstAutocomplete || !commandQuery.trim()) return null;
+
+    const current = commandQuery;
+    const target = firstAutocomplete.command;
+    const hasTrailingSpace = /\s$/.test(current);
+    const currentTokens = current.trim().split(/\s+/).filter(Boolean);
+    const targetTokens = target.split(/\s+/).filter(Boolean);
+
+    if (hasTrailingSpace) {
+      return targetTokens[currentTokens.length] ?? null;
+    }
+
+    const currentToken = currentTokens[currentTokens.length - 1] ?? "";
+    const targetToken = targetTokens[currentTokens.length - 1] ?? "";
+    if (targetToken.toLowerCase().startsWith(currentToken.toLowerCase())) {
+      return targetToken;
+    }
+
+    return null;
+  }, [commandQuery, firstAutocomplete]);
 
   const reloadBoardSnapshot = async () => {
     if (!boardIdFromPath || !accessToken) return;
@@ -1227,6 +1450,25 @@ export function CommandPalette() {
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm p-4">
       <div className="absolute inset-0 -z-10" onClick={() => setOpen(false)} />
 
+      {notices.length > 0 ? (
+        <div className="fixed top-4 right-4 z-[90] flex w-full max-w-sm flex-col gap-2">
+          {notices.map((notice) => (
+            <div
+              key={notice.id}
+              className={`rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${
+                notice.variant === "success"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+                  : notice.variant === "error"
+                  ? "bg-red-500/10 border-red-500/30 text-red-200"
+                  : "bg-sky-500/10 border-sky-500/30 text-sky-200"
+              }`}
+            >
+              {notice.text}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         <Command label="Global Command Menu" className="flex flex-col w-full h-full">
           <div className="border-b border-border px-4 py-3">
@@ -1247,7 +1489,7 @@ export function CommandPalette() {
                     await executeCommandWithArgs(commandQuery);
                   }
                 }}
-                placeholder={contextPlaceholder[currentContext]}
+                placeholder={localizedPlaceholder[currentContext]}
                 className="flex-1 bg-transparent outline-none placeholder:text-muted-foreground text-foreground"
               />
               <button onClick={() => setOpen(false)} className="flex items-center gap-1 cursor-pointer hover:opacity-80 transition-opacity">
@@ -1271,7 +1513,10 @@ export function CommandPalette() {
                   Subir a {contextMeta[parentContext].label}
                 </button>
               ) : null}
-              {firstAutocomplete ? <span>Tab: {firstAutocomplete.command}</span> : null}
+              {firstAutocomplete ? <span>{t.hint.tabComplete}: {firstAutocomplete.command}</span> : null}
+              {nextTokenHint ? <span>{t.hint.nextToken}: {nextTokenHint}</span> : null}
+              <span>{t.hint.enterRun}</span>
+              <span>{t.hint.argStyle}</span>
               {txActive ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
                   TX activa: {txQueue.length}
@@ -1355,7 +1600,7 @@ export function CommandPalette() {
 
                 <Command.Item
                   value="tx-status"
-                  onSelect={() => alert(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.")}
+                  onSelect={() => notifyInfo(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.")}
                   className={itemClassName}
                 >
                   <Clock className="h-4 w-4 text-muted-foreground" />
@@ -1397,7 +1642,7 @@ export function CommandPalette() {
                     value={`${suggestion.command} ${suggestion.description}`}
                     onSelect={() => {
                       if (!suggestion.available) {
-                        alert(suggestion.availabilityNote || "Comando no disponible en este contexto.");
+                        notifyInfo(suggestion.availabilityNote || t.fallback.commandUnavailable);
                         return;
                       }
                       setCommandQuery(suggestion.command);
@@ -1407,9 +1652,21 @@ export function CommandPalette() {
                     <suggestion.icon className="h-3.5 w-3.5 text-muted-foreground" />
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{suggestion.command}</div>
+                      {getSuggestionArgTokens(suggestion.command).length > 0 ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1">
+                          {getSuggestionArgTokens(suggestion.command).map((token) => (
+                            <span
+                              key={`${suggestion.command}-${token.key}`}
+                              className="inline-flex items-center rounded-md border border-border bg-accent/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-foreground/80"
+                            >
+                              {localizeArgToken(token)}
+                            </span>
+                          ))}
+                        </div>
+                      ) : null}
                       <div className="truncate text-xs text-muted-foreground">
                         {suggestion.description}
-                        {suggestion.available ? " · Pulsa Enter para ejecutar" : ` · ${suggestion.availabilityNote || "No disponible"}`}
+                        {suggestion.available ? " Â· Pulsa Enter para ejecutar" : ` Â· ${suggestion.availabilityNote || "No disponible"}`}
                       </div>
                     </div>
                   </Command.Item>
@@ -1537,20 +1794,16 @@ export function CommandPalette() {
 
                 <Command.Item
                   value="board-add-list-quick"
-                  onSelect={async () => {
-                    if (!boardIdFromPath || !accessToken || isRunningAction) return;
-                    const name = window.prompt("Nombre de la nueva lista:");
-                    if (!name?.trim()) return;
-                    await runBoardAction("Lista creada", async () => {
-                      await createList(boardIdFromPath, { name: name.trim() }, accessToken);
-                    });
+                  onSelect={() => {
+                    switchContext("lists");
+                    setCommandQuery("list add ");
                   }}
                   className={itemClassName}
                 >
                   <Plus className="h-4 w-4 text-muted-foreground" />
                   <div className="min-w-0 flex-1">
                     <div className="truncate font-medium">Quick Add List</div>
-                    <div className="truncate text-xs text-muted-foreground">Crear una lista sin salir del launcher</div>
+                    <div className="truncate text-xs text-muted-foreground">Prepara args: list add &lt;name&gt;</div>
                   </div>
                 </Command.Item>
               </Command.Group>
@@ -1687,13 +1940,8 @@ export function CommandPalette() {
                 <Command.Group heading="List Actions" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
                   <Command.Item
                     value="list-add-quick"
-                    onSelect={async () => {
-                      if (!boardIdFromPath || !accessToken || isRunningAction) return;
-                      const name = window.prompt("Nombre de la nueva lista:");
-                      if (!name?.trim()) return;
-                      await runBoardAction("Lista creada", async () => {
-                        await createList(boardIdFromPath, { name: name.trim() }, accessToken);
-                      });
+                    onSelect={() => {
+                      setCommandQuery("list add ");
                     }}
                     className={itemClassName}
                   >
@@ -1730,7 +1978,7 @@ export function CommandPalette() {
                   value="settings"
                   onSelect={() => {
                     setOpen(false);
-                    alert("Settings triggered");
+                    notifyInfo(t.fallback.settingsTriggered);
                   }}
                   className={itemClassName}
                 >
@@ -1784,3 +2032,4 @@ export function CommandPalette() {
     </div>
   );
 }
+

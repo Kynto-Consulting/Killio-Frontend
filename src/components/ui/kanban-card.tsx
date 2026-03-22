@@ -3,10 +3,11 @@
 import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal, Flag } from "lucide-react";
+import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
 import { CardView, TextBrick, MediaBrick, deleteCard } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
+import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 
 export function KanbanCard({ card, listId, listName, boardName, boardId }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -44,11 +45,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
   });
 
   const attachmentsCount = mediaBlocks.length;
-  const isPriority = (card.tags || []).some((tag: any) => {
-    const normalizedName = String(tag?.name || '').trim().toLowerCase();
-    const normalizedSlug = String(tag?.slug || '').trim().toLowerCase();
-    return tag?.tag_kind === 'priority' || normalizedName === 'prioridad' || normalizedName === 'priority' || normalizedSlug === 'prioridad' || normalizedSlug === 'priority';
-  });
+  const locale = getClientLocale();
 
   return (
     <>
@@ -59,19 +56,11 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
         className={`group relative flex flex-col gap-3 rounded-lg border ${
           isDragging
             ? "border-accent shadow-lg ring-1 ring-accent"
-            : isPriority
-              ? "border-rose-400/80 bg-card shadow-sm ring-1 ring-rose-500/20 hover:border-rose-400"
-              : "border-border shadow-sm hover:border-accent/40"
+            : "border-border shadow-sm hover:border-accent/40"
         } p-3 cursor-grab active:cursor-grabbing transition-colors`}
         {...attributes}
         {...listeners}
       >
-
-      {isPriority && (
-        <div className="absolute top-2 left-2 inline-flex items-center gap-1 rounded-full border border-rose-300 bg-rose-100/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-rose-900">
-          <Flag className="h-3 w-3" /> Prioridad
-        </div>
-      )}
       
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
         <button
@@ -116,7 +105,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
         )}
       </div>
 
-      <p className={`text-sm font-medium leading-tight transition-colors ${isPriority ? 'text-foreground pr-6 pt-5' : 'text-foreground/90 group-hover:text-accent'}`}>
+      <p className="text-sm font-medium leading-tight transition-colors text-foreground/90 group-hover:text-accent">
         {card.title}
       </p>
 
@@ -132,7 +121,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
                 backgroundColor: `${normalizeColor(tag.color)}22`,
               }}
             >
-              {tag.name}
+              {translateNativeTagName(tag.name, locale)}
             </span>
           ))}
         </div>

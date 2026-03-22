@@ -6,6 +6,7 @@ export type PresenceMember = {
   data: {
     displayName: string;
     email: string;
+   avatar_url?: string | null;
     avatarColor?: string;
   };
 };
@@ -41,6 +42,7 @@ export function useBoardPresence(boardId: string | null | undefined, user: any, 
     channel.presence.enter({
       displayName: user.displayName,
       email: user.email,
+     avatar_url: user.avatar_url,
     }).then(updateMembers).catch(console.error);
 
     return () => {

@@ -5,6 +5,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useEffect, useMemo, useState } from "react";
 import { createInvite, listTeamInvites, listTeams, listTeamMembers, removeTeamMember, revokeTeamInvite, TeamRole, TeamView, TeamMemberSummary, InviteSummary, updateTeamMemberRole } from "@/lib/api/contracts";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export default function TeamsPage() {
   const { accessToken, activeTeamId, user } = useSession();
@@ -324,9 +325,11 @@ export default function TeamsPage() {
             return (
             <div key={member.id} className="flex items-center justify-between p-4 bg-card hover:bg-accent/5 transition-colors relative">
               <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-full border border-border bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-xs shadow-sm capitalize">
-                  {avatarInitials}
-                </div>
+                 <img 
+                   src={getUserAvatarUrl(member.avatarUrl, member.primaryEmail, 40)}
+                   alt={member.displayName}
+                   className="h-10 w-10 rounded-full border border-border object-cover shadow-sm"
+                 />
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="font-medium leading-none text-foreground">
