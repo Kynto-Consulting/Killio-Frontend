@@ -657,6 +657,20 @@ export async function removeCardTag(cardId: string, tagId: string, accessToken: 
   });
 }
 
+export async function addCardAssignee(cardId: string, assigneeId: string, accessToken: string): Promise<{ cardId: string; assigneeId: string }> {
+  return request<{ cardId: string; assigneeId: string }>(`/cards/${cardId}/assignees/${assigneeId}`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function removeCardAssignee(cardId: string, assigneeId: string, accessToken: string): Promise<{ cardId: string; assigneeId: string }> {
+  return request<{ cardId: string; assigneeId: string }>(`/cards/${cardId}/assignees/${assigneeId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
 // ------ BOARD SHARING & VISIBILITY ------
 
 export interface BoardMemberSummary {
