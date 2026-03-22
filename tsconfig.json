@@ -27,10 +27,10 @@
       "@/*": [
         "./src/*"
       ],
-      "@kynto/river": [
+      "@kyntocg/river": [
         "../river/src/index.ts"
       ],
-      "@kynto/river/*": [
+      "@kyntocg/river/*": [
         "../river/src/*"
       ]
     }

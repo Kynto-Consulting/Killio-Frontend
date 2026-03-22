@@ -1,4 +1,4 @@
-import { argParsers, argument, command, dispatchCommand, literal, suggestCommand, type CommandSpec } from "@kynto/river";
+import { argParsers, argument, command, dispatchCommand, literal, suggestCommand, type CommandSpec } from "@kyntocg/river";
 
 type FrontRiverContext = {
   boardNames: string[];
