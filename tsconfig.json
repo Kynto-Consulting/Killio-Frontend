@@ -26,6 +26,12 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@kynto/river": [
+        "../river/src/index.ts"
+      ],
+      "@kynto/river/*": [
+        "../river/src/*"
       ]
     }
   },
