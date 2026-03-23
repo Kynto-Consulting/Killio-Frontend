@@ -243,7 +243,7 @@ export default function HistoryPage() {
           boardIdsList.map(async (boardId) => {
             const [board, tags] = await Promise.all([
               getBoard(boardId, accessToken),
-              getTagsByScope({ scopeType: "board", scopeId: boardId }, accessToken).catch(() => []),
+              getTagsByScope("board", boardId, accessToken).catch(() => []),
             ]);
 
             return { boardId, board, tags };

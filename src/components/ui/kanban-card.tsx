@@ -8,6 +8,7 @@ import { CardDetailModal } from "./card-detail-modal";
 import { CardView, TextBrick, MediaBrick, deleteCard } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export function KanbanCard({ card, listId, listName, boardName, boardId }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,6 +46,8 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
   });
 
   const attachmentsCount = mediaBlocks.length;
+  const assignees = (card.assignees || []).slice(0, 4);
+  const hiddenAssigneesCount = Math.max(0, (card.assignees || []).length - assignees.length);
   const locale = getClientLocale();
 
   return (
@@ -154,13 +157,22 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
           ) : null}
         </div>
         
-        {false && ( /* Members hidden */
-          <div className="flex -space-x-1.5">
-            {/*card.members.map((member: any) => (
-              <div key={member.id} title={member.name} className="h-5 w-5 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-[9px] border border-border shadow-sm">
-                {member.initials}
-              </div>
-            ))*/}
+        {(card.assignees || []).length > 0 && (
+          <div className="flex items-center -space-x-1.5">
+            {assignees.map((assignee: any) => (
+              <img
+                key={assignee.id}
+                src={getUserAvatarUrl(assignee.avatar_url || assignee.avatarUrl, assignee.email, 20)}
+                alt={assignee.name || assignee.displayName || assignee.email}
+                title={assignee.name || assignee.displayName || assignee.email}
+                className="h-5 w-5 rounded-full border border-border/70 object-cover bg-muted"
+              />
+            ))}
+            {hiddenAssigneesCount > 0 && (
+              <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+                +{hiddenAssigneesCount}
+              </span>
+            )}
           </div>
         )}
       </div>

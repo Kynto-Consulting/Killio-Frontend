@@ -2,7 +2,17 @@ import { useEffect, useRef, useCallback } from 'react';
 import { getAblyClient } from '@/lib/ably';
 
 export type BoardEvent = {
-  type: 'card.moved' | 'card.created' | 'card.updated' | 'board.updated';
+  type:
+    | 'card.moved'
+    | 'card.created'
+    | 'card.updated'
+    | 'card.assignee_added'
+    | 'card.assignee_removed'
+    | 'board.updated'
+    | 'brick.created'
+    | 'brick.updated'
+    | 'brick.reordered'
+    | 'brick.deleted';
   payload: Record<string, unknown>;
 };
 
@@ -33,20 +43,34 @@ export function useBoardRealtime(
       'card.moved',
       'card.created',
       'card.updated',
+      'card.assignee_added',
+      'card.assignee_removed',
       'board.updated',
+      'brick.created',
+      'brick.updated',
+      'brick.reordered',
+      'brick.deleted',
     ];
 
+    const subscriptions: Array<{ eventName: BoardEvent['type']; listener: (message: unknown) => void }> = [];
+
     eventsToSubscribe.forEach((eventName) => {
-      channel.subscribe(eventName, (message) => {
+      const listener = (message: unknown) => {
+        const messageData = (message as { data?: unknown }).data;
         onEventRef.current({
           type: eventName,
-          payload: message.data as Record<string, unknown>,
+          payload: (messageData ?? {}) as Record<string, unknown>,
         });
-      });
+      };
+
+      subscriptions.push({ eventName, listener });
+      channel.subscribe(eventName, listener);
     });
 
     return () => {
-      channel.unsubscribe();
+      subscriptions.forEach(({ eventName, listener }) => {
+        channel.unsubscribe(eventName, listener);
+      });
       // Don't detach — the singleton Ably client reuses the channel
       // and detach() leaves it in a terminal state that blocks reattachment.
     };

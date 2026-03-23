@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-export default function SignupPage() {
+function SignupPageContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useSession();
   const [form, setForm] = useState({
     displayName: "",
@@ -20,6 +21,10 @@ export default function SignupPage() {
   });
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const from = searchParams.get("from");
+  const safeFrom = from && from.startsWith("/") ? from : "/";
+  const loginHref = safeFrom !== "/" ? `/login?from=${encodeURIComponent(safeFrom)}` : "/login";
 
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -62,8 +67,8 @@ export default function SignupPage() {
       localStorage.setItem("killio_refresh", data.refreshToken);
       localStorage.setItem("killio_user", JSON.stringify(data.user));
 
-      login(data.user, data.accessToken);
-      router.push("/");
+      login(data.user, data.accessToken, data.refreshToken);
+      router.push(safeFrom);
     } catch {
       setError("Could not reach the server. Is the backend running?");
     } finally {
@@ -230,7 +235,7 @@ export default function SignupPage() {
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
               Already have an account?{" "}
-              <Link href="/login" className="font-medium text-accent hover:underline">
+              <Link href={loginHref} className="font-medium text-accent hover:underline">
                 Sign in
               </Link>
             </div>
@@ -238,5 +243,19 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-background">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <SignupPageContent />
+    </Suspense>
   );
 }

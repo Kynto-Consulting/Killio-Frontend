@@ -38,14 +38,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     
     listTeams(accessToken).then((fetchedTeams) => {
       setTeams(fetchedTeams);
-      if (fetchedTeams.length > 0 && !activeTeamId) {
+      if (fetchedTeams.length === 0) {
+        if (activeTeamId) {
+          setActiveTeamId(null);
+        }
+        return;
+      }
+
+      const hasValidActiveTeam = !!activeTeamId && fetchedTeams.some((team) => team.id === activeTeamId);
+      if (!hasValidActiveTeam) {
         setActiveTeamId(fetchedTeams[0].id);
       }
     }).catch(console.error);
   }, [accessToken, activeTeamId, setActiveTeamId]);
 
   useEffect(() => {
-    if (!accessToken || !activeTeamId) return;
+    if (!accessToken || !activeTeamId || teams.length === 0) return;
+    if (!teams.some((team) => team.id === activeTeamId)) return;
     
     setIsFetchingBoards(true);
     listTeamBoards(activeTeamId, accessToken)
@@ -54,7 +63,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .catch(console.error)
       .finally(() => setIsFetchingBoards(false));
-  }, [accessToken, activeTeamId]);
+  }, [accessToken, activeTeamId, teams]);
 
   const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: Exclude<TeamRole, 'owner'>}[] }) => {
     if (!accessToken) return;
