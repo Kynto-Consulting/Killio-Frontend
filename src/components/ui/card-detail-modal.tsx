@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2 } from "lucide-react";
-import { updateCard, addCardTag, removeCardTag, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi } from "../../lib/api/contracts";
 import type { BoardBrick } from "../../lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { createPortal } from "react-dom";
@@ -37,12 +37,19 @@ export function CardDetailModal({
   boardName?: string;
   boardId?: string;
 }) {
-  const { accessToken } = useSession();
+  const { accessToken, user } = useSession();
   const [localTitle, setLocalTitle] = useState(card?.title || "");
   const [localSummary, setLocalSummary] = useState(card?.summary || "");
   const [localDueAt, setLocalDueAt] = useState(normalizeDueDateInputValue(card?.dueAt));
   const [localTags, setLocalTags] = useState<any[]>(card?.tags || []);
-  const [localAssignees, setLocalAssignees] = useState<any[]>(card?.assignees || []);
+  const normalizeAssignee = useCallback((raw: any) => ({
+    id: raw?.id,
+    name: raw?.name || raw?.displayName || raw?.email || 'Unknown user',
+    email: raw?.email || '',
+    avatar_url: raw?.avatar_url || raw?.avatarUrl || null,
+  }), []);
+
+  const [localAssignees, setLocalAssignees] = useState<any[]>((card?.assignees || []).map(normalizeAssignee));
 
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [areTagsExpanded, setAreTagsExpanded] = useState(false);
@@ -357,7 +364,7 @@ export function CardDetailModal({
           id: m.id,
           name: m.displayName || m.email,
           email: m.email,
-          avatar_url: m.avatar_url,
+          avatar_url: m.avatarUrl || m.avatar_url,
           initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
         })));
       }).catch(console.error);
@@ -381,7 +388,7 @@ export function CardDetailModal({
         setLocalSummary(card.summary || "");
         setLocalDueAt(normalizeDueDateInputValue(card.dueAt));
         setLocalTags(card.tags || []);
-        setLocalAssignees(card.assignees || []);
+        setLocalAssignees((card.assignees || []).map(normalizeAssignee));
       } else {
         setLocalTitle("New Card");
         setLocalSummary("");
@@ -396,7 +403,7 @@ export function CardDetailModal({
       setNewTagColor('#3b82f6');
       setAreTagsExpanded(false);
     }
-  }, [isOpen, card]);
+  }, [isOpen, card, normalizeAssignee]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -572,13 +579,46 @@ export function CardDetailModal({
 
   const toggleAssignee = async (user: any) => {
     const isAssigned = localAssignees.find(a => a.id === user.id);
+    const normalizedUser = normalizeAssignee(user);
+
     if (isAssigned) {
       setLocalAssignees(prev => prev.filter(a => a.id !== user.id));
-      // TODO: Call removeAssignee contract if/when available
+      if (card?.id && accessToken) {
+        try {
+          await removeCardAssignee(card.id, user.id, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        } catch (err) {
+          console.error("Failed to remove assignee", err);
+          setLocalAssignees(prev => [...prev, normalizedUser]);
+        }
+      }
     } else {
-      setLocalAssignees(prev => [...prev, user]);
-      // TODO: Call addAssignee contract if/when available
+      setLocalAssignees(prev => [...prev, normalizedUser]);
+      if (card?.id && accessToken) {
+        try {
+          await addCardAssignee(card.id, user.id, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        } catch (err) {
+          console.error("Failed to add assignee", err);
+          setLocalAssignees(prev => prev.filter(a => a.id !== user.id));
+        }
+      }
     }
+  };
+
+  const assignCurrentUser = async () => {
+    if (!user?.id) return;
+
+    const boardMember = boardMembers.find((member) => member.id === user.id);
+    const currentUserAsAssignee = boardMember || {
+      id: user.id,
+      name: user.displayName || user.email,
+      email: user.email,
+      avatar_url: null,
+      initials: (user.displayName || user.email || '??').substring(0, 2).toUpperCase(),
+    };
+
+    await toggleAssignee(currentUserAsAssignee);
   };
 
   const handleAddComment = async () => {
@@ -1265,6 +1305,17 @@ const handleUpdateField = useCallback((field: string, value: any, instant: boole
                     {isAssigneeDropdownOpen && (
                       <div className="absolute top-full right-0 mt-1 w-48 bg-card border border-border rounded-md shadow-lg z-10 overflow-hidden">
                         <div className="p-2 border-b border-border text-xs font-semibold">Assign to...</div>
+                        {user?.id && (
+                          <div className="p-1 border-b border-border/60">
+                            <button
+                              onClick={assignCurrentUser}
+                              className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent/10 rounded flex items-center justify-between text-foreground/90"
+                            >
+                              <span>Assign to me</span>
+                              {localAssignees.some((assignee) => assignee.id === user.id) && <CheckSquare className="h-3 w-3 text-primary" />}
+                            </button>
+                          </div>
+                        )}
                         <div className="max-h-40 overflow-y-auto p-1">
                             {boardMembers.map(user => {
                             const isSelected = localAssignees.some(a => a.id === user.id);

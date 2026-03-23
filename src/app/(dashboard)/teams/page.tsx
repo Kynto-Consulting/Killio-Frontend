@@ -32,6 +32,12 @@ export default function TeamsPage() {
   const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ['owner', 'admin', 'member'].includes(myRole);
   const canManageMembers = ['owner', 'admin'].includes(myRole);
 
+  const inviteDisabledReason = activeTeam?.isPersonal
+    ? 'Este es un workspace personal. Para invitar personas crea o cambia a un workspace de equipo.'
+    : !canInvite
+      ? 'Tu rol actual no permite enviar invitaciones.'
+      : null;
+
   const inviteRoleOptions = useMemo<Exclude<TeamRole, 'owner'>[]>(() => {
     if (myRole === 'owner' || myRole === 'admin') return ['admin', 'member', 'guest'];
     if (myRole === 'member') return ['member', 'guest'];
@@ -190,7 +196,7 @@ export default function TeamsPage() {
             <h1 className="text-3xl font-bold tracking-tight">Teams & Access</h1>
             {activeTeam?.isPersonal && (
               <span className="flex items-center text-xs font-semibold bg-primary/10 text-primary px-2 py-1 rounded-md">
-                <Lock className="w-3 h-3 mr-1" /> Personal Workspace
+                <Lock className="w-3 h-3 mr-1" /> {activeTeam.name}
               </span>
             )}
           </div>
@@ -202,7 +208,7 @@ export default function TeamsPage() {
           className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
           title={
             activeTeam?.isPersonal
-              ? "You cannot invite members to your Personal Workspace."
+              ? "This is a personal workspace. Switch to a team workspace to invite members."
               : !canInvite
                 ? "Your workspace role cannot invite people."
                 : ""
@@ -265,8 +271,8 @@ export default function TeamsPage() {
         {inviteError && (
           <p className="mt-2 text-xs text-destructive">{inviteError}</p>
         )}
-        {!canInvite && (
-          <p className="mt-2 text-xs text-muted-foreground">Tu rol actual no permite enviar invitaciones.</p>
+        {inviteDisabledReason && (
+          <p className="mt-2 text-xs text-muted-foreground">{inviteDisabledReason}</p>
         )}
 
         <div className="mt-4 rounded-lg border border-border/50 bg-background/40 p-3">

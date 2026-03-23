@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { Fragment, useState, useEffect, useRef, type ReactNode } from "react";
 import { X, Send, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "../providers/session-provider";
@@ -13,6 +13,29 @@ type Message = {
   avatar?: string;
   loading?: boolean;
 };
+
+function renderInlineMarkdown(text: string): ReactNode {
+  const chunks = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return chunks.map((chunk, index) => {
+    if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
+      return <strong key={`bold-${index}`}>{chunk.slice(2, -2)}</strong>;
+    }
+
+    return <Fragment key={`text-${index}`}>{chunk}</Fragment>;
+  });
+}
+
+function renderChatMessage(content: string): ReactNode {
+  const lines = content.split(/\r?\n/);
+
+  return lines.map((line, index) => (
+    <Fragment key={`line-${index}`}>
+      {renderInlineMarkdown(line)}
+      {index < lines.length - 1 ? <br /> : null}
+    </Fragment>
+  ));
+}
 
 export function BoardChatDrawer({
   isOpen,
@@ -216,7 +239,7 @@ export function BoardChatDrawer({
                       <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
                     </span>
                   ) : (
-                    msg.content
+                    renderChatMessage(msg.content)
                   )}
                 </div>
               </div>

@@ -4,6 +4,26 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthResponse } from "@/lib/api/contracts";
 
+const LAST_TEAM_BY_USER_STORAGE_KEY = "killio_last_team_by_user";
+
+type LastTeamByUser = Record<string, string>;
+
+function readLastTeamByUser(): LastTeamByUser {
+  try {
+    const raw = localStorage.getItem(LAST_TEAM_BY_USER_STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as unknown;
+    if (!parsed || typeof parsed !== "object") return {};
+    return parsed as LastTeamByUser;
+  } catch {
+    return {};
+  }
+}
+
+function writeLastTeamByUser(value: LastTeamByUser) {
+  localStorage.setItem(LAST_TEAM_BY_USER_STORAGE_KEY, JSON.stringify(value));
+}
+
 export interface SessionAccount {
   user: AuthResponse["user"];
   accessToken: string;
@@ -16,7 +36,7 @@ export type SessionContextType = {
   activeTeamId: string | null;
   accessToken: string | null;
   accounts: SessionAccount[];
-  setActiveTeamId: (id: string) => void;
+  setActiveTeamId: (id: string | null) => void;
   isLoading: boolean;
   logout: () => void;
   login: (userData: AuthResponse["user"], token: string, refreshToken?: string) => void;
@@ -84,12 +104,24 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const handleSetActiveTeam = (id: string) => {
+  const handleSetActiveTeam = (id: string | null) => {
     setActiveTeamId(id);
-    localStorage.setItem("killio_active_team", id);
+    if (id) {
+      localStorage.setItem("killio_active_team", id);
+    } else {
+      localStorage.removeItem("killio_active_team");
+    }
     
     // Update team id in accounts list too
     if (user) {
+      const map = readLastTeamByUser();
+      if (id) {
+        map[user.id] = id;
+      } else {
+        delete map[user.id];
+      }
+      writeLastTeamByUser(map);
+
       setAccounts(prev => {
         const newAccs = prev.map(acc => acc.user.id === user.id ? { ...acc, activeTeamId: id } : acc);
         localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
@@ -122,6 +154,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const login = (userData: AuthResponse["user"], token: string, refreshToken?: string) => {
     setUser(userData);
     setAccessToken(token);
+    const existingAccount = accounts.find((account) => account.user.id === userData.id);
+    const map = readLastTeamByUser();
+    const restoredTeamId = existingAccount?.activeTeamId ?? map[userData.id] ?? null;
+    setActiveTeamId(restoredTeamId);
+
+    if (restoredTeamId) {
+      localStorage.setItem("killio_active_team", restoredTeamId);
+    } else {
+      localStorage.removeItem("killio_active_team");
+    }
     
     // Update accounts list
     setAccounts(prev => {
@@ -130,7 +172,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         user: userData,
         accessToken: token,
         refreshToken: refreshToken || null,
-        activeTeamId: null
+        activeTeamId: restoredTeamId
       }];
       localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
       return newAccs;

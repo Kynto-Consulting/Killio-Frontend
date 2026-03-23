@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useSortable, SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
+import { useDroppable } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, MoreHorizontal } from "lucide-react";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
@@ -28,29 +28,20 @@ export function ListColumn({
   dropHintIndex?: number | null;
   draggingCardId?: string | null;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: list.id });
+  const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
 
   return (
     <>
     <div
       ref={setNodeRef}
-      style={style}
       className={`w-72 shrink-0 flex flex-col rounded-xl bg-card/60 border backdrop-blur-sm max-h-full transition-all ${
-        isDragging ? "border-accent" : isDropTarget ? "border-accent/80 ring-2 ring-accent/30 shadow-lg" : "border-border"
+        isDropTarget ? "border-accent/80 ring-2 ring-accent/30 shadow-lg" : "border-border"
       }`}
     >
       <div 
-        className="p-3 flex items-center justify-between group cursor-grab active:cursor-grabbing border-b border-border/40"
-        {...attributes}
-        {...listeners}
+        className="p-3 flex items-center justify-between group border-b border-border/40"
       >
         <h3 className="font-semibold text-sm pl-1">{list.title}</h3>
         <div className="flex items-center space-x-1 relative">

@@ -1,10 +1,10 @@
 "use client";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2 } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
-import { SortableContext, arrayMove, sortableKeyboardCoordinates, horizontalListSortingStrategy } from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { ShareModal } from "@/components/ui/share-modal";
@@ -16,6 +16,454 @@ import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
 import { getBoard, createList, deleteBoard, updateCard } from "@/lib/api/contracts";
 import { useEffect } from "react";
+
+type BoardListState = {
+  id: string;
+  title: string;
+  cards: any[];
+};
+
+type ApplyEventResult = {
+  nextLists: BoardListState[];
+  needsFallback: boolean;
+};
+
+function asString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function asFiniteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function findCardLocation(lists: BoardListState[], cardId: string): { listIndex: number; cardIndex: number } | null {
+  for (let listIndex = 0; listIndex < lists.length; listIndex += 1) {
+    const cardIndex = lists[listIndex].cards.findIndex((card: any) => card.id === cardId);
+    if (cardIndex >= 0) {
+      return { listIndex, cardIndex };
+    }
+  }
+
+  return null;
+}
+
+function reorderCardWithinList(cards: any[], fromIndex: number, toIndex: number): any[] {
+  if (fromIndex === toIndex) return cards;
+  const nextCards = [...cards];
+  const [card] = nextCards.splice(fromIndex, 1);
+  nextCards.splice(Math.max(0, Math.min(toIndex, nextCards.length)), 0, card);
+  return nextCards;
+}
+
+function dedupeListsById(lists: BoardListState[]): BoardListState[] {
+  const byId = new Map<string, BoardListState>();
+  const order: string[] = [];
+
+  for (const list of lists) {
+    const existing = byId.get(list.id);
+    if (!existing) {
+      byId.set(list.id, list);
+      order.push(list.id);
+      continue;
+    }
+
+    const existingCardCount = Array.isArray(existing.cards) ? existing.cards.length : 0;
+    const incomingCardCount = Array.isArray(list.cards) ? list.cards.length : 0;
+
+    if (incomingCardCount > existingCardCount) {
+      byId.set(list.id, list);
+    }
+  }
+
+  return order.map((id) => byId.get(id)!).filter(Boolean);
+}
+
+function applyCardCreated(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const listId = asString(payload.listId);
+  const title = asString(payload.title) ?? "Untitled";
+  const assignees = Array.isArray(payload.assignees)
+    ? payload.assignees
+        .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null))
+        .filter((raw): raw is Record<string, unknown> => Boolean(raw))
+        .map((raw) => ({
+          id: asString(raw.id) || '',
+          email: asString(raw.email) || '',
+          displayName: asString(raw.displayName),
+          avatarUrl: asString(raw.avatarUrl),
+        }))
+        .filter((assignee) => assignee.id.length > 0)
+    : [];
+
+  if (!cardId || !listId) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const existing = findCardLocation(lists, cardId);
+  if (existing) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  const targetListIndex = lists.findIndex((list) => list.id === listId);
+  if (targetListIndex === -1) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const targetList = nextLists[targetListIndex];
+  nextLists[targetListIndex] = {
+    ...targetList,
+    cards: [
+      ...targetList.cards,
+      {
+        id: cardId,
+        title,
+        summary: null,
+        dueAt: null,
+        urgency: "normal",
+        blocks: [],
+        tags: [],
+        assignees,
+      },
+    ],
+  };
+
+  return { nextLists, needsFallback: false };
+}
+
+function applyCardMoved(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const toListId = asString(payload.toListId);
+
+  if (!cardId || !toListId) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  const targetListIndex = lists.findIndex((list) => list.id === toListId);
+
+  if (!location || targetListIndex === -1) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  if (location.listIndex === targetListIndex) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const targetList = nextLists[targetListIndex];
+  const sourceCards = [...sourceList.cards];
+  const [movingCard] = sourceCards.splice(location.cardIndex, 1);
+
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  nextLists[targetListIndex] = { ...targetList, cards: [...targetList.cards, movingCard] };
+
+  return { nextLists, needsFallback: false };
+}
+
+function applyCardUpdated(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const listIdFromPayload = asString(payload.listId);
+  const changes = payload.changes as Record<string, { from?: unknown; to?: unknown }> | undefined;
+
+  if (!cardId || !changes || typeof changes !== "object") {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  if (!location) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const sourceCards = [...sourceList.cards];
+  const currentCard = sourceCards[location.cardIndex];
+  const nextCard = { ...currentCard };
+
+  const titleTo = asString(changes.title?.to);
+  if (titleTo !== null) nextCard.title = titleTo;
+
+  if (changes.summary && (typeof changes.summary.to === "string" || changes.summary.to === null)) {
+    nextCard.summary = changes.summary.to;
+  }
+
+  const dueAtTo = changes.due_at?.to;
+  if (typeof dueAtTo === "string" || dueAtTo === null) {
+    nextCard.dueAt = dueAtTo;
+  }
+
+  const urgencyTo = asString(changes.urgency_state?.to);
+  if (urgencyTo === "normal" || urgencyTo === "urgent") {
+    nextCard.urgency = urgencyTo;
+  }
+
+  const targetListId = asString(changes.list_id?.to) ?? listIdFromPayload ?? sourceList.id;
+  const targetPosition = asFiniteNumber(changes.position?.to);
+  const targetListIndex = nextLists.findIndex((list) => list.id === targetListId);
+
+  if (targetListIndex === -1) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  sourceCards[location.cardIndex] = nextCard;
+
+  if (targetListIndex !== location.listIndex) {
+    const targetList = nextLists[targetListIndex];
+    const trimmedSourceCards = [...sourceCards];
+    const [movedCard] = trimmedSourceCards.splice(location.cardIndex, 1);
+    const nextTargetCards = [...targetList.cards];
+    const insertIndex = targetPosition !== null
+      ? Math.max(0, Math.min(targetPosition, nextTargetCards.length))
+      : nextTargetCards.length;
+
+    nextTargetCards.splice(insertIndex, 0, movedCard);
+    nextLists[location.listIndex] = { ...sourceList, cards: trimmedSourceCards };
+    nextLists[targetListIndex] = { ...targetList, cards: nextTargetCards };
+    return { nextLists, needsFallback: false };
+  }
+
+  if (targetPosition !== null) {
+    nextLists[location.listIndex] = {
+      ...sourceList,
+      cards: reorderCardWithinList(sourceCards, location.cardIndex, targetPosition),
+    };
+    return { nextLists, needsFallback: false };
+  }
+
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  return { nextLists, needsFallback: false };
+}
+
+function applyCardAssigneeAdded(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const assignee = (payload.assignee && typeof payload.assignee === 'object')
+    ? (payload.assignee as Record<string, unknown>)
+    : null;
+
+  const assigneeId = assignee ? asString(assignee.id) : null;
+
+  if (!cardId || !assignee || !assigneeId) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  if (!location) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const sourceCards = [...sourceList.cards];
+  const currentCard = sourceCards[location.cardIndex];
+
+  const currentAssignees = Array.isArray((currentCard as any).assignees) ? [...(currentCard as any).assignees] : [];
+  if (currentAssignees.some((item: any) => item?.id === assigneeId)) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  const nextCard = {
+    ...currentCard,
+    assignees: [
+      ...currentAssignees,
+      {
+        id: assigneeId,
+        email: asString(assignee.email) || '',
+        displayName: asString(assignee.displayName),
+        avatarUrl: asString(assignee.avatarUrl),
+      },
+    ],
+  };
+
+  sourceCards[location.cardIndex] = nextCard;
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  return { nextLists, needsFallback: false };
+}
+
+function applyCardAssigneeRemoved(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const assigneeId = asString(payload.assigneeId);
+
+  if (!cardId || !assigneeId) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  if (!location) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const sourceCards = [...sourceList.cards];
+  const currentCard = sourceCards[location.cardIndex];
+  const currentAssignees = Array.isArray((currentCard as any).assignees) ? [...(currentCard as any).assignees] : [];
+  const nextAssignees = currentAssignees.filter((item: any) => item?.id !== assigneeId);
+
+  if (nextAssignees.length === currentAssignees.length) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  const nextCard = {
+    ...currentCard,
+    assignees: nextAssignees,
+  };
+
+  sourceCards[location.cardIndex] = nextCard;
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  return { nextLists, needsFallback: false };
+}
+
+function applyBrickDeleted(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const brickId = asString(payload.brickId);
+
+  if (!cardId || !brickId) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  if (!location) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const sourceCards = [...sourceList.cards];
+  const nextCard = { ...sourceCards[location.cardIndex] };
+  const currentBlocks = Array.isArray(nextCard.blocks) ? nextCard.blocks : null;
+
+  if (!currentBlocks) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextBlocks = currentBlocks.filter((block: any) => block.id !== brickId);
+  if (nextBlocks.length === currentBlocks.length) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  nextCard.blocks = nextBlocks;
+  sourceCards[location.cardIndex] = nextCard;
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  return { nextLists, needsFallback: false };
+}
+
+function applyBrickReordered(lists: BoardListState[], payload: Record<string, unknown>): ApplyEventResult {
+  const cardId = asString(payload.cardId);
+  const brickIds = Array.isArray(payload.brickIds)
+    ? payload.brickIds.map((brickId) => asString(brickId)).filter((value): value is string => Boolean(value))
+    : null;
+
+  if (!cardId || !brickIds) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const location = findCardLocation(lists, cardId);
+  if (!location) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const nextLists = [...lists];
+  const sourceList = nextLists[location.listIndex];
+  const sourceCards = [...sourceList.cards];
+  const nextCard = { ...sourceCards[location.cardIndex] };
+  const currentBlocks = Array.isArray(nextCard.blocks) ? nextCard.blocks : null;
+
+  if (!currentBlocks) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  if (currentBlocks.length !== brickIds.length) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const blockById = new Map(currentBlocks.map((block: any) => [block.id, block]));
+  const reorderedBlocks = brickIds.map((brickId, index) => {
+    const block = blockById.get(brickId);
+    if (!block) return null;
+    return {
+      ...block,
+      position: index,
+    };
+  });
+
+  if (reorderedBlocks.some((block) => block === null)) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  nextCard.blocks = reorderedBlocks;
+  sourceCards[location.cardIndex] = nextCard;
+  nextLists[location.listIndex] = { ...sourceList, cards: sourceCards };
+  return { nextLists, needsFallback: false };
+}
+
+function applyBoardUpdated(
+  lists: BoardListState[],
+  payload: Record<string, unknown>,
+  onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
+): ApplyEventResult {
+  const changes = payload.changes as Record<string, unknown> | undefined;
+
+  if (!changes || typeof changes !== "object") {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const visibility = asString(changes.visibility);
+  if (visibility === "private" || visibility === "team" || visibility === "public_link") {
+    onVisibilityChange(visibility);
+  }
+
+  const listCreated = changes.listCreated as Record<string, unknown> | undefined;
+  if (!listCreated) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  const createdListId = asString(listCreated.id);
+  const createdListName = asString(listCreated.name);
+  if (!createdListId || !createdListName) {
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  if (lists.some((list) => list.id === createdListId)) {
+    return { nextLists: lists, needsFallback: false };
+  }
+
+  return {
+    nextLists: dedupeListsById([...lists, { id: createdListId, title: createdListName, cards: [] }]),
+    needsFallback: false,
+  };
+}
+
+function applyRealtimeEventToLists(
+  lists: BoardListState[],
+  event: BoardEvent,
+  onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
+): ApplyEventResult {
+  switch (event.type) {
+    case "card.created":
+      return applyCardCreated(lists, event.payload);
+    case "card.updated":
+      return applyCardUpdated(lists, event.payload);
+    case "card.assignee_added":
+      return applyCardAssigneeAdded(lists, event.payload);
+    case "card.assignee_removed":
+      return applyCardAssigneeRemoved(lists, event.payload);
+    case "card.moved":
+      return applyCardMoved(lists, event.payload);
+    case "brick.deleted":
+      return applyBrickDeleted(lists, event.payload);
+    case "brick.reordered":
+      return applyBrickReordered(lists, event.payload);
+    case "board.updated":
+      return applyBoardUpdated(lists, event.payload, onVisibilityChange);
+    case "brick.created":
+    case "brick.updated":
+      return { nextLists: lists, needsFallback: true };
+    default:
+      return { nextLists: lists, needsFallback: true };
+  }
+}
 
 
 export default function BoardPage() {
@@ -71,17 +519,17 @@ export default function BoardPage() {
       cards: []
     };
 
-    setLists(prev => [...prev, optimisticList]);
+    setLists(prev => dedupeListsById([...prev, optimisticList]));
     setIsAddingList(false);
     setNewListName("");
 
     try {
       const createdList = await createList(boardId, { name: optimisticList.title }, accessToken);
-      setLists(prev => prev.map(l => l.id === tempId ? {
+      setLists(prev => dedupeListsById(prev.map(l => l.id === tempId ? {
         id: createdList.id,
         title: createdList.name,
         cards: []
-      } : l));
+      } : l)));
     } catch (error) {
       console.error("Failed to create list", error);
       // Optional: Remove optimistic list if failed
@@ -95,7 +543,9 @@ export default function BoardPage() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
-  const loadBoard = () => {
+  const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const loadBoard = useCallback(() => {
     if (!accessToken || !boardId) return;
 
     getBoard(boardId, accessToken)
@@ -113,7 +563,18 @@ export default function BoardPage() {
         console.error("Failed to fetch board", err);
         setBoardName("Error loading board");
       });
-  };
+  }, [accessToken, boardId]);
+
+  const scheduleBoardReload = useCallback((delayMs = 120) => {
+    if (realtimeReloadTimerRef.current) {
+      clearTimeout(realtimeReloadTimerRef.current);
+    }
+
+    realtimeReloadTimerRef.current = setTimeout(() => {
+      realtimeReloadTimerRef.current = null;
+      loadBoard();
+    }, delayMs);
+  }, [loadBoard]);
 
   useEffect(() => {
     loadBoard();
@@ -127,16 +588,33 @@ export default function BoardPage() {
     window.addEventListener('board:open-share', handleOpenBoardShare);
 
     return () => {
+      if (realtimeReloadTimerRef.current) {
+        clearTimeout(realtimeReloadTimerRef.current);
+        realtimeReloadTimerRef.current = null;
+      }
       window.removeEventListener('board:refresh', handleRefresh);
       window.removeEventListener('board:open-chat', handleOpenBoardChat);
       window.removeEventListener('board:open-share', handleOpenBoardShare);
     };
-  }, [accessToken, boardId]);
+  }, [loadBoard]);
 
   // Subscribe to Ably realtime events for this board
   useBoardRealtime(boardId, (event: BoardEvent) => {
     setRealtimeLog((prev) => [`[${event.type}] ${JSON.stringify(event.payload)}`, ...prev].slice(0, 5));
-    loadBoard();
+
+    let shouldFallback = false;
+
+    setLists((currentLists) => {
+      const result = applyRealtimeEventToLists(currentLists, event, setBoardVisibility);
+      if (result.needsFallback) {
+        shouldFallback = true;
+      }
+      return result.nextLists;
+    });
+
+    if (shouldFallback) {
+      scheduleBoardReload(120);
+    }
   }, accessToken);
 
   const sensors = useSensors(
@@ -484,19 +962,17 @@ export default function BoardPage() {
               dragStateRef.current = null;
             }}
           >
-            <SortableContext items={filteredLists.map(l => l.id)} strategy={horizontalListSortingStrategy}>
-              {filteredLists.map((list) => (
-                <ListColumn
-                  key={list.id}
-                  list={list}
-                  boardId={boardId}
-                  boardName={boardName}
-                  isDropTarget={dragVisual.targetListId === list.id}
-                  dropHintIndex={dragVisual.targetListId === list.id ? dragVisual.targetIndex : null}
-                  draggingCardId={dragVisual.activeId}
-                />
-              ))}
-            </SortableContext>
+            {filteredLists.map((list) => (
+              <ListColumn
+                key={list.id}
+                list={list}
+                boardId={boardId}
+                boardName={boardName}
+                isDropTarget={dragVisual.targetListId === list.id}
+                dropHintIndex={dragVisual.targetListId === list.id ? dragVisual.targetIndex : null}
+                draggingCardId={dragVisual.activeId}
+              />
+            ))}
 
             <DragOverlay>
               {dragVisual.activeId ? (

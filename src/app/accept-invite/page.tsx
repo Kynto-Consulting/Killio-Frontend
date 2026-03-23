@@ -1,25 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, ShieldAlert } from "lucide-react";
 import { acceptTeamInvite } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 
-export default function AcceptInvitePage() {
+function AcceptInvitePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { accessToken } = useSession();
+  const { accessToken, setActiveTeamId } = useSession();
 
   const token = searchParams.get("token") ?? "";
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string>("");
   const [teamName, setTeamName] = useState<string>("");
+  const processedKeyRef = useRef<string | null>(null);
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loginHref = useMemo(() => {
     const encodedTarget = `/accept-invite?token=${encodeURIComponent(token)}`;
     return `/login?from=${encodeURIComponent(encodedTarget)}`;
+  }, [token]);
+
+  const signupHref = useMemo(() => {
+    const encodedTarget = `/accept-invite?token=${encodeURIComponent(token)}`;
+    return `/signup?from=${encodeURIComponent(encodedTarget)}`;
   }, [token]);
 
   useEffect(() => {
@@ -34,6 +41,12 @@ export default function AcceptInvitePage() {
       return;
     }
 
+    const requestKey = `${token}:${accessToken}`;
+    if (processedKeyRef.current === requestKey) {
+      return;
+    }
+    processedKeyRef.current = requestKey;
+
     let cancelled = false;
     setStatus("loading");
     setMessage("");
@@ -41,9 +54,18 @@ export default function AcceptInvitePage() {
     acceptTeamInvite(token, accessToken)
       .then((result) => {
         if (cancelled) return;
+        setActiveTeamId(result.teamId);
         setStatus("success");
         setTeamName(result.teamName);
         setMessage(`Te uniste al workspace ${result.teamName} como ${result.role}.`);
+        if (redirectTimerRef.current) {
+          clearTimeout(redirectTimerRef.current);
+        }
+        redirectTimerRef.current = setTimeout(() => {
+          if (!cancelled) {
+            router.replace("/");
+          }
+        }, 700);
       })
       .catch((error: any) => {
         if (cancelled) return;
@@ -53,8 +75,11 @@ export default function AcceptInvitePage() {
 
     return () => {
       cancelled = true;
+      if (redirectTimerRef.current) {
+        clearTimeout(redirectTimerRef.current);
+      }
     };
-  }, [token, accessToken]);
+  }, [token, accessToken, router, setActiveTeamId]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
@@ -66,12 +91,20 @@ export default function AcceptInvitePage() {
           {!accessToken && token ? (
             <div className="space-y-3">
               <p className="text-sm text-foreground">Necesitas iniciar sesion para aceptar esta invitacion.</p>
-              <Link
-                href={loginHref}
-                className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-              >
-                Iniciar sesion
-              </Link>
+              <div className="flex items-center gap-2">
+                <Link
+                  href={loginHref}
+                  className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Iniciar sesion
+                </Link>
+                <Link
+                  href={signupHref}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-input px-3.5 text-sm font-medium hover:bg-accent/10"
+                >
+                  Crear cuenta
+                </Link>
+              </div>
             </div>
           ) : null}
 
@@ -88,6 +121,7 @@ export default function AcceptInvitePage() {
                 <CheckCircle2 className="h-4 w-4" />
                 {message}
               </div>
+              <p className="text-xs text-muted-foreground">Redirigiendo al workspace...</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => router.push("/")}
@@ -115,5 +149,19 @@ export default function AcceptInvitePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AcceptInvitePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background px-4">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+        </div>
+      }
+    >
+      <AcceptInvitePageContent />
+    </Suspense>
   );
 }
