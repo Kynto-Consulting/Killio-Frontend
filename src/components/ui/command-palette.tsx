@@ -23,6 +23,14 @@ import {
 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  argument,
+  command as riverCommand,
+  defaultArguments,
+  literal,
+  parseCommand,
+  type CommandSpec,
+} from "@kyntocg/river";
+import {
   addCardAssignee,
   addCardTag,
   createList,
@@ -39,24 +47,11 @@ import {
   type TagView,
 } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
+import { killioArgs, type PaletteParseContext, type BoardSnapshot } from "@/lib/commands/args";
 
 type PaletteContext = "global" | "board" | "cards" | "lists" | "system";
 
-type BoardSnapshot = {
-  id: string;
-  name: string;
-  lists: Array<{
-    id: string;
-    name: string;
-    cards: Array<{
-      id: string;
-      title: string;
-      dueAt: string | null;
-      status: string | null;
-      tags: TagView[];
-    }>;
-  }>;
-};
+// old inline types removed
 
 type CardQueryAction = "rename" | "tag_add" | "tag_remove" | "assign" | "unassign";
 
@@ -73,14 +68,6 @@ type TransactionAction = {
   rollback: () => Promise<void>;
 };
 
-type AutocompleteSuggestion = {
-  command: string;
-  icon: typeof Search;
-  description: string;
-  available: boolean;
-  availabilityNote?: string;
-};
-
 type NoticeVariant = "success" | "error" | "info";
 
 type PaletteNotice = {
@@ -91,10 +78,17 @@ type PaletteNotice = {
 
 type PaletteLocale = "es" | "en";
 
-type SuggestionArgToken = {
-  key: string;
-  required?: boolean;
-};
+function resolveIcon(commandId: string) {
+  if (commandId.includes("ctx") || commandId.includes("context")) return Folders;
+  if (commandId.includes("tx.")) return RefreshCcw;
+  if (commandId.startsWith("card.")) return CheckSquare;
+  if (commandId.startsWith("lists.")) return ListChecks;
+  if (commandId.includes("board")) return LayoutDashboard;
+  if (commandId.startsWith("global.")) return Search;
+  if (commandId.startsWith("system.")) return Settings;
+  return CommandIcon;
+}
+
 
 const i18n = {
   es: {
@@ -296,6 +290,187 @@ const contextTemplates: Record<PaletteContext, string[]> = {
   system: ["ctx up", "settings", "help", "logout"],
 };
 
+type PaletteParseContext = {
+  isBoardContext: boolean;
+  hasTeamContext: boolean;
+};
+
+const contextTargets = ["up", "global", "board", "cards", "lists", "system"] as const;
+
+const paletteCommandSpecs: CommandSpec<PaletteParseContext, null>[] = [
+  ...literal<PaletteParseContext, null>("ctx")
+    .id("ctx.change")
+    .description("Change command context")
+    .then(
+      argument<PaletteParseContext, string, null>("target", {
+        parse: defaultArguments.enum(contextTargets),
+      }).executes(() => null),
+    )
+    .build(),
+
+  ...literal<PaletteParseContext, null>("context")
+    .id("ctx.change")
+    .description("Change command context")
+    .then(
+      argument<PaletteParseContext, string, null>("target", {
+        parse: defaultArguments.enum(contextTargets),
+      }).executes(() => null),
+    )
+    .build(),
+
+  ...literal<PaletteParseContext, null>("begin")
+    .then(literal<PaletteParseContext, null>("transaction").id("tx.begin").description("Start transaction").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("tx")
+    .then(literal<PaletteParseContext, null>("begin").id("tx.begin").description("Start transaction").executes(() => null))
+    .then(literal<PaletteParseContext, null>("commit").id("tx.commit").description("Commit transaction").executes(() => null))
+    .then(literal<PaletteParseContext, null>("rollback").id("tx.rollback").description("Rollback transaction").executes(() => null))
+    .then(literal<PaletteParseContext, null>("status").id("tx.status").description("Transaction status").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("end")
+    .then(literal<PaletteParseContext, null>("transaction").id("tx.commit").description("Commit transaction").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("commit")
+    .then(literal<PaletteParseContext, null>("transaction").id("tx.commit").description("Commit transaction").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("rollback")
+    .then(literal<PaletteParseContext, null>("transaction").id("tx.rollback").description("Rollback transaction").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("transaction")
+    .then(literal<PaletteParseContext, null>("status").id("tx.status").description("Transaction status").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("dashboard")
+    .id("global.dashboard")
+    .description("Go to dashboard")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("go")
+    .then(literal<PaletteParseContext, null>("dashboard").id("global.dashboard").description("Go to dashboard").executes(() => null))
+    .then(literal<PaletteParseContext, null>("home").id("global.dashboard").description("Go to dashboard").executes(() => null))
+    .then(literal<PaletteParseContext, null>("teams").id("global.teams").description("Go to teams").executes(() => null))
+    .then(literal<PaletteParseContext, null>("history").id("global.history").description("Go to history").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("teams")
+    .id("global.teams")
+    .description("Go to teams")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("history")
+    .id("global.history")
+    .description("Go to history")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("settings")
+    .id("system.settings")
+    .description("Open settings")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("help")
+    .id("system.help")
+    .description("Show help")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("logout")
+    .id("system.logout")
+    .description("Logout")
+    .executes(() => null)
+    .build(),
+
+  ...literal<PaletteParseContext, null>("board")
+    .available((ctx) => ctx.isBoardContext)
+    .then(literal<PaletteParseContext, null>("refresh").id("board.refresh").description("Refresh board").executes(() => null))
+    .then(literal<PaletteParseContext, null>("chat").id("board.chat").description("Open board chat").executes(() => null))
+    .then(literal<PaletteParseContext, null>("share").id("board.share").description("Open board share").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("board")
+    .available((ctx) => ctx.hasTeamContext)
+    .then(
+      killioArgs.boardSelector("selector")
+        .id("board.open")
+        .description("Open board by index or name")
+        .executes(() => null),
+    )
+    .build(),
+
+  ...literal<PaletteParseContext, null>("list")
+    .available((ctx) => ctx.isBoardContext)
+    .then(
+      literal<PaletteParseContext, null>("add").then(
+        killioArgs.listSelector("name")
+          .id("lists.add")
+          .description("Create list")
+          .executes(() => null),
+      ),
+    )
+    .build(),
+
+  ...literal<PaletteParseContext, null>("cards")
+    .available((ctx) => ctx.isBoardContext)
+    .then(
+      literal<PaletteParseContext, null>("done").then(
+        literal<PaletteParseContext, null>("all").id("cards.done.all").description("Mark all cards as done").executes(() => null),
+      ),
+    )
+    .then(
+      literal<PaletteParseContext, null>("active").then(
+        literal<PaletteParseContext, null>("all").id("cards.active.all").description("Mark all cards as active").executes(() => null),
+      ),
+    )
+    .then(literal<PaletteParseContext, null>("clear-due").id("cards.due.clear").description("Clear due dates").executes(() => null))
+    .build(),
+
+  ...literal<PaletteParseContext, null>("card")
+    .available((ctx) => ctx.isBoardContext)
+    .then(
+      literal<PaletteParseContext, null>("done").then(
+        killioArgs.cardQuery("query")
+          .id("card.done.query")
+          .description("Mark a card as done")
+          .executes(() => null),
+      ),
+    )
+    .then(
+      literal<PaletteParseContext, null>("active").then(
+        killioArgs.cardQuery("query")
+          .id("card.active.query")
+          .description("Mark a card as active")
+          .executes(() => null),
+      ),
+    )
+    .then(
+      killioArgs.cardQuery("payload")
+        .id("card.query.mutate")
+        .description("Card mutation query")
+        .executes(() => null),
+    )
+    .build(),
+
+  ...literal<PaletteParseContext, null>("due")
+    .available((ctx) => ctx.isBoardContext)
+    .then(
+      literal<PaletteParseContext, null>("clear").then(
+        killioArgs.cardQuery("query")
+          .id("card.due.clear.query")
+          .description("Clear due for one card")
+          .executes(() => null),
+      ),
+    )
+    .build(),
+];
+
 export function CommandPalette() {
   const [locale, setLocale] = useState<PaletteLocale>("es");
   const [open, setOpen] = useState(false);
@@ -479,109 +654,6 @@ export function CommandPalette() {
     }
     if (lower.startsWith("board refresh")) {
       return { icon: RefreshCcw, description: "Recargar estado del tablero" };
-    }
-    if (lower.startsWith("board ")) {
-      return { icon: LayoutDashboard, description: "Abrir board por indice o nombre" };
-    }
-    if (lower.startsWith("list add")) {
-      return { icon: Plus, description: "Crear nueva lista" };
-    }
-    if (lower.startsWith("cards done") || lower.startsWith("card done")) {
-      return { icon: CheckSquare, description: "Marcar card(s) como done" };
-    }
-    if (lower.startsWith("cards active") || lower.startsWith("card active")) {
-      return { icon: ListChecks, description: "Marcar card(s) como active" };
-    }
-    if (lower.startsWith("cards clear-due") || lower.startsWith("due clear")) {
-      return { icon: CalendarX, description: "Limpiar fechas limite" };
-    }
-    if (lower.includes(" tag add ")) {
-      return { icon: Tag, description: "Agregar tag a card" };
-    }
-    if (lower.includes(" tag remove ")) {
-      return { icon: Tag, description: "Quitar tag de card" };
-    }
-    if (lower.includes(" rename ")) {
-      return { icon: Edit3, description: "Renombrar card" };
-    }
-    if (lower.includes(" assign ")) {
-      return { icon: UserPlus, description: "Asignar miembro a card" };
-    }
-    if (lower.includes(" unassign ")) {
-      return { icon: UserMinus, description: "Quitar asignado de card" };
-    }
-    if (lower.startsWith("begin transaction") || lower.startsWith("end transaction") || lower.startsWith("rollback transaction") || lower.startsWith("tx ")) {
-      return { icon: RefreshCcw, description: "Control de transacciones" };
-    }
-    if (lower === "dashboard" || lower === "go dashboard" || lower === "go home") {
-      return { icon: LayoutDashboard, description: "Ir al dashboard" };
-    }
-    if (lower === "teams" || lower === "go teams") {
-      return { icon: UserPlus, description: "Ir a equipos" };
-    }
-    if (lower === "history" || lower === "go history") {
-      return { icon: Clock, description: "Ver historial" };
-    }
-    if (lower.startsWith("settings")) {
-      return { icon: Settings, description: "Ajustes del sistema" };
-    }
-    if (lower.startsWith("help")) {
-      return { icon: HelpCircle, description: "Ayuda y documentacion" };
-    }
-    if (lower.startsWith("logout")) {
-      return { icon: LogOut, description: "Cerrar sesion" };
-    }
-
-    return { icon: Search, description: "Comando" };
-  };
-
-  const mapCommandSuggestion = (command: string): AutocompleteSuggestion => {
-    const meta = getSuggestionMeta(command);
-    const lower = normalize(command);
-
-    if (lower.startsWith("ctx ")) {
-      const target = lower.slice("ctx ".length).trim() as PaletteContext | "up";
-      if (target !== "up" && !isContextAllowed(target as PaletteContext)) {
-        return {
-          command,
-          icon: meta.icon,
-          description: meta.description,
-          available: false,
-          availabilityNote: "Requiere estar dentro de un board",
-        };
-      }
-    }
-
-    if (isBoardOnlyCommand(lower) && !isBoardContext) {
-      return {
-        command,
-        icon: meta.icon,
-        description: meta.description,
-        available: false,
-        availabilityNote: "Solo disponible dentro de un board",
-      };
-    }
-
-    if (lower.startsWith("board ") && !lower.startsWith("board refresh") && !lower.startsWith("board chat") && !lower.startsWith("board share")) {
-      if (!accessToken || !activeTeamId) {
-        return {
-          command,
-          icon: meta.icon,
-          description: meta.description,
-          available: false,
-          availabilityNote: "Necesitas un equipo activo",
-        };
-      }
-    }
-
-    return {
-      command,
-      icon: meta.icon,
-      description: meta.description,
-      available: true,
-    };
-  };
-
   const getSuggestionArgTokens = (command: string): SuggestionArgToken[] => {
     const lower = normalize(command);
     const matched = suggestionArgTemplates.find((template) => template.match.test(lower));
@@ -593,44 +665,42 @@ export function CommandPalette() {
     return token.required ? `${base}*` : base;
   };
 
+  const [astSuggestions, setAstSuggestions] = useState<SuggestionItem[]>([]);
+
+  const parseContext = useMemo<PaletteParseContext>(() => ({
+    isBoardContext,
+    hasTeamContext: Boolean(accessToken && activeTeamId),
+    boardSnapshot,
+    boardMembers,
+    boardTags,
+    teamBoards,
+  }), [isBoardContext, accessToken, activeTeamId, boardSnapshot, boardMembers, boardTags, teamBoards]);
+
+  useEffect(() => {
+    let mounted = true;
+    if (!commandQuery.trim()) {
+      setAstSuggestions([]);
+      return () => {}; // Return an empty cleanup function
+    }
+    suggestCommand(commandQuery, paletteCommandSpecs, parseContext, 12).then((items) => {
+      if (mounted) setAstSuggestions(items);
+    });
+    return () => { mounted = false; };
+  }, [commandQuery, parseContext]);
+
   const applyAutocomplete = () => {
-    if (!firstAutocomplete) return;
+    if (astSuggestions.length === 0) return;
+    const target = astSuggestions[0].value;
+    const tokensResult = tokenize(commandQuery);
+    const tokens = [...tokensResult.tokens];
+    const isVariableHint = target.startsWith("<") && target.endsWith(">");
 
-    const current = commandQuery;
-    const target = firstAutocomplete.command;
-
-    if (!current.trim()) {
-      setCommandQuery(target);
-      return;
+    if (tokensResult.hasTrailingSpace || tokens.length === 0) {
+      setCommandQuery(commandQuery + (isVariableHint ? "" : target + " "));
+    } else {
+      tokens[tokens.length - 1] = target;
+      setCommandQuery(tokens.join(" ") + (isVariableHint ? "" : " "));
     }
-
-    const hasTrailingSpace = /\s$/.test(current);
-    const currentTokens = current.trim().split(/\s+/).filter(Boolean);
-    const targetTokens = target.split(/\s+/).filter(Boolean);
-
-    if (hasTrailingSpace) {
-      const nextIndex = currentTokens.length;
-      if (nextIndex < targetTokens.length) {
-        setCommandQuery(`${current}${targetTokens[nextIndex]} `);
-        return;
-      }
-      setCommandQuery(target);
-      return;
-    }
-
-    const tokenIndex = currentTokens.length - 1;
-    const currentToken = currentTokens[tokenIndex] ?? "";
-    const targetToken = targetTokens[tokenIndex] ?? "";
-
-    if (targetToken.toLowerCase().startsWith(currentToken.toLowerCase())) {
-      const prefixTokens = currentTokens.slice(0, -1);
-      const rebuilt = [...prefixTokens, targetToken].join(" ");
-      const endsWithSpace = tokenIndex < targetTokens.length - 1;
-      setCommandQuery(endsWithSpace ? `${rebuilt} ` : rebuilt);
-      return;
-    }
-
-    setCommandQuery(target);
   };
 
   const enqueueTransactionAction = (action: TransactionAction) => {
@@ -720,26 +790,6 @@ export function CommandPalette() {
     }
   };
 
-  const parseContextCommand = (raw: string): PaletteContext | "up" | null => {
-    if (raw.startsWith("ctx ")) {
-      const target = raw.slice("ctx ".length).trim();
-      if (target === "up") return "up";
-      if (target === "global" || target === "board" || target === "cards" || target === "lists" || target === "system") {
-        return target;
-      }
-    }
-
-    if (raw.startsWith("context ")) {
-      const target = raw.slice("context ".length).trim();
-      if (target === "up") return "up";
-      if (target === "global" || target === "board" || target === "cards" || target === "lists" || target === "system") {
-        return target;
-      }
-    }
-
-    return null;
-  };
-
   const getBoardCards = () => boardSnapshot?.lists.flatMap((list) => list.cards) ?? [];
 
   const executeCommandWithArgs = async (raw: string) => {
@@ -749,117 +799,148 @@ export function CommandPalette() {
     const lower = normalize(input);
     const boardCards = getBoardCards();
 
-    const contextCmd = parseContextCommand(lower);
-    if (contextCmd) {
-      if (contextCmd === "up") {
-        const parent = contextMeta[currentContext].parent;
-        if (!parent) {
-          notifyInfo("Ya estas en el contexto mas alto.");
+    const parsed = parseCommand(input, paletteCommandSpecs, {
+      isBoardContext,
+      hasTeamContext: Boolean(accessToken && activeTeamId),
+    });
+    const target = parsed.best;
+
+    if (!target || !target.executable) {
+      if (!isBoardContext && isBoardOnlyCommand(lower)) {
+        notifyInfo("Este comando requiere estar dentro de un board.");
+        return;
+      }
+      notifyInfo("Comando no reconocido. Escribe 'help' para ver ejemplos.");
+      return;
+    }
+
+    switch (target.spec.id) {
+      case "ctx.change": {
+        const contextCmd = String(target.args.target ?? "").toLowerCase();
+        if (contextCmd === "up") {
+          const parent = contextMeta[currentContext].parent;
+          if (!parent) {
+            notifyInfo("Ya estas en el contexto mas alto.");
+            return;
+          }
+          switchContext(parent);
           return;
         }
-        switchContext(parent);
-        return;
-      }
-      switchContext(contextCmd);
-      return;
-    }
 
-    if (lower === "begin transaction" || lower === "tx begin") {
-      await startTransaction();
-      return;
-    }
+        if (
+          contextCmd === "global" ||
+          contextCmd === "board" ||
+          contextCmd === "cards" ||
+          contextCmd === "lists" ||
+          contextCmd === "system"
+        ) {
+          switchContext(contextCmd);
+          return;
+        }
 
-    if (lower === "end transaction" || lower === "commit transaction" || lower === "tx commit") {
-      await commitTransaction();
-      return;
-    }
-
-    if (lower === "rollback transaction" || lower === "tx rollback") {
-      rollbackQueuedTransaction();
-      return;
-    }
-
-    if (lower === "tx status" || lower === "transaction status") {
-      notifyInfo(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.");
-      return;
-    }
-
-    if (lower === "dashboard" || lower === "go dashboard" || lower === "go home") {
-      setOpen(false);
-      router.push("/");
-      return;
-    }
-
-    if (lower === "teams" || lower === "go teams") {
-      setOpen(false);
-      router.push("/teams");
-      return;
-    }
-
-    if (lower === "history" || lower === "go history") {
-      setOpen(false);
-      router.push("/history");
-      return;
-    }
-
-    if (lower.startsWith("board ") && lower !== "board refresh" && lower !== "board chat" && lower !== "board share") {
-      if (!accessToken || !activeTeamId) {
-        notifyInfo("Necesitas sesion y equipo activo para abrir boards por query.");
+        notifyInfo("Contexto no valido.");
         return;
       }
 
-      const selector = input.slice("board ".length).trim();
-      if (!selector) {
-        notifyInfo("Uso: board <idx|nombre>");
+      case "tx.begin":
+        await startTransaction();
+        return;
+
+      case "tx.commit":
+        await commitTransaction();
+        return;
+
+      case "tx.rollback":
+        rollbackQueuedTransaction();
+        return;
+
+      case "tx.status":
+        notifyInfo(txActive ? `[TX] activa - ${txQueue.length} acciones en cola.` : "[TX] no hay transaccion activa.");
+        return;
+
+      case "global.dashboard":
+        setOpen(false);
+        router.push("/");
+        return;
+
+      case "global.teams":
+        setOpen(false);
+        router.push("/teams");
+        return;
+
+      case "global.history":
+        setOpen(false);
+        router.push("/history");
+        return;
+
+      case "board.open": {
+        const selector = String(target.args.selector ?? "").trim();
+        if (!selector) {
+          notifyInfo("Uso: board <idx|nombre>");
+          return;
+        }
+
+        const selectorLower = normalize(selector);
+        if (selectorLower === "refresh") {
+          setOpen(false);
+          window.dispatchEvent(new Event("board:refresh"));
+          return;
+        }
+        if (selectorLower === "chat") {
+          setOpen(false);
+          window.dispatchEvent(new Event("board:open-chat"));
+          return;
+        }
+        if (selectorLower === "share") {
+          setOpen(false);
+          window.dispatchEvent(new Event("board:open-share"));
+          return;
+        }
+
+        const board = resolveBySelector(selector, teamBoards, (b) => b.name);
+        if (!board) {
+          notifyInfo("No encontre un board con ese indice/nombre.");
+          return;
+        }
+
+        setOpen(false);
+        router.push(`/b/${board.id}`);
         return;
       }
 
-      const board = resolveBySelector(selector, teamBoards, (b) => b.name);
-      if (!board) {
-        notifyInfo("No encontre un board con ese indice/nombre.");
+      case "system.settings":
+        setOpen(false);
+        notifyInfo(t.fallback.settingsTriggered);
         return;
-      }
 
-      setOpen(false);
-      router.push(`/b/${board.id}`);
-      return;
-    }
+      case "system.logout":
+        setOpen(false);
+        window.location.href = "/login";
+        return;
 
-    if (lower === "settings") {
-      setOpen(false);
-      notifyInfo(t.fallback.settingsTriggered);
-      return;
-    }
+      case "system.help":
+        notifyInfo(
+          "Comandos clave: ctx global|board|cards|lists|system, ctx up, dashboard, teams, history, board <idx|nombre>, begin/end/rollback transaction, list add <nombre>, cards done all, cards active all, cards clear-due, card done <texto>, card active <texto>, due clear <texto>, card <card> from <lista> rename <titulo>, card <card> from <lista> tag add <tag>, card <card> from <lista> tag remove <tag>, card <card> from <lista> assign <miembro>, card <card> from <lista> unassign <miembro>, board refresh/chat/share"
+        );
+        return;
 
-    if (lower === "logout") {
-      setOpen(false);
-      window.location.href = "/login";
-      return;
-    }
+      case "board.refresh":
+        setOpen(false);
+        window.dispatchEvent(new Event("board:refresh"));
+        return;
 
-    if (lower === "help") {
-      notifyInfo(
-        "Comandos clave: ctx global|board|cards|lists|system, ctx up, dashboard, teams, history, board <idx|nombre>, begin/end/rollback transaction, list add <nombre>, cards done all, cards active all, cards clear-due, card done <texto>, card active <texto>, due clear <texto>, card <card> from <lista> rename <titulo>, card <card> from <lista> tag add <tag>, card <card> from <lista> tag remove <tag>, card <card> from <lista> assign <miembro>, card <card> from <lista> unassign <miembro>, board refresh/chat/share"
-      );
-      return;
-    }
+      case "board.chat":
+        setOpen(false);
+        window.dispatchEvent(new Event("board:open-chat"));
+        return;
 
-    if (lower === "board refresh") {
-      setOpen(false);
-      window.dispatchEvent(new Event("board:refresh"));
-      return;
-    }
+      case "board.share":
+        setOpen(false);
+        window.dispatchEvent(new Event("board:open-share"));
+        return;
 
-    if (lower === "board chat") {
-      setOpen(false);
-      window.dispatchEvent(new Event("board:open-chat"));
-      return;
-    }
-
-    if (lower === "board share") {
-      setOpen(false);
-      window.dispatchEvent(new Event("board:open-share"));
-      return;
+      default:
+        break;
     }
 
     if (!isBoardContext || !accessToken || !boardIdFromPath) {
@@ -867,7 +948,185 @@ export function CommandPalette() {
       return;
     }
 
-    const cardQuery = parseCardQuery(input);
+    if (target.spec.id === "lists.add") {
+      const name = String(target.args.name ?? "").trim();
+      if (!name) {
+        notifyInfo("Uso: list add <nombre>");
+        return;
+      }
+
+      if (txActive) {
+        notifyInfo("list add no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
+        return;
+      }
+
+      await runBoardAction(`Lista creada: ${name}`, async () => {
+        await createList(boardIdFromPath, { name }, accessToken);
+      });
+      return;
+    }
+
+    if (target.spec.id === "cards.done.all") {
+      if (txActive) {
+        const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
+        if (targets.length === 0) {
+          notifyInfo("No hay cards para actualizar.");
+          return;
+        }
+        enqueueTransactionAction({
+          id: `tx-${Date.now()}-cards-done-all`,
+          label: `cards done all (${targets.length})`,
+          execute: async () => {
+            await Promise.all(targets.map((t) => updateCard(t.id, { status: "done" }, accessToken)));
+          },
+          rollback: async () => {
+            await Promise.all(targets.map((t) => updateCard(t.id, { status: t.prevStatus }, accessToken)));
+          },
+        });
+        return;
+      }
+
+      await runBoardAction("Todas las cards marcadas como done", async () => {
+        await Promise.all(boardCards.map((card) => updateCard(card.id, { status: "done" }, accessToken)));
+      });
+      return;
+    }
+
+    if (target.spec.id === "cards.active.all") {
+      if (txActive) {
+        const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
+        if (targets.length === 0) {
+          notifyInfo("No hay cards para actualizar.");
+          return;
+        }
+        enqueueTransactionAction({
+          id: `tx-${Date.now()}-cards-active-all`,
+          label: `cards active all (${targets.length})`,
+          execute: async () => {
+            await Promise.all(targets.map((t) => updateCard(t.id, { status: "active" }, accessToken)));
+          },
+          rollback: async () => {
+            await Promise.all(targets.map((t) => updateCard(t.id, { status: t.prevStatus }, accessToken)));
+          },
+        });
+        return;
+      }
+
+      await runBoardAction("Todas las cards marcadas como active", async () => {
+        await Promise.all(boardCards.map((card) => updateCard(card.id, { status: "active" }, accessToken)));
+      });
+      return;
+    }
+
+    if (target.spec.id === "cards.due.clear") {
+      if (txActive) {
+        const withDue = boardCards
+          .filter((card) => Boolean(card.dueAt))
+          .map((card) => ({ id: card.id, prevDueAt: card.dueAt }));
+        if (withDue.length === 0) {
+          notifyInfo("No hay cards con fecha limite.");
+          return;
+        }
+        enqueueTransactionAction({
+          id: `tx-${Date.now()}-cards-clear-due`,
+          label: `cards clear-due (${withDue.length})`,
+          execute: async () => {
+            await Promise.all(withDue.map((t) => updateCard(t.id, { due_at: null }, accessToken)));
+          },
+          rollback: async () => {
+            await Promise.all(withDue.map((t) => updateCard(t.id, { due_at: t.prevDueAt || null }, accessToken)));
+          },
+        });
+        return;
+      }
+
+      await runBoardAction("Fechas limite limpiadas", async () => {
+        const withDue = boardCards.filter((card) => Boolean(card.dueAt));
+        await Promise.all(withDue.map((card) => updateCard(card.id, { due_at: null }, accessToken)));
+      });
+      return;
+    }
+
+    if (target.spec.id === "card.done.query" || target.spec.id === "card.active.query" || target.spec.id === "card.due.clear.query") {
+      const query = normalize(String(target.args.query ?? ""));
+      const card = boardCards.find((entry) => normalize(entry.title).includes(query));
+      if (!card) {
+        notifyInfo("No encontre una card que coincida.");
+        return;
+      }
+
+      if (target.spec.id === "card.done.query") {
+        if (txActive) {
+          const prevStatus = card.status || "active";
+          enqueueTransactionAction({
+            id: `tx-${Date.now()}-card-done-${card.id}`,
+            label: `card done ${card.title}`,
+            execute: async () => {
+              await updateCard(card.id, { status: "done" }, accessToken);
+            },
+            rollback: async () => {
+              await updateCard(card.id, { status: prevStatus }, accessToken);
+            },
+          });
+          return;
+        }
+
+        await runBoardAction(`Card marcada done: ${card.title}`, async () => {
+          await updateCard(card.id, { status: "done" }, accessToken);
+        });
+        return;
+      }
+
+      if (target.spec.id === "card.active.query") {
+        if (txActive) {
+          const prevStatus = card.status || "active";
+          enqueueTransactionAction({
+            id: `tx-${Date.now()}-card-active-${card.id}`,
+            label: `card active ${card.title}`,
+            execute: async () => {
+              await updateCard(card.id, { status: "active" }, accessToken);
+            },
+            rollback: async () => {
+              await updateCard(card.id, { status: prevStatus }, accessToken);
+            },
+          });
+          return;
+        }
+
+        await runBoardAction(`Card marcada active: ${card.title}`, async () => {
+          await updateCard(card.id, { status: "active" }, accessToken);
+        });
+        return;
+      }
+
+      if (!card.dueAt) {
+        notifyInfo("Esa card no tiene fecha limite para limpiar.");
+        return;
+      }
+
+      if (txActive) {
+        const prevDueAt = card.dueAt;
+        enqueueTransactionAction({
+          id: `tx-${Date.now()}-due-clear-${card.id}`,
+          label: `due clear ${card.title}`,
+          execute: async () => {
+            await updateCard(card.id, { due_at: null }, accessToken);
+          },
+          rollback: async () => {
+            await updateCard(card.id, { due_at: prevDueAt }, accessToken);
+          },
+        });
+        return;
+      }
+
+      await runBoardAction(`Fecha limite limpiada: ${card.title}`, async () => {
+        await updateCard(card.id, { due_at: null }, accessToken);
+      });
+      return;
+    }
+
+    const cardPayload = target.spec.id === "card.query.mutate" ? String(target.args.payload ?? "") : "";
+    const cardQuery = parseCardQuery(`card ${cardPayload}`);
     if (cardQuery) {
       const list = resolveListFromSelector(cardQuery.listSelector);
       if (!list) {
@@ -1005,339 +1264,8 @@ export function CommandPalette() {
       }
     }
 
-    if (lower.startsWith("list add ")) {
-      const name = input.slice("list add ".length).trim();
-      if (!name) {
-        notifyInfo("Uso: list add <nombre>");
-        return;
-      }
-
-      if (txActive) {
-        notifyInfo("list add no soporta rollback seguro todavia. Ejecutalo fuera de transaccion.");
-        return;
-      }
-
-      await runBoardAction(`Lista creada: ${name}`, async () => {
-        await createList(boardIdFromPath, { name }, accessToken);
-      });
-      return;
-    }
-
-    if (lower === "cards done all") {
-      if (txActive) {
-        const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
-        if (targets.length === 0) {
-          notifyInfo("No hay cards para actualizar.");
-          return;
-        }
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-cards-done-all`,
-          label: `cards done all (${targets.length})`,
-          execute: async () => {
-            await Promise.all(targets.map((t) => updateCard(t.id, { status: "done" }, accessToken)));
-          },
-          rollback: async () => {
-            await Promise.all(targets.map((t) => updateCard(t.id, { status: t.prevStatus }, accessToken)));
-          },
-        });
-        return;
-      }
-
-      await runBoardAction("Todas las cards marcadas como done", async () => {
-        await Promise.all(boardCards.map((card) => updateCard(card.id, { status: "done" }, accessToken)));
-      });
-      return;
-    }
-
-    if (lower === "cards active all") {
-      if (txActive) {
-        const targets = boardCards.map((card) => ({ id: card.id, prevStatus: card.status || "active" }));
-        if (targets.length === 0) {
-          notifyInfo("No hay cards para actualizar.");
-          return;
-        }
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-cards-active-all`,
-          label: `cards active all (${targets.length})`,
-          execute: async () => {
-            await Promise.all(targets.map((t) => updateCard(t.id, { status: "active" }, accessToken)));
-          },
-          rollback: async () => {
-            await Promise.all(targets.map((t) => updateCard(t.id, { status: t.prevStatus }, accessToken)));
-          },
-        });
-        return;
-      }
-
-      await runBoardAction("Todas las cards marcadas como active", async () => {
-        await Promise.all(boardCards.map((card) => updateCard(card.id, { status: "active" }, accessToken)));
-      });
-      return;
-    }
-
-    if (lower === "cards clear-due") {
-      if (txActive) {
-        const withDue = boardCards
-          .filter((card) => Boolean(card.dueAt))
-          .map((card) => ({ id: card.id, prevDueAt: card.dueAt }));
-        if (withDue.length === 0) {
-          notifyInfo("No hay cards con fecha limite.");
-          return;
-        }
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-cards-clear-due`,
-          label: `cards clear-due (${withDue.length})`,
-          execute: async () => {
-            await Promise.all(withDue.map((t) => updateCard(t.id, { due_at: null }, accessToken)));
-          },
-          rollback: async () => {
-            await Promise.all(withDue.map((t) => updateCard(t.id, { due_at: t.prevDueAt || null }, accessToken)));
-          },
-        });
-        return;
-      }
-
-      await runBoardAction("Fechas limite limpiadas", async () => {
-        const withDue = boardCards.filter((card) => Boolean(card.dueAt));
-        await Promise.all(withDue.map((card) => updateCard(card.id, { due_at: null }, accessToken)));
-      });
-      return;
-    }
-
-    if (lower.startsWith("card done ")) {
-      const query = normalize(input.slice("card done ".length));
-      const target = boardCards.find((card) => normalize(card.title).includes(query));
-      if (!target) {
-        notifyInfo("No encontre una card que coincida.");
-        return;
-      }
-
-      if (txActive) {
-        const prevStatus = target.status || "active";
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-card-done-${target.id}`,
-          label: `card done ${target.title}`,
-          execute: async () => {
-            await updateCard(target.id, { status: "done" }, accessToken);
-          },
-          rollback: async () => {
-            await updateCard(target.id, { status: prevStatus }, accessToken);
-          },
-        });
-        return;
-      }
-
-      await runBoardAction(`Card marcada done: ${target.title}`, async () => {
-        await updateCard(target.id, { status: "done" }, accessToken);
-      });
-      return;
-    }
-
-    if (lower.startsWith("card active ")) {
-      const query = normalize(input.slice("card active ".length));
-      const target = boardCards.find((card) => normalize(card.title).includes(query));
-      if (!target) {
-        notifyInfo("No encontre una card que coincida.");
-        return;
-      }
-
-      if (txActive) {
-        const prevStatus = target.status || "active";
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-card-active-${target.id}`,
-          label: `card active ${target.title}`,
-          execute: async () => {
-            await updateCard(target.id, { status: "active" }, accessToken);
-          },
-          rollback: async () => {
-            await updateCard(target.id, { status: prevStatus }, accessToken);
-          },
-        });
-        return;
-      }
-
-      await runBoardAction(`Card marcada active: ${target.title}`, async () => {
-        await updateCard(target.id, { status: "active" }, accessToken);
-      });
-      return;
-    }
-
-    if (lower.startsWith("due clear ")) {
-      const query = normalize(input.slice("due clear ".length));
-      const target = boardCards.find((card) => normalize(card.title).includes(query));
-      if (!target) {
-        notifyInfo("No encontre una card que coincida.");
-        return;
-      }
-
-      if (txActive) {
-        if (!target.dueAt) {
-          notifyInfo("Esa card no tiene fecha limite para limpiar.");
-          return;
-        }
-        const prevDueAt = target.dueAt;
-        enqueueTransactionAction({
-          id: `tx-${Date.now()}-due-clear-${target.id}`,
-          label: `due clear ${target.title}`,
-          execute: async () => {
-            await updateCard(target.id, { due_at: null }, accessToken);
-          },
-          rollback: async () => {
-            await updateCard(target.id, { due_at: prevDueAt }, accessToken);
-          },
-        });
-        return;
-      }
-
-      await runBoardAction(`Fecha limite limpiada: ${target.title}`, async () => {
-        await updateCard(target.id, { due_at: null }, accessToken);
-      });
-      return;
-    }
-
     notifyInfo("Comando no reconocido. Escribe 'help' para ver ejemplos.");
   };
-
-  const autocompleteSuggestions = useMemo(() => {
-    const q = commandQuery.trim();
-    const lower = normalize(q);
-    const boardCards = getBoardCards();
-    const listNames = boardSnapshot?.lists.map((l) => l.name) ?? [];
-    const contextPool = contextOrder.flatMap((ctx) => contextTemplates[ctx]);
-    const localPool = contextTemplates[currentContext];
-    const commandPool = Array.from(new Set([...localPool, ...contextPool]));
-    const toAvailable = (commands: string[], limit = 10) =>
-      commands
-        .map((cmd) => (cmd.startsWith("context ") ? cmd.replace(/^context\s+/, "ctx ") : cmd))
-        .map(mapCommandSuggestion)
-        .filter((suggestion) => suggestion.available)
-        .slice(0, limit);
-
-    if (!q) {
-      return toAvailable(localPool, 8);
-    }
-
-    if (lower.startsWith("ctx ") || lower.startsWith("context ")) {
-      const normalizedCtxQuery = lower.replace(/^context\s+/, "ctx ");
-      const options = ["up", ...contextOrder];
-      const commands = options
-        .map((option) => `ctx ${option}`)
-        .filter((option) => option.toLowerCase().startsWith(normalizedCtxQuery))
-        .slice(0, 8);
-      return toAvailable(commands, 8);
-    }
-
-    if (lower.startsWith("board ") && !lower.startsWith("board refresh") && !lower.startsWith("board chat") && !lower.startsWith("board share")) {
-      const needle = normalize(q.slice("board ".length));
-      const boardQueries = teamBoards
-        .map((board, idx) => [`board ${idx + 1}`, `board ${board.name}`])
-        .flat()
-        .filter((candidate) => normalize(candidate).includes(needle));
-      return toAvailable(boardQueries, 8);
-    }
-
-    if (lower.startsWith("card done ")) {
-      const needle = normalize(q.slice("card done ".length));
-      const commands = boardCards
-        .filter((card) => normalize(card.title).includes(needle))
-        .slice(0, 8)
-        .map((card) => `card done ${card.title}`);
-      return toAvailable(commands, 8);
-    }
-
-    if (lower.startsWith("card active ")) {
-      const needle = normalize(q.slice("card active ".length));
-      const commands = boardCards
-        .filter((card) => normalize(card.title).includes(needle))
-        .slice(0, 8)
-        .map((card) => `card active ${card.title}`);
-      return toAvailable(commands, 8);
-    }
-
-    if (lower.startsWith("due clear ")) {
-      const needle = normalize(q.slice("due clear ".length));
-      const commands = boardCards
-        .filter((card) => normalize(card.title).includes(needle))
-        .slice(0, 8)
-        .map((card) => `due clear ${card.title}`);
-      return toAvailable(commands, 8);
-    }
-
-    if (lower.startsWith("list add ")) {
-      const needle = normalize(q.slice("list add ".length));
-      const commands = listNames
-        .filter((name) => normalize(name).includes(needle))
-        .slice(0, 8)
-        .map((name) => `list add ${name}`);
-      return toAvailable(commands, 8);
-    }
-
-    if (lower.startsWith("card ")) {
-      const cardQuery = parseCardQuery(q);
-      if (!cardQuery) {
-        const seeded = (boardSnapshot?.lists ?? []).flatMap((list, listIdx) =>
-          list.cards.slice(0, 2).map((card, cardIdx) => [`card ${card.title} from ${list.name} rename `, `card ${cardIdx + 1} from ${listIdx + 1} tag add `])
-        );
-        return toAvailable(seeded.flat(), 8);
-      }
-
-      if (cardQuery.action === "tag_add" || cardQuery.action === "tag_remove") {
-        const needle = normalize(cardQuery.value);
-        const commands = boardTags
-          .filter((tag) => normalize(tag.name).includes(needle))
-          .slice(0, 8)
-          .map((tag) => `card ${cardQuery.cardSelector} from ${cardQuery.listSelector} ${cardQuery.action === "tag_add" ? "tag add" : "tag remove"} ${tag.name}`);
-        return toAvailable(commands, 8);
-      }
-
-      if (cardQuery.action === "assign" || cardQuery.action === "unassign") {
-        const needle = normalize(cardQuery.value);
-        const commands = boardMembers
-          .filter((member) => normalize(`${member.displayName || ""} ${member.email}`).includes(needle))
-          .slice(0, 8)
-          .map((member) =>
-            `card ${cardQuery.cardSelector} from ${cardQuery.listSelector} ${cardQuery.action === "assign" ? "assign" : "unassign"} ${
-              member.displayName || member.email
-            }`
-          );
-        return toAvailable(commands, 8);
-      }
-    }
-
-    const generic = commandPool
-      .filter((cmd) => {
-        const value = cmd.toLowerCase();
-        return value.startsWith(lower) || value.includes(lower);
-      })
-      .slice(0, 20);
-
-    return toAvailable(generic, 10);
-  }, [activeTeamId, boardMembers, boardSnapshot, boardTags, commandQuery, currentContext, isBoardContext, teamBoards, accessToken]);
-
-  const firstAutocomplete =
-    autocompleteSuggestions.find((s) => s.command.toLowerCase() !== commandQuery.trim().toLowerCase() && s.available) || null;
-
-  const nextTokenHint = useMemo(() => {
-    if (!firstAutocomplete || !commandQuery.trim()) return null;
-
-    const current = commandQuery;
-    const target = firstAutocomplete.command;
-    const hasTrailingSpace = /\s$/.test(current);
-    const currentTokens = current.trim().split(/\s+/).filter(Boolean);
-    const targetTokens = target.split(/\s+/).filter(Boolean);
-
-    if (hasTrailingSpace) {
-      return targetTokens[currentTokens.length] ?? null;
-    }
-
-    const currentToken = currentTokens[currentTokens.length - 1] ?? "";
-    const targetToken = targetTokens[currentTokens.length - 1] ?? "";
-    if (targetToken.toLowerCase().startsWith(currentToken.toLowerCase())) {
-      return targetToken;
-    }
-
-    return null;
-  }, [commandQuery, firstAutocomplete]);
 
   const reloadBoardSnapshot = async () => {
     if (!boardIdFromPath || !accessToken) return;
@@ -1513,10 +1441,8 @@ export function CommandPalette() {
                   Subir a {contextMeta[parentContext].label}
                 </button>
               ) : null}
-              {firstAutocomplete ? <span>{t.hint.tabComplete}: {firstAutocomplete.command}</span> : null}
               {nextTokenHint ? <span>{t.hint.nextToken}: {nextTokenHint}</span> : null}
               <span>{t.hint.enterRun}</span>
-              <span>{t.hint.argStyle}</span>
               {txActive ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
                   TX activa: {txQueue.length}
@@ -1634,45 +1560,44 @@ export function CommandPalette() {
               </Command.Group>
             ) : null}
 
-            {autocompleteSuggestions.length > 0 ? (
-              <Command.Group heading="Autocomplete" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
-                {autocompleteSuggestions.map((suggestion) => (
-                  <Command.Item
-                    key={`suggest-${suggestion.command}`}
-                    value={`${suggestion.command} ${suggestion.description}`}
-                    onSelect={() => {
-                      if (!suggestion.available) {
-                        notifyInfo(suggestion.availabilityNote || t.fallback.commandUnavailable);
-                        return;
-                      }
-                      setCommandQuery(suggestion.command);
-                    }}
-                    className={`${itemClassName} ${suggestion.available ? "" : "opacity-60"}`}
-                  >
-                    <suggestion.icon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <div className="min-w-0 flex-1">
-                      <div className="truncate font-medium">{suggestion.command}</div>
-                      {getSuggestionArgTokens(suggestion.command).length > 0 ? (
-                        <div className="mt-1 flex flex-wrap items-center gap-1">
-                          {getSuggestionArgTokens(suggestion.command).map((token) => (
-                            <span
-                              key={`${suggestion.command}-${token.key}`}
-                              className="inline-flex items-center rounded-md border border-border bg-accent/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-foreground/80"
-                            >
-                              {localizeArgToken(token)}
-                            </span>
-                          ))}
+            {astSuggestions.length > 0 ? (
+              <Command.Group heading="Suggestions" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
+                {astSuggestions.map((suggestion, idx) => {
+                  const Icon = resolveIcon(suggestion.commandId);
+                  return (
+                    <Command.Item
+                      key={`suggest-${suggestion.commandId}-${idx}`}
+                      value={`suggest ${suggestion.commandId} ${suggestion.value} ${idx}`}
+                      onSelect={() => {
+                        const target = suggestion.value;
+                        const tokensResult = tokenize(commandQuery);
+                        const tokens = [...tokensResult.tokens];
+                        const isVariableHint = target.startsWith("<") && target.endsWith(">");
+
+                        if (tokensResult.hasTrailingSpace || tokens.length === 0) {
+                          setCommandQuery(commandQuery + (isVariableHint ? "" : target + " "));
+                        } else {
+                          tokens[tokens.length - 1] = target;
+                          setCommandQuery(tokens.join(" ") + (isVariableHint ? "" : " "));
+                        }
+                      }}
+                      className={itemClassName}
+                    >
+                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium">{suggestion.value}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {suggestion.description} &middot; Enter para autocompletar
                         </div>
-                      ) : null}
-                      <div className="truncate text-xs text-muted-foreground">
-                        {suggestion.description}
-                        {suggestion.available ? " Â· Pulsa Enter para ejecutar" : ` Â· ${suggestion.availabilityNote || "No disponible"}`}
                       </div>
-                    </div>
-                  </Command.Item>
-                ))}
+                    </Command.Item>
+                  );
+                })}
               </Command.Group>
             ) : null}
+
+            {!commandQuery.trim() ? (
+              <>
 
             {currentContext === "global" ? (
               <Command.Group heading="Global Navigation" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
@@ -2025,6 +1950,8 @@ export function CommandPalette() {
               <div className="px-3 py-2 text-[11px] text-muted-foreground">
                 Tip: usa <span className="text-foreground">ctx board</span>, <span className="text-foreground">ctx cards</span> o <span className="text-foreground">ctx up</span> para navegar entre niveles.
               </div>
+            ) : null}
+            </>
             ) : null}
           </Command.List>
         </Command>

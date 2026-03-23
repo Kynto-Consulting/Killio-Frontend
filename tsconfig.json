@@ -26,12 +26,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@kyntocg/river": [
-        "../river/src/index.ts"
-      ],
-      "@kyntocg/river/*": [
-        "../river/src/*"
       ]
     }
   },
