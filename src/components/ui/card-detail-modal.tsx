@@ -1088,12 +1088,8 @@ const handleUpdateField = useCallback((field: string, value: any, instant: boole
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground border-b border-border/50 pb-4">
                   <div className="flex items-center space-x-2">
                     <Calendar className="w-4 h-4" />
-                    <input 
-                      type="date" 
-                      value={localDueAt}
-                      onChange={(e) => handleUpdateField('due_at', e.target.value || null)}
-                      className="bg-transparent border-none text-sm outline-none focus:ring-1 focus:ring-accent rounded px-1 text-muted-foreground"
-                    />
+                      <span className="bg-transparent border-none text-sm outline-none focus:ring-1 focus:ring-accent rounded px-1 text-muted-foreground">{new Date(card.updatedAt || card.createdAt || new Date()).toLocaleString()}</span>
+
                   </div>
 
                   <div

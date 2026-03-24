@@ -116,9 +116,9 @@ export const killioArgs = {
         const query = normalize(partial);
 
         for (const board of ctx.teamBoards) {
-          const boardName = normalize(board.title); // Assuming title or name is the property, will check contracts
+          const boardName = normalize(board.name); // Usar 'name' según BoardSummary
           if (!query || boardName.includes(query) || boardName.startsWith(query)) {
-            const rawName = board.title;
+            const rawName = board.name;
             matches.push(rawName.includes(" ") ? `"${rawName}"` : rawName);
           }
         }

@@ -180,6 +180,8 @@ export type CardView = {
   blocks: BoardBrick[];
   tags?: TagView[];
   assignees?: any[];
+  createdAt: string;
+  updatedAt: string;
 };
 
 export type ListView = {

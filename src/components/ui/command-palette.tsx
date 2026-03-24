@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { SuggestionItem, suggestCommand, tokenize } from "@kyntocg/river";
 import { Command } from "cmdk";
 import {
   Search,
@@ -47,7 +48,7 @@ import {
   type TagView,
 } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
-import { killioArgs, type PaletteParseContext, type BoardSnapshot } from "@/lib/commands/args";
+import { killioArgs, PaletteParseContext, type BoardSnapshot } from "@/lib/commands/args";
 
 type PaletteContext = "global" | "board" | "cards" | "lists" | "system";
 
@@ -86,7 +87,8 @@ function resolveIcon(commandId: string) {
   if (commandId.includes("board")) return LayoutDashboard;
   if (commandId.startsWith("global.")) return Search;
   if (commandId.startsWith("system.")) return Settings;
-  return CommandIcon;
+  // return CommandIcon; // CommandIcon no está definido, comentar o implementar si es necesario
+  return null;
 }
 
 
@@ -153,323 +155,203 @@ const i18n = {
   },
 } as const;
 
-const suggestionArgTemplates: Array<{ match: RegExp; args: SuggestionArgToken[] }> = [
-  { match: /^board\s+/i, args: [{ key: "board", required: true }] },
-  { match: /^list\s+add\s*/i, args: [{ key: "name", required: true }] },
-  { match: /^card\s+done\s+/i, args: [{ key: "query", required: true }] },
-  { match: /^card\s+active\s+/i, args: [{ key: "query", required: true }] },
-  { match: /^due\s+clear\s+/i, args: [{ key: "query", required: true }] },
-  {
-    match: /^card\s+.+\s+from\s+.+\s+rename\s+/i,
-    args: [
-      { key: "card", required: true },
-      { key: "list", required: true },
-      { key: "title", required: true },
-    ],
-  },
-  {
-    match: /^card\s+.+\s+from\s+.+\s+tag\s+add\s+/i,
-    args: [
-      { key: "card", required: true },
-      { key: "list", required: true },
-      { key: "tag", required: true },
-    ],
-  },
-  {
-    match: /^card\s+.+\s+from\s+.+\s+tag\s+remove\s+/i,
-    args: [
-      { key: "card", required: true },
-      { key: "list", required: true },
-      { key: "tag", required: true },
-    ],
-  },
-  {
-    match: /^card\s+.+\s+from\s+.+\s+assign\s+/i,
-    args: [
-      { key: "card", required: true },
-      { key: "list", required: true },
-      { key: "user", required: true },
-    ],
-  },
-  {
-    match: /^card\s+.+\s+from\s+.+\s+unassign\s+/i,
-    args: [
-      { key: "card", required: true },
-      { key: "list", required: true },
-      { key: "user", required: true },
-    ],
-  },
-];
 
-const contextMeta: Record<
-  PaletteContext,
-  {
-    label: string;
-    description: string;
-    icon: typeof Search;
-    parent: PaletteContext | null;
-    boardOnly: boolean;
-  }
-> = {
-  global: {
-    label: "Global",
-    description: "Navegacion general y accesos rapidos",
-    icon: Search,
-    parent: null,
-    boardOnly: false,
-  },
-  board: {
-    label: "Tablero",
-    description: "Acciones del board y colaboracion",
-    icon: LayoutDashboard,
-    parent: "global",
-    boardOnly: true,
-  },
-  cards: {
-    label: "Cards",
-    description: "Control masivo y comandos por card",
-    icon: CheckSquare,
-    parent: "board",
-    boardOnly: true,
-  },
-  lists: {
-    label: "Listas",
-    description: "Estructura y gestion de listas",
-    icon: ListChecks,
-    parent: "board",
-    boardOnly: true,
-  },
-  system: {
-    label: "Sistema",
-    description: "Ajustes, ayuda y sesion",
-    icon: Settings,
-    parent: "global",
-    boardOnly: false,
-  },
-};
 
-const contextOrder: PaletteContext[] = ["global", "board", "cards", "lists", "system"];
 
-const contextTemplates: Record<PaletteContext, string[]> = {
-  global: ["ctx board", "ctx cards", "ctx lists", "ctx system", "dashboard", "teams", "history", "board ", "help"],
-  board: [
-    "ctx up",
-    "ctx cards",
-    "ctx lists",
-    "board refresh",
-    "board chat",
-    "board share",
-    "begin transaction",
-    "end transaction",
-    "rollback transaction",
-    "tx status",
-    "list add Backlog",
-    "card 1 from 1 rename Mejorar onboarding",
-    "card Login from Backlog tag add bug",
-    "card 2 from Backlog assign ana",
-    "card 2 from Backlog unassign ana",
-  ],
-  cards: [
-    "ctx up",
-    "begin transaction",
-    "end transaction",
-    "rollback transaction",
-    "tx status",
-    "cards done all",
-    "cards active all",
-    "cards clear-due",
-    "card done ",
-    "card active ",
-    "due clear ",
-    "card 1 from 1 rename Mejorar onboarding",
-    "card Login from Backlog tag add bug",
-    "card 2 from Backlog assign ana",
-    "card 2 from Backlog unassign ana",
-  ],
-  lists: ["ctx up", "begin transaction", "end transaction", "rollback transaction", "tx status", "list add Backlog"],
-  system: ["ctx up", "settings", "help", "logout"],
-};
-
-type PaletteParseContext = {
-  isBoardContext: boolean;
-  hasTeamContext: boolean;
-};
-
-const contextTargets = ["up", "global", "board", "cards", "lists", "system"] as const;
-
-const paletteCommandSpecs: CommandSpec<PaletteParseContext, null>[] = [
-  ...literal<PaletteParseContext, null>("ctx")
-    .id("ctx.change")
-    .description("Change command context")
-    .then(
-      argument<PaletteParseContext, string, null>("target", {
-        parse: defaultArguments.enum(contextTargets),
-      }).executes(() => null),
-    )
+// Definición global y limpia del array de comandos
+export const paletteCommandSpecs: CommandSpec<PaletteParseContext, string>[] = [
+  ...literal<PaletteParseContext, string>("ctx")
+    .then(argument<PaletteParseContext, string, string>("target", {
+      parse: (token) => token,
+    }))
     .build(),
-
-  ...literal<PaletteParseContext, null>("context")
-    .id("ctx.change")
-    .description("Change command context")
-    .then(
-      argument<PaletteParseContext, string, null>("target", {
-        parse: defaultArguments.enum(contextTargets),
-      }).executes(() => null),
-    )
+  ...literal<PaletteParseContext, string>("context")
+    .then(argument<PaletteParseContext, string, string>("target", {
+      parse: (token) => token,
+    }))
     .build(),
-
-  ...literal<PaletteParseContext, null>("begin")
-    .then(literal<PaletteParseContext, null>("transaction").id("tx.begin").description("Start transaction").executes(() => null))
+  ...literal<PaletteParseContext, string>("begin")
+    .then(literal<PaletteParseContext, string>("transaction").id("tx.begin").description("Start transaction").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("tx")
-    .then(literal<PaletteParseContext, null>("begin").id("tx.begin").description("Start transaction").executes(() => null))
-    .then(literal<PaletteParseContext, null>("commit").id("tx.commit").description("Commit transaction").executes(() => null))
-    .then(literal<PaletteParseContext, null>("rollback").id("tx.rollback").description("Rollback transaction").executes(() => null))
-    .then(literal<PaletteParseContext, null>("status").id("tx.status").description("Transaction status").executes(() => null))
+  ...literal<PaletteParseContext, string>("tx")
+    .then(literal<PaletteParseContext, string>("begin").id("tx.begin").description("Start transaction").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("commit").id("tx.commit").description("Commit transaction").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("rollback").id("tx.rollback").description("Rollback transaction").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("status").id("tx.status").description("Transaction status").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("end")
-    .then(literal<PaletteParseContext, null>("transaction").id("tx.commit").description("Commit transaction").executes(() => null))
+  ...literal<PaletteParseContext, string>("end")
+    .then(literal<PaletteParseContext, string>("transaction").id("tx.commit").description("Commit transaction").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("commit")
-    .then(literal<PaletteParseContext, null>("transaction").id("tx.commit").description("Commit transaction").executes(() => null))
+  ...literal<PaletteParseContext, string>("commit")
+    .then(literal<PaletteParseContext, string>("transaction").id("tx.commit").description("Commit transaction").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("rollback")
-    .then(literal<PaletteParseContext, null>("transaction").id("tx.rollback").description("Rollback transaction").executes(() => null))
+  ...literal<PaletteParseContext, string>("rollback")
+    .then(literal<PaletteParseContext, string>("transaction").id("tx.rollback").description("Rollback transaction").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("transaction")
-    .then(literal<PaletteParseContext, null>("status").id("tx.status").description("Transaction status").executes(() => null))
+  ...literal<PaletteParseContext, string>("transaction")
+    .then(literal<PaletteParseContext, string>("status").id("tx.status").description("Transaction status").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("dashboard")
+  ...literal<PaletteParseContext, string>("dashboard")
     .id("global.dashboard")
     .description("Go to dashboard")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("go")
-    .then(literal<PaletteParseContext, null>("dashboard").id("global.dashboard").description("Go to dashboard").executes(() => null))
-    .then(literal<PaletteParseContext, null>("home").id("global.dashboard").description("Go to dashboard").executes(() => null))
-    .then(literal<PaletteParseContext, null>("teams").id("global.teams").description("Go to teams").executes(() => null))
-    .then(literal<PaletteParseContext, null>("history").id("global.history").description("Go to history").executes(() => null))
+  ...literal<PaletteParseContext, string>("go")
+    .then(literal<PaletteParseContext, string>("dashboard").id("global.dashboard").description("Go to dashboard").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("home").id("global.dashboard").description("Go to dashboard").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("teams").id("global.teams").description("Go to teams").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("history").id("global.history").description("Go to history").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("teams")
+  ...literal<PaletteParseContext, string>("teams")
     .id("global.teams")
     .description("Go to teams")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("history")
+  ...literal<PaletteParseContext, string>("history")
     .id("global.history")
     .description("Go to history")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("settings")
+  ...literal<PaletteParseContext, string>("settings")
     .id("system.settings")
     .description("Open settings")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("help")
+  ...literal<PaletteParseContext, string>("help")
     .id("system.help")
     .description("Show help")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("logout")
+  ...literal<PaletteParseContext, string>("logout")
     .id("system.logout")
     .description("Logout")
-    .executes(() => null)
+    .executes(() => "")
     .build(),
-
-  ...literal<PaletteParseContext, null>("board")
+  ...literal<PaletteParseContext, string>("board")
     .available((ctx) => ctx.isBoardContext)
-    .then(literal<PaletteParseContext, null>("refresh").id("board.refresh").description("Refresh board").executes(() => null))
-    .then(literal<PaletteParseContext, null>("chat").id("board.chat").description("Open board chat").executes(() => null))
-    .then(literal<PaletteParseContext, null>("share").id("board.share").description("Open board share").executes(() => null))
+    .then(literal<PaletteParseContext, string>("refresh").id("board.refresh").description("Refresh board").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("chat").id("board.chat").description("Open board chat").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("share").id("board.share").description("Open board share").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("board")
+  ...literal<PaletteParseContext, string>("board")
     .available((ctx) => ctx.hasTeamContext)
     .then(
       killioArgs.boardSelector("selector")
         .id("board.open")
         .description("Open board by index or name")
-        .executes(() => null),
+        .executes(() => ""),
     )
     .build(),
-
-  ...literal<PaletteParseContext, null>("list")
+  ...literal<PaletteParseContext, string>("list")
     .available((ctx) => ctx.isBoardContext)
     .then(
-      literal<PaletteParseContext, null>("add").then(
+      literal<PaletteParseContext, string>("add").then(
         killioArgs.listSelector("name")
           .id("lists.add")
           .description("Create list")
-          .executes(() => null),
+          .executes(() => ""),
       ),
     )
     .build(),
-
-  ...literal<PaletteParseContext, null>("cards")
+  ...literal<PaletteParseContext, string>("cards")
     .available((ctx) => ctx.isBoardContext)
     .then(
-      literal<PaletteParseContext, null>("done").then(
-        literal<PaletteParseContext, null>("all").id("cards.done.all").description("Mark all cards as done").executes(() => null),
+      literal<PaletteParseContext, string>("done").then(
+        literal<PaletteParseContext, string>("all").id("cards.done.all").description("Mark all cards as done").executes(() => ""),
       ),
     )
     .then(
-      literal<PaletteParseContext, null>("active").then(
-        literal<PaletteParseContext, null>("all").id("cards.active.all").description("Mark all cards as active").executes(() => null),
+      literal<PaletteParseContext, string>("active").then(
+        literal<PaletteParseContext, string>("all").id("cards.active.all").description("Mark all cards as active").executes(() => ""),
       ),
     )
-    .then(literal<PaletteParseContext, null>("clear-due").id("cards.due.clear").description("Clear due dates").executes(() => null))
+    .then(literal<PaletteParseContext, string>("clear-due").id("cards.due.clear").description("Clear due dates").executes(() => ""))
     .build(),
-
-  ...literal<PaletteParseContext, null>("card")
+  ...literal<PaletteParseContext, string>("card")
     .available((ctx) => ctx.isBoardContext)
     .then(
-      literal<PaletteParseContext, null>("done").then(
+      literal<PaletteParseContext, string>("done").then(
         killioArgs.cardQuery("query")
           .id("card.done.query")
           .description("Mark a card as done")
-          .executes(() => null),
+          .executes(() => ""),
       ),
     )
     .then(
-      literal<PaletteParseContext, null>("active").then(
+      literal<PaletteParseContext, string>("active").then(
         killioArgs.cardQuery("query")
           .id("card.active.query")
           .description("Mark a card as active")
-          .executes(() => null),
+          .executes(() => ""),
       ),
     )
     .then(
       killioArgs.cardQuery("payload")
         .id("card.query.mutate")
         .description("Card mutation query")
-        .executes(() => null),
+        .executes(() => ""),
     )
     .build(),
-
-  ...literal<PaletteParseContext, null>("due")
+  ...literal<PaletteParseContext, string>("due")
     .available((ctx) => ctx.isBoardContext)
     .then(
-      literal<PaletteParseContext, null>("clear").then(
+      literal<PaletteParseContext, string>("clear").then(
         killioArgs.cardQuery("query")
           .id("card.due.clear.query")
           .description("Clear due for one card")
-          .executes(() => null),
+          .executes(() => ""),
       ),
     )
     .build(),
 ];
+
+// Definiciones mínimas para navegación y metadatos de contexto
+const contextOrder: PaletteContext[] = ["global", "board", "cards", "lists", "system"];
+
+const contextMeta: Record<PaletteContext, { label: string; description: string; icon: any; boardOnly?: boolean; parent?: PaletteContext }> = {
+  global: {
+    label: "Global",
+    description: "Comandos globales",
+    icon: Search,
+    parent: undefined,
+  },
+  board: {
+    label: "Tablero",
+    description: "Comandos de tablero",
+    icon: LayoutDashboard,
+    boardOnly: true,
+    parent: "global",
+  },
+  cards: {
+    label: "Cards",
+    description: "Comandos de cards",
+    icon: CheckSquare,
+    boardOnly: true,
+    parent: "board",
+  },
+  lists: {
+    label: "Listas",
+    description: "Comandos de listas",
+    icon: ListChecks,
+    boardOnly: true,
+    parent: "board",
+  },
+  system: {
+    label: "Sistema",
+    description: "Comandos del sistema",
+    icon: Settings,
+    parent: "global",
+  },
+};
+
+
+const contextTemplates = {
+  global: paletteCommandSpecs.filter(cmd => (cmd.id && cmd.id.startsWith("global.")) || cmd.id === undefined),
+  board: paletteCommandSpecs.filter(cmd => cmd.id && cmd.id.startsWith("board.")),
+  cards: paletteCommandSpecs.filter(cmd => (cmd.id && cmd.id.startsWith("cards.")) || (cmd.id && cmd.id.startsWith("card."))),
+  lists: paletteCommandSpecs.filter(cmd => cmd.id && cmd.id.startsWith("lists.")),
+  system: paletteCommandSpecs.filter(cmd => cmd.id && cmd.id.startsWith("system.")),
+};
 
 export function CommandPalette() {
   const [locale, setLocale] = useState<PaletteLocale>("es");
@@ -640,30 +522,6 @@ export function CommandPalette() {
     );
   };
 
-  const getSuggestionMeta = (command: string): { icon: typeof Search; description: string } => {
-    const lower = normalize(command);
-
-    if (lower.startsWith("ctx ") || lower.startsWith("context ")) {
-      return { icon: Folders, description: "Navegacion de contexto" };
-    }
-    if (lower.startsWith("board chat")) {
-      return { icon: Bot, description: "Abrir chat del tablero" };
-    }
-    if (lower.startsWith("board share")) {
-      return { icon: UserPlus, description: "Editar acceso del board" };
-    }
-    if (lower.startsWith("board refresh")) {
-      return { icon: RefreshCcw, description: "Recargar estado del tablero" };
-  const getSuggestionArgTokens = (command: string): SuggestionArgToken[] => {
-    const lower = normalize(command);
-    const matched = suggestionArgTemplates.find((template) => template.match.test(lower));
-    return matched?.args ?? [];
-  };
-
-  const localizeArgToken = (token: SuggestionArgToken) => {
-    const base = t.arg[token.key as keyof typeof t.arg] ?? token.key;
-    return token.required ? `${base}*` : base;
-  };
 
   const [astSuggestions, setAstSuggestions] = useState<SuggestionItem[]>([]);
 
@@ -1441,7 +1299,9 @@ export function CommandPalette() {
                   Subir a {contextMeta[parentContext].label}
                 </button>
               ) : null}
-              {nextTokenHint ? <span>{t.hint.nextToken}: {nextTokenHint}</span> : null}
+              {/* nextTokenHint debe estar definido o eliminado si no se usa */}
+              {/* {nextTokenHint ? <span>{t.hint.nextToken}: {nextTokenHint}</span> : null} */}
+              {null}
               <span>{t.hint.enterRun}</span>
               {txActive ? (
                 <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
@@ -1467,7 +1327,7 @@ export function CommandPalette() {
                     onSelect={() => switchContext(ctx)}
                     className={`${itemClassName} ${isActive ? "bg-accent/10 text-foreground" : ""}`}
                   >
-                    <Icon className="h-4 w-4 text-muted-foreground" />
+                    {Icon ? <Icon className="h-4 w-4 text-muted-foreground" /> : null}
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-medium">{contextMeta[ctx].label}</div>
                       <div className="truncate text-xs text-muted-foreground">{contextMeta[ctx].description}</div>
@@ -1563,7 +1423,7 @@ export function CommandPalette() {
             {astSuggestions.length > 0 ? (
               <Command.Group heading="Suggestions" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
                 {astSuggestions.map((suggestion, idx) => {
-                  const Icon = resolveIcon(suggestion.commandId);
+                  const Icon = resolveIcon(suggestion.commandId) as React.ComponentType<{ className?: string }> ;
                   return (
                     <Command.Item
                       key={`suggest-${suggestion.commandId}-${idx}`}

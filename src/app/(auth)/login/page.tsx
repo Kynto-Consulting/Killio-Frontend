@@ -17,6 +17,7 @@ function LoginPageContent() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const from = searchParams.get('from');
   const safeFrom = from && from.startsWith('/') ? from : '/';
@@ -31,7 +32,7 @@ function LoginPageContent() {
       const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password }),
+        body: JSON.stringify({ identifier, password, rememberMe }),
       });
 
       if (!res.ok) {
@@ -134,6 +135,18 @@ function LoginPageContent() {
                 </div>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <input
+                  id="rememberMe"
+                  type="checkbox"
+                  checked={rememberMe}
+                  onChange={e => setRememberMe(e.target.checked)}
+                  className="rounded border border-input"
+                />
+                <label htmlFor="rememberMe" className="text-sm select-none cursor-pointer">
+                  Recordar sesión por 31 días
+                </label>
+              </div>
               <button
                 type="submit"
                 disabled={isLoading}

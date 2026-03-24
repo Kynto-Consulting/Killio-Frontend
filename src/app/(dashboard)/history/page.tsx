@@ -243,11 +243,7 @@ export default function HistoryPage() {
           boardIdsList.map(async (boardId) => {
             const [board, tags] = await Promise.all([
               getBoard(boardId, accessToken),
-<<<<<<< Updated upstream
               getTagsByScope("board", boardId, accessToken).catch(() => []),
-=======
-              getTagsByScope( "board", boardId , accessToken).catch(() => []),
->>>>>>> Stashed changes
             ]);
 
             return { boardId, board, tags };
