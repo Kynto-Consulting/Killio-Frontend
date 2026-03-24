@@ -90,12 +90,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
               )}
             </div>
             
-            <div className="space-y-2">
-                value={user?.email || ""}
-                disabled
-                   <p className="text-xs text-muted-foreground max-w-[200px]">Tu avatar se genera automáticamente desde Gravatar usando tu email.</p>
-              <p className="text-xs text-muted-foreground mt-1">Your email address is managed via your secure login provider.</p>
-            </div>
+            {/* Email y mensajes ocultos temporalmente */}
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
