@@ -1,4 +1,4 @@
-import { argument, RequiredArgumentBuilder } from "@kyntocg/river";
+import { argument } from "@kyntocg/river";
 import type { BoardMemberSummary, BoardSummary, TagView } from "../api/contracts";
 
 export type BoardSnapshot = {
@@ -26,15 +26,17 @@ export type PaletteParseContext = {
   teamBoards?: BoardSummary[];
 };
 
+type ArgBuilder = ReturnType<typeof argument<PaletteParseContext, string, string>>;
+
 function normalize(value: string) {
   return value.trim().toLowerCase();
 }
 
 export const killioArgs = {
-  cardQuery: (name: string): RequiredArgumentBuilder<PaletteParseContext, string, string> =>
-    argument(name, {
-      parse: (token) => token,
-      suggest: async (ctx, partial) => {
+  cardQuery: (name: string): ArgBuilder =>
+    argument<PaletteParseContext, string, string>(name, {
+      parse: (token: string) => token,
+      suggest: async (ctx: PaletteParseContext, partial: string) => {
         if (!ctx.boardSnapshot) return [];
         const matches: string[] = [];
         const query = normalize(partial);
@@ -52,10 +54,10 @@ export const killioArgs = {
       greedy: true,
     }),
 
-  listSelector: (name: string): RequiredArgumentBuilder<PaletteParseContext, string, string> =>
-    argument(name, {
-      parse: (token) => token,
-      suggest: async (ctx, partial) => {
+  listSelector: (name: string): ArgBuilder =>
+    argument<PaletteParseContext, string, string>(name, {
+      parse: (token: string) => token,
+      suggest: async (ctx: PaletteParseContext, partial: string) => {
         if (!ctx.boardSnapshot) return [];
         const matches: string[] = [];
         const query = normalize(partial);
@@ -70,10 +72,10 @@ export const killioArgs = {
       },
     }),
 
-  tagSelector: (name: string): RequiredArgumentBuilder<PaletteParseContext, string, string> =>
-    argument(name, {
-      parse: (token) => token,
-      suggest: async (ctx, partial) => {
+  tagSelector: (name: string): ArgBuilder =>
+    argument<PaletteParseContext, string, string>(name, {
+      parse: (token: string) => token,
+      suggest: async (ctx: PaletteParseContext, partial: string) => {
         if (!ctx.boardTags) return [];
         const matches: string[] = [];
         const query = normalize(partial);
@@ -88,10 +90,10 @@ export const killioArgs = {
       },
     }),
 
-  memberSelector: (name: string): RequiredArgumentBuilder<PaletteParseContext, string, string> =>
-    argument(name, {
-      parse: (token) => token,
-      suggest: async (ctx, partial) => {
+  memberSelector: (name: string): ArgBuilder =>
+    argument<PaletteParseContext, string, string>(name, {
+      parse: (token: string) => token,
+      suggest: async (ctx: PaletteParseContext, partial: string) => {
         if (!ctx.boardMembers) return [];
         const matches: string[] = [];
         const query = normalize(partial);
@@ -107,10 +109,10 @@ export const killioArgs = {
       },
     }),
 
-  boardSelector: (name: string): RequiredArgumentBuilder<PaletteParseContext, string, string> =>
-    argument(name, {
-      parse: (token) => token,
-      suggest: async (ctx, partial) => {
+  boardSelector: (name: string): ArgBuilder =>
+    argument<PaletteParseContext, string, string>(name, {
+      parse: (token: string) => token,
+      suggest: async (ctx: PaletteParseContext, partial: string) => {
         if (!ctx.teamBoards) return [];
         const matches: string[] = [];
         const query = normalize(partial);

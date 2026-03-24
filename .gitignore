@@ -33,3 +33,6 @@ Thumbs.db
 
 # Misc
 *.tsbuildinfo
+
+.vercel
+.env*.local
