@@ -127,41 +127,84 @@ export type AiBrick = BrickBase & {
   confidence: number | null;
 };
 
-export type BoardBrick = TextBrick | MediaBrick | EmbedBrick | AiBrick;
+export type TableBrick = BrickBase & {
+  kind: 'table';
+  rows: string[][];
+};
+
+export type GraphBrick = BrickBase & {
+  kind: 'graph';
+  type: 'line' | 'bar' | 'pie';
+  data?: any[];
+  title?: string;
+};
+
+export type ChecklistBrick = BrickBase & {
+  kind: 'checklist';
+  items: Array<{ id: string; label: string; checked: boolean }>;
+};
+
+export type AccordionBrick = BrickBase & {
+  kind: 'accordion';
+  title: string;
+  body: string;
+  isExpanded: boolean;
+};
+
+export type BoardBrick = TextBrick | MediaBrick | EmbedBrick | AiBrick | TableBrick | GraphBrick | ChecklistBrick | AccordionBrick;
 
 export type BrickMutationInput =
   | {
-      kind: 'text';
-      displayStyle: TextBrick['displayStyle'];
-      markdown: string;
-    }
+    kind: 'text';
+    displayStyle: TextBrick['displayStyle'];
+    markdown: string;
+  }
   | {
-      kind: 'media';
-      mediaType: MediaBrick['mediaType'];
-      title: string | null;
-      url: string | null;
-      mimeType: string | null;
-      sizeBytes: number | null;
-      caption: string | null;
-      assetId: string | null;
-    }
+    kind: 'media';
+    mediaType: MediaBrick['mediaType'];
+    title: string | null;
+    url: string | null;
+    mimeType: string | null;
+    sizeBytes: number | null;
+    caption: string | null;
+    assetId: string | null;
+  }
   | {
-      kind: 'embed';
-      embedType: EmbedBrick['embedType'];
-      title: string;
-      href: string | null;
-      targetId: string | null;
-      summary: string | null;
-    }
+    kind: 'embed';
+    embedType: EmbedBrick['embedType'];
+    title: string;
+    href: string | null;
+    targetId: string | null;
+    summary: string | null;
+  }
   | {
-      kind: 'ai';
-      status: AiBrick['status'];
-      title: string;
-      prompt: string;
-      response: string;
-      model: string | null;
-      confidence: number | null;
-    };
+    kind: 'ai';
+    status: AiBrick['status'];
+    title: string;
+    prompt: string;
+    response: string;
+    model: string | null;
+    confidence: number | null;
+  } | {
+    kind: 'table';
+    rows: string[][];
+  }
+  | {
+    kind: 'graph';
+    type: 'line' | 'bar' | 'pie';
+    data?: any[];
+    title?: string;
+  }
+  | {
+    kind: 'checklist';
+    items: Array<{ id: string; label: string; checked: boolean }>;
+  }
+  | {
+    kind: 'accordion';
+    title: string;
+    body: string;
+    isExpanded: boolean;
+  };
 
 export type TagView = {
   id: string;
@@ -174,7 +217,6 @@ export type TagView = {
 export type CardView = {
   id: string;
   title: string;
-  summary: string | null;
   dueAt: string | null;
   urgency: 'normal' | 'urgent';
   blocks: BoardBrick[];
@@ -192,6 +234,7 @@ export type ListView = {
 
 export type BoardView = {
   id: string;
+  teamId: string;
   name: string;
   description: string | null;
   coverImageUrl: string | null;
@@ -329,6 +372,7 @@ export async function createTag(
     scopeType: 'global' | 'team' | 'board' | 'list';
     scopeId: string;
     name: string;
+    slug?: string;
     color?: string;
     tagKind?: 'priority' | 'ux' | 'bug' | 'feature' | 'custom';
   },
@@ -456,7 +500,7 @@ export async function createList(
 }
 
 
-export async function createCard(body: { listId: string; title: string; summary?: string; dueAt?: string; urgency?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
+export async function createCard(body: { listId: string; title: string; dueAt?: string; urgency?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards`, {
     method: 'POST',
     headers: accessToken ? authHeaders(accessToken) : undefined,
@@ -472,8 +516,8 @@ export async function improveCardWithAi(
     currentDescription?: string;
   },
   accessToken?: string,
-): Promise<{ title: string; description: string }> {
-  return request<{ title: string; description: string }>(`/ai/scope/${body.scope}/improve-card`, {
+): Promise<{ title: string; bricks: any[] }> {
+  return request<{ title: string; bricks: any[] }>(`/ai/scope/${body.scope}/improve-card`, {
     method: 'POST',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify({
@@ -684,8 +728,8 @@ export interface BoardMemberSummary {
 }
 
 export async function updateBoardVisibility(
-  boardId: string, 
-  visibility: 'private' | 'team' | 'public_link', 
+  boardId: string,
+  visibility: 'private' | 'team' | 'public_link',
   accessToken: string
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/boards/${boardId}/visibility`, {
@@ -696,7 +740,7 @@ export async function updateBoardVisibility(
 }
 
 export async function getBoardMembers(
-  boardId: string, 
+  boardId: string,
   accessToken: string
 ): Promise<BoardMemberSummary[]> {
   return request<BoardMemberSummary[]>(`/boards/${boardId}/members`, {
@@ -706,9 +750,9 @@ export async function getBoardMembers(
 }
 
 export async function addBoardMember(
-  boardId: string, 
-  email: string, 
-  role: string, 
+  boardId: string,
+  email: string,
+  role: string,
   accessToken: string
 ): Promise<{ id: string }> {
   return request<{ id: string }>(`/boards/${boardId}/members`, {
@@ -719,13 +763,80 @@ export async function addBoardMember(
 }
 
 export async function removeBoardMember(
-  boardId: string, 
-  memberId: string, 
+  boardId: string,
+  memberId: string,
   accessToken: string
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/boards/${boardId}/members/${memberId}`, {
     method: 'DELETE',
     headers: authHeaders(accessToken),
+  });
+}
+
+// ==========================================
+// Bricks & Uploads
+// ==========================================
+
+export async function createBrick(
+  cardId: string,
+  input: BrickMutationInput,
+  accessToken: string
+): Promise<{ cardId: string; brick: BoardBrick }> {
+  return request<{ cardId: string; brick: BoardBrick }>(`/cards/${cardId}/bricks`, {
+    method: 'POST',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function updateBrick(
+  cardId: string,
+  brickId: string,
+  input: Partial<BrickMutationInput>,
+  accessToken: string
+): Promise<{ cardId: string; brick: BoardBrick }> {
+  return request<{ cardId: string; brick: BoardBrick }>(`/cards/${cardId}/bricks/${brickId}`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export async function deleteBrick(
+  cardId: string,
+  brickId: string,
+  accessToken: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/cards/${cardId}/bricks/${brickId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function reorderBricks(
+  cardId: string,
+  brickIds: string[],
+  clientId: string,
+  accessToken: string
+): Promise<{ cardId: string; operationId: string; bricks: BoardBrick[] }> {
+  return request(`/cards/${cardId}/bricks/reorder`, {
+    method: 'POST',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ brickIds, clientId }),
+  });
+}
+
+export async function uploadFile(
+  file: File,
+  accessToken: string
+): Promise<{ key: string; url: string; isPrivate: boolean }> {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  return request<{ key: string; url: string; isPrivate: boolean }>(`/uploads`, {
+    method: 'POST',
+    headers: authHeaders(accessToken), // don't set Content-Type to allow browser to insert boundary
+    body: formData,
   });
 }
 

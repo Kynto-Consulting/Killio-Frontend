@@ -2,21 +2,24 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft } from "lucide-react";
+import { LayoutDashboard, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
 import { AppPreferencesModal } from "@/components/ui/preferences-modal";
 import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
+import { NotificationCenter } from "@/components/ui/notification-center";
 import { useSession } from "@/components/providers/session-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
+import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navigation = [
     { name: "Workspaces", href: "/", icon: LayoutDashboard },
+    { name: "Documents", href: "/d", icon: FileText },
     { name: "Teams", href: "/teams", icon: Users },
     { name: "Activity History", href: "/history", icon: History },
   ];
@@ -31,7 +34,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
-  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
+  const [isFetchingDocs, setIsFetchingDocs] = useState(false);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -63,6 +68,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .catch(console.error)
       .finally(() => setIsFetchingBoards(false));
+
+    setIsFetchingDocs(true);
+    listDocuments(activeTeamId, accessToken)
+      .then((fetchedDocs) => {
+        setRecentDocuments(fetchedDocs);
+      })
+      .catch(console.error)
+      .finally(() => setIsFetchingDocs(false));
   }, [accessToken, activeTeamId, teams]);
 
   const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: Exclude<TeamRole, 'owner'>}[] }) => {
@@ -152,6 +165,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ))
               ) : (
                 <div className="text-sm text-muted-foreground px-3 py-1">No boards yet</div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-6 px-5">
+            <h3 className="text-xs font-semibold tracking-wider text-muted-foreground/60 uppercase">
+              Recent Documents
+            </h3>
+            <div className="mt-3 space-y-1">
+              {isFetchingDocs ? (
+                <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
+              ) : recentDocuments.length > 0 ? (
+                recentDocuments.slice(0, 5).map((doc) => (
+                  <Link
+                    key={doc.id}
+                    href={`/d/${doc.id}`}
+                    className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-foreground/70 hover:bg-accent/10 hover:text-accent font-medium transition-all"
+                  >
+                    <div className="flex items-center space-x-2 truncate">
+                      <FileText className="h-3 w-3 opacity-50 shrink-0" />
+                      <span className="truncate">{doc.title}</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="text-sm text-muted-foreground px-3 py-1">No documents yet</div>
               )}
             </div>
           </div>
@@ -282,34 +321,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <div className="h-4 w-px bg-border/80 hidden sm:block mx-1"></div>
 
-            <div className="relative">
-              <button 
-                onClick={() => setIsNotificationsOpen(!isNotificationsOpen)} 
-                className={`flex h-8 w-8 items-center justify-center rounded-full transition-colors relative ${isNotificationsOpen ? 'bg-accent/20 text-accent' : 'text-muted-foreground hover:bg-accent/20 hover:text-foreground'}`}
-                title="Notifications"
-              >
-                <Bell className="h-4 w-4" />
-                <span className="absolute top-1.5 right-1.5 h-2 w-2 rounded-full bg-accent ring-2 ring-background"></span>
-              </button>
-              
-              {isNotificationsOpen && (
-                <div className="absolute top-10 right-0 w-80 rounded-xl border border-border bg-card shadow-lg z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden">
-                  <div className="p-3 border-b border-border/50 flex items-center justify-between bg-muted/30">
-                    <span className="text-sm font-semibold tracking-tight">Notifications</span>
-                    <button className="text-xs text-accent hover:underline font-medium">Mark all read</button>
-                  </div>
-                  <div className="max-h-80 overflow-y-auto p-2">
-                    <div className="flex flex-col items-center justify-center py-8 text-center px-4">
-                      <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                        <Bell className="h-5 w-5 text-primary/40" />
-                      </div>
-                      <p className="text-sm font-medium">No new notifications</p>
-                      <p className="text-xs text-muted-foreground mt-1">When someone mentions you or assigns you to a card, it will show up here.</p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
+            <NotificationCenter />
           </div>
         </header>
 

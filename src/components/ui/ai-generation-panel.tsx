@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, getBoard, ListView, createCard } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -11,7 +11,7 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 interface GeneratedCard {
   id: string;
   title: string;
-  description: string;
+  bricks: Array<{ kind: 'text' | 'checklist', content: any }>;
   suggestedBoard?: string;
   suggestedList?: string;
   isSelected: boolean;
@@ -49,16 +49,16 @@ const inferSourceKind = (file: File): ExtractSourceKind => {
 
 export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { accessToken, activeTeamId } = useSession();
-  
+
   const [dragActive, setDragActive] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileText, setFileText] = useState<string>("");
-  
+
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
-  
+
   const [previewCards, setPreviewCards] = useState<GeneratedCard[]>([]);
-  
+
   // State for Global Dispatching Dropdowns
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [defaultBoardId, setDefaultBoardId] = useState<string>("");
@@ -147,57 +147,57 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setIsGenerating(true);
     setGenerationProgress(10);
     setPreviewCards([]);
-    
+
     const progressInterval = setInterval(() => {
-        setGenerationProgress(prev => {
-            if (prev >= 90) return prev;
-            return prev + Math.floor(Math.random() * 15);
-        });
+      setGenerationProgress(prev => {
+        if (prev >= 90) return prev;
+        return prev + Math.floor(Math.random() * 15);
+      });
     }, 800);
 
     try {
       let extractedText = "";
 
       if (selectedFile) {
-          const fileType = selectedFile.type;
-          const fileName = selectedFile.name.toLowerCase();
-          const sourceKind = inferSourceKind(selectedFile);
-          
-          // Read plain text formats directly in the browser
-          if (fileType.includes("text") || fileType.includes("json") || fileType.includes("csv") || fileName.endsWith(".md") || fileName.endsWith(".txt") || fileName.endsWith(".csv")) {
-              extractedText = await selectedFile.text();
-          } 
-          // Parse binary / complex formats via Backend API
-          else {
-              const formData = new FormData();
-              formData.append("file", selectedFile);
-            formData.append("sourceKind", sourceKind);
-              
-            const extractRes = await fetch(`${API}/ai/extract`, {
-                 method: "POST",
-                 headers: {
-                    "Authorization": `Bearer ${accessToken}`
-                 },
-                 body: formData
-              });
-              
-            if (extractRes.ok) {
-             const extractData: { text?: string; warnings?: string[] } = await extractRes.json();
-             extractedText = extractData.text || "";
+        const fileType = selectedFile.type;
+        const fileName = selectedFile.name.toLowerCase();
+        const sourceKind = inferSourceKind(selectedFile);
 
-             if (Array.isArray(extractData.warnings) && extractData.warnings.length > 0) {
-               pushToast("info", extractData.warnings[0]);
-             }
+        // Read plain text formats directly in the browser
+        if (fileType.includes("text") || fileType.includes("json") || fileType.includes("csv") || fileName.endsWith(".md") || fileName.endsWith(".txt") || fileName.endsWith(".csv")) {
+          extractedText = await selectedFile.text();
+        }
+        // Parse binary / complex formats via Backend API
+        else {
+          const formData = new FormData();
+          formData.append("file", selectedFile);
+          formData.append("sourceKind", sourceKind);
 
-             if (!extractedText.trim()) {
-               extractedText = `(No se pudo extraer texto util del archivo ${selectedFile.name}. Usa el campo de contexto para guiar a la IA.)`;
-             }
-              } else {
-             console.error("File extraction failed");
-             pushToast("error", "No se pudo extraer el archivo. Se intentara continuar con el contexto manual.");
-             extractedText = `(No se pudo extraer el contenido de ${selectedFile.name})`;
-              }
+          const extractRes = await fetch(`${API}/ai/extract`, {
+            method: "POST",
+            headers: {
+              "Authorization": `Bearer ${accessToken}`
+            },
+            body: formData
+          });
+
+          if (extractRes.ok) {
+            const extractData: { text?: string; warnings?: string[] } = await extractRes.json();
+            extractedText = extractData.text || "";
+
+            if (Array.isArray(extractData.warnings) && extractData.warnings.length > 0) {
+              pushToast("info", extractData.warnings[0]);
+            }
+
+            if (!extractedText.trim()) {
+              extractedText = `(No se pudo extraer texto util del archivo ${selectedFile.name}. Usa el campo de contexto para guiar a la IA.)`;
+            }
+          } else {
+            console.error("File extraction failed");
+            pushToast("error", "No se pudo extraer el archivo. Se intentara continuar con el contexto manual.");
+            extractedText = `(No se pudo extraer el contenido de ${selectedFile.name})`;
           }
+        }
       }
 
       setGenerationProgress(20);
@@ -205,17 +205,17 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       // Combine user text context + extracted file logic
       let finalContent = "";
       if (fileText.trim()) {
-         finalContent += `Contexto Adicional del Usuario:\n${fileText.trim()}\n\n`;
+        finalContent += `Contexto Adicional del Usuario:\n${fileText.trim()}\n\n`;
       }
       if (selectedFile && extractedText) {
-         finalContent += `Contenido del Archivo (${selectedFile.name}):\n${extractedText}`;
-      } else if (!selectedFile && fileText.trim()){
-         finalContent = fileText;
+        finalContent += `Contenido del Archivo (${selectedFile.name}):\n${extractedText}`;
+      } else if (!selectedFile && fileText.trim()) {
+        finalContent = fileText;
       }
 
       // Fallback
       if (!finalContent.trim()) {
-         finalContent = "El usuario no proporcionó información suficiente.";
+        finalContent = "El usuario no proporcionó información suficiente.";
       }
 
       const res = await fetch(`${API}/ai/scope/personal/generate-cards`, {
@@ -223,262 +223,278 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
         body: JSON.stringify({ scopeId: "personal", rawContent: finalContent }),
       });
-      
-        const cards: Array<Omit<GeneratedCard, "id" | "isSelected"> & Partial<Pick<GeneratedCard, "id" | "isSelected">>> = await res.json();
-      
-        const enrichedCards = (Array.isArray(cards) ? cards : []).map((c, index) => ({
-          ...c,
-          id: c.id || `draft-${Date.now()}-${index}`,
-          isSelected: true,
-          customBoardId: undefined,
-          customListId: undefined,
-          availableLists: defaultLists,
+
+      const cards: Array<Omit<GeneratedCard, "id" | "isSelected"> & Partial<Pick<GeneratedCard, "id" | "isSelected">>> = await res.json();
+
+      const enrichedCards = (Array.isArray(cards) ? cards : []).map((c, index) => ({
+        ...c,
+        id: c.id || `draft-${Date.now()}-${index}`,
+        bricks: c.bricks || [],
+        isSelected: true,
+        customBoardId: undefined,
+        customListId: undefined,
+        availableLists: defaultLists,
       }));
 
       setPreviewCards(enrichedCards);
       setGenerationProgress(100);
     } catch {
-      setPreviewCards([{ 
-          id: `draft-error-${Date.now()}`,
-          title: "Error connecting to AI", 
-          description: "No se pudo conectar con el servicio de Inteligencia Artificial. Revisa tu configuración.", 
-          isSelected: false,
-          customBoardId: undefined,
-          customListId: undefined,
-          availableLists: defaultLists,
+      setPreviewCards([{
+        id: `draft-error-${Date.now()}`,
+        title: "Error connecting to AI",
+        bricks: [],
+        isSelected: false,
+        customBoardId: undefined,
+        customListId: undefined,
+        availableLists: defaultLists,
       }]);
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {
-          setIsGenerating(false);
-          setGenerationProgress(0);
+        setIsGenerating(false);
+        setGenerationProgress(0);
       }, 500);
     }
   };
 
-    const handleToggleCardSelection = (id: string) => {
-      setPreviewCards((prev) => prev.map((card) => card.id === id ? { ...card, isSelected: !card.isSelected } : card));
-    };
+  const handleToggleCardSelection = (id: string) => {
+    setPreviewCards((prev) => prev.map((card) => card.id === id ? { ...card, isSelected: !card.isSelected } : card));
+  };
 
-    const pushToast = (variant: ToastMessage["variant"], text: string) => {
-      const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-      setToasts((prev) => [...prev, { id, variant, text }]);
-      setTimeout(() => {
-        setToasts((prev) => prev.filter((toast) => toast.id !== id));
-      }, 3500);
-    };
+  const pushToast = (variant: ToastMessage["variant"], text: string) => {
+    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setToasts((prev) => [...prev, { id, variant, text }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((toast) => toast.id !== id));
+    }, 3500);
+  };
 
-    const handleToggleSelectAll = () => {
-      const allSelected = previewCards.length > 0 && previewCards.every((card) => card.isSelected);
-      setPreviewCards((prev) => prev.map((card) => ({ ...card, isSelected: !allSelected })));
-    };
+  const handleToggleSelectAll = () => {
+    const allSelected = previewCards.length > 0 && previewCards.every((card) => card.isSelected);
+    setPreviewCards((prev) => prev.map((card) => ({ ...card, isSelected: !allSelected })));
+  };
 
-    const openDraftEditor = (cardId: string) => {
-      const target = previewCards.find((card) => card.id === cardId);
-      if (!target) return;
-      setEditingDraftId(cardId);
-      setEditingTitle(target.title);
-      setEditingDescription(target.description);
-    };
+  const openDraftEditor = (cardId: string) => {
+    const target = previewCards.find((card) => card.id === cardId);
+    if (!target) return;
+    setEditingDraftId(cardId);
+    setEditingTitle(target.title);
+    // For editing draft in the generation panel, we still use a simple textarea, 
+    // so we concatenate bricks for editing and will split them back or just store as text brick.
+    const fullText = target.bricks.map(b => b.kind === 'text' ? b.content.markdown : `- [ ] ${b.content.items?.map((i: any) => i.label).join('\n- [ ] ')}`).join('\n\n');
+    setEditingDescription(fullText);
+  };
 
-    const handleSaveDraftEditor = () => {
-      if (!editingDraftId) return;
-      setPreviewCards((prev) => prev.map((card) => card.id === editingDraftId
+  const handleSaveDraftEditor = () => {
+    if (!editingDraftId) return;
+    setPreviewCards((prev) => prev.map((card) => card.id === editingDraftId
       ? {
         ...card,
         title: editingTitle.trim() || "Tarjeta sin titulo",
-        description: editingDescription,
-        }
+        bricks: [{ kind: 'text', content: { markdown: editingDescription } }],
+      }
       : card
-      ));
-      setEditingDraftId(null);
-      setEditingTitle("");
-      setEditingDescription("");
-      pushToast("success", "Borrador actualizado.");
-    };
+    ));
+    setEditingDraftId(null);
+    setEditingTitle("");
+    setEditingDescription("");
+    pushToast("success", "Borrador actualizado.");
+  };
 
-    const handleEnableCustomDestination = (cardId: string) => {
-      setPreviewCards((prev) => prev.map((card) => card.id === cardId
-        ? {
-            ...card,
-            customBoardId: defaultBoardId || card.customBoardId,
-            customListId: defaultListId || card.customListId,
-            availableLists: defaultLists,
-          }
-        : card
-      ));
-    };
-
-    const handleDisableCustomDestination = (cardId: string) => {
-      setPreviewCards((prev) => prev.map((card) => card.id === cardId
-        ? {
-            ...card,
-            customBoardId: undefined,
-            customListId: undefined,
-          }
-        : card
-      ));
-    };
-
-    const handleCustomBoardChange = async (cardId: string, boardId: string) => {
-      if (!accessToken) return;
-      setPreviewCards((prev) => prev.map((card) => card.id === cardId
-        ? {
-            ...card,
-            customBoardId: boardId,
-            customListId: "",
-            availableLists: [],
-          }
-        : card
-      ));
-
-      try {
-        const board = await getBoard(boardId, accessToken);
-        setPreviewCards((prev) => prev.map((card) => card.id === cardId
-          ? {
-              ...card,
-              availableLists: board.lists,
-              customListId: board.lists[0]?.id || "",
-            }
-          : card
-        ));
-      } catch (error) {
-        console.error("Error fetching board lists", error);
-        pushToast("error", "No se pudieron cargar las listas del tablero elegido.");
+  const handleEnableCustomDestination = (cardId: string) => {
+    setPreviewCards((prev) => prev.map((card) => card.id === cardId
+      ? {
+        ...card,
+        customBoardId: defaultBoardId || card.customBoardId,
+        customListId: defaultListId || card.customListId,
+        availableLists: defaultLists,
       }
-    };
+      : card
+    ));
+  };
 
-    const handleCustomListChange = (cardId: string, listId: string) => {
+  const handleDisableCustomDestination = (cardId: string) => {
+    setPreviewCards((prev) => prev.map((card) => card.id === cardId
+      ? {
+        ...card,
+        customBoardId: undefined,
+        customListId: undefined,
+      }
+      : card
+    ));
+  };
+
+  const handleCustomBoardChange = async (cardId: string, boardId: string) => {
+    if (!accessToken) return;
+    setPreviewCards((prev) => prev.map((card) => card.id === cardId
+      ? {
+        ...card,
+        customBoardId: boardId,
+        customListId: "",
+        availableLists: [],
+      }
+      : card
+    ));
+
+    try {
+      const board = await getBoard(boardId, accessToken);
       setPreviewCards((prev) => prev.map((card) => card.id === cardId
         ? {
-            ...card,
-            customListId: listId,
-          }
+          ...card,
+          availableLists: board.lists,
+          customListId: board.lists[0]?.id || "",
+        }
         : card
       ));
-    };
+    } catch (error) {
+      console.error("Error fetching board lists", error);
+      pushToast("error", "No se pudieron cargar las listas del tablero elegido.");
+    }
+  };
 
-    const closeCardDetailsAndAdvance = () => {
-      if (createdCardsQueueIndex === null || createdCardsQueue.length === 0) {
-        setActiveCardDetails(null);
-        return;
+  const handleCustomListChange = (cardId: string, listId: string) => {
+    setPreviewCards((prev) => prev.map((card) => card.id === cardId
+      ? {
+        ...card,
+        customListId: listId,
       }
+      : card
+    ));
+  };
 
-      const nextIndex = createdCardsQueueIndex + 1;
-      if (nextIndex < createdCardsQueue.length) {
-        setCreatedCardsQueueIndex(nextIndex);
-        setActiveCardDetails(createdCardsQueue[nextIndex]);
-        return;
-      }
-
-      setCreatedCardsQueue([]);
-      setCreatedCardsQueueIndex(null);
+  const closeCardDetailsAndAdvance = () => {
+    if (createdCardsQueueIndex === null || createdCardsQueue.length === 0) {
       setActiveCardDetails(null);
-    };
+      return;
+    }
 
-    const handleDispatchSelected = async () => {
-      if (!defaultBoardId || !defaultListId || !accessToken) {
-        pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
+    const nextIndex = createdCardsQueueIndex + 1;
+    if (nextIndex < createdCardsQueue.length) {
+      setCreatedCardsQueueIndex(nextIndex);
+      setActiveCardDetails(createdCardsQueue[nextIndex]);
+      return;
+    }
+
+    setCreatedCardsQueue([]);
+    setCreatedCardsQueueIndex(null);
+    setActiveCardDetails(null);
+  };
+
+  const handleDispatchSelected = async () => {
+    if (!defaultBoardId || !defaultListId || !accessToken) {
+      pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
+      return;
+    }
+
+    const selectedDrafts = previewCards.filter((card) => card.isSelected);
+    if (selectedDrafts.length === 0) {
+      pushToast("info", "Selecciona al menos una tarjeta para enviar.");
+      return;
+    }
+
+    setIsDispatchingSelected(true);
+    try {
+      const payloads = selectedDrafts.map((draft) => {
+        const boardId = draft.customBoardId || defaultBoardId;
+        const listId = draft.customListId || defaultListId;
+        return {
+          draft,
+          boardId,
+          listId,
+        };
+      });
+
+      const invalidTargets = payloads.filter((p) => !p.boardId || !p.listId);
+      if (invalidTargets.length > 0) {
+        pushToast("error", "Hay tarjetas con destino incompleto. Revisa tablero/lista antes de enviar.");
         return;
       }
 
-      const selectedDrafts = previewCards.filter((card) => card.isSelected);
-      if (selectedDrafts.length === 0) {
-        pushToast("info", "Selecciona al menos una tarjeta para enviar.");
-        return;
-      }
-
-      setIsDispatchingSelected(true);
-      try {
-          const payloads = selectedDrafts.map((draft) => {
-            const boardId = draft.customBoardId || defaultBoardId;
-            const listId = draft.customListId || defaultListId;
-            return {
-              draft,
-              boardId,
-              listId,
-            };
-          });
-
-          const invalidTargets = payloads.filter((p) => !p.boardId || !p.listId);
-          if (invalidTargets.length > 0) {
-            pushToast("error", "Hay tarjetas con destino incompleto. Revisa tablero/lista antes de enviar.");
-            return;
-          }
-
-          const results = await Promise.allSettled(
-            payloads.map((entry) =>
-              createCard(
-                {
-                  listId: entry.listId,
-                  title: entry.draft.title?.trim() || "Tarjeta sin titulo",
-                  summary: entry.draft.description || "",
-                  urgency: "normal",
-                },
-                accessToken,
-              ),
-            ),
+      const results = await Promise.allSettled(
+        payloads.map(async (entry) => {
+          const card = await createCard(
+            {
+              listId: entry.listId,
+              title: entry.draft.title?.trim() || "Tarjeta sin titulo",
+              urgency: "normal",
+            },
+            accessToken,
           );
 
-          const createdCards: Array<{
-            card: any;
-            listId: string;
-            listName: string;
-            boardId: string;
-            boardName: string;
-          }> = [];
-          const createdDraftIds = new Set<string>();
-        const failedCount = results.filter((res) => res.status === "rejected").length;
-          results.forEach((result, index) => {
-          if (result.status === "fulfilled") {
-            const payload = payloads[index];
-            const boardName = boards.find((board) => board.id === payload.boardId)?.name || "Board";
-            const listName = (payload.draft.availableLists || defaultLists).find((list) => list.id === payload.listId)?.name || "List";
-
-            createdCards.push({
-              card: result.value,
-              listId: payload.listId,
-              listName,
-              boardId: payload.boardId,
-              boardName,
-            });
-            createdDraftIds.add(payload.draft.id);
+          // Add bricks
+          if (entry.draft.bricks) {
+            for (const brick of entry.draft.bricks) {
+              await createCardBrick(card.id, {
+                kind: brick.kind,
+                markdown: brick.content.markdown,
+                items: brick.content.items,
+                displayStyle: 'paragraph'
+              }, accessToken);
+            }
           }
-        });
+          return card;
+        }),
+      );
 
-        if (createdCards.length > 0) {
-            setPreviewCards((prev) => prev.filter((card) => !createdDraftIds.has(card.id)));
-        }
+      const createdCards: Array<{
+        card: any;
+        listId: string;
+        listName: string;
+        boardId: string;
+        boardName: string;
+      }> = [];
+      const createdDraftIds = new Set<string>();
+      const failedCount = results.filter((res) => res.status === "rejected").length;
+      results.forEach((result, index) => {
+        if (result.status === "fulfilled") {
+          const payload = payloads[index];
+          const boardName = boards.find((board) => board.id === payload.boardId)?.name || "Board";
+          const listName = (payload.draft.availableLists || defaultLists).find((list) => list.id === payload.listId)?.name || "List";
 
-        if (createdCards.length > 0) {
-          setCreatedCardsQueue(createdCards);
-          setCreatedCardsQueueIndex(0);
-          setActiveCardDetails(createdCards[0]);
-          if (createdCards.length > 1) {
-            pushToast("info", `Se abrira una por una. Cierra cada tarjeta para pasar a la siguiente (${createdCards.length} en total).`);
-          }
+          createdCards.push({
+            card: result.value,
+            listId: payload.listId,
+            listName,
+            boardId: payload.boardId,
+            boardName,
+          });
+          createdDraftIds.add(payload.draft.id);
         }
+      });
 
-        if (failedCount > 0) {
-          pushToast("error", `Se enviaron ${createdCards.length} tarjetas, pero ${failedCount} fallaron.`);
-        } else if (createdCards.length > 1) {
-          pushToast("success", `Se enviaron ${createdCards.length} tarjetas correctamente.`);
-        } else if (createdCards.length === 1) {
-          pushToast("success", "Tarjeta enviada y abierta para detalle.");
-        }
-      } catch (err: any) {
-        console.error("Error dispatching selected cards:", err);
-        pushToast("error", "Hubo un error al enviar las tarjetas: " + (err?.message || "Error desconocido"));
-      } finally {
-        setIsDispatchingSelected(false);
+      if (createdCards.length > 0) {
+        setPreviewCards((prev) => prev.filter((card) => !createdDraftIds.has(card.id)));
       }
-    };
+
+      if (createdCards.length > 0) {
+        setCreatedCardsQueue(createdCards);
+        setCreatedCardsQueueIndex(0);
+        setActiveCardDetails(createdCards[0]);
+        if (createdCards.length > 1) {
+          pushToast("info", `Se abrira una por una. Cierra cada tarjeta para pasar a la siguiente (${createdCards.length} en total).`);
+        }
+      }
+
+      if (failedCount > 0) {
+        pushToast("error", `Se enviaron ${createdCards.length} tarjetas, pero ${failedCount} fallaron.`);
+      } else if (createdCards.length > 1) {
+        pushToast("success", `Se enviaron ${createdCards.length} tarjetas correctamente.`);
+      } else if (createdCards.length === 1) {
+        pushToast("success", "Tarjeta enviada y abierta para detalle.");
+      }
+    } catch (err: any) {
+      console.error("Error dispatching selected cards:", err);
+      pushToast("error", "Hubo un error al enviar las tarjetas: " + (err?.message || "Error desconocido"));
+    } finally {
+      setIsDispatchingSelected(false);
+    }
+  };
 
   return (
     <>
       <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
         <div className="relative w-full max-w-6xl rounded-2xl border border-border bg-card shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200 min-h-[600px] max-h-[90vh]">
-          
+
           {/* Left Panel: Upload & Input */}
           <div className="flex-1 lg:max-w-md border-r border-border p-6 flex flex-col bg-card/50">
             <div className="flex items-center justify-between mb-8">
@@ -492,18 +508,17 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
             </div>
 
             <div className="space-y-4 mb-6">
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Sube tus Pdfs, Excels, notas, audios o imágenes. Nuestra IA analizará el contenido estrictamente para extraer tarjetas descriptivas listas para refinar.
-                </p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Sube tus Pdfs, Excels, notas, audios o imágenes. Nuestra IA analizará el contenido estrictamente para extraer tarjetas descriptivas listas para refinar.
+              </p>
             </div>
 
             <div className="flex-1 flex flex-col relative">
               {/* Dropzone or File Indicator */}
               {!selectedFile ? (
-                <div 
-                  className={`mb-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-6 transition-all duration-200 ${
-                    dragActive ? "border-accent bg-accent/10" : "border-border/60 hover:border-accent/60 hover:bg-accent/5 cursor-pointer"
-                  }`}
+                <div
+                  className={`mb-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-6 transition-all duration-200 ${dragActive ? "border-accent bg-accent/10" : "border-border/60 hover:border-accent/60 hover:bg-accent/5 cursor-pointer"
+                    }`}
                   onDragEnter={handleDrag}
                   onDragLeave={handleDrag}
                   onDragOver={handleDrag}
@@ -523,7 +538,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       <p className="text-xs text-muted-foreground mt-0.5">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
                     </div>
                   </div>
-                  <button 
+                  <button
                     onClick={() => { setSelectedFile(null); }}
                     className="p-1.5 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                     title="Eliminar archivo"
@@ -538,7 +553,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
                   {selectedFile ? "Contexto Adicional (Opcional)" : "Pega tus notas o requerimientos"}
                 </label>
-                <textarea 
+                <textarea
                   value={fileText}
                   onChange={(e) => setFileText(e.target.value)}
                   placeholder={selectedFile ? "Ej. Filtra solo las tareas de backend..." : "Añade toda la información necesaria para crear las tarjetas..."}
@@ -549,27 +564,27 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               {/* Generate Action */}
               <div className="mt-6">
                 {isGenerating ? (
-                    <div className="space-y-3">
-                        <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                            <span className="flex items-center"><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Analizando contenido...</span>
-                            <span>{generationProgress}%</span>
-                        </div>
-                        <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                            <div 
-                                className="h-full bg-accent transition-all duration-300 ease-out" 
-                                style={{ width: `${generationProgress}%` }}
-                            />
-                        </div>
+                  <div className="space-y-3">
+                    <div className="flex justify-between text-xs font-medium text-muted-foreground">
+                      <span className="flex items-center"><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Analizando contenido...</span>
+                      <span>{generationProgress}%</span>
                     </div>
+                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-accent transition-all duration-300 ease-out"
+                        style={{ width: `${generationProgress}%` }}
+                      />
+                    </div>
+                  </div>
                 ) : (
-                    <button 
-                        onClick={handleGenerate}
-                        disabled={!selectedFile && !fileText.trim()}
-                        className="w-full inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-                    >
-                        <Sparkles className="h-5 w-5 mr-2" />
-                        Generar Tarjetas
-                    </button>
+                  <button
+                    onClick={handleGenerate}
+                    disabled={!selectedFile && !fileText.trim()}
+                    className="w-full inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Generar Tarjetas
+                  </button>
                 )}
               </div>
             </div>
@@ -585,27 +600,27 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
             <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
               <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-lg text-foreground">Tarjetas de Borrador Generadas</h3>
-                  {previewCards.length > 0 && (
-                      <div className="flex items-center space-x-2">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                              {previewCards.length} en espera
-                          </span>
-                          <button
-                            onClick={handleToggleSelectAll}
-                            className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-input hover:bg-accent/5"
-                          >
-                            <CheckSquare className="h-3.5 w-3.5 mr-1" />
-                            {previewCards.every((card) => card.isSelected) ? "Deseleccionar" : "Seleccionar"} todas
-                          </button>
-                      </div>
-                  )}
+                <h3 className="font-semibold text-lg text-foreground">Tarjetas de Borrador Generadas</h3>
+                {previewCards.length > 0 && (
+                  <div className="flex items-center space-x-2">
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
+                      {previewCards.length} en espera
+                    </span>
+                    <button
+                      onClick={handleToggleSelectAll}
+                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-input hover:bg-accent/5"
+                    >
+                      <CheckSquare className="h-3.5 w-3.5 mr-1" />
+                      {previewCards.every((card) => card.isSelected) ? "Deseleccionar" : "Seleccionar"} todas
+                    </button>
+                  </div>
+                )}
               </div>
-              
+
               {previewCards.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-70">
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
-                      <Bot className="h-12 w-12 text-accent/40" />
+                    <Bot className="h-12 w-12 text-accent/40" />
                   </div>
                   <h4 className="text-lg font-medium mb-2">Aún no hay resultados</h4>
                   <p className="text-sm text-center text-muted-foreground max-w-sm">
@@ -615,10 +630,10 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               ) : (
                 <div className="space-y-4 flex-1 pb-10">
                   <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
-                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
-                      <p className="text-muted-foreground">
-                        Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
-                      </p>
+                    <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                    <p className="text-muted-foreground">
+                      Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
+                    </p>
                   </div>
 
                   <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
@@ -674,30 +689,30 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       onClick={() => openDraftEditor(card.id)}
                     >
                       <div className="flex justify-between items-start gap-4 mb-3">
-                          <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
-                            <input
-                              type="checkbox"
-                              checked={card.isSelected}
-                              onChange={() => handleToggleCardSelection(card.id)}
-                              className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
-                            />
-                          </label>
-                          <h4 className="text-base font-semibold leading-tight text-foreground/90 group-hover:text-accent transition-colors">
-                            {card.title}
-                          </h4>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openDraftEditor(card.id);
-                            }}
-                            className="inline-flex items-center h-8 px-2.5 rounded-md border border-input text-xs font-medium hover:bg-accent/5"
-                          >
-                            <Edit3 className="h-3.5 w-3.5 mr-1" /> Revisar
-                          </button>
+                        <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={card.isSelected}
+                            onChange={() => handleToggleCardSelection(card.id)}
+                            className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                          />
+                        </label>
+                        <h4 className="text-base font-semibold leading-tight text-foreground/90 group-hover:text-accent transition-colors">
+                          {card.title}
+                        </h4>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDraftEditor(card.id);
+                          }}
+                          className="inline-flex items-center h-8 px-2.5 rounded-md border border-input text-xs font-medium hover:bg-accent/5"
+                        >
+                          <Edit3 className="h-3.5 w-3.5 mr-1" /> Revisar
+                        </button>
                       </div>
-                      
+
                       <p className="text-sm text-muted-foreground leading-relaxed mb-2 whitespace-pre-wrap max-h-24 overflow-hidden">
-                          {card.description || <span className="italic opacity-50">Sin descripción...</span>}
+                        {card.bricks.filter((brick) => brick.kind === 'text')[0]?.content || <span className="italic opacity-50">Sin descripción...</span>}
                       </p>
                       <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-2">
@@ -752,30 +767,30 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                         )}
                       </div>
                       <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                          <span>{card.isSelected ? "Seleccionada para enviar" : "No seleccionada"}</span>
-                          <span className="text-accent">Haz click para editar</span>
+                        <span>{card.isSelected ? "Seleccionada para enviar" : "No seleccionada"}</span>
+                        <span className="text-accent">Haz click para editar</span>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
-            
+
           </div>
 
         </div>
       </div>
 
       {activeCardDetails && (
-          <CardDetailModal 
-            isOpen={true} 
-            onClose={closeCardDetailsAndAdvance} 
-            card={activeCardDetails.card} 
-            listId={activeCardDetails.listId}
-            listName={activeCardDetails.listName}
-            boardId={activeCardDetails.boardId}
-            boardName={activeCardDetails.boardName}
-          />
+        <CardDetailModal
+          isOpen={true}
+          onClose={closeCardDetailsAndAdvance}
+          card={activeCardDetails.card}
+          listId={activeCardDetails.listId}
+          listName={activeCardDetails.listName}
+          boardId={activeCardDetails.boardId}
+          boardName={activeCardDetails.boardName}
+        />
       )}
 
       {toasts.length > 0 && (
@@ -786,9 +801,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               className={`rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${toast.variant === "success"
                 ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
                 : toast.variant === "error"
-                ? "bg-red-500/10 border-red-500/30 text-red-200"
-                : "bg-sky-500/10 border-sky-500/30 text-sky-200"
-              }`}
+                  ? "bg-red-500/10 border-red-500/30 text-red-200"
+                  : "bg-sky-500/10 border-sky-500/30 text-sky-200"
+                }`}
             >
               {toast.text}
             </div>

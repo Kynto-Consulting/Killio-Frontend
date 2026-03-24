@@ -20,6 +20,10 @@ export function ListColumn({
   isDropTarget,
   dropHintIndex,
   draggingCardId,
+  canEdit = true,
+  canComment = true,
+  teamDocs = [],
+  teamBoards = [],
 }: {
   list: ListData;
   boardName?: string;
@@ -27,10 +31,15 @@ export function ListColumn({
   isDropTarget?: boolean;
   dropHintIndex?: number | null;
   draggingCardId?: string | null;
+  canEdit?: boolean;
+  canComment?: boolean;
+  teamDocs?: any[];
+  teamBoards?: any[];
 }) {
   const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const isGuest = !canEdit;
 
   return (
     <>
@@ -48,19 +57,20 @@ export function ListColumn({
           <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full mr-1">
             {list.cards.length}
           </span>
-          <button 
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          {!isGuest && (
+            <button 
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+          )}
 
           {isMenuOpen && (
             <div className="absolute right-0 top-8 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} 
-                className="w-full text-left px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
-                Add Card...
+                className="w-full text-left px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">Add Card...
               </button>
               <div className="my-1 border-t border-border" />
               <button 
@@ -82,7 +92,17 @@ export function ListColumn({
                   <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">Drop here</span>
                 </div>
               ) : null}
-              <KanbanCard card={card} listId={list.id} listName={list.title} boardName={boardName || ""} boardId={boardId} />
+          <KanbanCard 
+            card={card} 
+            listId={list.id} 
+            listName={list.title} 
+            boardName={boardName || ""} 
+            boardId={boardId} 
+            canEdit={canEdit} 
+            canComment={canComment} 
+            teamDocs={teamDocs}
+            teamBoards={teamBoards}
+          />
             </div>
           ))}
         </SortableContext>
@@ -93,13 +113,15 @@ export function ListColumn({
           </div>
         ) : null}
         
-        <button 
-          onClick={() => setIsModalOpen(true)}
-          className="w-full flex items-center text-left p-2 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors group text-sm font-medium"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add a card
-        </button>
+        {!isGuest && (
+          <button 
+            onClick={() => setIsModalOpen(true)}
+            className="w-full flex items-center text-left p-2 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors group text-sm font-medium"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add a card
+          </button>
+        )}
       </div>
     </div>
 
@@ -110,6 +132,8 @@ export function ListColumn({
       listName={list.title}
       boardName={boardName || ""}
       boardId={boardId}
+      teamDocs={teamDocs}
+      teamBoards={teamBoards}
     />
     </>
   );

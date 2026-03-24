@@ -1,0 +1,1375 @@
+﻿
+> killio-frontend@0.1.0 build
+> next build
+
+   Γû▓ Next.js 15.5.12
+
+   Creating an optimized production build ...
+node.exe : Failed to compile.
+En C:\Program 
+Files\nodejs\npm.ps1: 29 
+Carácter: 3
++   & $NODE_EXE $NPM_CLI_JS 
+$args
++   
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : N 
+   otSpecified: (Failed to com  
+  pile.:String) [], RemoteExc   
+ eption
+    + FullyQualifiedErrorId : N 
+   ativeCommandError
+ 
+
+./src/components/ui/ai-generatio
+n-panel.tsx
+Error:   [31mx[0m Return 
+statement is not allowed here
+     ,-[[36;1;4mD:\Github\Kynto
+\Killio-Frontend\src\components\
+ui\ai-generation-panel.tsx[0m:4
+92:1]
+ [2m489[0m |           }
+ [2m490[0m |         };
+ [2m491[0m |     
+ [2m492[0m | [35;1m,[0m[35;
+1m-[0m[35;1m>[0m   return (
+ [2m493[0m | [35;1m|[0m     
+  <>
+ [2m494[0m | [35;1m|[0m     
+    <div className="fixed 
+inset-0 z-[100] flex 
+items-center justify-center 
+bg-background/80 
+backdrop-blur-sm p-4 sm:p-6 
+overflow-y-auto">
+ [2m495[0m | [35;1m|[0m     
+      <div className="relative 
+w-full max-w-6xl rounded-2xl 
+border border-border bg-card 
+shadow-2xl flex flex-col 
+md:flex-row overflow-hidden 
+animate-in fade-in zoom-in-95 
+duration-200 min-h-[600px] 
+max-h-[90vh]">
+ [2m496[0m | [35;1m|[0m     
+        
+ [2m497[0m | [35;1m|[0m     
+        {/* Left Panel: Upload 
+& Input */}
+ [2m498[0m | [35;1m|[0m     
+        <div className="flex-1 
+lg:max-w-md border-r 
+border-border p-6 flex flex-col 
+bg-card/50">
+ [2m499[0m | [35;1m|[0m     
+          <div className="flex 
+items-center justify-between 
+mb-8">
+ [2m500[0m | [35;1m|[0m     
+            <h2 
+className="text-2xl font-bold 
+flex items-center 
+tracking-tight">
+ [2m501[0m | [35;1m|[0m     
+              <Bot 
+className="mr-2 h-7 w-7 
+text-accent" />
+ [2m502[0m | [35;1m|[0m     
+              AI Draft Studio
+ [2m503[0m | [35;1m|[0m     
+            </h2>
+ [2m504[0m | [35;1m|[0m     
+            <button 
+onClick={onClose} 
+className="md:hidden 
+rounded-full p-2 
+hover:bg-accent/10 
+text-muted-foreground 
+transition-colors">
+ [2m505[0m | [35;1m|[0m     
+              <X className="h-5 
+w-5" />
+ [2m506[0m | [35;1m|[0m     
+            </button>
+ [2m507[0m | [35;1m|[0m     
+          </div>
+ [2m508[0m | [35;1m|[0m   
+ [2m509[0m | [35;1m|[0m     
+          <div 
+className="space-y-4 mb-6">
+ [2m510[0m | [35;1m|[0m     
+              <p 
+className="text-sm 
+text-muted-foreground 
+leading-relaxed">
+ [2m511[0m | [35;1m|[0m     
+                Sube tus Pdfs, 
+Excels, notas, audios o 
+im├ígenes. Nuestra IA 
+analizar├í el contenido 
+estrictamente para extraer 
+tarjetas descriptivas listas 
+para refinar.
+ [2m512[0m | [35;1m|[0m     
+              </p>
+ [2m513[0m | [35;1m|[0m     
+          </div>
+ [2m514[0m | [35;1m|[0m   
+ [2m515[0m | [35;1m|[0m     
+          <div 
+className="flex-1 flex flex-col 
+relative">
+ [2m516[0m | [35;1m|[0m     
+            {/* Dropzone or 
+File Indicator */}
+ [2m517[0m | [35;1m|[0m     
+            {!selectedFile ? (
+ [2m518[0m | [35;1m|[0m     
+              <div 
+ [2m519[0m | [35;1m|[0m     
+                
+className={`mb-4 border-2 
+border-dashed rounded-xl flex 
+flex-col items-center 
+justify-center p-6 
+transition-all duration-200 ${
+ [2m520[0m | [35;1m|[0m     
+                  dragActive ? 
+"border-accent bg-accent/10" : 
+"border-border/60 
+hover:border-accent/60 
+hover:bg-accent/5 
+cursor-pointer"
+ [2m521[0m | [35;1m|[0m     
+                }`}
+ [2m522[0m | [35;1m|[0m     
+                
+onDragEnter={handleDrag}
+ [2m523[0m | [35;1m|[0m     
+                
+onDragLeave={handleDrag}
+ [2m524[0m | [35;1m|[0m     
+                
+onDragOver={handleDrag}
+ [2m525[0m | [35;1m|[0m     
+                
+onDrop={handleDrop}
+ [2m526[0m | [35;1m|[0m     
+                onClick={() => d
+ocument.getElementById("file-upl
+oad")?.click()}
+ [2m527[0m | [35;1m|[0m     
+              >
+ [2m528[0m | [35;1m|[0m     
+                <UploadCloud 
+className="h-6 w-6 text-accent 
+mb-2" />
+ [2m529[0m | [35;1m|[0m     
+                <h3 
+className="text-sm 
+font-semibold 
+text-foreground">Sube tu 
+archivo PDF, CSV, Audio...</h3>
+ [2m530[0m | [35;1m|[0m     
+                <input 
+id="file-upload" type="file" 
+className="hidden" 
+onChange={(e) => setSelectedFile
+(e.target.files?.[0] || null)} 
+/>
+ [2m531[0m | [35;1m|[0m     
+              </div>
+ [2m532[0m | [35;1m|[0m     
+            ) : (
+ [2m533[0m | [35;1m|[0m     
+              <div 
+className="mb-4 flex 
+items-center justify-between 
+border rounded-xl 
+border-accent/30 bg-accent/5 
+p-4 shadow-sm relative">
+ [2m534[0m | [35;1m|[0m     
+                <div 
+className="flex items-center">
+ [2m535[0m | [35;1m|[0m     
+                  <FileAudio 
+className="h-8 w-8 text-accent 
+mr-3" />
+ [2m536[0m | [35;1m|[0m     
+                  <div>
+ [2m537[0m | [35;1m|[0m     
+                    <h4 
+className="font-medium text-sm 
+truncate w-48 text-foreground" t
+itle={selectedFile.name}>{select
+edFile.name}</h4>
+ [2m538[0m | [35;1m|[0m     
+                    <p 
+className="text-xs 
+text-muted-foreground 
+mt-0.5">{(selectedFile.size / 
+1024 / 1024).toFixed(2)} MB</p>
+ [2m539[0m | [35;1m|[0m     
+                  </div>
+ [2m540[0m | [35;1m|[0m     
+                </div>
+ [2m541[0m | [35;1m|[0m     
+                <button 
+ [2m542[0m | [35;1m|[0m     
+                  onClick={() 
+=> { setSelectedFile(null); }}
+ [2m543[0m | [35;1m|[0m     
+                  
+className="p-1.5 rounded-full 
+text-muted-foreground 
+hover:bg-destructive/10 
+hover:text-destructive 
+transition-colors"
+ [2m544[0m | [35;1m|[0m     
+                  
+title="Eliminar archivo"
+ [2m545[0m | [35;1m|[0m     
+                >
+ [2m546[0m | [35;1m|[0m     
+                  <X 
+className="h-4 w-4" />
+ [2m547[0m | [35;1m|[0m     
+                </button>
+ [2m548[0m | [35;1m|[0m     
+              </div>
+ [2m549[0m | [35;1m|[0m     
+            )}
+ [2m550[0m | [35;1m|[0m   
+ [2m551[0m | [35;1m|[0m     
+            {/* Text Area (Main 
+Content or Extra Context) */}
+ [2m552[0m | [35;1m|[0m     
+            <div 
+className="flex-1 flex 
+flex-col">
+ [2m553[0m | [35;1m|[0m     
+              <label 
+className="text-xs 
+font-semibold 
+text-muted-foreground uppercase 
+tracking-wide mb-2 block">
+ [2m554[0m | [35;1m|[0m     
+                {selectedFile ? 
+"Contexto Adicional (Opcional)" 
+: "Pega tus notas o 
+requerimientos"}
+ [2m555[0m | [35;1m|[0m     
+              </label>
+ [2m556[0m | [35;1m|[0m     
+              <textarea 
+ [2m557[0m | [35;1m|[0m     
+                value={fileText}
+ [2m558[0m | [35;1m|[0m     
+                onChange={(e) 
+=> setFileText(e.target.value)}
+ [2m559[0m | [35;1m|[0m     
+                
+placeholder={selectedFile ? 
+"Ej. Filtra solo las tareas de 
+backend..." : "A├▒ade toda la 
+informaci├│n necesaria para 
+crear las tarjetas..."}
+ [2m560[0m | [35;1m|[0m     
+                
+className="flex-1 w-full 
+min-h-[160px] rounded-xl border 
+border-input bg-background px-4 
+py-3 text-sm shadow-sm placehold
+er:text-muted-foreground 
+focus-visible:outline-none 
+focus-visible:ring-1 
+focus-visible:ring-accent 
+resize-none transition-shadow"
+ [2m561[0m | [35;1m|[0m     
+              />
+ [2m562[0m | [35;1m|[0m     
+            </div>
+ [2m563[0m | [35;1m|[0m   
+ [2m564[0m | [35;1m|[0m     
+            {/* Generate Action 
+*/}
+ [2m565[0m | [35;1m|[0m     
+            <div 
+className="mt-6">
+ [2m566[0m | [35;1m|[0m     
+              {isGenerating ? (
+ [2m567[0m | [35;1m|[0m     
+                  <div 
+className="space-y-3">
+ [2m568[0m | [35;1m|[0m     
+                      <div 
+className="flex justify-between 
+text-xs font-medium 
+text-muted-foreground">
+ [2m569[0m | [35;1m|[0m     
+                          <span 
+className="flex 
+items-center"><Loader2 
+className="h-3 w-3 animate-spin 
+mr-1.5" /> Analizando 
+contenido...</span>
+ [2m570[0m | [35;1m|[0m     
+                          <span>
+{generationProgress}%</span>
+ [2m571[0m | [35;1m|[0m     
+                      </div>
+ [2m572[0m | [35;1m|[0m     
+                      <div 
+className="h-2 w-full 
+bg-secondary rounded-full 
+overflow-hidden">
+ [2m573[0m | [35;1m|[0m     
+                          <div 
+ [2m574[0m | [35;1m|[0m     
+                              
+className="h-full bg-accent 
+transition-all duration-300 
+ease-out" 
+ [2m575[0m | [35;1m|[0m     
+                              
+style={{ width: 
+`${generationProgress}%` }}
+ [2m576[0m | [35;1m|[0m     
+                          />
+ [2m577[0m | [35;1m|[0m     
+                      </div>
+ [2m578[0m | [35;1m|[0m     
+                  </div>
+ [2m579[0m | [35;1m|[0m     
+              ) : (
+ [2m580[0m | [35;1m|[0m     
+                  <button 
+ [2m581[0m | [35;1m|[0m     
+                      
+onClick={handleGenerate}
+ [2m582[0m | [35;1m|[0m     
+                      
+disabled={!selectedFile && 
+!fileText.trim()}
+ [2m583[0m | [35;1m|[0m     
+                      
+className="w-full inline-flex 
+items-center justify-center 
+h-11 rounded-lg bg-accent 
+text-accent-foreground 
+font-medium hover:bg-accent/90 
+shadow-md transition-all 
+active:scale-[0.98] 
+disabled:opacity-50 
+disabled:pointer-events-none"
+ [2m584[0m | [35;1m|[0m     
+                  >
+ [2m585[0m | [35;1m|[0m     
+                      <Sparkles 
+className="h-5 w-5 mr-2" />
+ [2m586[0m | [35;1m|[0m     
+                      Generar 
+Tarjetas
+ [2m587[0m | [35;1m|[0m     
+                  </button>
+ [2m588[0m | [35;1m|[0m     
+              )}
+ [2m589[0m | [35;1m|[0m     
+            </div>
+ [2m590[0m | [35;1m|[0m     
+          </div>
+ [2m591[0m | [35;1m|[0m     
+        </div>
+ [2m592[0m | [35;1m|[0m   
+ [2m593[0m | [35;1m|[0m     
+        {/* Right Panel: 
+Preview Area */}
+ [2m594[0m | [35;1m|[0m     
+        <div className="flex-1 
+bg-background flex flex-col 
+relative w-full 
+overflow-hidden">
+ [2m595[0m | [35;1m|[0m     
+          <div 
+className="hidden md:flex 
+absolute top-4 right-4 z-10">
+ [2m596[0m | [35;1m|[0m     
+            <button 
+onClick={onClose} 
+className="rounded-full p-2 
+hover:bg-accent/10 
+text-muted-foreground 
+transition-colors 
+bg-background/50 
+backdrop-blur-sm border 
+border-border/50 shadow-sm">
+ [2m597[0m | [35;1m|[0m     
+              <X className="h-5 
+w-5" />
+ [2m598[0m | [35;1m|[0m     
+            </button>
+ [2m599[0m | [35;1m|[0m     
+          </div>
+ [2m600[0m | [35;1m|[0m   
+ [2m601[0m | [35;1m|[0m     
+          <div className="p-6 
+md:p-8 flex-1 flex flex-col 
+overflow-y-auto hide-scrollbar">
+ [2m602[0m | [35;1m|[0m     
+            <div 
+className="flex items-center 
+justify-between mb-6">
+ [2m603[0m | [35;1m|[0m     
+                <h3 
+className="font-semibold 
+text-lg 
+text-foreground">Tarjetas de 
+Borrador Generadas</h3>
+ [2m604[0m | [35;1m|[0m     
+                
+{previewCards.length > 0 && (
+ [2m605[0m | [35;1m|[0m     
+                    <div 
+className="flex items-center 
+space-x-2">
+ [2m606[0m | [35;1m|[0m     
+                        <span 
+className="inline-flex 
+items-center px-2.5 py-0.5 
+rounded-full text-xs 
+font-medium bg-primary/10 
+text-primary">
+ [2m607[0m | [35;1m|[0m     
+                            
+{previewCards.length} en espera
+ [2m608[0m | [35;1m|[0m     
+                        </span>
+ [2m609[0m | [35;1m|[0m     
+                        <button
+ [2m610[0m | [35;1m|[0m     
+                          
+onClick={handleToggleSelectAll}
+ [2m611[0m | [35;1m|[0m     
+                          
+className="inline-flex 
+items-center px-2.5 py-1 
+rounded-md text-xs font-medium 
+border border-input 
+hover:bg-accent/5"
+ [2m612[0m | [35;1m|[0m     
+                        >
+ [2m613[0m | [35;1m|[0m     
+                          
+<CheckSquare className="h-3.5 
+w-3.5 mr-1" />
+ [2m614[0m | [35;1m|[0m     
+                          
+{previewCards.every((card) => 
+card.isSelected) ? 
+"Deseleccionar" : 
+"Seleccionar"} todas
+ [2m615[0m | [35;1m|[0m     
+                        
+</button>
+ [2m616[0m | [35;1m|[0m     
+                    </div>
+ [2m617[0m | [35;1m|[0m     
+                )}
+ [2m618[0m | [35;1m|[0m     
+            </div>
+ [2m619[0m | [35;1m|[0m     
+            
+ [2m620[0m | [35;1m|[0m     
+            
+{previewCards.length === 0 ? (
+ [2m621[0m | [35;1m|[0m     
+              <div 
+className="flex-1 flex flex-col 
+items-center justify-center 
+opacity-70">
+ [2m622[0m | [35;1m|[0m     
+                <div 
+className="h-24 w-24 
+rounded-full bg-accent/5 flex 
+items-center justify-center 
+mb-6">
+ [2m623[0m | [35;1m|[0m     
+                    <Bot 
+className="h-12 w-12 
+text-accent/40" />
+ [2m624[0m | [35;1m|[0m     
+                </div>
+ [2m625[0m | [35;1m|[0m     
+                <h4 
+className="text-lg font-medium 
+mb-2">A├║n no hay 
+resultados</h4>
+ [2m626[0m | [35;1m|[0m     
+                <p 
+className="text-sm text-center 
+text-muted-foreground max-w-sm">
+ [2m627[0m | [35;1m|[0m     
+                  Sube un 
+archivo o pega texto y haz clic 
+en "Generar Tarjetas" para 
+extraer ├¡tems procesables.
+ [2m628[0m | [35;1m|[0m     
+                </p>
+ [2m629[0m | [35;1m|[0m     
+              </div>
+ [2m630[0m | [35;1m|[0m     
+            ) : (
+ [2m631[0m | [35;1m|[0m     
+              <div 
+className="space-y-4 flex-1 
+pb-10">
+ [2m632[0m | [35;1m|[0m     
+                <div 
+className="bg-primary/5 border 
+border-primary/20 
+text-primary-foreground/90 p-4 
+rounded-lg text-sm flex 
+items-start">
+ [2m633[0m | [35;1m|[0m     
+                    <Sparkles 
+className="h-5 w-5 mr-3 
+shrink-0 text-primary" />
+ [2m634[0m | [35;1m|[0m     
+                    <p className
+="text-muted-foreground">
+ [2m635[0m | [35;1m|[0m     
+                      Paso 1: 
+haz clic en cualquier tarjeta 
+para leerla y editarla. Paso 2: 
+elige un tablero/lista y env├¡a 
+una o varias tarjetas 
+seleccionadas.
+ [2m636[0m | [35;1m|[0m     
+                    </p>
+ [2m637[0m | [35;1m|[0m     
+                </div>
+ [2m638[0m | [35;1m|[0m   
+ [2m639[0m | [35;1m|[0m     
+                <div 
+className="bg-card border 
+border-border rounded-lg p-4 
+flex flex-col md:flex-row gap-3 
+md:items-center">
+ [2m640[0m | [35;1m|[0m     
+                  <div 
+className="text-xs uppercase 
+tracking-wide 
+text-muted-foreground 
+font-semibold 
+md:min-w-[150px]">Paso 2: 
+Destino</div>
+ [2m641[0m | [35;1m|[0m     
+                  <div 
+className="flex-1 min-w-[160px] 
+relative">
+ [2m642[0m | [35;1m|[0m     
+                    <select
+ [2m643[0m | [35;1m|[0m     
+                      
+className="w-full h-9 
+appearance-none bg-background 
+border border-input rounded-md 
+pl-3 pr-8 text-xs 
+focus-visible:ring-1 
+focus-visible:ring-accent 
+font-medium 
+text-muted-foreground"
+ [2m644[0m | [35;1m|[0m     
+                      
+value={defaultBoardId}
+ [2m645[0m | [35;1m|[0m     
+                      
+onChange={(e) => setDefaultBoard
+Id(e.target.value)}
+ [2m646[0m | [35;1m|[0m     
+                    >
+ [2m647[0m | [35;1m|[0m     
+                      <option 
+value="" disabled>Selecciona 
+tablero...</option>
+ [2m648[0m | [35;1m|[0m     
+                      
+{boards.map((board) => (
+ [2m649[0m | [35;1m|[0m     
+                        <option 
+key={board.id} value={board.id}>
+{board.name}</option>
+ [2m650[0m | [35;1m|[0m     
+                      ))}
+ [2m651[0m | [35;1m|[0m     
+                    </select>
+ [2m652[0m | [35;1m|[0m     
+                    
+<ChevronDown 
+className="absolute right-2 
+top-1/2 -translate-y-1/2 h-3 
+w-3 text-muted-foreground 
+pointer-events-none" />
+ [2m653[0m | [35;1m|[0m     
+                  </div>
+ [2m654[0m | [35;1m|[0m     
+                  <div 
+className="flex-1 min-w-[160px] 
+relative">
+ [2m655[0m | [35;1m|[0m     
+                    <select
+ [2m656[0m | [35;1m|[0m     
+                      
+className="w-full h-9 
+appearance-none bg-background 
+border border-input rounded-md 
+pl-3 pr-8 text-xs 
+focus-visible:ring-1 
+focus-visible:ring-accent 
+disabled:opacity-50 font-medium 
+text-muted-foreground"
+ [2m657[0m | [35;1m|[0m     
+                      
+value={defaultListId}
+ [2m658[0m | [35;1m|[0m     
+                      
+onChange={(e) => setDefaultListI
+d(e.target.value)}
+ [2m659[0m | [35;1m|[0m     
+                      
+disabled={!defaultBoardId || 
+defaultLists.length === 0}
+ [2m660[0m | [35;1m|[0m     
+                    >
+ [2m661[0m | [35;1m|[0m     
+                      <option 
+value="" disabled>
+ [2m662[0m | [35;1m|[0m     
+                        
+{!defaultBoardId ? "Tablero 
+primero" : defaultLists.length 
+=== 0 ? "Sin listas" : 
+"Selecciona lista..."}
+ [2m663[0m | [35;1m|[0m     
+                      </option>
+ [2m664[0m | [35;1m|[0m     
+                      
+{defaultLists.map((list) => (
+ [2m665[0m | [35;1m|[0m     
+                        <option 
+key={list.id} value={list.id}>{l
+ist.name}</option>
+ [2m666[0m | [35;1m|[0m     
+                      ))}
+ [2m667[0m | [35;1m|[0m     
+                    </select>
+ [2m668[0m | [35;1m|[0m     
+                    
+<ChevronDown 
+className="absolute right-2 
+top-1/2 -translate-y-1/2 h-3 
+w-3 text-muted-foreground 
+pointer-events-none" />
+ [2m669[0m | [35;1m|[0m     
+                  </div>
+ [2m670[0m | [35;1m|[0m     
+                  <button
+ [2m671[0m | [35;1m|[0m     
+                    
+onClick={handleDispatchSelected}
+ [2m672[0m | [35;1m|[0m     
+                    
+disabled={isDispatchingSelected 
+|| !defaultBoardId || 
+!defaultListId || 
+!previewCards.some((card) => 
+card.isSelected)}
+ [2m673[0m | [35;1m|[0m     
+                    
+className="inline-flex 
+items-center justify-center h-9 
+px-4 rounded-md bg-accent 
+text-accent-foreground 
+font-semibold 
+hover:bg-accent/90 text-xs 
+shadow-sm transition-all 
+whitespace-nowrap 
+disabled:opacity-50"
+ [2m674[0m | [35;1m|[0m     
+                  >
+ [2m675[0m | [35;1m|[0m     
+                    
+{isDispatchingSelected ? (
+ [2m676[0m | [35;1m|[0m     
+                      <Loader2 
+className="h-4 w-4 
+animate-spin" />
+ [2m677[0m | [35;1m|[0m     
+                    ) : (
+ [2m678[0m | [35;1m|[0m     
+                      <>
+ [2m679[0m | [35;1m|[0m     
+                        <Send 
+className="h-3.5 w-3.5 mr-1.5" 
+/> Enviar seleccionadas
+ [2m680[0m | [35;1m|[0m     
+                      </>
+ [2m681[0m | [35;1m|[0m     
+                    )}
+ [2m682[0m | [35;1m|[0m     
+                  </button>
+ [2m683[0m | [35;1m|[0m     
+                </div>
+ [2m684[0m | [35;1m|[0m   
+ [2m685[0m | [35;1m|[0m     
+                
+{previewCards.map((card) => (
+ [2m686[0m | [35;1m|[0m     
+                  <div
+ [2m687[0m | [35;1m|[0m     
+                    
+key={card.id}
+ [2m688[0m | [35;1m|[0m     
+                    
+className={`relative rounded-xl 
+border bg-card shadow-sm 
+hover:shadow-md transition-all 
+p-5 overflow-hidden flex 
+flex-col group cursor-pointer 
+${card.isSelected ? 
+"border-accent/40" : 
+"border-border"}`}
+ [2m689[0m | [35;1m|[0m     
+                    onClick={() 
+=> openDraftEditor(card.id)}
+ [2m690[0m | [35;1m|[0m     
+                  >
+ [2m691[0m | [35;1m|[0m     
+                    <div 
+className="flex justify-between 
+items-start gap-4 mb-3">
+ [2m692[0m | [35;1m|[0m     
+                        <label 
+className="inline-flex 
+items-center mt-0.5" 
+onClick={(e) => 
+e.stopPropagation()}>
+ [2m693[0m | [35;1m|[0m     
+                          <input
+ [2m694[0m | [35;1m|[0m     
+                            
+type="checkbox"
+ [2m695[0m | [35;1m|[0m     
+                            
+checked={card.isSelected}
+ [2m696[0m | [35;1m|[0m     
+                            
+onChange={() => handleToggleCard
+Selection(card.id)}
+ [2m697[0m | [35;1m|[0m     
+                            
+className="h-4 w-4 rounded 
+border-input text-accent 
+focus:ring-accent"
+ [2m698[0m | [35;1m|[0m     
+                          />
+ [2m699[0m | [35;1m|[0m     
+                        </label>
+ [2m700[0m | [35;1m|[0m     
+                        <h4 
+className="text-base 
+font-semibold leading-tight 
+text-foreground/90 
+group-hover:text-accent 
+transition-colors">
+ [2m701[0m | [35;1m|[0m     
+                          
+{card.title}
+ [2m702[0m | [35;1m|[0m     
+                        </h4>
+ [2m703[0m | [35;1m|[0m     
+                        <button
+ [2m704[0m | [35;1m|[0m     
+                          
+onClick={(e) => {
+ [2m705[0m | [35;1m|[0m     
+                            
+e.stopPropagation();
+ [2m706[0m | [35;1m|[0m     
+                            
+openDraftEditor(card.id);
+ [2m707[0m | [35;1m|[0m     
+                          }}
+ [2m708[0m | [35;1m|[0m     
+                          
+className="inline-flex 
+items-center h-8 px-2.5 
+rounded-md border border-input 
+text-xs font-medium 
+hover:bg-accent/5"
+ [2m709[0m | [35;1m|[0m     
+                        >
+ [2m710[0m | [35;1m|[0m     
+                          
+<Edit3 className="h-3.5 w-3.5 
+mr-1" /> Revisar
+ [2m711[0m | [35;1m|[0m     
+                        
+</button>
+ [2m712[0m | [35;1m|[0m     
+                    </div>
+ [2m713[0m | [35;1m|[0m     
+                    
+ [2m714[0m | [35;1m|[0m     
+                    <p 
+className="text-sm 
+text-muted-foreground 
+leading-relaxed mb-2 
+whitespace-pre-wrap max-h-24 
+overflow-hidden">
+ [2m715[0m | [35;1m|[0m     
+                        
+{card.description || <span 
+className="italic 
+opacity-50">Sin 
+descripci├│n...</span>}
+ [2m716[0m | [35;1m|[0m     
+                    </p>
+ [2m717[0m | [35;1m|[0m     
+                    <div 
+className="rounded-md border 
+border-border/60 p-3 
+bg-background/40 mb-3" 
+onClick={(e) => 
+e.stopPropagation()}>
+ [2m718[0m | [35;1m|[0m     
+                      <div 
+className="flex items-center 
+justify-between mb-2">
+ [2m719[0m | [35;1m|[0m     
+                        <span 
+className="text-[11px] 
+uppercase tracking-wide 
+font-semibold 
+text-muted-foreground">Destino 
+individual (opcional)</span>
+ [2m720[0m | [35;1m|[0m     
+                        
+{card.customBoardId ? (
+ [2m721[0m | [35;1m|[0m     
+                          
+<button
+ [2m722[0m | [35;1m|[0m     
+                            
+onClick={() => handleDisableCust
+omDestination(card.id)}
+ [2m723[0m | [35;1m|[0m     
+                            
+className="text-xs 
+text-muted-foreground 
+hover:text-foreground"
+ [2m724[0m | [35;1m|[0m     
+                          >
+ [2m725[0m | [35;1m|[0m     
+                            
+Usar destino global
+ [2m726[0m | [35;1m|[0m     
+                          
+</button>
+ [2m727[0m | [35;1m|[0m     
+                        ) : (
+ [2m728[0m | [35;1m|[0m     
+                          
+<button
+ [2m729[0m | [35;1m|[0m     
+                            
+onClick={() => handleEnableCusto
+mDestination(card.id)}
+ [2m730[0m | [35;1m|[0m     
+                            
+className="text-xs text-accent 
+hover:underline"
+ [2m731[0m | [35;1m|[0m     
+                          >
+ [2m732[0m | [35;1m|[0m     
+                            
+Definir destino propio
+ [2m733[0m | [35;1m|[0m     
+                          
+</button>
+ [2m734[0m | [35;1m|[0m     
+                        )}
+ [2m735[0m | [35;1m|[0m     
+                      </div>
+ [2m736[0m | [35;1m|[0m   
+ [2m737[0m | [35;1m|[0m     
+                      
+{card.customBoardId && (
+ [2m738[0m | [35;1m|[0m     
+                        <div 
+className="grid grid-cols-1 
+md:grid-cols-2 gap-2">
+ [2m739[0m | [35;1m|[0m     
+                          <div 
+className="relative">
+ [2m740[0m | [35;1m|[0m     
+                            
+<select
+ [2m741[0m | [35;1m|[0m     
+                              
+className="w-full h-8 
+appearance-none bg-background 
+border border-input rounded-md 
+pl-2.5 pr-7 text-xs 
+focus-visible:ring-1 
+focus-visible:ring-accent 
+font-medium 
+text-muted-foreground"
+ [2m742[0m | [35;1m|[0m     
+                              
+value={card.customBoardId}
+ [2m743[0m | [35;1m|[0m     
+                              
+onChange={(e) => handleCustomBoa
+rdChange(card.id, 
+e.target.value)}
+ [2m744[0m | [35;1m|[0m     
+                            >
+ [2m745[0m | [35;1m|[0m     
+                              
+<option value="" 
+disabled>Tablero...</option>
+ [2m746[0m | [35;1m|[0m     
+                              
+{boards.map((board) => (
+ [2m747[0m | [35;1m|[0m     
+                                
+<option key={board.id} value={bo
+ard.id}>{board.name}</option>
+ [2m748[0m | [35;1m|[0m     
+                              
+))}
+ [2m749[0m | [35;1m|[0m     
+                            
+</select>
+ [2m750[0m | [35;1m|[0m     
+                            
+<ChevronDown 
+className="absolute right-2 
+top-1/2 -translate-y-1/2 h-3 
+w-3 text-muted-foreground 
+pointer-events-none" />
+ [2m751[0m | [35;1m|[0m     
+                          </div>
+ [2m752[0m | [35;1m|[0m     
+                          <div 
+className="relative">
+ [2m753[0m | [35;1m|[0m     
+                            
+<select
+ [2m754[0m | [35;1m|[0m     
+                              
+className="w-full h-8 
+appearance-none bg-background 
+border border-input rounded-md 
+pl-2.5 pr-7 text-xs 
+focus-visible:ring-1 
+focus-visible:ring-accent 
+disabled:opacity-50 font-medium 
+text-muted-foreground"
+ [2m755[0m | [35;1m|[0m     
+                              
+value={card.customListId || ""}
+ [2m756[0m | [35;1m|[0m     
+                              
+onChange={(e) => 
+handleCustomListChange(card.id, 
+e.target.value)}
+ [2m757[0m | [35;1m|[0m     
+                              
+disabled={!card.customBoardId 
+|| (card.availableLists || 
+[]).length === 0}
+ [2m758[0m | [35;1m|[0m     
+                            >
+ [2m759[0m | [35;1m|[0m     
+                              
+<option value="" 
+disabled>Lista...</option>
+ [2m760[0m | [35;1m|[0m     
+                              
+{(card.availableLists || 
+[]).map((list) => (
+ [2m761[0m | [35;1m|[0m     
+                                
+<option key={list.id} value={lis
+t.id}>{list.name}</option>
+ [2m762[0m | [35;1m|[0m     
+                              
+))}
+ [2m763[0m | [35;1m|[0m     
+                            
+</select>
+ [2m764[0m | [35;1m|[0m     
+                            
+<ChevronDown 
+className="absolute right-2 
+top-1/2 -translate-y-1/2 h-3 
+w-3 text-muted-foreground 
+pointer-events-none" />
+ [2m765[0m | [35;1m|[0m     
+                          </div>
+ [2m766[0m | [35;1m|[0m     
+                        </div>
+ [2m767[0m | [35;1m|[0m     
+                      )}
+ [2m768[0m | [35;1m|[0m     
+                    </div>
+ [2m769[0m | [35;1m|[0m     
+                    <div 
+className="mt-auto pt-3 
+border-t border-border/50 flex 
+items-center justify-between 
+text-xs text-muted-foreground">
+ [2m770[0m | [35;1m|[0m     
+                        
+<span>{card.isSelected ? 
+"Seleccionada para enviar" : 
+"No seleccionada"}</span>
+ [2m771[0m | [35;1m|[0m     
+                        <span 
+className="text-accent">Haz 
+click para editar</span>
+ [2m772[0m | [35;1m|[0m     
+                    </div>
+ [2m773[0m | [35;1m|[0m     
+                  </div>
+ [2m774[0m | [35;1m|[0m     
+                ))}
+ [2m775[0m | [35;1m|[0m     
+              </div>
+ [2m776[0m | [35;1m|[0m     
+            )}
+ [2m777[0m | [35;1m|[0m     
+          </div>
+ [2m778[0m | [35;1m|[0m     
+          
+ [2m779[0m | [35;1m|[0m     
+        </div>
+ [2m780[0m | [35;1m|[0m   
+ [2m781[0m | [35;1m|[0m     
+      </div>
+ [2m782[0m | [35;1m|[0m     
+    </div>
+ [2m783[0m | [35;1m|[0m   
+ [2m784[0m | [35;1m|[0m     
+    {activeCardDetails && (
+ [2m785[0m | [35;1m|[0m     
+        <CardDetailModal 
+ [2m786[0m | [35;1m|[0m     
+          isOpen={true} 
+ [2m787[0m | [35;1m|[0m     
+          onClose={closeCardDeta
+ilsAndAdvance} 
+ [2m788[0m | [35;1m|[0m     
+          
+card={activeCardDetails.card} 
+ [2m789[0m | [35;1m|[0m     
+          listId={activeCardDeta
+ils.listId}
+ [2m790[0m | [35;1m|[0m     
+          listName={activeCardDe
+tails.listName}
+ [2m791[0m | [35;1m|[0m     
+          boardId={activeCardDet
+ails.boardId}
+ [2m792[0m | [35;1m|[0m     
+          boardName={activeCardD
+etails.boardName}
+ [2m793[0m | [35;1m|[0m     
+        />
+ [2m794[0m | [35;1m|[0m     
+    )}
+ [2m795[0m | [35;1m|[0m   
+ [2m796[0m | [35;1m|[0m     
+    {toasts.length > 0 && (
+ [2m797[0m | [35;1m|[0m     
+      <div className="fixed 
+top-4 right-4 z-[150] flex 
+flex-col gap-2 w-full max-w-sm">
+ [2m798[0m | [35;1m|[0m     
+        {toasts.map((toast) => (
+ [2m799[0m | [35;1m|[0m     
+          <div
+ [2m800[0m | [35;1m|[0m     
+            key={toast.id}
+ [2m801[0m | [35;1m|[0m     
+            
+className={`rounded-lg border 
+px-4 py-3 text-sm shadow-lg 
+backdrop-blur-sm 
+${toast.variant === "success"
+ [2m802[0m | [35;1m|[0m     
+              ? 
+"bg-emerald-500/10 
+border-emerald-500/30 
+text-emerald-200"
+ [2m803[0m | [35;1m|[0m     
+              : toast.variant 
+=== "error"
+ [2m804[0m | [35;1m|[0m     
+              ? "bg-red-500/10 
+border-red-500/30 text-red-200"
+ [2m805[0m | [35;1m|[0m     
+              : "bg-sky-500/10 
+border-sky-500/30 text-sky-200"
+ [2m806[0m | [35;1m|[0m     
+            }`}
+ [2m807[0m | [35;1m|[0m     
+          >
+ [2m808[0m | [35;1m|[0m     
+            {toast.text}
+ [2m809[0m | [35;1m|[0m     
+          </div>
+ [2m810[0m | [35;1m|[0m     
+        ))}
+ [2m811[0m | [35;1m|[0m     
+      </div>
+ [2m812[0m | [35;1m|[0m     
+    )}
+ [2m813[0m | [35;1m|[0m   
+ [2m814[0m | [35;1m|[0m     
+    {editingDraftId && (
+ [2m815[0m | [35;1m|[0m     
+      <div className="fixed 
+inset-0 z-[120] flex 
+items-center justify-center 
+bg-background/80 
+backdrop-blur-sm p-4">
+ [2m816[0m | [35;1m|[0m     
+        <div className="w-full 
+max-w-2xl rounded-2xl border 
+border-border bg-card 
+shadow-2xl p-6">
+ [2m817[0m | [35;1m|[0m     
+          <div className="flex 
+items-center justify-between 
+mb-4">
+ [2m818[0m | [35;1m|[0m     
+            <h3 
+className="text-lg 
+font-semibold">Revisar 
+Borrador</h3>
+ [2m819[0m | [35;1m|[0m     
+            <button
+ [2m820[0m | [35;1m|[0m     
+              onClick={() => 
+setEditingDraftId(null)}
+ [2m821[0m | [35;1m|[0m     
+              
+className="rounded-full p-2 
+hover:bg-accent/10 
+text-muted-foreground"
+ [2m822[0m | [35;1m|[0m     
+            >
+ [2m823[0m | [35;1m|[0m     
+              <X className="h-4 
+w-4" />
+ [2m824[0m | [35;1m|[0m     
+            </button>
+ [2m825[0m | [35;1m|[0m     
+          </div>
+ [2m826[0m | [35;1m|[0m   
+ [2m827[0m | [35;1m|[0m     
+          <div 
+className="space-y-4">
+ [2m828[0m | [35;1m|[0m     
+            <div>
+ [2m829[0m | [35;1m|[0m     
+              <label 
+className="text-xs 
+font-semibold 
+text-muted-foreground uppercase 
+tracking-wide mb-2 
+block">Titulo</label>
+ [2m830[0m | [35;1m|[0m     
+              <input
+ [2m831[0m | [35;1m|[0m     
+                
+value={editingTitle}
+ [2m832[0m | [35;1m|[0m     
+                onChange={(e) 
+=> 
+setEditingTitle(e.target.value)}
+ [2m833[0m | [35;1m|[0m     
+                
+className="w-full h-10 
+rounded-md border border-input 
+bg-background px-3 text-sm"
+ [2m834[0m | [35;1m|[0m     
+                
+placeholder="Titulo de la 
+tarjeta"
+ [2m835[0m | [35;1m|[0m     
+              />
+ [2m836[0m | [35;1m|[0m     
+            </div>
+ [2m837[0m | [35;1m|[0m   
+ [2m838[0m | [35;1m|[0m     
+            <div>
+ [2m839[0m | [35;1m|[0m     
+              <label 
+className="text-xs 
+font-semibold 
+text-muted-foreground uppercase 
+tracking-wide mb-2 
+block">Descripcion</label>
+ [2m840[0m | [35;1m|[0m     
+              <textarea
+ [2m841[0m | [35;1m|[0m     
+                
+value={editingDescription}
+ [2m842[0m | [35;1m|[0m     
+                onChange={(e) 
+=> setEditingDescription(e.targe
+t.value)}
+ [2m843[0m | [35;1m|[0m     
+                
+className="w-full min-h-[220px] 
+rounded-md border border-input 
+bg-background px-3 py-2 text-sm 
+resize-none"
+ [2m844[0m | [35;1m|[0m     
+                
+placeholder="Revisa y edita el 
+contenido antes de enviarlo..."
+ [2m845[0m | [35;1m|[0m     
+              />
+ [2m846[0m | [35;1m|[0m     
+              <p 
+className="mt-2 text-xs 
+text-muted-foreground">
+ [2m847[0m | [35;1m|[0m     
+                Luego en el 
+detalle de la card creada 
+podras adjuntar imagenes, 
+etiquetas y asignados.
+ [2m848[0m | [35;1m|[0m     
+              </p>
+ [2m849[0m | [35;1m|[0m     
+            </div>
+ [2m850[0m | [35;1m|[0m     
+          </div>
+ [2m851[0m | [35;1m|[0m   
+ [2m852[0m | [35;1m|[0m     
+          <div className="mt-6 
+flex items-center justify-end 
+gap-2">
+ [2m853[0m | [35;1m|[0m     
+            <button
+ [2m854[0m | [35;1m|[0m     
+              onClick={() => 
+setEditingDraftId(null)}
+ [2m855[0m | [35;1m|[0m     
+              
+className="inline-flex 
+items-center justify-center h-9 
+px-4 rounded-md border 
+border-input text-sm 
+hover:bg-accent/5"
+ [2m856[0m | [35;1m|[0m     
+            >
+ [2m857[0m | [35;1m|[0m     
+              Cancelar
+ [2m858[0m | [35;1m|[0m     
+            </button>
+ [2m859[0m | [35;1m|[0m     
+            <button
+ [2m860[0m | [35;1m|[0m     
+              
+onClick={handleSaveDraftEditor}
+ [2m861[0m | [35;1m|[0m     
+              
+className="inline-flex 
+items-center justify-center h-9 
+px-4 rounded-md bg-accent 
+text-accent-foreground text-sm 
+font-medium hover:bg-accent/90"
+ [2m862[0m | [35;1m|[0m     
+            >
+ [2m863[0m | [35;1m|[0m     
+              Guardar cambios
+ [2m864[0m | [35;1m|[0m     
+            </button>
+ [2m865[0m | [35;1m|[0m     
+          </div>
+ [2m866[0m | [35;1m|[0m     
+        </div>
+ [2m867[0m | [35;1m|[0m     
+      </div>
+ [2m868[0m | [35;1m|[0m     
+    )}
+ [2m869[0m | [35;1m|[0m     
+  </>
+ [2m870[0m | [35;1m`[0m[35;
+1m-[0m[35;1m>[0m   );
+ [2m871[0m |     }
+     `----
+  [31mx[0m Expression expected
+     ,-[[36;1;4mD:\Github\Kynto
+\Killio-Frontend\src\components\
+ui\ai-generation-panel.tsx[0m:8
+71:1]
+ [2m868[0m |       )}
+ [2m869[0m |     </>
+ [2m870[0m |   );
+ [2m871[0m | }
+     : [35;1m^[0m
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested 
+module:
+./src/components/ui/ai-generatio
+n-panel.tsx
+./src/app/(dashboard)/page.tsx
+
+./src/lib/api/contracts.ts
+Error:   [31mx[0m Expected 
+'{', got 'export'
+     ,-[[36;1;4mD:\Github\Kynto
+\Killio-Frontend\src\lib\api\con
+tracts.ts[0m:782:1]
+ [2m779[0m | 
+ [2m780[0m | export // 
+createCardBrick, 
+updateCardBrick, 
+reorderCardBricks, 
+deleteCardBrick are already 
+defined above and exported.
+ [2m781[0m | 
+ [2m782[0m | export async 
+function uploadFile(
+     : [35;1m^^^^^^[0m
+ [2m783[0m |   file: File,
+ [2m784[0m |   accessToken: 
+string
+ [2m784[0m | ): Promise<{ 
+key: string; url: string; 
+isPrivate: boolean }> {
+     `----
+
+Caused by:
+    Syntax Error
+
+Import trace for requested 
+module:
+./src/lib/api/contracts.ts
+./src/app/accept-invite/page.tsx
+
+
+> Build failed because of 
+webpack errors

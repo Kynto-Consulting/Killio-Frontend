@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { Link, CheckCircle2, UserPlus, Loader2, Globe, Lock, Trash2, ChevronDown } from "lucide-react";
 import { updateBoardVisibility, getBoardMembers, addBoardMember, removeBoardMember, BoardMemberSummary } from "@/lib/api/contracts";
+import { listDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/documents";
+import { useSession } from "@/components/providers/session-provider";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -25,11 +27,21 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isVisDropdownOpen, setIsVisDropdownOpen] = useState(false);
 
+  const { activeTeamId } = useSession();
+  const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
+  const [isSuggestingDocs, setIsSuggestingDocs] = useState(false);
+
   useEffect(() => {
     if (isOpen && boardId) {
       loadMembers();
+      if (activeTeamId) {
+        listDocuments(activeTeamId, accessToken)
+          .then(setDocuments)
+          .catch(console.error);
+      }
     }
-  }, [isOpen, boardId]);
+  }, [isOpen, boardId, activeTeamId, accessToken]);
 
   const loadMembers = async () => {
     setIsLoadingMembers(true);
@@ -62,7 +74,19 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
     setIsInviting(true);
     try {
       await addBoardMember(boardId, inviteEmail, inviteRole, accessToken);
+      
+      // Auto share selected documents
+      for (const docId of selectedDocuments) {
+        try {
+          // Grant standard equivalent permissions for the newly added board user
+          await addDocumentMember(docId, inviteEmail, inviteRole as any, accessToken);
+        } catch (e) {
+          console.error("Failed to share document", docId, e);
+        }
+      }
+
       setInviteEmail("");
+      setSelectedDocuments([]);
       await loadMembers();
     } catch (err) {
       console.error("Failed to invite", err);
@@ -143,6 +167,38 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
               </button>
             </div>
             
+            {/* Auto-suggest documents */}
+            {documents.length > 0 && (
+              <div className="mt-2">
+                <button 
+                  onClick={() => setIsSuggestingDocs(!isSuggestingDocs)}
+                  className="flex items-center text-xs text-muted-foreground hover:text-accent font-medium mb-2"
+                >
+                  <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${isSuggestingDocs ? "rotate-180" : ""}`} />
+                  Suggest related documents ({documents.length})
+                </button>
+                {isSuggestingDocs && (
+                  <div className="space-y-1.5 border border-border/50 rounded-lg p-3 bg-muted/10 max-h-32 overflow-y-auto">
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-2">Auto-Grant Access</p>
+                    {documents.map(doc => (
+                      <label key={doc.id} className="flex items-center space-x-2 cursor-pointer group">
+                        <input 
+                          type="checkbox"
+                          checked={selectedDocuments.includes(doc.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) setSelectedDocuments([...selectedDocuments, doc.id]);
+                            else setSelectedDocuments(selectedDocuments.filter(id => id !== doc.id));
+                          }}
+                          className="rounded border-border text-accent focus:ring-accent w-4 h-4 bg-transparent"
+                        />
+                        <span className="text-sm font-medium group-hover:text-accent transition-colors">{doc.title}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Members List */}
             {members.length > 0 && (
               <div className="mt-4 space-y-2 border border-border/50 rounded-lg p-2 bg-muted/10 max-h-40 overflow-y-auto">

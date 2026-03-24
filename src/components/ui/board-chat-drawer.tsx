@@ -5,6 +5,7 @@ import { X, Send, Bot, CheckCircle2, Loader2 } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "../providers/session-provider";
 import { getBoard, listTeamActivity, chatWithAiScope, type BoardView, type ActivityLogEntry } from "@/lib/api/contracts";
+import { TagBadge } from "./tag-badge";
 
 type Message = {
   id: number;
@@ -14,7 +15,8 @@ type Message = {
   loading?: boolean;
 };
 
-function renderInlineMarkdown(text: string): ReactNode {
+function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
+  // First, parse **bold**
   const chunks = text.split(/(\*\*[^*]+\*\*)/g);
 
   return chunks.map((chunk, index) => {
@@ -22,16 +24,35 @@ function renderInlineMarkdown(text: string): ReactNode {
       return <strong key={`bold-${index}`}>{chunk.slice(2, -2)}</strong>;
     }
 
-    return <Fragment key={`text-${index}`}>{chunk}</Fragment>;
+    // Now, parse tag slugs within non-bold text
+    const tagChunks = chunk.split(/(tag\.(?:native|custom)\.[a-zA-Z0-9.\-]+)/g);
+
+    return (
+      <Fragment key={`text-${index}`}>
+        {tagChunks.map((tc, tcIdx) => {
+          if (tc.startsWith("tag.native.") || tc.startsWith("tag.custom.")) {
+            // Check if we have this tag in context to get color, otherwise mock it
+            const matchedTag = availableTags.find((t: any) => t.name === tc || t.slug === tc);
+            const tagObj = matchedTag || { name: tc, slug: tc };
+            return (
+              <span key={`tag-${tcIdx}`} className="inline-block align-middle mx-1">
+                <TagBadge tag={tagObj} />
+              </span>
+            );
+          }
+          return <Fragment key={`frag-${tcIdx}`}>{tc}</Fragment>;
+        })}
+      </Fragment>
+    );
   });
 }
 
-function renderChatMessage(content: string): ReactNode {
+function renderChatMessage(content: string, availableTags: any[]): ReactNode {
   const lines = content.split(/\r?\n/);
 
   return lines.map((line, index) => (
     <Fragment key={`line-${index}`}>
-      {renderInlineMarkdown(line)}
+      {renderInlineMarkdown(line, availableTags)}
       {index < lines.length - 1 ? <br /> : null}
     </Fragment>
   ));
@@ -58,7 +79,19 @@ export function BoardChatDrawer({
   const [inputVal, setInputVal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [realtimeEvents, setRealtimeEvents] = useState<string[]>([]);
+  const [allAvailableTags, setAllAvailableTags] = useState<any[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen && boardId && accessToken) {
+      getBoard(boardId, accessToken).then((board) => {
+        const tags = Array.from(new Set(
+          board.lists.flatMap(l => l.cards.flatMap((c: any) => (c.tags || []).map((t: any) => JSON.stringify({ id: t.id, name: t.name, slug: t.slug, color: t.color, tag_kind: t.tag_kind }))))
+        )).map(str => JSON.parse(str as string)).filter(Boolean);
+        setAllAvailableTags(tags);
+      }).catch(console.error);
+    }
+  }, [isOpen, boardId, accessToken]);
 
   const cleanText = (value?: string | null) => {
     if (!value) return "";
@@ -201,7 +234,7 @@ export function BoardChatDrawer({
 
   return (
     <div className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 transform transition-transform animate-in slide-in-from-right duration-300">
-      
+
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
         <div className="flex items-center space-x-2">
           <Bot className="h-5 w-5 text-accent" />
@@ -233,13 +266,13 @@ export function BoardChatDrawer({
                 </div>
                 <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0">
                   {msg.loading ? (
-                    <span className="flex gap-1">
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </span>
+                    <div className="flex gap-1.5 items-center px-1 py-2">
+                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
                   ) : (
-                    renderChatMessage(msg.content)
+                    renderChatMessage(msg.content, allAvailableTags)
                   )}
                 </div>
               </div>

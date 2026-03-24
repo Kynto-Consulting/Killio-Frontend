@@ -73,7 +73,8 @@ export default function TeamsPage() {
   };
 
   const reloadInvites = async () => {
-    if (!accessToken || !activeTeamId) return;
+  const reloadInvites = async () => {
+    if (!accessToken || !activeTeamId || !canInvite) return;
     setIsLoadingInvites(true);
     try {
       const nextInvites = await listTeamInvites(activeTeamId, accessToken);
@@ -178,15 +179,22 @@ export default function TeamsPage() {
     }).catch(console.error);
 
     listTeamMembers(activeTeamId, accessToken)
-      .then(setMembers)
+      .then((nextMembers) => {
+        setMembers(nextMembers);
+        const me = nextMembers.find((m) => m.userId === user?.id);
+        const role = me?.role ?? 'guest';
+        if (['owner', 'admin', 'member'].includes(role)) {
+          listTeamInvites(activeTeamId, accessToken)
+            .then(setInvites)
+            .catch(console.error)
+            .finally(() => setIsLoadingInvites(false));
+        } else {
+          setIsLoadingInvites(false);
+        }
+      })
       .catch(console.error)
       .finally(() => setIsLoading(false));
-
-    listTeamInvites(activeTeamId, accessToken)
-      .then(setInvites)
-      .catch(console.error)
-      .finally(() => setIsLoadingInvites(false));
-  }, [accessToken, activeTeamId]);
+  }, [accessToken, activeTeamId, user?.id]);
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-5xl">
@@ -236,76 +244,78 @@ export default function TeamsPage() {
         </div>
       </div>
 
-      <div className="mb-6 rounded-xl border border-border bg-card/60 p-4">
-        <div className="flex items-center justify-between gap-2 mb-3">
-          <h2 className="text-sm font-semibold">Invitar al workspace</h2>
-          <span className="text-xs text-muted-foreground">Roles permitidos para ti: {inviteRoleOptions.join(', ')}</span>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <input
-            type="email"
-            value={inlineInviteEmail}
-            onChange={(event) => setInlineInviteEmail(event.target.value)}
-            placeholder="persona@empresa.com"
-            disabled={!canInvite || isInlineInviting}
-            className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          <select
-            value={inlineInviteRole}
-            onChange={(event) => setInlineInviteRole(event.target.value as Exclude<TeamRole, 'owner'>)}
-            disabled={!canInvite || isInlineInviting}
-            className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {inviteRoleOptions.map((role) => (
-              <option key={role} value={role} className="capitalize">{role}</option>
-            ))}
-          </select>
-          <button
-            onClick={sendInlineInvite}
-            disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
-            className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Send Invite
-          </button>
-        </div>
-        {inviteError && (
-          <p className="mt-2 text-xs text-destructive">{inviteError}</p>
-        )}
-        {inviteDisabledReason && (
-          <p className="mt-2 text-xs text-muted-foreground">{inviteDisabledReason}</p>
-        )}
-
-        <div className="mt-4 rounded-lg border border-border/50 bg-background/40 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invitaciones recientes</p>
-            <p className="text-xs text-muted-foreground">{invites.length} total</p>
+      {canInvite && (
+        <div className="mb-6 rounded-xl border border-border bg-card/60 p-4">
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className="text-sm font-semibold">Invitar al workspace</h2>
+            <span className="text-xs text-muted-foreground">Roles permitidos para ti: {inviteRoleOptions.join(', ')}</span>
           </div>
-          {isLoadingInvites ? (
-            <p className="text-xs text-muted-foreground">Loading invites...</p>
-          ) : invites.length === 0 ? (
-            <p className="text-xs text-muted-foreground">No hay invitaciones todavia.</p>
-          ) : (
-            <div className="space-y-1.5 max-h-44 overflow-y-auto">
-              {invites.slice(0, 8).map((invite) => (
-                <div key={invite.id} className="flex items-center justify-between rounded-md border border-border/40 px-2.5 py-1.5 text-xs gap-2">
-                  <span className="truncate max-w-[45%]">{invite.email}</span>
-                  <span className="capitalize text-muted-foreground">{invite.role}</span>
-                  <span className="text-muted-foreground">{invite.status}</span>
-                  {canInvite && invite.status === 'pending' ? (
-                    <button
-                      onClick={() => handleRevokeInvite(invite.id)}
-                      disabled={isMutatingInvite === invite.id}
-                      className="rounded border border-destructive/30 px-2 py-0.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                    >
-                      Revoke
-                    </button>
-                  ) : null}
-                </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <input
+              type="email"
+              value={inlineInviteEmail}
+              onChange={(event) => setInlineInviteEmail(event.target.value)}
+              placeholder="persona@empresa.com"
+              disabled={!canInvite || isInlineInviting}
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <select
+              value={inlineInviteRole}
+              onChange={(event) => setInlineInviteRole(event.target.value as Exclude<TeamRole, 'owner'>)}
+              disabled={!canInvite || isInlineInviting}
+              className="flex h-9 rounded-md border border-input bg-background px-3 py-1 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {inviteRoleOptions.map((role) => (
+                <option key={role} value={role} className="capitalize">{role}</option>
               ))}
-            </div>
+            </select>
+            <button
+              onClick={sendInlineInvite}
+              disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Send Invite
+            </button>
+          </div>
+          {inviteError && (
+            <p className="mt-2 text-xs text-destructive">{inviteError}</p>
           )}
+          {inviteDisabledReason && (
+            <p className="mt-2 text-xs text-muted-foreground">{inviteDisabledReason}</p>
+          )}
+
+          <div className="mt-4 rounded-lg border border-border/50 bg-background/40 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Invitaciones recientes</p>
+              <p className="text-xs text-muted-foreground">{invites.length} total</p>
+            </div>
+            {isLoadingInvites ? (
+              <p className="text-xs text-muted-foreground">Loading invites...</p>
+            ) : invites.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No hay invitaciones todavia.</p>
+            ) : (
+              <div className="space-y-1.5 max-h-44 overflow-y-auto">
+                {invites.slice(0, 8).map((invite) => (
+                  <div key={invite.id} className="flex items-center justify-between rounded-md border border-border/40 px-2.5 py-1.5 text-xs gap-2">
+                    <span className="truncate max-w-[45%]">{invite.email}</span>
+                    <span className="capitalize text-muted-foreground">{invite.role}</span>
+                    <span className="text-muted-foreground">{invite.status}</span>
+                    {canInvite && invite.status === 'pending' ? (
+                      <button
+                        onClick={() => handleRevokeInvite(invite.id)}
+                        disabled={isMutatingInvite === invite.id}
+                        className="rounded border border-destructive/30 px-2 py-0.5 text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                      >
+                        Revoke
+                      </button>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm relative">
         <div className="p-4 border-b border-border/50 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -423,4 +433,5 @@ export default function TeamsPage() {
       />
     </div>
   );
+}
 }

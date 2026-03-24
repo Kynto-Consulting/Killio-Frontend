@@ -10,10 +10,11 @@ import { useSession } from "../providers/session-provider";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
-export function KanbanCard({ card, listId, listName, boardName, boardId }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string }) {
+export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { accessToken } = useSession();
+  const isGuest = !canEdit;
   
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
 
@@ -66,15 +67,17 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
       >
       
       <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            setIsMenuOpen(!isMenuOpen);
-          }}
-          className="h-6 w-6 rounded bg-background/80 hover:bg-muted flex items-center justify-center text-muted-foreground"
-        >
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
+        {!isGuest && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMenuOpen(!isMenuOpen);
+            }}
+            className="h-6 w-6 rounded bg-background/80 hover:bg-muted flex items-center justify-center text-muted-foreground"
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
+        )}
         {isMenuOpen && (
           <div className="absolute right-0 top-8 w-40 bg-popover border border-border rounded-md shadow-lg py-1 z-50 text-sm">
             <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Card...</button>
@@ -186,6 +189,10 @@ export function KanbanCard({ card, listId, listName, boardName, boardId }: { car
         listName={listName || ""}
         boardName={boardName || ""}
         boardId={boardId}
+        readonly={!canEdit}
+        canComment={canComment}
+        teamDocs={teamDocs}
+        teamBoards={teamBoards}
       />
     </>
   );

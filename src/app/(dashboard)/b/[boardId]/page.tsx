@@ -12,9 +12,13 @@ import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { MessageSquare } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
+import { TagBadge } from "@/components/ui/tag-badge";
+import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard, createList, deleteBoard, updateCard } from "@/lib/api/contracts";
+import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary } from "@/lib/api/contracts";
+import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
 
 type BoardListState = {
@@ -84,15 +88,15 @@ function applyCardCreated(lists: BoardListState[], payload: Record<string, unkno
   const title = asString(payload.title) ?? "Untitled";
   const assignees = Array.isArray(payload.assignees)
     ? payload.assignees
-        .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null))
-        .filter((raw): raw is Record<string, unknown> => Boolean(raw))
-        .map((raw) => ({
-          id: asString(raw.id) || '',
-          email: asString(raw.email) || '',
-          displayName: asString(raw.displayName),
-          avatarUrl: asString(raw.avatarUrl),
-        }))
-        .filter((assignee) => assignee.id.length > 0)
+      .map((raw) => (raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : null))
+      .filter((raw): raw is Record<string, unknown> => Boolean(raw))
+      .map((raw) => ({
+        id: asString(raw.id) || '',
+        email: asString(raw.email) || '',
+        displayName: asString(raw.displayName),
+        avatarUrl: asString(raw.avatarUrl),
+      }))
+      .filter((assignee) => assignee.id.length > 0)
     : [];
 
   if (!cardId || !listId) {
@@ -471,8 +475,10 @@ export default function BoardPage() {
   const router = useRouter();
   const boardId = params.boardId as string;
   const { accessToken, user } = useSession();
-  
+
   const members = useBoardPresence(boardId, user, accessToken);
+
+  const locale = getClientLocale();
 
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState("Loading...");
@@ -481,6 +487,8 @@ export default function BoardPage() {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
+  const [boardTeamId, setBoardTeamId] = useState<string | null>(null);
+  const permissions = usePermissions(boardId, boardTeamId, user?.id, accessToken);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [dragVisual, setDragVisual] = useState<{
     activeId: string | null;
@@ -493,6 +501,15 @@ export default function BoardPage() {
     targetListId: null,
     targetIndex: null,
   });
+  const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
+  const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
+
+  useEffect(() => {
+    if (!accessToken || !boardTeamId) return;
+    listDocuments(boardTeamId, accessToken).then(setTeamDocs).catch(console.error);
+    listTeamBoards(boardTeamId, accessToken).then(setTeamBoards).catch(console.error);
+  }, [accessToken, boardTeamId]);
+
   const lastOverIdRef = useRef<string | null>(null);
   const dragStateRef = useRef<{ activeId: string; sourceListId: string | null; targetListId: string | null; targetIndex: number | null } | null>(null);
 
@@ -539,7 +556,7 @@ export default function BoardPage() {
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
-  
+
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
 
@@ -552,6 +569,7 @@ export default function BoardPage() {
       .then((board) => {
         setBoardName(board.name);
         setBoardVisibility(board.visibility || "team");
+        setBoardTeamId(board.teamId ?? null);
         const mappedLists = board.lists.map(list => ({
           id: list.id,
           title: list.name,
@@ -578,8 +596,8 @@ export default function BoardPage() {
 
   useEffect(() => {
     loadBoard();
-    
-    const unlisten = () => {};
+
+    const unlisten = () => { };
     const handleRefresh = () => loadBoard();
     const handleOpenBoardChat = () => setIsChatOpen(true);
     const handleOpenBoardShare = () => setIsShareModalOpen(true);
@@ -618,7 +636,7 @@ export default function BoardPage() {
   }, accessToken);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: permissions.canEdit ? 5 : 999999 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -662,8 +680,8 @@ export default function BoardPage() {
       dragStateRef.current?.activeId === activeId
         ? dragStateRef.current.sourceListId
         : lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
-    const overContainerId = lists.some(l => l.id === overId) 
-      ? overId 
+    const overContainerId = lists.some(l => l.id === overId)
+      ? overId
       : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
 
     if (!activeContainerId || !overContainerId) {
@@ -676,9 +694,9 @@ export default function BoardPage() {
     const insertIndex = overId === overContainerId
       ? overContainer.cards.length
       : (() => {
-          const idx = overContainer.cards.findIndex((c: any) => c.id === overId);
-          return idx >= 0 ? idx : overContainer.cards.length;
-        })();
+        const idx = overContainer.cards.findIndex((c: any) => c.id === overId);
+        return idx >= 0 ? idx : overContainer.cards.length;
+      })();
 
     dragStateRef.current = {
       activeId,
@@ -717,9 +735,9 @@ export default function BoardPage() {
     if (isActiveAList) {
       const activeListIndex = lists.findIndex((l) => l.id === activeId);
       const overListIndex = lists.findIndex((l) => l.id === overId);
-      
+
       if (activeListIndex !== -1 && overListIndex !== -1) {
-         setLists(arrayMove(lists, activeListIndex, overListIndex));
+        setLists(arrayMove(lists, activeListIndex, overListIndex));
       }
       lastOverIdRef.current = null;
       setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
@@ -727,8 +745,8 @@ export default function BoardPage() {
     }
 
     const activeContainerId = lists.find(l => l.cards.some((c: any) => c.id === activeId))?.id;
-    const overContainerId = lists.some(l => l.id === overId) 
-      ? overId 
+    const overContainerId = lists.some(l => l.id === overId)
+      ? overId
       : lists.find(l => l.cards.some((c: any) => c.id === overId))?.id;
 
     const dragMeta = dragStateRef.current?.activeId === activeId ? dragStateRef.current : null;
@@ -766,9 +784,9 @@ export default function BoardPage() {
       (overId === targetListId
         ? lists[targetListIndex].cards.length
         : (() => {
-            const idx = lists[targetListIndex].cards.findIndex((c: any) => c.id === overId);
-            return idx >= 0 ? idx : lists[targetListIndex].cards.length;
-          })());
+          const idx = lists[targetListIndex].cards.findIndex((c: any) => c.id === overId);
+          return idx >= 0 ? idx : lists[targetListIndex].cards.length;
+        })());
 
     const finalIndex = sourceListId === targetListId
       ? Math.max(0, Math.min(baseTargetIndex, sourceCards.length - 1))
@@ -819,8 +837,8 @@ export default function BoardPage() {
   }
 
   const allAvailableTags = Array.from(new Set(
-    lists.flatMap(l => l.cards.flatMap((c: any) => (c.tags || []).map((t: any) => t.name)))
-  )).filter(Boolean);
+    lists.flatMap(l => l.cards.flatMap((c: any) => (c.tags || []).map((t: any) => JSON.stringify({ id: t.id, name: t.name, slug: t.slug, color: t.color, tag_kind: t.tag_kind }))))
+  )).map(str => JSON.parse(str as string)).filter(Boolean);
 
   const filteredLists = lists.map(list => ({
     ...list,
@@ -843,20 +861,20 @@ export default function BoardPage() {
             Live
           </button>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <div className="flex -space-x-2 mr-4 hidden sm:flex">
             {members.slice(0, 4).map((m) => {
-               const avatarUrl = getUserAvatarUrl(m.data?.avatar_url, m.data?.email, 32);
-               return (
-                 <img
-                   key={m.clientId}
-                   src={avatarUrl}
-                   alt={m.data?.displayName || m.clientId}
-                   title={m.data?.displayName || m.clientId}
-                   className="w-8 h-8 rounded-full border-2 border-background shadow-sm object-cover"
-                 />
-               );
+              const avatarUrl = getUserAvatarUrl(m.data?.avatar_url, m.data?.email, 32);
+              return (
+                <img
+                  key={m.clientId}
+                  src={avatarUrl}
+                  alt={m.data?.displayName || m.clientId}
+                  title={m.data?.displayName || m.clientId}
+                  className="w-8 h-8 rounded-full border-2 border-background shadow-sm object-cover"
+                />
+              );
             })}
             {members.length > 4 && (
               <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shadow-sm">
@@ -869,17 +887,17 @@ export default function BoardPage() {
               </div>
             )}
           </div>
-          
-          <button 
+
+          <button
             onClick={() => setIsChatOpen(true)}
             className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-card border border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground shadow-sm"
           >
             <MessageSquare className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Team Chat</span>
           </button>
-          
+
           <div className="relative">
-            <button 
+            <button
               onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent/10 hover:text-foreground hidden sm:inline-flex ${selectedTags.length > 0 ? "text-accent bg-accent/10 border border-accent/20" : "text-muted-foreground"}`}
             >
@@ -896,21 +914,21 @@ export default function BoardPage() {
                   {allAvailableTags.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">No tags in this board</div>
                   ) : (
-                    allAvailableTags.map((tag) => {
-                      const isSelected = selectedTags.includes(tag);
+                    allAvailableTags.map((tag: any) => {
+                      const isSelected = selectedTags.includes(tag.name);
                       return (
-                        <label key={tag} className="flex items-center space-x-2 p-2 hover:bg-accent/5 rounded cursor-pointer">
-                          <input 
-                            type="checkbox" 
+                        <label key={tag.name} className="flex items-center space-x-2 p-2 hover:bg-accent/5 rounded cursor-pointer">
+                          <input
+                            type="checkbox"
                             className="rounded border-border text-accent focus:ring-accent"
                             checked={isSelected}
                             onChange={() => {
-                              setSelectedTags(prev => 
-                                isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
+                              setSelectedTags(prev =>
+                                isSelected ? prev.filter(t => t !== tag.name) : [...prev, tag.name]
                               );
                             }}
                           />
-                          <span className="text-sm text-foreground/90">{tag}</span>
+                          <TagBadge tag={tag} />
                         </label>
                       );
                     })
@@ -918,7 +936,7 @@ export default function BoardPage() {
                 </div>
                 {selectedTags.length > 0 && (
                   <div className="p-2 border-t border-border bg-muted/30">
-                    <button 
+                    <button
                       onClick={() => setSelectedTags([])}
                       className="w-full text-xs text-center text-muted-foreground hover:text-foreground py-1"
                     >
@@ -930,21 +948,25 @@ export default function BoardPage() {
             )}
           </div>
 
-          <button 
-            onClick={() => setIsShareModalOpen(true)}
-            className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Share className="h-4 w-4 mr-2" />
-            Share
-          </button>
-          <button 
-            title="Delete Board"
-            disabled={isDeleting}
-            onClick={() => setIsDeleteModalOpen(true)}
-            className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground"
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
+          {permissions.canManageBoard && (
+            <button
+              onClick={() => setIsShareModalOpen(true)}
+              className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              <Share className="h-4 w-4 mr-2" />
+              Share
+            </button>
+          )}
+          {permissions.canManageBoard && (
+            <button
+              title="Delete Board"
+              disabled={isDeleting}
+              onClick={() => setIsDeleteModalOpen(true)}
+              className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </header>
 
@@ -971,6 +993,10 @@ export default function BoardPage() {
                 isDropTarget={dragVisual.targetListId === list.id}
                 dropHintIndex={dragVisual.targetListId === list.id ? dragVisual.targetIndex : null}
                 draggingCardId={dragVisual.activeId}
+                canEdit={permissions.canEdit}
+                canComment={permissions.canComment}
+                teamDocs={teamDocs}
+                teamBoards={teamBoards}
               />
             ))}
 
@@ -1003,13 +1029,13 @@ export default function BoardPage() {
                 }}
               />
               <div className="flex items-center space-x-2">
-                <button 
+                <button
                   onClick={handleAddList}
                   className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-medium rounded-md transition-colors"
                 >
                   Add list
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     setIsAddingList(false);
                     setNewListName("");
@@ -1021,29 +1047,31 @@ export default function BoardPage() {
               </div>
             </div>
           ) : (
-            <button 
-              onClick={() => setIsAddingList(true)}
-              className="w-72 shrink-0 h-12 rounded-xl border border-dashed border-border/60 bg-transparent flex items-center justify-center text-muted-foreground hover:bg-accent/5 hover:border-accent hover:text-foreground transition-all"
-            >
-              <Plus className="h-5 w-5 mr-2" />
-              Add another list
-            </button>
+            permissions.canEdit && (
+              <button
+                onClick={() => setIsAddingList(true)}
+                className="w-72 shrink-0 h-12 rounded-xl border border-dashed border-border/60 bg-transparent flex items-center justify-center text-muted-foreground hover:bg-accent/5 hover:border-accent hover:text-foreground transition-all"
+              >
+                <Plus className="h-5 w-5 mr-2" />
+                Add another list
+              </button>
+            )
           )}
         </div>
       </main>
 
       <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} />
 
-      <ShareModal 
-        isOpen={isShareModalOpen} 
-        onClose={() => setIsShareModalOpen(false)} 
-        boardId={boardId} 
-        boardName={boardName} 
-        initialVisibility={boardVisibility} 
-        accessToken={accessToken!} 
+      <ShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        boardId={boardId}
+        boardName={boardName}
+        initialVisibility={boardVisibility}
+        accessToken={accessToken!}
       />
 
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteBoard}
