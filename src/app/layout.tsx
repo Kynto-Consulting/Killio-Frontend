@@ -7,13 +7,17 @@ export const metadata: Metadata = {
 };
 
 import { SessionProvider } from '@/components/providers/session-provider';
+import { Toaster } from '@/components/ui/toaster';
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" className="dark">
       <body className="antialiased">
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          {children}
+          <Toaster />
+        </SessionProvider>
       </body>
     </html>
-  );
+);
 }

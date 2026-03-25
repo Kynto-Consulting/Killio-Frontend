@@ -3,8 +3,15 @@
 import { useState, useEffect } from "react";
 import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
+import { Portal } from "./portal";
+import { ReferencePicker } from "../documents/reference-picker";
+import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
+import { UnifiedBrickList } from "../bricks/unified-brick-list";
+import { listTeamMembers } from "@/lib/api/contracts";
+import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -57,7 +64,10 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
 
+  const [generationType, setGenerationType] = useState<'cards' | 'documents' | 'boards'>('cards');
   const [previewCards, setPreviewCards] = useState<GeneratedCard[]>([]);
+  const [previewDocuments, setPreviewDocuments] = useState<any[]>([]);
+  const [previewBoards, setPreviewBoards] = useState<any[]>([]);
 
   // State for Global Dispatching Dropdowns
   const [boards, setBoards] = useState<BoardSummary[]>([]);
@@ -73,7 +83,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   // Dispatch state
   const [isDispatchingSelected, setIsDispatchingSelected] = useState(false);
 
-  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  // Global Toast replaced by useToast or direct import
 
   // Target Card Modal states
   const [activeCardDetails, setActiveCardDetails] = useState<{
@@ -83,25 +93,25 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     boardId: string;
     boardName: string;
   } | null>(null);
-  const [createdCardsQueue, setCreatedCardsQueue] = useState<Array<{
-    card: any;
-    listId: string;
-    listName: string;
-    boardId: string;
-    boardName: string;
-  }>>([]);
+  const [createdCardsQueue, setCreatedCardsQueue] = useState<any[]>([]);
   const [createdCardsQueueIndex, setCreatedCardsQueueIndex] = useState<number | null>(null);
+
+  const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && accessToken && activeTeamId) {
-      listTeamBoards(activeTeamId, accessToken)
-        .then(data => {
-          setBoards(data);
-          if (data.length > 0) {
-            setDefaultBoardId(data[0].id);
-          }
-        })
-        .catch(console.error);
+      Promise.all([
+        listTeamBoards(activeTeamId, accessToken),
+        listDocuments(activeTeamId, accessToken),
+        listTeamMembers(activeTeamId, accessToken)
+      ]).then(([boards, docs, members]) => {
+        setBoards(boards);
+        if (boards.length > 0) setDefaultBoardId(boards[0].id);
+        setTeamDocs(docs);
+        setTeamMembers(members);
+      }).catch(console.error);
     }
   }, [isOpen, accessToken, activeTeamId]);
 
@@ -147,6 +157,8 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setIsGenerating(true);
     setGenerationProgress(10);
     setPreviewCards([]);
+    setPreviewDocuments([]);
+    setPreviewBoards([]);
 
     const progressInterval = setInterval(() => {
       setGenerationProgress(prev => {
@@ -218,36 +230,61 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         finalContent = "El usuario no proporcionó información suficiente.";
       }
 
-      const res = await fetch(`${API}/ai/scope/personal/generate-cards`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${accessToken}` },
-        body: JSON.stringify({ scopeId: "personal", rawContent: finalContent }),
-      });
+      const existingEntitiesSummary = [
+        ...boards.map(b => `Board: ${b.name}`),
+        ...teamDocs.map(d => `Document: ${d.title}`)
+      ].join("\n");
 
-      const cards: Array<Omit<GeneratedCard, "id" | "isSelected"> & Partial<Pick<GeneratedCard, "id" | "isSelected">>> = await res.json();
+      if (generationType === 'cards') {
+        const cards = await generateCardsWithAi({
+          scope: 'personal',
+          scopeId: 'personal',
+          rawContent: finalContent,
+          existingEntitiesSummary
+        }, accessToken || "");
 
-      const enrichedCards = (Array.isArray(cards) ? cards : []).map((c, index) => ({
-        ...c,
-        id: c.id || `draft-${Date.now()}-${index}`,
-        bricks: c.bricks || [],
-        isSelected: true,
-        customBoardId: undefined,
-        customListId: undefined,
-        availableLists: defaultLists,
-      }));
+        const enrichedCards = (Array.isArray(cards) ? cards : []).map((c, index) => ({
+          ...c,
+          id: c.id || `draft-card-${Date.now()}-${index}`,
+          bricks: c.bricks || [],
+          isSelected: true,
+          customBoardId: undefined,
+          customListId: undefined,
+          availableLists: defaultLists,
+        }));
+        setPreviewCards(enrichedCards);
+      } else if (generationType === 'documents') {
+        const docs = await generateDocumentsWithAi({
+          scope: 'personal',
+          scopeId: 'personal',
+          rawContent: finalContent,
+          existingEntitiesSummary
+        }, accessToken || "");
 
-      setPreviewCards(enrichedCards);
+        setPreviewDocuments((Array.isArray(docs) ? docs : []).map((d, index) => ({
+          ...d,
+          id: `draft-doc-${Date.now()}-${index}`,
+          isSelected: true
+        })));
+      } else if (generationType === 'boards') {
+        const generatedBoards = await generateBoardsWithAi({
+          scope: 'personal',
+          scopeId: 'personal',
+          rawContent: finalContent,
+          existingEntitiesSummary
+        }, accessToken || "");
+
+        setPreviewBoards((Array.isArray(generatedBoards) ? generatedBoards : []).map((b, index) => ({
+          ...b,
+          id: `draft-board-${Date.now()}-${index}`,
+          isSelected: true
+        })));
+      }
+
       setGenerationProgress(100);
-    } catch {
-      setPreviewCards([{
-        id: `draft-error-${Date.now()}`,
-        title: "Error connecting to AI",
-        bricks: [],
-        isSelected: false,
-        customBoardId: undefined,
-        customListId: undefined,
-        availableLists: defaultLists,
-      }]);
+    } catch (err) {
+      console.error("AI Generation failed", err);
+      pushToast("error", "Error conectando con la IA.");
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {
@@ -261,17 +298,29 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewCards((prev) => prev.map((card) => card.id === id ? { ...card, isSelected: !card.isSelected } : card));
   };
 
-  const pushToast = (variant: ToastMessage["variant"], text: string) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setToasts((prev) => [...prev, { id, variant, text }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((toast) => toast.id !== id));
-    }, 3500);
+  const pushToast = (variant: any, text: string) => {
+    toast(text, variant === "error" ? "error" : variant === "success" ? "success" : "info");
   };
 
   const handleToggleSelectAll = () => {
-    const allSelected = previewCards.length > 0 && previewCards.every((card) => card.isSelected);
-    setPreviewCards((prev) => prev.map((card) => ({ ...card, isSelected: !allSelected })));
+    if (generationType === 'cards') {
+      const allSelected = previewCards.length > 0 && previewCards.every((card) => card.isSelected);
+      setPreviewCards((prev) => prev.map((card) => ({ ...card, isSelected: !allSelected })));
+    } else if (generationType === 'documents') {
+      const allSelected = previewDocuments.length > 0 && previewDocuments.every((doc) => doc.isSelected);
+      setPreviewDocuments((prev) => prev.map((doc) => ({ ...doc, isSelected: !allSelected })));
+    } else if (generationType === 'boards') {
+      const allSelected = previewBoards.length > 0 && previewBoards.every((board) => board.isSelected);
+      setPreviewBoards((prev) => prev.map((board) => ({ ...board, isSelected: !allSelected })));
+    }
+  };
+
+  const handleToggleDocSelection = (id: string) => {
+    setPreviewDocuments((prev) => prev.map((doc) => doc.id === id ? { ...doc, isSelected: !doc.isSelected } : doc));
+  };
+
+  const handleToggleBoardSelection = (id: string) => {
+    setPreviewBoards((prev) => prev.map((board) => board.id === id ? { ...board, isSelected: !board.isSelected } : board));
   };
 
   const openDraftEditor = (cardId: string) => {
@@ -381,112 +430,119 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   };
 
   const handleDispatchSelected = async () => {
-    if (!defaultBoardId || !defaultListId || !accessToken) {
-      pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
-      return;
-    }
+    if (!accessToken || !activeTeamId) return;
 
-    const selectedDrafts = previewCards.filter((card) => card.isSelected);
-    if (selectedDrafts.length === 0) {
-      pushToast("info", "Selecciona al menos una tarjeta para enviar.");
-      return;
-    }
-
-    setIsDispatchingSelected(true);
-    try {
-      const payloads = selectedDrafts.map((draft) => {
-        const boardId = draft.customBoardId || defaultBoardId;
-        const listId = draft.customListId || defaultListId;
-        return {
-          draft,
-          boardId,
-          listId,
-        };
-      });
-
-      const invalidTargets = payloads.filter((p) => !p.boardId || !p.listId);
-      if (invalidTargets.length > 0) {
-        pushToast("error", "Hay tarjetas con destino incompleto. Revisa tablero/lista antes de enviar.");
+    if (generationType === 'cards') {
+      if (!defaultBoardId || !defaultListId) {
+        pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
         return;
       }
+      const selectedDrafts = previewCards.filter((card) => card.isSelected);
+      if (selectedDrafts.length === 0) {
+        pushToast("info", "Selecciona al menos una tarjeta para enviar.");
+        return;
+      }
+      setIsDispatchingSelected(true);
+      try {
+        const payloads = selectedDrafts.map((draft) => ({
+          draft,
+          boardId: draft.customBoardId || defaultBoardId,
+          listId: draft.customListId || defaultListId,
+        }));
 
-      const results = await Promise.allSettled(
-        payloads.map(async (entry) => {
-          const card = await createCard(
-            {
-              listId: entry.listId,
-              title: entry.draft.title?.trim() || "Tarjeta sin titulo",
-              urgency: "normal",
-            },
-            accessToken,
-          );
+        const results = await Promise.allSettled(
+          payloads.map(async (entry) => {
+            const card = await createCard({ listId: entry.listId, title: entry.draft.title?.trim() || "Tarjeta sin titulo", urgency: "normal" }, accessToken);
+            if (entry.draft.bricks) {
+              for (const brick of entry.draft.bricks) {
+                await createCardBrick(card.id, {
+                  kind: brick.kind,
+                  markdown: brick.content.markdown,
+                  items: brick.content.items,
+                  displayStyle: 'paragraph'
+                }, accessToken);
+              }
+            }
+            return card;
+          })
+        );
 
-          // Add bricks
-          if (entry.draft.bricks) {
-            for (const brick of entry.draft.bricks) {
-              await createCardBrick(card.id, {
-                kind: brick.kind,
-                markdown: brick.content.markdown,
-                items: brick.content.items,
-                displayStyle: 'paragraph'
-              }, accessToken);
+        const createdCards: any[] = [];
+        const createdDraftIds = new Set<string>();
+        results.forEach((result, index) => {
+          if (result.status === "fulfilled") {
+            const payload = payloads[index];
+            const boardName = boards.find(b => b.id === payload.boardId)?.name || "Board";
+            const listName = (payload.draft.availableLists || defaultLists).find(l => l.id === payload.listId)?.name || "List";
+            createdCards.push({ card: result.value, listId: payload.listId, listName, boardId: payload.boardId, boardName });
+            createdDraftIds.add(payload.draft.id);
+          }
+        });
+
+        if (createdCards.length > 0) {
+          setPreviewCards(prev => prev.filter(c => !createdDraftIds.has(c.id)));
+          setCreatedCardsQueue(createdCards);
+          setCreatedCardsQueueIndex(0);
+          setActiveCardDetails(createdCards[0]);
+          pushToast("success", `Se enviaron ${createdCards.length} tarjetas.`);
+        }
+      } catch (err: any) {
+        pushToast("error", "Error al enviar tarjetas: " + (err?.message || "Error desconocido"));
+      } finally {
+        setIsDispatchingSelected(true);
+      }
+    } else if (generationType === 'documents') {
+      const selectedDocs = previewDocuments.filter(d => d.isSelected);
+      if (selectedDocs.length === 0) return;
+      setIsDispatchingSelected(true);
+      try {
+        for (const docDraft of selectedDocs) {
+          const doc = await createDocument({ teamId: activeTeamId, title: docDraft.title }, accessToken);
+          if (docDraft.bricks) {
+            for (let i = 0; i < docDraft.bricks.length; i++) {
+              const b = docDraft.bricks[i];
+              await createDocumentBrick(doc.id, { kind: b.kind, position: i, content: b.content }, accessToken);
             }
           }
-          return card;
-        }),
-      );
-
-      const createdCards: Array<{
-        card: any;
-        listId: string;
-        listName: string;
-        boardId: string;
-        boardName: string;
-      }> = [];
-      const createdDraftIds = new Set<string>();
-      const failedCount = results.filter((res) => res.status === "rejected").length;
-      results.forEach((result, index) => {
-        if (result.status === "fulfilled") {
-          const payload = payloads[index];
-          const boardName = boards.find((board) => board.id === payload.boardId)?.name || "Board";
-          const listName = (payload.draft.availableLists || defaultLists).find((list) => list.id === payload.listId)?.name || "List";
-
-          createdCards.push({
-            card: result.value,
-            listId: payload.listId,
-            listName,
-            boardId: payload.boardId,
-            boardName,
-          });
-          createdDraftIds.add(payload.draft.id);
         }
-      });
-
-      if (createdCards.length > 0) {
-        setPreviewCards((prev) => prev.filter((card) => !createdDraftIds.has(card.id)));
+        setPreviewDocuments(prev => prev.filter(d => !selectedDocs.find(sd => sd.id === d.id)));
+        pushToast("success", `Se crearon ${selectedDocs.length} documentos.`);
+      } catch (err: any) {
+        pushToast("error", "Error al crear documentos.");
+      } finally {
+        setIsDispatchingSelected(false);
       }
-
-      if (createdCards.length > 0) {
-        setCreatedCardsQueue(createdCards);
-        setCreatedCardsQueueIndex(0);
-        setActiveCardDetails(createdCards[0]);
-        if (createdCards.length > 1) {
-          pushToast("info", `Se abrira una por una. Cierra cada tarjeta para pasar a la siguiente (${createdCards.length} en total).`);
+    } else if (generationType === 'boards') {
+      const selectedBoards = previewBoards.filter(b => b.isSelected);
+      if (selectedBoards.length === 0) return;
+      setIsDispatchingSelected(true);
+      try {
+        for (const boardDraft of selectedBoards) {
+          const board = await createBoard({ name: boardDraft.name, slug: boardDraft.slug }, activeTeamId, accessToken);
+          if (boardDraft.lists) {
+            for (let i = 0; i < boardDraft.lists.length; i++) {
+              const lDraft = boardDraft.lists[i];
+              const list = await createList(board.id, { name: lDraft.name, position: i }, accessToken);
+              if (lDraft.cards) {
+                for (const cDraft of lDraft.cards) {
+                  const card = await createCard({ listId: list.id, title: cDraft.title, urgency: 'normal' }, accessToken);
+                  if (cDraft.bricks) {
+                    for (const bDraft of cDraft.bricks) {
+                      await createCardBrick(card.id, { kind: bDraft.kind, markdown: bDraft.content.markdown, items: bDraft.content.items, displayStyle: 'paragraph' }, accessToken);
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
+        setPreviewBoards(prev => prev.filter(b => !selectedBoards.find(sb => sb.id === b.id)));
+        pushToast("success", `Se crearon ${selectedBoards.length} tableros.`);
+      } catch (err: any) {
+        pushToast("error", "Error al crear tableros.");
+      } finally {
+        setIsDispatchingSelected(false);
       }
-
-      if (failedCount > 0) {
-        pushToast("error", `Se enviaron ${createdCards.length} tarjetas, pero ${failedCount} fallaron.`);
-      } else if (createdCards.length > 1) {
-        pushToast("success", `Se enviaron ${createdCards.length} tarjetas correctamente.`);
-      } else if (createdCards.length === 1) {
-        pushToast("success", "Tarjeta enviada y abierta para detalle.");
-      }
-    } catch (err: any) {
-      console.error("Error dispatching selected cards:", err);
-      pushToast("error", "Hubo un error al enviar las tarjetas: " + (err?.message || "Error desconocido"));
-    } finally {
-      setIsDispatchingSelected(false);
     }
   };
 
@@ -555,10 +611,30 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 </label>
                 <textarea
                   value={fileText}
-                  onChange={(e) => setFileText(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFileText(val);
+                    if (val.endsWith("@")) setIsPickerOpen(true);
+                  }}
                   placeholder={selectedFile ? "Ej. Filtra solo las tareas de backend..." : "Añade toda la información necesaria para crear las tarjetas..."}
                   className="flex-1 w-full min-h-[160px] rounded-xl border border-input bg-background px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent resize-none transition-shadow"
                 />
+
+                {isPickerOpen && (
+                  <Portal>
+                    <ReferencePicker
+                      boards={boards}
+                      documents={teamDocs}
+                      users={teamMembers}
+                      onClose={() => setIsPickerOpen(false)}
+                      onSelect={(item) => {
+                        const newVal = fileText.substring(0, fileText.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
+                        setFileText(newVal);
+                        setIsPickerOpen(false);
+                      }}
+                    />
+                  </Portal>
+                )}
               </div>
 
               {/* Generate Action */}
@@ -577,14 +653,32 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                     </div>
                   </div>
                 ) : (
-                  <button
-                    onClick={handleGenerate}
-                    disabled={!selectedFile && !fileText.trim()}
-                    className="w-full inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
-                  >
-                    <Sparkles className="h-5 w-5 mr-2" />
-                    Generar Tarjetas
-                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleGenerate}
+                      disabled={!selectedFile && !fileText.trim()}
+                      className="flex-1 inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
+                    >
+                      <Sparkles className="h-5 w-5 mr-2" />
+                      {generationType === 'cards' ? 'Generar Tarjetas' : generationType === 'documents' ? 'Generar Documentos' : 'Generar Tableros'}
+                    </button>
+                    <div className="relative group/gen">
+                      <button
+                        className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
+                        title="Cambiar tipo de generación"
+                      >
+                        <Plus className="h-5 w-5 text-muted-foreground" />
+                      </button>
+                      <div className="absolute bottom-full right-0 w-48 bg-card border border-border rounded-xl shadow-xl p-1.5 opacity-0 pointer-events-none group-hover/gen:opacity-100 group-hover/gen:pointer-events-auto transition-all scale-95 group-hover/gen:scale-100 origin-bottom-right z-20 before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2">
+                        <button onClick={() => setGenerationType('cards')} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'cards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                          <Layout className="h-3.5 w-3.5" /> Generar Tarjetas
+                        </button>
+                        <button onClick={() => setGenerationType('documents')} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'documents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                          <FileText className="h-3.5 w-3.5" /> Generar Documentos
+                        </button>
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -600,18 +694,20 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
             <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-lg text-foreground">Tarjetas de Borrador Generadas</h3>
-                {previewCards.length > 0 && (
+                <h3 className="font-semibold text-lg text-foreground">
+                  {generationType === 'cards' ? 'Borradores de Tarjetas' : generationType === 'documents' ? 'Borradores de Documentos' : 'Borradores de Tableros'}
+                </h3>
+                {((generationType === 'cards' && previewCards.length > 0) || (generationType === 'documents' && previewDocuments.length > 0) || (generationType === 'boards' && previewBoards.length > 0)) && (
                   <div className="flex items-center space-x-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                      {previewCards.length} en espera
+                      {generationType === 'cards' ? previewCards.length : generationType === 'documents' ? previewDocuments.length : previewBoards.length} en espera
                     </span>
                     <button
                       onClick={handleToggleSelectAll}
                       className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-input hover:bg-accent/5"
                     >
                       <CheckSquare className="h-3.5 w-3.5 mr-1" />
-                      {previewCards.every((card) => card.isSelected) ? "Deseleccionar" : "Seleccionar"} todas
+                      {((generationType === 'cards' && previewCards.every(c => c.isSelected)) || (generationType === 'documents' && previewDocuments.every(d => d.isSelected)) || (generationType === 'boards' && previewBoards.every(b => b.isSelected))) ? "Deseleccionar" : "Seleccionar"} todas
                     </button>
                   </div>
                 )}
@@ -682,7 +778,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                     </button>
                   </div>
 
-                  {previewCards.map((card) => (
+                  {generationType === 'cards' && previewCards.map((card) => (
                     <div
                       key={card.id}
                       className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 overflow-hidden flex flex-col group cursor-pointer ${card.isSelected ? "border-accent/40" : "border-border"}`}
@@ -711,9 +807,18 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                         </button>
                       </div>
 
-                      <p className="text-sm text-muted-foreground leading-relaxed mb-2 whitespace-pre-wrap max-h-24 overflow-hidden">
-                        {card.bricks.filter((brick) => brick.kind === 'text')[0]?.content || <span className="italic opacity-50">Sin descripción...</span>}
-                      </p>
+                      <div className="text-sm text-muted-foreground leading-relaxed mb-4 pointer-events-none">
+                        <UnifiedBrickList
+                          bricks={card.bricks.slice(0, 2)}
+                          canEdit={false}
+                          onUpdateBrick={() => { }}
+                          onDeleteBrick={() => { }}
+                          onReorderBricks={() => { }}
+                          onAddBrick={() => { }}
+                        />
+                        {card.bricks.length > 2 && <div className="text-[10px] mt-1 italic opacity-60">+{card.bricks.length - 2} bricks más...</div>}
+                      </div>
+
                       <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Destino individual (opcional)</span>
@@ -769,6 +874,73 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
                         <span>{card.isSelected ? "Seleccionada para enviar" : "No seleccionada"}</span>
                         <span className="text-accent">Haz click para editar</span>
+                      </div>
+                    </div>
+                  ))}
+
+                  {generationType === 'documents' && previewDocuments.map((doc) => (
+                    <div
+                      key={doc.id}
+                      className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 flex flex-col group cursor-pointer ${doc.isSelected ? "border-accent/40" : "border-border"}`}
+                    >
+                      <div className="flex justify-between items-start gap-4 mb-3">
+                        <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={doc.isSelected}
+                            onChange={() => handleToggleDocSelection(doc.id)}
+                            className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                          />
+                        </label>
+                        <h4 className="flex-1 text-base font-semibold leading-tight text-foreground/90">
+                          {doc.title}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">DOC</span>
+                        </div>
+                      </div>
+                      <div className="text-sm text-muted-foreground pointer-events-none opacity-80">
+                        <UnifiedBrickList
+                          bricks={doc.bricks.slice(0, 3)}
+                          canEdit={false}
+                          onUpdateBrick={() => { }}
+                          onDeleteBrick={() => { }}
+                          onReorderBricks={() => { }}
+                          onAddBrick={() => { }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+
+                  {generationType === 'boards' && previewBoards.map((board) => (
+                    <div
+                      key={board.id}
+                      className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 flex flex-col group cursor-pointer ${board.isSelected ? "border-accent/40" : "border-border"}`}
+                    >
+                      <div className="flex justify-between items-start gap-4 mb-3">
+                        <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={board.isSelected}
+                            onChange={() => handleToggleBoardSelection(board.id)}
+                            className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                          />
+                        </label>
+                        <h4 className="flex-1 text-base font-semibold leading-tight text-foreground/90">
+                          {board.name}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">BOARD</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {board.lists.map((l: any, i: number) => (
+                          <div key={i} className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md flex items-center gap-1.5">
+                            <Layout className="h-3 w-3 opacity-50" />
+                            {l.name}
+                            <span className="opacity-40 ml-1">({l.cards?.length || 0})</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { SuggestionItem, suggestCommand, tokenize } from "@kyntocg/river";
@@ -21,7 +21,9 @@ import {
   CalendarX,
   Tag,
   Edit3,
+  FileText,
 } from "lucide-react";
+import { toast } from "@/lib/toast";
 import { usePathname, useRouter } from "next/navigation";
 import {
   argument,
@@ -87,8 +89,9 @@ function resolveIcon(commandId: string) {
   if (commandId.includes("board")) return LayoutDashboard;
   if (commandId.startsWith("global.")) return Search;
   if (commandId.startsWith("system.")) return Settings;
-  // return CommandIcon; // CommandIcon no está definido, comentar o implementar si es necesario
-  return null;
+  if (commandId.startsWith("doc.")) return FileText;
+  
+  return Search;
 }
 
 
@@ -208,8 +211,11 @@ export const paletteCommandSpecs: CommandSpec<PaletteParseContext, string>[] = [
     .executes(() => "")
     .build(),
   ...literal<PaletteParseContext, string>("history")
-    .id("global.history")
-    .description("Go to history")
+    .executes(() => "")
+    .build(),
+  ...literal<PaletteParseContext, string>("documents")
+    .id("global.documents")
+    .description("Go to documents")
     .executes(() => "")
     .build(),
   ...literal<PaletteParseContext, string>("settings")
@@ -303,6 +309,15 @@ export const paletteCommandSpecs: CommandSpec<PaletteParseContext, string>[] = [
       ),
     )
     .build(),
+  ...literal<PaletteParseContext, string>("doc")
+    .then(literal<PaletteParseContext, string>("create").id("doc.create").description("Create new document").executes(() => ""))
+    .then(literal<PaletteParseContext, string>("open").then(
+      argument<PaletteParseContext, string, string>("selector", { parse: (t) => t })
+        .id("doc.open")
+        .description("Open document by name")
+        .executes(() => "")
+    ))
+    .build(),
 ];
 
 // Definiciones mínimas para navegación y metadatos de contexto
@@ -372,12 +387,8 @@ export function CommandPalette() {
 
   const t = i18n[locale];
 
-  const pushNotice = (variant: NoticeVariant, text: string) => {
-    const id = `palette-toast-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    setNotices((prev) => [...prev, { id, variant, text }]);
-    setTimeout(() => {
-      setNotices((prev) => prev.filter((notice) => notice.id !== id));
-    }, 3000);
+  const pushNotice = (variant: any, text: string) => {
+    toast(text, variant === "error" ? "error" : variant === "success" ? "success" : "info");
   };
 
   const notifyInfo = (message: string) => {
@@ -730,6 +741,53 @@ export function CommandPalette() {
         setOpen(false);
         router.push("/history");
         return;
+
+      case "global.documents":
+        setOpen(false);
+        router.push("/d");
+        return;
+
+      case "doc.create": {
+        if (!accessToken || !activeTeamId) return;
+        setIsRunningAction(true);
+        try {
+          const { createDocument } = await import("@/lib/api/documents");
+          const doc = await createDocument({ teamId: activeTeamId, title: "Untitled Document" }, accessToken);
+          setOpen(false);
+          router.push(`/d/${doc.id}`);
+          toast("Document created successfully", "success");
+        } catch (error) {
+          toast("Failed to create document", "error");
+        } finally {
+          setIsRunningAction(false);
+        }
+        return;
+      }
+
+      case "doc.open": {
+        const selector = String(target.args.selector ?? "").trim();
+        if (!selector) {
+          notifyInfo("Usage: doc open <name|idx>");
+          return;
+        }
+        setIsRunningAction(true);
+        try {
+          const { listDocuments } = await import("@/lib/api/documents");
+          const docs = await listDocuments(activeTeamId!, accessToken!);
+          const doc = resolveBySelector(selector, docs, (d) => d.title);
+          if (!doc) {
+            toast("Document not found", "error");
+          } else {
+            setOpen(false);
+            router.push(`/d/${doc.id}`);
+          }
+        } catch (error) {
+          toast("Failed to search documents", "error");
+        } finally {
+          setIsRunningAction(false);
+        }
+        return;
+      }
 
       case "board.open": {
         const selector = String(target.args.selector ?? "").trim();
@@ -1443,7 +1501,7 @@ export function CommandPalette() {
                       }}
                       className={itemClassName}
                     >
-                      <Icon className="h-3.5 w-3.5 text-muted-foreground" />
+                      {Icon && <Icon className="h-3.5 w-3.5 text-muted-foreground" />}
                       <div className="min-w-0 flex-1">
                         <div className="truncate font-medium">{suggestion.value}</div>
                         <div className="truncate text-xs text-muted-foreground">

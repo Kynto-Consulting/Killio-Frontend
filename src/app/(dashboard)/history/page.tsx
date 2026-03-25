@@ -12,6 +12,7 @@ import {
   RefreshCcw,
   Trash2,
   CalendarClock,
+  Info
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
@@ -23,6 +24,8 @@ import {
   getTagsByScope,
   ActivityLogEntry,
 } from "@/lib/api/contracts";
+import { ActivityLogModal } from "@/components/ui/activity-log-modal";
+import { ResolverContext } from "@/lib/reference-resolver";
 
 type ActivityVisual = {
   id: string;
@@ -41,7 +44,7 @@ type ActivityVisual = {
   changedFields: string[];
 };
 
-const GROUP_WINDOW_MS = 5 * 60 * 1000;
+const GROUP_WINDOW_MS = 3 * 60 * 1000;
 
 const fieldLabels: Record<string, string> = {
   title: "titulo",
@@ -191,9 +194,13 @@ function summarizeGroup(items: ActivityVisual[]): { message: string; detail: str
 
 export default function HistoryPage() {
   const { accessToken, activeTeamId, user } = useSession();
-  const [activities, setActivities] = useState<ActivityVisual[]>([]);
   const [teamName, setTeamName] = useState<string>("this team");
+  const [activities, setActivities] = useState<ActivityVisual[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedActivityGroup, setSelectedActivityGroup] = useState<any[] | null>(null);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [teamDocs, setTeamDocs] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -333,6 +340,15 @@ export default function HistoryPage() {
 
         if (!cancelled) {
           setActivities(mapped);
+          setTeamDocs(boardData.map(d => (d as any).value?.board).filter(Boolean));
+          // Approximate members from board data
+          const membersMap = new Map();
+          boardData.forEach(d => {
+            if (d.status === 'fulfilled') {
+              d.value.board.lists.forEach((l: any) => l.cards.forEach((c: any) => c.assignees?.forEach((u: any) => membersMap.set(u.id, u))));
+            }
+          });
+          setTeamMembers(Array.from(membersMap.values()));
         }
       } catch (error) {
         console.error(error);
@@ -446,9 +462,43 @@ export default function HistoryPage() {
                         {head.boardLabel || teamName}
                       </span>
                       {summary.groupedMeta ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-accent">
-                          {summary.groupedMeta}
-                        </span>
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-accent">
+                            {summary.groupedMeta}
+                          </span>
+                          <div className="relative group/info">
+                            <button
+                              onClick={() => {
+                                setSelectedActivityGroup(group);
+                                setIsActivityModalOpen(true);
+                              }}
+                              className="p-1 hover:bg-accent/10 rounded-full transition-colors text-accent/80 shadow-sm border border-accent/20"
+                              title="Ver historial detallado"
+                            >
+                              <Info className="h-3 w-3" />
+                            </button>
+
+                            {/* Hover Summary */}
+                            <div className="absolute left-full ml-2 top-0 z-50 invisible group-hover/info:visible bg-card border border-border shadow-2xl rounded-xl p-3 min-w-48 animate-in fade-in zoom-in-95 duration-200">
+                              <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-2 border-b border-border/40 pb-1.5 flex items-center gap-2">
+                                <HistoryIcon className="h-3 w-3" />
+                                Resumen
+                              </div>
+                              <div className="space-y-1.5">
+                                {group.map((item, idx) => (
+                                  <div key={item.id} className="text-[9px] leading-snug text-foreground/90 flex items-start gap-2">
+                                    <span className="text-accent mt-0.5">•</span>
+                                    <div className="flex flex-col">
+                                      <span className="font-bold">{item.badge}</span>
+                                      <span className="text-muted-foreground">{item.message}</span>
+                                    </div>
+                                  </div>
+                                )).slice(0, 4)}
+                                {group.length > 4 && <div className="text-[9px] text-muted-foreground italic pl-3 pt-1 border-t border-border/20 mt-1">y {group.length - 4} más...</div>}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                       ) : null}
                     </div>
                   </div>
@@ -458,6 +508,28 @@ export default function HistoryPage() {
           )}
         </div>
       </div>
+
+      {selectedActivityGroup && (
+        <ActivityLogModal
+          isOpen={isActivityModalOpen}
+          onClose={() => setIsActivityModalOpen(false)}
+          title={selectedActivityGroup[0].badge + " History"}
+          activities={selectedActivityGroup.map(v => ({
+            id: v.id,
+            action: v.action,
+            actorId: v.actorId,
+            createdAt: v.createdAt,
+            payload: { text: v.detail, changes: v.changedFields.reduce((acc: any, f: any) => ({ ...acc, [f]: true }), {}) }
+          })) as any}
+          teamMembers={teamMembers}
+          teamDocs={teamDocs}
+          allAvailableTags={[]}
+          getActionTheme={getActionTheme}
+          prettifyAction={prettifyAction}
+          fieldLabels={fieldLabels}
+          getResolverContext={(docs, boards, members) => ({ documents: docs, boards, users: members })}
+        />
+      )}
     </div>
   );
 }

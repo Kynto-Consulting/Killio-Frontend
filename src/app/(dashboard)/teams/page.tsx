@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { createInvite, listTeamInvites, listTeams, listTeamMembers, removeTeamMember, revokeTeamInvite, TeamRole, TeamView, TeamMemberSummary, InviteSummary, updateTeamMemberRole } from "@/lib/api/contracts";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { toast } from "@/lib/toast";
 
 export default function TeamsPage() {
   const { accessToken, activeTeamId, user } = useSession();
@@ -123,7 +124,7 @@ export default function TeamsPage() {
       await revokeTeamInvite(activeTeamId, inviteId, accessToken);
       await reloadInvites();
     } catch (err: any) {
-      alert(typeof err?.message === 'string' ? err.message : 'No se pudo revocar la invitacion.');
+      toast(typeof err?.message === 'string' ? err.message : 'No se pudo revocar la invitacion.', "error");
     } finally {
       setIsMutatingInvite(null);
     }
@@ -137,7 +138,7 @@ export default function TeamsPage() {
       setActiveMemberMenu(null);
       await reloadMembers();
     } catch (err: any) {
-      alert(typeof err?.message === 'string' ? err.message : 'No se pudo actualizar el rol.');
+      toast(typeof err?.message === 'string' ? err.message : 'No se pudo actualizar el rol.', "error");
     } finally {
       setIsMutatingMember(null);
     }
@@ -162,7 +163,7 @@ export default function TeamsPage() {
         window.location.href = '/';
       }
     } catch (err: any) {
-      alert(typeof err?.message === 'string' ? err.message : 'No se pudo remover el miembro.');
+      toast(typeof err?.message === 'string' ? err.message : 'No se pudo remover el miembro.', "error");
     } finally {
       setIsMutatingMember(null);
     }
@@ -336,7 +337,6 @@ export default function TeamsPage() {
             <div className="p-8 text-center text-muted-foreground flex justify-center">Loading members...</div>
           ) : members.map((member) => {
             const isMe = member.userId === user?.id;
-            const avatarInitials = member.displayName ? member.displayName.substring(0, 2).toUpperCase() : member.primaryEmail.substring(0, 2).toUpperCase();
 
             return (
             <div key={member.id} className="flex items-center justify-between p-4 bg-card hover:bg-accent/5 transition-colors relative">

@@ -1,16 +1,47 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2 } from "lucide-react";
+import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi } from "../../lib/api/contracts";
-import type { BoardBrick, BrickMutationInput } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList } from "../../lib/api/contracts";
+import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getUserAvatarUrl } from "../../lib/gravatar";
 import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KEY, translateNativeTagName } from "../../lib/native-tags";
+import { Portal } from "./portal";
+import { ReferencePicker } from "../documents/reference-picker";
+import { ReferenceResolver } from "@/lib/reference-resolver";
+import { listDocuments } from "@/lib/api/documents";
+import { listTeamMembers } from "@/lib/api/contracts";
+import { Fragment, type ReactNode, useMemo } from "react";
+import { RichText } from "./rich-text";
+import { ActivityLogModal } from "./activity-log-modal";
+
+const fieldLabels: Record<string, string> = {
+  title: "título",
+  summary: "descripción",
+  status: "estado",
+  urgency_state: "urgencia",
+  start_at: "inicio",
+  due_at: "fecha límite",
+};
+
+function getActionTheme(action: string) {
+  const lower = action.toLowerCase();
+  if (lower === "card.tag_added") return { icon: TagIcon, badge: "Etiqueta", badgeClass: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" };
+  if (lower === "card.tag_removed") return { icon: TagIcon, badge: "Borrado", badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30" };
+  if (lower === "card.commented") return { icon: MessageSquare, badge: "Comentario", badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30" };
+  if (lower === "card.updated") return { icon: Edit2, badge: "Actualizado", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30" };
+  if (lower.includes("created")) return { icon: Sparkles, badge: "Creado", badgeClass: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
+  if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
+  if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
+  return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
+}
+
+import { Edit2 } from "lucide-react";
 
 function normalizeDueDateInputValue(value?: string | null): string {
   if (!value) return "";
@@ -66,7 +97,8 @@ export function CardDetailModal({
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
-  const [activeTab, setActiveTab] = useState<'comments' | 'activity'>('comments');
+  const [activeTab, setActiveTab] = useState<'comments' | 'activity' | 'copilot'>(card?.id ? 'comments' : 'copilot');
+  const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const router = useRouter();
@@ -81,11 +113,15 @@ export function CardDetailModal({
     bricks: Array<{ kind: 'text' | 'checklist', content: any }>;
     diffText: string;
     originalText: string;
+    explanation?: string;
   } | null>(null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
   const [hideNativeTagSuggestions, setHideNativeTagSuggestions] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
+  const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const tagsRowRef = useRef<HTMLDivElement>(null);
@@ -155,6 +191,9 @@ export function CardDetailModal({
     setPendingImprovement(null);
     setIsImprovingDescription(true);
 
+    // Add user message to history
+    setAiMessages(prev => [...prev, { role: 'user', content: 'Mejorar contenido de la tarjeta con IA' }]);
+
     try {
       const { scope, scopeId } = resolveAiScope();
       const improved = await improveCardWithAi(
@@ -176,10 +215,14 @@ export function CardDetailModal({
         bricks: improvedBricks,
         diffText: improvedText,
         originalText: sourceSummaryText,
+        explanation: improved.explanation
       });
+
+      setAiMessages(prev => [...prev, { role: 'assistant', content: 'He analizado la tarjeta y tengo algunas sugerencias interesantes para mejorarla. ¿Quieres revisarlas?' }]);
     } catch (err) {
       console.error("Failed to improve card with AI", err);
       setImproveError("No se pudo mejorar el texto con IA en este momento.");
+      setAiMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error al intentar mejorar la tarjeta. Por favor intenta de nuevo.' }]);
     } finally {
       setIsImprovingDescription(false);
     }
@@ -200,7 +243,7 @@ export function CardDetailModal({
       const existingTextBricks = localBlocks.filter(b => b.kind === 'text');
 
       if (existingTextBricks.length > 0 && textBricksData.length > 0) {
-        await handleUpdateBrick(existingTextBricks[0].id, { markdown: textBricksData[0].content.markdown });
+        await handleUpdateBrick(existingTextBricks[0].id, { kind: 'text', markdown: textBricksData[0].content.markdown });
         for (const b of [...textBricksData.slice(1), ...otherBricksData]) {
           await handleCreateBrick({
             kind: b.kind,
@@ -235,10 +278,59 @@ export function CardDetailModal({
       }
     }
   };
-
   const rejectImprovement = () => {
     setPendingImprovement(null);
     setImproveError(null);
+  };
+
+  const handleAiAction = async (actionData: any) => {
+    if (!card?.id || !accessToken) return;
+    const { action, payload } = actionData;
+    try {
+      if (action === 'CARD_RENAME') {
+        await handleUpdateField('title', payload.title);
+      } else if (action === 'TAG_ADD') {
+        // Try to find existing tag by name
+        let tag = availableTags.find(t => t.name.toLowerCase() === payload.tagName.toLowerCase());
+        if (!tag) {
+          tag = await createTag({
+            scopeType: 'board',
+            scopeId: boardId!,
+            name: payload.tagName,
+            color: payload.color || '#3b82f6',
+            tagKind: 'custom'
+          }, accessToken);
+          setAvailableTags(prev => [...prev, tag]);
+        }
+        await handleAddTag(tag);
+      } else if (action === 'CARD_MOVE') {
+        await handleUpdateField('list_id', payload.targetListId);
+      } else if (action === 'LIST_RENAME') {
+        await updateList(boardId!, payload.listId || card.listId, { name: payload.title }, accessToken);
+        window.dispatchEvent(new Event('board:refresh'));
+      }
+      setAiMessages(prev => [...prev, { role: 'assistant', content: `He ejecutado la acción: ${action}.` }]);
+    } catch (err) {
+      console.error("Failed to execute AI action", err);
+      setAiMessages(prev => [...prev, { role: 'assistant', content: `No pude ejecutar la acción ${action}. Verifica los permisos.` }]);
+    }
+  };
+
+  const parseAiActions = (text: string) => {
+    const actions: any[] = [];
+    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
+    let match;
+    let cleanText = text;
+    while ((match = regex.exec(text)) !== null) {
+      try {
+        const payload = JSON.parse(match[2]);
+        actions.push({ type: match[1], ...payload });
+        cleanText = cleanText.replace(match[0], '');
+      } catch (e) {
+        console.error("Failed to parse AI action JSON", e);
+      }
+    }
+    return { cleanText: cleanText.trim(), actions };
   };
 
   useEffect(() => {
@@ -515,6 +607,47 @@ export function CardDetailModal({
 
   const handleAddComment = async () => {
     if (!newComment.trim() || !card?.id || !accessToken) return;
+
+    if (activeTab === 'copilot') {
+      const userMsg = newComment.trim();
+      setAiMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+      setNewComment("");
+
+      setIsImprovingDescription(true);
+      try {
+        const { scope, scopeId } = resolveAiScope();
+        const response = await improveCardWithAi(
+          {
+            scope,
+            scopeId,
+            currentTitle: card.title,
+            currentDescription: card.summary || '',
+            userPrompt: userMsg
+          },
+          accessToken
+        );
+
+        const assistantMsg = response.explanation || "He analizado tu solicitud. ¿Deseas aplicar los cambios sugeridos?";
+        setAiMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
+
+        if (response.title || response.bricks) {
+          setPendingImprovement({
+            title: response.title || (card?.title || ""),
+            bricks: response.bricks || [],
+            diffText: response.bricks?.filter((b: any) => b.kind === 'text').map((b: any) => b.content.markdown).join('\n\n') || "",
+            originalText: localBlocks.filter(b => b.kind === 'text').map(b => b.markdown).join("\n\n"),
+            explanation: response.explanation
+          });
+        }
+      } catch (err) {
+        console.error("AI Chat failed", err);
+        setAiMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu solicitud." }]);
+      } finally {
+        setIsImprovingDescription(false);
+      }
+      return;
+    }
+
     try {
       await addCardComment(card.id, newComment.trim(), accessToken);
       setNewComment("");
@@ -684,12 +817,54 @@ export function CardDetailModal({
     }
   };
 
-  const ACTIVITY_GROUP_WINDOW_MS = 35 * 60 * 1000;
-  const groupedActivities = (() => {
+  const renderCommentWithMentions = (content: string): ReactNode => {
+    const docIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
+    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
+
+    const lines = content.split(/\r?\n/);
+    return lines.map((line, index) => {
+      const richParts = ReferenceResolver.renderRich(line, { documents: teamDocs, boards: teamBoards, users: boardMembers } as any);
+      const renderedLine = richParts.map((part, i) => {
+        if (typeof part === 'string') return part;
+
+        if (part.type === 'mention') {
+          const { mentionType: type, name } = part;
+          const isUser = type === 'user';
+          return (
+            <span key={i} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${isUser ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-accent/10 border-accent/20 text-accent'
+              }`}>
+              {type === 'doc' && <span dangerouslySetInnerHTML={{ __html: docIcon }} />}
+              {type === 'board' && <span dangerouslySetInnerHTML={{ __html: boardIcon }} />}
+              {isUser && "@"}
+              {name}
+            </span>
+          );
+        }
+
+        if (part.type === 'deep') {
+          return (
+            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-500/10 border-amber-500/20 text-amber-600">
+              {part.label}
+            </span>
+          );
+        }
+        return null;
+      });
+      return (
+        <Fragment key={`line-${index}`}>
+          {renderedLine}
+          {index < lines.length - 1 ? <br /> : null}
+        </Fragment>
+      );
+    });
+  };
+
+  const ACTIVITY_GROUP_WINDOW_MS = 3 * 60 * 1000;
+  const groupedActivities = useMemo(() => {
     const groups: any[][] = [];
     for (const log of activities) {
       const lastGroup = groups[groups.length - 1];
-      const previous = lastGroup?.[lastGroup.length - 1];
+      const previous = lastGroup?.[0];
       if (!lastGroup || !previous) { groups.push([log]); continue; }
       const sameAction = String(previous.action || '') === String(log.action || '');
       const sameActor = String(previous.actorId || '') === String(log.actorId || '');
@@ -699,14 +874,20 @@ export function CardDetailModal({
       else groups.push([log]);
     }
     return groups;
-  })();
+  }, [activities]);
 
-  const formatGroupedActivity = (group: any[]) => {
-    const head = group[0];
-    const base = formatActivity(head);
-    if (group.length === 1) return { ...base, groupedMeta: '' };
-    const spanMin = Math.max(1, Math.round(Math.abs(new Date(head.createdAt).getTime() - new Date(group[group.length - 1].createdAt).getTime()) / 60000));
-    return { ...base, message: `${base.message} (${group.length} veces)`, groupedMeta: `${group.length} eventos en ${spanMin} min` };
+  const prettifyAction = (action: string): string => {
+    const lower = action.toLowerCase();
+    if (lower === "card.tag_added") return "Añadió etiqueta";
+    if (lower === "card.tag_removed") return "Quitó etiqueta";
+    if (lower === "card.commented") return "Comentó";
+    if (lower === "card.updated") return "Actualizó tarjeta";
+    if (lower === "card.created") return "Creó tarjeta";
+    return action.replace(/\./g, " ").replace(/_/g, " ").replace("created", "creado").replace("updated", "actualizado");
+  };
+
+  const getResolverContext = (docs: any[], boards: any[], members: any[]) => {
+    return { documents: docs, boards, users: members };
   };
 
   if (!isOpen) return null;
@@ -737,7 +918,12 @@ export function CardDetailModal({
               <div className="group relative">
                 <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")}>{localTitle}</h1>
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground border-b border-border/50 pb-4">
-                  <div className="flex items-center space-x-2"><Calendar className="w-4 h-4" /><span>{new Date(card.updatedAt || card.createdAt || new Date()).toLocaleString()}</span></div>
+                  {(card?.updatedAt || card?.createdAt) && (
+                    <div className="flex items-center space-x-2">
+                      <Calendar className="w-4 h-4" />
+                      <span>{new Date(card.updatedAt || card.createdAt).toLocaleString()}</span>
+                    </div>
+                  )}
                   <div className={`flex gap-1.5 relative min-w-0 flex-1 ${areTagsExpanded ? 'items-start flex-wrap' : 'items-center'}`} ref={tagsRowRef}>
                     <TagIcon className="h-3 w-3" />
                     <div className={`flex gap-1.5 min-w-0 ${areTagsExpanded ? 'flex-wrap overflow-visible' : 'items-center overflow-hidden'}`}>
@@ -751,16 +937,99 @@ export function CardDetailModal({
                     {hiddenTags.length > 0 && <button onClick={() => setAreTagsExpanded(true)} className="text-xs text-muted-foreground">+{hiddenTags.length} tags</button>}
                     <button onClick={e => { e.stopPropagation(); setIsTagDropdownOpen(!isTagDropdownOpen); }} className="h-6 w-6 rounded-md border border-dashed flex items-center justify-center"><Plus className="h-3.5 w-3.5" /></button>
                     {isTagDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-2 w-72 bg-popover border rounded-lg shadow-xl z-50 p-3 space-y-2">
-                        <input type="text" placeholder="Buscar o crear tag..." value={tagSearch} onChange={e => setTagSearch(e.target.value)} className="w-full bg-background border rounded-md px-3 py-1.5 text-xs outline-none" autoFocus />
-                        <div className="max-h-40 overflow-y-auto space-y-1">
-                          {filteredAvailableTags.map(tag => (
-                            <button key={tag.id} onClick={() => handleAddTag(tag)} className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded flex items-center space-x-2">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: normalizeColor(tag.color) }} />
-                              <span>{getTagLabel(tag)}</span>
-                            </button>
-                          ))}
+                      <div className="absolute top-full left-0 mt-2 w-72 bg-popover border rounded-lg shadow-xl z-50 p-3 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                        <div className="relative">
+                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                          <input
+                            type="text"
+                            placeholder="Buscar o crear tag..."
+                            value={tagSearch}
+                            onChange={e => setTagSearch(e.target.value)}
+                            className="w-full bg-background border rounded-md pl-9 pr-3 py-1.5 text-xs outline-none focus:ring-1 focus:ring-accent transition-all"
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && tagSearch.trim() && filteredAvailableTags.length === 0) {
+                                e.preventDefault();
+                                handleCreateTag();
+                              }
+                            }}
+                          />
                         </div>
+
+                        {filteredAvailableTags.length > 0 && (
+                          <div className="space-y-1">
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
+                            <div className="max-h-32 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                              {filteredAvailableTags.map(tag => (
+                                <button
+                                  key={tag.id}
+                                  onClick={() => {
+                                    handleAddTag(tag);
+                                    setTagSearch("");
+                                  }}
+                                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded-md flex items-center justify-between group transition-colors"
+                                >
+                                  <div className="flex items-center space-x-2">
+                                    <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: normalizeColor(tag.color) }} />
+                                    <span className="font-medium">{getTagLabel(tag)}</span>
+                                  </div>
+                                  <Plus className="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {showNativeTagSuggestions && (
+                          <div className="space-y-1 pt-1 border-t border-border/40">
+                            <div className="flex items-center justify-between px-2">
+                              <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Sugerencias</p>
+                              <button onClick={dismissNativeTagSuggestions} className="text-[9px] text-muted-foreground hover:text-foreground">Ocultar</button>
+                            </div>
+                            <div className="flex flex-wrap gap-1.5 p-1.5">
+                              {nativeSuggestionsToShow.map((suggestion) => (
+                                <button
+                                  key={suggestion.key}
+                                  onClick={() => handleSelectNativeSuggestion(suggestion)}
+                                  className="flex items-center space-x-1.5 px-2 py-1 rounded bg-muted/50 hover:bg-accent border border-border/50 text-[10px] transition-all hover:scale-[1.02] active:scale-[0.98]"
+                                >
+                                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: suggestion.color }} />
+                                  <span>{translateNativeTagName(suggestion.key, locale)}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {tagSearch.trim() && !filteredAvailableTags.find(t => t.name.toLowerCase() === tagSearch.trim().toLowerCase()) && (
+                          <div className="pt-2 border-t border-border/40 space-y-3">
+                            <div className="px-2 space-y-2">
+                              <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Nuevo tag</p>
+                              <div className="flex items-center space-x-2">
+                                {tagColorPalette.map(color => (
+                                  <button
+                                    key={color}
+                                    onClick={() => setNewTagColor(color)}
+                                    className={`w-5 h-5 rounded-full border-2 transition-all ${newTagColor === color ? 'border-primary scale-110 shadow-sm' : 'border-transparent hover:scale-105'}`}
+                                    style={{ backgroundColor: color }}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                            <button
+                              onClick={handleCreateTag}
+                              disabled={isCreatingTag}
+                              className="w-full flex items-center justify-center space-x-2 py-2 bg-accent/10 border border-accent/20 text-accent rounded-md text-xs font-bold hover:bg-accent/20 transition-all active:scale-[0.98] disabled:opacity-50"
+                            >
+                              {isCreatingTag ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+                              <span>Crear "{tagSearch}"</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {tagError && (
+                          <p className="text-[10px] text-destructive px-2 text-center font-medium animate-in slide-in-from-top-1">{tagError}</p>
+                        )}
                       </div>
                     )}
                   </div>
@@ -773,57 +1042,191 @@ export function CardDetailModal({
                   </div>
                 </div>
 
-                <div className="mt-8 flex justify-between items-center group/ai">
+                <div className="mt-8">
                   <h3 className="font-semibold text-lg text-foreground">Content</h3>
-                  <button onClick={handleImproveDescriptionWithAi} disabled={isImprovingDescription} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 font-medium rounded-md transition-colors disabled:opacity-50">
-                    {isImprovingDescription ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                    Mejorar con IA
-                  </button>
                 </div>
 
                 <div className="mt-4">
-                  <UnifiedBrickList bricks={localBlocks} canEdit={!!card?.id} documents={teamDocs} boards={teamBoards} onAddBrick={async (kind) => {
-                    let input: any;
-                    if (kind === 'checklist') input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
-                    else input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
-                    handleCreateBrick(input);
-                  }} onUpdateBrick={handleUpdateBrick} onDeleteBrick={handleDeleteBrick} onReorderBricks={handleReorderBricks} />
+                  <UnifiedBrickList
+                    bricks={localBlocks}
+                    canEdit={!!card?.id}
+                    documents={teamDocs}
+                    boards={teamBoards}
+                    users={boardMembers}
+                    onAddBrick={async (kind) => {
+                      let input: any;
+                      if (kind === 'checklist') input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
+                      else input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
+                      handleCreateBrick(input);
+                    }}
+                    onUpdateBrick={handleUpdateBrick}
+                    onDeleteBrick={handleDeleteBrick}
+                    onReorderBricks={handleReorderBricks}
+                  />
                 </div>
 
-                {pendingImprovement && (
-                  <div className="mt-4 rounded-xl border border-accent/30 bg-card/90 p-4 space-y-3 shadow-sm">
-                    <div className="flex items-center justify-between"><p className="text-sm font-semibold">Vista previa de mejora IA</p></div>
-                    <div className="rounded-lg border bg-background/70 p-3 space-y-3">
-                      <div><p className="text-[11px] uppercase text-muted-foreground mb-1">Titulo sugerido</p><p className="text-sm font-semibold">{pendingImprovement.title}</p></div>
-                      <div>
-                        <p className="text-[11px] uppercase text-muted-foreground mb-1">Cambios sugeridos</p>
-                        <div className="rounded-lg border bg-background/50 overflow-hidden font-mono text-[13px]">
-                          {diff.diffLines(pendingImprovement.originalText || "", pendingImprovement.diffText || "").map((part, i) => (
-                            <div key={i} className={`${part.added ? 'bg-emerald-500/20 text-emerald-300' : part.removed ? 'bg-rose-500/20 text-rose-300' : 'text-foreground/70'} px-3 py-0.5 flex gap-2`}>
-                              <span className="opacity-50 w-3 shrink-0">{part.added ? '+' : part.removed ? '-' : ' '}</span>
-                              <span className="whitespace-pre-wrap">{part.value}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2 justify-end">
-                      <button onClick={rejectImprovement} className="px-3 py-1.5 text-sm rounded-md border hover:bg-muted font-medium">No, mantener lo mio</button>
-                      <button onClick={applyImprovement} className="px-3 py-1.5 text-sm rounded-md bg-accent text-accent-foreground hover:bg-accent/90 font-medium">Si, aplicar mejoras</button>
-                    </div>
-                  </div>
-                )}
+
               </div>
             </div>
           </div>
 
           <div className="w-full md:w-80 flex flex-col bg-card/20 border-t md:border-t-0 z-10">
-            <div className="p-4 border-b flex space-x-6 text-sm font-medium shrink-0 bg-background/50">
-              <button onClick={() => setActiveTab('comments')} className={`pb-1 ${activeTab === 'comments' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground'}`}>Comments</button>
-              <button onClick={() => setActiveTab('activity')} className={`pb-1 ${activeTab === 'activity' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground'}`}>Activity</button>
+            <div className="p-4 border-b flex space-x-4 text-[11px] uppercase tracking-wider font-bold shrink-0 bg-background/50 overflow-x-auto hide-scrollbar">
+              <button onClick={() => setActiveTab('copilot')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'copilot' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground'}`}>Copilot</button>
+              <button onClick={() => setActiveTab('comments')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'comments' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>Comments</button>
+              <button onClick={() => setActiveTab('activity')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'activity' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>Activity</button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {activeTab === 'comments' ? (
+              {activeTab === 'copilot' ? (
+                <div className="flex flex-col h-full space-y-4">
+                  <div className="flex-1 space-y-4">
+                    <div className="flex gap-3">
+                      <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
+                        <Bot className="h-4 w-4" />
+                      </div>
+                      <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
+                        <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a mejorar el contenido de esta tarjeta, resumir información o resolver dudas. ¿En qué puedo ayudarte hoy?</p>
+                      </div>
+                    </div>
+
+                    {aiMessages.map((msg, i) => {
+                      const { cleanText, actions } = parseAiActions(msg.content);
+                      
+                      // Hash-based color for user
+                      let userTheme = { bg: 'bg-primary/10', border: 'border-primary/20', text: 'text-primary' };
+                      if (msg.role === 'user' && user?.id) {
+                        let hash = 0;
+                        const str = user.id + (user.email || '');
+                        for (let j = 0; j < str.length; j++) hash = str.charCodeAt(j) + ((hash << 5) - hash);
+                        const v = Math.abs(hash) % 3;
+                        if (v === 0) userTheme = { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-300' };
+                        else if (v === 1) userTheme = { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-300' };
+                        else userTheme = { bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', text: 'text-yellow-200' };
+                      }
+
+                      return (
+                        <div key={i} className="space-y-3">
+                          <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                            <div className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'assistant'
+                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                              : `${userTheme.bg} ${userTheme.border} ${userTheme.text}`
+                              }`}>
+                              {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : (user?.displayName?.[0] || 'U')}
+                            </div>
+                            <div className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
+                              ? `${userTheme.bg} ${userTheme.border} ${userTheme.text} rounded-tr-none`
+                              : 'bg-muted/50 border-border/50 rounded-tl-none'
+                              }`}>
+                              <RichText
+                                content={cleanText}
+                                context={{ documents: teamDocs, boards: teamBoards, users: boardMembers }}
+                              />
+                            </div>
+                          </div>
+
+                          {actions.map((action, actionIdx) => (
+                            <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                                  <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
+                                </div>
+                              </div>
+                              <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en la tarjeta"}</p>
+                              <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
+                                {action.action}: {JSON.stringify(action.payload, null, 2)}
+                              </div>
+                              <button
+                                onClick={() => handleAiAction(action)}
+                                className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                              >
+                                Confirmar y Ejecutar
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })}
+
+                    {!pendingImprovement && (
+                      <div className="flex flex-wrap gap-2 pt-2">
+                        <button
+                          onClick={handleImproveDescriptionWithAi}
+                          disabled={isImprovingDescription}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                        >
+                          {isImprovingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                          Mejorar con IA
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAiMessages(prev => [...prev, { role: 'user', content: 'Resume esta tarjeta' }]);
+                            // Mocking a summary response or just adding to history
+                            setAiMessages(prev => [...prev, { role: 'assistant', content: 'Esta tarjeta trata sobre: ' + localTitle + '. Contiene ' + localBlocks.length + ' bloques de contenido.' }]);
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all"
+                        >
+                          <FileText className="w-3 h-3" />
+                          Resumir
+                        </button>
+                      </div>
+                    )}
+
+                    {pendingImprovement && (
+                      <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                        <div className="flex gap-3">
+                          <div className="h-8 w-8 shrink-0 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 border shadow-sm">
+                            <Bot className="h-4 w-4" />
+                          </div>
+                          <div className="flex-1 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 shadow-sm rounded-tl-none">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] uppercase font-bold text-amber-500/80 tracking-widest">Mejora sugerida</p>
+                            </div>
+                            <div className="space-y-3">
+                              <div>
+                                <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Título</p>
+                                <p className="text-xs font-semibold">{pendingImprovement.title}</p>
+                              </div>
+                              <div>
+                                <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Cambios en Bloques</p>
+                                <div className="space-y-3 rounded-lg border bg-background/30 p-3">
+                                  {pendingImprovement.bricks.map((brick: any, idx: number) => (
+                                    <div key={idx} className="space-y-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{brick.kind}</span>
+                                      </div>
+                                      {brick.kind === 'text' ? (
+                                        <div className="text-[10px] text-foreground/80 leading-relaxed font-mono whitespace-pre-wrap pl-2 border-l-2 border-accent/20">
+                                          {brick.content.markdown}
+                                        </div>
+                                      ) : brick.kind === 'checklist' ? (
+                                        <div className="space-y-1 pl-2">
+                                          {brick.content.items?.map((item: any, i: number) => (
+                                            <div key={i} className="flex items-center gap-2 text-[10px] text-foreground/70">
+                                              <div className="w-3 h-3 rounded border border-border shrink-0" />
+                                              <span>{item.label}</span>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <div className="text-[9px] text-muted-foreground italic pl-2">Bloque tipo {brick.kind}</div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 justify-end pt-1">
+                              <button onClick={rejectImprovement} className="px-2 py-1 text-[11px] rounded-md border bg-background hover:bg-muted font-bold transition-colors">Rechazar</button>
+                              <button onClick={applyImprovement} className="px-2 py-1 text-[11px] rounded-md bg-amber-500 text-white hover:bg-amber-600 font-bold shadow-sm transition-colors">Aplicar</button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : activeTab === 'comments' ? (
                 activities.filter(a => a.action === 'card.commented').map(log => {
                   const author = boardMembers.find(m => m.id === log.actorId);
                   return (
@@ -831,36 +1234,158 @@ export function CardDetailModal({
                       <img src={getUserAvatarUrl(author?.avatar_url, author?.email, 32)} alt={author?.name} className="h-8 w-8 rounded-full shrink-0 object-cover" />
                       <div className="bg-background border p-3 rounded-lg text-sm w-full">
                         <div className="font-semibold text-xs flex justify-between"><span>{author?.name || log.actorId}</span><span className="text-muted-foreground font-normal">{new Date(log.createdAt).toLocaleDateString()}</span></div>
-                        <p className="text-foreground/90 whitespace-pre-wrap mt-1">{log.payload?.text}</p>
+                        <div className="mt-1">
+                          <RichText
+                            content={log.payload?.text || ""}
+                            context={{ documents: teamDocs, boards: teamBoards, users: boardMembers }}
+                          />
+                        </div>
                       </div>
                     </div>
                   );
                 })
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6 pr-1">
+                  {groupedActivities.length === 0 && (
+                    <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60 font-medium">
+                      <HistoryIcon className="h-8 w-8 mb-2" />
+                      <p>No hay actividad reciente.</p>
+                    </div>
+                  )}
                   {groupedActivities.map(group => {
-                    const log = group[0];
-                    const author = boardMembers.find(m => m.id === log.actorId);
-                    const formatted = formatGroupedActivity(group);
+                    const a = group[0];
+                    const theme = getActionTheme(a.action);
+                    const Icon = theme.icon;
+                    const author = boardMembers.find(m => m.id === a.actorId);
+                    const changes = (a.payload as any)?.changes || {};
+                    const changedFields = Object.keys(changes).map(k => fieldLabels[k] || k).join(", ");
+                    const resolverContext = getResolverContext(teamDocs, teamBoards, boardMembers);
+
                     return (
-                      <div key={log.id} className="p-3 rounded-lg border bg-background shadow-sm">
-                        <div className="flex justify-between text-xs mb-1"><strong>{author?.name || log.actorId}</strong><span>{new Date(log.createdAt).toLocaleDateString()}</span></div>
-                        <div className="text-xs">{formatted.message}</div>
+                      <div key={a.id} className="relative pl-6 pb-2 border-l border-border/40 last:border-0 group">
+                        <div className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full bg-border ring-2 ring-background group-hover:bg-accent transition-colors" />
+                        <div className="flex flex-col gap-1.5">
+                          <div className="flex items-center gap-2">
+                            <Icon className="h-3 w-3 text-muted-foreground/60" />
+                            <div className="flex items-center gap-1 group/badge relative">
+                              <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shadow-sm ${theme.badgeClass}`}>
+                                {theme.badge}
+                                {group.length > 1 && ` x${group.length}`}
+                              </span>
+                              {group.length > 1 && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedActivityGroup(group);
+                                    setIsActivityModalOpen(true);
+                                  }}
+                                  className="p-0.5 hover:bg-muted rounded-full transition-colors relative group/info"
+                                  title="Click para ver historial detallado"
+                                >
+                                  <Info className="h-2.5 w-2.5 text-muted-foreground/60" />
+
+                                  <div className="absolute left-full ml-2 top-0 z-50 invisible group-hover/info:visible bg-card border border-border shadow-xl rounded-lg p-2 min-w-32 animate-in fade-in zoom-in-95 duration-150">
+                                    <div className="text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 mb-1 border-b border-border/40 pb-1">Resumen de Cambios</div>
+                                    <div className="space-y-1">
+                                      {group.map((item, idx) => {
+                                        const itemChanges = (item.payload as any)?.changes || {};
+                                        const itemFields = Object.keys(itemChanges).map(k => fieldLabels[k] || k).join(", ");
+                                        return (
+                                          <div key={item.id} className="text-[8px] leading-tight text-foreground/80 flex items-start gap-1">
+                                            <span className="text-muted-foreground">•</span>
+                                            <span>{itemFields || prettifyAction(item.action)}</span>
+                                          </div>
+                                        );
+                                      }).slice(0, 5)}
+                                      {group.length > 5 && <div className="text-[8px] text-muted-foreground italic pl-2">y {group.length - 5} más...</div>}
+                                    </div>
+                                  </div>
+                                </button>
+                              )}
+                            </div>
+                            <time className="text-[9px] text-muted-foreground font-medium ml-auto">
+                              {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </time>
+                          </div>
+
+                          <div className="space-y-1">
+                            <p className="text-xs text-foreground/80 leading-relaxed">
+                              <span className="font-bold text-foreground">{author?.name || a.actorId}</span>
+                              <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
+                            </p>
+
+                            {changedFields && (
+                              <p className="text-[10px] bg-muted/30 px-2 py-1 rounded border border-border/30 text-muted-foreground italic">
+                                Campos: {changedFields}
+                              </p>
+                            )}
+
+                            {(a.payload as any)?.text && (
+                              <div className="text-[10px] text-muted-foreground px-2 border-l-2 border-border/50 bg-background/30 py-0.5">
+                                <RichText content={(a.payload as any).text} context={resolverContext} />
+                              </div>
+                            )}
+                          </div>
+                        </div>
                       </div>
                     );
                   })}
                 </div>
               )}
             </div>
-            <div className="p-4 border-t bg-background/50 shrink-0">
+            <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
-                <textarea placeholder="Write a comment..." className="w-full bg-background border rounded-lg px-3 py-2 pr-10 text-sm outline-none resize-none" rows={2} value={newComment} onChange={e => setNewComment(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())} />
-                <button onClick={handleAddComment} disabled={!newComment.trim()} className="absolute right-2 bottom-2 p-1.5 bg-primary text-primary-foreground rounded-md"><CornerDownRight className="w-3 h-3" /></button>
+                <textarea
+                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Write a comment or @ mention..."}
+                  className={`w-full bg-background border rounded-lg px-3 py-2 pr-10 text-sm outline-none resize-none transition-colors ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
+                  rows={2}
+                  value={newComment}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setNewComment(val);
+                    if (val.endsWith("@")) setIsPickerOpen(true);
+                  }}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())}
+                />
+                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+                  {isImprovingDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
+                </button>
               </div>
+
+              {isPickerOpen && (
+                <Portal>
+                  <ReferencePicker
+                    boards={teamBoards as any}
+                    documents={teamDocs as any}
+                    users={boardMembers}
+                    onClose={() => setIsPickerOpen(false)}
+                    onSelect={(item) => {
+                      const newVal = newComment.substring(0, newComment.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
+                      setNewComment(newVal);
+                      setIsPickerOpen(false);
+                    }}
+                  />
+                </Portal>
+              )}
             </div>
           </div>
         </div>
       </div>
+
+      {selectedActivityGroup && (
+        <ActivityLogModal
+          isOpen={isActivityModalOpen}
+          onClose={() => setIsActivityModalOpen(false)}
+          title={prettifyAction(selectedActivityGroup[0].action)}
+          activities={selectedActivityGroup}
+          teamMembers={boardMembers}
+          teamDocs={teamDocs}
+          allAvailableTags={[]}
+          getActionTheme={getActionTheme}
+          prettifyAction={prettifyAction}
+          fieldLabels={fieldLabels}
+          getResolverContext={getResolverContext}
+        />
+      )}
     </div>
   );
 

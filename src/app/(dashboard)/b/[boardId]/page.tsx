@@ -2,7 +2,7 @@
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 import { useRef, useState, useCallback } from "react";
-import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
@@ -18,6 +18,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
 import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
 
@@ -483,6 +484,7 @@ export default function BoardPage() {
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState("Loading...");
   const [isChatOpen, setIsChatOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'copilot' | 'chat' | 'activity'>('activity');
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
@@ -521,7 +523,7 @@ export default function BoardPage() {
       router.push("/");
     } catch (e) {
       console.error(e);
-      alert("Failed to delete board");
+      toast("Failed to delete board", "error");
       setIsDeleting(false);
     }
   };
@@ -599,7 +601,7 @@ export default function BoardPage() {
 
     const unlisten = () => { };
     const handleRefresh = () => loadBoard();
-    const handleOpenBoardChat = () => setIsChatOpen(true);
+    const handleOpenBoardChat = () => { setSidebarTab('chat'); setIsChatOpen(true); };
     const handleOpenBoardShare = () => setIsShareModalOpen(true);
     window.addEventListener('board:refresh', handleRefresh);
     window.addEventListener('board:open-chat', handleOpenBoardChat);
@@ -889,11 +891,27 @@ export default function BoardPage() {
           </div>
 
           <button
-            onClick={() => setIsChatOpen(true)}
-            className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-card border border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground shadow-sm"
+            onClick={() => { setSidebarTab('copilot'); setIsChatOpen(true); }}
+            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'copilot' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+          >
+            <Bot className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Copilot</span>
+          </button>
+
+          <button
+            onClick={() => { setSidebarTab('chat'); setIsChatOpen(true); }}
+            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'chat' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
           >
             <MessageSquare className="h-4 w-4 sm:mr-2" />
             <span className="hidden sm:inline">Team Chat</span>
+          </button>
+
+          <button
+            onClick={() => { setSidebarTab('activity'); setIsChatOpen(true); }}
+            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'activity' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+          >
+            <History className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Activity</span>
           </button>
 
           <div className="relative">
@@ -1060,7 +1078,7 @@ export default function BoardPage() {
         </div>
       </main>
 
-      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} />
+      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} />
 
       <ShareModal
         isOpen={isShareModalOpen}

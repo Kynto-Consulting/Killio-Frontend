@@ -1,0 +1,3 @@
+src/components/ui/rich-text.tsx(105,21): error TS2322: Type '{ key: number; type: "deep"; id: any; name: any; prefix: any; onClick: () => void | undefined; }' is not assignable to type 'IntrinsicAttributes & RefPillProps'.
+  Property 'prefix' does not exist on type 'IntrinsicAttributes & RefPillProps'.
+test.ts(1,24): error TS2307: Cannot find module 'react-quill' or its corresponding type declarations.

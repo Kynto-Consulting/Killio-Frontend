@@ -118,3 +118,19 @@ export async function addDocumentMember(
     accessToken,
   });
 }
+
+export async function listDocumentComments(documentId: string, accessToken: string): Promise<any[]> {
+  return fetchApi(`/documents/${documentId}/comments`, { accessToken });
+}
+
+export async function addDocumentComment(
+  documentId: string,
+  text: string,
+  accessToken: string
+): Promise<any> {
+  return fetchApi(`/documents/${documentId}/comments`, {
+    method: 'POST',
+    body: JSON.stringify({ text }),
+    accessToken,
+  });
+}

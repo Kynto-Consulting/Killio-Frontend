@@ -34,6 +34,7 @@ export type BoardSummary = {
   slug: string;
   description: string | null;
   coverImageUrl: string | null;
+  updatedAt: string;
 };
 
 export type InviteSummary = {
@@ -224,6 +225,7 @@ export type CardView = {
   assignees?: any[];
   createdAt: string;
   updatedAt: string;
+  commentsCount?: number;
 };
 
 export type ListView = {
@@ -499,6 +501,19 @@ export async function createList(
   return res.json();
 }
 
+export async function updateList(
+  boardId: string,
+  listId: string,
+  payload: { name: string },
+  accessToken?: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}`, {
+    method: 'PATCH',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(payload),
+  });
+}
+
 
 export async function createCard(body: { listId: string; title: string; dueAt?: string; urgency?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards`, {
@@ -514,23 +529,25 @@ export async function improveCardWithAi(
     scopeId: string;
     currentTitle: string;
     currentDescription?: string;
+    userPrompt?: string;
   },
   accessToken?: string,
-): Promise<{ title: string; bricks: any[] }> {
-  return request<{ title: string; bricks: any[] }>(`/ai/scope/${body.scope}/improve-card`, {
+): Promise<{ title: string; bricks: any[]; explanation?: string }> {
+  return request<{ title: string; bricks: any[]; explanation?: string }>(`/ai/scope/${body.scope}/improve-card`, {
     method: 'POST',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify({
       scopeId: body.scopeId,
       currentTitle: body.currentTitle,
       currentDescription: body.currentDescription,
+      userPrompt: body.userPrompt,
     }),
   });
 }
 
 export async function chatWithAiScope(
   body: {
-    scope: 'personal' | 'team' | 'board' | 'list';
+    scope: 'personal' | 'team' | 'board' | 'list' | 'document';
     scopeId: string;
     message: string;
     contextSummary?: string;
@@ -545,6 +562,54 @@ export async function chatWithAiScope(
       message: body.message,
       contextSummary: body.contextSummary,
     }),
+  });
+}
+
+export async function generateCardsWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list';
+    scopeId: string;
+    rawContent: string;
+    existingEntitiesSummary?: string;
+  },
+  accessToken?: string,
+): Promise<any[]> {
+  return request<any[]>(`/ai/scope/${body.scope}/generate-cards`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function generateDocumentsWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list';
+    scopeId: string;
+    rawContent: string;
+    existingEntitiesSummary?: string;
+  },
+  accessToken?: string,
+): Promise<any[]> {
+  return request<any[]>(`/ai/scope/${body.scope}/generate-documents`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
+export async function generateBoardsWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list';
+    scopeId: string;
+    rawContent: string;
+    existingEntitiesSummary?: string;
+  },
+  accessToken?: string,
+): Promise<any[]> {
+  return request<any[]>(`/ai/scope/${body.scope}/generate-boards`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
   });
 }
 
@@ -634,6 +699,13 @@ export async function getBoard(boardId: string, accessToken: string): Promise<Bo
   });
 }
 
+export async function getCardContext(cardId: string, accessToken: string): Promise<{ boardId: string; listId: string; title: string }> {
+  return request<{ boardId: string; listId: string; title: string }>(`/cards/${cardId}/context`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export async function createCardBrick(cardId: string, payload: BrickMutationInput, accessToken: string): Promise<CardBrickMutationResult> {
   return request<CardBrickMutationResult>(`/cards/${cardId}/bricks`, {
     method: 'POST',
@@ -683,6 +755,14 @@ export async function getCardActivity(cardId: string, accessToken: string): Prom
 
 export async function addCardComment(cardId: string, text: string, accessToken: string): Promise<void> {
   return request<void>(`/cards/${cardId}/comments`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ text }),
+  });
+}
+
+export async function addBoardComment(boardId: string, text: string, accessToken: string): Promise<void> {
+  return request<void>(`/boards/${boardId}/comments`, {
     method: 'POST',
     headers: authHeaders(accessToken),
     body: JSON.stringify({ text }),

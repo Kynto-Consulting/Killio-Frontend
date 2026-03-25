@@ -3,6 +3,8 @@ import { Link, CheckCircle2, UserPlus, Loader2, Globe, Lock, Trash2, ChevronDown
 import { updateBoardVisibility, getBoardMembers, addBoardMember, removeBoardMember, BoardMemberSummary } from "@/lib/api/contracts";
 import { listDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
+import { getUserAvatarUrl } from "@/lib/gravatar";
+import { toast } from "@/lib/toast";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -90,7 +92,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
       await loadMembers();
     } catch (err) {
       console.error("Failed to invite", err);
-      alert("Error inviting user. Make sure the email is registered.");
+      toast("Error inviting user. Make sure the email is registered.", "error");
     } finally {
       setIsInviting(false);
     }
@@ -205,8 +207,12 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                 {members.map(member => (
                   <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent/10 group">
                     <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-semibold uppercase">
-                        {member.displayName?.substring(0,2) || member.email.substring(0,2)}
+                      <div className="w-8 h-8 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+                        <img 
+                          src={getUserAvatarUrl(member.avatarUrl || (member as any).avatar_url, member.email, 32)} 
+                          alt={member.displayName || "User"} 
+                          className="h-full w-full object-cover"
+                        />
                       </div>
                       <div className="flex flex-col">
                         <span className="text-sm font-medium leading-none">{member.displayName || "Invited User"}</span>
@@ -288,7 +294,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
           <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              alert("Link copied to clipboard!");
+              toast("Link copied to clipboard!", "success");
             }}
             className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >

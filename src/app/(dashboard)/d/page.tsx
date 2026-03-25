@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Plus, Clock, Loader2, FileText, Search } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
+import { toast } from "@/lib/toast";
 
 export default function DocumentsPage() {
   const { accessToken, activeTeamId } = useSession();
@@ -32,7 +33,7 @@ export default function DocumentsPage() {
       setDocuments([doc, ...documents]);
     } catch (e) {
       console.error(e);
-      alert("Failed to create document");
+      toast("Failed to create document", "error");
     }
   };
 

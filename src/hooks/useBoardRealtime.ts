@@ -3,16 +3,17 @@ import { getAblyClient } from '@/lib/ably';
 
 export type BoardEvent = {
   type:
-    | 'card.moved'
-    | 'card.created'
-    | 'card.updated'
-    | 'card.assignee_added'
-    | 'card.assignee_removed'
-    | 'board.updated'
-    | 'brick.created'
-    | 'brick.updated'
-    | 'brick.reordered'
-    | 'brick.deleted';
+  | 'card.moved'
+  | 'card.created'
+  | 'card.updated'
+  | 'card.assignee_added'
+  | 'card.assignee_removed'
+  | 'board.updated'
+  | 'brick.created'
+  | 'brick.updated'
+  | 'brick.reordered'
+  | 'brick.deleted'
+  | 'board.commented';
   payload: Record<string, unknown>;
 };
 

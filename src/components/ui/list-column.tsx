@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, MoreHorizontal } from "lucide-react";
+import { toast } from "@/lib/toast";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
 
@@ -74,7 +75,7 @@ export function ListColumn({
               </button>
               <div className="my-1 border-t border-border" />
               <button 
-                onClick={(e) => { e.stopPropagation(); alert("Archive list coming soon!"); }} 
+                onClick={(e) => { e.stopPropagation(); toast("Archive list coming soon!", "info"); }} 
                 className="w-full text-left px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
                 Archive This List
               </button>

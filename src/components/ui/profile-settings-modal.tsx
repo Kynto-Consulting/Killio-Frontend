@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, UserCircle, Upload } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -58,8 +59,12 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <div className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full bg-gradient-to-tr from-accent to-primary/60 text-xl font-semibold text-primary-foreground border border-border shadow-sm">
-                {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : "US"}
+            <div className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border shadow-sm bg-accent/10">
+                <img 
+                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 80)} 
+                  alt={user?.displayName || "User"} 
+                  className="h-full w-full object-cover group-hover:opacity-40 transition-opacity"
+                />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                   <Upload className="h-6 w-6 text-white" />
                 </div>

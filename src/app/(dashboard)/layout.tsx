@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -13,12 +13,14 @@ import { useSession } from "@/components/providers/session-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
   const navigation = [
     { name: "Workspaces", href: "/", icon: LayoutDashboard },
+    { name: "Boards", href: "/b", icon: Layout },
     { name: "Documents", href: "/d", icon: FileText },
     { name: "Teams", href: "/teams", icon: Users },
     { name: "Activity History", href: "/history", icon: History },
@@ -40,7 +42,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!accessToken) return;
-    
+
     listTeams(accessToken).then((fetchedTeams) => {
       setTeams(fetchedTeams);
       if (fetchedTeams.length === 0) {
@@ -60,7 +62,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     if (!accessToken || !activeTeamId || teams.length === 0) return;
     if (!teams.some((team) => team.id === activeTeamId)) return;
-    
+
     setIsFetchingBoards(true);
     listTeamBoards(activeTeamId, accessToken)
       .then((fetchedBoards) => {
@@ -78,12 +80,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .finally(() => setIsFetchingDocs(false));
   }, [accessToken, activeTeamId, teams]);
 
-  const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: {email: string; role: Exclude<TeamRole, 'owner'>}[] }) => {
+  const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: { email: string; role: Exclude<TeamRole, 'owner'> }[] }) => {
     if (!accessToken) return;
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `ws-${Date.now()}`;
-    
+
     const newTeam = await createTeam({ name: payload.name, slug, icon: payload.icon }, accessToken);
-    
+
     // Dispatch invites if any
     if (payload.invites.length > 0) {
       await Promise.allSettled(
@@ -99,16 +101,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
-      <CreateWorkspaceModal 
+      <CreateWorkspaceModal
         isOpen={isCreateWorkspaceModalOpen}
         onClose={() => setIsCreateWorkspaceModalOpen(false)}
         onSubmit={handleCreateTeamSubmit}
       />
-      <ProfileSettingsModal 
+      <ProfileSettingsModal
         isOpen={isProfileModalOpen}
         onClose={() => setIsProfileModalOpen(false)}
       />
-      <AppPreferencesModal 
+      <AppPreferencesModal
         isOpen={isPreferencesModalOpen}
         onClose={() => setIsPreferencesModalOpen(false)}
       />
@@ -124,7 +126,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <span className="font-semibold tracking-tight text-lg">Killio</span>
           </Link>
         </div>
-        
+
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
             {navigation.map((item) => {
@@ -133,11 +135,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <Link
                   key={item.name}
                   href={item.href}
-                  className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                    isActive 
-                      ? "bg-accent/20 text-accent font-semibold" 
+                  className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive
+                      ? "bg-accent/20 text-accent font-semibold"
                       : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                  }`}
+                    }`}
                 >
                   <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
                   <span>{item.name}</span>
@@ -184,7 +185,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-foreground/70 hover:bg-accent/10 hover:text-accent font-medium transition-all"
                   >
                     <div className="flex items-center space-x-2 truncate">
-                      <FileText className="h-3 w-3 opacity-50 shrink-0" />
                       <span className="truncate">{doc.title}</span>
                     </div>
                   </Link>
@@ -197,13 +197,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         <div className="border-t border-border p-4 relative">
-          <button 
+          <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
             className="flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent"
           >
             <div className="flex items-center space-x-2 overflow-hidden">
-              <div className="h-8 w-8 shrink-0 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-xs border border-border shadow-sm">
-                {user?.displayName ? user.displayName.substring(0, 2).toUpperCase() : "US"}
+              <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+                <img 
+                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 32)} 
+                  alt={user?.displayName || "User"} 
+                  className="h-full w-full object-cover"
+                />
               </div>
               <div className="flex flex-col items-start overflow-hidden">
                 <span className="text-sm font-medium w-full text-left truncate">{user?.displayName || "Loading..."}</span>
@@ -218,32 +222,32 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {isSettingsOpen && (
             <div className="absolute bottom-16 left-4 w-60 rounded-xl border border-border bg-card p-2 shadow-lg z-50 animate-in fade-in slide-in-from-bottom-2">
               <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account</div>
-              
-              <button 
-                onClick={() => { setIsSettingsOpen(false); setIsProfileModalOpen(true); }} 
+
+              <button
+                onClick={() => { setIsSettingsOpen(false); setIsProfileModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
                 <UserCircle className="mr-2 h-4 w-4" /> Profile Settings
               </button>
-              
-              <button 
-                onClick={() => { setIsSettingsOpen(false); setIsPreferencesModalOpen(true); }} 
+
+              <button
+                onClick={() => { setIsSettingsOpen(false); setIsPreferencesModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
                 <Settings className="mr-2 h-4 w-4" /> App Preferences
               </button>
-              
+
               <div className="h-px bg-border/50 my-1"></div>
-              
-              <button 
-                onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }} 
+
+              <button
+                onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
                 <ArrowRightLeft className="mr-2 h-4 w-4" /> Switch Account
               </button>
-              
-              <button 
-                onClick={logout} 
+
+              <button
+                onClick={logout}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-destructive/10 text-destructive rounded-md transition-colors flex items-center"
               >
                 <LogOut className="mr-2 h-4 w-4" /> Sign Out
@@ -256,10 +260,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
-          <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md z-40">
+        <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md z-40">
           <div className="flex flex-1 items-center">
             {/* Global Search / Command Palette trigger */}
-            <button 
+            <button
               onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}
               className="flex w-full max-w-sm items-center space-x-2 rounded-md border border-border bg-card/40 px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/5 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent md:w-80"
             >
@@ -270,11 +274,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
             </button>
           </div>
-          
+
           <div className="flex items-center space-x-1 sm:space-x-3">
             {/* Team Switcher */}
             <div className="relative">
-              <button 
+              <button
                 onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
                 className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
               >
@@ -292,7 +296,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Workspaces</div>
                   <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
                     {teams.map(team => (
-                      <button 
+                      <button
                         key={team.id}
                         onClick={() => {
                           setActiveTeamId(team.id);
@@ -310,8 +314,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </div>
                   <div className="h-px bg-border/50 my-1"></div>
                   <button onClick={() => {
-                     setIsTeamSwitcherOpen(false);
-                     setIsCreateWorkspaceModalOpen(true);
+                    setIsTeamSwitcherOpen(false);
+                    setIsCreateWorkspaceModalOpen(true);
                   }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
                     <Plus className="h-4 w-4 mr-2" /> Create Workspace
                   </button>

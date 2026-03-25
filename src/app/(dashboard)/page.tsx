@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { FileText } from "lucide-react";
+import { toast } from "@/lib/toast";
 
 export default function WorkspacesPage() {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
@@ -20,11 +21,11 @@ export default function WorkspacesPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
-  const [activeTab, setActiveTab] = useState<'boards'|'documents'>('boards');
+  const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
-    
+
     setIsLoading(true);
     Promise.all([
       listTeamBoards(activeTeamId, accessToken).catch(e => { console.error(e); return [] as BoardSummary[]; }),
@@ -38,7 +39,7 @@ export default function WorkspacesPage() {
   const handleCreateBoardClick = () => {
     if (!accessToken) return;
     if (!activeTeamId) {
-      alert("No active workspace found. Please select or create one from the top menu first.");
+      toast("No active workspace found. Please select or create one from the top menu first.", "info");
       return;
     }
     setIsCreateBoardModalOpen(true);
@@ -46,7 +47,7 @@ export default function WorkspacesPage() {
 
   const handleCreateBoardSubmit = async (payload: { name: string; coverImageUrl: string }) => {
     if (!accessToken || !activeTeamId) return;
-    
+
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
     const newBoard = await createBoard({ name: payload.name, slug, coverImageUrl: payload.coverImageUrl }, activeTeamId, accessToken);
     setBoards([...boards, newBoard]);
@@ -62,7 +63,7 @@ export default function WorkspacesPage() {
       setDocuments([doc, ...documents]);
     } catch (e) {
       console.error(e);
-      alert("Failed to create document");
+      toast("Failed to create document", "error");
     }
   };
 
@@ -75,20 +76,20 @@ export default function WorkspacesPage() {
       setBoardToDelete(null);
     } catch (error) {
       console.error("Failed to delete board", error);
-      alert("Failed to delete board");
+      toast("Failed to delete board", "error");
     }
   };
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDeleteBoard}
         title="Delete Board"
         description={`Are you sure you want to delete the board "${boardToDelete?.name}"? This action cannot be undone.`}
       />
-      <CreateBoardModal 
+      <CreateBoardModal
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
         onSubmit={handleCreateBoardSubmit}
@@ -99,7 +100,7 @@ export default function WorkspacesPage() {
           <p className="text-muted-foreground">Manage your boards, documents, and projects.</p>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={() => setIsAiPanelOpen(true)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-card hover:bg-accent/10 hover:text-foreground shadow-sm h-9 px-4 group"
           >
@@ -114,8 +115,8 @@ export default function WorkspacesPage() {
       </div>
 
       <div className="flex space-x-4 border-b border-border/50 mb-6 px-1">
-        <button 
-          onClick={() => setActiveTab('boards')} 
+        <button
+          onClick={() => setActiveTab('boards')}
           className={`pb-3 text-sm font-medium transition-all relative ${activeTab === 'boards' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}
         >
           <div className="flex items-center space-x-2 px-2">
@@ -126,8 +127,8 @@ export default function WorkspacesPage() {
             <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent rounded-t-full shadow-[0_-2px_8px_rgba(var(--accent),0.5)]"></div>
           )}
         </button>
-        <button 
-          onClick={() => setActiveTab('documents')} 
+        <button
+          onClick={() => setActiveTab('documents')}
           className={`pb-3 text-sm font-medium transition-all relative ${activeTab === 'documents' ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-accent/5'}`}
         >
           <div className="flex items-center space-x-2 px-2">
@@ -158,7 +159,7 @@ export default function WorkspacesPage() {
           ) : boards.map((board) => (
             <Link href={`/b/${board.id}`} key={board.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
               <div className={`h-24 ${board.coverImageUrl || 'bg-gradient-to-tr from-accent to-primary/60'} w-full border-b border-border/50 relative`}>
-                 <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>
+                <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>
               </div>
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-start justify-between">
@@ -175,7 +176,7 @@ export default function WorkspacesPage() {
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
-                
+
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center">
                     <Layout className="mr-1.5 h-3.5 w-3.5" />
@@ -207,12 +208,12 @@ export default function WorkspacesPage() {
             <Link href={`/d/${doc.id}`} key={doc.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-start justify-between h-full pt-2">
-                   <div className="flex items-center">
-                     <FileText className="mr-3 h-6 w-6 text-accent" />
-                     <h3 className="text-xl font-semibold group-hover:text-accent transition-colors">{doc.title}</h3>
-                   </div>
+                  <div className="flex items-center">
+                    <FileText className="mr-3 h-6 w-6 text-accent" />
+                    <h3 className="text-xl font-semibold group-hover:text-accent transition-colors">{doc.title}</h3>
+                  </div>
                 </div>
-                
+
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
                   <div className="flex items-center">
                     <FileText className="mr-1.5 h-3.5 w-3.5" />
@@ -233,26 +234,35 @@ export default function WorkspacesPage() {
         </h2>
         <div className="rounded-lg border border-border bg-card overflow-hidden">
           <div className="divide-y divide-border/50">
-            {boards.slice(0, 3).map((item, i) => (
-              <Link href={`/b/${item.id}`} key={i} className="flex items-center px-4 py-3 hover:bg-accent/5 transition-colors group">
-                <div className="h-8 w-8 rounded bg-primary/20 flex items-center justify-center mr-4 group-hover:bg-primary/30 transition-colors">
-                  <Layout className="h-4 w-4 text-foreground/70" />
+            {[
+              ...boards.map(b => ({ ...b, type: 'board' as const })),
+              ...documents.map(d => ({ ...d, type: 'document' as const }))
+            ]
+            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+            .slice(0, 10)
+            .map((item, i) => (
+              <Link href={item.type === 'board' ? `/b/${item.id}` : `/d/${item.id}`} key={i} className="flex items-center px-4 py-3 hover:bg-accent/5 transition-colors group">
+                <div className={`h-8 w-8 rounded flex items-center justify-center mr-4 transition-colors ${item.type === 'board' ? 'bg-primary/20 group-hover:bg-primary/30' : 'bg-accent/20 group-hover:bg-accent/30'}`}>
+                  {item.type === 'board' ? <Layout className="h-4 w-4 text-foreground/70" /> : <FileText className="h-4 w-4 text-foreground/70" />}
                 </div>
                 <div className="flex-1">
-                  <span className="text-sm font-medium">{item.name}</span>
+                  <span className="text-sm font-medium">{item.type === 'board' ? (item as BoardSummary).name : (item as DocumentSummary).title}</span>
                   <div className="text-xs text-muted-foreground flex items-center mt-0.5">
-                    Team Board <span className="mx-1">•</span> Accessed recently
+                    {item.type === 'board' ? 'Team Board' : 'Document'} <span className="mx-1">•</span> Updated {new Date(item.updatedAt).toLocaleDateString()}
                   </div>
+                </div>
+                <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Plus className="h-4 w-4 text-muted-foreground" />
                 </div>
               </Link>
             ))}
-            {boards.length === 0 && (
-              <div className="px-4 py-3 text-sm text-muted-foreground">No recent boards found.</div>
+            {boards.length === 0 && documents.length === 0 && (
+              <div className="px-4 py-3 text-sm text-muted-foreground">No recent activity found.</div>
             )}
           </div>
         </div>
       </div>
-      
+
       <AiGenerationPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} />
     </div>
   );

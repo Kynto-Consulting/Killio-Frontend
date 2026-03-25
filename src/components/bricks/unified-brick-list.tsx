@@ -31,6 +31,7 @@ interface UnifiedBrickListProps {
   onAddBrick: (kind: string) => void;
   documents?: any[];
   boards?: any[];
+  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -41,7 +42,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onReorderBricks,
   onAddBrick,
   documents = [],
-  boards = []
+  boards = [],
+  users = []
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -93,6 +95,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         documents={documents}
         boards={boards}
         activeBricks={bricks}
+        users={users}
       />
     );
   };

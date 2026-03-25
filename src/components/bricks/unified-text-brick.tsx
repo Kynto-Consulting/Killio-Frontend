@@ -1,12 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FileText, LayoutDashboard, CreditCard, ExternalLink } from "lucide-react";
+import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { ReferencePicker } from "../documents/reference-picker";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
+import { Portal } from "../ui/portal";
+import { RichText } from "../ui/rich-text";
 
 interface TextBrickProps {
   id: string;
@@ -16,98 +19,128 @@ interface TextBrickProps {
   documents: DocumentSummary[];
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
+  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
 }
 
-export const UnifiedTextBrick: React.FC<TextBrickProps> = ({ 
-  id, 
-  text, 
-  onUpdate, 
+export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
+  id,
+  text,
+  onUpdate,
   readonly,
   documents,
   boards,
-  activeBricks
+  activeBricks,
+  users = []
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const contentRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
 
   const resolveReferences = (content: string) => {
-    return ReferenceResolver.processText(content, { documents, boards, activeBricks });
+    return ReferenceResolver.resolveValue(content, { documents, boards, activeBricks, users });
   };
 
+  /**
+   * Converts rendered HTML back to a plain markdown string (with \n)
+   * This is used for saving and for the focus state.
+   */
   const revertToMarkdown = (html: string): string => {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
 
-    const processInlineNode = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) return node.textContent || "";
-      if (node.nodeType === Node.ELEMENT_NODE) {
+    let markdown = "";
+
+    const walk = (node: Node) => {
+      if (node.nodeType === Node.TEXT_NODE) {
+        markdown += node.textContent || "";
+      } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
         const tag = el.tagName.toLowerCase();
-        
-        const content = Array.from(el.childNodes).map(processInlineNode).join("");
-        
-        switch (tag) {
-          case "b": case "strong": return `**${content}**`;
-          case "i": case "em": return `*${content}*`;
-          case "u": return `__${content}__`;
-          case "s": case "strike": return `~~${content}~~`;
-          case "span": 
-            if (el.classList.contains('mention-pill')) {
-               const type = el.getAttribute('data-type');
-               const uid = el.getAttribute('data-id');
-               return `@[${type}:${uid}:${content}]`;
-            }
-            return content;
-          case "br": return "\n";
-          default: return content;
+
+        if (tag === "br") {
+          markdown += "\n";
+        } else if (tag === "div" || tag === "p" || tag === "h1" || tag === "h2" || tag === "h3" || tag === "li") {
+          // Block level elements should start on a new line
+          if (markdown.length > 0 && !markdown.endsWith("\n")) {
+            markdown += "\n";
+          }
+
+          if (tag === "h1") markdown += "# ";
+          if (tag === "h2") markdown += "## ";
+          if (tag === "h3") markdown += "### ";
+          if (tag === "li") {
+            const parent = el.parentElement?.tagName.toLowerCase();
+            markdown += parent === "ol" ? "1. " : "- ";
+          }
+
+          Array.from(el.childNodes).forEach(walk);
+
+          if (!markdown.endsWith("\n")) {
+            markdown += "\n";
+          }
+        } else if (tag === "b" || tag === "strong") {
+          markdown += "**";
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "**";
+        } else if (tag === "i" || tag === "em") {
+          markdown += "*";
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "*";
+        } else if (tag === "u") {
+          markdown += "__";
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "__";
+        } else if (tag === "s" || tag === "strike") {
+          markdown += "~~";
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "~~";
+        } else if (el.classList.contains("mention-pill")) {
+          const type = el.getAttribute("data-type");
+          const uid = el.getAttribute("data-id");
+          const label = el.textContent || "";
+          markdown += `@[${type}:${uid}:${label}]`;
+        } else if (el.classList.contains("user-mention")) {
+          const uid = el.getAttribute("data-id");
+          const label = el.textContent || "";
+          markdown += `@[user:${uid}:${label.replace('@', '')}]`;
+        } else {
+          Array.from(el.childNodes).forEach(walk);
         }
       }
-      return "";
     };
 
-    const processBlockNode = (node: Node): string => {
-      if (node.nodeType === Node.TEXT_NODE) {
-        const txt = node.textContent?.trim();
-        return txt ? txt + "\n" : "";
-      }
-      const el = node as Element;
-      const tag = el.tagName.toLowerCase();
-
-      if (tag === "ul" || tag === "ol") {
-        return Array.from(el.children).map((li, i) => {
-          const prefix = tag === "ul" ? "- " : `${i + 1}. `;
-          const inner = Array.from(li.childNodes).map(processInlineNode).join("");
-          return `${prefix}${inner}\n`;
-        }).join("") + "\n";
-      }
-
-      const headings: Record<string, string> = { h1: "# ", h2: "## ", h3: "### " };
-      if (headings[tag]) {
-        return `${headings[tag]}${Array.from(el.childNodes).map(processInlineNode).join("")}\n\n`;
-      }
-
-      if (tag === "div" || tag === "p") {
-        const inner = Array.from(el.childNodes).map(processInlineNode).join("");
-        return inner.trim() ? `${inner}\n` : "\n";
-      }
-
-      if (tag === "br") return "\n";
-
-      return processInlineNode(node) + "\n";
-    };
-
-    return Array.from(tempDiv.childNodes).map(processBlockNode).join("").trim();
+    Array.from(tempDiv.childNodes).forEach(walk);
+    return markdown.trim();
   };
 
+  /**
+   * Converts a markdown string (with \n) to rich semantic HTML for display
+   */
   const processPseudoMarkdown = (rawText: string): string => {
-    // 1. Resolve spreadsheet references first
     const resolvedText = resolveReferences(rawText || "");
+    const documentIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`;
+    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
+    const cardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`;
+    const userIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
 
-    // 2. Handle structural links @[type:id:name]
-    const linkRegex = /@\[(doc|board|card):([^:]+):([^\]]+)\]/g;
-    const withLinks = resolvedText.replace(linkRegex, (match, type, uid, name) => {
-       return `<span class="mention-pill inline-flex items-center gap-1 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${name}</span>`;
-    });
+    const richParts = ReferenceResolver.renderRich(resolvedText, { documents, boards, activeBricks, users });
+    const withLinks = richParts.map(part => {
+      if (typeof part === 'string') return part;
+      if (part.type === 'mention') {
+        const { mentionType: type, id: uid, name } = part;
+        if (type === 'user') {
+          return `<span class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
+        }
+        let icon = documentIcon;
+        if (type === 'board') icon = boardIcon;
+        if (type === 'card') icon = cardIcon;
+        return `<span class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
+      }
+      if (part.type === 'deep') {
+        return `<span class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
+      }
+      return part;
+    }).join("");
 
     const lines = withLinks.split('\n');
     let html = "";
@@ -161,63 +194,99 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
   }, [text, documents, boards, activeBricks]);
 
+  const handleFocus = () => {
+    if (contentRef.current) {
+      // Switch to editing mode: show markdown markers inside DIVs
+      const lines = (text || "").split("\n");
+      const editableHtml = lines
+        .map(line => line.trim() ? `<div>${line}</div>` : "<div><br></div>")
+        .join("");
+
+      contentRef.current.innerHTML = editableHtml;
+    }
+  };
+
   const handleBlur = () => {
     if (contentRef.current) {
+      // Convert current editable structure back to a clean markdown string
       const markdown = revertToMarkdown(contentRef.current.innerHTML);
-      console.log("Saving Markdown:", markdown);
       onUpdate(markdown);
-      // Rerender with proper classes/pill formatting
+      // Immediately show the pretty rendered version
       contentRef.current.innerHTML = processPseudoMarkdown(markdown);
     }
   };
 
-  const handleFocus = () => {
-    if (contentRef.current) {
-      const currentHtml = contentRef.current.innerHTML;
-      const markdown = revertToMarkdown(currentHtml);
-      // Only swap to raw markdown if it's different to avoid cursor jumps
-      if (currentHtml !== markdown) {
-        contentRef.current.innerHTML = markdown.replace(/\n/g, "<br>");
+  const handleMouseDown = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    const pill = target.closest('.mention-pill, .user-mention');
+
+    if (pill) {
+      // If we are in "rendered" mode (not focused), we navigate
+      const isFocused = document.activeElement === contentRef.current;
+      if (!isFocused) {
+        e.preventDefault();
+        e.stopPropagation();
+
+        const type = pill.getAttribute('data-type') || (pill.classList.contains('user-mention') ? 'user' : '');
+        const id = pill.getAttribute('data-id');
+
+        if (type === 'doc') router.push(`/d/${id}`);
+        else if (type === 'board') router.push(`/b/${id}`);
+        // Add other navigation or actions as needed
       }
     }
   };
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === '@') {
-      setIsPickerOpen(true);
+      // Small delay to ensure the @ character is in the DOM
+      setTimeout(() => setIsPickerOpen(true), 50);
     }
   };
 
   return (
-    <div className="w-full relative group min-h-[3rem]">
-      <div
-        ref={contentRef}
-        contentEditable={!readonly}
-        suppressContentEditableWarning
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-        onKeyUp={handleKeyUp}
-        className={cn(
-          "w-full outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
-          !readonly && "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
-          readonly && "prose prose-sm dark:prose-invert max-w-none",
-          "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5",
-          "empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/30",
-          "relative"
-        )}
-        data-placeholder="Escribe algo... usa @ para vincular"
-      />
+    <div className="w-full relative group min-h-[3rem]" onMouseDown={handleMouseDown}>
+      {readonly ? (
+        <RichText 
+          content={text} 
+          context={{ documents, boards, users }} 
+          className={cn(
+            "w-full p-2 leading-relaxed text-sm rounded-md prose prose-sm dark:prose-invert max-w-none",
+            "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
+          )}
+        />
+      ) : (
+        <div
+          ref={contentRef}
+          contentEditable={!readonly}
+          suppressContentEditableWarning
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+          onKeyUp={handleKeyUp}
+          className={cn(
+            "w-full outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
+            "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
+            "relative"
+          )}
+          data-placeholder="Escribe algo... usa @ para vincular"
+        />
+      )}
 
       {isPickerOpen && !readonly && (
-        <div className="absolute z-[100] left-0 bottom-full mb-2">
-          <ReferencePicker 
+        <Portal>
+          <ReferencePicker
             boards={boards}
             documents={documents}
+            users={users}
             onClose={() => setIsPickerOpen(false)}
             onSelect={(item) => {
               const currentHtml = contentRef.current?.innerHTML || "";
-              const markdown = revertToMarkdown(currentHtml);
-              const newMarkdown = markdown + ` @[${item.type}:${item.id}:${item.name}] `;
+              let markdown = revertToMarkdown(currentHtml);
+              // Remove the '@' that triggered the picker if it's at the end
+              if (markdown.endsWith('@')) {
+                markdown = markdown.substring(0, markdown.length - 1);
+              }
+              const newMarkdown = (markdown ? markdown.trimEnd() : "") + ` @[${item.type}:${item.id}:${item.name}]`;
               onUpdate(newMarkdown);
               if (contentRef.current) {
                 contentRef.current.innerHTML = processPseudoMarkdown(newMarkdown);
@@ -225,7 +294,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               setIsPickerOpen(false);
             }}
           />
-        </div>
+        </Portal>
       )}
     </div>
   );

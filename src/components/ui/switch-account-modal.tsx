@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, ArrowRightLeft, Loader2, UserPlus, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 interface SwitchAccountModalProps {
   isOpen: boolean;
@@ -71,8 +72,12 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
                 }`}
               >
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="h-10 w-10 shrink-0 rounded-full bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-primary-foreground font-semibold text-sm border border-border shadow-sm">
-                    {acc.user.displayName ? acc.user.displayName.substring(0, 2).toUpperCase() : acc.user.email.substring(0, 2).toUpperCase()}
+                  <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+                    <img 
+                      src={getUserAvatarUrl(acc.user.avatar_url || acc.user.avatarUrl, acc.user.email, 40)} 
+                      alt={acc.user.displayName || "User"} 
+                      className="h-full w-full object-cover"
+                    />
                   </div>
                   <div className="flex flex-col items-start overflow-hidden">
                     <span className="text-sm font-semibold truncate w-full content-start">
