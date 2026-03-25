@@ -74,7 +74,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
                 <div className="flex items-center gap-3 overflow-hidden">
                   <div className="h-10 w-10 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                     <img 
-                      src={getUserAvatarUrl(acc.user.avatar_url || acc.user.avatarUrl, acc.user.email, 40)} 
+                      src={getUserAvatarUrl((acc.user as { avatar_url?: string | null }).avatar_url, acc.user.email, 40)} 
                       alt={acc.user.displayName || "User"} 
                       className="h-full w-full object-cover"
                     />

@@ -61,7 +61,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
             <div className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border shadow-sm bg-accent/10">
                 <img 
-                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 80)} 
+                  src={getUserAvatarUrl(undefined, user?.email, 80)} 
                   alt={user?.displayName || "User"} 
                   className="h-full w-full object-cover group-hover:opacity-40 transition-opacity"
                 />

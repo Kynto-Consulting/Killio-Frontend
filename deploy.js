@@ -1,5 +1,6 @@
 const { execSync } = require('child_process');
-const env = `NEXT_PUBLIC_API_URL=https://killio-back-alfrers2019-7388s-projects.vercel.app
+const env = `NEXT_PUBLIC_API_BASE_URL=https://killio-back.vercel.app
+NEXT_PUBLIC_API_URL=https://killio-back.vercel.app
 NEXT_PUBLIC_ABLY_AUTH_URL=/api/ably-auth
 ABLY_API_KEY=7N4yjg.6i_OBw:W1s0NyFHtmCEjIB1RxmMwYWtJL7rWlE-V7BPp1DHOhE
 COHERE_API_KEY=IqdburzvF8XP7ctIdHS1Yhsvxi4Z23UtbbF1P0b3`;

@@ -204,7 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="flex items-center space-x-2 overflow-hidden">
               <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                 <img 
-                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 32)} 
+                  src={getUserAvatarUrl(undefined, user?.email, 32)} 
                   alt={user?.displayName || "User"} 
                   className="h-full w-full object-cover"
                 />
