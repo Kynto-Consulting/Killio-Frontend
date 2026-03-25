@@ -529,6 +529,7 @@ export async function improveCardWithAi(
     scopeId: string;
     currentTitle: string;
     currentDescription?: string;
+    currentBricks?: any[];
     userPrompt?: string;
   },
   accessToken?: string,
@@ -540,6 +541,7 @@ export async function improveCardWithAi(
       scopeId: body.scopeId,
       currentTitle: body.currentTitle,
       currentDescription: body.currentDescription,
+      currentBricks: body.currentBricks,
       userPrompt: body.userPrompt,
     }),
   });

@@ -12,6 +12,8 @@ import { useRouter } from "next/navigation";
 import { getUserAvatarUrl } from "../../lib/gravatar";
 import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KEY, translateNativeTagName } from "../../lib/native-tags";
 import { Portal } from "./portal";
+import { BrickDiff } from "../bricks/brick-diff";
+import * as jsdiff from "diff";
 import { ReferencePicker } from "../documents/reference-picker";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { listDocuments } from "@/lib/api/documents";
@@ -202,6 +204,7 @@ export function CardDetailModal({
           scopeId,
           currentTitle: sourceTitle,
           currentDescription: sourceSummaryText || undefined,
+          currentBricks: localBlocks,
         },
         accessToken,
       );
@@ -237,27 +240,36 @@ export function CardDetailModal({
     }
 
     if (pendingImprovement.bricks) {
-      const textBricksData = pendingImprovement.bricks.filter(b => b.kind === 'text');
-      const otherBricksData = pendingImprovement.bricks.filter(b => b.kind !== 'text');
+      // Precise mutation logic:
+      // 1. Identify which ones to Update
+      // 2. Identify which ones to Create
+      // 3. Identify which ones to Delete
 
-      const existingTextBricks = localBlocks.filter(b => b.kind === 'text');
+      const newBricks = pendingImprovement.bricks;
+      const oldBrickIds = localBlocks.map(b => b.id);
+      const suggestedBrickIds = newBricks.filter((b: any) => b.id).map((b: any) => b.id);
 
-      if (existingTextBricks.length > 0 && textBricksData.length > 0) {
-        await handleUpdateBrick(existingTextBricks[0].id, { kind: 'text', markdown: textBricksData[0].content.markdown });
-        for (const b of [...textBricksData.slice(1), ...otherBricksData]) {
-          await handleCreateBrick({
+      // Deletions: in local but NOT in suggested
+      const toDelete = oldBrickIds.filter(id => !suggestedBrickIds.includes(id));
+      for (const id of toDelete) {
+        await handleDeleteBrick(id);
+      }
+
+      // Updates and Creates
+      for (const b of newBricks as any[]) {
+        if (b.id && oldBrickIds.includes(b.id)) {
+          // Update
+          await handleUpdateBrick(b.id, {
             kind: b.kind,
-            markdown: b.content.markdown || '',
-            items: b.content.items || [],
-            displayStyle: 'paragraph'
+            markdown: b.content?.markdown || '',
+            items: b.content?.items || [],
           });
-        }
-      } else {
-        for (const b of pendingImprovement.bricks) {
+        } else {
+          // Create
           await handleCreateBrick({
             kind: b.kind,
-            markdown: b.content.markdown || '',
-            items: b.content.items || [],
+            markdown: b.content?.markdown || '',
+            items: b.content?.items || [],
             displayStyle: 'paragraph'
           });
         }
@@ -622,6 +634,7 @@ export function CardDetailModal({
             scopeId,
             currentTitle: card.title,
             currentDescription: card.summary || '',
+            currentBricks: localBlocks,
             userPrompt: userMsg
           },
           accessToken
@@ -1091,7 +1104,7 @@ export function CardDetailModal({
 
                     {aiMessages.map((msg, i) => {
                       const { cleanText, actions } = parseAiActions(msg.content);
-                      
+
                       // Hash-based color for user
                       let userTheme = { bg: 'bg-primary/10', border: 'border-primary/20', text: 'text-primary' };
                       if (msg.role === 'user' && user?.id) {
@@ -1185,32 +1198,40 @@ export function CardDetailModal({
                             <div className="space-y-3">
                               <div>
                                 <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Título</p>
-                                <p className="text-xs font-semibold">{pendingImprovement.title}</p>
+                                <BrickDiff kind="text" oldContent={{ markdown: localTitle }} newContent={{ markdown: pendingImprovement.title }} />
                               </div>
                               <div>
                                 <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Cambios en Bloques</p>
                                 <div className="space-y-3 rounded-lg border bg-background/30 p-3">
-                                  {pendingImprovement.bricks.map((brick: any, idx: number) => (
-                                    <div key={idx} className="space-y-1">
-                                      <div className="flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{brick.kind}</span>
+                                  {pendingImprovement.bricks.map((brick: any, idx: number) => {
+                                    const oldBrick = localBlocks.find(b => b.id === brick.id) as any;
+
+                                    return (
+                                      <div key={idx} className="space-y-1">
+                                        <div className="flex items-center gap-2">
+                                          <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{brick.kind}</span>
+                                          {!oldBrick && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-tighter">[Nuevo]</span>}
+                                        </div>
+                                        <BrickDiff
+                                          kind={brick.kind}
+                                          oldContent={oldBrick ? { ...oldBrick, ...oldBrick.content, markdown: oldBrick.markdown } : null}
+                                          newContent={{ ...brick, ...brick.content, markdown: brick.markdown || brick.content?.markdown }}
+                                        />
                                       </div>
-                                      {brick.kind === 'text' ? (
-                                        <div className="text-[10px] text-foreground/80 leading-relaxed font-mono whitespace-pre-wrap pl-2 border-l-2 border-accent/20">
-                                          {brick.content.markdown}
-                                        </div>
-                                      ) : brick.kind === 'checklist' ? (
-                                        <div className="space-y-1 pl-2">
-                                          {brick.content.items?.map((item: any, i: number) => (
-                                            <div key={i} className="flex items-center gap-2 text-[10px] text-foreground/70">
-                                              <div className="w-3 h-3 rounded border border-border shrink-0" />
-                                              <span>{item.label}</span>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <div className="text-[9px] text-muted-foreground italic pl-2">Bloque tipo {brick.kind}</div>
-                                      )}
+                                    );
+                                  })}
+                                  {/* Show deletions if any */}
+                                  {localBlocks.filter((ob: any) => !pendingImprovement.bricks.some((nb: any) => nb.id === ob.id)).map((ob: any) => (
+                                    <div key={ob.id} className="space-y-1 opacity-50 grayscale">
+                                      <div className="flex items-center gap-2">
+                                        <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{ob.kind}</span>
+                                        <span className="text-[8px] text-rose-500 font-bold uppercase tracking-tighter">[Eliminado]</span>
+                                      </div>
+                                      <BrickDiff
+                                        kind={ob.kind}
+                                        oldContent={{ ...ob, ...ob.content, markdown: ob.markdown }}
+                                        newContent={null}
+                                      />
                                     </div>
                                   ))}
                                 </div>

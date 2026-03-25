@@ -3,7 +3,8 @@
 import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2 } from "lucide-react";
 import { chatWithAiScope, listTeamActivity, type ActivityLogEntry } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
-import { listDocumentComments, addDocumentComment, DocumentSummary, updateDocumentTitle, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick } from "@/lib/api/documents";
+import { listDocumentComments, addDocumentComment, DocumentSummary, updateDocumentTitle, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, getDocument } from "@/lib/api/documents";
+import { BrickDiff } from "../bricks/brick-diff";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { Portal } from "./portal";
 import { ReferencePicker } from "../documents/reference-picker";
@@ -88,6 +89,7 @@ export function DocumentCommentsDrawer({
 
   // Activity State
   const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
+  const [docBricks, setDocBricks] = useState<any[]>([]);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
@@ -120,10 +122,21 @@ export function DocumentCommentsDrawer({
     }
   };
 
+  const fetchDocContent = async () => {
+    if (!accessToken || !docId) return;
+    try {
+      const doc = await getDocument(docId, accessToken);
+      setDocBricks(doc.bricks || []);
+    } catch (e) {
+      console.error("Failed to fetch doc bricks", e);
+    }
+  };
+
   useEffect(() => {
     if (isOpen) {
       if (activeTab === 'comments') fetchComments();
       if (activeTab === 'activity') fetchActivity();
+      fetchDocContent();
     }
   }, [isOpen, docId, activeTab]);
 
@@ -299,8 +312,18 @@ export function DocumentCommentsDrawer({
                               </div>
                             </div>
                             <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el documento"}</p>
-                            <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
-                              {action.action}: {JSON.stringify(action.payload, null, 2)}
+                            <div className="bg-background/20 rounded border border-emerald-500/10 p-2 overflow-hidden shadow-inner">
+                              {action.type === 'DOC_BRICK_REPLACE' ? (
+                                <BrickDiff 
+                                  kind={action.kind || 'text'} 
+                                  oldContent={docBricks.find(b => b.id === (action.brickId || action.payload?.brickId))}
+                                  newContent={action.content || action.payload?.content}
+                                />
+                              ) : (
+                                <div className="text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70 max-h-32 overflow-y-auto">
+                                  {action.type}: {JSON.stringify(action, null, 2)}
+                                </div>
+                              )}
                             </div>
                             <button 
                               onClick={() => handleAiAction(action)}

@@ -965,24 +965,6 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         />
       )}
 
-      {toasts.length > 0 && (
-        <div className="fixed top-4 right-4 z-[150] flex flex-col gap-2 w-full max-w-sm">
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              className={`rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${toast.variant === "success"
-                ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
-                : toast.variant === "error"
-                  ? "bg-red-500/10 border-red-500/30 text-red-200"
-                  : "bg-sky-500/10 border-sky-500/30 text-sky-200"
-                }`}
-            >
-              {toast.text}
-            </div>
-          ))}
-        </div>
-      )}
-
       {editingDraftId && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl p-6">
