@@ -1,7 +1,7 @@
 import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-
+//para deploy
 export function SortableItem({ id, children }: { id: string; children: React.ReactNode }) {
   const {
     attributes,
