@@ -1,16 +1,16 @@
 "use client";
 
-import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2 } from "lucide-react";
+import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
 import { chatWithAiScope, listTeamActivity, type ActivityLogEntry } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { listDocumentComments, addDocumentComment, DocumentSummary, updateDocumentTitle, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, getDocument } from "@/lib/api/documents";
 import { BrickDiff } from "../bricks/brick-diff";
 import { ResolverContext } from "@/lib/reference-resolver";
-import { Portal } from "./portal";
-import { ReferencePicker } from "../documents/reference-picker";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { useMemo } from "react";
+import { ReferenceTokenInput } from "./reference-token-input";
+import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -55,6 +55,24 @@ function getResolverContext(documents: DocumentSummary[], boards: any[], members
   };
 }
 
+function hashString(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getUserTintStyles(seed: string): { bg: string; border: string; text: string } {
+  const palette = [
+    { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.35)", text: "#93c5fd" },
+    { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.35)", text: "#6ee7b7" },
+    { bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.35)", text: "#fcd34d" },
+  ];
+  return palette[hashString(seed || "user") % palette.length];
+}
+
 export function DocumentCommentsDrawer({
   isOpen,
   onClose,
@@ -82,9 +100,7 @@ export function DocumentCommentsDrawer({
   const [commentInput, setCommentInput] = useState("");
 
   // AI State
-  const [aiMessages, setAiMessages] = useState<any[]>([
-    { id: 0, role: "bot", content: "Hola. Soy tu Asistente de IA. Puedo ayudarte a mejorar este documento, resumirlo o responder dudas sobre el contexto sugerido." }
-  ]);
+  const [aiMessages, setAiMessages] = useState<any[]>([]);
   const [aiInput, setAiInput] = useState("");
 
   // Activity State
@@ -94,7 +110,6 @@ export function DocumentCommentsDrawer({
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -200,8 +215,8 @@ export function DocumentCommentsDrawer({
 
   if (!isOpen) return null;
 
-  async function handleCommentSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleCommentSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!commentInput.trim() || isLoading || !accessToken) return;
     setIsLoading(true);
     try {
@@ -211,11 +226,12 @@ export function DocumentCommentsDrawer({
     } catch (e) { console.error(e); } finally { setIsLoading(false); }
   }
 
-  async function handleAiSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!aiInput.trim() || isLoading || !accessToken) return;
+  async function handleAiSubmit(e?: React.FormEvent, presetPrompt?: string) {
+    e?.preventDefault();
+    const messageToSend = (presetPrompt ?? aiInput).trim();
+    if (!messageToSend || isLoading || !accessToken) return;
 
-    const userMsg = { id: Date.now(), role: "user", content: aiInput };
+    const userMsg = { id: Date.now(), role: "user", content: messageToSend };
     const loadingMsg = { id: Date.now() + 1, role: "bot", content: "", loading: true };
     setAiMessages(prev => [...prev, userMsg, loadingMsg]);
     setAiInput("");
@@ -225,7 +241,12 @@ export function DocumentCommentsDrawer({
       const data = await chatWithAiScope({
         scope: "document",
         scopeId: docId,
-        message: aiInput,
+        message: buildAiMessageWithReferenceContext(messageToSend, {
+          documents,
+          boards,
+          activeBricks: docBricks,
+          users: (members || []).map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
+        }),
         contextSummary
       }, accessToken);
       setAiMessages(prev => [...prev.filter(m => !m.loading), { id: Date.now(), role: "bot", content: data.text }]);
@@ -233,17 +254,6 @@ export function DocumentCommentsDrawer({
       setAiMessages(prev => [...prev.filter(m => !m.loading), { id: Date.now(), role: "bot", content: "Lo siento, hubo un error con la IA." }]);
     } finally { setIsLoading(false); }
   }
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const val = e.target.value;
-    const { selectionStart } = e.target;
-    if (activeTab === 'comments') setCommentInput(val);
-    else setAiInput(val);
-
-    if (selectionStart !== null && val[selectionStart - 1] === "@") {
-      setIsPickerOpen(true);
-    }
-  };
 
   return (
     <div className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 animate-in slide-in-from-right duration-300">
@@ -259,7 +269,7 @@ export function DocumentCommentsDrawer({
 
         <div className="flex px-2 pb-0.5 gap-1">
           {[
-            { id: 'copilot', label: 'Asistente', icon: Bot },
+            { id: 'copilot', label: 'Copilot', icon: Bot },
             { id: 'comments', label: 'Comentarios', icon: MessageSquare },
             { id: 'activity', label: 'Actividad', icon: History }
           ].map(tab => (
@@ -280,65 +290,107 @@ export function DocumentCommentsDrawer({
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
         {activeTab === 'copilot' && (
-          <div className="space-y-4">
-            {aiMessages.map(msg => (
-              <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                <div className={`h-8 w-8 shrink-0 rounded flex items-center justify-center border shadow-sm ${msg.role === 'bot' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-primary/10 border-primary/20 text-primary'
-                  }`}>
-                  {msg.role === 'bot' ? <Bot className="h-4 w-4" /> : user?.displayName?.[0] || 'U'}
+          <div className="flex flex-col h-full space-y-4">
+            <div className="flex-1 space-y-4">
+              <div className="flex gap-3">
+                <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
+                  <Bot className="h-4 w-4" />
                 </div>
-                <div className={`max-w-[85%] p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${msg.role === 'bot' ? 'bg-muted/50 border-border/50 rounded-tl-none' : 'bg-primary text-primary-foreground border-primary/20 rounded-tr-none'
-                  }`}>
-                  {msg.loading ? (
-                    <div className="flex gap-1.5 py-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '300ms' }} />
-                    </div>
-                  ) : (() => {
-                    const { cleanText, actions } = parseAiActions(msg.content);
-                    return (
-                      <div className="space-y-3">
-                        <RichText
-                          content={cleanText}
-                          context={getResolverContext(documents, boards, members)}
-                        />
-                        {actions.map((action, actionIdx) => (
-                          <div key={actionIdx} className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
-                              </div>
-                            </div>
-                            <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el documento"}</p>
-                            <div className="bg-background/20 rounded border border-emerald-500/10 p-2 overflow-hidden shadow-inner">
-                              {action.type === 'DOC_BRICK_REPLACE' ? (
-                                <BrickDiff 
-                                  kind={action.kind || 'text'} 
-                                  oldContent={docBricks.find(b => b.id === (action.brickId || action.payload?.brickId))}
-                                  newContent={action.content || action.payload?.content}
-                                />
-                              ) : (
-                                <div className="text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70 max-h-32 overflow-y-auto">
-                                  {action.type}: {JSON.stringify(action, null, 2)}
-                                </div>
-                              )}
-                            </div>
-                            <button 
-                              onClick={() => handleAiAction(action)}
-                              className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
-                            >
-                              Confirmar y Ejecutar
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
+                  <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a mejorar este documento, resumir ideas o proponer acciones claras. ¿Qué necesitas?</p>
                 </div>
               </div>
-            ))}
+
+            {aiMessages.map((msg) => {
+              const tint = getUserTintStyles(user?.id || user?.email || "user");
+              const { cleanText, actions } = msg.loading ? { cleanText: "", actions: [] as any[] } : parseAiActions(msg.content);
+              return (
+                <div key={msg.id} className="space-y-3">
+                  <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                    <div className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'bot'
+                      ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                      : 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
+                      }`} style={msg.role === 'user' ? { backgroundColor: tint.bg, borderColor: tint.border, color: tint.text } : undefined}>
+                      {msg.role === 'bot' ? <Bot className="h-4 w-4" /> : user?.displayName?.[0] || 'U'}
+                    </div>
+                    <div className={`max-w-[85%] p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${msg.role === 'bot' ? 'bg-muted/50 border-border/50 rounded-tl-none' : 'bg-primary text-primary-foreground border-primary/20 rounded-tr-none'
+                      }`} style={msg.role === 'user' ? { backgroundColor: tint.bg, borderColor: tint.border, color: "inherit" } : undefined}>
+                      {msg.loading ? (
+                        <div className="flex gap-1.5 py-1">
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '0ms' }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '150ms' }} />
+                          <div className="w-1.5 h-1.5 rounded-full bg-accent/60 animate-bounce" style={{ animationDelay: '300ms' }} />
+                        </div>
+                      ) : (
+                        <RichText
+                          content={cleanText}
+                          context={{
+                            ...getResolverContext(documents, boards, members),
+                            activeBricks: docBricks,
+                            documentBricksById: { [docId]: docBricks as any }
+                          }}
+                        />
+                      )}
+                    </div>
+                </div>
+
+                  {actions.map((action, actionIdx) => (
+                    <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                          <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
+                        </div>
+                      </div>
+                      <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el documento"}</p>
+                      <div className="bg-background/20 rounded border border-emerald-500/10 p-2 overflow-hidden shadow-inner">
+                        {action.type === 'DOC_BRICK_REPLACE' ? (
+                          <BrickDiff
+                            kind={action.kind || 'text'}
+                            oldContent={docBricks.find(b => b.id === (action.brickId || action.payload?.brickId))}
+                            newContent={action.content || action.payload?.content}
+                          />
+                        ) : (
+                          <div className="text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70 max-h-32 overflow-y-auto">
+                            {action.type}: {JSON.stringify(action, null, 2)}
+                          </div>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => handleAiAction(action)}
+                        className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                      >
+                        Confirmar y Ejecutar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    void handleAiSubmit(undefined, "Resume este documento y enumera sus ideas clave.");
+                  }}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                >
+                  <FileText className="w-3 h-3" />
+                  Resumir documento
+                </button>
+                <button
+                  onClick={() => {
+                    void handleAiSubmit(undefined, "Propón mejoras de redacción y estructura para este documento.");
+                  }}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all disabled:opacity-50"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Mejorar redacción
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -353,6 +405,7 @@ export function DocumentCommentsDrawer({
             {comments.map((entry) => {
               const isMe = entry.actorId === user?.id;
               const member = members.find(m => m.id === entry.actorId);
+              const tint = getUserTintStyles(entry.actorId || member?.email || "user");
               return (
                 <div key={entry.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                   <div className="h-8 w-8 shrink-0 rounded overflow-hidden border shadow-sm">
@@ -367,10 +420,14 @@ export function DocumentCommentsDrawer({
                     </div>
                     <div className={`p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20' :
                         'bg-muted/50 text-foreground/90 rounded-tl-none border-border/50'
-                      }`}>
+                      }`} style={isMe ? { backgroundColor: tint.bg, borderColor: tint.border, color: "inherit" } : undefined}>
                       <RichText
                         content={entry.payload?.text || ""}
-                        context={getResolverContext(documents, boards, members)}
+                        context={{
+                          ...getResolverContext(documents, boards, members),
+                          activeBricks: docBricks,
+                          documentBricksById: { [docId]: docBricks as any }
+                        }}
                       />
                     </div>
                   </div>
@@ -395,7 +452,11 @@ export function DocumentCommentsDrawer({
               const member = members.find(m => m.id === a.actorId || m.userId === a.actorId);
               const changes = (a.payload as any)?.changes || {};
               const changedFields = Object.keys(changes).map(k => fieldLabels[k] || k).join(", ");
-              const resolverContext = getResolverContext(documents, boards, members);
+              const resolverContext = {
+                ...getResolverContext(documents, boards, members),
+                activeBricks: docBricks,
+                documentBricksById: { [docId]: docBricks as any }
+              };
 
               return (
                 <div key={a.id} className="relative pl-6 pb-2 border-l border-border/40 last:border-0 group">
@@ -473,36 +534,32 @@ export function DocumentCommentsDrawer({
       {(activeTab === 'copilot' || activeTab === 'comments') && (
         <div className="p-4 border-t border-border/50 bg-background/30 shrink-0 relative">
           <form className="relative flex items-center" onSubmit={activeTab === 'copilot' ? handleAiSubmit : handleCommentSubmit}>
-            <input
-              type="text"
+            <ReferenceTokenInput
               value={activeTab === 'copilot' ? aiInput : commentInput}
-              onChange={handleInputChange}
-              placeholder={activeTab === 'copilot' ? "Pregunta al Asistente..." : "Comenta o menciona con @..."}
-              className="w-full bg-card border border-input rounded-full pr-10 pl-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-accent transition-all ring-offset-background"
+              onChange={(val) => {
+                if (activeTab === 'copilot') setAiInput(val);
+                else setCommentInput(val);
+              }}
+              placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Comenta o menciona con @..."}
+              documents={documents}
+              boards={boards}
+              users={members.map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))}
+              activeBricks={docBricks as any[]}
+              onSubmit={() => {
+                if (activeTab === 'copilot') {
+                  void handleAiSubmit();
+                } else {
+                  void handleCommentSubmit();
+                }
+              }}
+              className="w-full"
+              inputClassName={`pr-10 ring-offset-background ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : ''}`}
             />
-            <button type="submit" disabled={isLoading || (activeTab === 'copilot' ? !aiInput.trim() : !commentInput.trim())} className="absolute right-1.5 p-1.5 rounded-full bg-accent text-accent-foreground disabled:opacity-50 transition-colors shadow-sm">
+            <button type="submit" disabled={isLoading || (activeTab === 'copilot' ? !aiInput.trim() : !commentInput.trim())} className={`absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 transition-colors shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-accent text-accent-foreground'}`}>
               <Send className="h-3.5 w-3.5" />
             </button>
           </form>
         </div>
-      )}
-
-      {isPickerOpen && (
-        <Portal>
-          <ReferencePicker
-            boards={boards}
-            documents={documents}
-            users={members.map(m => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))}
-            onClose={() => setIsPickerOpen(false)}
-            onSelect={(item) => {
-              const currentInput = activeTab === 'copilot' ? aiInput : commentInput;
-              const newVal = currentInput.substring(0, currentInput.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
-              if (activeTab === 'copilot') setAiInput(newVal);
-              else setCommentInput(newVal);
-              setIsPickerOpen(false);
-            }}
-          />
-        </Portal>
       )}
 
       {selectedActivityGroup && (

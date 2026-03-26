@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { ReferencePicker } from "../documents/reference-picker";
+import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
@@ -20,6 +20,7 @@ interface TextBrickProps {
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
 }
 
 export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
@@ -30,14 +31,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   documents,
   boards,
   activeBricks,
-  users = []
+  users = [],
+  onPasteImage
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerCursorOffset, setPickerCursorOffset] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   const resolveReferences = (content: string) => {
     return ReferenceResolver.resolveValue(content, { documents, boards, activeBricks, users });
+  };
+
+  const tokenEscapeAttr = (value: string): string => {
+    return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
   };
 
   /**
@@ -56,6 +63,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       } else if (node.nodeType === Node.ELEMENT_NODE) {
         const el = node as Element;
         const tag = el.tagName.toLowerCase();
+
+        const tokenAttr = el.getAttribute("data-token");
+        if (tokenAttr) {
+          markdown += tokenAttr;
+          return;
+        }
 
         if (tag === "br") {
           markdown += "\n";
@@ -103,6 +116,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           const uid = el.getAttribute("data-id");
           const label = el.textContent || "";
           markdown += `@[user:${uid}:${label.replace('@', '')}]`;
+        } else if (el.classList.contains("deep-pill")) {
+          const prefix = el.getAttribute("data-prefix") || "#";
+          const inner = el.getAttribute("data-inner") || "";
+          markdown += `${prefix}[${inner}]`;
         } else {
           Array.from(el.childNodes).forEach(walk);
         }
@@ -110,7 +127,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     };
 
     Array.from(tempDiv.childNodes).forEach(walk);
-    return markdown.trim();
+    return markdown
+      .replace(/\u00a0/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .replace(/\n$/, "");
+  };
+
+  const getCursorOffset = (root: HTMLElement | null): number | null => {
+    if (!root || typeof window === "undefined") return null;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return null;
+
+    const range = selection.getRangeAt(0);
+    const preCaretRange = range.cloneRange();
+    preCaretRange.selectNodeContents(root);
+    preCaretRange.setEnd(range.startContainer, range.startOffset);
+    return preCaretRange.toString().length;
   };
 
   /**
@@ -129,15 +161,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (part.type === 'mention') {
         const { mentionType: type, id: uid, name } = part;
         if (type === 'user') {
-          return `<span class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
+          const token = `@[user:${uid}:${name}]`;
+          return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
         }
         let icon = documentIcon;
         if (type === 'board') icon = boardIcon;
         if (type === 'card') icon = cardIcon;
-        return `<span class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
+        const token = `@[${type}:${uid}:${name}]`;
+        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
       }
       if (part.type === 'deep') {
-        return `<span class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
+        const token = `${part.prefix}[${part.inner}]`;
+        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
       }
       return part;
     }).join("");
@@ -196,13 +231,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleFocus = () => {
     if (contentRef.current) {
-      // Switch to editing mode: show markdown markers inside DIVs
-      const lines = (text || "").split("\n");
-      const editableHtml = lines
-        .map(line => line.trim() ? `<div>${line}</div>` : "<div><br></div>")
-        .join("");
-
-      contentRef.current.innerHTML = editableHtml;
+      // Keep references tokenized while editing to avoid raw @[...], #[...], $[...] strings.
+      const rendered = processPseudoMarkdown(text || "");
+      if (contentRef.current.innerHTML !== rendered) {
+        contentRef.current.innerHTML = rendered;
+      }
     }
   };
 
@@ -239,9 +272,102 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === '@') {
+      const offset = getCursorOffset(contentRef.current);
+      setPickerCursorOffset(offset);
       // Small delay to ensure the @ character is in the DOM
       setTimeout(() => setIsPickerOpen(true), 50);
     }
+  };
+
+  const findAdjacentToken = (direction: "backward" | "forward") => {
+    const root = contentRef.current;
+    if (!root || typeof window === "undefined") return null;
+
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || !selection.isCollapsed) return null;
+
+    const range = selection.getRangeAt(0);
+    const container = range.startContainer;
+    const offset = range.startOffset;
+
+    const isTokenElement = (node: Node | null): node is HTMLElement => {
+      if (!node || node.nodeType !== Node.ELEMENT_NODE) return false;
+      const el = node as HTMLElement;
+      return !!el.getAttribute("data-token") || el.classList.contains("mention-pill") || el.classList.contains("user-mention") || el.classList.contains("deep-pill");
+    };
+
+    const pickFromNode = (node: Node | null, pickLast: boolean): HTMLElement | null => {
+      if (!node) return null;
+      if (isTokenElement(node)) return node;
+      if (node.nodeType !== Node.ELEMENT_NODE) return null;
+      const children = Array.from(node.childNodes);
+      if (!children.length) return null;
+      const candidate = pickLast ? children[children.length - 1] : children[0];
+      return isTokenElement(candidate) ? candidate : null;
+    };
+
+    if (container.nodeType === Node.TEXT_NODE) {
+      if (direction === "backward" && offset > 0) return null;
+      const sibling = direction === "backward" ? container.previousSibling : container.nextSibling;
+      return pickFromNode(sibling, direction === "backward");
+    }
+
+    const children = Array.from(container.childNodes);
+    if (direction === "backward") {
+      const idx = offset - 1;
+      if (idx >= 0 && idx < children.length) {
+        return pickFromNode(children[idx], true);
+      }
+    } else {
+      const idx = offset;
+      if (idx >= 0 && idx < children.length) {
+        return pickFromNode(children[idx], false);
+      }
+    }
+
+    return null;
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (readonly) return;
+
+    if (e.key === "Backspace") {
+      const token = findAdjacentToken("backward");
+      if (token) {
+        e.preventDefault();
+        token.remove();
+        const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+        onUpdate(markdown);
+      }
+    }
+
+    if (e.key === "Delete") {
+      const token = findAdjacentToken("forward");
+      if (token) {
+        e.preventDefault();
+        token.remove();
+        const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+        onUpdate(markdown);
+      }
+    }
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (readonly || !onPasteImage) return;
+    const imageItem = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
+    if (!imageItem) return;
+
+    const file = imageItem.getAsFile();
+    if (!file) return;
+
+    e.preventDefault();
+
+    const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+    const cursorOffset = getCursorOffset(contentRef.current) ?? markdown.length;
+
+    Promise.resolve(onPasteImage({ file, cursorOffset, markdown })).catch((err) => {
+      console.error("Failed to handle pasted image", err);
+    });
   };
 
   return (
@@ -262,7 +388,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           suppressContentEditableWarning
           onBlur={handleBlur}
           onFocus={handleFocus}
+          onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
+          onPaste={handlePaste}
           className={cn(
             "w-full outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
             "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
@@ -278,20 +406,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             boards={boards}
             documents={documents}
             users={users}
+            activeBricks={activeBricks as any[]}
             onClose={() => setIsPickerOpen(false)}
-            onSelect={(item) => {
+            onSelect={(item: ReferencePickerSelection) => {
               const currentHtml = contentRef.current?.innerHTML || "";
-              let markdown = revertToMarkdown(currentHtml);
-              // Remove the '@' that triggered the picker if it's at the end
-              if (markdown.endsWith('@')) {
-                markdown = markdown.substring(0, markdown.length - 1);
-              }
-              const newMarkdown = (markdown ? markdown.trimEnd() : "") + ` @[${item.type}:${item.id}:${item.name}]`;
+              const markdown = revertToMarkdown(currentHtml);
+              const insertToken = item.token;
+              const cursor = pickerCursorOffset ?? markdown.length;
+              const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
+              const replaceFrom = safeCursor > 0 && markdown[safeCursor - 1] === "@" ? safeCursor - 1 : safeCursor;
+              const newMarkdown = `${markdown.slice(0, replaceFrom)}${insertToken} ${markdown.slice(safeCursor)}`;
               onUpdate(newMarkdown);
               if (contentRef.current) {
                 contentRef.current.innerHTML = processPseudoMarkdown(newMarkdown);
               }
               setIsPickerOpen(false);
+              setPickerCursorOffset(null);
             }}
           />
         </Portal>

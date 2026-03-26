@@ -2,10 +2,8 @@
 
 import React from "react";
 import { CheckSquare, Square, Plus, Trash2, GripVertical } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Portal } from "../ui/portal";
-import { ReferencePicker } from "../documents/reference-picker";
 import { ReferenceResolver } from "@/lib/reference-resolver";
+import { ReferenceTokenInput } from "../ui/reference-token-input";
 
 interface ChecklistBrickProps {
   id: string;
@@ -17,9 +15,7 @@ interface ChecklistBrickProps {
   users?: any[];
 }
 
-export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {
-  const [isPickerOpen, setIsPickerOpen] = React.useState(false);
-  const [pickerTarget, setPickerTarget] = React.useState<number | null>(null);
+export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {
 
   const renderLabelWithMentions = (content: string) => {
     const docIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
@@ -75,6 +71,16 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id, items
 
   return (
     <div className="w-full py-1 space-y-0.5">
+      {items.length === 0 && !readonly && (
+        <button
+          onClick={() => addItem()}
+          className="flex w-full items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted/20"
+        >
+          <Plus className="h-4 w-4" />
+          Añadir primer ítem
+        </button>
+      )}
+
       {items.map((item, idx) => (
         <div key={item.id || idx} className="flex items-start gap-2 group/check py-0.5 px-1 hover:bg-muted/5 rounded-md transition-colors">
           <div className="mt-1 opacity-0 group-hover/check:opacity-30 cursor-grab active:cursor-grabbing transition-opacity">
@@ -89,29 +95,36 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id, items
           </button>
 
           <div className="flex-1 relative">
-            <input
-              className={`w-full bg-transparent border-none outline-none focus:ring-0 p-1 text-sm leading-relaxed transition-all placeholder:text-muted-foreground/20 ${item.checked ? 'line-through text-muted-foreground opacity-50' : 'text-foreground'}`}
-              value={item.label}
-              placeholder="Añadir algo para hacer..."
-              disabled={readonly}
-              onChange={(e) => {
-                const val = e.target.value;
-                handleItemUpdate(idx, { label: val });
-                if (val.endsWith("@")) {
-                  setPickerTarget(idx);
-                  setIsPickerOpen(true);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addItem(idx);
-                } else if (e.key === 'Backspace' && !item.label && items.length > 1) {
-                  e.preventDefault();
-                  removeItem(idx);
-                }
-              }}
-            />
+            {readonly ? (
+              <div className={`w-full p-1 text-sm leading-relaxed ${item.checked ? 'line-through text-muted-foreground opacity-60' : 'text-foreground'}`}>
+                {renderLabelWithMentions(item.label || "")}
+              </div>
+            ) : (
+              <ReferenceTokenInput
+                value={item.label}
+                onChange={(val) => {
+                  handleItemUpdate(idx, { label: val });
+                }}
+                onSubmit={() => addItem(idx)}
+                onKeyDown={(e, currentValue) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addItem(idx);
+                  } else if (e.key === 'Backspace' && !currentValue.trim() && items.length > 1) {
+                    e.preventDefault();
+                    removeItem(idx);
+                  }
+                }}
+                documents={documents}
+                boards={boards}
+                users={users}
+                disabled={readonly}
+                submitOnEnter={false}
+                className="w-full"
+                inputClassName={`border-none bg-transparent px-1 py-1 shadow-none min-h-[30px] ${item.checked ? 'line-through text-muted-foreground opacity-50' : 'text-foreground'}`}
+                placeholder="Añadir algo para hacer..."
+              />
+            )}
           </div>
 
           {!readonly && (
@@ -126,25 +139,14 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id, items
       ))}
 
 
-      {isPickerOpen && pickerTarget !== null && (
-        <Portal>
-          <ReferencePicker
-            boards={boards}
-            documents={documents}
-            users={users}
-            onClose={() => {
-              setIsPickerOpen(false);
-              setPickerTarget(null);
-            }}
-            onSelect={(selected) => {
-              const currentLabel = items[pickerTarget].label;
-              const newVal = currentLabel.substring(0, currentLabel.lastIndexOf("@")) + ` @[${selected.type}:${selected.id}:${selected.name}] `;
-              handleItemUpdate(pickerTarget, { label: newVal });
-              setIsPickerOpen(false);
-              setPickerTarget(null);
-            }}
-          />
-        </Portal>
+      {!readonly && (
+        <button
+          onClick={() => addItem(items.length - 1)}
+          className="ml-8 mt-1 inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/20 hover:text-foreground"
+        >
+          <Plus className="h-3.5 w-3.5" />
+          Añadir ítem
+        </button>
       )}
     </div>
   );

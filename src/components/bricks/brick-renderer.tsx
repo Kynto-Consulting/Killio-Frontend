@@ -17,6 +17,7 @@ interface BrickRendererProps {
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
 }
 
 export function UnifiedBrickRenderer({
@@ -26,7 +27,8 @@ export function UnifiedBrickRenderer({
   documents = [],
   boards = [],
   activeBricks = [],
-  users = []
+  users = [],
+  onPasteImageInTextBrick
 }: BrickRendererProps) {
   const { kind, content } = brick;
 
@@ -42,6 +44,7 @@ export function UnifiedBrickRenderer({
           boards={boards}
           activeBricks={activeBricks}
           users={users}
+          onPasteImage={(payload) => onPasteImageInTextBrick?.({ ...payload, brickId: brick.id })}
         />
       );
 
@@ -55,6 +58,7 @@ export function UnifiedBrickRenderer({
           documents={documents}
           boards={boards}
           users={users}
+          activeBricks={activeBricks}
         />
       );
 
@@ -65,6 +69,7 @@ export function UnifiedBrickRenderer({
           config={content as any}
           onUpdate={(newConfig) => onUpdate({ ...content, ...newConfig })}
           readonly={!canEdit}
+          activeBricks={activeBricks as any[]}
         />
       );
 
@@ -95,6 +100,34 @@ export function UnifiedBrickRenderer({
           activeBricks={activeBricks}
         />
       );
+
+    case 'media':
+    case 'image':
+    case 'file': {
+      const mediaType = kind === 'media' ? (content.mediaType || 'image') : kind;
+      const url = content.url || '';
+      const title = content.title || (mediaType === 'image' ? 'Imagen' : 'Archivo');
+      const caption = content.caption;
+      return (
+        <div className="space-y-2 rounded-lg border border-border/50 bg-background/40 p-3">
+          {mediaType === 'image' && url ? (
+            <img src={url} alt={title} className="max-h-[520px] w-full rounded-md border border-border/50 object-contain" />
+          ) : (
+            <div className="rounded-md border border-border/60 bg-muted/30 p-3">
+              <p className="text-sm font-semibold text-foreground">{title}</p>
+              {url ? (
+                <a href={url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-accent hover:underline">
+                  Abrir archivo
+                </a>
+              ) : (
+                <p className="mt-1 text-xs text-muted-foreground">Sin URL de archivo.</p>
+              )}
+            </div>
+          )}
+          {caption ? <p className="text-xs text-muted-foreground">{caption}</p> : null}
+        </div>
+      );
+    }
 
     // Add other cases as they are implemented...
 

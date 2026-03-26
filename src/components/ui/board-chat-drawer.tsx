@@ -1,16 +1,16 @@
 "use client";
 
 import { Fragment, useState, useEffect, useRef, type ReactNode, useMemo } from "react";
-import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2 } from "lucide-react";
+import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "../providers/session-provider";
 import { getBoard, listTeamActivity, chatWithAiScope, type BoardView, type ActivityLogEntry, listTeamMembers, updateCard, createTag, updateList } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
-import { Portal } from "./portal";
-import { ReferencePicker } from "../documents/reference-picker";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
+import { ReferenceTokenInput } from "./reference-token-input";
+import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -61,6 +61,24 @@ function getResolverContext(teamDocs: DocumentSummary[], teamBoards: any[], team
   };
 }
 
+function hashString(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getUserTintStyles(seed: string): { bg: string; border: string; text: string } {
+  const palette = [
+    { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.35)", text: "#93c5fd" },
+    { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.35)", text: "#6ee7b7" },
+    { bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.35)", text: "#fcd34d" },
+  ];
+  return palette[hashString(seed || "user") % palette.length];
+}
+
 export function BoardChatDrawer({
   isOpen,
   onClose,
@@ -78,9 +96,7 @@ export function BoardChatDrawer({
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
-  const [aiMessages, setAiMessages] = useState<Message[]>([
-    { id: 1, role: "bot", content: "Hola. ¿En qué puedo ayudarte con este tablero?" },
-  ]);
+  const [aiMessages, setAiMessages] = useState<Message[]>([]);
   const [chatMessages, setChatMessages] = useState<Message[]>([
     { id: 0, role: "system", content: "Team Chat conectado. Bienvenidos." },
   ]);
@@ -91,7 +107,8 @@ export function BoardChatDrawer({
   const [allAvailableTags, setAllAvailableTags] = useState<any[]>([]);
   const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [teamBoardsForMentions, setTeamBoardsForMentions] = useState<any[]>([]);
+  const [boardCardsForMentions, setBoardCardsForMentions] = useState<Array<{ id: string; title: string }>>([]);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -146,6 +163,20 @@ export function BoardChatDrawer({
         setAllAvailableTags(tags);
         setTeamDocs(docs);
         setTeamMembers(members);
+        setTeamBoardsForMentions([
+          {
+            id: board.id,
+            name: board.name,
+          },
+        ]);
+        setBoardCardsForMentions(
+          board.lists.flatMap((list) =>
+            list.cards.map((card) => ({
+              id: card.id,
+              title: card.title,
+            }))
+          )
+        );
       }).catch(console.error);
     }
   }, [isOpen, boardId, accessToken, activeTeamId]);
@@ -338,11 +369,12 @@ export function BoardChatDrawer({
 
   if (!isOpen) return null;
 
-  async function sendMessage(e: React.FormEvent) {
-    e.preventDefault();
-    if (!inputVal.trim() || isLoading || !boardId || !accessToken) return;
+  async function sendMessage(e?: React.FormEvent, presetPrompt?: string) {
+    e?.preventDefault();
+    const messageToSend = (presetPrompt ?? inputVal).trim();
+    if (!messageToSend || isLoading || !boardId || !accessToken) return;
 
-    const userMsg: Message = { id: Date.now(), role: "user", content: inputVal, avatar: user?.displayName?.[0] || "U" };
+    const userMsg: Message = { id: Date.now(), role: "user", content: messageToSend, avatar: user?.displayName?.[0] || "U" };
     setInputVal("");
 
     if (activeTab === 'chat') {
@@ -378,7 +410,7 @@ export function BoardChatDrawer({
         {
           scope: "board",
           scopeId: boardId,
-          message: userMsg.content,
+          message: buildAiMessageWithReferenceContext(messageToSend, getResolverContext(teamDocs, teamBoardsForMentions, teamMembers)),
           contextSummary,
         },
         accessToken,
@@ -428,7 +460,111 @@ export function BoardChatDrawer({
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
-        {(activeTab === 'chat' || activeTab === 'copilot') && (activeTab === 'chat' ? chatMessages : aiMessages).map((msg) => {
+        {activeTab === 'copilot' && (
+          <div className="flex flex-col h-full space-y-4">
+            <div className="flex-1 space-y-4">
+              <div className="flex gap-3">
+                <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
+                  <Bot className="h-4 w-4" />
+                </div>
+                <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
+                  <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a organizar este tablero, priorizar tareas o detectar bloqueos. ¿En qué te ayudo?</p>
+                </div>
+              </div>
+
+              {aiMessages.map((msg) => {
+                const userTint = getUserTintStyles(user?.id || user?.email || msg.avatar || "user");
+                const { cleanText, actions } = msg.loading ? { cleanText: "", actions: [] as any[] } : parseAiActions(msg.content);
+
+                return (
+                  <div key={msg.id} className="space-y-3">
+                    <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                      <div
+                        className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'user'
+                          ? 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
+                          : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
+                          }`}
+                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}
+                      >
+                        {msg.role === 'user' ? (msg.avatar || (user?.displayName?.[0] || 'U')) : <Bot className="h-4 w-4" />}
+                      </div>
+                      <div
+                        className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
+                          : 'bg-muted/50 border-border/50 rounded-tl-none'
+                          }`}
+                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}
+                      >
+                        {msg.loading ? (
+                          <div className="flex gap-1.5 items-center px-1 py-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
+                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
+                          </div>
+                        ) : (
+                          <RichText
+                            content={cleanText}
+                            context={getResolverContext(teamDocs, [], teamMembers)}
+                            availableTags={allAvailableTags}
+                            onSuggestionApply={() => {
+                              setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: 'Acción realizada con éxito.' }]);
+                            }}
+                          />
+                        )}
+                      </div>
+                    </div>
+
+                    {actions.map((action, actionIdx) => (
+                      <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                            <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
+                          </div>
+                        </div>
+                        <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el tablero"}</p>
+                        <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
+                          {action.action}: {JSON.stringify(action.payload, null, 2)}
+                        </div>
+                        <button
+                          onClick={() => handleAiAction(action)}
+                          className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                        >
+                          Confirmar y Ejecutar
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+
+              <div className="flex flex-wrap gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    void sendMessage(undefined, "Resume este tablero y destaca prioridades para hoy.");
+                  }}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                >
+                  <FileText className="w-3 h-3" />
+                  Resumir tablero
+                </button>
+                <button
+                  onClick={() => {
+                    void sendMessage(undefined, "Detecta bloqueos y sugiere próximos pasos accionables para el equipo.");
+                  }}
+                  disabled={isLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all disabled:opacity-50"
+                >
+                  <Sparkles className="w-3 h-3" />
+                  Detectar bloqueos
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'chat' && chatMessages.map((msg) => {
           if (msg.role === "system") {
             return (
               <div key={msg.id} className="flex justify-center">
@@ -442,63 +578,34 @@ export function BoardChatDrawer({
           if (msg.role === "bot") {
             return (
               <div key={msg.id} className="flex gap-3">
-                <div className={`h-8 w-8 shrink-0 rounded border flex items-center justify-center border shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500/10 border-amber-500/20 text-amber-500' : 'bg-muted/50 border-border/50 text-muted-foreground'
-                  }`}>
-                  {activeTab === 'copilot' ? <Bot className="h-4 w-4" /> : <MessageSquare className="h-4 w-4" />}
+                <div className="h-8 w-8 shrink-0 rounded border flex items-center justify-center border shadow-sm bg-muted/50 border-border/50 text-muted-foreground">
+                  <MessageSquare className="h-4 w-4" />
                 </div>
                 <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1">
-                  {msg.loading ? (
-                    <div className="flex gap-1.5 items-center px-1 py-2">
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  ) : (() => {
-                    const { cleanText, actions } = parseAiActions(msg.content);
-                    return (
-                      <div className="space-y-3">
-                        <RichText
-                          content={cleanText}
-                          context={getResolverContext(teamDocs, [], teamMembers)}
-                          availableTags={allAvailableTags}
-                          onSuggestionApply={() => {
-                            setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: 'Acción realizada con éxito.' }]);
-                          }}
-                        />
-                        {actions.map((action, actionIdx) => (
-                          <div key={actionIdx} className="p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-2">
-                                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
-                              </div>
-                            </div>
-                            <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el tablero"}</p>
-                            <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
-                              {action.action}: {JSON.stringify(action.payload, null, 2)}
-                            </div>
-                            <button 
-                              onClick={() => handleAiAction(action)}
-                              className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
-                            >
-                              Confirmar y Ejecutar
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()}
+                  <RichText
+                    content={msg.content}
+                    context={getResolverContext(teamDocs, [], teamMembers)}
+                    availableTags={allAvailableTags}
+                  />
                 </div>
               </div>
             );
           }
 
+          const userTint = getUserTintStyles(user?.id || user?.email || msg.avatar || "user");
+
           return (
             <div key={msg.id} className="flex gap-3 flex-row-reverse">
-              <div className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm border">
+              <div
+                className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm border"
+                style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text }}
+              >
                 {msg.avatar || (user?.displayName?.[0] || 'U')}
               </div>
-              <div className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20">
+              <div
+                className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20"
+                style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" }}
+              >
                 <RichText
                   content={msg.content}
                   context={getResolverContext(teamDocs, [], teamMembers)}
@@ -603,45 +710,28 @@ export function BoardChatDrawer({
       {(activeTab === 'chat' || activeTab === 'copilot') && (
         <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
           <form className="relative flex items-center" onSubmit={sendMessage}>
-            <input
-              type="text"
+            <ReferenceTokenInput
               value={inputVal}
-              onChange={(e) => {
-                const val = e.target.value;
-                const { selectionStart } = e.target;
-                setInputVal(val);
-                // Trigger if the character just typed at cursor is @
-                if (selectionStart !== null && val[selectionStart - 1] === "@") {
-                  setIsPickerOpen(true);
-                }
+              onChange={setInputVal}
+              placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Pregunta o menciona con @..."}
+              documents={teamDocs}
+              boards={teamBoardsForMentions}
+              users={teamMembers}
+              cards={boardCardsForMentions}
+              onSubmit={() => {
+                void sendMessage();
               }}
-              placeholder={activeTab === 'copilot' ? "Pregunta al Asistente..." : "Pregunta o menciona con @..."}
-              className="w-full bg-card border border-input rounded-full pr-10 pl-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-accent transition-all placeholder:text-muted-foreground shadow-sm"
+              className="w-full"
+              inputClassName={`pr-10 shadow-sm ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : ''}`}
             />
             <button
               type="submit"
               disabled={!inputVal.trim() || isLoading}
-              className="absolute right-1.5 p-1.5 rounded-full bg-accent text-accent-foreground disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm"
+              className={`absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-accent text-accent-foreground'}`}
             >
               <Send className="h-3.5 w-3.5" />
             </button>
           </form>
-
-          {isPickerOpen && (
-            <Portal>
-              <ReferencePicker
-                boards={[]}
-                documents={teamDocs}
-                users={teamMembers}
-                onClose={() => setIsPickerOpen(false)}
-                onSelect={(item) => {
-                  const newVal = inputVal.substring(0, inputVal.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
-                  setInputVal(newVal);
-                  setIsPickerOpen(false);
-                }}
-              />
-            </Portal>
-          )}
         </div>
       )}
 

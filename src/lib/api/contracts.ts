@@ -915,10 +915,16 @@ export async function uploadFile(
   const formData = new FormData();
   formData.append('file', file);
 
-  return request<{ key: string; url: string; isPrivate: boolean }>(`/uploads`, {
+  const uploaded = await request<{ key: string; url: string; isPrivate: boolean }>(`/uploads`, {
     method: 'POST',
     headers: authHeaders(accessToken), // don't set Content-Type to allow browser to insert boundary
     body: formData,
   });
+
+  if (uploaded.url.startsWith('/')) {
+    return { ...uploaded, url: `${API_BASE_URL}${uploaded.url}` };
+  }
+
+  return uploaded;
 }
 

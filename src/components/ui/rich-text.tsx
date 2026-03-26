@@ -102,7 +102,6 @@ export function RichText({
                     type="deep"
                     id={part.inner?.split(":")[0] || part.id}
                     name={part.label}
-                    prefix={part.prefix}
                     onClick={() => onReferenceClick?.("deep", part.inner || part.id)}
                   />
                 );

@@ -1,13 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { ChevronDown, ChevronRight, Settings2 } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
-import { Portal } from "../ui/portal";
-import { ReferencePicker } from "../documents/reference-picker";
-import { Fragment } from "react";
+import { ReferenceTokenInput } from "../ui/reference-token-input";
 
 interface AccordionBrickProps {
   id: string;
@@ -26,7 +24,10 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
   id, title, body, isExpanded, onUpdate, readonly, documents, boards, activeBricks, users = []
 }) => {
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+
+  useEffect(() => {
+    setLocalExpanded(isExpanded);
+  }, [isExpanded]);
 
   const toggle = () => {
     const newVal = !localExpanded;
@@ -47,17 +48,17 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
         {readonly ? (
           <span className="text-sm font-semibold tracking-tight">{title || 'Toggle Item'}</span>
         ) : (
-          <div className="flex-1 relative">
-            <input
-              className="w-full bg-transparent border-none outline-none focus:ring-0 p-0 text-sm font-semibold placeholder:text-muted-foreground/30 leading-none"
+          <div className="flex-1 relative" onClick={(e) => e.stopPropagation()}>
+            <ReferenceTokenInput
               value={title}
+              onChange={(val) => onUpdate({ title: val })}
               placeholder="Título del acordeón..."
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
-                const val = e.target.value;
-                onUpdate({ title: val });
-                if (val.endsWith("@")) setIsPickerOpen(true);
-              }}
+              documents={documents}
+              boards={boards}
+              users={users as any}
+              submitOnEnter={false}
+              className="w-full"
+              inputClassName="border-none bg-transparent p-0 shadow-none min-h-[28px] text-sm font-semibold placeholder:text-muted-foreground/30 leading-none"
             />
           </div>
         )}
@@ -73,25 +74,10 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
             documents={documents}
             boards={boards}
             activeBricks={activeBricks}
+            users={users as any}
           />
         </div>
       </div>
-
-      {isPickerOpen && (
-        <Portal>
-          <ReferencePicker
-            boards={boards}
-            documents={documents}
-            users={users as any}
-            onClose={() => setIsPickerOpen(false)}
-            onSelect={(item) => {
-              const newVal = title.substring(0, title.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
-              onUpdate({ title: newVal });
-              setIsPickerOpen(false);
-            }}
-          />
-        </Portal>
-      )}
     </div>
   );
 };

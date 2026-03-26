@@ -3,7 +3,6 @@
 import React, { useState } from "react";
 import {
   DndContext,
-  pointerWithin,
   DragOverlay,
   type DragEndEvent,
   closestCenter,
@@ -17,10 +16,12 @@ import {
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Plus, Type, Table, BarChart2, CheckSquare, ChevronDown } from "lucide-react";
+import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon } from "lucide-react";
 import { UnifiedBrickRenderer } from "./brick-renderer";
 import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
+
+type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'image';
 
 interface UnifiedBrickListProps {
   bricks: any[];
@@ -32,6 +33,8 @@ interface UnifiedBrickListProps {
   documents?: any[];
   boards?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  addableKinds?: AddableKind[];
+  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -43,9 +46,14 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onAddBrick,
   documents = [],
   boards = [],
-  users = []
+  users = [],
+  addableKinds,
+  onPasteImageInTextBrick
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const enabledKinds = addableKinds && addableKinds.length > 0
+    ? addableKinds
+    : ['text', 'table', 'graph', 'checklist', 'accordion'];
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -96,6 +104,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         boards={boards}
         activeBricks={bricks}
         users={users}
+        onPasteImageInTextBrick={onPasteImageInTextBrick}
       />
     );
   };
@@ -129,21 +138,36 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
 
       {canEdit && (
         <div className="pt-6 border-t border-border flex flex-wrap gap-2 items-center justify-center">
-          <Button variant="ghost" size="sm" onClick={() => onAddBrick('text')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-            <Type className="w-3.5 h-3.5 text-accent" /> Texto
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onAddBrick('table')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-            <Table className="w-3.5 h-3.5 text-accent" /> Tabla
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onAddBrick('graph')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-            <BarChart2 className="w-3.5 h-3.5 text-accent" /> Gráfico
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onAddBrick('checklist')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-            <CheckSquare className="w-3.5 h-3.5 text-accent" /> Lista
-          </Button>
-          <Button variant="ghost" size="sm" onClick={() => onAddBrick('accordion')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-            <ChevronDown className="w-3.5 h-3.5 text-accent" /> Acordeón
-          </Button>
+          {enabledKinds.includes('text') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('text')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <Type className="w-3.5 h-3.5 text-accent" /> Texto
+            </Button>
+          )}
+          {enabledKinds.includes('table') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('table')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <Table className="w-3.5 h-3.5 text-accent" /> Tabla
+            </Button>
+          )}
+          {enabledKinds.includes('graph') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('graph')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <BarChart2 className="w-3.5 h-3.5 text-accent" /> Gráfico
+            </Button>
+          )}
+          {enabledKinds.includes('checklist') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('checklist')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <CheckSquare className="w-3.5 h-3.5 text-accent" /> Lista
+            </Button>
+          )}
+          {enabledKinds.includes('accordion') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('accordion')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <ChevronDown className="w-3.5 h-3.5 text-accent" /> Acordeón
+            </Button>
+          )}
+          {enabledKinds.includes('image') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('image')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <ImageIcon className="w-3.5 h-3.5 text-accent" /> Imagen
+            </Button>
+          )}
         </div>
       )}
     </div>

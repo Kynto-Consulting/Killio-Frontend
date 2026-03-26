@@ -11,11 +11,10 @@ interface RefPillProps {
   id: string;
   name: string;
   label?: string;
-  prefix?: string;
   onClick?: () => void;
 }
 
-export function RefPill({ type, id, name, label, prefix, onClick }: RefPillProps) {
+export function RefPill({ type, id, name, label, onClick }: RefPillProps) {
   const router = useRouter();
   const { accessToken } = useSession();
 
@@ -70,7 +69,7 @@ export function RefPill({ type, id, name, label, prefix, onClick }: RefPillProps
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm ${colors[type] || colors.deep}`}
     >
       <Icon className="h-3 w-3 transition-transform group-hover:scale-110" />
-      <span>{prefix ? `${prefix} ${label || name}` : (label || name)}</span>
+      <span>{label || name}</span>
       <ExternalLink className="h-2.5 w-2.5 opacity-0 group-hover:opacity-100 transition-opacity ml-0.5" />
     </button>
   );

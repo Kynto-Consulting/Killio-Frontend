@@ -408,6 +408,7 @@ export default function DocumentPage() {
               documents={teamDocs}
               boards={teamBoards}
               users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
+              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
               onAddBrick={(kind) => handleAddBrick(kind as any)}
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}

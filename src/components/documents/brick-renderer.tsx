@@ -109,7 +109,7 @@ export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards
             users={users}
             onClose={() => setIsReferencePickerOpen(false)}
             onSelect={(item) => {
-              const newText = (content.text || "").slice(0, -1) + `@[${item.type}:${item.id}:${item.name}] `;
+              const newText = (content.text || "").slice(0, -1) + `${item.token} `;
               onUpdate({ ...content, text: newText });
               setIsReferencePickerOpen(false);
               // Maintain editing state

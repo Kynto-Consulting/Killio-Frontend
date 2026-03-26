@@ -5,13 +5,12 @@ import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSq
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
-import { Portal } from "./portal";
-import { ReferencePicker } from "../documents/reference-picker";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { listTeamMembers } from "@/lib/api/contracts";
 import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { ReferenceTokenInput } from "./reference-token-input";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -98,7 +97,6 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
   const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   useEffect(() => {
     if (isOpen && accessToken && activeTeamId) {
@@ -489,7 +487,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       } catch (err: any) {
         pushToast("error", "Error al enviar tarjetas: " + (err?.message || "Error desconocido"));
       } finally {
-        setIsDispatchingSelected(true);
+        setIsDispatchingSelected(false);
       }
     } else if (generationType === 'documents') {
       const selectedDocs = previewDocuments.filter(d => d.isSelected);
@@ -609,32 +607,16 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
                   {selectedFile ? "Contexto Adicional (Opcional)" : "Pega tus notas o requerimientos"}
                 </label>
-                <textarea
+                <ReferenceTokenInput
                   value={fileText}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFileText(val);
-                    if (val.endsWith("@")) setIsPickerOpen(true);
-                  }}
+                  onChange={setFileText}
                   placeholder={selectedFile ? "Ej. Filtra solo las tareas de backend..." : "Añade toda la información necesaria para crear las tarjetas..."}
-                  className="flex-1 w-full min-h-[160px] rounded-xl border border-input bg-background px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent resize-none transition-shadow"
+                  documents={teamDocs}
+                  boards={boards}
+                  users={teamMembers}
+                  className="flex-1"
+                  inputClassName="h-full w-full min-h-[160px] rounded-xl bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-shadow"
                 />
-
-                {isPickerOpen && (
-                  <Portal>
-                    <ReferencePicker
-                      boards={boards}
-                      documents={teamDocs}
-                      users={teamMembers}
-                      onClose={() => setIsPickerOpen(false)}
-                      onSelect={(item) => {
-                        const newVal = fileText.substring(0, fileText.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
-                        setFileText(newVal);
-                        setIsPickerOpen(false);
-                      }}
-                    />
-                  </Portal>
-                )}
               </div>
 
               {/* Generate Action */}
@@ -713,56 +695,79 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 )}
               </div>
 
-              {previewCards.length === 0 ? (
+              {(
+                (generationType === 'cards' && previewCards.length === 0) ||
+                (generationType === 'documents' && previewDocuments.length === 0) ||
+                (generationType === 'boards' && previewBoards.length === 0)
+              ) ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-70">
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
                     <Bot className="h-12 w-12 text-accent/40" />
                   </div>
                   <h4 className="text-lg font-medium mb-2">Aún no hay resultados</h4>
                   <p className="text-sm text-center text-muted-foreground max-w-sm">
-                    Sube un archivo o pega texto y haz clic en "Generar Tarjetas" para extraer ítems procesables.
+                    {generationType === 'cards' ? 'Sube un archivo o pega texto y haz clic en "Generar Tarjetas" para extraer ítems procesables.' : generationType === 'documents' ? 'Sube un archivo o pega texto y haz clic en "Generar Documentos" para crear documentos.' : 'Sube un archivo o pega texto y haz clic en "Generar Tableros" para crear tableros.'}
                   </p>
                 </div>
               ) : (
                 <div className="space-y-4 flex-1 pb-10">
-                  <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
-                    <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
-                    <p className="text-muted-foreground">
-                      Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
-                    </p>
-                  </div>
+                  {generationType === 'cards' && (
+                    <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
+                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                      <p className="text-muted-foreground">
+                        Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
+                      </p>
+                    </div>
+                  )}
+                  {generationType === 'documents' && (
+                    <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
+                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                      <p className="text-muted-foreground">
+                        Selecciona los documentos que deseas crear y presiona "Crear documentos" para agregarlos a tu espacio.
+                      </p>
+                    </div>
+                  )}
+                  {generationType === 'boards' && (
+                    <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
+                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                      <p className="text-muted-foreground">
+                        Selecciona los tableros que deseas crear y presiona "Crear tableros" para agregarlos a tu equipo.
+                      </p>
+                    </div>
+                  )}
 
-                  <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
-                    <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">Paso 2: Destino</div>
-                    <div className="flex-1 min-w-[160px] relative">
-                      <select
-                        className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
-                        value={defaultBoardId}
-                        onChange={(e) => setDefaultBoardId(e.target.value)}
-                      >
-                        <option value="" disabled>Selecciona tablero...</option>
-                        {boards.map((board) => (
-                          <option key={board.id} value={board.id}>{board.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                    </div>
-                    <div className="flex-1 min-w-[160px] relative">
-                      <select
-                        className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
-                        value={defaultListId}
-                        onChange={(e) => setDefaultListId(e.target.value)}
-                        disabled={!defaultBoardId || defaultLists.length === 0}
-                      >
-                        <option value="" disabled>
-                          {!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
-                        </option>
-                        {defaultLists.map((list) => (
-                          <option key={list.id} value={list.id}>{list.name}</option>
-                        ))}
-                      </select>
-                      <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                    </div>
+                  {generationType === 'cards' && (
+                    <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">Paso 2: Destino</div>
+                      <div className="flex-1 min-w-[160px] relative">
+                        <select
+                          className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
+                          value={defaultBoardId}
+                          onChange={(e) => setDefaultBoardId(e.target.value)}
+                        >
+                          <option value="" disabled>Selecciona tablero...</option>
+                          {boards.map((board) => (
+                            <option key={board.id} value={board.id}>{board.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                      </div>
+                      <div className="flex-1 min-w-[160px] relative">
+                        <select
+                          className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
+                          value={defaultListId}
+                          onChange={(e) => setDefaultListId(e.target.value)}
+                          disabled={!defaultBoardId || defaultLists.length === 0}
+                        >
+                          <option value="" disabled>
+                            {!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
+                          </option>
+                          {defaultLists.map((list) => (
+                            <option key={list.id} value={list.id}>{list.name}</option>
+                          ))}
+                        </select>
+                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
+                      </div>
                     <button
                       onClick={handleDispatchSelected}
                       disabled={isDispatchingSelected || !defaultBoardId || !defaultListId || !previewCards.some((card) => card.isSelected)}
@@ -777,6 +782,43 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       )}
                     </button>
                   </div>
+                  )}
+
+                  {generationType === 'documents' && previewDocuments.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleDispatchSelected}
+                        disabled={isDispatchingSelected || !previewDocuments.some((doc) => doc.isSelected)}
+                        className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground font-semibold hover:bg-accent/90 text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
+                      >
+                        {isDispatchingSelected ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear documentos
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {generationType === 'boards' && previewBoards.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleDispatchSelected}
+                        disabled={isDispatchingSelected || !previewBoards.some((board) => board.isSelected)}
+                        className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground font-semibold hover:bg-accent/90 text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
+                      >
+                        {isDispatchingSelected ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear tableros
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
 
                   {generationType === 'cards' && previewCards.map((card) => (
                     <div

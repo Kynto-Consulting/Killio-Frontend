@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -11,16 +11,15 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getUserAvatarUrl } from "../../lib/gravatar";
 import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KEY, translateNativeTagName } from "../../lib/native-tags";
-import { Portal } from "./portal";
 import { BrickDiff } from "../bricks/brick-diff";
 import * as jsdiff from "diff";
-import { ReferencePicker } from "../documents/reference-picker";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { listDocuments } from "@/lib/api/documents";
 import { listTeamMembers } from "@/lib/api/contracts";
 import { Fragment, type ReactNode, useMemo } from "react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
+import { ReferenceTokenInput } from "./reference-token-input";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -41,6 +40,24 @@ function getActionTheme(action: string) {
   if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
   if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
   return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
+}
+
+function hashString(seed: string): number {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i += 1) {
+    hash = (hash << 5) - hash + seed.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getUserTintStyles(seed: string): { bg: string; border: string; text: string } {
+  const palette = [
+    { bg: "rgba(59,130,246,0.15)", border: "rgba(59,130,246,0.35)", text: "#93c5fd" },
+    { bg: "rgba(16,185,129,0.15)", border: "rgba(16,185,129,0.35)", text: "#6ee7b7" },
+    { bg: "rgba(245,158,11,0.15)", border: "rgba(245,158,11,0.35)", text: "#fcd34d" },
+  ];
+  return palette[hashString(seed || "user") % palette.length];
 }
 
 import { Edit2 } from "lucide-react";
@@ -121,7 +138,6 @@ export function CardDetailModal({
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
   const [hideNativeTagSuggestions, setHideNativeTagSuggestions] = useState(false);
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
@@ -517,8 +533,180 @@ export function CardDetailModal({
     }
   };
 
+  const buildDraftBrick = useCallback((input: BrickMutationInput, position: number): BoardBrick => {
+    const brickId = `tmp-${crypto.randomUUID()}`;
+    if (input.kind === 'text') {
+      return {
+        id: brickId,
+        kind: 'text',
+        displayStyle: input.displayStyle,
+        markdown: input.markdown,
+        tasks: [],
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'table') {
+      return {
+        id: brickId,
+        kind: 'table',
+        rows: input.rows || [],
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'checklist') {
+      return {
+        id: brickId,
+        kind: 'checklist',
+        items: input.items || [],
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'media') {
+      return {
+        id: brickId,
+        kind: 'media',
+        mediaType: input.mediaType,
+        title: input.title,
+        url: input.url,
+        mimeType: input.mimeType,
+        sizeBytes: input.sizeBytes,
+        caption: input.caption,
+        assetId: input.assetId,
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'ai') {
+      return {
+        id: brickId,
+        kind: 'ai',
+        status: input.status,
+        title: input.title,
+        prompt: input.prompt,
+        response: input.response,
+        model: input.model,
+        confidence: input.confidence,
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'graph') {
+      return {
+        id: brickId,
+        kind: 'graph',
+        type: input.type,
+        data: input.data,
+        title: input.title,
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'accordion') {
+      return {
+        id: brickId,
+        kind: 'accordion',
+        title: input.title,
+        body: input.body,
+        isExpanded: input.isExpanded,
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    if (input.kind === 'embed') {
+      return {
+        id: brickId,
+        kind: 'embed',
+        embedType: input.embedType,
+        title: input.title,
+        href: input.href,
+        targetId: input.targetId,
+        summary: input.summary,
+        position,
+        parentBlockId: null,
+      } as BoardBrick;
+    }
+    return {
+      id: brickId,
+      kind: 'text',
+      displayStyle: 'paragraph',
+      markdown: '',
+      tasks: [],
+      position,
+      parentBlockId: null,
+    } as BoardBrick;
+  }, []);
+
+  const brickToMutationInput = useCallback((brick: BoardBrick): BrickMutationInput | null => {
+    if (brick.kind === 'text') {
+      return {
+        kind: 'text',
+        displayStyle: brick.displayStyle || 'paragraph',
+        markdown: brick.markdown || '',
+      };
+    }
+    if (brick.kind === 'table') {
+      return {
+        kind: 'table',
+        rows: (brick.rows || []).map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell ?? '')) : []),
+      };
+    }
+    if (brick.kind === 'checklist') {
+      return {
+        kind: 'checklist',
+        items: (brick.items || []).map((item: any, index: number) => ({
+          id: String(item.id || `task-${index}`),
+          label: String(item.label ?? item.text ?? ''),
+          checked: !!item.checked,
+        })),
+      };
+    }
+    if (brick.kind === 'media') {
+      return {
+        kind: 'media',
+        mediaType: brick.mediaType,
+        title: brick.title,
+        url: brick.url,
+        mimeType: brick.mimeType,
+        sizeBytes: brick.sizeBytes,
+        caption: brick.caption,
+        assetId: brick.assetId,
+      };
+    }
+    if (brick.kind === 'embed') {
+      return {
+        kind: 'embed',
+        embedType: brick.embedType,
+        title: brick.title,
+        href: brick.href,
+        targetId: brick.targetId,
+        summary: brick.summary,
+      };
+    }
+    if (brick.kind === 'ai') {
+      return {
+        kind: 'ai',
+        status: brick.status,
+        title: brick.title,
+        prompt: brick.prompt,
+        response: brick.response,
+        model: brick.model,
+        confidence: brick.confidence,
+      };
+    }
+    return null;
+  }, []);
+
   const handleCreateBrick = async (input: BrickMutationInput) => {
-    if (!card?.id || !accessToken) return;
+    if (!card?.id || !accessToken) {
+      setLocalBlocks(prev => {
+        const nextPosition = (prev[prev.length - 1]?.position ?? 0) + 1000;
+        return [...prev, buildDraftBrick(input, nextPosition)];
+      });
+      return;
+    }
     try {
       const res = await createCardBrick(card.id, input, accessToken);
       setLocalBlocks(prev => [...prev, res.brick]);
@@ -528,7 +716,10 @@ export function CardDetailModal({
   };
 
   const handleUpdateBrick = async (brickId: string, input: Partial<BrickMutationInput>) => {
-    if (!card?.id || !accessToken) return;
+    if (!card?.id || !accessToken) {
+      setLocalBlocks(prev => prev.map(b => b.id === brickId ? { ...b, ...input } : b) as BoardBrick[]);
+      return;
+    }
     try {
       setLocalBlocks(prev => prev.map(b => b.id === brickId ? { ...b, ...input } : b) as BoardBrick[]);
       await updateCardBrick(card.id, brickId, input as any, accessToken);
@@ -538,7 +729,10 @@ export function CardDetailModal({
   };
 
   const handleDeleteBrick = async (brickId: string) => {
-    if (!card?.id || !accessToken) return;
+    if (!card?.id || !accessToken) {
+      setLocalBlocks(prev => prev.filter(b => b.id !== brickId));
+      return;
+    }
     try {
       setLocalBlocks(prev => prev.filter(b => b.id !== brickId));
       await deleteCardBrick(card.id, brickId, accessToken);
@@ -548,7 +742,15 @@ export function CardDetailModal({
   };
 
   const handleReorderBricks = async (brickIds: string[]) => {
-    if (!card?.id || !accessToken) return;
+    if (!card?.id || !accessToken) {
+      setLocalBlocks(prev => {
+        const newBlocks = [...prev];
+        newBlocks.sort((a, b) => brickIds.indexOf(a.id) - brickIds.indexOf(b.id));
+        newBlocks.forEach((b, i) => b.position = i);
+        return newBlocks;
+      });
+      return;
+    }
     try {
       const clientId = crypto.randomUUID();
       setLocalBlocks(prev => {
@@ -562,6 +764,90 @@ export function CardDetailModal({
       console.error("Failed to reorder bricks", err);
     }
   };
+
+  const handlePasteImageInTextBrick = useCallback(async ({
+    brickId,
+    file,
+    cursorOffset,
+    markdown,
+  }: {
+    brickId: string;
+    file: File;
+    cursorOffset: number;
+    markdown: string;
+  }) => {
+    if (!card?.id || !accessToken) return;
+
+    const targetIndex = localBlocks.findIndex((block) => block.id === brickId);
+    if (targetIndex < 0) return;
+
+    const target = localBlocks[targetIndex] as any;
+    if (target.kind !== 'text') return;
+
+    const sourceMarkdown = typeof markdown === 'string' ? markdown : (target.markdown || '');
+    const safeCursor = Math.max(0, Math.min(cursorOffset, sourceMarkdown.length));
+    const beforeText = sourceMarkdown.slice(0, safeCursor);
+    const afterText = sourceMarkdown.slice(safeCursor);
+
+    try {
+      const uploaded = await uploadFile(file, accessToken);
+
+      const prefixIds = localBlocks.slice(0, targetIndex).map((b) => b.id);
+      const suffixIds = localBlocks.slice(targetIndex + 1).map((b) => b.id);
+
+      const nextBlockMap = new Map<string, BoardBrick>(localBlocks.map((b) => [b.id, b]));
+      const middleIds: string[] = [];
+
+      if (beforeText.trim().length > 0) {
+        const updatedText = await updateCardBrick(card.id, brickId, {
+          kind: 'text',
+          displayStyle: target.displayStyle || 'paragraph',
+          markdown: beforeText,
+        } as BrickMutationInput, accessToken);
+        nextBlockMap.set(brickId, updatedText.brick);
+        middleIds.push(brickId);
+      } else {
+        await deleteCardBrick(card.id, brickId, accessToken);
+        nextBlockMap.delete(brickId);
+      }
+
+      const mediaBrick = await createCardBrick(card.id, {
+        kind: 'media',
+        mediaType: 'image',
+        title: file.name || 'Imagen',
+        url: uploaded.url,
+        mimeType: file.type || null,
+        sizeBytes: Number.isFinite(file.size) ? file.size : null,
+        caption: null,
+        assetId: uploaded.key || null,
+      }, accessToken);
+      nextBlockMap.set(mediaBrick.brick.id, mediaBrick.brick);
+      middleIds.push(mediaBrick.brick.id);
+
+      if (afterText.trim().length > 0) {
+        const trailingText = await createCardBrick(card.id, {
+          kind: 'text',
+          displayStyle: target.displayStyle || 'paragraph',
+          markdown: afterText,
+        }, accessToken);
+        nextBlockMap.set(trailingText.brick.id, trailingText.brick);
+        middleIds.push(trailingText.brick.id);
+      }
+
+      const finalIds = [...prefixIds, ...middleIds, ...suffixIds];
+      await reorderCardBricks(card.id, { clientId: crypto.randomUUID(), brickIds: finalIds }, accessToken);
+
+      const reordered = finalIds
+        .map((id) => nextBlockMap.get(id))
+        .filter(Boolean) as BoardBrick[];
+      reordered.forEach((block, index) => {
+        block.position = index;
+      });
+      setLocalBlocks(reordered);
+    } catch (err) {
+      console.error('Failed to paste image into text block', err);
+    }
+  }, [card?.id, accessToken, localBlocks]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -699,7 +985,7 @@ export function CardDetailModal({
     if (!listId || !accessToken || isCreating) return;
     setIsCreating(true);
     try {
-      await createCard({
+      const createdCard = await createCard({
         listId,
         title: localTitle || "New Card",
         dueAt: localDueAt || undefined,
@@ -707,6 +993,20 @@ export function CardDetailModal({
         tags: localTags.map(t => t.id),
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
+
+      if (createdCard?.id && localBlocks.length > 0) {
+        const createdBrickIds: string[] = [];
+        for (const block of localBlocks) {
+          const payload = brickToMutationInput(block);
+          if (!payload) continue;
+          const created = await createCardBrick(createdCard.id, payload, accessToken);
+          createdBrickIds.push(created.brick.id);
+        }
+        if (createdBrickIds.length > 1) {
+          await reorderCardBricks(createdCard.id, { clientId: crypto.randomUUID(), brickIds: createdBrickIds }, accessToken);
+        }
+      }
+
       router.refresh();
       window.dispatchEvent(new Event('board:refresh'));
       onClose();
@@ -1062,19 +1362,37 @@ export function CardDetailModal({
                 <div className="mt-4">
                   <UnifiedBrickList
                     bricks={localBlocks}
-                    canEdit={!!card?.id}
+                    canEdit={!readonly}
                     documents={teamDocs}
                     boards={teamBoards}
                     users={boardMembers}
+                    addableKinds={['text', 'table', 'checklist', 'image']}
                     onAddBrick={async (kind) => {
-                      let input: any;
-                      if (kind === 'checklist') input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
-                      else input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
-                      handleCreateBrick(input);
+                      let input: BrickMutationInput;
+                      if (kind === 'checklist') {
+                        input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
+                      } else if (kind === 'table') {
+                        input = { kind: 'table', rows: [['Encabezado 1', 'Encabezado 2'], ['', '']] };
+                      } else if (kind === 'image') {
+                        input = {
+                          kind: 'media',
+                          mediaType: 'image',
+                          title: 'Imagen',
+                          url: null,
+                          mimeType: null,
+                          sizeBytes: null,
+                          caption: null,
+                          assetId: null,
+                        };
+                      } else {
+                        input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
+                      }
+                      await handleCreateBrick(input);
                     }}
                     onUpdateBrick={handleUpdateBrick}
                     onDeleteBrick={handleDeleteBrick}
                     onReorderBricks={handleReorderBricks}
+                    onPasteImageInTextBrick={handlePasteImageInTextBrick}
                   />
                 </div>
 
@@ -1104,32 +1422,21 @@ export function CardDetailModal({
 
                     {aiMessages.map((msg, i) => {
                       const { cleanText, actions } = parseAiActions(msg.content);
-
-                      // Hash-based color for user
-                      let userTheme = { bg: 'bg-primary/10', border: 'border-primary/20', text: 'text-primary' };
-                      if (msg.role === 'user' && user?.id) {
-                        let hash = 0;
-                        const str = user.id + (user.email || '');
-                        for (let j = 0; j < str.length; j++) hash = str.charCodeAt(j) + ((hash << 5) - hash);
-                        const v = Math.abs(hash) % 3;
-                        if (v === 0) userTheme = { bg: 'bg-orange-500/15', border: 'border-orange-500/30', text: 'text-orange-300' };
-                        else if (v === 1) userTheme = { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-300' };
-                        else userTheme = { bg: 'bg-yellow-500/15', border: 'border-yellow-500/30', text: 'text-yellow-200' };
-                      }
+                      const userTint = getUserTintStyles(user?.id || user?.email || "user");
 
                       return (
                         <div key={i} className="space-y-3">
                           <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                             <div className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'assistant'
                               ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                              : `${userTheme.bg} ${userTheme.border} ${userTheme.text}`
-                              }`}>
+                              : 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
+                              }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}>
                               {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : (user?.displayName?.[0] || 'U')}
                             </div>
                             <div className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
-                              ? `${userTheme.bg} ${userTheme.border} ${userTheme.text} rounded-tr-none`
+                              ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
                               : 'bg-muted/50 border-border/50 rounded-tl-none'
-                              }`}>
+                              }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}>
                               <RichText
                                 content={cleanText}
                                 context={{ documents: teamDocs, boards: teamBoards, users: boardMembers }}
@@ -1355,38 +1662,23 @@ export function CardDetailModal({
             </div>
             <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
-                <textarea
+                <ReferenceTokenInput
                   placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Write a comment or @ mention..."}
-                  className={`w-full bg-background border rounded-lg px-3 py-2 pr-10 text-sm outline-none resize-none transition-colors ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
-                  rows={2}
                   value={newComment}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setNewComment(val);
-                    if (val.endsWith("@")) setIsPickerOpen(true);
+                  onChange={setNewComment}
+                  onSubmit={() => {
+                    void handleAddComment();
                   }}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleAddComment())}
+                  documents={teamDocs as any}
+                  boards={teamBoards as any}
+                  users={boardMembers}
+                  className="w-full"
+                  inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
                 />
                 <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
                   {isImprovingDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
                 </button>
               </div>
-
-              {isPickerOpen && (
-                <Portal>
-                  <ReferencePicker
-                    boards={teamBoards as any}
-                    documents={teamDocs as any}
-                    users={boardMembers}
-                    onClose={() => setIsPickerOpen(false)}
-                    onSelect={(item) => {
-                      const newVal = newComment.substring(0, newComment.lastIndexOf("@")) + ` @[${item.type}:${item.id}:${item.name}] `;
-                      setNewComment(newVal);
-                      setIsPickerOpen(false);
-                    }}
-                  />
-                </Portal>
-              )}
             </div>
           </div>
         </div>
