@@ -8,8 +8,10 @@ import { listTeamBoards, BoardSummary, createBoard, deleteBoard } from "@/lib/ap
 import { toast } from "@/lib/toast";
 import { CreateBoardModal } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function BoardsPage() {
+  const t = useTranslations("boards");
   const { accessToken, activeTeamId } = useSession();
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -30,7 +32,7 @@ export default function BoardsPage() {
   const handleCreateBoardClick = () => {
     if (!accessToken) return;
     if (!activeTeamId) {
-      toast("No active workspace found. Please select or create one from the top menu first.", "info");
+      toast(t("noActiveWorkspace"), "info");
       return;
     }
     setIsCreateBoardModalOpen(true);
@@ -43,9 +45,9 @@ export default function BoardsPage() {
       const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
       const newBoard = await createBoard({ name: payload.name, slug, coverImageUrl: payload.coverImageUrl }, activeTeamId, accessToken);
       setBoards([...boards, newBoard]);
-      toast("Board created successfully", "success");
+      toast(t("boardCreatedSuccess"), "success");
     } catch (error) {
-      toast("Failed to create board", "error");
+      toast(t("boardCreateError"), "error");
     }
   };
 
@@ -56,9 +58,9 @@ export default function BoardsPage() {
       await deleteBoard(boardToDelete.id, accessToken);
       setBoards(boards.filter(b => b.id !== boardToDelete.id));
       setBoardToDelete(null);
-      toast("Board deleted successfully", "success");
+      toast(t("boardDeleteSuccess"), "success");
     } catch (error) {
-      toast("Failed to delete board", "error");
+      toast(t("boardDeleteError"), "error");
     }
   };
 
@@ -72,8 +74,8 @@ export default function BoardsPage() {
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDeleteBoard}
-        title="Delete Board"
-        description={`Are you sure you want to delete the board "${boardToDelete?.name}"? This action cannot be undone.`}
+        title={t("deleteTitle")}
+        description={t("deleteDescription", { name: boardToDelete?.name || "" })}
       />
       <CreateBoardModal 
         isOpen={isCreateBoardModalOpen}
@@ -83,15 +85,15 @@ export default function BoardsPage() {
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Boards</h1>
-          <p className="text-muted-foreground">Manage your workspace boards and projects.</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input 
               type="text"
-              placeholder="Search boards..."
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
@@ -102,7 +104,7 @@ export default function BoardsPage() {
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
           >
             <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
-            New Board
+            {t("newBoard")}
           </button>
         </div>
       </div>
@@ -110,7 +112,7 @@ export default function BoardsPage() {
       {isLoading ? (
         <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary/50" />
-          <p>Gathering your boards...</p>
+          <p>{t("gathering")}</p>
         </div>
       ) : filteredBoards.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -121,8 +123,8 @@ export default function BoardsPage() {
             <div className="mb-4 rounded-full bg-accent/10 p-3 text-accent group-hover:bg-accent/20 transition-colors">
               <Plus className="h-6 w-6" />
             </div>
-            <h3 className="font-medium">New Board</h3>
-            <p className="text-sm text-muted-foreground mt-1">Start from scratch or a template</p>
+            <h3 className="font-medium">{t("newBoard")}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{t("startFromScratch")}</p>
           </div>
 
           {filteredBoards.map((board) => (
@@ -150,7 +152,7 @@ export default function BoardsPage() {
                 </div>
                 
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">
-                  <span>Updated {new Date(board.updatedAt).toLocaleDateString()}</span>
+                  <span>{t("updated")} {new Date(board.updatedAt).toLocaleDateString()}</span>
                 </div>
               </div>
             </Link>
@@ -161,15 +163,15 @@ export default function BoardsPage() {
           <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
             <Layout className="h-8 w-8 text-muted-foreground/50" />
           </div>
-          <h3 className="text-xl font-semibold mb-1">No boards found</h3>
+          <h3 className="text-xl font-semibold mb-1">{t("noBoardsFound")}</h3>
           <p className="text-muted-foreground max-w-xs mb-6">
-            {searchQuery ? `No boards match "${searchQuery}"` : "You haven't created any boards in this workspace yet."}
+            {searchQuery ? t("noBoardsMatch", { query: searchQuery }) : t("noBoardsEmpty")}
           </p>
           <button 
             onClick={handleCreateBoardClick}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-accent/10 text-accent hover:bg-accent/20 h-9 px-4"
           >
-            Create your first board
+            {t("createFirstBoard")}
           </button>
         </div>
       )}

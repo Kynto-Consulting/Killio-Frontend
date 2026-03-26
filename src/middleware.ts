@@ -12,10 +12,11 @@ import { NextRequest, NextResponse } from 'next/server';
  * server-side in each route handler / RSC via GET /auth/me.
  */
 
-const PUBLIC_PATHS = ['/login', '/signup', '/api'];
+const PUBLIC_EXACT_PATHS = ['/', '/login', '/signup', '/accept-invite'];
+const PUBLIC_PREFIX_PATHS = ['/api'];
 
 function isPublic(pathname: string) {
-  return PUBLIC_PATHS.some((p) => pathname.startsWith(p));
+  return PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p));
 }
 
 export function middleware(request: NextRequest) {
@@ -31,8 +32,8 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Authenticated user trying to access login → send to dashboard
-  if (token && pathname === '/login') {
+  // Authenticated user trying to access auth entrypoints → send to dashboard
+  if (token && (pathname === '/login' || pathname === '/signup')) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 

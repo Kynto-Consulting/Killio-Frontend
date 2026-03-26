@@ -1,0 +1,16 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "save": "Save",
+    "saving": "Saving...",
+    "close": "Close",
+    "loading": "Loading..."
+  },
+  "app": {
+    "name": "Killio"
+  },
+  "account": {
+    "fallbackUser": "User",
+    "fallbackAccount": "Account"
+  }
+}

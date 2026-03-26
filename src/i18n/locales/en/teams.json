@@ -1,0 +1,61 @@
+{
+  "title": "Teams & Access",
+  "subtitle": "Manage your team members and their permissions across the workspace.",
+  "invitePeople": "Invite People",
+  "currentRole": "Current role:",
+  "activePermissions": "Active permissions for this workspace.",
+  "roleMatrix": "Role Matrix",
+  "inviteWorkspace": "Invite to workspace",
+  "allowedRoles": "Roles allowed for you:",
+  "inviteEmailPlaceholder": "person@company.com",
+  "sendInvite": "Send Invite",
+  "recentInvites": "Recent invites",
+  "loadingInvites": "Loading invites...",
+  "noInvitesYet": "No invites yet.",
+  "total": "total",
+  "revoke": "Revoke",
+  "filterMembers": "Filter members...",
+  "members": "members",
+  "loadingMembers": "Loading members...",
+  "you": "You",
+  "changeRole": "Change role",
+  "leaveTeam": "Leave Team",
+  "removeMember": "Remove Member",
+  "noActions": "No actions available.",
+  "personalWorkspaceInviteHelp": "This is a personal workspace. To invite people, create or switch to a team workspace.",
+  "roleCannotInviteHelp": "Your current role cannot send invites.",
+  "personalWorkspaceInviteTitle": "This is a personal workspace. Switch to a team workspace to invite members.",
+  "roleCannotInviteTitle": "Your workspace role cannot invite people.",
+  "inviteSendError": "Could not send invite.",
+  "inviteRevokeError": "Could not revoke invite.",
+  "roleUpdateError": "Could not update role.",
+  "removeMemberError": "Could not remove member.",
+  "confirmLeave": "You are about to leave the workspace. Continue?",
+  "confirmRemove": "This member will be removed from the workspace. Continue?",
+  "roleCapabilities": {
+    "owner": [
+      "Invite admin/member/guest",
+      "Manage members",
+      "Create boards",
+      "View activity and invites"
+    ],
+    "admin": [
+      "Invite admin/member/guest",
+      "Manage members",
+      "Create boards",
+      "View activity and invites"
+    ],
+    "member": [
+      "Invite member/guest",
+      "Create boards",
+      "View activity and invites",
+      "Cannot manage members"
+    ],
+    "guest": [
+      "Members read-only",
+      "No invites",
+      "No board creation",
+      "Limited access"
+    ]
+  }
+}

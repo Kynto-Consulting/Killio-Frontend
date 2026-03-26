@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, Building2 } from "lucide-react";
 import type { TeamRole } from "@/lib/api/contracts";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type InviteRole = Exclude<TeamRole, "owner">;
 
@@ -20,6 +21,8 @@ const ROLE_OPTIONS: Array<{ value: InviteRole; label: string }> = [
 ];
 
 export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorkspaceModalProps) {
+  const t = useTranslations("modals");
+  const tCommon = useTranslations("common");
   const [name, setName] = useState("");
   const [icon, setIcon] = useState("🏢");
   const [showIconPicker, setShowIconPicker] = useState(false);
@@ -61,7 +64,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "An error occurred while creating the workspace.");
+      setError(err?.message || t("createWorkspace.createError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -75,7 +78,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
         <div className="mb-6 flex items-center gap-3">
@@ -83,8 +86,8 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
             <Building2 className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Create Workspace</h2>
-            <p className="text-sm text-muted-foreground">Add a new workspace to organize teams.</p>
+            <h2 className="text-lg font-semibold tracking-tight">{t("createWorkspace.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("createWorkspace.subtitle")}</p>
           </div>
         </div>
 
@@ -92,7 +95,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="workspace-name" className="text-sm font-medium leading-none">
-                Workspace Name & Icon
+                {t("createWorkspace.nameAndIcon")}
               </label>
               <div className="flex gap-2">
                 <div className="relative isolate">
@@ -122,7 +125,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
                 <input
                   id="workspace-name"
                   type="text"
-                  placeholder="e.g. Acme Corp, Engineering Team"
+                  placeholder={t("createWorkspace.namePlaceholder")}
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   disabled={isSubmitting}
@@ -137,12 +140,12 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
 
             <div className="space-y-2 pt-2 border-t border-border/50">
               <label className="text-sm font-medium leading-none">
-                Invite Members <span className="text-muted-foreground font-normal">(Optional)</span>
+                {t("createWorkspace.inviteMembers")} <span className="text-muted-foreground font-normal">({t("createWorkspace.optional")})</span>
               </label>
               <div className="flex gap-2">
                 <input
                   type="email"
-                  placeholder="colleague@acme.com"
+                  placeholder={t("createWorkspace.inviteEmailPlaceholder")}
                   value={newInviteEmail}
                   onChange={(e) => setNewInviteEmail(e.target.value)}
                   className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:border-primary"
@@ -161,7 +164,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
                   disabled={!newInviteEmail.includes('@')}
                   className="inline-flex h-9 items-center justify-center rounded-md bg-accent px-3 py-1 text-sm font-medium text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
                 >
-                  Add
+                  {t("createWorkspace.add")}
                 </button>
               </div>
 
@@ -190,7 +193,7 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
             >
-              Cancel
+              {tCommon("actions.cancel")}
             </button>
             <button
               type="submit"
@@ -200,10 +203,10 @@ export function CreateWorkspaceModal({ isOpen, onClose, onSubmit }: CreateWorksp
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {t("createWorkspace.creating")}
                 </>
               ) : (
-                "Create Workspace"
+                t("createWorkspace.create")
               )}
             </button>
           </div>

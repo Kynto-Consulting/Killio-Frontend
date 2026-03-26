@@ -394,7 +394,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           className={cn(
             "w-full outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
             "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
-            "relative"
+            "relative empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none empty:before:block"
           )}
           data-placeholder="Escribe algo... usa @ para vincular"
         />

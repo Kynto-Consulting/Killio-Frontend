@@ -1,0 +1,11 @@
+{
+  "title": "Profile Settings",
+  "subtitle": "Manage your public information.",
+  "avatar": "Avatar",
+  "avatarHint": "JPG, GIF or PNG. Max size of 800K.",
+  "changePhoto": "Change Profile Photo",
+  "displayName": "Display Name",
+  "displayNamePlaceholder": "e.g. Jane Doe",
+  "saveChanges": "Save Changes",
+  "updateError": "An error occurred while updating your profile."
+}

@@ -1,0 +1,20 @@
+{
+  "title": "Tableros",
+  "subtitle": "Gestiona los tableros y proyectos de tu espacio.",
+  "searchPlaceholder": "Buscar tableros...",
+  "newBoard": "Nuevo tablero",
+  "startFromScratch": "Empieza desde cero o desde una plantilla",
+  "gathering": "Cargando tus tableros...",
+  "updated": "Actualizado",
+  "noBoardsFound": "No se encontraron tableros",
+  "noBoardsMatch": "Ningun tablero coincide con \"{{query}}\"",
+  "noBoardsEmpty": "Aun no has creado tableros en este espacio.",
+  "createFirstBoard": "Crear tu primer tablero",
+  "boardCreatedSuccess": "Tablero creado correctamente",
+  "boardCreateError": "No se pudo crear el tablero",
+  "boardDeleteSuccess": "Tablero eliminado correctamente",
+  "boardDeleteError": "No se pudo eliminar el tablero",
+  "noActiveWorkspace": "No se encontro un espacio activo. Selecciona o crea uno desde el menu superior.",
+  "deleteTitle": "Eliminar tablero",
+  "deleteDescription": "Seguro que quieres eliminar el tablero \"{{name}}\"? Esta accion no se puede deshacer."
+}

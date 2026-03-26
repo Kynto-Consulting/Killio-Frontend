@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Settings, Loader2, Moon, Globe } from "lucide-react";
+import { Locale } from "@/i18n";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -9,9 +11,16 @@ interface AppPreferencesModalProps {
 }
 
 export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProps) {
+  const { locale, setLocale } = useI18n();
+  const t = useTranslations("preferences");
+  const tCommon = useTranslations("common");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [theme, setTheme] = useState("dark");
-  const [language, setLanguage] = useState("en");
+  const [language, setLanguage] = useState<Locale>(locale);
+
+  useEffect(() => {
+    setLanguage(locale);
+  }, [locale]);
 
   if (!isOpen) return null;
 
@@ -19,8 +28,8 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
     e.preventDefault();
     setIsSubmitting(true);
     try {
-      // TODO: Link up to user settings endpoint
-      await new Promise(resolve => setTimeout(resolve, 600));
+      setLocale(language);
+      await new Promise(resolve => setTimeout(resolve, 300));
       onClose();
     } catch (error) {
       console.error(error);
@@ -37,7 +46,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
         <div className="mb-6 flex items-center gap-3">
@@ -45,8 +54,8 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             <Settings className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">App Preferences</h2>
-            <p className="text-sm text-muted-foreground">Customize your Killio experience.</p>
+            <h2 className="text-lg font-semibold tracking-tight">{t("title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
           </div>
         </div>
 
@@ -56,18 +65,18 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             <div className="space-y-3">
               <label className="text-sm font-medium leading-none flex items-center">
                 <Moon className="w-4 h-4 mr-2 text-muted-foreground" />
-                Color Theme
+                {t("themeLabel")}
               </label>
               <div className="grid grid-cols-3 gap-2">
-                {["light", "dark", "system"].map((t) => (
+                {["light", "dark", "system"].map((themeOption) => (
                   <div 
-                    key={t}
-                    onClick={() => setTheme(t)}
+                    key={themeOption}
+                    onClick={() => setTheme(themeOption)}
                     className={`flex items-center justify-center px-3 py-2 border rounded-md cursor-pointer transition-colors text-sm font-medium ${
-                      theme === t ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-accent/10 text-muted-foreground"
+                      theme === themeOption ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-accent/10 text-muted-foreground"
                     }`}
                   >
-                    <span className="capitalize">{t}</span>
+                    <span className="capitalize">{themeOption === "light" ? t("themes.light") : themeOption === "dark" ? t("themes.dark") : t("themes.system")}</span>
                   </div>
                 ))}
               </div>
@@ -78,17 +87,15 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             <div className="space-y-3">
               <label className="text-sm font-medium leading-none flex items-center">
                 <Globe className="w-4 h-4 mr-2 text-muted-foreground" />
-                Language
+                {t("languageLabel")}
               </label>
               <select 
                 value={language}
-                onChange={(e) => setLanguage(e.target.value)}
+                onChange={(e) => setLanguage(e.target.value as Locale)}
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                <option value="en">English (US)</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
+                <option value="en">{t("languages.en")}</option>
+                <option value="es">{t("languages.es")}</option>
               </select>
             </div>
 
@@ -101,7 +108,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
             >
-              Cancel
+              {tCommon("actions.cancel")}
             </button>
             <button
               type="submit"
@@ -111,10 +118,10 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving...
+                  {tCommon("actions.saving")}
                 </>
               ) : (
-                "Save Preferences"
+                t("save")
               )}
             </button>
           </div>

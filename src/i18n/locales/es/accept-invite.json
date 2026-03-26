@@ -1,0 +1,15 @@
+{
+  "title": "Aceptar invitacion",
+  "subtitle": "Estamos procesando tu acceso al workspace.",
+  "missingToken": "El enlace no contiene token de invitacion.",
+  "needLogin": "Necesitas iniciar sesion para aceptar esta invitacion.",
+  "login": "Iniciar sesion",
+  "signup": "Crear cuenta",
+  "accepting": "Aceptando invitacion...",
+  "acceptedMessage": "Te uniste al workspace {{teamName}} como {{role}}.",
+  "redirecting": "Redirigiendo al workspace...",
+  "goDashboard": "Ir al dashboard",
+  "viewTeam": "Ver equipo",
+  "workspace": "Workspace:",
+  "acceptError": "No se pudo aceptar la invitacion."
+}

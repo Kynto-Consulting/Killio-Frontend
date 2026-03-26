@@ -19,8 +19,10 @@ import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
 import { Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function DocumentPage() {
+  const t = useTranslations("document-detail");
   const { docId } = useParams() as { docId: string };
   const { accessToken, user } = useSession();
   const router = useRouter();
@@ -61,11 +63,11 @@ export default function DocumentPage() {
         setTeamMembers(members);
       }
     } catch (e: any) {
-      setError(e.message || "Failed to load document");
+      setError(e.message || t("loadError"));
     } finally {
       setIsLoading(false);
     }
-  }, [docId, accessToken, activeTeamId]);
+  }, [docId, accessToken, activeTeamId, t]);
 
   useEffect(() => {
     fetchDoc();
@@ -135,7 +137,7 @@ export default function DocumentPage() {
       });
     } catch (e) {
       console.error(e);
-      toast("Failed to create block", "error");
+      toast(t("createBlockError"), "error");
     }
   };
 
@@ -217,11 +219,11 @@ export default function DocumentPage() {
     setIsSharing(true);
     try {
       await addDocumentMember(docId, shareEmail, shareRole, accessToken);
-      toast(`Shared with ${shareEmail}`);
+      toast(t("shareSuccess", { email: shareEmail }));
       setShareEmail("");
       setIsShareModalOpen(false);
     } catch (e: any) {
-      toast(e.message || "Failed to share document", "error");
+      toast(e.message || t("shareError"), "error");
     } finally {
       setIsSharing(false);
     }
@@ -239,10 +241,10 @@ export default function DocumentPage() {
     return (
       <div className="flex h-full flex-col items-center justify-center">
         <FileText className="h-12 w-12 text-muted-foreground/50 mb-4" />
-        <h2 className="text-xl font-semibold">Document Not Found</h2>
-        <p className="text-muted-foreground mt-2 mb-6">{error || "The document you are looking for does not exist or you don't have access."}</p>
+        <h2 className="text-xl font-semibold">{t("notFoundTitle")}</h2>
+        <p className="text-muted-foreground mt-2 mb-6">{error || t("notFoundDescription")}</p>
         <Link href="/" className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-          Return to Dashboard
+          {t("returnDashboard")}
         </Link>
       </div>
     );
@@ -274,7 +276,7 @@ export default function DocumentPage() {
                 key={member.clientId}
                 src={getUserAvatarUrl(member.data.avatar_url, member.data.email, 24)}
                 alt={member.data.displayName}
-                title={`${member.data.displayName} is viewing`}
+                title={t("presenceViewing", { name: member.data.displayName })}
                 className="h-6 w-6 rounded-full border border-background ring-1 ring-border/50 object-cover bg-muted"
               />
             ))}
@@ -290,7 +292,7 @@ export default function DocumentPage() {
             className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'copilot' && "bg-accent/10 text-accent")}
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Copilot
+            {t("header.copilot")}
           </Button>
 
           <Button
@@ -303,12 +305,12 @@ export default function DocumentPage() {
             className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'comments' && "bg-accent/10 text-accent")}
           >
             <MessageSquare className="h-3.5 w-3.5" />
-            Comments
+            {t("header.comments")}
           </Button>
 
           <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Share2 className="h-3.5 w-3.5" />
-            Share
+            {t("header.share")}
           </Button>
 
           <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.displayName}>
@@ -324,7 +326,7 @@ export default function DocumentPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Users className="h-5 w-5 text-accent" />
-                Share Document
+                {t("shareModal.title")}
               </h2>
               <button onClick={() => setIsShareModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
@@ -333,10 +335,10 @@ export default function DocumentPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">User Email</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("shareModal.userEmail")}</label>
                 <div className="flex gap-2">
                   <Input
-                    placeholder="email@example.com"
+                    placeholder={t("shareModal.emailPlaceholder")}
                     value={shareEmail}
                     onChange={(e: any) => setShareEmail(e.target.value)}
                     className="flex-1"
@@ -346,8 +348,8 @@ export default function DocumentPage() {
                     onChange={e => setShareRole(e.target.value)}
                     className="bg-muted border border-border rounded-md px-2 text-xs outline-none focus:ring-1 focus:ring-accent"
                   >
-                    <option value="viewer">Viewer</option>
-                    <option value="editor">Editor</option>
+                    <option value="viewer">{t("shareModal.viewer")}</option>
+                    <option value="editor">{t("shareModal.editor")}</option>
                   </select>
                 </div>
               </div>
@@ -356,12 +358,12 @@ export default function DocumentPage() {
                 disabled={isSharing || !shareEmail.trim()}
                 className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
               >
-                {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invite to Document"}
+                {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("shareModal.invite")}
               </Button>
             </div>
 
             <p className="mt-6 text-[11px] text-muted-foreground leading-relaxed italic border-t border-border pt-4">
-              Invited users must be members of the same team to access this document.
+              {t("shareModal.teamNote")}
             </p>
           </div>
         </div>
@@ -396,7 +398,7 @@ export default function DocumentPage() {
             >
               {document.title}
               {canEdit && (
-                <span className="ml-4 opacity-0 group-hover:opacity-30 transition-opacity text-xl font-normal text-muted-foreground whitespace-nowrap">Edit Title</span>
+                <span className="ml-4 opacity-0 group-hover:opacity-30 transition-opacity text-xl font-normal text-muted-foreground whitespace-nowrap">{t("title.editHint")}</span>
               )}
             </h1>
           )}

@@ -2,7 +2,7 @@
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Table as TableIcon, Trash2, Plus, Rows, Columns, Calculator } from "lucide-react";
+import { Table as TableIcon, Trash2, Plus, Rows, Columns, Calculator, Maximize2, Minimize2 } from "lucide-react";
 import { sheetEngine } from "@/lib/sheetEngine";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -55,6 +55,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   const [popoverPos, setPopoverPos] = useState<{ top: number; left: number } | null>(null);
   const [isReferencePickerOpen, setIsReferencePickerOpen] = useState(false);
   const [pickerRange, setPickerRange] = useState<{ trigger: number; cursor: number } | null>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
@@ -287,29 +288,37 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
 
   const colCount = normalizedData[0]?.length || 1;
 
-  return (
-    <div className="w-full rounded-xl border border-border bg-card/70 shadow-sm overflow-hidden">
+  const content = (
+    <div className={cn(
+      "rounded-xl border border-border bg-card/70 shadow-sm overflow-hidden flex flex-col",
+      isFullscreen ? "fixed inset-4 z-[9999] bg-card h-[calc(100vh-2rem)]" : "w-full"
+    )}>
       <div className="flex items-center justify-between border-b border-border bg-muted/25 p-2">
         <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <TableIcon className="h-4 w-4 text-accent" />
           Sheet
         </div>
-        {!readonly && (
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addColumn}>
-              <Columns className="h-3 w-3" /> + Col
-            </Button>
-            <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addRow}>
-              <Rows className="h-3 w-3" /> + Row
-            </Button>
-          </div>
-        )}
+        <div className="flex items-center gap-1">
+          {!readonly && (
+            <>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addColumn}>
+                <Columns className="h-3 w-3" /> + Col
+              </Button>
+              <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addRow}>
+                <Rows className="h-3 w-3" /> + Row
+              </Button>
+            </>
+          )}
+          <Button variant="ghost" size="sm" className="h-7 px-2" onClick={() => setIsFullscreen(!isFullscreen)}>
+            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+          </Button>
+        </div>
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="overflow-auto flex-1 custom-scrollbar">
         <table className="min-w-[620px] w-full border-collapse table-fixed">
           <thead>
-            <tr className="bg-muted/10">
+            <tr className="bg-muted/10 sticky top-0 z-10">
               <th className="w-10 border-b border-r border-border/70 p-1 text-[10px] font-bold text-muted-foreground">#</th>
               {Array.from({ length: colCount }).map((_, c) => (
                 <th key={`h-${c}`} className="group/col border-b border-r border-border/70 bg-muted/5 p-1">
@@ -517,7 +526,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
       )}
 
       {!readonly && (
-        <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/5 p-2">
+        <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/5 p-2 shrink-0">
           <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={addRow}>
             <Plus className="h-3 w-3" /> Fila
           </Button>
@@ -528,4 +537,16 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
       )}
     </div>
   );
+
+  if (isFullscreen) {
+    return createPortal(
+      <>
+        <div className="fixed inset-0 z-[9998] bg-background/80 backdrop-blur-sm" onClick={() => setIsFullscreen(false)} />
+        {content}
+      </>,
+      document.body
+    );
+  }
+
+  return content;
 };

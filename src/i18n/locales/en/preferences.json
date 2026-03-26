@@ -1,0 +1,16 @@
+{
+  "title": "App Preferences",
+  "subtitle": "Customize your Killio experience.",
+  "themeLabel": "Color Theme",
+  "languageLabel": "Language",
+  "save": "Save Preferences",
+  "themes": {
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+  "languages": {
+    "en": "English",
+    "es": "Espanol"
+  }
+}

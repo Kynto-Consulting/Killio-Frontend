@@ -1,0 +1,27 @@
+{
+  "loadError": "No se pudo cargar el documento",
+  "createBlockError": "No se pudo crear el bloque",
+  "shareSuccess": "Compartido con {{email}}",
+  "shareError": "No se pudo compartir el documento",
+  "notFoundTitle": "Documento no encontrado",
+  "notFoundDescription": "El documento que buscas no existe o no tienes acceso.",
+  "returnDashboard": "Volver al dashboard",
+  "presenceViewing": "{{name}} esta viendo",
+  "header": {
+    "copilot": "Copilot",
+    "comments": "Comentarios",
+    "share": "Compartir"
+  },
+  "shareModal": {
+    "title": "Compartir documento",
+    "userEmail": "Correo de usuario",
+    "emailPlaceholder": "correo@ejemplo.com",
+    "viewer": "Lector",
+    "editor": "Editor",
+    "invite": "Invitar al documento",
+    "teamNote": "Los usuarios invitados deben ser miembros del mismo equipo para acceder a este documento."
+  },
+  "title": {
+    "editHint": "Editar titulo"
+  }
+}

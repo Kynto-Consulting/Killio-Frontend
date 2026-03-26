@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -12,6 +13,8 @@ function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useSession();
+  const t = useTranslations("auth");
+  const tCommon = useTranslations("common");
   const [form, setForm] = useState({
     displayName: "",
     username: "",
@@ -34,11 +37,11 @@ function SignupPageContent() {
     setError(null);
 
     if (form.password !== form.confirm) {
-      setError("Passwords do not match.");
+      setError(t("signup.passwordsMismatch"));
       return;
     }
     if (form.password.length < 8) {
-      setError("Password must be at least 8 characters.");
+      setError(t("signup.passwordMinLength"));
       return;
     }
 
@@ -57,7 +60,7 @@ function SignupPageContent() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data?.message ?? "Registration failed. Please try again.");
+        setError(data?.message ?? t("signup.registrationFailed"));
         return;
       }
 
@@ -70,7 +73,7 @@ function SignupPageContent() {
       login(data.user, data.accessToken, data.refreshToken);
       router.push(safeFrom);
     } catch {
-      setError("Could not reach the server. Is the backend running?");
+      setError(t("signup.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -106,9 +109,9 @@ function SignupPageContent() {
 
           <div className="w-full rounded-xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-sm">
             <div className="mb-6 flex flex-col space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">Create an account</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">{t("signup.title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Join Killio and start organizing your work
+                {t("signup.subtitle")}
               </p>
             </div>
 
@@ -121,7 +124,7 @@ function SignupPageContent() {
 
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="displayName">Full Name</label>
+                <label className="text-sm font-medium" htmlFor="displayName">{t("signup.fullName")}</label>
                 <input
                   id="displayName"
                   type="text"
@@ -136,7 +139,7 @@ function SignupPageContent() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="username">Username</label>
+                  <label className="text-sm font-medium" htmlFor="username">{t("signup.username")}</label>
                   <input
                     id="username"
                     type="text"
@@ -146,12 +149,12 @@ function SignupPageContent() {
                     required
                     autoComplete="username"
                     pattern="[a-zA-Z0-9_\-]+"
-                    title="Letters, numbers, underscores, hyphens only"
+                    title={t("signup.usernameHint")}
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium" htmlFor="email">Email</label>
+                  <label className="text-sm font-medium" htmlFor="email">{t("signup.email")}</label>
                   <input
                     id="email"
                     type="email"
@@ -166,11 +169,11 @@ function SignupPageContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="password">Password</label>
+                <label className="text-sm font-medium" htmlFor="password">{t("signup.password")}</label>
                 <input
                   id="password"
                   type="password"
-                  placeholder="Min. 8 characters"
+                  placeholder={t("signup.passwordPlaceholder")}
                   value={form.password}
                   onChange={update("password")}
                   required
@@ -199,12 +202,12 @@ function SignupPageContent() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium" htmlFor="confirm">Confirm Password</label>
+                <label className="text-sm font-medium" htmlFor="confirm">{t("signup.confirmPassword")}</label>
                 <div className="relative">
                   <input
                     id="confirm"
                     type="password"
-                    placeholder="Repeat your password"
+                    placeholder={t("signup.confirmPasswordPlaceholder")}
                     value={form.confirm}
                     onChange={update("confirm")}
                     required
@@ -226,7 +229,7 @@ function SignupPageContent() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    Create Account
+                    {t("signup.submit")}
                     <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
                   </>
                 )}
@@ -234,9 +237,9 @@ function SignupPageContent() {
             </form>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
-              Already have an account?{" "}
+              {t("signup.alreadyAccount")} {" "}
               <Link href={loginHref} className="font-medium text-accent hover:underline">
-                Sign in
+                {t("signup.goLogin")}
               </Link>
             </div>
           </div>
@@ -246,15 +249,22 @@ function SignupPageContent() {
   );
 }
 
+function AuthLoaderFallback() {
+  const tCommon = useTranslations("common");
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span>{tCommon("actions.loading")}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function SignupPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoaderFallback />}>
       <SignupPageContent />
     </Suspense>
   );

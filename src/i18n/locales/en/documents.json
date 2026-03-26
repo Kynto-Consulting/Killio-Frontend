@@ -1,0 +1,15 @@
+{
+  "title": "Documents",
+  "subtitle": "Create and manage your workspace documents.",
+  "searchPlaceholder": "Search documents...",
+  "newDocument": "New Document",
+  "startWriting": "Start writing with bricks",
+  "gathering": "Gathering your documents...",
+  "updated": "Updated",
+  "noDocumentsFound": "No documents found",
+  "noDocumentsMatch": "No documents match \"{{query}}\"",
+  "noDocumentsEmpty": "You haven't created any documents in this workspace yet.",
+  "createFirstDocument": "Create your first document",
+  "createPrompt": "Enter document title",
+  "createError": "Failed to create document"
+}

@@ -533,11 +533,6 @@ export function ReferenceTokenInput({
     [readMarkdown, pickerRange, onChange, applyRenderedValue, closePicker]
   );
 
-  useEffect(() => {
-    if (!editorRef.current) return;
-    applyRenderedValue(value);
-  }, [applyRenderedValue, value]);
-
   const displayPlaceholder = !value;
 
   return (

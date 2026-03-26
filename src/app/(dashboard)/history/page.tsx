@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import {
   listTeamActivity,
   listTeams,
@@ -26,6 +27,10 @@ import {
 } from "@/lib/api/contracts";
 import { ActivityLogModal } from "@/components/ui/activity-log-modal";
 import { ResolverContext } from "@/lib/reference-resolver";
+import { TagBadge } from "@/components/ui/tag-badge";
+import { Fragment } from "react";
+
+type TFunc = (key: string, params?: Record<string, string | number>) => string;
 
 type ActivityVisual = {
   id: string;
@@ -46,22 +51,13 @@ type ActivityVisual = {
 
 const GROUP_WINDOW_MS = 3 * 60 * 1000;
 
-const fieldLabels: Record<string, string> = {
-  title: "titulo",
-  summary: "descripcion",
-  status: "estado",
-  urgency_state: "urgencia",
-  start_at: "inicio",
-  due_at: "fecha limite",
-};
-
-function getActionTheme(action: string) {
+function getActionTheme(action: string, t: TFunc) {
   const lower = action.toLowerCase();
 
   if (lower === "card.tag_added") {
     return {
       icon: Tag,
-      badge: "Tag Added",
+      badge: t("badges.tagAdded"),
       badgeClass: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
     };
   }
@@ -69,7 +65,7 @@ function getActionTheme(action: string) {
   if (lower === "card.tag_removed") {
     return {
       icon: Tag,
-      badge: "Tag Removed",
+      badge: t("badges.tagRemoved"),
       badgeClass: "bg-rose-500/15 text-rose-300 border-rose-500/30",
     };
   }
@@ -77,7 +73,7 @@ function getActionTheme(action: string) {
   if (lower === "card.commented") {
     return {
       icon: MessageSquare,
-      badge: "Comment",
+      badge: t("badges.comment"),
       badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/30",
     };
   }
@@ -85,7 +81,7 @@ function getActionTheme(action: string) {
   if (lower === "card.updated") {
     return {
       icon: Edit2,
-      badge: "Updated",
+      badge: t("badges.updated"),
       badgeClass: "bg-blue-500/15 text-blue-300 border-blue-500/30",
     };
   }
@@ -93,7 +89,7 @@ function getActionTheme(action: string) {
   if (lower.includes("created")) {
     return {
       icon: Sparkles,
-      badge: "Created",
+      badge: t("badges.created"),
       badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
     };
   }
@@ -101,7 +97,7 @@ function getActionTheme(action: string) {
   if (lower.includes("deleted") || lower.includes("removed")) {
     return {
       icon: Trash2,
-      badge: "Removed",
+      badge: t("badges.removed"),
       badgeClass: "bg-red-500/15 text-red-300 border-red-500/30",
     };
   }
@@ -109,32 +105,52 @@ function getActionTheme(action: string) {
   if (lower.includes("updated") || lower.includes("edited")) {
     return {
       icon: RefreshCcw,
-      badge: "Changed",
+      badge: t("badges.changed"),
       badgeClass: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
     };
   }
 
   return {
     icon: Layout,
-    badge: "Activity",
+    badge: t("badges.activity"),
     badgeClass: "bg-accent/10 text-accent border-accent/20",
   };
 }
 
-function prettifyAction(action: string): string {
+function prettifyAction(action: string, t: TFunc): string {
   const lower = action.toLowerCase();
-  if (lower === "card.tag_added") return "Added tag";
-  if (lower === "card.tag_removed") return "Removed tag";
-  if (lower === "card.commented") return "Commented";
-  if (lower === "card.updated") return "Updated card";
+  if (lower === "card.tag_added") return t("actions.addedTag");
+  if (lower === "card.tag_removed") return t("actions.removedTag");
+  if (lower === "card.commented") return t("actions.commented");
+  if (lower === "card.updated") return t("actions.updatedCard");
   return action.replace(/\./g, " ").replace(/_/g, " ");
+}
+
+function renderMessageTokens(message: string) {
+  const parts = message.split(/("tag\.(?:native|custom)\.[^"]+")/g);
+  return (
+    <>
+      {parts.map((part, i) => {
+        if (!part) return null;
+        if (part.startsWith('"tag.')) {
+          const tagStr = part.slice(1, -1);
+          return (
+            <span key={i} className="inline-flex align-middle mx-1">
+              <TagBadge tag={{ name: tagStr, slug: tagStr }} />
+            </span>
+          );
+        }
+        return <Fragment key={i}>{part}</Fragment>;
+      })}
+    </>
+  );
 }
 
 function safeString(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function summarizeGroup(items: ActivityVisual[]): { message: string; detail: string; groupedMeta: string } {
+function summarizeGroup(items: ActivityVisual[], t: TFunc): { message: string; detail: string; groupedMeta: string } {
   const head = items[0];
   if (!head) return { message: "", detail: "", groupedMeta: "" };
 
@@ -148,21 +164,24 @@ function summarizeGroup(items: ActivityVisual[]): { message: string; detail: str
 
   const oldest = items[items.length - 1];
   const spanMinutes = Math.max(1, Math.round(Math.abs(head.timestamp - oldest.timestamp) / 60000));
-  const groupedMeta = `${items.length} eventos en ${spanMinutes} min`;
+  const groupedMeta = t("eventsInMinutes", { count: items.length, minutes: spanMinutes });
 
   if (head.action === "card.tag_added" || head.action === "card.tag_removed") {
     const tags = Array.from(new Set(items.map((i) => i.tagLabel).filter(Boolean)));
     const cards = Array.from(new Set(items.map((i) => i.cardLabel).filter(Boolean)));
-    const verb = head.action === "card.tag_added" ? "Added" : "Removed";
+    const isAdded = head.action === "card.tag_added";
     const detail = [
-      tags.length > 0 ? `Tags: ${tags.slice(0, 5).join(", ")}${tags.length > 5 ? ` +${tags.length - 5}` : ""}` : "",
-      cards.length > 0 ? `Cards: ${cards.slice(0, 3).join(", ")}${cards.length > 3 ? ` +${cards.length - 3}` : ""}` : "",
+      tags.length > 0 ? t("tagsSummary", { tags: `${tags.slice(0, 5).join(", ")}${tags.length > 5 ? ` +${tags.length - 5}` : ""}` }) : "",
+      cards.length > 0 ? t("cardsSummary", { cards: `${cards.slice(0, 3).join(", ")}${cards.length > 3 ? ` +${cards.length - 3}` : ""}` }) : "",
     ]
       .filter(Boolean)
       .join(" · ");
 
     return {
-      message: `${verb} ${tags.length || items.length} tags`,
+      message:
+        (tags.length || items.length) === 1
+          ? t(isAdded ? "addedTagsSummaryOne" : "removedTagsSummaryOne", { count: tags.length || items.length })
+          : t(isAdded ? "addedTagsSummary" : "removedTagsSummary", { count: tags.length || items.length }),
       detail,
       groupedMeta,
     };
@@ -171,22 +190,22 @@ function summarizeGroup(items: ActivityVisual[]): { message: string; detail: str
   if (head.action === "card.updated") {
     const fields = Array.from(new Set(items.flatMap((i) => i.changedFields)));
     return {
-      message: `Updated card ${items.length} times`,
-      detail: fields.length > 0 ? `Fields: ${fields.join(", ")}` : "Multiple updates grouped",
+      message: items.length === 1 ? t("updatedCardTimeOne", { count: items.length }) : t("updatedCardTimes", { count: items.length }),
+      detail: fields.length > 0 ? t("fieldsOnly", { fields: fields.join(", ") }) : t("multipleUpdates"),
       groupedMeta,
     };
   }
 
   if (head.action === "card.commented") {
     return {
-      message: `Commented ${items.length} times`,
-      detail: "Consecutive comments grouped",
+      message: items.length === 1 ? t("commentedTimeOne", { count: items.length }) : t("commentedTimes", { count: items.length }),
+      detail: t("commentsGrouped"),
       groupedMeta,
     };
   }
 
   return {
-    message: `${prettifyAction(head.action)} x${items.length}`,
+    message: t("actionGrouped", { action: prettifyAction(head.action, t), count: items.length }),
     detail: head.detail,
     groupedMeta,
   };
@@ -194,7 +213,16 @@ function summarizeGroup(items: ActivityVisual[]): { message: string; detail: str
 
 export default function HistoryPage() {
   const { accessToken, activeTeamId, user } = useSession();
-  const [teamName, setTeamName] = useState<string>("this team");
+  const t = useTranslations("history");
+  const fieldLabels: Record<string, string> = {
+    title: t("fields.title"),
+    summary: t("fields.summary"),
+    status: t("fields.status"),
+    urgency_state: t("fields.urgencyState"),
+    start_at: t("fields.startAt"),
+    due_at: t("fields.dueAt"),
+  };
+  const [teamName, setTeamName] = useState<string>("");
   const [activities, setActivities] = useState<ActivityVisual[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<any[] | null>(null);
@@ -296,28 +324,30 @@ export default function HistoryPage() {
             : {};
           const changedFields = Object.keys(changes).map((key) => fieldLabels[key] || key);
 
-          const theme = getActionTheme(action);
+          const theme = getActionTheme(action, t);
 
-          let message = prettifyAction(action);
-          let detail = boardLabel ? `in ${boardLabel}` : "";
+          let message = prettifyAction(action, t);
+          let detail = boardLabel ? t("inBoard", { board: boardLabel }) : "";
 
           if (action === "card.tag_added") {
-            message = `Added tag ${tagLabel ? `\"${tagLabel}\"` : ""}`.trim();
-            detail = `Card: ${cardLabel}${boardLabel ? ` · Board: ${boardLabel}` : ""}`;
+            message = t("addedTagMessage", { tag: tagLabel || "" }).trim();
+            detail = t("cardBoardDetail", { card: cardLabel, board: boardLabel || t("teamLabel") });
           } else if (action === "card.tag_removed") {
-            message = `Removed tag ${tagLabel ? `\"${tagLabel}\"` : ""}`.trim();
-            detail = `Card: ${cardLabel}${boardLabel ? ` · Board: ${boardLabel}` : ""}`;
+            message = t("removedTagMessage", { tag: tagLabel || "" }).trim();
+            detail = t("cardBoardDetail", { card: cardLabel, board: boardLabel || t("teamLabel") });
           } else if (action === "card.updated") {
-            message = `Updated card \"${cardLabel}\"`;
+            message = t("updatedCardMessage", { card: cardLabel });
             detail = changedFields.length > 0
-              ? `Fields: ${changedFields.join(", ")}${boardLabel ? ` · Board: ${boardLabel}` : ""}`
-              : `Card changes${boardLabel ? ` · Board: ${boardLabel}` : ""}`;
+              ? boardLabel
+                ? t("fieldsDetail", { fields: changedFields.join(", "), board: boardLabel })
+                : t("fieldsOnly", { fields: changedFields.join(", ") })
+              : t("cardChanges", { suffix: boardLabel ? ` · ${t("boardPrefix", { board: boardLabel })}` : "" });
           } else if (action === "card.commented") {
             const text = safeString(payload.text);
-            message = `Commented on \"${cardLabel}\"`;
+            message = t("commentedCardMessage", { card: cardLabel });
             detail = text
               ? `${text.slice(0, 120)}${text.length > 120 ? "..." : ""}`
-              : `${boardLabel ? `Board: ${boardLabel}` : "Comment event"}`;
+              : `${boardLabel ? t("boardPrefix", { board: boardLabel }) : t("commentEvent")}`;
           }
 
           return {
@@ -367,7 +397,7 @@ export default function HistoryPage() {
     return () => {
       cancelled = true;
     };
-  }, [accessToken, activeTeamId]);
+  }, [accessToken, activeTeamId, t]);
 
   const groupedActivities = useMemo(() => {
     const sorted = [...activities].sort((a, b) => b.timestamp - a.timestamp);
@@ -399,12 +429,12 @@ export default function HistoryPage() {
     <div className="container mx-auto p-6 lg:p-10 max-w-5xl">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Activity History</h1>
-          <p className="text-muted-foreground">Recent changes with context, grouped in 5-minute windows.</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <button className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-input bg-background hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4">
           <HistoryIcon className="mr-2 h-4 w-4 opacity-70" />
-          Live Logs
+          {t("liveLogs")}
         </button>
       </div>
 
@@ -417,7 +447,7 @@ export default function HistoryPage() {
               <Loader2 className="h-6 w-6 animate-spin" />
             </div>
           ) : groupedActivities.length === 0 ? (
-            <div className="pl-12 text-muted-foreground text-sm">No recent activity in this team.</div>
+            <div className="pl-12 text-muted-foreground text-sm">{t("noRecent")}</div>
           ) : (
             groupedActivities.map((group) => {
               const head = group[0];
@@ -425,10 +455,10 @@ export default function HistoryPage() {
 
               const Icon = head.icon;
               const isMe = head.actorId === user?.id;
-              const summary = summarizeGroup(group);
+              const summary = summarizeGroup(group, t);
 
               return (
-                <div key={head.id} className="relative flex items-start gap-4 md:gap-6 group">
+                <div key={head.id} className="relative flex items-start gap-4 md:gap-6 group hover:z-50">
                   <div className="absolute left-[22px] top-4 h-2 w-2 rounded-full bg-accent ring-4 ring-background max-md:hidden" />
 
                   <div className="h-10 w-10 shrink-0 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground shadow-sm md:ml-[34px] transition-colors z-10">
@@ -438,9 +468,9 @@ export default function HistoryPage() {
                   <div className="flex-1 rounded-xl border border-border bg-card/70 backdrop-blur-sm p-4 shadow-sm hover:shadow-md hover:border-accent/40 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <p className="text-sm font-medium leading-relaxed flex flex-wrap items-center gap-1.5">
-                        <span className="font-semibold text-foreground">{isMe ? "You" : "Team Member"}</span>
+                        <span className="font-semibold text-foreground">{isMe ? t("you") : t("teamMember")}</span>
                         <span className={`px-2 py-0.5 rounded text-xs border ${head.badgeClass}`}>{head.badge}</span>
-                        <span className="font-semibold text-foreground">{summary.message}</span>
+                        <span className="font-semibold text-foreground">{renderMessageTokens(summary.message)}</span>
                       </p>
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(head.createdAt).toLocaleString(undefined, {
@@ -459,7 +489,7 @@ export default function HistoryPage() {
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
                       <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-muted-foreground">
                         <CalendarClock className="h-3 w-3" />
-                        {head.boardLabel || teamName}
+                        {head.boardLabel || teamName || t("teamLabel")}
                       </span>
                       {summary.groupedMeta ? (
                         <div className="flex items-center gap-2">
@@ -473,7 +503,7 @@ export default function HistoryPage() {
                                 setIsActivityModalOpen(true);
                               }}
                               className="p-1 hover:bg-accent/10 rounded-full transition-colors text-accent/80 shadow-sm border border-accent/20"
-                              title="Ver historial detallado"
+                              title={t("viewDetailedHistory")}
                             >
                               <Info className="h-3 w-3" />
                             </button>
@@ -482,7 +512,7 @@ export default function HistoryPage() {
                             <div className="absolute left-full ml-2 top-0 z-50 invisible group-hover/info:visible bg-card border border-border shadow-2xl rounded-xl p-3 min-w-48 animate-in fade-in zoom-in-95 duration-200">
                               <div className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/80 mb-2 border-b border-border/40 pb-1.5 flex items-center gap-2">
                                 <HistoryIcon className="h-3 w-3" />
-                                Resumen
+                                {t("summary")}
                               </div>
                               <div className="space-y-1.5">
                                 {group.map((item, idx) => (
@@ -490,11 +520,11 @@ export default function HistoryPage() {
                                     <span className="text-accent mt-0.5">•</span>
                                     <div className="flex flex-col">
                                       <span className="font-bold">{item.badge}</span>
-                                      <span className="text-muted-foreground">{item.message}</span>
+                                      <span className="text-muted-foreground">{renderMessageTokens(item.message)}</span>
                                     </div>
                                   </div>
                                 )).slice(0, 4)}
-                                {group.length > 4 && <div className="text-[9px] text-muted-foreground italic pl-3 pt-1 border-t border-border/20 mt-1">y {group.length - 4} más...</div>}
+                                {group.length > 4 && <div className="text-[9px] text-muted-foreground italic pl-3 pt-1 border-t border-border/20 mt-1">{t("andMore", { count: group.length - 4 })}</div>}
                               </div>
                             </div>
                           </div>
@@ -513,7 +543,7 @@ export default function HistoryPage() {
         <ActivityLogModal
           isOpen={isActivityModalOpen}
           onClose={() => setIsActivityModalOpen(false)}
-          title={selectedActivityGroup[0].badge + " History"}
+          title={t("historyTitle", { badge: selectedActivityGroup[0].badge })}
           activities={selectedActivityGroup.map(v => ({
             id: v.id,
             action: v.action,
@@ -524,8 +554,8 @@ export default function HistoryPage() {
           teamMembers={teamMembers}
           teamDocs={teamDocs}
           allAvailableTags={[]}
-          getActionTheme={getActionTheme}
-          prettifyAction={prettifyAction}
+          getActionTheme={(action) => getActionTheme(action, t)}
+          prettifyAction={(action) => prettifyAction(action, t)}
           fieldLabels={fieldLabels}
           getResolverContext={(docs, boards, members) => ({ documents: docs, boards, users: members })}
         />

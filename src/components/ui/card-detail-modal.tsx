@@ -109,7 +109,19 @@ export function CardDetailModal({
   }), []);
 
   const [localAssignees, setLocalAssignees] = useState<any[]>((card?.assignees || []).map(normalizeAssignee));
-  const [localBlocks, setLocalBlocks] = useState<BoardBrick[]>(card?.blocks || []);
+  
+  const defaultEmptyBrick: BoardBrick = {
+    id: `temp-${Date.now()}`,
+    kind: "text",
+    displayStyle: "paragraph",
+    markdown: "",
+    position: 0,
+    parentBlockId: null,
+    tasks: []
+  };
+  const [localBlocks, setLocalBlocks] = useState<BoardBrick[]>(
+    card ? (card.blocks?.length ? card.blocks : []) : [defaultEmptyBrick]
+  );
 
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [areTagsExpanded, setAreTagsExpanded] = useState(false);

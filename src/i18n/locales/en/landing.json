@@ -1,0 +1,64 @@
+{
+  "badge": "Productivity that moves like chat",
+  "headline": "Killio turns scattered teamwork into one clear flow.",
+  "subheadline": "Plan boards, draft docs, and lock decisions with AI support without context switching all day.",
+  "cta": {
+    "primary": "Create free workspace",
+    "secondary": "Sign in",
+    "tertiary": "Explore platform"
+  },
+  "metrics": {
+    "teams": {
+      "value": "3.2k+",
+      "label": "active teams"
+    },
+    "actions": {
+      "value": "1.4M",
+      "label": "weekly actions"
+    },
+    "uptime": {
+      "value": "99.9%",
+      "label": "uptime"
+    }
+  },
+  "features": {
+    "title": "Built for teams that execute fast",
+    "focus": {
+      "title": "Context first boards",
+      "description": "Capture priorities, assign ownership, and keep execution visible in one place."
+    },
+    "ai": {
+      "title": "AI copilots in your flow",
+      "description": "Generate drafts, summarize updates, and move from idea to deliverable in minutes."
+    },
+    "trust": {
+      "title": "Operational trust",
+      "description": "Role based access, activity history, and notifications designed for distributed teams."
+    }
+  },
+  "steps": {
+    "one": {
+      "title": "Collect the signal",
+      "description": "Bring notes, links, and requests into boards and docs without losing the thread."
+    },
+    "two": {
+      "title": "Clarify with AI",
+      "description": "Turn noisy updates into clear action items, summaries, and sharable status."
+    },
+    "three": {
+      "title": "Ship with confidence",
+      "description": "Track movement, resolve blockers, and keep everyone aligned from kickoff to done."
+    }
+  },
+  "auth": {
+    "title": "Your login and register flow stays intact",
+    "description": "We keep the same auth routes and make entry points clearer from the landing experience.",
+    "loginTitle": "Already have an account?",
+    "loginDescription": "Jump back into your latest workspace and continue exactly where you paused.",
+    "loginCta": "Go to login",
+    "signupTitle": "New to Killio?",
+    "signupDescription": "Create your account, invite your team, and start shipping from day one.",
+    "signupCta": "Go to register"
+  },
+  "footer": "Built for fast teams that hate tab chaos."
+}

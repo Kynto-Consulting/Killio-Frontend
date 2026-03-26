@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 const API = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -16,6 +17,8 @@ function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login } = useSession();
+  const t = useTranslations("auth");
+  const tCommon = useTranslations("common");
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -41,7 +44,7 @@ function LoginPageContent() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data?.message ?? "Invalid credentials.");
+        setError(data?.message ?? t("login.invalidCredentials"));
         return;
       }
 
@@ -55,7 +58,7 @@ function LoginPageContent() {
       login(data.user, data.accessToken, data.refreshToken);
       router.push(safeFrom);
     } catch {
-      setError("Could not reach the server. Is the backend running?");
+      setError(t("login.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -82,9 +85,9 @@ function LoginPageContent() {
 
           <div className="w-full rounded-xl border border-border bg-card/60 p-8 shadow-2xl backdrop-blur-sm">
             <div className="mb-6 flex flex-col space-y-2 text-center">
-              <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
+              <h1 className="text-2xl font-semibold tracking-tight">{t("login.title")}</h1>
               <p className="text-sm text-muted-foreground">
-                Enter your credentials to access your workspace
+                {t("login.subtitle")}
               </p>
             </div>
 
@@ -98,12 +101,12 @@ function LoginPageContent() {
             <form className="space-y-4" onSubmit={handleSubmit}>
               <div className="space-y-2">
                 <label className="text-sm font-medium leading-none" htmlFor="identifier">
-                  Email or Username
+                  {t("login.identifierLabel")}
                 </label>
                 <input
                   id="identifier"
                   type="text"
-                  placeholder="name@example.com"
+                  placeholder={t("login.identifierPlaceholder")}
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
@@ -115,7 +118,7 @@ function LoginPageContent() {
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <label className="text-sm font-medium leading-none" htmlFor="password">
-                    Password
+                    {t("login.passwordLabel")}
                   </label>
                 </div>
                 <div className="relative">
@@ -132,7 +135,7 @@ function LoginPageContent() {
                     type="button"
                     onClick={() => setShowPassword((prev) => !prev)}
                     className="absolute inset-y-0 right-0 inline-flex w-10 items-center justify-center text-muted-foreground hover:text-foreground"
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                   >
                     {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                   </button>
@@ -148,7 +151,7 @@ function LoginPageContent() {
                   className="rounded border border-input"
                 />
                 <label htmlFor="rememberMe" className="text-sm select-none cursor-pointer">
-                  Recordar sesión por 31 días
+                  {t("login.rememberMe")}
                 </label>
               </div>
               <button
@@ -160,7 +163,7 @@ function LoginPageContent() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <>
-                    Sign In
+                    {t("login.submit")}
                     <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
                   </>
                 )}
@@ -168,9 +171,9 @@ function LoginPageContent() {
             </form>
 
             <div className="mt-6 text-center text-sm text-muted-foreground">
-              Don&apos;t have an account?{" "}
+              {t("login.noAccount")} {" "}
               <Link href={signupHref} className="font-medium text-accent hover:underline">
-                Sign up
+                {t("login.goSignup")}
               </Link>
             </div>
           </div>
@@ -180,15 +183,22 @@ function LoginPageContent() {
   );
 }
 
+function AuthLoaderFallback() {
+  const tCommon = useTranslations("common");
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span>{tCommon("actions.loading")}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center bg-background">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
+    <Suspense fallback={<AuthLoaderFallback />}>
       <LoginPageContent />
     </Suspense>
   );

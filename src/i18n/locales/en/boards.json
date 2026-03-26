@@ -1,0 +1,20 @@
+{
+  "title": "Boards",
+  "subtitle": "Manage your workspace boards and projects.",
+  "searchPlaceholder": "Search boards...",
+  "newBoard": "New Board",
+  "startFromScratch": "Start from scratch or a template",
+  "gathering": "Gathering your boards...",
+  "updated": "Updated",
+  "noBoardsFound": "No boards found",
+  "noBoardsMatch": "No boards match \"{{query}}\"",
+  "noBoardsEmpty": "You haven't created any boards in this workspace yet.",
+  "createFirstBoard": "Create your first board",
+  "boardCreatedSuccess": "Board created successfully",
+  "boardCreateError": "Failed to create board",
+  "boardDeleteSuccess": "Board deleted successfully",
+  "boardDeleteError": "Failed to delete board",
+  "noActiveWorkspace": "No active workspace found. Please select or create one from the top menu first.",
+  "deleteTitle": "Delete Board",
+  "deleteDescription": "Are you sure you want to delete the board \"{{name}}\"? This action cannot be undone."
+}

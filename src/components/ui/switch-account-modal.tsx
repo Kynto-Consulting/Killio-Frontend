@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, ArrowRightLeft, Loader2, UserPlus, CheckCircle2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 interface SwitchAccountModalProps {
@@ -12,6 +13,8 @@ interface SwitchAccountModalProps {
 
 export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps) {
   const { user, accounts, switchAccount } = useSession();
+  const t = useTranslations("modals");
+  const tCommon = useTranslations("common");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(user?.id || null);
 
@@ -42,7 +45,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
         >
           <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
         <div className="mb-6 flex items-center gap-3">
@@ -50,8 +53,8 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             <ArrowRightLeft className="h-5 w-5" />
           </div>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Switch Account</h2>
-            <p className="text-sm text-muted-foreground">Select an account to continue with.</p>
+            <h2 className="text-lg font-semibold tracking-tight">{t("switchAccount.title")}</h2>
+            <p className="text-sm text-muted-foreground">{t("switchAccount.subtitle")}</p>
           </div>
         </div>
 
@@ -81,7 +84,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
                   </div>
                   <div className="flex flex-col items-start overflow-hidden">
                     <span className="text-sm font-semibold truncate w-full content-start">
-                      {acc.user.displayName || "User"} {isCurrentActive && <span className="ml-1 text-xs font-normal text-muted-foreground">(Active)</span>}
+                      {acc.user.displayName || tCommon("account.fallbackUser")} {isCurrentActive && <span className="ml-1 text-xs font-normal text-muted-foreground">({t("switchAccount.active")})</span>}
                     </span>
                     <span className="text-xs text-muted-foreground truncate w-full content-start">{acc.user.email}</span>
                   </div>
@@ -104,7 +107,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             <div className="h-10 w-10 shrink-0 rounded-full bg-accent/10 flex items-center justify-center text-accent">
               <UserPlus className="h-5 w-5" />
             </div>
-            <span className="text-sm font-medium">Add another account</span>
+            <span className="text-sm font-medium">{t("switchAccount.addAnother")}</span>
           </button>
         </div>
 
@@ -115,7 +118,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             disabled={isSubmitting}
             className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
-            Cancel
+              {tCommon("actions.cancel")}
           </button>
           <button
             type="button"
@@ -126,10 +129,10 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
             {isSubmitting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Switching...
+                  {t("switchAccount.switching")}
               </>
             ) : (
-              "Switch Account"
+                t("switchAccount.switch")
             )}
           </button>
         </div>

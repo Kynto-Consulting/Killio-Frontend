@@ -395,7 +395,7 @@ export class ReferenceResolver {
               ? `${docTitle} · ${selectorLabel}`
               : `Referencia · ${selectorLabel}`;
 
-        return { type: 'deep', prefix, inner, label, key: i };
+        return { type: 'deep', prefix, inner, label, key: i, isInline, resolvedValue };
       }
 
       return part;

@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "workspaces": "Espacios",
+    "boards": "Tableros",
+    "documents": "Documentos",
+    "teams": "Equipos",
+    "activityHistory": "Historial de actividad",
+    "recentBoards": "Tableros recientes",
+    "recentDocuments": "Documentos recientes",
+    "noBoardsYet": "Aun no hay tableros",
+    "noDocumentsYet": "Aun no hay documentos"
+  },
+  "accountMenu": {
+    "account": "Cuenta",
+    "profileSettings": "Configuracion de perfil",
+    "appPreferences": "Preferencias de la app",
+    "switchAccount": "Cambiar cuenta",
+    "signOut": "Cerrar sesion"
+  },
+  "search": {
+    "placeholder": "Buscar o escribir un comando..."
+  },
+  "teamSwitcher": {
+    "selectWorkspace": "Seleccionar espacio",
+    "yourWorkspaces": "Tus espacios",
+    "createWorkspace": "Crear espacio"
+  }
+}

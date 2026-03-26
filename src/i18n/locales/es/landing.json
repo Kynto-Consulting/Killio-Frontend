@@ -1,0 +1,64 @@
+{
+  "badge": "Productividad que fluye como chat",
+  "headline": "Killio convierte trabajo disperso en un flujo claro.",
+  "subheadline": "Planifica tableros, redacta documentos y cierra decisiones con apoyo de IA sin saltar entre herramientas todo el dia.",
+  "cta": {
+    "primary": "Crear espacio gratis",
+    "secondary": "Iniciar sesion",
+    "tertiary": "Explorar plataforma"
+  },
+  "metrics": {
+    "teams": {
+      "value": "3.2k+",
+      "label": "equipos activos"
+    },
+    "actions": {
+      "value": "1.4M",
+      "label": "acciones semanales"
+    },
+    "uptime": {
+      "value": "99.9%",
+      "label": "disponibilidad"
+    }
+  },
+  "features": {
+    "title": "Disenado para equipos que ejecutan rapido",
+    "focus": {
+      "title": "Tableros con contexto",
+      "description": "Captura prioridades, asigna responsables y mantiene la ejecucion visible en un solo lugar."
+    },
+    "ai": {
+      "title": "IA integrada al flujo",
+      "description": "Genera borradores, resume avances y pasa de idea a entrega en minutos."
+    },
+    "trust": {
+      "title": "Confianza operativa",
+      "description": "Acceso por roles, historial de actividad y notificaciones pensadas para equipos distribuidos."
+    }
+  },
+  "steps": {
+    "one": {
+      "title": "Captura la senal",
+      "description": "Lleva notas, enlaces y solicitudes a tableros y documentos sin perder el hilo."
+    },
+    "two": {
+      "title": "Aclara con IA",
+      "description": "Convierte actualizaciones ruidosas en tareas claras, resumenes y estado compartible."
+    },
+    "three": {
+      "title": "Entrega con confianza",
+      "description": "Sigue el progreso, resuelve bloqueos y alinea al equipo de inicio a cierre."
+    }
+  },
+  "auth": {
+    "title": "Tu flujo de login y registro se mantiene",
+    "description": "Conservamos las mismas rutas de autenticacion y hacemos mas clara la entrada desde la landing.",
+    "loginTitle": "Ya tienes cuenta?",
+    "loginDescription": "Vuelve a tu ultimo espacio y continua exactamente donde pausaste.",
+    "loginCta": "Ir a login",
+    "signupTitle": "Nuevo en Killio?",
+    "signupDescription": "Crea tu cuenta, invita a tu equipo y empieza a ejecutar desde el dia uno.",
+    "signupCta": "Ir a registro"
+  },
+  "footer": "Hecho para equipos rapidos que odian el caos de pestanas."
+}

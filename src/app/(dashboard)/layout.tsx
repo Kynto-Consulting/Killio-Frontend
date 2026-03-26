@@ -10,6 +10,7 @@ import { AppPreferencesModal } from "@/components/ui/preferences-modal";
 import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -17,13 +18,15 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const tDashboard = useTranslations("dashboard");
+  const tCommon = useTranslations("common");
 
   const navigation = [
-    { name: "Workspaces", href: "/", icon: LayoutDashboard },
-    { name: "Boards", href: "/b", icon: Layout },
-    { name: "Documents", href: "/d", icon: FileText },
-    { name: "Teams", href: "/teams", icon: Users },
-    { name: "Activity History", href: "/history", icon: History },
+    { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
+    { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
+    { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
+    { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
+    { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
@@ -98,6 +101,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setActiveTeamId(newTeam.id);
   };
 
+  if (!accessToken) {
+    return <main className="min-h-screen bg-background text-foreground">{children}</main>;
+  }
+
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
@@ -149,7 +156,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           <div className="mt-8 px-5">
             <h3 className="text-xs font-semibold tracking-wider text-muted-foreground/60 uppercase">
-              Recent Boards
+              {tDashboard("nav.recentBoards")}
             </h3>
             <div className="mt-3 space-y-1">
               {isFetchingBoards ? (
@@ -165,14 +172,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Link>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground px-3 py-1">No boards yet</div>
+                <div className="text-sm text-muted-foreground px-3 py-1">{tDashboard("nav.noBoardsYet")}</div>
               )}
             </div>
           </div>
 
           <div className="mt-6 px-5">
             <h3 className="text-xs font-semibold tracking-wider text-muted-foreground/60 uppercase">
-              Recent Documents
+              {tDashboard("nav.recentDocuments")}
             </h3>
             <div className="mt-3 space-y-1">
               {isFetchingDocs ? (
@@ -190,7 +197,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   </Link>
                 ))
               ) : (
-                <div className="text-sm text-muted-foreground px-3 py-1">No documents yet</div>
+                <div className="text-sm text-muted-foreground px-3 py-1">{tDashboard("nav.noDocumentsYet")}</div>
               )}
             </div>
           </div>
@@ -205,14 +212,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                 <img 
                   src={getUserAvatarUrl(undefined, user?.email, 32)} 
-                  alt={user?.displayName || "User"} 
+                  alt={user?.displayName || tCommon("account.fallbackUser")} 
                   className="h-full w-full object-cover"
                 />
               </div>
               <div className="flex flex-col items-start overflow-hidden">
                 <span className="text-sm font-medium w-full text-left truncate">{user?.displayName || "Loading..."}</span>
                 <span className="text-xs text-muted-foreground w-full text-left truncate">
-                  {user?.email || "Account"}
+                  {user?.email || tCommon("account.fallbackAccount")}
                 </span>
               </div>
             </div>
@@ -221,20 +228,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {isSettingsOpen && (
             <div className="absolute bottom-16 left-4 w-60 rounded-xl border border-border bg-card p-2 shadow-lg z-50 animate-in fade-in slide-in-from-bottom-2">
-              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Account</div>
+              <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tDashboard("accountMenu.account")}</div>
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsProfileModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
-                <UserCircle className="mr-2 h-4 w-4" /> Profile Settings
+                <UserCircle className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.profileSettings")}
               </button>
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsPreferencesModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
-                <Settings className="mr-2 h-4 w-4" /> App Preferences
+                <Settings className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.appPreferences")}
               </button>
 
               <div className="h-px bg-border/50 my-1"></div>
@@ -243,14 +250,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center"
               >
-                <ArrowRightLeft className="mr-2 h-4 w-4" /> Switch Account
+                <ArrowRightLeft className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.switchAccount")}
               </button>
 
               <button
                 onClick={logout}
                 className="w-full text-left px-2 py-2 text-sm hover:bg-destructive/10 text-destructive rounded-md transition-colors flex items-center"
               >
-                <LogOut className="mr-2 h-4 w-4" /> Sign Out
+                <LogOut className="mr-2 h-4 w-4" /> {tDashboard("accountMenu.signOut")}
               </button>
             </div>
           )}
@@ -268,7 +275,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className="flex w-full max-w-sm items-center space-x-2 rounded-md border border-border bg-card/40 px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/5 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent md:w-80"
             >
               <Search className="h-4 w-4 opacity-70" />
-              <span>Search or type a command...</span>
+              <span>{tDashboard("search.placeholder")}</span>
               <span className="ml-auto hidden rounded bg-muted/50 px-1.5 py-0.5 text-xs font-semibold tracking-widest text-muted-foreground md:inline-block">
                 ⌘K
               </span>
@@ -286,14 +293,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   {teams.find(t => t.id === activeTeamId)?.icon || teams.find(t => t.id === activeTeamId)?.name.substring(0, 1).toUpperCase() || "W"}
                 </div>
                 <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
-                  {teams.find(t => t.id === activeTeamId)?.name || "Select Workspace"}
+                  {teams.find(t => t.id === activeTeamId)?.name || tDashboard("teamSwitcher.selectWorkspace")}
                 </span>
                 <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
 
               {isTeamSwitcherOpen && (
                 <div className="absolute top-10 right-0 w-56 rounded-xl border border-border bg-card p-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Workspaces</div>
+                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tDashboard("teamSwitcher.yourWorkspaces")}</div>
                   <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
                     {teams.map(team => (
                       <button
@@ -317,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     setIsTeamSwitcherOpen(false);
                     setIsCreateWorkspaceModalOpen(true);
                   }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
-                    <Plus className="h-4 w-4 mr-2" /> Create Workspace
+                    <Plus className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createWorkspace")}
                   </button>
                 </div>
               )}

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Loader2 } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function ConfirmDeleteModal({
   description,
   itemName
 }: ConfirmDeleteModalProps) {
+  const t = useTranslations("modals");
   const [isDeleting, setIsDeleting] = useState(false);
 
   if (!isOpen) return null;
@@ -52,7 +54,7 @@ export function ConfirmDeleteModal({
             disabled={isDeleting}
             className="px-4 py-2 text-sm font-medium rounded-md hover:bg-accent/10 transition-colors disabled:opacity-50"
           >
-            Cancel
+            {t("confirmDelete.cancel")}
           </button>
           <button
             onClick={handleConfirm}
@@ -62,10 +64,10 @@ export function ConfirmDeleteModal({
             {isDeleting ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                {t("confirmDelete.deleting")}
               </>
             ) : (
-              "Delete"
+              t("confirmDelete.delete")
             )}
           </button>
         </div>

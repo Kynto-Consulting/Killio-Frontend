@@ -1,0 +1,15 @@
+{
+  "title": "Accept invite",
+  "subtitle": "We are processing your workspace access.",
+  "missingToken": "Invite link has no token.",
+  "needLogin": "You need to sign in to accept this invite.",
+  "login": "Log in",
+  "signup": "Create account",
+  "accepting": "Accepting invite...",
+  "acceptedMessage": "You joined workspace {{teamName}} as {{role}}.",
+  "redirecting": "Redirecting to workspace...",
+  "goDashboard": "Go to dashboard",
+  "viewTeam": "View team",
+  "workspace": "Workspace:",
+  "acceptError": "Could not accept invite."
+}

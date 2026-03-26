@@ -1,0 +1,9 @@
+{
+  "native": {
+    "priority": "Priority",
+    "bug": "Bug",
+    "feature": "Feature",
+    "ux": "UX",
+    "blocked": "Blocked"
+  }
+}

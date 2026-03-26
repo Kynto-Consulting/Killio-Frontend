@@ -1,0 +1,15 @@
+{
+  "title": "Documentos",
+  "subtitle": "Crea y gestiona los documentos de tu espacio.",
+  "searchPlaceholder": "Buscar documentos...",
+  "newDocument": "Nuevo documento",
+  "startWriting": "Empieza a escribir con bricks",
+  "gathering": "Cargando tus documentos...",
+  "updated": "Actualizado",
+  "noDocumentsFound": "No se encontraron documentos",
+  "noDocumentsMatch": "Ningun documento coincide con \"{{query}}\"",
+  "noDocumentsEmpty": "Aun no has creado documentos en este espacio.",
+  "createFirstDocument": "Crear tu primer documento",
+  "createPrompt": "Ingresa el titulo del documento",
+  "createError": "No se pudo crear el documento"
+}

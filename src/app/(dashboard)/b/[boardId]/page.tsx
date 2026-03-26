@@ -21,6 +21,7 @@ import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type BoardListState = {
   id: string;
@@ -472,6 +473,7 @@ function applyRealtimeEventToLists(
 
 
 export default function BoardPage() {
+  const t = useTranslations("board-detail");
   const params = useParams();
   const router = useRouter();
   const boardId = params.boardId as string;
@@ -482,7 +484,7 @@ export default function BoardPage() {
   const locale = getClientLocale();
 
   const [lists, setLists] = useState<any[]>([]);
-  const [boardName, setBoardName] = useState("Loading...");
+  const [boardName, setBoardName] = useState(t("loadingBoard"));
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'chat' | 'activity'>('activity');
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
@@ -523,7 +525,7 @@ export default function BoardPage() {
       router.push("/");
     } catch (e) {
       console.error(e);
-      toast("Failed to delete board", "error");
+      toast(t("deleteBoardError"), "error");
       setIsDeleting(false);
     }
   };
@@ -551,6 +553,7 @@ export default function BoardPage() {
       } : l)));
     } catch (error) {
       console.error("Failed to create list", error);
+      toast(t("createListError"), "error");
       // Optional: Remove optimistic list if failed
       setLists(prev => prev.filter(l => l.id !== tempId));
     }
@@ -581,9 +584,9 @@ export default function BoardPage() {
       })
       .catch((err) => {
         console.error("Failed to fetch board", err);
-        setBoardName("Error loading board");
+        setBoardName(t("loadBoardError"));
       });
-  }, [accessToken, boardId]);
+  }, [accessToken, boardId, t]);
 
   const scheduleBoardReload = useCallback((delayMs = 120) => {
     if (realtimeReloadTimerRef.current) {
@@ -656,7 +659,7 @@ export default function BoardPage() {
 
     setDragVisual({
       activeId,
-      activeTitle: activeCard?.title ?? 'Card',
+      activeTitle: activeCard?.title ?? t("drag.card"),
       targetListId: sourceListId,
       targetIndex: null,
     });
@@ -860,7 +863,7 @@ export default function BoardPage() {
           <div className="h-4 w-[1px] bg-border/80"></div>
           <button className="flex items-center text-sm px-2.5 py-1 rounded-md bg-accent/10 text-accent font-medium hover:bg-accent/20 transition-colors">
             <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-            Live
+            {t("header.live")}
           </button>
         </div>
 
@@ -884,7 +887,7 @@ export default function BoardPage() {
               </div>
             )}
             {members.length === 0 && (
-              <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shadow-sm animate-pulse" title="Connecting...">
+              <div className="w-8 h-8 rounded-full border-2 border-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground shadow-sm animate-pulse" title={t("header.connecting")}>
                 ...
               </div>
             )}
@@ -895,7 +898,7 @@ export default function BoardPage() {
             className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'copilot' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
           >
             <Bot className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Copilot</span>
+            <span className="hidden sm:inline">{t("header.copilot")}</span>
           </button>
 
           <button
@@ -903,7 +906,7 @@ export default function BoardPage() {
             className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'chat' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
           >
             <MessageSquare className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Team Chat</span>
+            <span className="hidden sm:inline">{t("header.teamChat")}</span>
           </button>
 
           <button
@@ -911,7 +914,7 @@ export default function BoardPage() {
             className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'activity' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
           >
             <History className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">Activity</span>
+            <span className="hidden sm:inline">{t("header.activity")}</span>
           </button>
 
           <div className="relative">
@@ -920,17 +923,17 @@ export default function BoardPage() {
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent/10 hover:text-foreground hidden sm:inline-flex ${selectedTags.length > 0 ? "text-accent bg-accent/10 border border-accent/20" : "text-muted-foreground"}`}
             >
               <Filter className="h-4 w-4 mr-2" />
-              Filter {selectedTags.length > 0 && `(${selectedTags.length})`}
+              {t("header.filter")} {selectedTags.length > 0 && `(${selectedTags.length})`}
             </button>
 
             {isFilterDropdownOpen && (
               <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-md shadow-xl z-20 overflow-hidden">
                 <div className="p-3 border-b border-border">
-                  <h4 className="text-sm font-semibold text-foreground">Filter by Tags</h4>
+                  <h4 className="text-sm font-semibold text-foreground">{t("header.filterByTags")}</h4>
                 </div>
                 <div className="p-2 max-h-60 overflow-y-auto">
                   {allAvailableTags.length === 0 ? (
-                    <div className="p-2 text-xs text-muted-foreground text-center">No tags in this board</div>
+                    <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
                   ) : (
                     allAvailableTags.map((tag: any) => {
                       const isSelected = selectedTags.includes(tag.name);
@@ -958,7 +961,7 @@ export default function BoardPage() {
                       onClick={() => setSelectedTags([])}
                       className="w-full text-xs text-center text-muted-foreground hover:text-foreground py-1"
                     >
-                      Clear Filters
+                      {t("header.clearFilters")}
                     </button>
                   </div>
                 )}
@@ -972,12 +975,12 @@ export default function BoardPage() {
               className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Share className="h-4 w-4 mr-2" />
-              Share
+              {t("header.share")}
             </button>
           )}
           {permissions.canManageBoard && (
             <button
-              title="Delete Board"
+              title={t("header.deleteBoard")}
               disabled={isDeleting}
               onClick={() => setIsDeleteModalOpen(true)}
               className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground"
@@ -1021,8 +1024,8 @@ export default function BoardPage() {
             <DragOverlay>
               {dragVisual.activeId ? (
                 <div className="w-72 rounded-lg border border-accent/60 bg-card/95 shadow-2xl ring-2 ring-accent/30 px-3 py-2 backdrop-blur-sm">
-                  <div className="text-[10px] uppercase tracking-wider text-accent/90 font-semibold mb-1">Moving card</div>
-                  <div className="text-sm font-medium text-foreground truncate">{dragVisual.activeTitle ?? 'Card'}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-accent/90 font-semibold mb-1">{t("drag.movingCard")}</div>
+                  <div className="text-sm font-medium text-foreground truncate">{dragVisual.activeTitle ?? t("drag.card")}</div>
                 </div>
               ) : null}
             </DragOverlay>
@@ -1033,7 +1036,7 @@ export default function BoardPage() {
             <div className="w-72 shrink-0 p-3 rounded-xl border border-border/60 bg-card shadow-sm flex flex-col space-y-3">
               <input
                 type="text"
-                placeholder="Enter list title..."
+                placeholder={t("list.placeholder")}
                 className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-accent"
                 value={newListName}
                 onChange={(e) => setNewListName(e.target.value)}
@@ -1051,7 +1054,7 @@ export default function BoardPage() {
                   onClick={handleAddList}
                   className="px-3 py-1.5 bg-accent hover:bg-accent/90 text-accent-foreground text-xs font-medium rounded-md transition-colors"
                 >
-                  Add list
+                  {t("list.add")}
                 </button>
                 <button
                   onClick={() => {
@@ -1060,7 +1063,7 @@ export default function BoardPage() {
                   }}
                   className="px-3 py-1.5 bg-transparent hover:bg-muted text-muted-foreground hover:text-foreground text-xs font-medium rounded-md transition-colors"
                 >
-                  Cancel
+                  {t("list.cancel")}
                 </button>
               </div>
             </div>
@@ -1071,7 +1074,7 @@ export default function BoardPage() {
                 className="w-72 shrink-0 h-12 rounded-xl border border-dashed border-border/60 bg-transparent flex items-center justify-center text-muted-foreground hover:bg-accent/5 hover:border-accent hover:text-foreground transition-all"
               >
                 <Plus className="h-5 w-5 mr-2" />
-                Add another list
+                {t("list.addAnother")}
               </button>
             )
           )}
@@ -1093,8 +1096,8 @@ export default function BoardPage() {
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteBoard}
-        title="Delete Board"
-        description="Are you sure you want to delete this board? This action cannot be undone."
+        title={t("confirmDelete.title")}
+        description={t("confirmDelete.description")}
       />
     </div>
   );

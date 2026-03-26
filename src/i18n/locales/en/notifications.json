@@ -1,0 +1,17 @@
+{
+  "buttonTitle": "Notifications",
+  "title": "Notifications",
+  "markAllRead": "Mark all read",
+  "emptyTitle": "No new notifications",
+  "emptyDescription": "When someone mentions you or invites you, it will show up here.",
+  "markAsRead": "Mark as read",
+  "view": "View",
+  "items": {
+    "inviteTitle": "You were invited",
+    "inviteMessage": "{{actor}} invited you to {{target}}",
+    "mentionTitle": "You were mentioned",
+    "mentionMessage": "{{actor}} mentioned you in {{target}}",
+    "systemTitle": "System notification",
+    "systemMessage": "{{text}}"
+  }
+}

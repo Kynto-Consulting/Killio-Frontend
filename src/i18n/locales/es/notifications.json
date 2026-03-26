@@ -1,0 +1,17 @@
+{
+  "buttonTitle": "Notificaciones",
+  "title": "Notificaciones",
+  "markAllRead": "Marcar todo como leido",
+  "emptyTitle": "No hay notificaciones nuevas",
+  "emptyDescription": "Cuando alguien te mencione o te invite, aparecera aqui.",
+  "markAsRead": "Marcar como leido",
+  "view": "Ver",
+  "items": {
+    "inviteTitle": "Te invitaron",
+    "inviteMessage": "{{actor}} te invito a {{target}}",
+    "mentionTitle": "Te mencionaron",
+    "mentionMessage": "{{actor}} te menciono en {{target}}",
+    "systemTitle": "Notificacion del sistema",
+    "systemMessage": "{{text}}"
+  }
+}

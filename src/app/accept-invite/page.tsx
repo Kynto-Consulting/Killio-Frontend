@@ -6,11 +6,13 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { CheckCircle2, Loader2, ShieldAlert } from "lucide-react";
 import { acceptTeamInvite } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 function AcceptInvitePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { accessToken, setActiveTeamId } = useSession();
+  const t = useTranslations("accept-invite");
 
   const token = searchParams.get("token") ?? "";
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -32,7 +34,7 @@ function AcceptInvitePageContent() {
   useEffect(() => {
     if (!token) {
       setStatus("error");
-      setMessage("El enlace no contiene token de invitacion.");
+      setMessage(t("missingToken"));
       return;
     }
 
@@ -57,7 +59,7 @@ function AcceptInvitePageContent() {
         setActiveTeamId(result.teamId);
         setStatus("success");
         setTeamName(result.teamName);
-        setMessage(`Te uniste al workspace ${result.teamName} como ${result.role}.`);
+        setMessage(t("acceptedMessage", { teamName: result.teamName, role: result.role }));
         if (redirectTimerRef.current) {
           clearTimeout(redirectTimerRef.current);
         }
@@ -70,7 +72,7 @@ function AcceptInvitePageContent() {
       .catch((error: any) => {
         if (cancelled) return;
         setStatus("error");
-        setMessage(typeof error?.message === "string" ? error.message : "No se pudo aceptar la invitacion.");
+        setMessage(typeof error?.message === "string" ? error.message : t("acceptError"));
       });
 
     return () => {
@@ -79,30 +81,30 @@ function AcceptInvitePageContent() {
         clearTimeout(redirectTimerRef.current);
       }
     };
-  }, [token, accessToken, router, setActiveTeamId]);
+  }, [token, accessToken, router, setActiveTeamId, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-lg">
-        <h1 className="text-xl font-semibold tracking-tight">Aceptar invitacion</h1>
-        <p className="text-sm text-muted-foreground mt-1">Estamos procesando tu acceso al workspace.</p>
+        <h1 className="text-xl font-semibold tracking-tight">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground mt-1">{t("subtitle")}</p>
 
         <div className="mt-6 rounded-lg border border-border/60 bg-background/60 p-4">
           {!accessToken && token ? (
             <div className="space-y-3">
-              <p className="text-sm text-foreground">Necesitas iniciar sesion para aceptar esta invitacion.</p>
+              <p className="text-sm text-foreground">{t("needLogin")}</p>
               <div className="flex items-center gap-2">
                 <Link
                   href={loginHref}
                   className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
-                  Iniciar sesion
+                  {t("login")}
                 </Link>
                 <Link
                   href={signupHref}
                   className="inline-flex h-9 items-center justify-center rounded-md border border-input px-3.5 text-sm font-medium hover:bg-accent/10"
                 >
-                  Crear cuenta
+                  {t("signup")}
                 </Link>
               </div>
             </div>
@@ -111,7 +113,7 @@ function AcceptInvitePageContent() {
           {status === "loading" ? (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
-              Aceptando invitacion...
+              {t("accepting")}
             </div>
           ) : null}
 
@@ -121,22 +123,22 @@ function AcceptInvitePageContent() {
                 <CheckCircle2 className="h-4 w-4" />
                 {message}
               </div>
-              <p className="text-xs text-muted-foreground">Redirigiendo al workspace...</p>
+              <p className="text-xs text-muted-foreground">{t("redirecting")}</p>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => router.push("/")}
                   className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-3.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                 >
-                  Ir al dashboard
+                  {t("goDashboard")}
                 </button>
                 <button
                   onClick={() => router.push("/teams")}
                   className="inline-flex h-9 items-center justify-center rounded-md border border-input px-3.5 text-sm font-medium hover:bg-accent/10"
                 >
-                  Ver equipo
+                  {t("viewTeam")}
                 </button>
               </div>
-              {teamName ? <p className="text-xs text-muted-foreground">Workspace: {teamName}</p> : null}
+              {teamName ? <p className="text-xs text-muted-foreground">{t("workspace")} {teamName}</p> : null}
             </div>
           ) : null}
 
@@ -152,15 +154,22 @@ function AcceptInvitePageContent() {
   );
 }
 
+function AcceptInviteFallback() {
+  const t = useTranslations("accept-invite");
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="flex items-center gap-2 text-muted-foreground">
+        <Loader2 className="h-5 w-5 animate-spin" />
+        <span>{t("accepting")}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AcceptInvitePage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background px-4">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      }
-    >
+    <Suspense fallback={<AcceptInviteFallback />}>
       <AcceptInvitePageContent />
     </Suspense>
   );

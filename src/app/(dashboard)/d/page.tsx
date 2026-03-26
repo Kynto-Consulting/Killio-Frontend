@@ -6,8 +6,10 @@ import { Plus, Clock, Loader2, FileText, Search } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function DocumentsPage() {
+  const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -25,7 +27,7 @@ export default function DocumentsPage() {
 
   const handleCreateDocument = async () => {
     if (!accessToken || !activeTeamId) return;
-    const title = prompt("Enter document title");
+    const title = prompt(t("createPrompt"));
     if (!title || !title.trim()) return;
 
     try {
@@ -33,7 +35,7 @@ export default function DocumentsPage() {
       setDocuments([doc, ...documents]);
     } catch (e) {
       console.error(e);
-      toast("Failed to create document", "error");
+      toast(t("createError"), "error");
     }
   };
 
@@ -45,15 +47,15 @@ export default function DocumentsPage() {
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight mb-2">Documents</h1>
-          <p className="text-muted-foreground">Create and manage your workspace documents.</p>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{t("title")}</h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input 
               type="text"
-              placeholder="Search documents..."
+              placeholder={t("searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
@@ -64,7 +66,7 @@ export default function DocumentsPage() {
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
           >
             <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
-            New Document
+            {t("newDocument")}
           </button>
         </div>
       </div>
@@ -72,7 +74,7 @@ export default function DocumentsPage() {
       {isLoading ? (
         <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
           <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary/50" />
-          <p>Gathering your documents...</p>
+          <p>{t("gathering")}</p>
         </div>
       ) : filteredDocs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -83,8 +85,8 @@ export default function DocumentsPage() {
             <div className="mb-4 rounded-full bg-accent/10 p-3 text-accent group-hover:bg-accent/20 transition-colors">
               <Plus className="h-6 w-6" />
             </div>
-            <h3 className="font-medium">New Document</h3>
-            <p className="text-sm text-muted-foreground mt-1">Start writing with bricks</p>
+            <h3 className="font-medium">{t("newDocument")}</h3>
+            <p className="text-sm text-muted-foreground mt-1">{t("startWriting")}</p>
           </div>
 
           {filteredDocs.map((doc) => (
@@ -106,7 +108,7 @@ export default function DocumentsPage() {
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
                   <div className="flex items-center">
                     <Clock className="mr-1.5 h-3 w-3" />
-                    Updated {new Date(doc.updatedAt).toLocaleDateString()}
+                    {t("updated")} {new Date(doc.updatedAt).toLocaleDateString()}
                   </div>
                 </div>
               </div>
@@ -118,15 +120,15 @@ export default function DocumentsPage() {
           <div className="h-16 w-16 rounded-full bg-muted/50 flex items-center justify-center mb-4">
             <FileText className="h-8 w-8 text-muted-foreground/50" />
           </div>
-          <h3 className="text-xl font-semibold mb-1">No documents found</h3>
+          <h3 className="text-xl font-semibold mb-1">{t("noDocumentsFound")}</h3>
           <p className="text-muted-foreground max-w-xs mb-6">
-            {searchQuery ? `No documents match "${searchQuery}"` : "You haven't created any documents in this workspace yet."}
+            {searchQuery ? t("noDocumentsMatch", { query: searchQuery }) : t("noDocumentsEmpty")}
           </p>
           <button 
             onClick={handleCreateDocument}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-accent/10 text-accent hover:bg-accent/20 h-9 px-4"
           >
-            Create your first document
+            {t("createFirstDocument")}
           </button>
         </div>
       )}

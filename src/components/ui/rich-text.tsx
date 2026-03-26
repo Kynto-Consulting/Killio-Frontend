@@ -96,6 +96,16 @@ export function RichText({
               }
 
               if (part.type === "deep") {
+                if (part.isInline === false) {
+                  return (
+                    <div key={partIdx} className="my-2 p-3 rounded-md border border-amber-500/20 bg-amber-500/5 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
+                      <div className="flex items-center gap-1.5 mb-2 text-xs font-bold text-amber-600/80 uppercase tracking-wider">
+                        <span>{part.label}</span>
+                      </div>
+                      {typeof part.resolvedValue === 'string' ? renderInlineMarkdown(part.resolvedValue, availableTags) : JSON.stringify(part.resolvedValue, null, 2)}
+                    </div>
+                  );
+                }
                 return (
                   <RefPill
                     key={partIdx}

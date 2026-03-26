@@ -1,0 +1,72 @@
+{
+  "loadingBoard": "Cargando...",
+  "loadBoardError": "Error al cargar el tablero",
+  "deleteBoardError": "No se pudo eliminar el tablero",
+  "createListError": "No se pudo crear la lista",
+  "header": {
+    "live": "En vivo",
+    "copilot": "Copilot",
+    "teamChat": "Chat de equipo",
+    "activity": "Actividad",
+    "filter": "Filtrar",
+    "filterByTags": "Filtrar por tags",
+    "noTags": "No hay tags en este tablero",
+    "clearFilters": "Limpiar filtros",
+    "share": "Compartir",
+    "deleteBoard": "Eliminar tablero",
+    "connecting": "Conectando..."
+  },
+  "drag": {
+    "movingCard": "Moviendo tarjeta",
+    "card": "Tarjeta",
+    "dropHere": "Soltar aqui"
+  },
+  "list": {
+    "addCard": "Agregar tarjeta",
+    "addCardMenu": "Agregar tarjeta...",
+    "archiveList": "Archivar esta lista",
+    "archiveComingSoon": "Archivar lista proximamente",
+    "addAnother": "Agregar otra lista",
+    "add": "Agregar lista",
+    "cancel": "Cancelar",
+    "placeholder": "Ingresa titulo de la lista..."
+  },
+  "card": {
+    "editCard": "Editar tarjeta...",
+    "editTags": "Editar tags...",
+    "delete": "Eliminar tarjeta",
+    "deleteConfirm": "Eliminar esta tarjeta permanentemente? Esta accion no se puede deshacer.",
+    "hasDescription": "Esta tarjeta tiene descripcion",
+    "checklistItems": "Items de checklist",
+    "comments": "Comentarios",
+    "attachments": "Adjuntos"
+  },
+  "shareModal": {
+    "title": "Compartir \"{{boardName}}\"",
+    "subtitle": "Gestiona quien tiene acceso a este tablero.",
+    "invitePeople": "Invitar personas",
+    "emailPlaceholder": "Correo...",
+    "viewer": "Lector",
+    "commenter": "Comentador",
+    "editor": "Editor",
+    "invite": "Invitar",
+    "suggestDocs": "Sugerir documentos relacionados ({{count}})",
+    "autoGrant": "Acceso automatico",
+    "invitedUser": "Usuario invitado",
+    "generalAccess": "Acceso general",
+    "restrictedMembers": "Restringido (solo miembros)",
+    "teamAccess": "Equipo (cualquiera en {{teamName}})",
+    "anyoneLink": "Cualquiera con el enlace",
+    "internetDesc": "Cualquiera en internet con el enlace puede acceder",
+    "teamDesc": "Cualquiera en el equipo del workspace puede acceder",
+    "restrictedDesc": "Solo miembros agregados especificamente pueden acceder",
+    "copyLink": "Copiar enlace",
+    "copiedToast": "Enlace copiado al portapapeles",
+    "done": "Listo",
+    "inviteError": "Error al invitar usuario. Asegurate que el correo este registrado."
+  },
+  "confirmDelete": {
+    "title": "Eliminar tablero",
+    "description": "Seguro que quieres eliminar este tablero? Esta accion no se puede deshacer."
+  }
+}

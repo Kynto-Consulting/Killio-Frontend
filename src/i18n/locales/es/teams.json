@@ -1,0 +1,61 @@
+{
+  "title": "Equipos y acceso",
+  "subtitle": "Gestiona los miembros del equipo y sus permisos en el espacio.",
+  "invitePeople": "Invitar personas",
+  "currentRole": "Rol actual:",
+  "activePermissions": "Permisos activos para este espacio.",
+  "roleMatrix": "Matriz de roles",
+  "inviteWorkspace": "Invitar al workspace",
+  "allowedRoles": "Roles permitidos para ti:",
+  "inviteEmailPlaceholder": "persona@empresa.com",
+  "sendInvite": "Enviar invitacion",
+  "recentInvites": "Invitaciones recientes",
+  "loadingInvites": "Cargando invitaciones...",
+  "noInvitesYet": "No hay invitaciones todavia.",
+  "total": "total",
+  "revoke": "Revocar",
+  "filterMembers": "Filtrar miembros...",
+  "members": "miembros",
+  "loadingMembers": "Cargando miembros...",
+  "you": "Tu",
+  "changeRole": "Cambiar rol",
+  "leaveTeam": "Salir del equipo",
+  "removeMember": "Remover miembro",
+  "noActions": "No hay acciones disponibles.",
+  "personalWorkspaceInviteHelp": "Este es un workspace personal. Para invitar personas crea o cambia a un workspace de equipo.",
+  "roleCannotInviteHelp": "Tu rol actual no permite enviar invitaciones.",
+  "personalWorkspaceInviteTitle": "Este es un workspace personal. Cambia a un workspace de equipo para invitar miembros.",
+  "roleCannotInviteTitle": "Tu rol actual no puede invitar personas.",
+  "inviteSendError": "No se pudo enviar la invitacion.",
+  "inviteRevokeError": "No se pudo revocar la invitacion.",
+  "roleUpdateError": "No se pudo actualizar el rol.",
+  "removeMemberError": "No se pudo remover el miembro.",
+  "confirmLeave": "Vas a salir del workspace. Quieres continuar?",
+  "confirmRemove": "Este miembro sera removido del workspace. Quieres continuar?",
+  "roleCapabilities": {
+    "owner": [
+      "Invitar admin/member/guest",
+      "Gestionar miembros",
+      "Crear tableros",
+      "Ver actividad e invitaciones"
+    ],
+    "admin": [
+      "Invitar admin/member/guest",
+      "Gestionar miembros",
+      "Crear tableros",
+      "Ver actividad e invitaciones"
+    ],
+    "member": [
+      "Invitar member/guest",
+      "Crear tableros",
+      "Ver actividad e invitaciones",
+      "No puede gestionar miembros"
+    ],
+    "guest": [
+      "Solo lectura de miembros",
+      "Sin invitaciones",
+      "Sin creacion de tableros",
+      "Acceso limitado"
+    ]
+  }
+}

@@ -5,6 +5,7 @@ import { listDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/doc
 import { useSession } from "@/components/providers/session-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -17,6 +18,7 @@ interface ShareModalProps {
 }
 
 export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Workspace Team", initialVisibility = "team", accessToken }: ShareModalProps) {
+  const t = useTranslations("board-detail");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [members, setMembers] = useState<BoardMemberSummary[]>([]);
@@ -33,6 +35,11 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [isSuggestingDocs, setIsSuggestingDocs] = useState(false);
+  const roleLabels: Record<string, string> = {
+    viewer: t("shareModal.viewer"),
+    commenter: t("shareModal.commenter"),
+    editor: t("shareModal.editor"),
+  };
 
   useEffect(() => {
     if (isOpen && boardId) {
@@ -92,7 +99,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
       await loadMembers();
     } catch (err) {
       console.error("Failed to invite", err);
-      toast("Error inviting user. Make sure the email is registered.", "error");
+      toast(t("shareModal.inviteError"), "error");
     } finally {
       setIsInviting(false);
     }
@@ -114,24 +121,24 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
       <div className="bg-card w-full max-w-lg rounded-xl border border-border shadow-2xl overflow-hidden flex flex-col mb-[10vh] animate-in zoom-in-95 duration-200">
         <div className="p-4 border-b border-border/50 flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Share "{boardName}"</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t("shareModal.title", { boardName })}</h2>
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
-          <p className="text-sm text-muted-foreground">Manage who has access to this board.</p>
+          <p className="text-sm text-muted-foreground">{t("shareModal.subtitle")}</p>
         </div>
 
         <div className="p-4 space-y-6">
           {/* Add people */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground">Invite people</label>
+            <label className="text-sm font-medium text-foreground">{t("shareModal.invitePeople")}</label>
             <div className="flex items-center space-x-2">
               <input 
                 type="email" 
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
-                placeholder="Email address..." 
+                placeholder={t("shareModal.emailPlaceholder")} 
                 className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" 
               />
               <div className="relative">
@@ -140,7 +147,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                   onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
                   className="h-9 w-28 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm flex items-center justify-between focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 >
-                  <span className="capitalize">{inviteRole}</span>
+                  <span className="capitalize">{roleLabels[inviteRole] || inviteRole}</span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </button>
                 {isRoleDropdownOpen && (
@@ -154,7 +161,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                           setIsRoleDropdownOpen(false);
                         }}
                       >
-                        {role}
+                        {roleLabels[role] || role}
                       </div>
                     ))}
                   </div>
@@ -165,7 +172,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                 disabled={isInviting || !inviteEmail.trim()}
                 className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center"
               >
-                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invite"}
+                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("shareModal.invite")}
               </button>
             </div>
             
@@ -177,11 +184,11 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                   className="flex items-center text-xs text-muted-foreground hover:text-accent font-medium mb-2"
                 >
                   <ChevronDown className={`h-3 w-3 mr-1 transition-transform ${isSuggestingDocs ? "rotate-180" : ""}`} />
-                  Suggest related documents ({documents.length})
+                  {t("shareModal.suggestDocs", { count: documents.length })}
                 </button>
                 {isSuggestingDocs && (
                   <div className="space-y-1.5 border border-border/50 rounded-lg p-3 bg-muted/10 max-h-32 overflow-y-auto">
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-2">Auto-Grant Access</p>
+                    <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-2">{t("shareModal.autoGrant")}</p>
                     {documents.map(doc => (
                       <label key={doc.id} className="flex items-center space-x-2 cursor-pointer group">
                         <input 
@@ -210,12 +217,12 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                       <div className="w-8 h-8 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                         <img 
                           src={getUserAvatarUrl(member.avatarUrl || (member as any).avatar_url, member.email, 32)} 
-                          alt={member.displayName || "User"} 
+                          alt={member.displayName || t("shareModal.invitedUser")} 
                           className="h-full w-full object-cover"
                         />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium leading-none">{member.displayName || "Invited User"}</span>
+                        <span className="text-sm font-medium leading-none">{member.displayName || t("shareModal.invitedUser")}</span>
                         <span className="text-xs text-muted-foreground">{member.email}</span>
                       </div>
                     </div>
@@ -233,7 +240,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
 
           {/* General Access */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground">General access</label>
+            <label className="text-sm font-medium text-foreground">{t("shareModal.generalAccess")}</label>
             <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
               <div className="flex items-center space-x-3">
                 <div className={`p-2 rounded-full ${visibility === "public_link" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
@@ -247,9 +254,9 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                     className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0"
                   >
                     <span>
-                      {visibility === "private" && "Restricted (Members only)"}
-                      {visibility === "team" && `Team (Anyone in ${teamName})`}
-                      {visibility === "public_link" && "Anyone with the link"}
+                      {visibility === "private" && t("shareModal.restrictedMembers")}
+                      {visibility === "team" && t("shareModal.teamAccess", { teamName })}
+                      {visibility === "public_link" && t("shareModal.anyoneLink")}
                     </span>
                     <ChevronDown className="h-4 w-4 opacity-50" />
                   </button>
@@ -260,29 +267,29 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                         className="relative flex flex-col cursor-pointer select-none rounded-sm px-3 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => { handleVisibilityChange("private"); setIsVisDropdownOpen(false); }}
                       >
-                        <span className="font-medium">Restricted (Members only)</span>
+                        <span className="font-medium">{t("shareModal.restrictedMembers")}</span>
                       </div>
                       <div
                         className="relative flex flex-col cursor-pointer select-none rounded-sm px-3 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => { handleVisibilityChange("team"); setIsVisDropdownOpen(false); }}
                       >
-                        <span className="font-medium">Team (Anyone in {teamName})</span>
+                        <span className="font-medium">{t("shareModal.teamAccess", { teamName })}</span>
                       </div>
                       <div
                         className="relative flex flex-col cursor-pointer select-none rounded-sm px-3 py-2 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
                         onClick={() => { handleVisibilityChange("public_link"); setIsVisDropdownOpen(false); }}
                       >
-                        <span className="font-medium">Anyone with the link</span>
+                        <span className="font-medium">{t("shareModal.anyoneLink")}</span>
                       </div>
                     </div>
                   )}
                   
                   <p className="text-xs text-muted-foreground mt-0.5">
                     {visibility === "public_link" 
-                      ? "Anyone on the internet with the link can access" 
+                      ? t("shareModal.internetDesc")
                       : visibility === "team" 
-                      ? "Anyone in the workspace team can access"
-                      : "Only specifically added members can access"}
+                      ? t("shareModal.teamDesc")
+                      : t("shareModal.restrictedDesc")}
                   </p>
                 </div>
               </div>
@@ -294,18 +301,18 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
           <button
             onClick={() => {
               navigator.clipboard.writeText(window.location.href);
-              toast("Link copied to clipboard!", "success");
+              toast(t("shareModal.copiedToast"), "success");
             }}
             className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"
           >
             <Link className="h-4 w-4 mr-2" />
-            Copy link
+            {t("shareModal.copyLink")}
           </button>
           <button 
             onClick={onClose} 
             className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
           >
-            Done
+            {t("shareModal.done")}
           </button>
         </div>
       </div>

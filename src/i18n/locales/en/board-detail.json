@@ -1,0 +1,72 @@
+{
+  "loadingBoard": "Loading...",
+  "loadBoardError": "Error loading board",
+  "deleteBoardError": "Failed to delete board",
+  "createListError": "Failed to create list",
+  "header": {
+    "live": "Live",
+    "copilot": "Copilot",
+    "teamChat": "Team Chat",
+    "activity": "Activity",
+    "filter": "Filter",
+    "filterByTags": "Filter by Tags",
+    "noTags": "No tags in this board",
+    "clearFilters": "Clear Filters",
+    "share": "Share",
+    "deleteBoard": "Delete Board",
+    "connecting": "Connecting..."
+  },
+  "drag": {
+    "movingCard": "Moving card",
+    "card": "Card",
+    "dropHere": "Drop here"
+  },
+  "list": {
+    "addCard": "Add a card",
+    "addCardMenu": "Add Card...",
+    "archiveList": "Archive This List",
+    "archiveComingSoon": "Archive list coming soon!",
+    "addAnother": "Add another list",
+    "add": "Add list",
+    "cancel": "Cancel",
+    "placeholder": "Enter list title..."
+  },
+  "card": {
+    "editCard": "Edit Card...",
+    "editTags": "Edit Tags...",
+    "delete": "Delete Card",
+    "deleteConfirm": "Delete this card permanently? This action cannot be undone.",
+    "hasDescription": "This card has a description",
+    "checklistItems": "Checklist items",
+    "comments": "Comments",
+    "attachments": "Attachments"
+  },
+  "shareModal": {
+    "title": "Share \"{{boardName}}\"",
+    "subtitle": "Manage who has access to this board.",
+    "invitePeople": "Invite people",
+    "emailPlaceholder": "Email address...",
+    "viewer": "Viewer",
+    "commenter": "Commenter",
+    "editor": "Editor",
+    "invite": "Invite",
+    "suggestDocs": "Suggest related documents ({{count}})",
+    "autoGrant": "Auto-Grant Access",
+    "invitedUser": "Invited User",
+    "generalAccess": "General access",
+    "restrictedMembers": "Restricted (Members only)",
+    "teamAccess": "Team (Anyone in {{teamName}})",
+    "anyoneLink": "Anyone with the link",
+    "internetDesc": "Anyone on the internet with the link can access",
+    "teamDesc": "Anyone in the workspace team can access",
+    "restrictedDesc": "Only specifically added members can access",
+    "copyLink": "Copy link",
+    "copiedToast": "Link copied to clipboard!",
+    "done": "Done",
+    "inviteError": "Error inviting user. Make sure the email is registered."
+  },
+  "confirmDelete": {
+    "title": "Delete Board",
+    "description": "Are you sure you want to delete this board? This action cannot be undone."
+  }
+}

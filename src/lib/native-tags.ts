@@ -1,3 +1,5 @@
+import { getI18nText, normalizeLocale } from '@/i18n';
+
 export const NATIVE_PRIORITY_TAG_KEY = 'tag.native.priority';
 export const NATIVE_BUG_TAG_KEY = 'tag.native.bug';
 export const NATIVE_FEATURE_TAG_KEY = 'tag.native.feature';
@@ -17,47 +19,12 @@ export const DEFAULT_NATIVE_TAG_SUGGESTIONS: NativeTagSuggestion[] = [
   { key: NATIVE_BLOCKED_TAG_KEY, color: '#f59e0b' },
 ];
 
-const NATIVE_TAG_TRANSLATIONS: Record<string, Record<string, string>> = {
-  'tag.native.priority': {
-    es: 'Prioridad',
-    en: 'Priority',
-    pt: 'Prioridade',
-    fr: 'Priorite',
-    de: 'Prioritat',
-    it: 'Priorita',
-  },
-  'tag.native.bug': {
-    es: 'Bug',
-    en: 'Bug',
-    pt: 'Bug',
-    fr: 'Bug',
-    de: 'Bug',
-    it: 'Bug',
-  },
-  'tag.native.feature': {
-    es: 'Feature',
-    en: 'Feature',
-    pt: 'Feature',
-    fr: 'Feature',
-    de: 'Feature',
-    it: 'Feature',
-  },
-  'tag.native.ux': {
-    es: 'UX',
-    en: 'UX',
-    pt: 'UX',
-    fr: 'UX',
-    de: 'UX',
-    it: 'UX',
-  },
-  'tag.native.blocked': {
-    es: 'Bloqueado',
-    en: 'Blocked',
-    pt: 'Bloqueado',
-    fr: 'Bloque',
-    de: 'Blockiert',
-    it: 'Bloccato',
-  },
+const NATIVE_TAG_I18N_KEY_BY_TAG: Record<string, string> = {
+  [NATIVE_PRIORITY_TAG_KEY]: 'native.priority',
+  [NATIVE_BUG_TAG_KEY]: 'native.bug',
+  [NATIVE_FEATURE_TAG_KEY]: 'native.feature',
+  [NATIVE_UX_TAG_KEY]: 'native.ux',
+  [NATIVE_BLOCKED_TAG_KEY]: 'native.blocked',
 };
 
 export function isNativeTagKey(value?: string | null): boolean {
@@ -68,16 +35,20 @@ export function isNativeTagKey(value?: string | null): boolean {
 export function translateNativeTagName(tagName: string, locale?: string): string {
   if (!isNativeTagKey(tagName)) return tagName;
 
-  const translations = NATIVE_TAG_TRANSLATIONS[tagName];
-  if (!translations) return tagName;
+  const translationKey = NATIVE_TAG_I18N_KEY_BY_TAG[tagName];
+  if (!translationKey) return tagName;
 
-  const normalizedLocale = (locale || '').toLowerCase();
-  const languageCode = normalizedLocale.split('-')[0];
+  const resolvedLocale = normalizeLocale(locale || getClientLocale());
+  const translated = getI18nText(resolvedLocale, 'tags', translationKey);
 
-  return translations[normalizedLocale] || translations[languageCode] || translations.en || tagName;
+  return translated || tagName;
 }
 
 export function getClientLocale(): string {
-  if (typeof navigator === 'undefined') return 'en';
+  if (typeof window === 'undefined') return 'en';
+
+  const storedLocale = window.localStorage.getItem('killio_locale');
+  if (storedLocale) return storedLocale;
+
   return navigator.language || 'en';
 }

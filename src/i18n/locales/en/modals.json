@@ -1,0 +1,50 @@
+{
+  "createBoard": {
+    "title": "Create Board",
+    "subtitle": "Create a new board for your workspace.",
+    "nameLabel": "Board Name",
+    "namePlaceholder": "e.g. Product Roadmap, Marketing Q3",
+    "backgroundLabel": "Background",
+    "create": "Create Board",
+    "creating": "Creating...",
+    "createError": "An error occurred while creating the board."
+  },
+  "createWorkspace": {
+    "title": "Create Workspace",
+    "subtitle": "Add a new workspace to organize teams.",
+    "nameAndIcon": "Workspace Name & Icon",
+    "namePlaceholder": "e.g. Acme Corp, Engineering Team",
+    "inviteMembers": "Invite Members",
+    "optional": "Optional",
+    "inviteEmailPlaceholder": "colleague@acme.com",
+    "add": "Add",
+    "create": "Create Workspace",
+    "creating": "Creating...",
+    "createError": "An error occurred while creating the workspace.",
+    "allowedByRole": "Invitations are sent by email and respect the selected role permissions."
+  },
+  "inviteMember": {
+    "title": "Invite to {{teamName}}",
+    "subtitle": "Add new members to your workspace",
+    "emailLabel": "Email address",
+    "emailPlaceholder": "colleague@example.com",
+    "roleLabel": "Role",
+    "inviteSent": "Invite sent!",
+    "sending": "Sending invite...",
+    "send": "Send invite",
+    "errorDefault": "Could not send invite."
+  },
+  "switchAccount": {
+    "title": "Switch Account",
+    "subtitle": "Select an account to continue with.",
+    "active": "Active",
+    "addAnother": "Add another account",
+    "switch": "Switch Account",
+    "switching": "Switching..."
+  },
+  "confirmDelete": {
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "deleting": "Deleting..."
+  }
+}

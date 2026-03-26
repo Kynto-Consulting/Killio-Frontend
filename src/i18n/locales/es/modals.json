@@ -1,0 +1,50 @@
+{
+  "createBoard": {
+    "title": "Crear tablero",
+    "subtitle": "Crea un nuevo tablero para tu workspace.",
+    "nameLabel": "Nombre del tablero",
+    "namePlaceholder": "Ej: Product Roadmap, Marketing Q3",
+    "backgroundLabel": "Fondo",
+    "create": "Crear tablero",
+    "creating": "Creando...",
+    "createError": "Ocurrio un error al crear el tablero."
+  },
+  "createWorkspace": {
+    "title": "Crear workspace",
+    "subtitle": "Agrega un nuevo workspace para organizar equipos.",
+    "nameAndIcon": "Nombre e icono del workspace",
+    "namePlaceholder": "Ej: Acme Corp, Equipo de ingenieria",
+    "inviteMembers": "Invitar miembros",
+    "optional": "Opcional",
+    "inviteEmailPlaceholder": "colega@acme.com",
+    "add": "Agregar",
+    "create": "Crear workspace",
+    "creating": "Creando...",
+    "createError": "Ocurrio un error al crear el workspace.",
+    "allowedByRole": "Las invitaciones se envian por email y respetan los permisos del rol seleccionado."
+  },
+  "inviteMember": {
+    "title": "Invitar a {{teamName}}",
+    "subtitle": "Agrega nuevos miembros a tu workspace",
+    "emailLabel": "Correo",
+    "emailPlaceholder": "colega@ejemplo.com",
+    "roleLabel": "Rol",
+    "inviteSent": "Invitacion enviada!",
+    "sending": "Enviando invitacion...",
+    "send": "Enviar invitacion",
+    "errorDefault": "No se pudo enviar la invitacion."
+  },
+  "switchAccount": {
+    "title": "Cambiar cuenta",
+    "subtitle": "Selecciona una cuenta para continuar.",
+    "active": "Activa",
+    "addAnother": "Agregar otra cuenta",
+    "switch": "Cambiar cuenta",
+    "switching": "Cambiando..."
+  },
+  "confirmDelete": {
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "deleting": "Eliminando..."
+  }
+}

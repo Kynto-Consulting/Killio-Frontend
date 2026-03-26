@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "workspaces": "Workspaces",
+    "boards": "Boards",
+    "documents": "Documents",
+    "teams": "Teams",
+    "activityHistory": "Activity History",
+    "recentBoards": "Recent Boards",
+    "recentDocuments": "Recent Documents",
+    "noBoardsYet": "No boards yet",
+    "noDocumentsYet": "No documents yet"
+  },
+  "accountMenu": {
+    "account": "Account",
+    "profileSettings": "Profile Settings",
+    "appPreferences": "App Preferences",
+    "switchAccount": "Switch Account",
+    "signOut": "Sign Out"
+  },
+  "search": {
+    "placeholder": "Search or type a command..."
+  },
+  "teamSwitcher": {
+    "selectWorkspace": "Select Workspace",
+    "yourWorkspaces": "Your Workspaces",
+    "createWorkspace": "Create Workspace"
+  }
+}

@@ -9,8 +9,10 @@ import { CardView, TextBrick, MediaBrick, deleteCard } from "@/lib/api/contracts
 import { useSession } from "../providers/session-provider";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
+  const t = useTranslations("board-detail");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { accessToken } = useSession();
@@ -87,8 +89,8 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
           )}
           {isMenuOpen && (
             <div className="absolute right-0 top-8 w-40 bg-popover border border-border rounded-md shadow-lg py-1 z-50 text-sm">
-              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Card...</button>
-              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">Edit Tags...</button>
+              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editCard")}</button>
+              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
               <div className="my-1 border-t border-border" />
               <button
                 onClick={async (e) => {
@@ -100,7 +102,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
                     return;
                   }
 
-                  const confirmed = window.confirm("Delete this card permanently? This action cannot be undone.");
+                  const confirmed = window.confirm(t("card.deleteConfirm"));
                   if (!confirmed) return;
 
                   try {
@@ -112,7 +114,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
                 }}
                 className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive"
               >
-                Delete Card
+                {t("card.delete")}
               </button>
             </div>
           )}
@@ -150,24 +152,24 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         <div className="flex items-center justify-between text-muted-foreground mt-1">
           <div className="flex items-center space-x-3">
             {hasDescription && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="This card has a description">
+              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>
                 <AlignLeft className="h-3.5 w-3.5" />
               </div>
             )}
             {totalChecklistItems > 0 && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Checklist items">
+              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.checklistItems")}>
                 <CheckSquare className="h-3.5 w-3.5" />
                 <span>{completedChecklistItems}/{totalChecklistItems}</span>
               </div>
             )}
             {(card.commentsCount || 0) > 0 && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Comments">
+              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.comments")}>
                 <MessageSquare className="h-3.5 w-3.5" />
                 <span>{card.commentsCount}</span>
               </div>
             )}
             {attachmentsCount > 0 ? (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title="Attachments">
+              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.attachments")}>
                 <Paperclip className="h-3.5 w-3.5" />
                 <span>{attachmentsCount}</span>
               </div>

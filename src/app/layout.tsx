@@ -7,6 +7,7 @@ export const metadata: Metadata = {
 };
 
 import { SessionProvider } from '@/components/providers/session-provider';
+import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -14,8 +15,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className="dark">
       <body className="antialiased">
         <SessionProvider>
-          {children}
-          <Toaster />
+          <I18nProvider>
+            {children}
+            <Toaster />
+          </I18nProvider>
         </SessionProvider>
       </body>
     </html>

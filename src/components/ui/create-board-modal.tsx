@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Loader2, Layout } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface CreateBoardModalProps {
   isOpen: boolean;
@@ -19,6 +20,8 @@ const BACKGROUNDS = [
 ];
 
 export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModalProps) {
+  const t = useTranslations("modals");
+  const tCommon = useTranslations("common");
   const [name, setName] = useState("");
   const [background, setBackground] = useState(BACKGROUNDS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -43,7 +46,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "An error occurred while creating the board.");
+      setError(err?.message || t("createBoard.createError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -57,7 +60,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
           className="absolute right-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-white drop-shadow-md"
         >
           <X className="h-5 w-5" />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
         <div className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${background} flex items-center justify-center transition-all duration-300 shadow-inner`}>
@@ -68,12 +71,12 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
             <label htmlFor="board-name" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-              Board Name
+              {t("createBoard.nameLabel")}
             </label>
             <input
               id="board-name"
               type="text"
-              placeholder="e.g. Product Roadmap, Marketing Q3"
+              placeholder={t("createBoard.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               disabled={isSubmitting}
@@ -87,7 +90,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
 
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none">
-              Background
+              {t("createBoard.backgroundLabel")}
             </label>
             <div className="grid grid-cols-6 gap-2">
               {BACKGROUNDS.map((bg) => (
@@ -108,7 +111,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
               disabled={isSubmitting}
               className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
             >
-              Cancel
+              {tCommon("actions.cancel")}
             </button>
             <button
               type="submit"
@@ -118,10 +121,10 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
               {isSubmitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Creating...
+                  {t("createBoard.creating")}
                 </>
               ) : (
-                "Create Board"
+                t("createBoard.create")
               )}
             </button>
           </div>

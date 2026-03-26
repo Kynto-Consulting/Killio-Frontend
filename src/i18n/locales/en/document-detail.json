@@ -1,0 +1,27 @@
+{
+  "loadError": "Failed to load document",
+  "createBlockError": "Failed to create block",
+  "shareSuccess": "Shared with {{email}}",
+  "shareError": "Failed to share document",
+  "notFoundTitle": "Document Not Found",
+  "notFoundDescription": "The document you are looking for does not exist or you don't have access.",
+  "returnDashboard": "Return to Dashboard",
+  "presenceViewing": "{{name}} is viewing",
+  "header": {
+    "copilot": "Copilot",
+    "comments": "Comments",
+    "share": "Share"
+  },
+  "shareModal": {
+    "title": "Share Document",
+    "userEmail": "User Email",
+    "emailPlaceholder": "email@example.com",
+    "viewer": "Viewer",
+    "editor": "Editor",
+    "invite": "Invite to Document",
+    "teamNote": "Invited users must be members of the same team to access this document."
+  },
+  "title": {
+    "editHint": "Edit Title"
+  }
+}

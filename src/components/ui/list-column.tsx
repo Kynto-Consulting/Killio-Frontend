@@ -7,6 +7,7 @@ import { Plus, MoreHorizontal } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface ListData {
   id: string;
@@ -37,6 +38,7 @@ export function ListColumn({
   teamDocs?: any[];
   teamBoards?: any[];
 }) {
+  const t = useTranslations("board-detail");
   const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -71,13 +73,13 @@ export function ListColumn({
             <div className="absolute right-0 top-8 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} 
-                className="w-full text-left px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">Add Card...
+                className="w-full text-left px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">{t("list.addCardMenu")}
               </button>
               <div className="my-1 border-t border-border" />
               <button 
-                onClick={(e) => { e.stopPropagation(); toast("Archive list coming soon!", "info"); }} 
+                onClick={(e) => { e.stopPropagation(); toast(t("list.archiveComingSoon"), "info"); }} 
                 className="w-full text-left px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
-                Archive This List
+                {t("list.archiveList")}
               </button>
             </div>
           )}
@@ -90,7 +92,7 @@ export function ListColumn({
             <div key={card.id} className="space-y-2">
               {isDropTarget && dropHintIndex === index && draggingCardId !== card.id ? (
                 <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
-                  <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">Drop here</span>
+                  <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">{t("drag.dropHere")}</span>
                 </div>
               ) : null}
           <KanbanCard 
@@ -110,7 +112,7 @@ export function ListColumn({
 
         {isDropTarget && dropHintIndex === list.cards.length ? (
           <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
-            <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">Drop here</span>
+            <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">{t("drag.dropHere")}</span>
           </div>
         ) : null}
         
@@ -120,7 +122,7 @@ export function ListColumn({
             className="w-full flex items-center text-left p-2 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors group text-sm font-medium"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Add a card
+            {t("list.addCard")}
           </button>
         )}
       </div>

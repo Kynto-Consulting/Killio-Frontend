@@ -1,0 +1,11 @@
+{
+  "title": "Configuracion de perfil",
+  "subtitle": "Administra tu informacion publica.",
+  "avatar": "Avatar",
+  "avatarHint": "JPG, GIF o PNG. Tamano maximo de 800K.",
+  "changePhoto": "Cambiar foto de perfil",
+  "displayName": "Nombre visible",
+  "displayNamePlaceholder": "Ej: Jane Doe",
+  "saveChanges": "Guardar cambios",
+  "updateError": "Ocurrio un error al actualizar tu perfil."
+}

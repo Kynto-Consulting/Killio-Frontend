@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { X, UserPlus, Check, Mail, Shield, Loader2 } from "lucide-react";
 import { createInvite, TeamRole } from "@/lib/api/contracts";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export function InviteMemberModal({
   isOpen,
@@ -21,6 +22,7 @@ export function InviteMemberModal({
   inviterRole: TeamRole;
   onInvited?: () => void | Promise<void>;
 }) {
+  const t = useTranslations("modals");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Exclude<TeamRole, 'owner'>>('member');
   const [invited, setInvited] = useState(false);
@@ -76,7 +78,7 @@ export function InviteMemberModal({
         onClose();
       }, 900);
     } catch (err: any) {
-      const message = typeof err?.message === 'string' ? err.message : 'No se pudo enviar la invitacion.';
+      const message = typeof err?.message === 'string' ? err.message : t("inviteMember.errorDefault");
       setError(message);
     } finally {
       setIsInviting(false);
@@ -101,8 +103,8 @@ export function InviteMemberModal({
               <UserPlus className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-semibold">Invite to {teamName}</h3>
-              <p className="text-xs text-muted-foreground">Add new members to your workspace</p>
+              <h3 className="font-semibold">{t("inviteMember.title", { teamName: teamName || "Workspace" })}</h3>
+              <p className="text-xs text-muted-foreground">{t("inviteMember.subtitle")}</p>
             </div>
           </div>
           <button 
@@ -118,14 +120,14 @@ export function InviteMemberModal({
           <div className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="email" className="text-sm font-medium">
-                Email address
+                {t("inviteMember.emailLabel")}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <input 
                   id="email"
                   type="email"
-                  placeholder="colleague@example.com"
+                  placeholder={t("inviteMember.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full flex h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -136,7 +138,7 @@ export function InviteMemberModal({
 
             <div className="space-y-2">
               <label htmlFor="role" className="text-sm font-medium">
-                Role
+                {t("inviteMember.roleLabel")}
               </label>
               <select 
                 id="role"
@@ -174,22 +176,22 @@ export function InviteMemberModal({
               {invited ? (
                 <>
                   <Check className="w-4 h-4 mr-2" />
-                  Invite sent!
+                  {t("inviteMember.inviteSent")}
                 </>
               ) : isInviting ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Sending invite...
+                  {t("inviteMember.sending")}
                 </>
               ) : (
-                "Send invite"
+                t("inviteMember.send")
               )}
             </button>
           </div>
         </form>
 
         <div className="px-6 py-4 bg-muted/30 border-t border-border/50 text-sm">
-          <span className="text-muted-foreground text-xs">Las invitaciones se envian por email y respetan los permisos del rol seleccionado.</span>
+          <span className="text-muted-foreground text-xs">{t("createWorkspace.allowedByRole")}</span>
         </div>
       </div>
     </div>

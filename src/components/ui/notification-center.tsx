@@ -13,8 +13,10 @@ import {
   markAsRead,
   markAllAsRead,
 } from "@/lib/api/notifications";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export function NotificationCenter() {
+  const t = useTranslations("notifications");
   const { user, accessToken } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -70,6 +72,22 @@ export function NotificationCenter() {
     }
   };
 
+  const resolveNotificationTitle = (notification: Notification): string => {
+    const key = notification.i18n?.titleKey;
+    if (key) {
+      return t(key, notification.i18n?.titleParams);
+    }
+    return notification.title;
+  };
+
+  const resolveNotificationMessage = (notification: Notification): string | null => {
+    const key = notification.i18n?.messageKey;
+    if (key) {
+      return t(key, notification.i18n?.messageParams);
+    }
+    return notification.message;
+  };
+
   return (
     <div className="relative z-50">
       <button
@@ -79,7 +97,7 @@ export function NotificationCenter() {
             ? "bg-accent/20 text-accent"
             : "text-muted-foreground hover:bg-accent/20 hover:text-foreground"
         }`}
-        title="Notifications"
+        title={t("buttonTitle")}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
@@ -98,14 +116,14 @@ export function NotificationCenter() {
           <div className="absolute top-10 right-0 w-80 rounded-xl border border-border bg-card shadow-lg z-50 animate-in fade-in slide-in-from-top-2 overflow-hidden flex flex-col max-h-[400px]">
             <div className="p-3 border-b border-border/50 flex items-center justify-between bg-muted/30 shrink-0">
               <span className="text-sm font-semibold tracking-tight">
-                Notifications
+                {t("title")}
               </span>
               {unreadCount > 0 && (
                 <button
                   onClick={handleMarkAllRead}
                   className="text-xs text-accent hover:underline font-medium"
                 >
-                  Mark all read
+                  {t("markAllRead")}
                 </button>
               )}
             </div>
@@ -120,9 +138,9 @@ export function NotificationCenter() {
                   <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
                     <Bell className="h-5 w-5 text-primary/40" />
                   </div>
-                  <p className="text-sm font-medium">No new notifications</p>
+                  <p className="text-sm font-medium">{t("emptyTitle")}</p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    When someone mentions you or invites you, it will show up here.
+                    {t("emptyDescription")}
                   </p>
                 </div>
               ) : (
@@ -135,20 +153,20 @@ export function NotificationCenter() {
                       }`}
                     >
                       <div className="flex justify-between items-start mb-1">
-                        <span className="font-semibold">{notif.title}</span>
+                        <span className="font-semibold">{resolveNotificationTitle(notif)}</span>
                         {!notif.isRead && (
                           <button
                             onClick={() => handleMarkAsRead(notif.id)}
                             className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent"
-                            title="Mark as read"
+                            title={t("markAsRead")}
                           >
                             <Check className="h-4 w-4" />
                           </button>
                         )}
                       </div>
-                      {notif.message && (
+                      {resolveNotificationMessage(notif) && (
                         <p className="text-muted-foreground text-xs leading-relaxed mb-2">
-                          {notif.message}
+                          {resolveNotificationMessage(notif)}
                         </p>
                       )}
                       <div className="flex items-center justify-between mt-2">
@@ -163,7 +181,7 @@ export function NotificationCenter() {
                             onClick={() => setIsOpen(false)}
                             className="text-xs text-accent hover:underline font-medium bg-accent/10 px-2 py-0.5 rounded-sm"
                           >
-                            View
+                            {t("view")}
                           </Link>
                         )}
                       </div>
