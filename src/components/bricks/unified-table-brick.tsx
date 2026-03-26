@@ -10,6 +10,7 @@ import { ReferenceResolver } from "@/lib/reference-resolver";
 import { Portal } from "../ui/portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentBrick } from "@/lib/api/documents";
+import { RefPill } from "../ui/ref-pill";
 
 type FunctionMeta = { name: string; description: string; parameters: string[] };
 
@@ -255,26 +256,14 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
     return parts.map((part, index) => {
       if (typeof part === "string") return <React.Fragment key={index}>{part}</React.Fragment>;
       if (part.type === "mention") {
-        const isUser = part.mentionType === "user";
+        const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
         return (
-          <span
-            key={index}
-            className={cn(
-              "inline-flex items-center gap-1 rounded border px-1 py-0.5 text-[10px] font-medium",
-              isUser ? "border-primary/20 bg-primary/10 text-primary" : "border-accent/20 bg-accent/10 text-accent"
-            )}
-          >
-            {isUser ? "@" : ""}
-            {part.name}
-          </span>
+          <RefPill key={index} type={mentionType} id={part.id} name={part.name} />
         );
       }
       if (part.type === "deep") {
         return (
-          <span key={index} className="inline-flex items-center gap-1 rounded border border-amber-500/20 bg-amber-500/10 px-1 py-0.5 text-[10px] font-medium text-amber-600">
-            <Calculator className="h-2.5 w-2.5" />
-            {part.label}
-          </span>
+          <RefPill key={index} type="deep" id={part.inner?.split(':')[0] || ''} name={part.label} />
         );
       }
       return null;

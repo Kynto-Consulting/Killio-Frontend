@@ -4,13 +4,15 @@ import { Fragment, useState, useEffect, useRef, type ReactNode, useMemo } from "
 import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "../providers/session-provider";
-import { getBoard, listTeamActivity, chatWithAiScope, type BoardView, type ActivityLogEntry, listTeamMembers, updateCard, createTag, updateList } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { getBoard, listTeamActivity, chatWithAiScope, type BoardView, type ActivityLogEntry, listTeamMembers, updateCard, createTag, updateList, getCardActivity, generateReportDocumentWithAi } from "@/lib/api/contracts";
+import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
+import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTENT_REGEX, isTimestampInDateRange, resolveReportDateRange, toDocumentMentionToken } from "@/lib/ai-report";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -50,6 +52,8 @@ type Message = {
   role: "system" | "bot" | "user";
   content: string;
   avatar?: string;
+  avatarUrl?: string | null;
+  email?: string | null;
   loading?: boolean;
 };
 
@@ -109,12 +113,15 @@ export function BoardChatDrawer({
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [teamBoardsForMentions, setTeamBoardsForMentions] = useState<any[]>([]);
   const [boardCardsForMentions, setBoardCardsForMentions] = useState<Array<{ id: string; title: string }>>([]);
+  const [reportFromDate, setReportFromDate] = useState("");
+  const [reportToDate, setReportToDate] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const fetchActivity = async () => {
-    if (!accessToken || !activeTeamId || !boardId) return;
+    if (!accessToken || !activeTeamId || !boardId || teamMembers.length === 0) return;
     try {
       const data = await listTeamActivity(activeTeamId, accessToken);
       const boardActivity = data.filter(a => a.scopeId === boardId || (a.payload as any)?.boardId === boardId);
@@ -126,12 +133,14 @@ export function BoardChatDrawer({
           .filter(a => a.action === 'board.commented')
           .reverse() // activity logs are newest first, we want oldest first for chat flow
           .map(a => {
-            const member = teamMembers.find(m => m.id === a.actorId);
+            const member = teamMembers.find(m => m.id === a.actorId || m.userId === a.actorId);
             return {
               id: a.id as any,
               role: a.actorId === user?.id ? 'user' : 'bot',
               content: (a.payload as any)?.text || "",
-              avatar: member?.displayName?.[0] || member?.name?.[0] || '?'
+              avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
+              avatarUrl: member?.avatarUrl || member?.avatar_url || null,
+              email: member?.email || null,
             } as Message;
           });
 
@@ -218,6 +227,54 @@ export function BoardChatDrawer({
       .trim();
   };
 
+  const clipAiContext = (value: unknown, max = 140) => {
+    const normalized = cleanText(String(value ?? ""));
+    if (!normalized) return "";
+    if (normalized.length <= max) return normalized;
+    return `${normalized.slice(0, max)}...`;
+  };
+
+  const summarizeBrickForAi = (brick: any) => {
+    const kind = String(brick?.kind || "unknown");
+    if (kind === "text") {
+      const markdown = brick?.markdown ?? brick?.content?.markdown;
+      const displayStyle = brick?.displayStyle ?? brick?.content?.displayStyle;
+      return `text(style=${displayStyle || "paragraph"}, md=${clipAiContext(markdown) || "empty"})`;
+    }
+    if (kind === "table") {
+      const rows = Array.isArray(brick?.rows) ? brick.rows : Array.isArray(brick?.content?.rows) ? brick.content.rows : [];
+      const rowCount = rows.length;
+      const colCount = rowCount > 0 && Array.isArray(rows[0]) ? rows[0].length : 0;
+      const preview = rowCount > 0 ? clipAiContext((rows[0] || []).join(" | "), 100) : "empty";
+      return `table(rows=${rowCount}, cols=${colCount}, head=${preview || "empty"})`;
+    }
+    if (kind === "checklist") {
+      const items = Array.isArray(brick?.items) ? brick.items : Array.isArray(brick?.content?.items) ? brick.content.items : [];
+      const done = items.filter((item: any) => !!item?.checked).length;
+      const preview = items.slice(0, 3).map((item: any) => clipAiContext(item?.label, 60)).filter(Boolean).join("; ");
+      return `checklist(done=${done}/${items.length}, items=${preview || "none"})`;
+    }
+    if (kind === "media") {
+      return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
+    }
+    if (kind === "embed") {
+      return `embed(type=${brick?.embedType || brick?.content?.embedType || "url"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, href=${clipAiContext(brick?.href ?? brick?.content?.href, 90) || "none"}, summary=${clipAiContext(brick?.summary ?? brick?.content?.summary, 90) || "none"})`;
+    }
+    if (kind === "ai") {
+      return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
+    }
+    if (kind === "graph") {
+      const graphData = Array.isArray(brick?.data) ? brick.data : Array.isArray(brick?.content?.data) ? brick.content.data : [];
+      const tableSource = brick?.tableSource ?? brick?.content?.tableSource;
+      const sourceLabel = tableSource?.brickId ? `table:${String(tableSource.brickId).slice(0, 8)}` : "manual";
+      return `graph(type=${brick?.type || brick?.content?.type || "line"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, source=${sourceLabel}, points=${graphData.length})`;
+    }
+    if (kind === "accordion") {
+      return `accordion(title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, expanded=${(brick?.isExpanded ?? brick?.content?.isExpanded) ? "yes" : "no"}, body=${clipAiContext(brick?.body ?? brick?.content?.body, 100) || "empty"})`;
+    }
+    return `${kind}(raw=${clipAiContext(JSON.stringify(brick), 120) || "none"})`;
+  };
+
   const summarizeCard = (card: any) => {
     const tags = (card.tags || []).map((t: any) => t.name).filter(Boolean).join(", ") || "none";
     const assignees = (card.assignees || []).map((a: any) => a.name || a.displayName || a.email).filter(Boolean).join(", ") || "none";
@@ -228,6 +285,8 @@ export function BoardChatDrawer({
     const summary = cleanText(card.summary);
     const shortSummary = summary ? summary.slice(0, 220) : "No summary";
 
+    const brickList = (card.blocks || []).slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(" || ") || "none";
+
     return [
       `Card: ${card.title}`,
       `status: ${card.urgency || "normal"}`,
@@ -237,6 +296,7 @@ export function BoardChatDrawer({
       `bricks: ${(card.blocks || []).length}`,
       `checklist: ${checklistDone}/${checklistTotal}`,
       `summary: ${shortSummary}`,
+      `brickDetails: ${brickList}`,
     ].join(" | ");
   };
 
@@ -253,8 +313,10 @@ export function BoardChatDrawer({
     });
 
     const activityLines = activity.slice(0, 40).map((entry) => {
+      const actor = teamMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+      const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || 'User';
       const payload = entry.payload && typeof entry.payload === "object" ? JSON.stringify(entry.payload).slice(0, 280) : "{}";
-      return `- [${entry.createdAt}] ${entry.action} (${entry.scope}:${entry.scopeId}) payload=${payload}`;
+      return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId}) payload=${payload}`;
     });
 
     const realtimeLines = realtime.slice(0, 20).map((e) => `- ${e}`);
@@ -288,6 +350,157 @@ export function BoardChatDrawer({
     });
   };
 
+  const generateBoardTechnicalReport = async (sourcePrompt: string) => {
+    if (!boardId || !accessToken || !activeTeamId || isGeneratingReport) return;
+
+    const effectiveRange = resolveReportDateRange(sourcePrompt, {
+      from: reportFromDate || undefined,
+      to: reportToDate || undefined,
+    });
+
+    const loadingId = Date.now();
+    setIsGeneratingReport(true);
+    setAiMessages((prev) => [...prev, { id: loadingId, role: "bot", content: "", loading: true }]);
+
+    try {
+      const [boardData, allDocs, teamActivity] = await Promise.all([
+        getBoard(boardId, accessToken),
+        listDocuments(activeTeamId, accessToken),
+        listTeamActivity(activeTeamId, accessToken),
+      ]);
+
+      const cards = boardData.lists.flatMap((list) => list.cards.map((card) => ({ listName: list.name, card })));
+      const cardActivityByCard = await Promise.all(
+        cards.map(async ({ card }) => {
+          try {
+            const logs = await getCardActivity(card.id, accessToken);
+            return { cardId: card.id, logs: (logs || []) as ActivityLogEntry[] };
+          } catch {
+            return { cardId: card.id, logs: [] as ActivityLogEntry[] };
+          }
+        }),
+      );
+
+      const boardActivity = filterBoardActivity(teamActivity, boardId).filter((log) =>
+        isTimestampInDateRange(log.createdAt, effectiveRange),
+      );
+
+      const cardActivity = cardActivityByCard.flatMap(({ logs }) =>
+        logs.filter((log) => isTimestampInDateRange(log.createdAt, effectiveRange)),
+      );
+
+      const referencedDocIds = new Set<string>();
+      cards.forEach(({ card }) => {
+        extractDocumentReferenceIds(card, referencedDocIds);
+      });
+      boardActivity.forEach((entry) => extractDocumentReferenceIds(entry, referencedDocIds));
+      cardActivity.forEach((entry) => extractDocumentReferenceIds(entry, referencedDocIds));
+
+      const referencedDocs = allDocs.filter((doc) => referencedDocIds.has(doc.id));
+      const referencedDocTokens = referencedDocs.map((doc) => toDocumentMentionToken(doc.id, doc.title));
+
+      const cardLines = cards.slice(0, 80).map(({ listName, card }) => `- [${listName}] ${summarizeCard(card)}`);
+
+      const cardChatLines = cards.flatMap(({ card }) => {
+        const logs = cardActivityByCard.find((item) => item.cardId === card.id)?.logs || [];
+        return logs
+          .filter((log) => log.action === "card.commented" && isTimestampInDateRange(log.createdAt, effectiveRange))
+          .slice(0, 20)
+            .map((log) => {
+              const actor = teamMembers.find((m) => m.id === log.actorId || m.userId === log.actorId);
+              const actorName = actor?.displayName || actor?.name || actor?.email || "Alguien";
+              return `- [${log.createdAt}] ${actorName} in ${card.title}: ${String((log.payload as any)?.text || "")}`;
+            });
+        }).slice(0, 200);
+
+        const activityLines = [...boardActivity, ...cardActivity]
+          .slice(0, 250)
+          .map((log) => {
+             const actor = teamMembers.find((m) => m.id === log.actorId || m.userId === log.actorId);
+             const actorName = actor?.displayName || actor?.name || actor?.email || "Alguien";
+             return `- [${log.createdAt}] ${actorName} did ${log.action} (${log.scope}:${log.scopeId})`;
+          });
+      const dateRangeLabel = formatDateRangeLabel(effectiveRange);
+
+      const contextSummary = [
+        `Board: ${boardData.name}`,
+        `Date range: ${dateRangeLabel}`,
+        `Cards: ${cards.length}`,
+        "",
+        "Cards snapshot:",
+        ...(cardLines.length > 0 ? cardLines : ["- none"]),
+        "",
+        "Card chats:",
+        ...(cardChatLines.length > 0 ? cardChatLines : ["- none"]),
+        "",
+        "Board and card activities:",
+        ...(activityLines.length > 0 ? activityLines : ["- none"]),
+        "",
+        "Referenced document mentions:",
+        ...(referencedDocTokens.length > 0 ? referencedDocTokens.map((token) => `- ${token}`) : ["- none"]),
+      ].join("\n").slice(0, 16000);
+
+      const reportResult = await generateReportDocumentWithAi(
+        {
+          scope: "board",
+          scopeId: boardId,
+          contextSummary,
+          dateRangeLabel,
+          userPrompt: sourcePrompt,
+          referencedDocuments: referencedDocs.map((doc) => ({ id: doc.id, title: doc.title })),
+        },
+        accessToken,
+      );
+
+      const reportTitle = reportResult.title?.trim() || `Tech Report · ${boardData.name} · ${dateRangeLabel}`;
+      const createdDoc = await createDocument({ teamId: activeTeamId, title: reportTitle }, accessToken);
+
+      const reportBricks = Array.isArray(reportResult.bricks) && reportResult.bricks.length > 0
+        ? reportResult.bricks
+        : [
+          {
+            kind: "text" as const,
+            content: { markdown: `# Technical Report\n\n- Board: ${boardData.name}\n- Date range: ${dateRangeLabel}` },
+          },
+        ];
+
+      for (let i = 0; i < reportBricks.length; i += 1) {
+        const brick = reportBricks[i];
+        await createDocumentBrick(
+          createdDoc.id,
+          {
+            kind: brick.kind,
+            position: i,
+            content: brick.content,
+          },
+          accessToken,
+        );
+      }
+
+      setTeamDocs((prev) => (prev.some((doc) => doc.id === createdDoc.id) ? prev : [createdDoc, ...prev]));
+      setAiMessages((prev) => [
+        ...prev.filter((msg) => msg.id !== loadingId),
+        {
+          id: Date.now() + 1,
+          role: "bot",
+          content: `Reporte técnico generado: ${toDocumentMentionToken(createdDoc.id, createdDoc.title)}`,
+        },
+      ]);
+    } catch (error) {
+      console.error("Failed to generate board technical report", error);
+      setAiMessages((prev) => [
+        ...prev.filter((msg) => msg.id !== loadingId),
+        {
+          id: Date.now() + 1,
+          role: "bot",
+          content: "No pude generar el reporte técnico en este momento. Intenta de nuevo.",
+        },
+      ]);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
   // Subscribe to Ably realtime events for this board
   useBoardRealtime(boardId, (event: BoardEvent) => {
     const compactEvent = `${event.type}: ${JSON.stringify(event.payload).slice(0, 240)}`;
@@ -297,10 +510,14 @@ export function BoardChatDrawer({
       const { userId, text } = event.payload as { userId: string, text: string };
       if (userId === user?.id) return; // We already added our own message locally
 
+      const member = teamMembers.find(m => m.id === userId || m.userId === userId);
       const msg: Message = {
         id: Date.now(),
         role: "bot", // Styled as other-user
         content: text,
+        avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
+        avatarUrl: member?.avatarUrl || member?.avatar_url || null,
+        email: member?.email || null,
       };
       setChatMessages(prev => [...prev, msg]);
     } else {
@@ -319,51 +536,125 @@ export function BoardChatDrawer({
 
   const handleAiAction = async (actionData: any) => {
     if (!boardId || !accessToken) return;
-    const { action, payload, id: entityId } = actionData;
+
+    const action = String(actionData?.action || actionData?.type || '').toUpperCase();
+    const payload = (actionData?.payload && typeof actionData.payload === 'object') ? actionData.payload : actionData;
+    const entityId = String(actionData?.id || payload?.id || payload?.entityId || '').trim();
+
     try {
       if (action === 'CARD_RENAME') {
-        await updateCard(entityId, { title: payload.title }, accessToken);
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const title = String(payload?.title || '').trim();
+        if (!cardId || !title) throw new Error('CARD_RENAME requiere cardId e title');
+        await updateCard(cardId, { title }, accessToken);
       } else if (action === 'TAG_ADD') {
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const tagName = String(payload?.tagName || '').trim();
+        if (!cardId || !tagName) throw new Error('TAG_ADD requiere cardId y tagName');
+
         const { addCardTag, createTag: apiCreateTag } = await import("@/lib/api/contracts");
-        let tag = allAvailableTags.find(t => t.name.toLowerCase() === payload.tagName.toLowerCase());
+        let tag = allAvailableTags.find(t => String(t.name || '').toLowerCase() === tagName.toLowerCase());
         if (!tag) {
           tag = await apiCreateTag({
             scopeType: 'board',
             scopeId: boardId,
-            name: payload.tagName,
-            color: payload.color || '#3b82f6',
+            name: tagName,
+            color: payload?.color || '#3b82f6',
             tagKind: 'custom'
           }, accessToken);
           setAllAvailableTags(prev => [...prev, tag]);
         }
-        await addCardTag(entityId, tag.id, accessToken);
+        await addCardTag(cardId, tag.id, accessToken);
       } else if (action === 'CARD_MOVE') {
-        await updateCard(entityId, { listId: payload.targetListId }, accessToken);
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const targetListId = String(payload?.targetListId || payload?.listId || '').trim();
+        if (!cardId || !targetListId) throw new Error('CARD_MOVE requiere cardId y targetListId');
+        await updateCard(cardId, { list_id: targetListId }, accessToken);
+      } else if (action === 'CARD_UPDATE') {
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        if (!cardId) throw new Error('CARD_UPDATE requiere cardId');
+
+        const updates: Record<string, any> = {};
+        if (payload?.title !== undefined) updates.title = payload.title;
+        if (payload?.summary !== undefined) updates.summary = payload.summary;
+        if (payload?.urgency_state !== undefined) updates.urgency_state = payload.urgency_state;
+        if (payload?.status !== undefined) updates.status = payload.status;
+        if (payload?.start_at !== undefined) updates.start_at = payload.start_at;
+        if (payload?.due_at !== undefined) updates.due_at = payload.due_at;
+        if (payload?.targetListId !== undefined || payload?.list_id !== undefined) {
+          updates.list_id = payload?.list_id ?? payload?.targetListId;
+        }
+
+        if (Object.keys(updates).length === 0) throw new Error('CARD_UPDATE no contiene campos a actualizar');
+        await updateCard(cardId, updates, accessToken);
       } else if (action === 'LIST_RENAME') {
-        await updateList(boardId, entityId || payload.listId, { name: payload.title }, accessToken);
+        const listId = entityId || String(payload?.listId || '').trim();
+        const name = String(payload?.title || payload?.name || '').trim();
+        if (!listId || !name) throw new Error('LIST_RENAME requiere listId y title/name');
+        await updateList(boardId, listId, { name }, accessToken);
+      } else if (action === 'REPORT_GENERATE') {
+        const prompt = String(payload?.prompt || 'Generar reporte técnico del tablero').trim();
+        await generateBoardTechnicalReport(prompt);
+      } else {
+        throw new Error(`Accion no soportada: ${action || 'UNKNOWN'}`);
       }
+
       window.dispatchEvent(new Event('board:refresh'));
-      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `He ejecutado la acción: ${action}.` }]);
+      if (action !== 'REPORT_GENERATE') {
+        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `He ejecutado la acción: ${action}.` }]);
+      }
     } catch (err) {
       console.error("Failed to execute AI action", err);
-      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action}. Verifica los permisos.` }]);
+      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
     }
   };
 
   const parseAiActions = (text: string) => {
     const actions: any[] = [];
-    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
-    let match;
     let cleanText = text;
-    while ((match = regex.exec(text)) !== null) {
+
+    const processMatch = (declaredType: string, jsonStr: string, fullMatch: string) => {
       try {
-        const payload = JSON.parse(match[2]);
-        actions.push({ type: match[1], ...payload });
-        cleanText = cleanText.replace(match[0], '');
+        const raw = JSON.parse(jsonStr);
+        const action = String(raw?.action || raw?.type || declaredType).trim().toUpperCase();
+        const explanation = String(raw?.explanation || '').trim();
+        const id = String(raw?.id || raw?.entityId || raw?.cardId || raw?.listId || '').trim();
+
+        let payload = raw?.payload;
+        if (!payload || typeof payload !== 'object') {
+          payload = { ...raw };
+          delete payload.action;
+          delete payload.type;
+          delete payload.id;
+          delete payload.entityId;
+          delete payload.explanation;
+        }
+
+        actions.push({
+          type: declaredType,
+          action,
+          id,
+          payload,
+          explanation,
+        });
+        cleanText = cleanText.replace(fullMatch, ''); if (explanation && !cleanText.includes(explanation)) cleanText = cleanText.trim() + '\n\n' + explanation;
       } catch (e) {
         console.error("Failed to parse AI action JSON", e);
       }
+    };
+
+    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      processMatch(match[1], match[2], match[0]);
     }
+
+    const fallbackRegex = /\[([A-Z_]+)\]\s*(\{[\s\S]*?\})\s*\[\/\1\]/g;
+    while ((match = fallbackRegex.exec(text)) !== null) {
+      if (match[1] === 'ACTION') continue;
+      processMatch(match[1], match[2], match[0]);
+    }
+
     return { cleanText: cleanText.trim(), actions };
   };
 
@@ -374,7 +665,14 @@ export function BoardChatDrawer({
     const messageToSend = (presetPrompt ?? inputVal).trim();
     if (!messageToSend || isLoading || !boardId || !accessToken) return;
 
-    const userMsg: Message = { id: Date.now(), role: "user", content: messageToSend, avatar: user?.displayName?.[0] || "U" };
+    const userMsg: Message = { 
+      id: Date.now(), 
+      role: "user", 
+      content: messageToSend, 
+      avatar: user?.displayName?.[0] || "U",
+      avatarUrl: (user as any)?.user_metadata?.avatar_url || (user as any)?.avatarUrl || (user as any)?.photoURL || null,
+      email: user?.email || null
+    };
     setInputVal("");
 
     if (activeTab === 'chat') {
@@ -480,13 +778,17 @@ export function BoardChatDrawer({
                   <div key={msg.id} className="space-y-3">
                     <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
                       <div
-                        className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'user'
+                        className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center overflow-hidden ${msg.role === 'user'
                           ? 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
                           : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
                           }`}
                         style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}
                       >
-                        {msg.role === 'user' ? (msg.avatar || (user?.displayName?.[0] || 'U')) : <Bot className="h-4 w-4" />}
+                        {msg.role === 'user' ? (
+                          (msg.avatarUrl || msg.email) ? (
+                            <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
+                          ) : (msg.avatar || (user?.displayName?.[0] || 'U'))
+                        ) : <Bot className="h-4 w-4" />}
                       </div>
                       <div
                         className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
@@ -515,20 +817,19 @@ export function BoardChatDrawer({
                     </div>
 
                     {actions.map((action, actionIdx) => (
-                      <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                            <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
-                          </div>
+                      <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
                         </div>
-                        <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el tablero"}</p>
-                        <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
-                          {action.action}: {JSON.stringify(action.payload, null, 2)}
+                        
+                        <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
+                          <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
                         </div>
+
                         <button
                           onClick={() => handleAiAction(action)}
-                          className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
                         >
                           Confirmar y Ejecutar
                         </button>
@@ -551,13 +852,14 @@ export function BoardChatDrawer({
                 </button>
                 <button
                   onClick={() => {
-                    void sendMessage(undefined, "Detecta bloqueos y sugiere próximos pasos accionables para el equipo.");
+                    const prompt = "Generar reporte técnico con el contexto de este tablero.";
+                    void sendMessage(undefined, prompt);
                   }}
-                  disabled={isLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all disabled:opacity-50"
+                  disabled={isLoading || isGeneratingReport}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
                 >
-                  <Sparkles className="w-3 h-3" />
-                  Detectar bloqueos
+                  {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                  Generar reporte
                 </button>
               </div>
             </div>
@@ -576,10 +878,19 @@ export function BoardChatDrawer({
           }
 
           if (msg.role === "bot") {
+            const isAi = !msg.avatarUrl && !msg.email && !msg.avatar;
             return (
               <div key={msg.id} className="flex gap-3">
-                <div className="h-8 w-8 shrink-0 rounded border flex items-center justify-center border shadow-sm bg-muted/50 border-border/50 text-muted-foreground">
-                  <MessageSquare className="h-4 w-4" />
+                <div className="h-8 w-8 shrink-0 rounded border flex items-center justify-center shadow-sm bg-muted/50 border-border/50 text-muted-foreground overflow-hidden">
+                  {isAi ? (
+                    <MessageSquare className="h-4 w-4" />
+                  ) : (
+                    (msg.avatarUrl || msg.email) ? (
+                      <img src={getUserAvatarUrl(msg.avatarUrl, msg.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
+                    ) : (
+                      <span className="text-[10px] font-bold">{msg.avatar || "?"}</span>
+                    )
+                  )}
                 </div>
                 <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1">
                   <RichText
@@ -597,10 +908,12 @@ export function BoardChatDrawer({
           return (
             <div key={msg.id} className="flex gap-3 flex-row-reverse">
               <div
-                className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm border"
+                className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm overflow-hidden"
                 style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text }}
               >
-                {msg.avatar || (user?.displayName?.[0] || 'U')}
+                {(msg.avatarUrl || msg.email) ? (
+                  <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
+                ) : ( msg.avatar || (user?.displayName?.[0] || 'U') )}
               </div>
               <div
                 className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20"
@@ -716,7 +1029,11 @@ export function BoardChatDrawer({
               placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Pregunta o menciona con @..."}
               documents={teamDocs}
               boards={teamBoardsForMentions}
-              users={teamMembers}
+              users={teamMembers.map((m: any) => ({
+                id: m.id || m.userId,
+                name: m.displayName || m.name || m.email || m.username || "User",
+                avatarUrl: m.avatarUrl || m.avatar_url || null,
+              }))}
               cards={boardCardsForMentions}
               onSubmit={() => {
                 void sendMessage();

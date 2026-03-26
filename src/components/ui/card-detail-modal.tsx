@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile, getBoard, listTeamActivity, generateReportDocumentWithAi } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -14,12 +14,14 @@ import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KE
 import { BrickDiff } from "../bricks/brick-diff";
 import * as jsdiff from "diff";
 import { ReferenceResolver } from "@/lib/reference-resolver";
-import { listDocuments } from "@/lib/api/documents";
+import { listDocuments, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { listTeamMembers } from "@/lib/api/contracts";
 import { Fragment, type ReactNode, useMemo } from "react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
+import { RefPill } from "./ref-pill";
+import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTENT_REGEX, isTimestampInDateRange, resolveReportDateRange, toDocumentMentionToken } from "@/lib/ai-report";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -97,7 +99,8 @@ export function CardDetailModal({
   teamDocs?: any[];
   teamBoards?: any[];
 }) {
-  const { accessToken, user } = useSession();
+  const { accessToken, activeTeamId, user } = useSession();
+  const [contextDocs, setContextDocs] = useState<any[]>(teamDocs);
   const [localTitle, setLocalTitle] = useState(card?.title || "");
   const [localDueAt, setLocalDueAt] = useState(normalizeDueDateInputValue(card?.dueAt));
   const [localTags, setLocalTags] = useState<any[]>(card?.tags || []);
@@ -109,18 +112,18 @@ export function CardDetailModal({
   }), []);
 
   const [localAssignees, setLocalAssignees] = useState<any[]>((card?.assignees || []).map(normalizeAssignee));
-  
-  const defaultEmptyBrick: BoardBrick = {
-    id: `temp-${Date.now()}`,
-    kind: "text",
-    displayStyle: "paragraph",
-    markdown: "",
+  const createEmptyTextBrick = useCallback((): BoardBrick => ({
+    id: `temp-${crypto.randomUUID()}`,
+    kind: 'text',
+    displayStyle: 'paragraph',
+    markdown: '',
     position: 0,
     parentBlockId: null,
-    tasks: []
-  };
+    tasks: [],
+  }), []);
+
   const [localBlocks, setLocalBlocks] = useState<BoardBrick[]>(
-    card ? (card.blocks?.length ? card.blocks : []) : [defaultEmptyBrick]
+    card?.blocks?.length ? card.blocks : (card ? [] : [createEmptyTextBrick()])
   );
 
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
@@ -150,6 +153,9 @@ export function CardDetailModal({
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
   const [hideNativeTagSuggestions, setHideNativeTagSuggestions] = useState(false);
+  const [reportFromDate, setReportFromDate] = useState("");
+  const [reportToDate, setReportToDate] = useState("");
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
@@ -324,54 +330,394 @@ export function CardDetailModal({
   };
 
   const handleAiAction = async (actionData: any) => {
-    if (!card?.id || !accessToken) return;
-    const { action, payload } = actionData;
+    if (!accessToken) return;
+
+    const action = String(actionData?.action || actionData?.type || '').toUpperCase();
+    const payload = (actionData?.payload && typeof actionData.payload === 'object') ? actionData.payload : actionData;
+    const entityId = String(actionData?.id || payload?.id || payload?.entityId || '').trim();
+
     try {
       if (action === 'CARD_RENAME') {
-        await handleUpdateField('title', payload.title);
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        const title = String(payload?.title || '').trim();
+        if (!cardId || !title) throw new Error('CARD_RENAME requiere cardId y title');
+
+        if (card?.id && cardId === card.id) {
+          await handleUpdateField('title', title);
+        } else {
+          await updateCard(cardId, { title }, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
       } else if (action === 'TAG_ADD') {
-        // Try to find existing tag by name
-        let tag = availableTags.find(t => t.name.toLowerCase() === payload.tagName.toLowerCase());
+        if (!boardId) throw new Error('TAG_ADD requiere contexto de board');
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        const tagName = String(payload?.tagName || '').trim();
+        if (!cardId || !tagName) throw new Error('TAG_ADD requiere cardId y tagName');
+
+        let tag = availableTags.find(t => String(t.name || '').toLowerCase() === tagName.toLowerCase());
         if (!tag) {
           tag = await createTag({
             scopeType: 'board',
-            scopeId: boardId!,
-            name: payload.tagName,
-            color: payload.color || '#3b82f6',
+            scopeId: boardId,
+            name: tagName,
+            color: payload?.color || '#3b82f6',
             tagKind: 'custom'
           }, accessToken);
           setAvailableTags(prev => [...prev, tag]);
         }
-        await handleAddTag(tag);
+
+        if (card?.id && cardId === card.id) {
+          await handleAddTag(tag);
+        } else {
+          const { addCardTag } = await import("@/lib/api/contracts");
+          await addCardTag(cardId, tag.id, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
       } else if (action === 'CARD_MOVE') {
-        await handleUpdateField('list_id', payload.targetListId);
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        const targetListId = String(payload?.targetListId || payload?.listId || '').trim();
+        if (!cardId || !targetListId) throw new Error('CARD_MOVE requiere cardId y targetListId');
+
+        if (card?.id && cardId === card.id) {
+          await handleUpdateField('list_id', targetListId);
+        } else {
+          await updateCard(cardId, { list_id: targetListId }, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
+      } else if (action === 'CARD_UPDATE') {
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        if (!cardId) throw new Error('CARD_UPDATE requiere cardId');
+
+        const updates: Record<string, any> = {};
+        if (payload?.title !== undefined) updates.title = payload.title;
+        if (payload?.summary !== undefined) updates.summary = payload.summary;
+        if (payload?.urgency_state !== undefined) updates.urgency_state = payload.urgency_state;
+        if (payload?.status !== undefined) updates.status = payload.status;
+        if (payload?.start_at !== undefined) updates.start_at = payload.start_at;
+        if (payload?.due_at !== undefined) updates.due_at = payload.due_at;
+        if (payload?.targetListId !== undefined || payload?.list_id !== undefined) {
+          updates.list_id = payload?.list_id ?? payload?.targetListId;
+        }
+        if (Object.keys(updates).length === 0) throw new Error('CARD_UPDATE no contiene campos a actualizar');
+
+        if (card?.id && cardId === card.id && updates.title !== undefined) {
+          await handleUpdateField('title', updates.title);
+          delete updates.title;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          if (card?.id && cardId === card.id && updates.list_id !== undefined) {
+            await handleUpdateField('list_id', updates.list_id);
+            delete updates.list_id;
+          }
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateCard(cardId, updates, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
       } else if (action === 'LIST_RENAME') {
-        await updateList(boardId!, payload.listId || card.listId, { name: payload.title }, accessToken);
+        if (!boardId) throw new Error('LIST_RENAME requiere contexto de board');
+        const listId = entityId || String(payload?.listId || (card as any)?.listId || '').trim();
+        const name = String(payload?.title || payload?.name || '').trim();
+        if (!listId || !name) throw new Error('LIST_RENAME requiere listId y title/name');
+        await updateList(boardId, listId, { name }, accessToken);
         window.dispatchEvent(new Event('board:refresh'));
+      } else if (action === 'REPORT_GENERATE') {
+        const prompt = String(payload?.prompt || 'Generar reporte técnico').trim();
+        await generateReportFromCardContext(prompt);
+      } else {
+        throw new Error(`Accion no soportada: ${action || 'UNKNOWN'}`);
       }
-      setAiMessages(prev => [...prev, { role: 'assistant', content: `He ejecutado la acción: ${action}.` }]);
+
+      if (action !== 'REPORT_GENERATE') {
+        setAiMessages(prev => [...prev, { role: 'assistant', content: `He ejecutado la acción: ${action}.` }]);
+      }
     } catch (err) {
       console.error("Failed to execute AI action", err);
-      setAiMessages(prev => [...prev, { role: 'assistant', content: `No pude ejecutar la acción ${action}. Verifica los permisos.` }]);
+      setAiMessages(prev => [...prev, { role: 'assistant', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
     }
   };
 
   const parseAiActions = (text: string) => {
     const actions: any[] = [];
-    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
-    let match;
     let cleanText = text;
-    while ((match = regex.exec(text)) !== null) {
+
+    const processMatch = (declaredType: string, jsonStr: string, fullMatch: string) => {
       try {
-        const payload = JSON.parse(match[2]);
-        actions.push({ type: match[1], ...payload });
-        cleanText = cleanText.replace(match[0], '');
+        const raw = JSON.parse(jsonStr);
+        const action = String(raw?.action || raw?.type || declaredType).trim().toUpperCase();
+        const explanation = String(raw?.explanation || '').trim();
+        const id = String(raw?.id || raw?.entityId || raw?.cardId || raw?.listId || '').trim();
+
+        let payload = raw?.payload;
+        if (!payload || typeof payload !== 'object') {
+          payload = { ...raw };
+          delete payload.action;
+          delete payload.type;
+          delete payload.id;
+          delete payload.entityId;
+          delete payload.explanation;
+        }
+
+        actions.push({
+          type: declaredType,
+          action,
+          id,
+          payload,
+          explanation,
+        });
+        cleanText = cleanText.replace(fullMatch, ''); if (explanation && !cleanText.includes(explanation)) cleanText = cleanText.trim() + '\n\n' + explanation;
       } catch (e) {
         console.error("Failed to parse AI action JSON", e);
       }
+    };
+
+    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      processMatch(match[1], match[2], match[0]);
     }
+
+    const fallbackRegex = /\[([A-Z_]+)\]\s*(\{[\s\S]*?\})\s*\[\/\1\]/g;
+    while ((match = fallbackRegex.exec(text)) !== null) {
+      if (match[1] === 'ACTION') continue;
+      processMatch(match[1], match[2], match[0]);
+    }
+
     return { cleanText: cleanText.trim(), actions };
   };
+
+  const clipAiContext = (value: unknown, max = 140) => {
+    const normalized = String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+    if (!normalized) return "";
+    if (normalized.length <= max) return normalized;
+    return `${normalized.slice(0, max)}...`;
+  };
+
+  const summarizeBrickForAi = (brick: any) => {
+    const kind = String(brick?.kind || "unknown");
+    if (kind === "text") {
+      const markdown = brick?.markdown ?? brick?.content?.markdown;
+      const displayStyle = brick?.displayStyle ?? brick?.content?.displayStyle;
+      return `text(style=${displayStyle || "paragraph"}, md=${clipAiContext(markdown) || "empty"})`;
+    }
+    if (kind === "table") {
+      const rows = Array.isArray(brick?.rows) ? brick.rows : Array.isArray(brick?.content?.rows) ? brick.content.rows : [];
+      const rowCount = rows.length;
+      const colCount = rowCount > 0 && Array.isArray(rows[0]) ? rows[0].length : 0;
+      const preview = rowCount > 0 ? clipAiContext((rows[0] || []).join(" | "), 100) : "empty";
+      return `table(rows=${rowCount}, cols=${colCount}, head=${preview || "empty"})`;
+    }
+    if (kind === "checklist") {
+      const items = Array.isArray(brick?.items) ? brick.items : Array.isArray(brick?.content?.items) ? brick.content.items : [];
+      const done = items.filter((item: any) => !!item?.checked).length;
+      const preview = items.slice(0, 3).map((item: any) => clipAiContext(item?.label, 60)).filter(Boolean).join("; ");
+      return `checklist(done=${done}/${items.length}, items=${preview || "none"})`;
+    }
+    if (kind === "media") {
+      return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
+    }
+    if (kind === "embed") {
+      return `embed(type=${brick?.embedType || brick?.content?.embedType || "url"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, href=${clipAiContext(brick?.href ?? brick?.content?.href, 90) || "none"}, summary=${clipAiContext(brick?.summary ?? brick?.content?.summary, 90) || "none"})`;
+    }
+    if (kind === "ai") {
+      return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
+    }
+    if (kind === "graph") {
+      const graphData = Array.isArray(brick?.data) ? brick.data : Array.isArray(brick?.content?.data) ? brick.content.data : [];
+      const tableSource = brick?.tableSource ?? brick?.content?.tableSource;
+      const sourceLabel = tableSource?.brickId ? `table:${String(tableSource.brickId).slice(0, 8)}` : "manual";
+      return `graph(type=${brick?.type || brick?.content?.type || "line"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, source=${sourceLabel}, points=${graphData.length})`;
+    }
+    if (kind === "accordion") {
+      return `accordion(title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, expanded=${(brick?.isExpanded ?? brick?.content?.isExpanded) ? "yes" : "no"}, body=${clipAiContext(brick?.body ?? brick?.content?.body, 100) || "empty"})`;
+    }
+    return `${kind}(raw=${clipAiContext(JSON.stringify(brick), 120) || "none"})`;
+  };
+
+  const summarizeCardForAi = (cardData: any, listLabel?: string) => {
+    const tags = (cardData?.tags || []).map((tag: any) => tag?.name).filter(Boolean).join(', ') || 'none';
+    const assignees = (cardData?.assignees || []).map((member: any) => member?.name || member?.displayName || member?.email).filter(Boolean).join(', ') || 'none';
+    const bricks = Array.isArray(cardData?.blocks) ? cardData.blocks : [];
+    const brickDetails = bricks.slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(' || ') || 'none';
+    return [
+      listLabel ? `[${listLabel}]` : null,
+      `Card: ${cardData?.title || 'Untitled'}`,
+      `due: ${cardData?.dueAt || 'none'}`,
+      `urgency: ${cardData?.urgency || 'normal'}`,
+      `tags: ${tags}`,
+      `assignees: ${assignees}`,
+      `bricks: ${bricks.length}`,
+      `brickDetails: ${brickDetails}`,
+    ].filter(Boolean).join(' | ');
+  };
+
+  const generateReportFromCardContext = async (sourcePrompt: string) => {
+    if (!accessToken || !activeTeamId || isGeneratingReport) return;
+
+    const effectiveRange = resolveReportDateRange(sourcePrompt, {
+      from: reportFromDate || undefined,
+      to: reportToDate || undefined,
+    });
+    const dateRangeLabel = formatDateRangeLabel(effectiveRange);
+
+    setIsGeneratingReport(true);
+    setAiMessages((prev) => [...prev, { role: 'assistant', content: 'Generando reporte técnico con el contexto de tablero y tarjetas...' }]);
+
+    try {
+      const docsCatalog = await listDocuments(activeTeamId, accessToken);
+      let boardCards: Array<{ listName: string; card: any }> = [];
+      let boardActivity: ActivityLogEntry[] = [];
+      let cardActivityByCard: Array<{ cardId: string; logs: ActivityLogEntry[] }> = [];
+      let scope: 'personal' | 'team' | 'board' | 'list' | 'document' = 'list';
+      let scopeId = listId || 'personal';
+      let boardLabel = boardName || 'Board';
+
+      if (boardId) {
+        const [boardData, teamActivity] = await Promise.all([
+          getBoard(boardId, accessToken),
+          listTeamActivity(activeTeamId, accessToken),
+        ]);
+
+        boardLabel = boardData.name;
+        boardCards = boardData.lists.flatMap((list) => list.cards.map((entry) => ({ listName: list.name, card: entry })));
+        cardActivityByCard = await Promise.all(
+          boardCards.map(async ({ card: boardCard }) => {
+            try {
+              const logs = await getCardActivity(boardCard.id, accessToken);
+              return { cardId: boardCard.id, logs: (logs || []) as ActivityLogEntry[] };
+            } catch {
+              return { cardId: boardCard.id, logs: [] as ActivityLogEntry[] };
+            }
+          }),
+        );
+
+        boardActivity = teamActivity.filter((entry) => {
+          const payloadBoardId = (entry.payload as Record<string, unknown> | undefined)?.boardId;
+          const matchesBoard = (entry.scope === 'board' && entry.scopeId === boardId) || payloadBoardId === boardId;
+          return matchesBoard && isTimestampInDateRange(entry.createdAt, effectiveRange);
+        });
+
+        cardActivityByCard = cardActivityByCard.map((entry) => ({
+          cardId: entry.cardId,
+          logs: entry.logs.filter((log) => isTimestampInDateRange(log.createdAt, effectiveRange)),
+        }));
+
+        scope = 'board';
+        scopeId = boardId;
+      } else if (card?.id) {
+        const selfLogs = await getCardActivity(card.id, accessToken);
+        boardCards = [{ listName: listName || 'List', card: { ...card, blocks: localBlocks } }];
+        cardActivityByCard = [{
+          cardId: card.id,
+          logs: (selfLogs || []).filter((log: ActivityLogEntry) => isTimestampInDateRange(log.createdAt, effectiveRange)),
+        }];
+      }
+
+      const referencedDocIds = new Set<string>();
+      boardCards.forEach(({ card: boardCard }) => extractDocumentReferenceIds(boardCard, referencedDocIds));
+      boardActivity.forEach((entry) => extractDocumentReferenceIds(entry, referencedDocIds));
+      cardActivityByCard.forEach((entry) => extractDocumentReferenceIds(entry.logs, referencedDocIds));
+
+      const referencedDocs = docsCatalog.filter((doc) => referencedDocIds.has(doc.id));
+      const referencedDocTokens = referencedDocs.map((doc) => toDocumentMentionToken(doc.id, doc.title));
+
+      const cardLines = boardCards
+        .slice(0, 80)
+        .map(({ listName: sourceListName, card: boardCard }) => `- ${summarizeCardForAi(boardCard, sourceListName)}`);
+
+      const cardChatLines = boardCards.flatMap(({ card: boardCard }) => {
+        const logs = cardActivityByCard.find((entry) => entry.cardId === boardCard.id)?.logs || [];
+        return logs
+          .filter((entry) => entry.action === 'card.commented')
+          .slice(0, 25)
+            .map((entry) => {
+              const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+              const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || "User";
+              return `- [${entry.createdAt}] ${actorName} in ${boardCard.title}: ${String((entry.payload as any)?.text || '')}`;
+            });
+        }).slice(0, 220);
+
+        const activityLines = [...boardActivity, ...cardActivityByCard.flatMap((entry) => entry.logs)]
+          .slice(0, 260)
+          .map((entry) => {
+              const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+              const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || "User";
+              return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId})`;
+          });
+
+      const contextSummary = [
+        `Board/Card context: ${boardLabel}`,
+        `Date range: ${dateRangeLabel}`,
+        `Cards in scope: ${boardCards.length}`,
+        '',
+        'Cards snapshot:',
+        ...(cardLines.length > 0 ? cardLines : ['- none']),
+        '',
+        'Card conversations:',
+        ...(cardChatLines.length > 0 ? cardChatLines : ['- none']),
+        '',
+        'Activity timeline:',
+        ...(activityLines.length > 0 ? activityLines : ['- none']),
+        '',
+        'Referenced docs:',
+        ...(referencedDocTokens.length > 0 ? referencedDocTokens.map((token) => `- ${token}`) : ['- none']),
+      ].join('\n').slice(0, 16000);
+
+      const reportResult = await generateReportDocumentWithAi(
+        {
+          scope,
+          scopeId,
+          contextSummary,
+          dateRangeLabel,
+          userPrompt: sourcePrompt,
+          referencedDocuments: referencedDocs.map((doc) => ({ id: doc.id, title: doc.title })),
+        },
+        accessToken,
+      );
+
+      const reportTitle = reportResult.title?.trim() || `Tech Report · ${boardLabel} · ${dateRangeLabel}`;
+      const createdDoc = await createDocument({ teamId: activeTeamId, title: reportTitle }, accessToken);
+
+      const reportBricks = Array.isArray(reportResult.bricks) && reportResult.bricks.length > 0
+        ? reportResult.bricks
+        : [
+          {
+            kind: 'text' as const,
+            content: { markdown: `# Technical Report\n\n- Context: ${boardLabel}\n- Date range: ${dateRangeLabel}` },
+          },
+        ];
+
+      for (let i = 0; i < reportBricks.length; i += 1) {
+        const brick = reportBricks[i];
+        await createDocumentBrick(
+          createdDoc.id,
+          {
+            kind: brick.kind,
+            position: i,
+            content: brick.content,
+          },
+          accessToken,
+        );
+      }
+
+      setContextDocs((prev) => (prev.some((doc) => doc.id === createdDoc.id) ? prev : [createdDoc, ...prev]));
+      setAiMessages((prev) => [
+        ...prev,
+        { role: 'assistant', content: `Reporte técnico generado: ${toDocumentMentionToken(createdDoc.id, createdDoc.title)}` },
+      ]);
+    } catch (error) {
+      console.error('Failed to generate technical report from card context', error);
+      setAiMessages((prev) => [...prev, { role: 'assistant', content: 'No pude generar el reporte técnico. Intenta de nuevo.' }]);
+    } finally {
+      setIsGeneratingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    setContextDocs(teamDocs);
+  }, [teamDocs]);
 
   useEffect(() => {
     if (isOpen && boardId && accessToken) {
@@ -414,7 +760,7 @@ export function CardDetailModal({
         setLocalDueAt("");
         setLocalTags([]);
         setLocalAssignees([]);
-        setLocalBlocks([]);
+        setLocalBlocks([createEmptyTextBrick()]);
       }
       setPendingImprovement(null);
       setImproveError(null);
@@ -422,7 +768,7 @@ export function CardDetailModal({
       setNewTagColor('#3b82f6');
       setAreTagsExpanded(false);
     }
-  }, [isOpen, card, normalizeAssignee]);
+  }, [isOpen, card, createEmptyTextBrick, normalizeAssignee]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -904,7 +1250,7 @@ export function CardDetailModal({
 
   const assignCurrentUser = async () => {
     if (!user?.id) return;
-    const boardMember = boardMembers.find((member) => member.id === user.id);
+    const boardMember = boardMembers.find((member) => member.id === user.id || member.userId === user.id);
     const currentUserAsAssignee = boardMember || {
       id: user.id,
       name: user.displayName || user.email,
@@ -922,6 +1268,11 @@ export function CardDetailModal({
       const userMsg = newComment.trim();
       setAiMessages(prev => [...prev, { role: 'user', content: userMsg }]);
       setNewComment("");
+
+      if (GENERATE_REPORT_INTENT_REGEX.test(userMsg)) {
+        await generateReportFromCardContext(userMsg);
+        return;
+      }
 
       setIsImprovingDescription(true);
       try {
@@ -1006,9 +1357,14 @@ export function CardDetailModal({
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
 
-      if (createdCard?.id && localBlocks.length > 0) {
+      const bricksToCreate = localBlocks.filter((block) => {
+        if (block.kind !== 'text') return true;
+        return Boolean((block.markdown || '').trim());
+      });
+
+      if (createdCard?.id && bricksToCreate.length > 0) {
         const createdBrickIds: string[] = [];
-        for (const block of localBlocks) {
+        for (const block of bricksToCreate) {
           const payload = brickToMutationInput(block);
           if (!payload) continue;
           const created = await createCardBrick(createdCard.id, payload, accessToken);
@@ -1143,34 +1499,22 @@ export function CardDetailModal({
   };
 
   const renderCommentWithMentions = (content: string): ReactNode => {
-    const docIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
-    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
-
     const lines = content.split(/\r?\n/);
     return lines.map((line, index) => {
-      const richParts = ReferenceResolver.renderRich(line, { documents: teamDocs, boards: teamBoards, users: boardMembers } as any);
+      const richParts = ReferenceResolver.renderRich(line, { documents: contextDocs, boards: teamBoards, users: boardMembers } as any);
       const renderedLine = richParts.map((part, i) => {
         if (typeof part === 'string') return part;
 
         if (part.type === 'mention') {
-          const { mentionType: type, name } = part;
-          const isUser = type === 'user';
+          const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
           return (
-            <span key={i} className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border ${isUser ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-accent/10 border-accent/20 text-accent'
-              }`}>
-              {type === 'doc' && <span dangerouslySetInnerHTML={{ __html: docIcon }} />}
-              {type === 'board' && <span dangerouslySetInnerHTML={{ __html: boardIcon }} />}
-              {isUser && "@"}
-              {name}
-            </span>
+            <RefPill key={i} type={mentionType} id={part.id} name={part.name} />
           );
         }
 
         if (part.type === 'deep') {
           return (
-            <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium border bg-amber-500/10 border-amber-500/20 text-amber-600">
-              {part.label}
-            </span>
+            <RefPill key={i} type="deep" id={part.inner?.split(':')[0] || ''} name={part.label} />
           );
         }
         return null;
@@ -1375,16 +1719,34 @@ export function CardDetailModal({
                   <UnifiedBrickList
                     bricks={localBlocks}
                     canEdit={!readonly}
-                    documents={teamDocs}
+                    documents={contextDocs}
                     boards={teamBoards}
                     users={boardMembers}
-                    addableKinds={['text', 'table', 'checklist', 'image']}
+                      addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
                     onAddBrick={async (kind) => {
                       let input: BrickMutationInput;
                       if (kind === 'checklist') {
                         input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
                       } else if (kind === 'table') {
                         input = { kind: 'table', rows: [['Encabezado 1', 'Encabezado 2'], ['', '']] };
+                        } else if (kind === 'graph') {
+                          input = {
+                            kind: 'graph',
+                            type: 'line',
+                            title: 'Análisis de datos',
+                            data: [
+                              { name: 'A', value: 10 },
+                              { name: 'B', value: 20 },
+                              { name: 'C', value: 15 },
+                            ],
+                          };
+                        } else if (kind === 'accordion') {
+                          input = {
+                            kind: 'accordion',
+                            title: 'Nuevo acordeón',
+                            body: '',
+                            isExpanded: true,
+                          };
                       } else if (kind === 'image') {
                         input = {
                           kind: 'media',
@@ -1451,56 +1813,68 @@ export function CardDetailModal({
                               }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}>
                               <RichText
                                 content={cleanText}
-                                context={{ documents: teamDocs, boards: teamBoards, users: boardMembers }}
+                                context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
                               />
                             </div>
                           </div>
 
                           {actions.map((action, actionIdx) => (
-                            <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-2">
-                                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                                  <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
-                                </div>
-                              </div>
-                              <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en la tarjeta"}</p>
-                              <div className="bg-background/50 rounded border border-emerald-500/10 p-2 text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70">
-                                {action.action}: {JSON.stringify(action.payload, null, 2)}
-                              </div>
-                              <button
-                                onClick={() => handleAiAction(action)}
-                                className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
-                              >
-                                Confirmar y Ejecutar
-                              </button>
-                            </div>
-                          ))}
+                      <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                        <div className="flex items-center gap-2 mb-1">
+                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
+                        </div>
+                        
+                        <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
+                          <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
+                        </div>
+
+                        <button
+                          onClick={() => handleAiAction(action)}
+                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                        >
+                          Confirmar y Ejecutar
+                        </button>
+                      </div>
+                    ))}
                         </div>
                       );
                     })}
 
                     {!pendingImprovement && (
-                      <div className="flex flex-wrap gap-2 pt-2">
-                        <button
-                          onClick={handleImproveDescriptionWithAi}
-                          disabled={isImprovingDescription}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
-                        >
-                          {isImprovingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                          Mejorar con IA
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAiMessages(prev => [...prev, { role: 'user', content: 'Resume esta tarjeta' }]);
-                            // Mocking a summary response or just adding to history
-                            setAiMessages(prev => [...prev, { role: 'assistant', content: 'Esta tarjeta trata sobre: ' + localTitle + '. Contiene ' + localBlocks.length + ' bloques de contenido.' }]);
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all"
-                        >
-                          <FileText className="w-3 h-3" />
-                          Resumir
-                        </button>
+                      <div className="space-y-3 pt-2">
+                        <div className="flex flex-wrap gap-2">
+                          <button
+                            onClick={handleImproveDescriptionWithAi}
+                            disabled={isImprovingDescription}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
+                          >
+                            {isImprovingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+                            Mejorar con IA
+                          </button>
+                          <button
+                            onClick={() => {
+                              setAiMessages(prev => [...prev, { role: 'user', content: 'Resume esta tarjeta' }]);
+                              setAiMessages(prev => [...prev, { role: 'assistant', content: 'Esta tarjeta trata sobre: ' + localTitle + '. Contiene ' + localBlocks.length + ' bloques de contenido.' }]);
+                            }}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all"
+                          >
+                            <FileText className="w-3 h-3" />
+                            Resumir
+                          </button>
+                          <button
+                            onClick={() => {
+                              const prompt = 'Generar reporte técnico con el contexto de este tablero y tarjeta.';
+                              setAiMessages(prev => [...prev, { role: 'user', content: prompt }]);
+                              void generateReportFromCardContext(prompt);
+                            }}
+                            disabled={isGeneratingReport || isImprovingDescription}
+                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
+                          >
+                            {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
+                            Generar reporte
+                          </button>
+                        </div>
                       </div>
                     )}
 
@@ -1568,7 +1942,7 @@ export function CardDetailModal({
                 </div>
               ) : activeTab === 'comments' ? (
                 activities.filter(a => a.action === 'card.commented').map(log => {
-                  const author = boardMembers.find(m => m.id === log.actorId);
+                  const author = boardMembers.find(m => m.id === log.actorId || m.userId === log.actorId);
                   return (
                     <div key={log.id} className="flex space-x-3 mt-4">
                       <img src={getUserAvatarUrl(author?.avatar_url, author?.email, 32)} alt={author?.name} className="h-8 w-8 rounded-full shrink-0 object-cover" />
@@ -1577,7 +1951,7 @@ export function CardDetailModal({
                         <div className="mt-1">
                           <RichText
                             content={log.payload?.text || ""}
-                            context={{ documents: teamDocs, boards: teamBoards, users: boardMembers }}
+                            context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
                           />
                         </div>
                       </div>
@@ -1596,10 +1970,10 @@ export function CardDetailModal({
                     const a = group[0];
                     const theme = getActionTheme(a.action);
                     const Icon = theme.icon;
-                    const author = boardMembers.find(m => m.id === a.actorId);
+                    const author = boardMembers.find(m => m.id === a.actorId || m.userId === a.actorId);
                     const changes = (a.payload as any)?.changes || {};
                     const changedFields = Object.keys(changes).map(k => fieldLabels[k] || k).join(", ");
-                    const resolverContext = getResolverContext(teamDocs, teamBoards, boardMembers);
+                    const resolverContext = getResolverContext(contextDocs, teamBoards, boardMembers);
 
                     return (
                       <div key={a.id} className="relative pl-6 pb-2 border-l border-border/40 last:border-0 group">
@@ -1681,9 +2055,13 @@ export function CardDetailModal({
                   onSubmit={() => {
                     void handleAddComment();
                   }}
-                  documents={teamDocs as any}
+                  documents={contextDocs as any}
                   boards={teamBoards as any}
-                  users={boardMembers}
+                  users={boardMembers.map((m: any) => ({
+                    id: m.id || m.userId,
+                    name: m.displayName || m.name || m.email || m.username || "User",
+                    avatarUrl: m.avatarUrl || m.avatar_url || null,
+                  }))}
                   className="w-full"
                   inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
                 />
@@ -1703,7 +2081,7 @@ export function CardDetailModal({
           title={prettifyAction(selectedActivityGroup[0].action)}
           activities={selectedActivityGroup}
           teamMembers={boardMembers}
-          teamDocs={teamDocs}
+          teamDocs={contextDocs}
           allAvailableTags={[]}
           getActionTheme={getActionTheme}
           prettifyAction={prettifyAction}

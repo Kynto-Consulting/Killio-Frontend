@@ -314,6 +314,13 @@ export function ReferenceTokenInput({
 
     const current = readMarkdown();
     if (current === value) return;
+    
+    // Always apply if the value was cleared externally (e.g., after sending message)
+    if (value === "") {
+      applyRenderedValue("");
+      return;
+    }
+
     if (document.activeElement === root) return;
     applyRenderedValue(value);
   }, [value, applyRenderedValue, readMarkdown]);

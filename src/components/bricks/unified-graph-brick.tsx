@@ -66,14 +66,32 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
   const [manualJson, setManualJson] = useState<string>(JSON.stringify(safeConfig.data, null, 2));
   const [jsonError, setJsonError] = useState<string>("");
 
+  const resolveTableRows = (brick: any): string[][] => {
+    const directRows = Array.isArray(brick?.rows) ? brick.rows : null;
+    if (directRows && directRows.length > 0) return directRows as string[][];
+
+    const contentRows = Array.isArray(brick?.content?.rows) ? brick.content.rows : null;
+    if (contentRows && contentRows.length > 0) return contentRows as string[][];
+
+    return [];
+  };
+
+  const resolveTableTitle = (brick: any): string => {
+    const raw = brick?.title || brick?.content?.title;
+    const normalized = String(raw || "").trim();
+    if (normalized) return normalized;
+    return `Tabla ${String(brick?.id || "").slice(0, 8)}`;
+  };
+
   const availableTables = useMemo(() => {
     return activeBricks
-      .filter((brick) => brick?.kind === "table" && Array.isArray(brick?.rows) && brick.rows.length > 0)
+      .filter((brick) => brick?.kind === "table")
       .map((brick) => ({
         id: String(brick.id),
-        title: `Tabla ${String(brick.id).slice(0, 8)}`,
-        rows: brick.rows as string[][],
-      }));
+        title: resolveTableTitle(brick),
+        rows: resolveTableRows(brick),
+      }))
+      .filter((table) => table.rows.length > 0);
   }, [activeBricks]);
 
   const selectedTable = useMemo(() => {

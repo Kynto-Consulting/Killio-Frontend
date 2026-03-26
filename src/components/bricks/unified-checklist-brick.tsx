@@ -4,6 +4,7 @@ import React from "react";
 import { CheckSquare, Square, Plus, Trash2, GripVertical } from "lucide-react";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { ReferenceTokenInput } from "../ui/reference-token-input";
+import { RefPill } from "../ui/ref-pill";
 
 interface ChecklistBrickProps {
   id: string;
@@ -18,31 +19,20 @@ interface ChecklistBrickProps {
 export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {
 
   const renderLabelWithMentions = (content: string) => {
-    const docIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>`;
-    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
-
     const richParts = ReferenceResolver.renderRich(content, { documents, boards, users } as any);
     return richParts.map((part, i) => {
       if (typeof part === 'string') return part;
 
-      const isUser = part.mentionType === 'user';
       if (part.type === 'mention') {
+        const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
         return (
-          <span key={i} className={`inline-flex items-center gap-1 px-1 py-0.5 rounded text-[9px] font-medium border ${isUser ? 'bg-primary/10 border-primary/20 text-primary' : 'bg-accent/10 border-accent/20 text-accent'
-            }`}>
-            {part.mentionType === 'doc' && <span dangerouslySetInnerHTML={{ __html: docIcon }} />}
-            {part.mentionType === 'board' && <span dangerouslySetInnerHTML={{ __html: boardIcon }} />}
-            {isUser && "@"}
-            {part.name}
-          </span>
+          <RefPill key={i} type={mentionType} id={part.id} name={part.name} />
         );
       }
 
       if (part.type === 'deep') {
         return (
-          <span key={i} className="inline-flex items-center gap-1 px-1 py-0.5 rounded text-[9px] font-medium border bg-amber-500/10 border-amber-500/20 text-amber-600">
-            {part.label}
-          </span>
+          <RefPill key={i} type="deep" id={part.inner?.split(':')[0] || ''} name={part.label} />
         );
       }
       return null;

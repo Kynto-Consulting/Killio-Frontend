@@ -118,7 +118,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-1 min-h-[50px]">
+          <div className="space-y-2 min-h-[50px]">
             {sortedBricks.map(brick => (
               <SortableBrick key={brick.id} id={brick.id} readonly={!canEdit} onDelete={() => onDeleteBrick(brick.id)}>
                 {renderBrick(brick)}

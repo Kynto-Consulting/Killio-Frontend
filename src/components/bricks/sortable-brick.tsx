@@ -29,12 +29,25 @@ export function SortableBrick({ id, children, readonly, onDelete }: SortableBric
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    // Forward clicks in the sortable wrapper padding area to the inner contenteditable
+    const target = e.target as HTMLElement;
+    if (!target.closest('[contenteditable]') && !target.closest('[data-drag-handle]')) {
+      const ce = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[contenteditable="true"]');
+      if (ce && document.activeElement !== ce) {
+        e.preventDefault();
+        ce.focus();
+      }
+    }
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative flex items-start gap-1 p-1 rounded-md transition-colors ${
-        isDragging ? "bg-accent/5 ring-1 ring-accent/20" : "hover:bg-accent/5"
+      onMouseDown={handleMouseDown}
+      className={`group relative flex items-start gap-1 rounded-lg p-1.5 transition-colors ${
+        isDragging ? "bg-accent/10 ring-2 ring-accent/40" : "hover:bg-accent/5"
       }`}
     >
       {!readonly && (

@@ -65,6 +65,12 @@
   }
 }
 
+/* Text selection highlight */
+::selection {
+  background-color: rgba(99, 102, 241, 0.35);
+  color: inherit;
+}
+
 /* Custom Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 6px;

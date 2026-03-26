@@ -5,7 +5,14 @@
   "cta": {
     "primary": "Create free workspace",
     "secondary": "Sign in",
-    "tertiary": "Explore platform"
+    "tertiary": "Explore platform",
+    "finalPrimary": "Start with Killio",
+    "finalSecondary": "Read the terms"
+  },
+  "nav": {
+    "privacy": "Privacy",
+    "terms": "Terms",
+    "cookies": "Cookies"
   },
   "metrics": {
     "teams": {
@@ -36,6 +43,65 @@
       "description": "Role based access, activity history, and notifications designed for distributed teams."
     }
   },
+  "showcase": {
+    "surfaceLabel": "Product surface",
+    "title": "One operating view for work that usually lives in five tabs.",
+    "description": "Boards, docs, decisions, AI summaries, and execution signals stay in one place so teams move faster with less drag.",
+    "signal": "Execution signal",
+    "signalValue": "Live",
+    "momentum": "Momentum this week",
+    "momentumValue": "+28%",
+    "governance": "Governance ready",
+    "governanceValue": "Roles, history, notifications",
+    "workspace": {
+      "label": "Workspace board",
+      "name": "Launch Control",
+      "teamSize": "6 active",
+      "columns": {
+        "backlog": "Backlog",
+        "doing": "Doing",
+        "review": "Review"
+      },
+      "cards": {
+        "alignment": {
+          "title": "Align workspace rollout",
+          "body": "Confirm navigation, legal routes, and public entry points before launch.",
+          "tag": "Ops"
+        },
+        "bricks": {
+          "title": "Refine document bricks",
+          "body": "Turn research into summary blocks, checklists, and references for the team.",
+          "tag": "Docs"
+        },
+        "launch": {
+          "title": "Review launch narrative",
+          "body": "Check final messaging, cookie handling, and sign-up flow before shipping.",
+          "tag": "Ready"
+        }
+      }
+    },
+    "document": {
+      "label": "Document flow",
+      "name": "Go-to-market brief",
+      "heading": "Execution notes",
+      "bricks": {
+        "summary": "Landing, legal, and authentication changes are grouped into one brief so the team sees narrative, tasks, and next actions in context.",
+        "checklistOne": "Sync legal links across footer and signup",
+        "checklistTwo": "Confirm AI and board showcase copy for launch"
+      }
+    },
+    "copilot": {
+      "label": "Copilot",
+      "name": "Execution assistant",
+      "userPrompt": "Summarize what changed, create follow-up tasks, and draft a short launch note.",
+      "assistantReply": "I reviewed the workspace context and prepared the next actions.",
+      "actions": {
+        "board": "Create board tasks",
+        "document": "Draft launch brief",
+        "summary": "Publish team summary"
+      }
+    }
+  },
   "steps": {
     "one": {
       "title": "Collect the signal",
@@ -50,6 +116,10 @@
       "description": "Track movement, resolve blockers, and keep everyone aligned from kickoff to done."
     }
   },
+  "proof": {
+    "title": "Built for teams that need clarity before speed becomes chaos.",
+    "description": "Killio gives operators, founders, and delivery teams one place to align priorities, keep decisions visible, and ship without losing the thread."
+  },
   "auth": {
     "title": "Your login and register flow stays intact",
     "description": "We keep the same auth routes and make entry points clearer from the landing experience.",
@@ -60,5 +130,11 @@
     "signupDescription": "Create your account, invite your team, and start shipping from day one.",
     "signupCta": "Go to register"
   },
-  "footer": "Built for fast teams that hate tab chaos."
+  "final": {
+    "title": "Bring structure to execution before the work gets noisy.",
+    "description": "Create a workspace, accept the terms once, and give your team a sharper operating system from day one."
+  },
+  "footer": "Built for fast teams that hate tab chaos.",
+  "footerNote": "Classic legal routes, transparent consent, and a public front door that does not hijack guests into auth.",
+  "copyright": "Killio by Kynto"
 }

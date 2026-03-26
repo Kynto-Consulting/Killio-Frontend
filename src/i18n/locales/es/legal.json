@@ -1,0 +1,112 @@
+{
+  "nav": {
+    "backHome": "Volver al inicio",
+    "login": "Iniciar sesion",
+    "signup": "Crear espacio"
+  },
+  "links": {
+    "privacy": "Politica de Privacidad",
+    "terms": "Terminos del Servicio",
+    "cookies": "Politica de Cookies"
+  },
+  "shared": {
+    "lastUpdatedLabel": "Ultima actualizacion",
+    "contents": "Que cubre esta pagina",
+    "platform": "Killio by Kynto",
+    "needHelpTitle": "Preguntas o solicitudes",
+    "path": {
+      "privacy": "Privacidad",
+      "terms": "Terminos",
+      "cookies": "Cookies"
+    }
+  },
+  "pages": {
+    "privacy": {
+      "eyebrow": "Politica de Privacidad",
+      "title": "Como Killio maneja datos de cuenta, espacio de trabajo y producto.",
+      "intro": "Esta pagina explica que informacion recopila Killio, por que se procesa y que controles tienen los titulares de cuenta y administradores del espacio.",
+      "updated": "26 de marzo de 2026",
+      "contact": "Si tu equipo necesita una solicitud de datos, eliminacion o revision contractual, usa tu canal de soporte acordado con Kynto e incluye el identificador del workspace.",
+      "sections": {
+        "collection": {
+          "title": "Informacion que recopilamos",
+          "body": "Killio almacena datos de perfil, credenciales de autenticacion, contenido del workspace, historial de actividad y registros operativos basicos necesarios para ejecutar el servicio con seguridad."
+        },
+        "usage": {
+          "title": "Para que la usamos",
+          "body": "Usamos la informacion recopilada para autenticar usuarios, entregar funciones de colaboracion, mejorar la confiabilidad del producto y brindar soporte solicitado por los operadores del workspace."
+        },
+        "sharing": {
+          "title": "Cuando se comparte",
+          "body": "Killio no vende datos personales. La informacion solo se comparte con proveedores de infraestructura y servicio necesarios para operar la plataforma o cuando la ley lo requiere."
+        },
+        "retention": {
+          "title": "Retencion",
+          "body": "Los registros de cuenta y workspace se conservan mientras la relacion de servicio siga activa y por un periodo limitado posterior cuando sea necesario por seguridad, facturacion u obligaciones legales."
+        },
+        "rights": {
+          "title": "Tus controles",
+          "body": "Los usuarios pueden solicitar actualizaciones de cuenta mediante su administrador, y los administradores pueden pedir exportacion o eliminacion segun los terminos de su workspace."
+        }
+      }
+    },
+    "terms": {
+      "eyebrow": "Terminos del Servicio",
+      "title": "Reglas para usar Killio en equipos, tableros, documentos y flujos asistidos por IA.",
+      "intro": "Estos terminos definen el uso aceptable, las responsabilidades de cuenta y los limites del servicio al acceder a Killio provisto por Kynto.",
+      "updated": "26 de marzo de 2026",
+      "contact": "Las dudas comerciales, legales o de seguridad sobre estos terminos deben canalizarse por el contacto de soporte definido para tu workspace o despliegue.",
+      "sections": {
+        "access": {
+          "title": "Acceso al servicio",
+          "body": "El acceso a Killio puede limitarse, suspenderse o actualizarse para proteger la estabilidad de la plataforma, los entornos de clientes o las obligaciones de cumplimiento."
+        },
+        "accounts": {
+          "title": "Responsabilidades de cuenta",
+          "body": "Los usuarios son responsables de registrar informacion correcta, proteger sus credenciales y responder por la actividad realizada con su cuenta o membresia invitada."
+        },
+        "acceptableUse": {
+          "title": "Uso aceptable",
+          "body": "No puedes usar Killio para interrumpir el servicio, violar leyes, abusar de otros usuarios, intentar ingenieria inversa sobre sistemas protegidos o enviar contenido danino o no autorizado."
+        },
+        "ownership": {
+          "title": "Propiedad y contenido",
+          "body": "Los clientes del workspace conservan la propiedad de su contenido. Killio y Kynto conservan los derechos sobre la plataforma, el software, la marca y las mejoras del servicio."
+        },
+        "termination": {
+          "title": "Terminacion",
+          "body": "Las cuentas o workspaces pueden suspenderse o terminarse por falta de pago, riesgo de seguridad, mal uso o violacion de estos terminos, sujeto a las obligaciones contractuales aplicables."
+        }
+      }
+    },
+    "cookies": {
+      "eyebrow": "Politica de Cookies",
+      "title": "Como se usa el almacenamiento del navegador para sesiones, preferencias y confiabilidad del producto.",
+      "intro": "Killio usa cookies y mecanismos similares de almacenamiento para mantener sesiones activas, recordar preferencias y mejorar la confiabilidad operativa.",
+      "updated": "26 de marzo de 2026",
+      "contact": "Si tu organizacion necesita mas detalle sobre el comportamiento de almacenamiento o manejo de consentimiento, contacta a Kynto por tu proceso habitual de soporte.",
+      "sections": {
+        "whatTheyAre": {
+          "title": "Que son las cookies",
+          "body": "Las cookies son pequenos registros del navegador que ayudan a una aplicacion a reconocer una sesion, recordar ajustes y reducir friccion entre visitas."
+        },
+        "howWeUse": {
+          "title": "Como las usa Killio",
+          "body": "Killio usa almacenamiento del navegador para continuidad de autenticacion, preferencias de idioma, estado de cambio de cuenta y ciertos ajustes de experiencia."
+        },
+        "choices": {
+          "title": "Tus opciones",
+          "body": "Puedes controlar las cookies desde la configuracion del navegador, pero desactivar almacenamiento requerido puede limitar el acceso, el login o funciones esenciales."
+        },
+        "thirdParties": {
+          "title": "Servicios de terceros",
+          "body": "Algunos proveedores integrados de infraestructura pueden establecer o depender de almacenamiento necesario para entrega, seguridad, manejo de medios o analitica operativa."
+        },
+        "updates": {
+          "title": "Actualizaciones",
+          "body": "Esta politica puede cambiar a medida que evolucionan las capacidades del producto, la infraestructura o las obligaciones legales. Los cambios materiales se reflejaran en la fecha superior."
+        }
+      }
+    }
+  }
+}

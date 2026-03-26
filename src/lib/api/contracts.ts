@@ -599,6 +599,27 @@ export async function generateDocumentsWithAi(
   });
 }
 
+export async function generateReportDocumentWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list' | 'document';
+    scopeId: string;
+    contextSummary: string;
+    dateRangeLabel?: string;
+    userPrompt?: string;
+    referencedDocuments?: Array<{ id: string; title?: string }>;
+  },
+  accessToken?: string,
+): Promise<{
+  title: string;
+  bricks: Array<{ kind: 'text' | 'checklist'; content: any }>;
+}> {
+  return request<{ title: string; bricks: Array<{ kind: 'text' | 'checklist'; content: any }> }>(`/ai/scope/${body.scope}/generate-report-document`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
 export async function generateBoardsWithAi(
   body: {
     scope: 'personal' | 'team' | 'board' | 'list';

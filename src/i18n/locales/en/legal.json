@@ -1,0 +1,112 @@
+{
+  "nav": {
+    "backHome": "Back to home",
+    "login": "Sign in",
+    "signup": "Create workspace"
+  },
+  "links": {
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "cookies": "Cookie Policy"
+  },
+  "shared": {
+    "lastUpdatedLabel": "Last updated",
+    "contents": "What this covers",
+    "platform": "Killio by Kynto",
+    "needHelpTitle": "Questions or requests",
+    "path": {
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "cookies": "Cookies"
+    }
+  },
+  "pages": {
+    "privacy": {
+      "eyebrow": "Privacy Policy",
+      "title": "How Killio handles account, workspace, and product data.",
+      "intro": "This page explains what information Killio collects, why it is processed, and the controls available to account holders and workspace admins.",
+      "updated": "March 26, 2026",
+      "contact": "If your team needs a data request, deletion request, or contract review, use your agreed support channel with Kynto and include your workspace identifier.",
+      "sections": {
+        "collection": {
+          "title": "Information we collect",
+          "body": "Killio stores profile details, authentication credentials, workspace content, activity history, and basic operational logs needed to run the service securely."
+        },
+        "usage": {
+          "title": "Why we use it",
+          "body": "We use collected data to authenticate users, deliver collaboration features, improve product reliability, and provide support requested by workspace operators."
+        },
+        "sharing": {
+          "title": "When data is shared",
+          "body": "Killio does not sell personal data. Information is shared only with infrastructure and service providers required to operate the platform or when lawfully required."
+        },
+        "retention": {
+          "title": "Retention",
+          "body": "Account and workspace records are kept while the service relationship remains active and for a limited period afterward when needed for security, billing, or legal obligations."
+        },
+        "rights": {
+          "title": "Your controls",
+          "body": "Users can request account updates through their workspace admin, while admins can request export or deletion workflows according to the terms governing their workspace."
+        }
+      }
+    },
+    "terms": {
+      "eyebrow": "Terms of Service",
+      "title": "Rules for using Killio across teams, boards, documents, and AI-assisted workflows.",
+      "intro": "These terms define acceptable use, account responsibilities, and service boundaries when accessing Killio provided by Kynto.",
+      "updated": "March 26, 2026",
+      "contact": "Commercial, legal, or security questions about these terms should be routed through the support contact established for your workspace or deployment.",
+      "sections": {
+        "access": {
+          "title": "Service access",
+          "body": "Access to Killio may be limited, suspended, or updated to protect platform stability, customer environments, or compliance obligations."
+        },
+        "accounts": {
+          "title": "Account responsibilities",
+          "body": "Users are responsible for accurate registration information, credential security, and activity performed under their account or invited workspace membership."
+        },
+        "acceptableUse": {
+          "title": "Acceptable use",
+          "body": "You may not use Killio to disrupt the service, violate laws, abuse other users, reverse engineer protected systems, or submit harmful or unauthorized content."
+        },
+        "ownership": {
+          "title": "Ownership and content",
+          "body": "Workspace customers retain ownership of their content. Killio and Kynto retain rights to the platform, software, branding, and service improvements."
+        },
+        "termination": {
+          "title": "Termination",
+          "body": "Accounts or workspaces may be suspended or terminated for non-payment, security risk, misuse, or violation of these terms, subject to applicable contractual obligations."
+        }
+      }
+    },
+    "cookies": {
+      "eyebrow": "Cookie Policy",
+      "title": "How browser storage is used for sessions, preferences, and product reliability.",
+      "intro": "Killio uses cookies and similar storage mechanisms to keep sessions active, remember preferences, and improve operational reliability.",
+      "updated": "March 26, 2026",
+      "contact": "If your organization needs additional detail about storage behavior or consent handling, contact Kynto through your standard support process.",
+      "sections": {
+        "whatTheyAre": {
+          "title": "What cookies are",
+          "body": "Cookies are small browser records that help applications recognize a session, remember settings, and reduce repeated friction across visits."
+        },
+        "howWeUse": {
+          "title": "How Killio uses them",
+          "body": "Killio uses browser storage for authentication continuity, locale preferences, account switching state, and certain product experience settings."
+        },
+        "choices": {
+          "title": "Your choices",
+          "body": "You can control cookies through browser settings, but disabling required storage may limit sign-in, workspace access, or other core product functions."
+        },
+        "thirdParties": {
+          "title": "Third-party services",
+          "body": "Some integrated infrastructure providers may set or rely on storage needed for delivery, security, media handling, or analytics required to operate the service."
+        },
+        "updates": {
+          "title": "Policy updates",
+          "body": "This policy may change as product capabilities, infrastructure choices, or legal requirements evolve. Material updates will be reflected in the date above."
+        }
+      }
+    }
+  }
+}

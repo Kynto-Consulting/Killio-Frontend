@@ -32,6 +32,8 @@ import enNotifications from "@/i18n/locales/en/notifications.json";
 import esNotifications from "@/i18n/locales/es/notifications.json";
 import enLanding from "@/i18n/locales/en/landing.json";
 import esLanding from "@/i18n/locales/es/landing.json";
+import enLegal from "@/i18n/locales/en/legal.json";
+import esLegal from "@/i18n/locales/es/legal.json";
 
 export const SUPPORTED_LOCALES = ["en", "es"] as const;
 
@@ -39,7 +41,7 @@ export type Locale = (typeof SUPPORTED_LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = "en";
 
-export const NAMESPACES = ["common", "auth", "dashboard", "preferences", "profile", "workspace", "tags", "boards", "documents", "teams", "accept-invite", "modals", "history", "board-detail", "document-detail", "notifications", "landing"] as const;
+export const NAMESPACES = ["common", "auth", "dashboard", "preferences", "profile", "workspace", "tags", "boards", "documents", "teams", "accept-invite", "modals", "history", "board-detail", "document-detail", "notifications", "landing", "legal"] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
 
@@ -68,6 +70,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     "document-detail": enDocumentDetail,
     notifications: enNotifications,
     landing: enLanding,
+    legal: enLegal,
   },
   es: {
     common: esCommon,
@@ -87,6 +90,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     "document-detail": esDocumentDetail,
     notifications: esNotifications,
     landing: esLanding,
+    legal: esLegal,
   },
 };
 

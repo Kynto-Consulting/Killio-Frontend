@@ -267,7 +267,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Main Content */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
-        <header className="flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md z-40">
+        <header className="relative z-[90] flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md">
           <div className="flex flex-1 items-center">
             {/* Global Search / Command Palette trigger */}
             <button
@@ -299,7 +299,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
 
               {isTeamSwitcherOpen && (
-                <div className="absolute top-10 right-0 w-56 rounded-xl border border-border bg-card p-1 shadow-lg z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-10 right-0 z-[120] w-56 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in slide-in-from-top-2">
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tDashboard("teamSwitcher.yourWorkspaces")}</div>
                   <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
                     {teams.map(team => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check } from "lucide-react";
+import { FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -40,6 +40,11 @@ export default function DocumentPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
+  const [exportStyle, setExportStyle] = useState<'carta' | 'harvard'>('carta');
+  const [exportSize, setExportSize] = useState<'letter' | 'A4'>('A4');
+  const [isExporting, setIsExporting] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'comments' | 'activity'>('comments');
 
   const { activeTeamId } = useSession();
@@ -82,13 +87,33 @@ export default function DocumentPage() {
         return { ...prev, bricks: [...prev.bricks, event.payload].sort((a, b) => a.position - b.position) };
       });
     } else if (event.type === "brick.updated") {
-      setDocument((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          bricks: prev.bricks.map((b) => (b.id === event.payload.id ? event.payload : b)),
-        };
-      });
+      if (event.payload?.fullSyncRequired) {
+        fetchDoc();
+      } else if (event.payload?.contentPatch && event.payload?.id) {
+        setDocument((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            bricks: prev.bricks.map((b) =>
+              b.id === event.payload.id
+                ? {
+                    ...b,
+                    content: { ...(b.content || {}), ...(event.payload.contentPatch || {}) },
+                    updatedAt: event.payload.updatedAt || b.updatedAt,
+                  }
+                : b
+            ),
+          };
+        });
+      } else {
+        setDocument((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            bricks: prev.bricks.map((b) => (b.id === event.payload.id ? event.payload : b)),
+          };
+        });
+      }
     } else if (event.type === "brick.deleted") {
       setDocument((prev) => {
         if (!prev) return prev;
@@ -199,6 +224,36 @@ export default function DocumentPage() {
       fetchDoc(); // Rollback on error
     }
   };
+  const handleExport = async () => {
+    if (!accessToken) return;
+    setIsExporting(true);
+    try {
+      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+      const url = `${API_BASE_URL}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}`;
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      });
+      if (!res.ok) throw new Error("Error en la exportación");
+      
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = window.document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `${document?.title || 'Document'}.${exportFormat}`;
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      
+      toast("Exportación completada", "success");
+      setIsExportModalOpen(false);
+    } catch (e: any) {
+      toast(e.message || "Error al exportar", "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const handleUpdateTitle = async () => {
     if (!accessToken || !document || !tempTitle.trim()) {
       setIsEditingTitle(false);
@@ -308,6 +363,11 @@ export default function DocumentPage() {
             {t("header.comments")}
           </Button>
 
+          <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
+            <Download className="h-3.5 w-3.5" />
+            Descargar
+          </Button>
+
           <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Share2 className="h-3.5 w-3.5" />
             {t("header.share")}
@@ -318,6 +378,57 @@ export default function DocumentPage() {
           </div>
         </div>
       </header>
+
+      {/* Export Modal Backdrop */}
+      {isExportModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsExportModalOpen(false)}>
+          <div className="bg-card w-full max-w-sm border border-border shadow-2xl rounded-xl overflow-hidden p-6 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold flex items-center gap-2">
+                <Download className="h-5 w-5 text-accent" />
+                Exportar o Imprimir
+              </h2>
+              <button onClick={() => setIsExportModalOpen(false)} className="text-muted-foreground hover:text-foreground">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Formato de Exportación</label>
+                <div className="flex gap-2">
+                  <Button variant={exportFormat === 'pdf' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('pdf')}>PDF</Button>
+                  <Button variant={exportFormat === 'docx' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('docx')}>Word (DOCX)</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Estilo Visual</label>
+                <div className="flex gap-2">
+                  <Button variant={exportStyle === 'carta' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('carta')}>Reporte Técnico</Button>
+                  <Button variant={exportStyle === 'harvard' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('harvard')}>Estilo Harvard</Button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tamaño de Hoja</label>
+                <div className="flex gap-2">
+                  <Button variant={exportSize === 'A4' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportSize('A4')}>A4</Button>
+                  <Button variant={exportSize === 'letter' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportSize('letter')}>Carta</Button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-end gap-2">
+              <Button variant="ghost" onClick={() => setIsExportModalOpen(false)}>Cancelar</Button>
+              <Button onClick={handleExport} disabled={isExporting}>
+                {isExporting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
+                Descargar Documento
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Share Modal Backdrop */}
       {isShareModalOpen && (

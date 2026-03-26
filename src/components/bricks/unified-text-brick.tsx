@@ -39,12 +39,15 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
-  const resolveReferences = (content: string) => {
-    return ReferenceResolver.resolveValue(content, { documents, boards, activeBricks, users });
-  };
-
   const tokenEscapeAttr = (value: string): string => {
     return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
+  };
+
+  const escapeHtml = (value: string): string => {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
   };
 
   /**
@@ -107,6 +110,16 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           markdown += "~~";
           Array.from(el.childNodes).forEach(walk);
           markdown += "~~";
+        } else if (tag === "pre") {
+          const lang = (el as HTMLElement).getAttribute("data-code-block") || "";
+          const codeEl = el.querySelector("code");
+          const code = codeEl ? (codeEl.textContent || "") : (el.textContent || "");
+          if (markdown.length > 0 && !markdown.endsWith("\n")) markdown += "\n";
+          markdown += "```" + lang + "\n" + code + "\n```";
+          return;
+        } else if (tag === "code") {
+          markdown += "`" + (el.textContent || "") + "`";
+          return;
         } else if (el.classList.contains("mention-pill")) {
           const type = el.getAttribute("data-type");
           const uid = el.getAttribute("data-id");
@@ -133,49 +146,136 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/\n$/, "");
   };
 
-  const getCursorOffset = (root: HTMLElement | null): number | null => {
+  const getMarkdownLengthOfNode = (node: Node): number => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      return (node.textContent || "").replace(/\u200b/g, "").length;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE) {
+      return 0;
+    }
+
+    const el = node as HTMLElement;
+    const token = el.getAttribute("data-token");
+    if (token) return token.length;
+    if (el.tagName === "BR") return 1;
+
+    let length = 0;
+    for (const child of Array.from(el.childNodes)) {
+      length += getMarkdownLengthOfNode(child);
+    }
+    return length;
+  };
+
+  const getMarkdownCursorOffset = (root: HTMLElement | null): number | null => {
     if (!root || typeof window === "undefined") return null;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return null;
 
     const range = selection.getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(root);
-    preCaretRange.setEnd(range.startContainer, range.startOffset);
-    return preCaretRange.toString().length;
+    const anchorNode = range.startContainer;
+    const anchorOffset = range.startOffset;
+
+    let total = 0;
+    let found = false;
+
+    const walk = (node: Node) => {
+      if (found) return;
+
+      if (node === anchorNode) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          total += anchorOffset;
+        } else {
+          const children = Array.from(node.childNodes);
+          for (let i = 0; i < Math.min(anchorOffset, children.length); i += 1) {
+            total += getMarkdownLengthOfNode(children[i]);
+          }
+        }
+        found = true;
+        return;
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        total += (node.textContent || "").replace(/\u200b/g, "").length;
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      const el = node as HTMLElement;
+      const token = el.getAttribute("data-token");
+      if (token) {
+        total += token.length;
+        return;
+      }
+
+      if (el.tagName === "BR") {
+        total += 1;
+        return;
+      }
+
+      for (const child of Array.from(el.childNodes)) {
+        walk(child);
+        if (found) return;
+      }
+    };
+
+    walk(root);
+    return total;
+  };
+
+  const renderReferencePart = (part: any): string => {
+    const documentIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`;
+    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
+    const cardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`;
+    const userIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+
+    if (part.type === 'mention') {
+      const { mentionType: type, id: uid, name } = part;
+      if (type === 'user') {
+        const token = `@[user:${uid}:${name}]`;
+        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
+      }
+      let icon = documentIcon;
+      if (type === 'board') icon = boardIcon;
+      if (type === 'card') icon = cardIcon;
+      const token = `@[${type}:${uid}:${name}]`;
+      return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
+    }
+
+    if (part.type === 'deep') {
+      const token = `${part.prefix}[${part.inner}]`;
+      return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
+    }
+
+    return typeof part === 'string' ? escapeHtml(part) : String(part || '');
+  };
+
+  const processMarkdownWithPills = (rawText: string): string => {
+    // In edit mode: keep code blocks as raw markdown text so they are editable.
+    // Only pills/references are rendered as interactive spans.
+    const richParts = ReferenceResolver.renderRich(rawText || "", { documents, boards, activeBricks, users });
+    return richParts
+      .map((part) => (typeof part === 'string' ? escapeHtml(part).replace(/\n/g, '<br>') : renderReferencePart(part)))
+      .join('');
   };
 
   /**
    * Converts a markdown string (with \n) to rich semantic HTML for display
    */
   const processPseudoMarkdown = (rawText: string): string => {
-    const resolvedText = resolveReferences(rawText || "");
-    const documentIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-file-text"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></svg>`;
-    const boardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-layout-dashboard"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>`;
-    const cardIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-credit-card"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>`;
-    const userIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-user"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`;
+    // Pre-extract fenced code blocks so they bypass reference + markdown processing
+    const codeBlocks: Array<{ lang: string; code: string }> = [];
+    const sanitized = (rawText || "").replace(/```([\w]*)\r?\n([\s\S]*?)```/g, (_, lang, code) => {
+      const idx = codeBlocks.length;
+      codeBlocks.push({ lang: lang || "", code: code.replace(/\n$/, "") });
+      return `\x00CB${idx}\x00`;
+    });
 
-    const richParts = ReferenceResolver.renderRich(resolvedText, { documents, boards, activeBricks, users });
-    const withLinks = richParts.map(part => {
-      if (typeof part === 'string') return part;
-      if (part.type === 'mention') {
-        const { mentionType: type, id: uid, name } = part;
-        if (type === 'user') {
-          const token = `@[user:${uid}:${name}]`;
-          return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
-        }
-        let icon = documentIcon;
-        if (type === 'board') icon = boardIcon;
-        if (type === 'card') icon = cardIcon;
-        const token = `@[${type}:${uid}:${name}]`;
-        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
-      }
-      if (part.type === 'deep') {
-        const token = `${part.prefix}[${part.inner}]`;
-        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
-      }
-      return part;
-    }).join("");
+    const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users });
+    const withLinks = richParts.map((part) => (typeof part === 'string' ? part : renderReferencePart(part))).join("");
 
     const lines = withLinks.split('\n');
     let html = "";
@@ -183,6 +283,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let listType: "ul" | "ol" | null = null;
 
     const formatInline = (t: string) => t
+      .replace(/`([^`]+)`/g, '<code class="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">$1</code>')
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
       .replace(/__(.*?)__/g, "<u>$1</u>")
       .replace(/\*(.*?)\*/g, "<i>$1</i>")
@@ -199,6 +300,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     lines.forEach(line => {
       const trimmed = line.trim();
+
+      // Code block placeholder
+      const cbMatch = trimmed.match(/^\x00CB(\d+)\x00$/);
+      if (cbMatch) {
+        flushList();
+        const { lang, code } = codeBlocks[parseInt(cbMatch[1])];
+        const escaped = escapeHtml(code);
+        const langLabel = lang ? `<div class="text-xs text-muted-foreground/60 font-mono uppercase tracking-wider mb-2">${lang}</div>` : "";
+        html += `<pre contenteditable="false" class="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto" data-code-block="${lang}">${langLabel}<code class="text-xs font-mono text-foreground/80 whitespace-pre">${escaped}</code></pre>`;
+        return;
+      }
+
       if (!trimmed) { flushList(); html += "<div><br></div>"; return; }
 
       const h1 = trimmed.match(/^#\s+(.*)/);
@@ -231,48 +344,62 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleFocus = () => {
     if (contentRef.current) {
-      // Keep references tokenized while editing to avoid raw @[...], #[...], $[...] strings.
-      const rendered = processPseudoMarkdown(text || "");
-      if (contentRef.current.innerHTML !== rendered) {
-        contentRef.current.innerHTML = rendered;
-      }
+      // In markdown mode keep references as pills and leave markdown syntax as plain text.
+      contentRef.current.innerHTML = processMarkdownWithPills(text || "");
     }
   };
 
   const handleBlur = () => {
     if (contentRef.current) {
-      // Convert current editable structure back to a clean markdown string
-      const markdown = revertToMarkdown(contentRef.current.innerHTML);
-      onUpdate(markdown);
-      // Immediately show the pretty rendered version
-      contentRef.current.innerHTML = processPseudoMarkdown(markdown);
+      // Preserve references as tokens while serializing markdown.
+      const rawMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+      onUpdate(rawMarkdown);
+      contentRef.current.innerHTML = processPseudoMarkdown(rawMarkdown);
     }
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
-    const pill = target.closest('.mention-pill, .user-mention');
+    const pill = target.closest('.mention-pill, .user-mention, .deep-pill');
 
-    if (pill) {
-      // If we are in "rendered" mode (not focused), we navigate
-      const isFocused = document.activeElement === contentRef.current;
-      if (!isFocused) {
-        e.preventDefault();
-        e.stopPropagation();
+    // Non-pill click: let the browser handle it naturally so it places the cursor
+    // exactly where the user clicked. No preventDefault needed.
+    if (!pill) return;
 
-        const type = pill.getAttribute('data-type') || (pill.classList.contains('user-mention') ? 'user' : '');
-        const id = pill.getAttribute('data-id');
+    const isFocused = document.activeElement === contentRef.current;
+    const isModifierClick = e.metaKey || e.ctrlKey;
 
-        if (type === 'doc') router.push(`/d/${id}`);
-        else if (type === 'board') router.push(`/b/${id}`);
-        // Add other navigation or actions as needed
+    // In editable mode, first click should activate this brick instead of navigating away.
+    if (!readonly && !isFocused && !isModifierClick) {
+      requestAnimationFrame(() => contentRef.current?.focus());
+      return;
+    }
+
+    if (!isFocused || readonly || isModifierClick) {
+      e.preventDefault();
+      e.stopPropagation();
+
+      if (pill.classList.contains('deep-pill')) {
+        const inner = pill.getAttribute('data-inner') || '';
+        const docId = inner.split(':')[0];
+        if (docId) {
+          router.push(`/d/${docId}`);
+        }
+        return;
       }
+
+      const type = pill.getAttribute('data-type') || (pill.classList.contains('user-mention') ? 'user' : '');
+      const id = pill.getAttribute('data-id');
+
+      if (type === 'doc') router.push(`/d/${id}`);
+      else if (type === 'board') router.push(`/b/${id}`);
+      // Add other navigation or actions as needed
     }
   };
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (e.key === '@') {
-      const offset = getCursorOffset(contentRef.current);
+      const offset = getMarkdownCursorOffset(contentRef.current);
       setPickerCursorOffset(offset);
       // Small delay to ensure the @ character is in the DOM
       setTimeout(() => setIsPickerOpen(true), 50);
@@ -331,6 +458,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (readonly) return;
 
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setIsPickerOpen(false);
+      setPickerCursorOffset(null);
+      contentRef.current?.blur();
+      return;
+    }
+
     if (e.key === "Backspace") {
       const token = findAdjacentToken("backward");
       if (token) {
@@ -363,7 +498,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     e.preventDefault();
 
     const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
-    const cursorOffset = getCursorOffset(contentRef.current) ?? markdown.length;
+    const cursorOffset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
 
     Promise.resolve(onPasteImage({ file, cursorOffset, markdown })).catch((err) => {
       console.error("Failed to handle pasted image", err);
@@ -371,7 +506,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   };
 
   return (
-    <div className="w-full relative group min-h-[3rem]" onMouseDown={handleMouseDown}>
+    <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
       {readonly ? (
         <RichText 
           content={text} 
@@ -392,7 +527,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
           className={cn(
-            "w-full outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
+            "w-full min-h-[3rem] outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
             "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
             "relative empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none empty:before:block"
           )}
@@ -409,8 +544,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             activeBricks={activeBricks as any[]}
             onClose={() => setIsPickerOpen(false)}
             onSelect={(item: ReferencePickerSelection) => {
-              const currentHtml = contentRef.current?.innerHTML || "";
-              const markdown = revertToMarkdown(currentHtml);
+              const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
               const insertToken = item.token;
               const cursor = pickerCursorOffset ?? markdown.length;
               const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
@@ -418,7 +552,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               const newMarkdown = `${markdown.slice(0, replaceFrom)}${insertToken} ${markdown.slice(safeCursor)}`;
               onUpdate(newMarkdown);
               if (contentRef.current) {
-                contentRef.current.innerHTML = processPseudoMarkdown(newMarkdown);
+                contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
               }
               setIsPickerOpen(false);
               setPickerCursorOffset(null);

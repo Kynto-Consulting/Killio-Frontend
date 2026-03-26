@@ -226,6 +226,19 @@ export function ReferencePicker({
   }, []);
 
   useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        if (mode === "root") onClose();
+        else handleBack();
+      }
+    };
+    window.addEventListener("keydown", handleGlobalKeyDown, { capture: true });
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown, { capture: true });
+  }, [mode, onClose]);
+
+  useEffect(() => {
     const selectedItem = itemRefs.current.get(selectedIndex);
     if (selectedItem) selectedItem.scrollIntoView({ block: "nearest", behavior: "smooth" });
   }, [selectedIndex]);
@@ -526,8 +539,17 @@ export function ReferencePicker({
             : "Elige el selector segun tipo";
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 bg-background/20 backdrop-blur-[2px]">
-      <div className="bg-card w-full max-w-md border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200">
+    <div 
+      className="fixed inset-0 z-[100] flex items-start justify-center pt-20 bg-background/20 backdrop-blur-[2px]"
+      onClick={(e) => {
+        // Prevent default / propagation might not strictly be needed if not wrapped in button, but good measure
+        onClose();
+      }}
+    >
+      <div 
+        className="bg-card w-full max-w-md border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in slide-in-from-top-4 duration-200"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="p-3 border-b border-border flex items-center space-x-2">
           {mode !== "root" ? (
             <button

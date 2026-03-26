@@ -12,7 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * server-side in each route handler / RSC via GET /auth/me.
  */
 
-const PUBLIC_EXACT_PATHS = ['/', '/login', '/signup', '/accept-invite'];
+const PUBLIC_EXACT_PATHS = ['/', '/login', '/signup', '/accept-invite', '/privacy', '/terms', '/cookies'];
 const PUBLIC_PREFIX_PATHS = ['/api'];
 
 function isPublic(pathname: string) {

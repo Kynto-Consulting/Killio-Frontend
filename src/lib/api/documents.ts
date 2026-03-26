@@ -46,6 +46,17 @@ export async function getDocument(documentId: string, accessToken: string): Prom
   return fetchApi(`/documents/${documentId}`, { accessToken });
 }
 
+export async function getDocumentExportUrl(documentId: string, format: 'pdf' | 'docx', style: 'carta' | 'harvard', paperSize: 'letter' | 'A4', accessToken: string): Promise<string> {
+  // Rather than downloading via fetch, we can just return the authorized URL if we had a cookie...
+  // However, since we use bearer tokens, we need to fetch the blob.
+  const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api/v1'}/documents/${documentId}/export?format=${format}&style=${style}&paperSize=${paperSize}`, {
+    headers: { 'Authorization': `Bearer ${accessToken}` }
+  });
+  if (!response.ok) throw new Error('Failed to export document');
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
 export async function updateDocumentTitle(
   documentId: string,
   title: string,

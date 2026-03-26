@@ -5,7 +5,14 @@
   "cta": {
     "primary": "Crear espacio gratis",
     "secondary": "Iniciar sesion",
-    "tertiary": "Explorar plataforma"
+    "tertiary": "Explorar plataforma",
+    "finalPrimary": "Empezar con Killio",
+    "finalSecondary": "Leer terminos"
+  },
+  "nav": {
+    "privacy": "Privacidad",
+    "terms": "Terminos",
+    "cookies": "Cookies"
   },
   "metrics": {
     "teams": {
@@ -36,6 +43,65 @@
       "description": "Acceso por roles, historial de actividad y notificaciones pensadas para equipos distribuidos."
     }
   },
+  "showcase": {
+    "surfaceLabel": "Superficie del producto",
+    "title": "Una vista operativa para trabajo que normalmente vive en cinco pestanas.",
+    "description": "Tableros, documentos, decisiones, resumenes con IA y senales de ejecucion quedan en un mismo lugar para que el equipo avance con menos friccion.",
+    "signal": "Senal de ejecucion",
+    "signalValue": "En vivo",
+    "momentum": "Momentum esta semana",
+    "momentumValue": "+28%",
+    "governance": "Listo para gobierno",
+    "governanceValue": "Roles, historial, notificaciones",
+    "workspace": {
+      "label": "Tablero del workspace",
+      "name": "Launch Control",
+      "teamSize": "6 activos",
+      "columns": {
+        "backlog": "Backlog",
+        "doing": "En curso",
+        "review": "Revision"
+      },
+      "cards": {
+        "alignment": {
+          "title": "Alinear salida del workspace",
+          "body": "Confirmar navegacion, rutas legales y puntos de entrada publicos antes del lanzamiento.",
+          "tag": "Ops"
+        },
+        "bricks": {
+          "title": "Refinar bricks del documento",
+          "body": "Convertir investigacion en bloques de resumen, checklist y referencias para el equipo.",
+          "tag": "Docs"
+        },
+        "launch": {
+          "title": "Revisar narrativa de salida",
+          "body": "Validar mensaje final, manejo de cookies y flujo de registro antes de publicar.",
+          "tag": "Ready"
+        }
+      }
+    },
+    "document": {
+      "label": "Flujo documental",
+      "name": "Brief de lanzamiento",
+      "heading": "Notas de ejecucion",
+      "bricks": {
+        "summary": "Landing, legal y autenticacion quedan agrupados en un mismo brief para que el equipo vea narrativa, tareas y siguientes pasos con contexto.",
+        "checklistOne": "Sincronizar enlaces legales en footer y signup",
+        "checklistTwo": "Confirmar copy del showcase de IA y tableros para salida"
+      }
+    },
+    "copilot": {
+      "label": "Copilot",
+      "name": "Asistente de ejecucion",
+      "userPrompt": "Resume lo que cambio, crea tareas de seguimiento y redacta una nota corta de lanzamiento.",
+      "assistantReply": "Revise el contexto del workspace y prepare las siguientes acciones.",
+      "actions": {
+        "board": "Crear tareas del tablero",
+        "document": "Redactar brief de salida",
+        "summary": "Publicar resumen al equipo"
+      }
+    }
+  },
   "steps": {
     "one": {
       "title": "Captura la senal",
@@ -50,6 +116,10 @@
       "description": "Sigue el progreso, resuelve bloqueos y alinea al equipo de inicio a cierre."
     }
   },
+  "proof": {
+    "title": "Hecho para equipos que necesitan claridad antes de que la velocidad se vuelva caos.",
+    "description": "Killio le da a operadores, founders y equipos de entrega un lugar para alinear prioridades, mantener visibles las decisiones y ejecutar sin perder el hilo."
+  },
   "auth": {
     "title": "Tu flujo de login y registro se mantiene",
     "description": "Conservamos las mismas rutas de autenticacion y hacemos mas clara la entrada desde la landing.",
@@ -60,5 +130,11 @@
     "signupDescription": "Crea tu cuenta, invita a tu equipo y empieza a ejecutar desde el dia uno.",
     "signupCta": "Ir a registro"
   },
-  "footer": "Hecho para equipos rapidos que odian el caos de pestanas."
+  "final": {
+    "title": "Pon estructura a la ejecucion antes de que el trabajo se vuelva ruido.",
+    "description": "Crea un workspace, acepta los terminos una vez y dale a tu equipo un sistema operativo mas claro desde el primer dia."
+  },
+  "footer": "Hecho para equipos rapidos que odian el caos de pestanas.",
+  "footerNote": "Rutas legales clasicas, consentimiento transparente y una entrada publica que no empuja a invitados directo al login.",
+  "copyright": "Killio by Kynto"
 }
