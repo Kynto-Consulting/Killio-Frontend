@@ -9,8 +9,16 @@
   "items": {
     "inviteTitle": "You were invited",
     "inviteMessage": "{{actor}} invited you to {{target}}",
+    "workspaceInviteTitle": "Workspace invitation",
+    "workspaceInviteMessage": "{{actor}} invited you to {{target}} as {{role}}",
+    "boardInviteTitle": "Board invitation",
+    "boardInviteMessage": "You were added to {{target}} as {{role}}",
     "mentionTitle": "You were mentioned",
     "mentionMessage": "{{actor}} mentioned you in {{target}}",
+    "cardDueSoonTitle": "Card due soon: {{cardTitle}}",
+    "cardDueSoonMessage": "The card in {{boardName}} / {{listName}} is due soon.",
+    "cardOverdueTitle": "Overdue card: {{cardTitle}}",
+    "cardOverdueMessage": "The card in {{boardName}} / {{listName}} has passed its due date.",
     "systemTitle": "System notification",
     "systemMessage": "{{text}}"
   }

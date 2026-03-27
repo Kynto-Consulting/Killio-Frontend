@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
@@ -10,6 +10,7 @@ import { useSession } from "../providers/session-provider";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
   const t = useTranslations("board-detail");
@@ -17,13 +18,35 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const { accessToken } = useSession();
   const isGuest = !canEdit;
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const isArchived = Boolean(card.archivedAt);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: card.id, disabled: isArchived });
+
+  useEffect(() => {
+    const requestedCardId = searchParams.get("cardId") || searchParams.get("card");
+    if (requestedCardId === card.id) {
+      setIsModalOpen(true);
+    }
+  }, [card.id, searchParams]);
+
+  const handleCloseModal = () => {
+    setIsModalOpen(false);
+    const requestedCardId = searchParams.get("cardId") || searchParams.get("card");
+    if (requestedCardId !== card.id) return;
+    const nextParams = new URLSearchParams(searchParams.toString());
+    nextParams.delete("cardId");
+    nextParams.delete("card");
+    const nextQuery = nextParams.toString();
+    router.replace(nextQuery ? `${pathname}?${nextQuery}` : pathname, { scroll: false });
+  };
 
   const style = {
     transform: CSS.Transform.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
+    opacity: isDragging ? 0.3 : (isArchived ? 0.58 : 1),
   };
 
   const normalizeColor = (raw?: string | null) => {
@@ -70,9 +93,9 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         className={`group relative flex flex-col gap-3 rounded-lg border ${isDragging
           ? "border-accent shadow-lg ring-1 ring-accent"
           : "border-border shadow-sm hover:border-accent/40"
-          } p-3 cursor-grab active:cursor-grabbing transition-colors`}
-        {...attributes}
-        {...listeners}
+          } p-3 ${isArchived ? 'cursor-default bg-muted/20' : 'cursor-grab active:cursor-grabbing'} transition-colors`}
+        {...(isArchived ? {} : attributes)}
+        {...(isArchived ? {} : listeners)}
       >
 
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -120,18 +143,18 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
           )}
         </div>
 
-        <p className="text-sm font-medium leading-tight transition-colors text-foreground/90 group-hover:text-accent">
+        <p className={`text-sm font-medium leading-tight transition-colors ${isArchived ? 'text-foreground/65' : 'text-foreground/90 group-hover:text-accent'}`}>
           {card.title}
         </p>
 
-        {hasDescription && (
+        {!isArchived && hasDescription && (
           <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2 -mt-1.5 px-0.5">
             {descriptionSnippet}
             {firstTextBrick!.markdown.trim().length > 90 ? '...' : ''}
           </p>
         )}
 
-        {(card.tags || []).length > 0 && (
+        {!isArchived && (card.tags || []).length > 0 && (
           <div className="flex flex-wrap gap-1.5 pr-6">
             {(card.tags || []).map((tag) => (
               <span
@@ -149,57 +172,59 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
           </div>
         )}
 
-        <div className="flex items-center justify-between text-muted-foreground mt-1">
-          <div className="flex items-center space-x-3">
-            {hasDescription && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>
-                <AlignLeft className="h-3.5 w-3.5" />
-              </div>
-            )}
-            {totalChecklistItems > 0 && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.checklistItems")}>
-                <CheckSquare className="h-3.5 w-3.5" />
-                <span>{completedChecklistItems}/{totalChecklistItems}</span>
-              </div>
-            )}
-            {(card.commentsCount || 0) > 0 && (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.comments")}>
-                <MessageSquare className="h-3.5 w-3.5" />
-                <span>{card.commentsCount}</span>
-              </div>
-            )}
-            {attachmentsCount > 0 ? (
-              <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.attachments")}>
-                <Paperclip className="h-3.5 w-3.5" />
-                <span>{attachmentsCount}</span>
-              </div>
-            ) : null}
-          </div>
-
-          {(card.assignees || []).length > 0 && (
-            <div className="flex items-center -space-x-1.5">
-              {assignees.map((assignee: any) => (
-                <img
-                  key={assignee.id}
-                  src={getUserAvatarUrl(assignee.avatar_url || assignee.avatarUrl, assignee.email, 20)}
-                  alt={assignee.name || assignee.displayName || assignee.email}
-                  title={assignee.name || assignee.displayName || assignee.email}
-                  className="h-5 w-5 rounded-full border border-border/70 object-cover bg-muted"
-                />
-              ))}
-              {hiddenAssigneesCount > 0 && (
-                <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-muted px-1 text-[10px] font-medium text-muted-foreground">
-                  +{hiddenAssigneesCount}
-                </span>
+        {!isArchived ? (
+          <div className="flex items-center justify-between text-muted-foreground mt-1">
+            <div className="flex items-center space-x-3">
+              {hasDescription && (
+                <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>
+                  <AlignLeft className="h-3.5 w-3.5" />
+                </div>
               )}
+              {totalChecklistItems > 0 && (
+                <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.checklistItems")}>
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  <span>{completedChecklistItems}/{totalChecklistItems}</span>
+                </div>
+              )}
+              {(card.commentsCount || 0) > 0 && (
+                <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.comments")}>
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  <span>{card.commentsCount}</span>
+                </div>
+              )}
+              {attachmentsCount > 0 ? (
+                <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.attachments")}>
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span>{attachmentsCount}</span>
+                </div>
+              ) : null}
             </div>
-          )}
-        </div>
+
+            {(card.assignees || []).length > 0 && (
+              <div className="flex items-center -space-x-1.5">
+                {assignees.map((assignee: any) => (
+                  <img
+                    key={assignee.id}
+                    src={getUserAvatarUrl(assignee.avatar_url || assignee.avatarUrl, assignee.email, 20)}
+                    alt={assignee.name || assignee.displayName || assignee.email}
+                    title={assignee.name || assignee.displayName || assignee.email}
+                    className="h-5 w-5 rounded-full border border-border/70 object-cover bg-muted"
+                  />
+                ))}
+                {hiddenAssigneesCount > 0 && (
+                  <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-muted px-1 text-[10px] font-medium text-muted-foreground">
+                    +{hiddenAssigneesCount}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <CardDetailModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={handleCloseModal}
         card={card}
         listId={listId}
         listName={listName || ""}

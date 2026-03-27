@@ -9,8 +9,16 @@
   "items": {
     "inviteTitle": "Te invitaron",
     "inviteMessage": "{{actor}} te invito a {{target}}",
+    "workspaceInviteTitle": "Invitacion al workspace",
+    "workspaceInviteMessage": "{{actor}} te invito a {{target}} como {{role}}",
+    "boardInviteTitle": "Invitacion al tablero",
+    "boardInviteMessage": "Te agregaron a {{target}} como {{role}}",
     "mentionTitle": "Te mencionaron",
     "mentionMessage": "{{actor}} te menciono en {{target}}",
+    "cardDueSoonTitle": "Card por vencer: {{cardTitle}}",
+    "cardDueSoonMessage": "La card en {{boardName}} / {{listName}} vence pronto.",
+    "cardOverdueTitle": "Card vencida: {{cardTitle}}",
+    "cardOverdueMessage": "La card en {{boardName}} / {{listName}} ya paso su fecha limite.",
     "systemTitle": "Notificacion del sistema",
     "systemMessage": "{{text}}"
   }

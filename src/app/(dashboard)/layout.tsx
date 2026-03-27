@@ -9,6 +9,7 @@ import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
 import { AppPreferencesModal } from "@/components/ui/preferences-modal";
 import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
 import { NotificationCenter } from "@/components/ui/notification-center";
+import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useEffect, useState } from "react";
@@ -340,6 +341,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto bg-background/50">
           {children}
         </main>
+
+        <CardTimerWidget teamBoards={boards} teamDocs={recentDocuments} />
       </div>
     </div>
   );

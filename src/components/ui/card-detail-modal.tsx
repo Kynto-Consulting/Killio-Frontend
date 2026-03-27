@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search } from "lucide-react";
+import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
 import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile, getBoard, listTeamActivity, generateReportDocumentWithAi } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
@@ -22,14 +22,17 @@ import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { RefPill } from "./ref-pill";
 import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTENT_REGEX, isTimestampInDateRange, resolveReportDateRange, toDocumentMentionToken } from "@/lib/ai-report";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import { toast } from "@/lib/toast";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
   summary: "descripción",
   status: "estado",
-  urgency_state: "urgencia",
   start_at: "inicio",
   due_at: "fecha límite",
+  completed_at: "completada",
+  archived_at: "archivada",
 };
 
 function getActionTheme(action: string) {
@@ -74,6 +77,21 @@ function normalizeDueDateInputValue(value?: string | null): string {
   return parsed.toISOString().split('T')[0];
 }
 
+function formatDurationParts(totalMs: number): string {
+  const totalMinutes = Math.max(0, Math.floor(totalMs / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
+  if (hours > 0) return `${hours}h`;
+  return `${minutes}m`;
+}
+
+function clampTimerValue(value: string, max: number): string {
+  const parsed = Number.parseInt(value || '0', 10);
+  if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed < 0) return '0';
+  return String(Math.min(parsed, max));
+}
+
 export function CardDetailModal({
   isOpen,
   onClose,
@@ -99,10 +117,16 @@ export function CardDetailModal({
   teamDocs?: any[];
   teamBoards?: any[];
 }) {
+  const t = useTranslations("board-detail");
+  const { locale } = useI18n();
   const { accessToken, activeTeamId, user } = useSession();
   const [contextDocs, setContextDocs] = useState<any[]>(teamDocs);
   const [localTitle, setLocalTitle] = useState(card?.title || "");
   const [localDueAt, setLocalDueAt] = useState(normalizeDueDateInputValue(card?.dueAt));
+  const [localStartAt, setLocalStartAt] = useState<string | null>(card?.startAt || null);
+  const [localDueAtTimestamp, setLocalDueAtTimestamp] = useState<string | null>(card?.dueAt || null);
+  const [localCompletedAt, setLocalCompletedAt] = useState<string | null>(card?.completedAt || null);
+  const [localArchivedAt, setLocalArchivedAt] = useState<string | null>(card?.archivedAt || null);
   const [localTags, setLocalTags] = useState<any[]>(card?.tags || []);
   const normalizeAssignee = useCallback((raw: any) => ({
     id: raw?.id,
@@ -129,6 +153,10 @@ export function CardDetailModal({
   const [isTagDropdownOpen, setIsTagDropdownOpen] = useState(false);
   const [areTagsExpanded, setAreTagsExpanded] = useState(false);
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
+  const [isTimerDropdownOpen, setIsTimerDropdownOpen] = useState(false);
+  const [timerHoursInput, setTimerHoursInput] = useState("1");
+  const [timerMinutesInput, setTimerMinutesInput] = useState("0");
+  const [isTimerSubmitting, setIsTimerSubmitting] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [activeTab, setActiveTab] = useState<'comments' | 'activity' | 'copilot'>(card?.id ? 'comments' : 'copilot');
@@ -158,6 +186,7 @@ export function CardDetailModal({
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
 
   const titleRef = useRef<HTMLHeadingElement>(null);
   const tagsRowRef = useRef<HTMLDivElement>(null);
@@ -183,6 +212,26 @@ export function CardDetailModal({
     if (localTitle?.trim()) return localTitle.trim();
     return card?.title?.trim() || "";
   };
+
+  const emitCardRefresh = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    window.dispatchEvent(new Event('board:refresh'));
+    window.dispatchEvent(new Event('card-timer:refresh'));
+  }, []);
+
+  const isCardArchived = Boolean(localArchivedAt);
+  const isCardCompleted = Boolean(localCompletedAt);
+  const isCurrentUserAssigned = Boolean(user?.id && localAssignees.some((assignee) => assignee.id === user.id));
+  const isTimerActive = Boolean(localStartAt && localDueAtTimestamp && !localCompletedAt && !localArchivedAt);
+  const timerDueMs = localDueAtTimestamp ? new Date(localDueAtTimestamp).getTime() : null;
+  const timerRemainingMs = timerDueMs ? timerDueMs - now : null;
+  const timerRemainingLabel = timerRemainingMs !== null
+    ? t(timerRemainingMs >= 0 ? 'cardModal.timer.remaining' : 'cardModal.timer.overdue', { duration: formatDurationParts(Math.abs(timerRemainingMs)) })
+    : null;
+  const formatUiDateTime = useCallback((value: string) => new Date(value).toLocaleString(locale), [locale]);
+  const timerDueLabel = localDueAtTimestamp
+    ? `${t('cardModal.timer.dueDate')}: ${formatUiDateTime(localDueAtTimestamp)}`
+    : null;
 
   const escapeHtml = (text: string) => {
     return text
@@ -398,10 +447,11 @@ export function CardDetailModal({
         const updates: Record<string, any> = {};
         if (payload?.title !== undefined) updates.title = payload.title;
         if (payload?.summary !== undefined) updates.summary = payload.summary;
-        if (payload?.urgency_state !== undefined) updates.urgency_state = payload.urgency_state;
         if (payload?.status !== undefined) updates.status = payload.status;
         if (payload?.start_at !== undefined) updates.start_at = payload.start_at;
         if (payload?.due_at !== undefined) updates.due_at = payload.due_at;
+        if (payload?.completed_at !== undefined) updates.completed_at = payload.completed_at;
+        if (payload?.archived_at !== undefined) updates.archived_at = payload.archived_at;
         if (payload?.targetListId !== undefined || payload?.list_id !== undefined) {
           updates.list_id = payload?.list_id ?? payload?.targetListId;
         }
@@ -551,8 +601,8 @@ export function CardDetailModal({
     return [
       listLabel ? `[${listLabel}]` : null,
       `Card: ${cardData?.title || 'Untitled'}`,
+      `status: ${cardData?.status || 'active'}`,
       `due: ${cardData?.dueAt || 'none'}`,
-      `urgency: ${cardData?.urgency || 'normal'}`,
       `tags: ${tags}`,
       `assignees: ${assignees}`,
       `bricks: ${bricks.length}`,
@@ -761,6 +811,10 @@ export function CardDetailModal({
         setLocalTitle(nextTitle);
         syncTitleDom(nextTitle);
         setLocalDueAt(normalizeDueDateInputValue(card.dueAt));
+        setLocalStartAt(card.startAt || null);
+        setLocalDueAtTimestamp(card.dueAt || null);
+        setLocalCompletedAt(card.completedAt || null);
+        setLocalArchivedAt(card.archivedAt || null);
         setLocalTags(card.tags || []);
         setLocalAssignees((card.assignees || []).map(normalizeAssignee));
         setLocalBlocks(card.blocks || []);
@@ -768,6 +822,10 @@ export function CardDetailModal({
         setLocalTitle("New Card");
         syncTitleDom("New Card");
         setLocalDueAt("");
+        setLocalStartAt(null);
+        setLocalDueAtTimestamp(null);
+        setLocalCompletedAt(null);
+        setLocalArchivedAt(null);
         setLocalTags([]);
         setLocalAssignees([]);
         setLocalBlocks([createEmptyTextBrick()]);
@@ -778,8 +836,15 @@ export function CardDetailModal({
       setNewTagColor('#3b82f6');
       setAreTagsExpanded(false);
       setIsAssigneeDropdownOpen(false);
+      setIsTimerDropdownOpen(false);
     }
   }, [isOpen, card, createEmptyTextBrick, normalizeAssignee, syncTitleDom]);
+
+  useEffect(() => {
+    if (!isOpen || !isTimerActive) return;
+    const interval = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(interval);
+  }, [isOpen, isTimerActive]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -860,10 +925,10 @@ export function CardDetailModal({
     setVisibleTagCount(Math.max(1, Math.min(visible, localTags.length)));
   }, [localTags]);
 
-  const locale = getClientLocale();
+  const nativeTagLocale = getClientLocale();
   const getTagLabel = (tag: any) => {
     const rawName = String(tag?.name || tag || '');
-    return translateNativeTagName(rawName, locale);
+    return translateNativeTagName(rawName, nativeTagLocale);
   };
 
   const handleSelectNativeSuggestion = async (suggestion: { key: string; color: string }) => {
@@ -1369,9 +1434,141 @@ export function CardDetailModal({
 
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
 
+  const applyCardPatch = useCallback(async (updates: Record<string, any>) => {
+    if (!card?.id || !accessToken) return;
+    await updateCard(card.id, withListContext(updates), accessToken);
+    router.refresh();
+    emitCardRefresh();
+  }, [accessToken, card?.id, emitCardRefresh, router]);
+
+  const handleStartTask = useCallback(async () => {
+    if (readonly || !card?.id || !accessToken || localAssignees.length === 0 || !isCurrentUserAssigned || isTimerSubmitting) return;
+
+    const hours = Number.parseInt(timerHoursInput || '0', 10) || 0;
+    const minutes = Number.parseInt(timerMinutesInput || '0', 10) || 0;
+    const totalMinutes = hours * 60 + minutes;
+
+    if (totalMinutes <= 0) {
+      toast(t('cardModal.timer.durationRequired'), 'info');
+      return;
+    }
+
+    if (totalMinutes > 72 * 60) {
+      toast(t('cardModal.timer.maxDuration'), 'info');
+      return;
+    }
+
+    const startAt = new Date();
+    const dueAt = new Date(startAt.getTime() + totalMinutes * 60_000);
+
+    setIsTimerSubmitting(true);
+    try {
+      await applyCardPatch({
+        status: 'active',
+        start_at: startAt.toISOString(),
+        due_at: dueAt.toISOString(),
+        completed_at: null,
+      });
+      setLocalStartAt(startAt.toISOString());
+      setLocalDueAtTimestamp(dueAt.toISOString());
+      setLocalDueAt(normalizeDueDateInputValue(dueAt.toISOString()));
+      setLocalCompletedAt(null);
+      setIsTimerDropdownOpen(false);
+      toast(t('cardModal.timer.startedSuccess', { duration: formatDurationParts(totalMinutes * 60_000) }), 'success');
+    } catch (err) {
+      console.error('Failed to start task timer', err);
+      toast(t('cardModal.timer.startedError'), 'error');
+    } finally {
+      setIsTimerSubmitting(false);
+    }
+  }, [accessToken, applyCardPatch, card?.id, isCurrentUserAssigned, isTimerSubmitting, localAssignees.length, readonly, timerHoursInput, timerMinutesInput]);
+
+  const handleCancelTask = useCallback(async () => {
+    if (readonly || !card?.id || !accessToken || !isCurrentUserAssigned || isTimerSubmitting) return;
+    setIsTimerSubmitting(true);
+    try {
+      await applyCardPatch({
+        status: localCompletedAt ? 'done' : 'active',
+        start_at: null,
+        due_at: null,
+        completed_at: null,
+      });
+      setLocalStartAt(null);
+      setLocalDueAtTimestamp(null);
+      setLocalDueAt('');
+      setLocalCompletedAt(null);
+      toast(t('cardModal.timer.cancelledSuccess'), 'info');
+    } catch (err) {
+      console.error('Failed to cancel task timer', err);
+      toast(t('cardModal.timer.cancelledError'), 'error');
+    } finally {
+      setIsTimerSubmitting(false);
+    }
+  }, [accessToken, applyCardPatch, card?.id, isCurrentUserAssigned, isTimerSubmitting, localCompletedAt, readonly]);
+
+  const handleCompleteTask = useCallback(async () => {
+    if (readonly || !card?.id || !accessToken || !isCurrentUserAssigned || !localDueAtTimestamp || isTimerSubmitting) return;
+    const completedAt = new Date();
+    const remainingMs = new Date(localDueAtTimestamp).getTime() - completedAt.getTime();
+
+    setIsTimerSubmitting(true);
+    try {
+      await applyCardPatch({
+        status: 'done',
+        completed_at: completedAt.toISOString(),
+      });
+      setLocalCompletedAt(completedAt.toISOString());
+      if (remainingMs > 0) {
+        toast(t('cardModal.timer.completedEarly', { duration: formatDurationParts(remainingMs) }), 'success');
+      } else {
+        toast(t('cardModal.timer.completedSuccess'), 'success');
+      }
+    } catch (err) {
+      console.error('Failed to complete task timer', err);
+      toast(t('cardModal.timer.completedError'), 'error');
+    } finally {
+      setIsTimerSubmitting(false);
+    }
+  }, [accessToken, applyCardPatch, card?.id, isCurrentUserAssigned, isTimerSubmitting, localDueAtTimestamp, readonly]);
+
+  const handleToggleArchive = useCallback(async () => {
+    if (readonly || !card?.id || !accessToken || isTimerSubmitting) return;
+    const nextArchivedAt = localArchivedAt ? null : new Date().toISOString();
+
+    setIsTimerSubmitting(true);
+    try {
+      await applyCardPatch({
+        status: nextArchivedAt ? 'archived' : (localCompletedAt ? 'done' : 'active'),
+        archived_at: nextArchivedAt,
+        start_at: nextArchivedAt ? null : localStartAt,
+        due_at: nextArchivedAt ? null : localDueAtTimestamp,
+      });
+      setLocalArchivedAt(nextArchivedAt);
+      if (nextArchivedAt) {
+        setLocalStartAt(null);
+        setLocalDueAtTimestamp(null);
+        setLocalDueAt('');
+        toast(t('cardModal.timer.archivedSuccess'), 'info');
+      } else {
+        toast(t('cardModal.timer.restoredSuccess'), 'success');
+      }
+    } catch (err) {
+      console.error('Failed to toggle archive state', err);
+      toast(t('cardModal.timer.archiveError'), 'error');
+    } finally {
+      setIsTimerSubmitting(false);
+    }
+  }, [accessToken, applyCardPatch, card?.id, isTimerSubmitting, localArchivedAt, localCompletedAt, localDueAtTimestamp, localStartAt, readonly]);
+
   const handleUpdateField = useCallback((field: string, value: any, instant: boolean = true) => {
     if (field === 'title') setLocalTitle(value);
-    if (field === 'due_at') setLocalDueAt(value);
+    if (field === 'due_at') {
+      setLocalDueAt(value);
+      setLocalDueAtTimestamp(value || null);
+    }
+    if (field === 'start_at') setLocalStartAt(value || null);
+    if (field === 'completed_at') setLocalCompletedAt(value || null);
+    if (field === 'archived_at') setLocalArchivedAt(value || null);
     if (!card?.id || !accessToken) return;
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     const doUpdate = async () => {
@@ -1380,14 +1577,14 @@ export function CardDetailModal({
         await updateCard(card.id, payload, accessToken);
         // Removed legacy description/summary refresh logic
         router.refresh();
-        window.dispatchEvent(new Event('board:refresh'));
+        emitCardRefresh();
       } catch (err) {
         console.error("Failed to update card", err);
       }
     };
     if (instant) doUpdate();
     else debounceTimer.current = setTimeout(doUpdate, 500);
-  }, [card?.id, accessToken]);
+  }, [accessToken, card?.id, emitCardRefresh, router]);
 
   const submitCreate = async () => {
     if (!listId || !accessToken || isCreating) return;
@@ -1397,7 +1594,6 @@ export function CardDetailModal({
         listId,
         title: localTitle || "New Card",
         dueAt: localDueAt || undefined,
-        urgency: "normal",
         tags: localTags.map(t => t.id),
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
@@ -1487,12 +1683,12 @@ export function CardDetailModal({
   const normalizedTagSearch = tagSearch.trim().toLowerCase();
   const filteredAvailableTags = availableTags.filter((t) => {
     const rawName = String(t?.name || '').toLowerCase();
-    const localizedName = translateNativeTagName(t.name || '', locale).toLowerCase();
+    const localizedName = translateNativeTagName(t.name || '', nativeTagLocale).toLowerCase();
     return rawName.includes(normalizedTagSearch) || localizedName.includes(normalizedTagSearch);
   });
 
   const nativeSuggestionsToShow = DEFAULT_NATIVE_TAG_SUGGESTIONS.filter((suggestion) => {
-    const suggestionLabel = translateNativeTagName(suggestion.key, locale).toLowerCase();
+    const suggestionLabel = translateNativeTagName(suggestion.key, nativeTagLocale).toLowerCase();
     const existsEquivalent = availableTags.some((t) => {
       const rawName = String(t?.name || '').trim().toLowerCase();
       const rawSlug = String(t?.slug || '').trim().toLowerCase();
@@ -1520,7 +1716,14 @@ export function CardDetailModal({
 
   const formatActivityChanges = (changes: Record<string, { from: unknown; to: unknown }> | undefined) => {
     if (!changes) return '';
-    const labels: Record<string, string> = { title: 'titulo', status: 'estado', urgency_state: 'urgencia', start_at: 'inicio', due_at: 'fecha limite' };
+    const labels: Record<string, string> = {
+      title: 'titulo',
+      status: 'estado',
+      start_at: 'inicio',
+      due_at: 'fecha limite',
+      completed_at: 'completada',
+      archived_at: 'archivada',
+    };
     const entries = Object.entries(changes);
     if (entries.length === 0) return '';
     const fields = entries.map(([field]) => labels[field] || field);
@@ -1617,12 +1820,38 @@ export function CardDetailModal({
             <span className="text-border">/</span>
             <span className="font-semibold text-foreground truncate max-w-[200px]">{localTitle || card?.title || "Untitled Card"}</span>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             {!card?.id && (
               <button onClick={submitCreate} disabled={isCreating} className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50">
                 {isCreating ? "Creating..." : "Create"}
               </button>
             )}
+            {card?.id && timerDueLabel ? (
+              <span className="hidden rounded-full border border-border/70 bg-background/60 px-3 py-1 text-xs font-medium text-muted-foreground md:inline-flex">
+                {timerDueLabel}
+              </span>
+            ) : null}
+            {card?.id && isTimerActive && timerRemainingLabel ? (
+              <span className="hidden rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-300 md:inline-flex">
+                {timerRemainingLabel}
+              </span>
+            ) : null}
+            {card?.id && isTimerActive && !readonly && isCurrentUserAssigned ? (
+              <>
+                <button type="button" onClick={() => void handleCancelTask()} disabled={isTimerSubmitting} className="hidden rounded-xl border border-border/70 px-3 py-2 text-xs font-semibold text-muted-foreground hover:text-foreground disabled:opacity-50 md:inline-flex">{t('cardModal.timer.cancel')}</button>
+                <button type="button" onClick={() => void handleCompleteTask()} disabled={isTimerSubmitting} className="hidden rounded-xl bg-emerald-500 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50 md:inline-flex">{t('cardModal.timer.finish')}</button>
+              </>
+            ) : null}
+            {card?.id ? (
+              <button
+                onClick={() => void handleToggleArchive()}
+                disabled={isTimerSubmitting || readonly}
+                className="rounded-full p-1.5 hover:bg-accent/10 hover:text-foreground transition-colors text-muted-foreground disabled:opacity-50"
+                title={isCardArchived ? t('cardModal.unarchiveCard') : t('cardModal.archiveCard')}
+              >
+                {isCardArchived ? <ArchiveRestore className="h-4 w-4" /> : <Archive className="h-4 w-4" />}
+              </button>
+            ) : null}
             <button onClick={handleClose} className="rounded-full p-1.5 hover:bg-accent/10 hover:text-foreground transition-colors text-muted-foreground"><X className="h-5 w-5" /></button>
           </div>
         </div>
@@ -1708,7 +1937,7 @@ export function CardDetailModal({
                                   className="flex items-center space-x-1.5 px-2 py-1 rounded bg-muted/50 hover:bg-accent border border-border/50 text-[10px] transition-all hover:scale-[1.02] active:scale-[0.98]"
                                 >
                                   <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: suggestion.color }} />
-                                  <span>{translateNativeTagName(suggestion.key, locale)}</span>
+                                  <span>{translateNativeTagName(suggestion.key, nativeTagLocale)}</span>
                                 </button>
                               ))}
                             </div>
@@ -1752,7 +1981,21 @@ export function CardDetailModal({
                     <div className="flex -space-x-2 overflow-hidden">
                       {localAssignees.map(u => <img key={u.id} src={getUserAvatarUrl(u.avatar_url, u.email, 24)} alt={u.name} className="h-6 w-6 rounded-full border-2 border-background object-cover" />)}
                     </div>
-                    <button onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)} className="h-6 w-6 rounded-full border border-dashed flex items-center justify-center ml-1"><UserPlus className="h-3 w-3" /></button>
+                    <button onClick={() => { setIsTimerDropdownOpen(false); setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen); }} disabled={readonly} className="h-6 w-6 rounded-full border border-dashed flex items-center justify-center ml-1 disabled:opacity-40"><UserPlus className="h-3 w-3" /></button>
+                    {card?.id && localAssignees.length > 0 && isCurrentUserAssigned ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsAssigneeDropdownOpen(false);
+                          setIsTimerDropdownOpen((prev) => !prev);
+                        }}
+                        disabled={isCardArchived || readonly}
+                        className="h-6 w-6 rounded-full border border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-accent/50 disabled:opacity-40"
+                        title={t('cardModal.timer.startTimer')}
+                      >
+                        <Clock3 className="h-3 w-3" />
+                      </button>
+                    ) : null}
                     {isAssigneeDropdownOpen && (
                       <div className="absolute right-0 top-9 z-30 w-72 rounded-xl border border-border/80 bg-card shadow-2xl p-2 space-y-1">
                         <div className="px-2 pb-2 border-b border-border/50">
@@ -1790,6 +2033,46 @@ export function CardDetailModal({
                         </div>
                       </div>
                     )}
+                    {isTimerDropdownOpen && card?.id ? (
+                      <div className="absolute right-0 top-9 z-30 w-72 rounded-xl border border-border/80 bg-card shadow-2xl p-3 space-y-3">
+                        <div>
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t('cardModal.timer.durationTitle')}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{t('cardModal.timer.durationDescription')}</p>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          <label className="space-y-1 text-xs text-muted-foreground">
+                            <span>{t('cardModal.timer.hours')}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={72}
+                              value={timerHoursInput}
+                              onChange={(event) => setTimerHoursInput(clampTimerValue(event.target.value, 72))}
+                              disabled={readonly}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                            />
+                          </label>
+                          <label className="space-y-1 text-xs text-muted-foreground">
+                            <span>{t('cardModal.timer.minutes')}</span>
+                            <input
+                              type="number"
+                              min={0}
+                              max={59}
+                              value={timerMinutesInput}
+                              onChange={(event) => setTimerMinutesInput(clampTimerValue(event.target.value, 59))}
+                              disabled={readonly}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                            />
+                          </label>
+                        </div>
+                        <div className="flex items-center justify-end gap-2">
+                          <button type="button" onClick={() => setIsTimerDropdownOpen(false)} className="px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">{t('cardModal.timer.cancel')}</button>
+                          <button type="button" onClick={() => void handleStartTask()} disabled={isTimerSubmitting || isCardArchived || readonly || !isCurrentUserAssigned} className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
+                            {isTimerSubmitting ? t('cardModal.timer.starting') : t('cardModal.timer.startTimer')}
+                          </button>
+                        </div>
+                      </div>
+                    ) : null}
                   </div>
                 </div>
 

@@ -450,7 +450,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         const results = await Promise.allSettled(
           payloads.map(async (entry) => {
-            const card = await createCard({ listId: entry.listId, title: entry.draft.title?.trim() || "Tarjeta sin titulo", urgency: "normal" }, accessToken);
+            const card = await createCard({ listId: entry.listId, title: entry.draft.title?.trim() || "Tarjeta sin titulo" }, accessToken);
             if (entry.draft.bricks) {
               for (const brick of entry.draft.bricks) {
                 await createCardBrick(card.id, {
@@ -523,7 +523,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               const list = await createList(board.id, { name: lDraft.name, position: i }, accessToken);
               if (lDraft.cards) {
                 for (const cDraft of lDraft.cards) {
-                  const card = await createCard({ listId: list.id, title: cDraft.title, urgency: 'normal' }, accessToken);
+                  const card = await createCard({ listId: list.id, title: cDraft.title }, accessToken);
                   if (cDraft.bricks) {
                     for (const bDraft of cDraft.bricks) {
                       await createCardBrick(card.id, { kind: bDraft.kind, markdown: bDraft.content.markdown, items: bDraft.content.items, displayStyle: 'paragraph' }, accessToken);

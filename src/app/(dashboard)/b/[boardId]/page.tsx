@@ -126,7 +126,11 @@ function applyCardCreated(lists: BoardListState[], payload: Record<string, unkno
         id: cardId,
         title,
         summary: null,
+        status: "active",
+        startAt: null,
         dueAt: null,
+        completedAt: null,
+        archivedAt: null,
         urgency: "normal",
         blocks: [],
         tags: [],
@@ -201,9 +205,25 @@ function applyCardUpdated(lists: BoardListState[], payload: Record<string, unkno
     nextCard.dueAt = dueAtTo;
   }
 
-  const urgencyTo = asString(changes.urgency_state?.to);
-  if (urgencyTo === "normal" || urgencyTo === "urgent") {
-    nextCard.urgency = urgencyTo;
+  const startAtTo = changes.start_at?.to;
+  if (typeof startAtTo === "string" || startAtTo === null) {
+    nextCard.startAt = startAtTo;
+  }
+
+  const completedAtTo = changes.completed_at?.to;
+  if (typeof completedAtTo === "string" || completedAtTo === null) {
+    nextCard.completedAt = completedAtTo;
+  }
+
+  const archivedAtTo = changes.archived_at?.to;
+  if (typeof archivedAtTo === "string" || archivedAtTo === null) {
+    nextCard.archivedAt = archivedAtTo;
+    return { nextLists: lists, needsFallback: true };
+  }
+
+  const statusTo = asString(changes.status?.to);
+  if (statusTo === "draft" || statusTo === "active" || statusTo === "done" || statusTo === "archived") {
+    nextCard.status = statusTo;
   }
 
   const targetListId = asString(changes.list_id?.to) ?? listIdFromPayload ?? sourceList.id;

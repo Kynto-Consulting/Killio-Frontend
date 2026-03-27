@@ -16,9 +16,10 @@ const fieldLabels: Record<string, string> = {
   title: "título",
   summary: "descripción",
   status: "estado",
-  urgency_state: "urgencia",
   start_at: "inicio",
   due_at: "fecha límite",
+  completed_at: "completada",
+  archived_at: "archivada",
 };
 
 function getActionTheme(action: string) {

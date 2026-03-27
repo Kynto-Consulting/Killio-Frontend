@@ -54,7 +54,9 @@
     "status": "estado",
     "urgencyState": "urgencia",
     "startAt": "inicio",
-    "dueAt": "fecha limite"
+    "dueAt": "fecha limite",
+    "completedAt": "completada",
+    "archivedAt": "archivada"
   },
   "historyTitle": "Historial de {{badge}}",
   "summary": "Resumen",

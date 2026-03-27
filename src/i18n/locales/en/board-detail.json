@@ -39,7 +39,52 @@
     "hasDescription": "This card has a description",
     "checklistItems": "Checklist items",
     "comments": "Comments",
-    "attachments": "Attachments"
+    "attachments": "Attachments",
+    "archived": "Archived"
+  },
+  "cardModal": {
+    "archiveCard": "Archive card",
+    "unarchiveCard": "Restore card",
+    "timer": {
+      "remaining": "{{duration}} left",
+      "overdue": "Overdue by {{duration}}",
+      "durationTitle": "Duration",
+      "durationDescription": "Set hours and minutes. Maximum 72h.",
+      "hours": "Hours",
+      "minutes": "Minutes",
+      "startTask": "Start timer",
+      "starting": "Starting...",
+      "assigneeRequired": "Assign at least one person before starting the task.",
+      "dueDate": "Due date",
+      "archived": "Archived",
+      "completed": "Completed",
+      "startedAt": "Started: {{value}}",
+      "finishedAt": "Finished: {{value}}",
+      "startTimer": "Start timer",
+      "cancel": "Cancel",
+      "finish": "Finish",
+      "durationRequired": "Set a duration longer than 0 minutes.",
+      "maxDuration": "The maximum duration is 72 hours.",
+      "startedSuccess": "Timer started for {{duration}}.",
+      "startedError": "The timer could not be started.",
+      "cancelledSuccess": "Timer cancelled.",
+      "cancelledError": "The timer could not be cancelled.",
+      "completedEarly": "You finished {{duration}} before the deadline.",
+      "completedSuccess": "Task finished.",
+      "completedError": "The task could not be finished.",
+      "archivedSuccess": "Card archived.",
+      "restoredSuccess": "Card restored.",
+      "archiveError": "The archive status could not be changed."
+    },
+    "widget": {
+      "activeTask": "Active task",
+      "loading": "Loading...",
+      "goToCard": "Go to card",
+      "dueAt": "Due: {{value}}",
+      "cancelTimer": "Cancel",
+      "finishTask": "Finish",
+      "otherTasks": "+{{count}} other"
+    }
   },
   "shareModal": {
     "title": "Share \"{{boardName}}\"",

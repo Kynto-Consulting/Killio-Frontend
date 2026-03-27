@@ -28,6 +28,10 @@ export function Toaster() {
     return () => window.removeEventListener("killio:toast", handleToast);
   }, []);
 
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("killio:toast-count", { detail: { count: toasts.length } }));
+  }, [toasts.length]);
+
   if (toasts.length === 0) return null;
 
   return (

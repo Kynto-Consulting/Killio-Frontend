@@ -218,7 +218,17 @@ export type TagView = {
 export type CardView = {
   id: string;
   title: string;
+  summary?: string | null;
+  status?: 'draft' | 'active' | 'done' | 'archived';
+  startAt?: string | null;
   dueAt: string | null;
+  completedAt?: string | null;
+  archivedAt?: string | null;
+  listId?: string;
+  listName?: string;
+  boardId?: string;
+  boardName?: string;
+  position?: number;
   urgency: 'normal' | 'urgent';
   blocks: BoardBrick[];
   tags?: TagView[];
@@ -226,6 +236,17 @@ export type CardView = {
   createdAt: string;
   updatedAt: string;
   commentsCount?: number;
+};
+
+export type ActiveCardTimer = {
+  cardId: string;
+  title: string;
+  boardId: string;
+  boardName: string;
+  listId: string;
+  listName: string;
+  startAt: string;
+  dueAt: string;
 };
 
 export type ListView = {
@@ -515,7 +536,7 @@ export async function updateList(
 }
 
 
-export async function createCard(body: { listId: string; title: string; dueAt?: string; urgency?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
+export async function createCard(body: { listId: string; title: string; dueAt?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards`, {
     method: 'POST',
     headers: accessToken ? authHeaders(accessToken) : undefined,
@@ -641,6 +662,27 @@ export async function updateCard(cardId: string, updates: Record<string, any>, a
     method: 'PATCH',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify(updates),
+  });
+}
+
+export async function getCard(cardId: string, accessToken: string): Promise<CardView> {
+  return request<CardView>(`/cards/${cardId}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function getActiveCardTimer(accessToken: string): Promise<ActiveCardTimer | null> {
+  return request<ActiveCardTimer | null>(`/cards/active-timer/current`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function getActiveCardTimers(accessToken: string): Promise<ActiveCardTimer[]> {
+  return request<ActiveCardTimer[]>(`/cards/active-timer/list`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
   });
 }
 

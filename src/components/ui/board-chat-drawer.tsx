@@ -18,9 +18,10 @@ const fieldLabels: Record<string, string> = {
   title: "título",
   summary: "descripción",
   status: "estado",
-  urgency_state: "urgencia",
   start_at: "inicio",
   due_at: "fecha límite",
+  completed_at: "completada",
+  archived_at: "archivada",
 };
 
 function getActionTheme(action: string) {
@@ -289,7 +290,7 @@ export function BoardChatDrawer({
 
     return [
       `Card: ${card.title}`,
-      `status: ${card.urgency || "normal"}`,
+      `status: ${card.status || "active"}`,
       `due: ${card.dueAt || "none"}`,
       `tags: ${tags}`,
       `assignees: ${assignees}`,
@@ -570,10 +571,11 @@ export function BoardChatDrawer({
         const updates: Record<string, any> = {};
         if (payload?.title !== undefined) updates.title = payload.title;
         if (payload?.summary !== undefined) updates.summary = payload.summary;
-        if (payload?.urgency_state !== undefined) updates.urgency_state = payload.urgency_state;
         if (payload?.status !== undefined) updates.status = payload.status;
         if (payload?.start_at !== undefined) updates.start_at = payload.start_at;
         if (payload?.due_at !== undefined) updates.due_at = payload.due_at;
+        if (payload?.completed_at !== undefined) updates.completed_at = payload.completed_at;
+        if (payload?.archived_at !== undefined) updates.archived_at = payload.archived_at;
         if (payload?.targetListId !== undefined || payload?.list_id !== undefined) {
           updates.list_id = payload?.list_id ?? payload?.targetListId;
         }
@@ -784,7 +786,7 @@ export function BoardChatDrawer({
                         ) : <Bot className="h-4 w-4" />}
                       </div>
                       <div
-                        className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
+                        className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border whitespace-pre-wrap break-words ${msg.role === 'user'
                           ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
                           : 'bg-muted/50 border-border/50 rounded-tl-none'
                           }`}
@@ -885,7 +887,7 @@ export function BoardChatDrawer({
                     )
                   )}
                 </div>
-                <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1">
+                <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1 whitespace-pre-wrap break-words">
                   <RichText
                     content={msg.content}
                     context={getResolverContext(teamDocs, [], teamMembers)}
@@ -909,7 +911,7 @@ export function BoardChatDrawer({
                 ) : ( msg.avatar || (user?.displayName?.[0] || 'U') )}
               </div>
               <div
-                className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20"
+                className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20 whitespace-pre-wrap break-words"
                 style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" }}
               >
                 <RichText

@@ -218,9 +218,10 @@ export default function HistoryPage() {
     title: t("fields.title"),
     summary: t("fields.summary"),
     status: t("fields.status"),
-    urgency_state: t("fields.urgencyState"),
     start_at: t("fields.startAt"),
     due_at: t("fields.dueAt"),
+    completed_at: t("fields.completedAt"),
+    archived_at: t("fields.archivedAt"),
   };
   const [teamName, setTeamName] = useState<string>("");
   const [activities, setActivities] = useState<ActivityVisual[]>([]);

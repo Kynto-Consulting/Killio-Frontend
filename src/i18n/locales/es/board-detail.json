@@ -39,7 +39,52 @@
     "hasDescription": "Esta tarjeta tiene descripcion",
     "checklistItems": "Items de checklist",
     "comments": "Comentarios",
-    "attachments": "Adjuntos"
+    "attachments": "Adjuntos",
+    "archived": "Archivada"
+  },
+  "cardModal": {
+    "archiveCard": "Archivar tarjeta",
+    "unarchiveCard": "Desarchivar tarjeta",
+    "timer": {
+      "remaining": "Faltan {{duration}}",
+      "overdue": "Vencida hace {{duration}}",
+      "durationTitle": "Duracion",
+      "durationDescription": "Configura horas y minutos. Maximo 72h.",
+      "hours": "Horas",
+      "minutes": "Minutos",
+      "startTask": "Iniciar timer",
+      "starting": "Iniciando...",
+      "assigneeRequired": "Asigna al menos una persona antes de iniciar la tarea.",
+      "dueDate": "Fecha limite",
+      "archived": "Archivada",
+      "completed": "Completada",
+      "startedAt": "Inicio: {{value}}",
+      "finishedAt": "Fin: {{value}}",
+      "startTimer": "Iniciar timer",
+      "cancel": "Cancelar",
+      "finish": "Terminar",
+      "durationRequired": "Define una duracion mayor a 0 minutos.",
+      "maxDuration": "La duracion maxima es de 72 horas.",
+      "startedSuccess": "Timer iniciado por {{duration}}.",
+      "startedError": "No se pudo iniciar el timer.",
+      "cancelledSuccess": "Timer cancelado.",
+      "cancelledError": "No se pudo cancelar el timer.",
+      "completedEarly": "Terminaste {{duration}} antes del limite.",
+      "completedSuccess": "Tarea finalizada.",
+      "completedError": "No se pudo finalizar la tarea.",
+      "archivedSuccess": "Tarjeta archivada.",
+      "restoredSuccess": "Tarjeta restaurada.",
+      "archiveError": "No se pudo cambiar el estado de archivo."
+    },
+    "widget": {
+      "activeTask": "Tarea activa",
+      "loading": "Cargando...",
+      "goToCard": "Ir a la tarjeta",
+      "dueAt": "Limite: {{value}}",
+      "cancelTimer": "Cancelar",
+      "finishTask": "Finalizar",
+      "otherTasks": "+{{count}} mas"
+    }
   },
   "shareModal": {
     "title": "Compartir \"{{boardName}}\"",

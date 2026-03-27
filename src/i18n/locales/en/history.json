@@ -54,7 +54,9 @@
     "status": "status",
     "urgencyState": "urgency",
     "startAt": "start",
-    "dueAt": "due date"
+    "dueAt": "due date",
+    "completedAt": "completed",
+    "archivedAt": "archived"
   },
   "historyTitle": "{{badge}} History",
   "summary": "Summary",
