@@ -4,6 +4,8 @@
 
 <h1 align="center">Killio Frontend</h1>
 
+<!-- update: comentario no funcional para commit -->
+
 <p align="center">
   The web client for Killio, a restriction-free productivity execution platform built for teams that need boards, documents, AI support, and decision history in one operating surface.
 </p>
