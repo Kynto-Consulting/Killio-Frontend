@@ -165,6 +165,13 @@ export function CardDetailModal({
   const tagChipRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const [visibleTagCount, setVisibleTagCount] = useState(0);
 
+  const syncTitleDom = useCallback((value: string) => {
+    if (!titleRef.current) return;
+    if (titleRef.current.textContent !== value) {
+      titleRef.current.textContent = value;
+    }
+  }, []);
+
   const withListContext = (payload: Record<string, any>) => {
     if (!listId) return payload;
     return { ...payload, list_id: listId };
@@ -750,13 +757,16 @@ export function CardDetailModal({
   useEffect(() => {
     if (isOpen) {
       if (card) {
-        setLocalTitle(card.title || "");
+        const nextTitle = card.title || "";
+        setLocalTitle(nextTitle);
+        syncTitleDom(nextTitle);
         setLocalDueAt(normalizeDueDateInputValue(card.dueAt));
         setLocalTags(card.tags || []);
         setLocalAssignees((card.assignees || []).map(normalizeAssignee));
         setLocalBlocks(card.blocks || []);
       } else {
         setLocalTitle("New Card");
+        syncTitleDom("New Card");
         setLocalDueAt("");
         setLocalTags([]);
         setLocalAssignees([]);
@@ -767,8 +777,9 @@ export function CardDetailModal({
       setTagSearch("");
       setNewTagColor('#3b82f6');
       setAreTagsExpanded(false);
+      setIsAssigneeDropdownOpen(false);
     }
-  }, [isOpen, card, createEmptyTextBrick, normalizeAssignee]);
+  }, [isOpen, card, createEmptyTextBrick, normalizeAssignee, syncTitleDom]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -890,6 +901,40 @@ export function CardDetailModal({
       }
     }
   };
+
+  const handleToggleAssignee = useCallback(async (member: any) => {
+    const normalizedMember = normalizeAssignee(member);
+    const isAssigned = localAssignees.some((assignee) => assignee.id === normalizedMember.id);
+
+    setLocalAssignees((current) => {
+      if (isAssigned) {
+        return current.filter((assignee) => assignee.id !== normalizedMember.id);
+      }
+      return [...current, normalizedMember];
+    });
+
+    if (!card?.id || !accessToken) {
+      return;
+    }
+
+    try {
+      if (isAssigned) {
+        await removeCardAssignee(card.id, normalizedMember.id, accessToken);
+      } else {
+        await addCardAssignee(card.id, normalizedMember.id, accessToken);
+      }
+      router.refresh();
+      window.dispatchEvent(new Event('board:refresh'));
+    } catch (err) {
+      console.error('Failed to update assignee', err);
+      setLocalAssignees((current) => {
+        if (isAssigned) {
+          return [...current, normalizedMember];
+        }
+        return current.filter((assignee) => assignee.id !== normalizedMember.id);
+      });
+    }
+  }, [accessToken, card?.id, localAssignees, normalizeAssignee, router]);
 
   const buildDraftBrick = useCallback((input: BrickMutationInput, position: number): BoardBrick => {
     const brickId = `tmp-${crypto.randomUUID()}`;
@@ -1585,7 +1630,7 @@ export function CardDetailModal({
           <div className="flex-1 overflow-y-auto p-6 md:p-10 hide-scrollbar border-r border-border min-h-[500px]">
             <div className="max-w-2xl mx-auto space-y-6">
               <div className="group relative">
-                <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")}>{localTitle}</h1>
+                <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")} />
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground border-b border-border/50 pb-4">
                   {(card?.updatedAt || card?.createdAt) && (
                     <div className="flex items-center space-x-2">
@@ -1708,6 +1753,43 @@ export function CardDetailModal({
                       {localAssignees.map(u => <img key={u.id} src={getUserAvatarUrl(u.avatar_url, u.email, 24)} alt={u.name} className="h-6 w-6 rounded-full border-2 border-background object-cover" />)}
                     </div>
                     <button onClick={() => setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen)} className="h-6 w-6 rounded-full border border-dashed flex items-center justify-center ml-1"><UserPlus className="h-3 w-3" /></button>
+                    {isAssigneeDropdownOpen && (
+                      <div className="absolute right-0 top-9 z-30 w-72 rounded-xl border border-border/80 bg-card shadow-2xl p-2 space-y-1">
+                        <div className="px-2 pb-2 border-b border-border/50">
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Asignar miembros</p>
+                        </div>
+                        <div className="max-h-56 overflow-y-auto space-y-1 py-1">
+                          {boardMembers.length === 0 ? (
+                            <div className="px-2 py-3 text-xs text-muted-foreground">No hay miembros disponibles en este board.</div>
+                          ) : (
+                            boardMembers.map((member) => {
+                              const isAssigned = localAssignees.some((assignee) => assignee.id === member.id);
+                              return (
+                                <button
+                                  key={member.id}
+                                  type="button"
+                                  onClick={() => void handleToggleAssignee(member)}
+                                  className={`w-full flex items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors ${isAssigned ? 'bg-accent/10' : 'hover:bg-muted/50'}`}
+                                >
+                                  <img
+                                    src={getUserAvatarUrl(member.avatar_url, member.email, 28)}
+                                    alt={member.name}
+                                    className="h-7 w-7 rounded-full border border-border/60 object-cover"
+                                  />
+                                  <div className="min-w-0 flex-1">
+                                    <p className="truncate text-sm font-medium text-foreground">{member.name}</p>
+                                    <p className="truncate text-xs text-muted-foreground">{member.email}</p>
+                                  </div>
+                                  {isAssigned ? (
+                                    <span className="text-[10px] font-bold uppercase tracking-wide text-accent">Asignado</span>
+                                  ) : null}
+                                </button>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

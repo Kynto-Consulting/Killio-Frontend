@@ -1,17 +1,7 @@
 import { useEffect } from 'react';
 import * as Ably from 'ably';
 import { useSession } from '@/components/providers/session-provider';
-
-let ablyInstance: Ably.Realtime | null = null;
-
-function getAblyInstance(token: string) {
-  if (!ablyInstance) {
-    ablyInstance = new Ably.Realtime({
-      authUrl: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/auth/ably/auth?token=${token}`,
-    });
-  }
-  return ablyInstance;
-}
+import { getAblyClient } from '@/lib/ably';
 
 export type DocumentEvent = {
   type: 'brick.created' | 'brick.updated' | 'brick.deleted' | 'brick.reordered' | 'document.updated';
@@ -24,7 +14,7 @@ export function useDocumentRealtime(documentId: string, onEvent?: (event: Docume
   useEffect(() => {
     if (!user || !accessToken || !documentId) return;
 
-    const ably = getAblyInstance(accessToken);
+    const ably = getAblyClient(accessToken);
     const channelName = `document:${documentId}`;
     const channel = ably.channels.get(channelName);
 

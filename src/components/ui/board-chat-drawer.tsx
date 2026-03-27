@@ -520,13 +520,6 @@ export function BoardChatDrawer({
         email: member?.email || null,
       };
       setChatMessages(prev => [...prev, msg]);
-    } else {
-      const msg: Message = {
-        id: Date.now(),
-        role: "bot",
-        content: `🔔 Realtime: ${event.type.replace(".", " ")} — ${JSON.stringify(event.payload)}`,
-      };
-      setAiMessages((prev) => [...prev, msg]);
     }
   }, accessToken);
 

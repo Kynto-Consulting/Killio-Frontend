@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { getAblyClient } from '@/lib/ably';
 
 export type BoardEvent = {
@@ -47,6 +47,7 @@ export function useBoardRealtime(
       'card.assignee_added',
       'card.assignee_removed',
       'board.updated',
+      'board.commented',
       'brick.created',
       'brick.updated',
       'brick.reordered',

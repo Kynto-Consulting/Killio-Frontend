@@ -2,7 +2,7 @@
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 import { useRef, useState, useCallback } from "react";
-import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { ApiError } from "@/lib/api/client";
 
 type BoardListState = {
   id: string;
@@ -525,7 +526,8 @@ export default function BoardPage() {
       router.push("/");
     } catch (e) {
       console.error(e);
-      toast(t("deleteBoardError"), "error");
+      const detail = e instanceof ApiError ? e.message : null;
+      toast(detail ? `${t("deleteBoardError")}: ${detail}` : t("deleteBoardError"), "error");
       setIsDeleting(false);
     }
   };
@@ -563,7 +565,7 @@ export default function BoardPage() {
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+  const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -919,19 +921,34 @@ export default function BoardPage() {
 
           <div className="relative">
             <button
-              onClick={() => setIsFilterDropdownOpen(!isFilterDropdownOpen)}
-              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent/10 hover:text-foreground hidden sm:inline-flex ${selectedTags.length > 0 ? "text-accent bg-accent/10 border border-accent/20" : "text-muted-foreground"}`}
+              onClick={() => setIsBoardMenuOpen((current) => !current)}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
             >
-              <Filter className="h-4 w-4 mr-2" />
-              {t("header.filter")} {selectedTags.length > 0 && `(${selectedTags.length})`}
+              <Settings className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Config</span>
             </button>
 
-            {isFilterDropdownOpen && (
-              <div className="absolute top-full right-0 mt-2 w-64 bg-card border border-border rounded-md shadow-xl z-20 overflow-hidden">
-                <div className="p-3 border-b border-border">
-                  <h4 className="text-sm font-semibold text-foreground">{t("header.filterByTags")}</h4>
+            {isBoardMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                <div className="p-3 border-b border-border bg-muted/20">
+                  <h4 className="text-sm font-semibold text-foreground">Configuración del board</h4>
                 </div>
-                <div className="p-2 max-h-60 overflow-y-auto">
+                <div className="p-3 border-b border-border/70">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <Filter className="h-4 w-4 text-muted-foreground" />
+                      {t("header.filterByTags")}
+                    </div>
+                    {selectedTags.length > 0 ? (
+                      <button
+                        onClick={() => setSelectedTags([])}
+                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                      >
+                        {t("header.clearFilters")}
+                      </button>
+                    ) : null}
+                  </div>
+                  <div className="max-h-52 overflow-y-auto space-y-1">
                   {allAvailableTags.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
                   ) : (
@@ -955,39 +972,35 @@ export default function BoardPage() {
                     })
                   )}
                 </div>
-                {selectedTags.length > 0 && (
-                  <div className="p-2 border-t border-border bg-muted/30">
+                </div>
+                {permissions.canManageBoard && (
+                  <div className="p-3 space-y-2">
                     <button
-                      onClick={() => setSelectedTags([])}
-                      className="w-full text-xs text-center text-muted-foreground hover:text-foreground py-1"
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        setIsShareModalOpen(true);
+                      }}
+                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
                     >
-                      {t("header.clearFilters")}
+                      <Share className="h-4 w-4 mr-2" />
+                      {t("header.share")}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        setIsDeleteModalOpen(true);
+                      }}
+                      disabled={isDeleting}
+                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground disabled:opacity-50"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      {t("header.deleteBoard")}
                     </button>
                   </div>
                 )}
               </div>
             )}
           </div>
-
-          {permissions.canManageBoard && (
-            <button
-              onClick={() => setIsShareModalOpen(true)}
-              className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Share className="h-4 w-4 mr-2" />
-              {t("header.share")}
-            </button>
-          )}
-          {permissions.canManageBoard && (
-            <button
-              title={t("header.deleteBoard")}
-              disabled={isDeleting}
-              onClick={() => setIsDeleteModalOpen(true)}
-              className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground"
-            >
-              <Trash2 className="h-4 w-4" />
-            </button>
-          )}
         </div>
       </header>
 

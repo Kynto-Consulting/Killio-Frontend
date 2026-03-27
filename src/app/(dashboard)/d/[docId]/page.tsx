@@ -6,7 +6,7 @@ import { FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2,
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary } from "@/lib/api/documents";
-import { listTeamBoards, BoardSummary, listTeamMembers } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, listTeamMembers, uploadFile } from "@/lib/api/contracts";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
@@ -224,6 +224,99 @@ export default function DocumentPage() {
       fetchDoc(); // Rollback on error
     }
   };
+
+  const handlePasteImageInTextBrick = useCallback(async ({
+    brickId,
+    file,
+    cursorOffset,
+    markdown,
+  }: {
+    brickId: string;
+    file: File;
+    cursorOffset: number;
+    markdown: string;
+  }) => {
+    if (!accessToken || !document) return;
+
+    const targetIndex = document.bricks.findIndex((brick) => brick.id === brickId);
+    if (targetIndex < 0) return;
+
+    const target = document.bricks[targetIndex];
+    if (target.kind !== 'text') return;
+
+    const sourceMarkdown = typeof markdown === 'string'
+      ? markdown
+      : String(target.content?.markdown ?? target.content?.text ?? '');
+    const safeCursor = Math.max(0, Math.min(cursorOffset, sourceMarkdown.length));
+    const beforeText = sourceMarkdown.slice(0, safeCursor);
+    const afterText = sourceMarkdown.slice(safeCursor);
+
+    try {
+      const uploaded = await uploadFile(file, accessToken);
+
+      const prefixIds = document.bricks.slice(0, targetIndex).map((brick) => brick.id);
+      const suffixIds = document.bricks.slice(targetIndex + 1).map((brick) => brick.id);
+      const nextBrickMap = new Map<string, DocumentBrick>(document.bricks.map((brick) => [brick.id, brick]));
+      const middleIds: string[] = [];
+
+      if (beforeText.trim().length > 0) {
+        const updatedTextBrick = await updateDocumentBrick(docId, brickId, {
+          ...target.content,
+          text: beforeText,
+          markdown: beforeText,
+        }, accessToken);
+        nextBrickMap.set(brickId, updatedTextBrick);
+        middleIds.push(brickId);
+      } else {
+        await deleteDocumentBrick(docId, brickId, accessToken);
+        nextBrickMap.delete(brickId);
+      }
+
+      const mediaBrick = await createDocumentBrick(docId, {
+        kind: 'media',
+        position: document.bricks.length + 1000,
+        content: {
+          mediaType: 'image',
+          title: file.name || 'Imagen',
+          url: uploaded.url,
+          mimeType: file.type || null,
+          sizeBytes: Number.isFinite(file.size) ? file.size : null,
+          caption: null,
+          assetId: uploaded.key || null,
+        },
+      }, accessToken);
+      nextBrickMap.set(mediaBrick.id, mediaBrick);
+      middleIds.push(mediaBrick.id);
+
+      if (afterText.trim().length > 0) {
+        const trailingTextBrick = await createDocumentBrick(docId, {
+          kind: 'text',
+          position: document.bricks.length + 2000,
+          content: {
+            text: afterText,
+            markdown: afterText,
+          },
+        }, accessToken);
+        nextBrickMap.set(trailingTextBrick.id, trailingTextBrick);
+        middleIds.push(trailingTextBrick.id);
+      }
+
+      const finalIds = [...prefixIds, ...middleIds, ...suffixIds];
+      const updates = finalIds.map((id, index) => ({ id, position: index }));
+      await reorderDocumentBricks(docId, updates, accessToken);
+
+      const reordered = finalIds
+        .map((id) => nextBrickMap.get(id))
+        .filter(Boolean)
+        .map((brick, index) => ({ ...(brick as DocumentBrick), position: index })) as DocumentBrick[];
+
+      setDocument((current) => (current ? { ...current, bricks: reordered } : current));
+    } catch (err) {
+      console.error('Failed to paste image into document text brick', err);
+      toast(t("createBlockError"), "error");
+    }
+  }, [accessToken, docId, document, t]);
+
   const handleExport = async () => {
     if (!accessToken) return;
     setIsExporting(true);
@@ -526,6 +619,7 @@ export default function DocumentPage() {
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}
+              onPasteImageInTextBrick={handlePasteImageInTextBrick}
             />
           </div>
         </div>

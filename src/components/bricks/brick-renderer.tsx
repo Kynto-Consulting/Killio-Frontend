@@ -110,6 +110,29 @@ export function UnifiedBrickRenderer({
       const caption = content.caption;
       return (
         <div className="space-y-2 rounded-lg border border-border/50 bg-background/40 p-3">
+          {canEdit ? (
+            <div className="grid gap-2 rounded-md border border-border/50 bg-muted/20 p-3">
+              <input
+                value={title}
+                onChange={(event) => onUpdate({ ...content, title: event.target.value })}
+                placeholder="Título"
+                className="h-8 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
+              <input
+                value={url}
+                onChange={(event) => onUpdate({ ...content, url: event.target.value })}
+                placeholder="https://..."
+                className="h-8 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-1 focus:ring-ring"
+              />
+              <textarea
+                value={caption || ''}
+                onChange={(event) => onUpdate({ ...content, caption: event.target.value })}
+                placeholder="Caption"
+                rows={2}
+                className="rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-1 focus:ring-ring resize-y"
+              />
+            </div>
+          ) : null}
           {mediaType === 'image' && url ? (
             <img src={url} alt={title} className="max-h-[520px] w-full rounded-md border border-border/50 object-contain" />
           ) : (
