@@ -178,3 +178,5 @@ This repo is the active frontend application for Killio and is structured as a p
 ## License
 
 No license file is currently included in this repository.
+
+Update note (2026-03-27): non-functional README refresh for deployment commit.
