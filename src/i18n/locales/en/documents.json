@@ -11,5 +11,11 @@
   "noDocumentsEmpty": "You haven't created any documents in this workspace yet.",
   "createFirstDocument": "Create your first document",
   "createPrompt": "Enter document title",
-  "createError": "Failed to create document"
+  "createError": "Failed to create document",
+  "deleteDocument": "Delete document",
+  "deletePrompt": "To delete, type exactly: {{title}}",
+  "deleteConfirmMismatch": "Text does not match. Deletion canceled.",
+  "deleteFinalConfirm": "Do you want to delete \"{{title}}\"? This action cannot be undone.",
+  "deleteSuccess": "Document \"{{title}}\" deleted.",
+  "deleteError": "Failed to delete document"
 }

@@ -69,6 +69,16 @@ export async function updateDocumentTitle(
   });
 }
 
+export async function deleteDocument(
+  documentId: string,
+  accessToken: string
+): Promise<void> {
+  return fetchApi(`/documents/${documentId}`, {
+    method: 'DELETE',
+    accessToken,
+  });
+}
+
 export async function createDocumentBrick(
   documentId: string,
   payload: { kind: string; position: number; content: any },

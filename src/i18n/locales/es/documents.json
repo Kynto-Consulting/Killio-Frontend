@@ -11,5 +11,11 @@
   "noDocumentsEmpty": "Aun no has creado documentos en este espacio.",
   "createFirstDocument": "Crear tu primer documento",
   "createPrompt": "Ingresa el titulo del documento",
-  "createError": "No se pudo crear el documento"
+  "createError": "No se pudo crear el documento",
+  "deleteDocument": "Eliminar documento",
+  "deletePrompt": "Para eliminar, escribe exactamente: {{title}}",
+  "deleteConfirmMismatch": "El texto no coincide. Eliminacion cancelada.",
+  "deleteFinalConfirm": "Deseas eliminar el documento \"{{title}}\"? Esta accion no se puede deshacer.",
+  "deleteSuccess": "Documento \"{{title}}\" eliminado.",
+  "deleteError": "No se pudo eliminar el documento"
 }
