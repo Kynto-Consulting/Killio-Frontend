@@ -3,7 +3,7 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile, getBoard, listTeamActivity, generateReportDocumentWithAi } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile, getBoard, listTeamActivity, generateReportDocumentWithAi, ApiError } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -777,7 +777,9 @@ export function CardDetailModal({
   }, [teamDocs]);
 
   useEffect(() => {
-    if (isOpen && boardId && accessToken) {
+    if (!isOpen || !accessToken) return;
+
+    if (boardId) {
       getTagsByScope('board', boardId, accessToken).then((res) => {
         setAvailableTags(res);
       }).catch(console.error);
@@ -791,12 +793,12 @@ export function CardDetailModal({
           initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
         })));
       }).catch(console.error);
-
-      if (card?.id) {
-        getCardActivity(card.id, accessToken).then(setActivities).catch(console.error);
-      }
     }
-  }, [isOpen, boardId, accessToken]);
+
+    if (card?.id) {
+      getCardActivity(card.id, accessToken).then(setActivities).catch(console.error);
+    }
+  }, [isOpen, boardId, accessToken, card?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1259,66 +1261,28 @@ export function CardDetailModal({
 
     try {
       const uploaded = await uploadFile(file, accessToken);
+      const alt = (file.name || 'Imagen').replace(/[\[\]]/g, '').trim() || 'Imagen';
+      const imageMarkdown = `\n![${alt}](${uploaded.url})\n`;
+      const nextMarkdown = `${beforeText}${imageMarkdown}${afterText}`;
 
-      const prefixIds = localBlocks.slice(0, targetIndex).map((b) => b.id);
-      const suffixIds = localBlocks.slice(targetIndex + 1).map((b) => b.id);
+      const updatedText = await updateCardBrick(card.id, brickId, {
+        kind: 'text',
+        displayStyle: target.displayStyle || 'paragraph',
+        markdown: nextMarkdown,
+      } as BrickMutationInput, accessToken);
 
-      const nextBlockMap = new Map<string, BoardBrick>(localBlocks.map((b) => [b.id, b]));
-      const middleIds: string[] = [];
-
-      if (beforeText.trim().length > 0) {
-        const updatedText = await updateCardBrick(card.id, brickId, {
-          kind: 'text',
-          displayStyle: target.displayStyle || 'paragraph',
-          markdown: beforeText,
-        } as BrickMutationInput, accessToken);
-        nextBlockMap.set(brickId, updatedText.brick);
-        middleIds.push(brickId);
-      } else {
-        await deleteCardBrick(card.id, brickId, accessToken);
-        nextBlockMap.delete(brickId);
-      }
-
-      const mediaBrick = await createCardBrick(card.id, {
-        kind: 'media',
-        mediaType: 'image',
-        title: file.name || 'Imagen',
-        url: uploaded.url,
-        mimeType: file.type || null,
-        sizeBytes: Number.isFinite(file.size) ? file.size : null,
-        caption: null,
-        assetId: uploaded.key || null,
-      }, accessToken);
-      nextBlockMap.set(mediaBrick.brick.id, mediaBrick.brick);
-      middleIds.push(mediaBrick.brick.id);
-
-      if (afterText.trim().length > 0) {
-        const trailingText = await createCardBrick(card.id, {
-          kind: 'text',
-          displayStyle: target.displayStyle || 'paragraph',
-          markdown: afterText,
-        }, accessToken);
-        nextBlockMap.set(trailingText.brick.id, trailingText.brick);
-        middleIds.push(trailingText.brick.id);
-      }
-
-      const finalIds = [...prefixIds, ...middleIds, ...suffixIds];
-      await reorderCardBricks(card.id, { clientId: crypto.randomUUID(), brickIds: finalIds }, accessToken);
-
-      const reordered = finalIds
-        .map((id) => nextBlockMap.get(id))
-        .filter(Boolean) as BoardBrick[];
-      reordered.forEach((block, index) => {
-        block.position = index;
-      });
-      setLocalBlocks(reordered);
+      setLocalBlocks((prev) => prev.map((block) => (
+        block.id === brickId ? (updatedText.brick as BoardBrick) : block
+      )));
+      return nextMarkdown;
     } catch (err) {
       console.error('Failed to paste image into text block', err);
+      toast('No se pudo pegar la imagen.', 'error');
+      return;
     }
-  }, [card?.id, accessToken, localBlocks]);
+  }, [accessToken, card?.id, localBlocks, toast]);
 
   useEffect(() => {
-    if (!isOpen) return;
     recalculateVisibleTags();
     const resizeHandler = () => recalculateVisibleTags();
     window.addEventListener('resize', resizeHandler);
@@ -1420,6 +1384,11 @@ export function CardDetailModal({
       return;
     }
 
+    if (!canComment) {
+      toast("No tienes permisos para comentar en esta tarjeta.", "error");
+      return;
+    }
+
     try {
       await addCardComment(card.id, newComment.trim(), accessToken);
       setNewComment("");
@@ -1429,6 +1398,8 @@ export function CardDetailModal({
       window.dispatchEvent(new Event('board:refresh'));
     } catch (err) {
       console.error("Failed to add comment", err);
+      const message = err instanceof ApiError ? err.message : "No se pudo enviar el comentario.";
+      toast(message, "error");
     }
   };
 
@@ -2306,23 +2277,35 @@ export function CardDetailModal({
                   </div>
                 </div>
               ) : activeTab === 'comments' ? (
-                activities.filter(a => a.action === 'card.commented').map(log => {
-                  const author = boardMembers.find(m => m.id === log.actorId || m.userId === log.actorId);
-                  return (
-                    <div key={log.id} className="flex space-x-3 mt-4">
-                      <img src={getUserAvatarUrl(author?.avatar_url, author?.email, 32)} alt={author?.name} className="h-8 w-8 rounded-full shrink-0 object-cover" />
-                      <div className="bg-background border p-3 rounded-lg text-sm w-full">
-                        <div className="font-semibold text-xs flex justify-between"><span>{author?.name || log.actorId}</span><span className="text-muted-foreground font-normal">{new Date(log.createdAt).toLocaleDateString()}</span></div>
-                        <div className="mt-1">
-                          <RichText
-                            content={log.payload?.text || ""}
-                            context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
-                          />
+                (() => {
+                  const commentLogs = activities.filter((a) => a.action === 'card.commented');
+                  if (commentLogs.length === 0) {
+                    return (
+                      <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-70 font-medium">
+                        <MessageSquare className="h-8 w-8 mb-2" />
+                        <p>Aun no hay comentarios en esta tarjeta.</p>
+                      </div>
+                    );
+                  }
+
+                  return commentLogs.map((log) => {
+                    const author = boardMembers.find((m) => m.id === log.actorId || m.userId === log.actorId);
+                    return (
+                      <div key={log.id} className="flex space-x-3 mt-4">
+                        <img src={getUserAvatarUrl(author?.avatar_url, author?.email, 32)} alt={author?.name} className="h-8 w-8 rounded-full shrink-0 object-cover" />
+                        <div className="bg-background border p-3 rounded-lg text-sm w-full">
+                          <div className="font-semibold text-xs flex justify-between"><span>{author?.name || log.actorId}</span><span className="text-muted-foreground font-normal">{new Date(log.createdAt).toLocaleDateString()}</span></div>
+                          <div className="mt-1">
+                            <RichText
+                              content={log.payload?.text || ""}
+                              context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
+                            />
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  );
-                })
+                    );
+                  });
+                })()
               ) : (
                 <div className="space-y-6 pr-1">
                   {groupedActivities.length === 0 && (
@@ -2414,12 +2397,13 @@ export function CardDetailModal({
             <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
                 <ReferenceTokenInput
-                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Write a comment or @ mention..."}
+                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : (canComment ? "Write a comment or @ mention..." : "No tienes permiso para comentar")}
                   value={newComment}
                   onChange={setNewComment}
                   onSubmit={() => {
                     void handleAddComment();
                   }}
+                  disabled={activeTab !== 'copilot' && !canComment}
                   documents={contextDocs as any}
                   boards={teamBoards as any}
                   users={boardMembers.map((m: any) => ({
@@ -2430,7 +2414,7 @@ export function CardDetailModal({
                   className="w-full"
                   inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
                 />
-                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription || (activeTab !== 'copilot' && !canComment)} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
                   {isImprovingDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
                 </button>
               </div>

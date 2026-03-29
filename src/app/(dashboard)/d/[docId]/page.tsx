@@ -254,66 +254,30 @@ export default function DocumentPage() {
     try {
       const uploaded = await uploadFile(file, accessToken);
 
-      const prefixIds = document.bricks.slice(0, targetIndex).map((brick) => brick.id);
-      const suffixIds = document.bricks.slice(targetIndex + 1).map((brick) => brick.id);
-      const nextBrickMap = new Map<string, DocumentBrick>(document.bricks.map((brick) => [brick.id, brick]));
-      const middleIds: string[] = [];
+      const alt = (file.name || 'Imagen').replace(/[\[\]]/g, '').trim() || 'Imagen';
+      const imageMarkdown = `\n![${alt}](${uploaded.url})\n`;
+      const nextMarkdown = `${beforeText}${imageMarkdown}${afterText}`;
 
-      if (beforeText.trim().length > 0) {
-        const updatedTextBrick = await updateDocumentBrick(docId, brickId, {
-          ...target.content,
-          text: beforeText,
-          markdown: beforeText,
-        }, accessToken);
-        nextBrickMap.set(brickId, updatedTextBrick);
-        middleIds.push(brickId);
-      } else {
-        await deleteDocumentBrick(docId, brickId, accessToken);
-        nextBrickMap.delete(brickId);
-      }
-
-      const mediaBrick = await createDocumentBrick(docId, {
-        kind: 'media',
-        position: document.bricks.length + 1000,
-        content: {
-          mediaType: 'image',
-          title: file.name || 'Imagen',
-          url: uploaded.url,
-          mimeType: file.type || null,
-          sizeBytes: Number.isFinite(file.size) ? file.size : null,
-          caption: null,
-          assetId: uploaded.key || null,
-        },
+      const updatedTextBrick = await updateDocumentBrick(docId, brickId, {
+        ...target.content,
+        text: nextMarkdown,
+        markdown: nextMarkdown,
       }, accessToken);
-      nextBrickMap.set(mediaBrick.id, mediaBrick);
-      middleIds.push(mediaBrick.id);
 
-      if (afterText.trim().length > 0) {
-        const trailingTextBrick = await createDocumentBrick(docId, {
-          kind: 'text',
-          position: document.bricks.length + 2000,
-          content: {
-            text: afterText,
-            markdown: afterText,
-          },
-        }, accessToken);
-        nextBrickMap.set(trailingTextBrick.id, trailingTextBrick);
-        middleIds.push(trailingTextBrick.id);
-      }
-
-      const finalIds = [...prefixIds, ...middleIds, ...suffixIds];
-      const updates = finalIds.map((id, index) => ({ id, position: index }));
-      await reorderDocumentBricks(docId, updates, accessToken);
-
-      const reordered = finalIds
-        .map((id) => nextBrickMap.get(id))
-        .filter(Boolean)
-        .map((brick, index) => ({ ...(brick as DocumentBrick), position: index })) as DocumentBrick[];
-
-      setDocument((current) => (current ? { ...current, bricks: reordered } : current));
+      setDocument((current) => {
+        if (!current) return current;
+        return {
+          ...current,
+          bricks: current.bricks.map((brick) => (
+            brick.id === brickId ? updatedTextBrick : brick
+          )),
+        };
+      });
+      return nextMarkdown;
     } catch (err) {
       console.error('Failed to paste image into document text brick', err);
       toast(t("createBlockError"), "error");
+      return;
     }
   }, [accessToken, docId, document, t]);
 

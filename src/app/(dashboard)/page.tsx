@@ -8,7 +8,7 @@ import { CreateBoardModal } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { PublicFooter } from "@/components/marketing/public-footer";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, createBoard, deleteBoard } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -412,6 +412,19 @@ export default function WorkspacesPage() {
     setBoards([...boards, newBoard]);
   };
 
+  const handleUploadBoardCover = async (file: File): Promise<string> => {
+    if (!accessToken) {
+      throw new Error("Sesion expirada. Inicia sesion nuevamente.");
+    }
+    const uploaded = await uploadFile(file, accessToken);
+    return uploaded.url;
+  };
+
+  const isImageCover = (value?: string | null): boolean => {
+    if (!value) return false;
+    return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+  };
+
   const handleCreateDocumentClick = async () => {
     if (!accessToken || !activeTeamId) return;
     const title = prompt(t("createDocPrompt"));
@@ -464,6 +477,7 @@ export default function WorkspacesPage() {
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
         onSubmit={handleCreateBoardSubmit}
+        onUploadCoverImage={handleUploadBoardCover}
       />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>
@@ -529,7 +543,10 @@ export default function WorkspacesPage() {
             </div>
           ) : boards.map((board) => (
             <Link href={`/b/${board.id}`} key={board.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
-              <div className={`h-24 ${board.coverImageUrl || 'bg-gradient-to-tr from-accent to-primary/60'} w-full border-b border-border/50 relative`}>
+              <div
+                className={`h-24 ${isImageCover(board.coverImageUrl) ? 'bg-slate-800 bg-cover bg-center' : (board.coverImageUrl || 'bg-gradient-to-tr from-accent to-primary/60')} w-full border-b border-border/50 relative`}
+                style={isImageCover(board.coverImageUrl) ? { backgroundImage: `url(${board.coverImageUrl})` } : undefined}
+              >
                 <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>
               </div>
               <div className="p-5 flex flex-col flex-1">

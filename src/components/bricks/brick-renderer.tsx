@@ -17,7 +17,7 @@ interface BrickRendererProps {
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
-  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
+  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
 }
 
 export function UnifiedBrickRenderer({

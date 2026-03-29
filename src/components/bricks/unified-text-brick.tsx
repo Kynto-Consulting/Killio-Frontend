@@ -20,8 +20,10 @@ interface TextBrickProps {
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
-  onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
+  onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
 }
+
+const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
 
 export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   id,
@@ -48,6 +50,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/&/g, "&amp;")
       .replace(/</g, "&lt;")
       .replace(/>/g, "&gt;");
+  };
+
+  const escapeHtmlAttr = (value: string): string => {
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/"/g, "&quot;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;");
+  };
+
+  const normalizeImageUrl = (rawUrl: string): string => {
+    const url = rawUrl.trim();
+    if (/^https?:\/\//i.test(url)) return url;
+    if (/^data:image\//i.test(url)) return url;
+    if (url.startsWith("/")) return url;
+    return "";
   };
 
   /**
@@ -283,6 +301,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let listType: "ul" | "ol" | null = null;
 
     const formatInline = (t: string) => t
+      .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
+        const src = normalizeImageUrl(rawUrl);
+        if (!src) return `![${escapeHtml(alt)}](${escapeHtml(rawUrl)})`;
+        return `<img src="${escapeHtmlAttr(src)}" alt="${escapeHtmlAttr(alt)}" class="my-2 max-h-[460px] w-full rounded-md border border-border/60 object-contain bg-muted/20" loading="lazy" />`;
+      })
       .replace(/`([^`]+)`/g, '<code class="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">$1</code>')
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
       .replace(/__(.*?)__/g, "<u>$1</u>")
@@ -487,22 +510,161 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
   };
 
+  const extensionFromMime = (mimeType: string): string => {
+    if (mimeType === "image/jpeg") return "jpg";
+    if (mimeType === "image/png") return "png";
+    if (mimeType === "image/gif") return "gif";
+    if (mimeType === "image/webp") return "webp";
+    if (mimeType === "image/svg+xml") return "svg";
+    return "png";
+  };
+
+  const isLikelyImageFile = (file: File): boolean => {
+    if (file.type.startsWith("image/")) return true;
+    return /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(file.name || "");
+  };
+
+  const makeClipboardImageFile = (blob: Blob, preferredName?: string): File => {
+    const mimeType = blob.type || "image/png";
+    const ext = extensionFromMime(mimeType);
+    const safeName = preferredName && preferredName.trim().length > 0
+      ? preferredName
+      : `pasted-image-${Date.now()}.${ext}`;
+    return new File([blob], safeName, { type: mimeType });
+  };
+
+  const extractImageFileFromClipboard = async (clipboardData: DataTransfer): Promise<File | null> => {
+    const itemImage = Array.from(clipboardData.items).find((item) => item.type.startsWith("image/"));
+    if (itemImage) {
+      const file = itemImage.getAsFile();
+      if (file) return file;
+    }
+
+    let itemFile: File | null = null;
+    for (const item of Array.from(clipboardData.items)) {
+      if (item.kind !== "file") continue;
+      const candidate = item.getAsFile();
+      if (candidate && isLikelyImageFile(candidate)) {
+        itemFile = candidate;
+        break;
+      }
+    }
+    if (itemFile) return itemFile;
+
+    const fileImage = Array.from(clipboardData.files).find((file) => isLikelyImageFile(file));
+    if (fileImage) return fileImage;
+
+    const html = clipboardData.getData("text/html");
+    if (html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, "text/html");
+      const img = doc.querySelector("img");
+      const src = img?.getAttribute("src") || "";
+      if (src) {
+        try {
+          if (src.startsWith("data:image/")) {
+            const response = await fetch(src);
+            if (!response.ok) return null;
+            const blob = await response.blob();
+            return makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+          }
+
+          if (/^https?:\/\//i.test(src)) {
+            const response = await fetch(src);
+            if (!response.ok) return null;
+            const blob = await response.blob();
+            if (!blob.type.startsWith("image/")) return null;
+            return makeClipboardImageFile(blob);
+          }
+        } catch (err) {
+          console.error("Failed to convert HTML image from clipboard", err);
+          return null;
+        }
+      }
+    }
+
+    const plainText = clipboardData.getData("text/plain").trim();
+    if (plainText.startsWith("data:image/")) {
+      try {
+        const response = await fetch(plainText);
+        if (!response.ok) return null;
+        const blob = await response.blob();
+        return makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+      } catch (err) {
+        console.error("Failed to convert plain-text data URL image from clipboard", err);
+      }
+    }
+
+    const uriList = clipboardData.getData("text/uri-list").trim();
+    if (/^https?:\/\//i.test(uriList)) {
+      try {
+        const response = await fetch(uriList);
+        if (!response.ok) return null;
+        const blob = await response.blob();
+        if (!blob.type.startsWith("image/")) return null;
+        return makeClipboardImageFile(blob);
+      } catch (err) {
+        console.error("Failed to convert URI-list image from clipboard", err);
+      }
+    }
+
+    return null;
+  };
+
+  const extractImageFileFromClipboardApi = async (): Promise<File | null> => {
+    if (typeof navigator === "undefined" || !navigator.clipboard || typeof navigator.clipboard.read !== "function") {
+      return null;
+    }
+
+    try {
+      const clipboardItems = await navigator.clipboard.read();
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) => type.startsWith("image/"));
+        if (!imageType) continue;
+        const blob = await item.getType(imageType);
+        return makeClipboardImageFile(blob);
+      }
+    } catch (err) {
+      console.error("Clipboard API read failed", err);
+    }
+
+    return null;
+  };
+
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     if (readonly || !onPasteImage) return;
-    const imageItem = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
-    if (!imageItem) return;
+    const clipboardTypes = Array.from(e.clipboardData.types || []);
+    const hasLikelyImageFile = Array.from(e.clipboardData.files).some((file) => isLikelyImageFile(file));
+    const hasImageCandidate =
+      Array.from(e.clipboardData.items).some((item) => item.type.startsWith("image/")) ||
+      Array.from(e.clipboardData.items).some((item) => item.kind === "file") ||
+      hasLikelyImageFile ||
+      clipboardTypes.some((type) => type.toLowerCase().startsWith("image/")) ||
+      clipboardTypes.includes("Files") ||
+      e.clipboardData.getData("text/html").toLowerCase().includes("<img") ||
+      e.clipboardData.getData("text/plain").trim().startsWith("data:image/") ||
+      /^https?:\/\//i.test(e.clipboardData.getData("text/uri-list").trim());
 
-    const file = imageItem.getAsFile();
-    if (!file) return;
+    if (!hasImageCandidate) return;
 
     e.preventDefault();
 
     const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
     const cursorOffset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
 
-    Promise.resolve(onPasteImage({ file, cursorOffset, markdown })).catch((err) => {
-      console.error("Failed to handle pasted image", err);
-    });
+    void extractImageFileFromClipboard(e.clipboardData)
+      .then(async (file) => {
+        const resolvedFile = file || await extractImageFileFromClipboardApi();
+        if (!resolvedFile) return;
+        return Promise.resolve(onPasteImage({ file: resolvedFile, cursorOffset, markdown }))
+          .then((nextMarkdown) => {
+            if (typeof nextMarkdown !== "string" || !contentRef.current) return;
+            contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+          });
+      })
+      .catch((err) => {
+        console.error("Failed to handle pasted image", err);
+      });
   };
 
   return (

@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { X, Loader2, Layout } from "lucide-react";
+import { useRef, useState } from "react";
+import { X, Loader2, Layout, ImagePlus, Trash2 } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface CreateBoardModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (payload: { name: string; coverImageUrl: string }) => Promise<void>;
+  onUploadCoverImage?: (file: File) => Promise<string>;
 }
 
 const BACKGROUNDS = [
@@ -19,19 +20,53 @@ const BACKGROUNDS = [
   "bg-gradient-to-tr from-indigo-500 to-cyan-400"
 ];
 
-export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModalProps) {
+function isImageCover(value: string): boolean {
+  return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+}
+
+export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage }: CreateBoardModalProps) {
   const t = useTranslations("modals");
   const tCommon = useTranslations("common");
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
   const [background, setBackground] = useState(BACKGROUNDS[0]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploadingCover, setIsUploadingCover] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) {
     if (name) setName("");
     if (background !== BACKGROUNDS[0]) setBackground(BACKGROUNDS[0]);
+    if (error) setError(null);
     return null;
   }
+
+  const usingImageCover = isImageCover(background);
+
+  const handleSelectCoverFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onUploadCoverImage) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("El archivo debe ser una imagen.");
+      event.target.value = "";
+      return;
+    }
+
+    setIsUploadingCover(true);
+    setError(null);
+    try {
+      const uploadedUrl = await onUploadCoverImage(file);
+      setBackground(uploadedUrl);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "No se pudo subir la portada.");
+    } finally {
+      setIsUploadingCover(false);
+      event.target.value = "";
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -63,7 +98,10 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
           <span className="sr-only">{tCommon("actions.close")}</span>
         </button>
 
-        <div className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${background} flex items-center justify-center transition-all duration-300 shadow-inner`}>
+        <div
+          className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${usingImageCover ? "bg-slate-800" : background} flex items-center justify-center transition-all duration-300 shadow-inner bg-cover bg-center`}
+          style={usingImageCover ? { backgroundImage: `url(${background})` } : undefined}
+        >
            <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
            <Layout className="h-12 w-12 text-white/90 drop-shadow-xl z-0" />
         </div>
@@ -92,6 +130,41 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
             <label className="text-sm font-medium leading-none">
               {t("createBoard.backgroundLabel")}
             </label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleSelectCoverFile}
+              className="hidden"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isSubmitting || isUploadingCover || !onUploadCoverImage}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+              >
+                {isUploadingCover ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Subiendo...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir imagen
+                  </>
+                )}
+              </button>
+              {usingImageCover ? (
+                <button
+                  type="button"
+                  onClick={() => setBackground(BACKGROUNDS[0])}
+                  disabled={isSubmitting || isUploadingCover}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Quitar imagen
+                </button>
+              ) : null}
+            </div>
             <div className="grid grid-cols-6 gap-2">
               {BACKGROUNDS.map((bg) => (
                 <button
@@ -115,7 +188,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit }: CreateBoardModal
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || isSubmitting}
+              disabled={!name.trim() || isSubmitting || isUploadingCover}
               className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               {isSubmitting ? (

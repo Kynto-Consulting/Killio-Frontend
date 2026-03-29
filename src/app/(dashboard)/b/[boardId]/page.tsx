@@ -585,6 +585,7 @@ export default function BoardPage() {
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -941,20 +942,22 @@ export default function BoardPage() {
 
           <div className="relative">
             <button
-              onClick={() => setIsBoardMenuOpen((current) => !current)}
-              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+              onClick={() => setIsFilterMenuOpen((current) => !current)}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isFilterMenuOpen || selectedTags.length > 0 ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
             >
-              <Settings className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Config</span>
+              <Filter className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Filtros</span>
+              {selectedTags.length > 0 ? (
+                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
+                  {selectedTags.length}
+                </span>
+              ) : null}
             </button>
 
-            {isBoardMenuOpen && (
+            {isFilterMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
                 <div className="p-3 border-b border-border bg-muted/20">
-                  <h4 className="text-sm font-semibold text-foreground">Configuración del board</h4>
-                </div>
-                <div className="p-3 border-b border-border/70">
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
                       <Filter className="h-4 w-4 text-muted-foreground" />
                       {t("header.filterByTags")}
@@ -968,7 +971,8 @@ export default function BoardPage() {
                       </button>
                     ) : null}
                   </div>
-                  <div className="max-h-52 overflow-y-auto space-y-1">
+                </div>
+                <div className="p-3 max-h-60 overflow-y-auto space-y-1">
                   {allAvailableTags.length === 0 ? (
                     <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
                   ) : (
@@ -981,8 +985,8 @@ export default function BoardPage() {
                             className="rounded border-border text-accent focus:ring-accent"
                             checked={isSelected}
                             onChange={() => {
-                              setSelectedTags(prev =>
-                                isSelected ? prev.filter(t => t !== tag.name) : [...prev, tag.name]
+                              setSelectedTags((prev) =>
+                                isSelected ? prev.filter((currentTag) => currentTag !== tag.name) : [...prev, tag.name]
                               );
                             }}
                           />
@@ -992,30 +996,51 @@ export default function BoardPage() {
                     })
                   )}
                 </div>
+              </div>
+            )}
+          </div>
+
+          <div className="relative">
+            <button
+              onClick={() => setIsBoardMenuOpen((current) => !current)}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+            >
+              <Settings className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Config</span>
+            </button>
+
+            {isBoardMenuOpen && (
+              <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
+                <div className="p-3 border-b border-border bg-muted/20">
+                  <h4 className="text-sm font-semibold text-foreground">Configuración del board</h4>
                 </div>
-                {permissions.canManageBoard && (
+                {(permissions.canManageBoard || permissions.canEdit) && (
                   <div className="p-3 space-y-2">
-                    <button
-                      onClick={() => {
-                        setIsBoardMenuOpen(false);
-                        setIsShareModalOpen(true);
-                      }}
-                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
-                    >
-                      <Share className="h-4 w-4 mr-2" />
-                      {t("header.share")}
-                    </button>
-                    <button
-                      onClick={() => {
-                        setIsBoardMenuOpen(false);
-                        setIsDeleteModalOpen(true);
-                      }}
-                      disabled={isDeleting}
-                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground disabled:opacity-50"
-                    >
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      {t("header.deleteBoard")}
-                    </button>
+                    {permissions.canManageBoard && (
+                      <button
+                        onClick={() => {
+                          setIsBoardMenuOpen(false);
+                          setIsShareModalOpen(true);
+                        }}
+                        className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
+                      >
+                        <Share className="h-4 w-4 mr-2" />
+                        {t("header.share")}
+                      </button>
+                    )}
+                    {permissions.canEdit && (
+                      <button
+                        onClick={() => {
+                          setIsBoardMenuOpen(false);
+                          setIsDeleteModalOpen(true);
+                        }}
+                        disabled={isDeleting}
+                        className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground disabled:opacity-50"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        {t("header.deleteBoard")}
+                      </button>
+                    )}
                   </div>
                 )}
               </div>

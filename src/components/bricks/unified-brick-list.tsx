@@ -34,7 +34,7 @@ interface UnifiedBrickListProps {
   boards?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   addableKinds?: AddableKind[];
-  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<void> | void;
+  onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({

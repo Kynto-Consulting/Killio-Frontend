@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Clock, Layout, Loader2, Search, Trash2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, createBoard, deleteBoard } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
@@ -51,6 +51,19 @@ export default function BoardsPage() {
     }
   };
 
+  const handleUploadBoardCover = async (file: File): Promise<string> => {
+    if (!accessToken) {
+      throw new Error("Sesion expirada. Inicia sesion nuevamente.");
+    }
+    const uploaded = await uploadFile(file, accessToken);
+    return uploaded.url;
+  };
+
+  const isImageCover = (value?: string | null): boolean => {
+    if (!value) return false;
+    return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+  };
+
   const handleDeleteBoard = async () => {
     if (!accessToken || !boardToDelete) return;
 
@@ -81,6 +94,7 @@ export default function BoardsPage() {
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
         onSubmit={handleCreateBoardSubmit}
+        onUploadCoverImage={handleUploadBoardCover}
       />
 
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
@@ -133,7 +147,10 @@ export default function BoardsPage() {
               key={board.id} 
               className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[160px] overflow-hidden"
             >
-               <div className={`h-20 ${board.coverImageUrl || 'bg-gradient-to-tr from-accent/20 to-primary/20'} w-full border-b border-border/50 relative px-4 flex items-center`}>
+               <div
+                 className={`h-20 ${isImageCover(board.coverImageUrl) ? 'bg-slate-800 bg-cover bg-center' : (board.coverImageUrl || 'bg-gradient-to-tr from-accent/20 to-primary/20')} w-full border-b border-border/50 relative px-4 flex items-center`}
+                 style={isImageCover(board.coverImageUrl) ? { backgroundImage: `url(${board.coverImageUrl})` } : undefined}
+               >
                  <Layout className="h-8 w-8 text-accent/40" />
               </div>
               <div className="p-4 flex flex-col flex-1">
