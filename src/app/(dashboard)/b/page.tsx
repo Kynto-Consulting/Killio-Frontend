@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import { Plus, Clock, Layout, Loader2, Search, Trash2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
-import { CreateBoardModal } from "@/components/ui/create-board-modal";
+import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -38,12 +38,12 @@ export default function BoardsPage() {
     setIsCreateBoardModalOpen(true);
   };
 
-  const handleCreateBoardSubmit = async (payload: { name: string; coverImageUrl: string }) => {
+  const handleCreateBoardSubmit = async (payload: CreateBoardSubmitPayload) => {
     if (!accessToken || !activeTeamId) return;
     
     try {
       const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
-      const newBoard = await createBoard({ name: payload.name, slug, coverImageUrl: payload.coverImageUrl }, activeTeamId, accessToken);
+      const newBoard = await createBoard({ ...payload, slug }, activeTeamId, accessToken);
       setBoards([...boards, newBoard]);
       toast(t("boardCreatedSuccess"), "success");
     } catch (error) {
@@ -59,9 +59,44 @@ export default function BoardsPage() {
     return uploaded.url;
   };
 
-  const isImageCover = (value?: string | null): boolean => {
-    if (!value) return false;
-    return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+  const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
+    if (board.backgroundKind === "image" && board.backgroundImageUrl) {
+      return {
+        className: "bg-slate-800 bg-cover bg-center",
+        style: { backgroundImage: `url(${board.backgroundImageUrl})` },
+      };
+    }
+
+    if (board.backgroundKind === "color" && board.backgroundValue) {
+      return {
+        className: "bg-slate-800",
+        style: { backgroundColor: board.backgroundValue },
+      };
+    }
+
+    if (board.backgroundKind === "gradient" && board.backgroundGradient) {
+      if (board.backgroundGradient.startsWith("bg-")) {
+        return { className: board.backgroundGradient };
+      }
+
+      return {
+        className: "bg-slate-800",
+        style: { background: board.backgroundGradient },
+      };
+    }
+
+    if (board.backgroundKind === "preset" && board.backgroundValue) {
+      return { className: board.backgroundValue };
+    }
+
+    if (board.coverImageUrl && (/^https?:\/\//i.test(board.coverImageUrl) || board.coverImageUrl.startsWith("/") || board.coverImageUrl.startsWith("data:image/"))) {
+      return {
+        className: "bg-slate-800 bg-cover bg-center",
+        style: { backgroundImage: `url(${board.coverImageUrl})` },
+      };
+    }
+
+    return { className: board.coverImageUrl || "bg-gradient-to-tr from-accent/20 to-primary/20" };
   };
 
   const handleDeleteBoard = async () => {
@@ -142,14 +177,17 @@ export default function BoardsPage() {
           </div>
 
           {filteredBoards.map((board) => (
+            (() => {
+              const cover = resolveBoardCover(board);
+              return (
             <Link 
               href={`/b/${board.id}`} 
               key={board.id} 
               className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[160px] overflow-hidden"
             >
                <div
-                 className={`h-20 ${isImageCover(board.coverImageUrl) ? 'bg-slate-800 bg-cover bg-center' : (board.coverImageUrl || 'bg-gradient-to-tr from-accent/20 to-primary/20')} w-full border-b border-border/50 relative px-4 flex items-center`}
-                 style={isImageCover(board.coverImageUrl) ? { backgroundImage: `url(${board.coverImageUrl})` } : undefined}
+                 className={`h-20 ${cover.className} w-full border-b border-border/50 relative px-4 flex items-center`}
+                 style={cover.style}
                >
                  <Layout className="h-8 w-8 text-accent/40" />
               </div>
@@ -173,6 +211,8 @@ export default function BoardsPage() {
                 </div>
               </div>
             </Link>
+              );
+            })()
           ))}
         </div>
       ) : (

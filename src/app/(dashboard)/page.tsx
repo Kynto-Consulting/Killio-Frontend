@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import { AlignLeft, ArrowRight, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, Layout, Loader2, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, Users, Workflow } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
-import { CreateBoardModal } from "@/components/ui/create-board-modal";
+import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { PublicFooter } from "@/components/marketing/public-footer";
 import { useSession } from "@/components/providers/session-provider";
@@ -404,11 +404,11 @@ export default function WorkspacesPage() {
     setIsCreateBoardModalOpen(true);
   };
 
-  const handleCreateBoardSubmit = async (payload: { name: string; coverImageUrl: string }) => {
+  const handleCreateBoardSubmit = async (payload: CreateBoardSubmitPayload) => {
     if (!accessToken || !activeTeamId) return;
 
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
-    const newBoard = await createBoard({ name: payload.name, slug, coverImageUrl: payload.coverImageUrl }, activeTeamId, accessToken);
+    const newBoard = await createBoard({ ...payload, slug }, activeTeamId, accessToken);
     setBoards([...boards, newBoard]);
   };
 
@@ -420,9 +420,44 @@ export default function WorkspacesPage() {
     return uploaded.url;
   };
 
-  const isImageCover = (value?: string | null): boolean => {
-    if (!value) return false;
-    return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+  const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
+    if (board.backgroundKind === "image" && board.backgroundImageUrl) {
+      return {
+        className: "bg-slate-800 bg-cover bg-center",
+        style: { backgroundImage: `url(${board.backgroundImageUrl})` },
+      };
+    }
+
+    if (board.backgroundKind === "color" && board.backgroundValue) {
+      return {
+        className: "bg-slate-800",
+        style: { backgroundColor: board.backgroundValue },
+      };
+    }
+
+    if (board.backgroundKind === "gradient" && board.backgroundGradient) {
+      if (board.backgroundGradient.startsWith("bg-")) {
+        return { className: board.backgroundGradient };
+      }
+
+      return {
+        className: "bg-slate-800",
+        style: { background: board.backgroundGradient },
+      };
+    }
+
+    if (board.backgroundKind === "preset" && board.backgroundValue) {
+      return { className: board.backgroundValue };
+    }
+
+    if (board.coverImageUrl && (/^https?:\/\//i.test(board.coverImageUrl) || board.coverImageUrl.startsWith("/") || board.coverImageUrl.startsWith("data:image/"))) {
+      return {
+        className: "bg-slate-800 bg-cover bg-center",
+        style: { backgroundImage: `url(${board.coverImageUrl})` },
+      };
+    }
+
+    return { className: board.coverImageUrl || "bg-gradient-to-tr from-accent to-primary/60" };
   };
 
   const handleCreateDocumentClick = async () => {
@@ -542,10 +577,13 @@ export default function WorkspacesPage() {
               <p>{t("gatheringWorkspaces")}</p>
             </div>
           ) : boards.map((board) => (
+            (() => {
+              const cover = resolveBoardCover(board);
+              return (
             <Link href={`/b/${board.id}`} key={board.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
               <div
-                className={`h-24 ${isImageCover(board.coverImageUrl) ? 'bg-slate-800 bg-cover bg-center' : (board.coverImageUrl || 'bg-gradient-to-tr from-accent to-primary/60')} w-full border-b border-border/50 relative`}
-                style={isImageCover(board.coverImageUrl) ? { backgroundImage: `url(${board.coverImageUrl})` } : undefined}
+                className={`h-24 ${cover.className} w-full border-b border-border/50 relative`}
+                style={cover.style}
               >
                 <div className="absolute inset-0 bg-black/10 transition-opacity group-hover:bg-black/0"></div>
               </div>
@@ -573,6 +611,8 @@ export default function WorkspacesPage() {
                 </div>
               </div>
             </Link>
+              );
+            })()
           ))}
         </div>
       )}
