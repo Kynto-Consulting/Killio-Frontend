@@ -1,7 +1,7 @@
 "use client";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, type CSSProperties } from "react";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -28,6 +28,17 @@ type BoardListState = {
   id: string;
   title: string;
   cards: any[];
+};
+
+type BoardAppearanceState = {
+  coverImageUrl?: string | null;
+  backgroundKind?: "none" | "preset" | "image" | "color" | "gradient";
+  backgroundValue?: string | null;
+  backgroundImageUrl?: string | null;
+  backgroundGradient?: string | null;
+  themeKind?: "preset" | "custom";
+  themePreset?: string | null;
+  themeCustom?: Record<string, unknown>;
 };
 
 type ApplyEventResult = {
@@ -429,6 +440,7 @@ function applyBoardUpdated(
   lists: BoardListState[],
   payload: Record<string, unknown>,
   onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
+  onAppearanceChange: (appearancePatch: Partial<BoardAppearanceState>) => void,
 ): ApplyEventResult {
   const changes = payload.changes as Record<string, unknown> | undefined;
 
@@ -439,6 +451,57 @@ function applyBoardUpdated(
   const visibility = asString(changes.visibility);
   if (visibility === "private" || visibility === "team" || visibility === "public_link") {
     onVisibilityChange(visibility);
+  }
+
+  const appearanceRaw = changes.appearance as Record<string, unknown> | undefined;
+  if (appearanceRaw && typeof appearanceRaw === "object") {
+    const patch: Partial<BoardAppearanceState> = {};
+    const backgroundKind = asString(appearanceRaw.backgroundKind ?? appearanceRaw.background_kind);
+    if (backgroundKind === "none" || backgroundKind === "preset" || backgroundKind === "image" || backgroundKind === "color" || backgroundKind === "gradient") {
+      patch.backgroundKind = backgroundKind;
+    }
+
+    const themeKind = asString(appearanceRaw.themeKind ?? appearanceRaw.theme_kind);
+    if (themeKind === "preset" || themeKind === "custom") {
+      patch.themeKind = themeKind;
+    }
+
+    const coverImageUrl = appearanceRaw.coverImageUrl ?? appearanceRaw.cover_image_url;
+    if (typeof coverImageUrl === "string" || coverImageUrl === null) {
+      patch.coverImageUrl = coverImageUrl;
+    }
+
+    const backgroundValue = appearanceRaw.backgroundValue ?? appearanceRaw.background_value;
+    if (typeof backgroundValue === "string" || backgroundValue === null) {
+      patch.backgroundValue = backgroundValue;
+    }
+
+    const backgroundImageUrl = appearanceRaw.backgroundImageUrl ?? appearanceRaw.background_image_url;
+    if (typeof backgroundImageUrl === "string" || backgroundImageUrl === null) {
+      patch.backgroundImageUrl = backgroundImageUrl;
+    }
+
+    const backgroundGradient = appearanceRaw.backgroundGradient ?? appearanceRaw.background_gradient;
+    if (typeof backgroundGradient === "string" || backgroundGradient === null) {
+      patch.backgroundGradient = backgroundGradient;
+    }
+
+    const themePreset = appearanceRaw.themePreset ?? appearanceRaw.theme_preset;
+    if (typeof themePreset === "string" || themePreset === null) {
+      patch.themePreset = themePreset;
+    }
+
+    if (appearanceRaw.themeCustom && typeof appearanceRaw.themeCustom === "object") {
+      patch.themeCustom = appearanceRaw.themeCustom as Record<string, unknown>;
+    }
+
+    if (appearanceRaw.theme_custom && typeof appearanceRaw.theme_custom === "object") {
+      patch.themeCustom = appearanceRaw.theme_custom as Record<string, unknown>;
+    }
+
+    if (Object.keys(patch).length > 0) {
+      onAppearanceChange(patch);
+    }
   }
 
   const listCreated = changes.listCreated as Record<string, unknown> | undefined;
@@ -466,6 +529,7 @@ function applyRealtimeEventToLists(
   lists: BoardListState[],
   event: BoardEvent,
   onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
+  onAppearanceChange: (appearancePatch: Partial<BoardAppearanceState>) => void,
 ): ApplyEventResult {
   switch (event.type) {
     case "card.created":
@@ -483,7 +547,7 @@ function applyRealtimeEventToLists(
     case "brick.reordered":
       return applyBrickReordered(lists, event.payload);
     case "board.updated":
-      return applyBoardUpdated(lists, event.payload, onVisibilityChange);
+      return applyBoardUpdated(lists, event.payload, onVisibilityChange, onAppearanceChange);
     case "brick.created":
     case "brick.updated":
       return { nextLists: lists, needsFallback: true };
@@ -583,6 +647,10 @@ export default function BoardPage() {
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
+  const [boardAppearance, setBoardAppearance] = useState<BoardAppearanceState>({
+    backgroundKind: "preset",
+    backgroundValue: "bg-background",
+  });
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -597,6 +665,16 @@ export default function BoardPage() {
       .then((board) => {
         setBoardName(board.name);
         setBoardVisibility(board.visibility || "team");
+        setBoardAppearance({
+          coverImageUrl: board.coverImageUrl,
+          backgroundKind: board.backgroundKind,
+          backgroundValue: board.backgroundValue,
+          backgroundImageUrl: board.backgroundImageUrl,
+          backgroundGradient: board.backgroundGradient,
+          themeKind: board.themeKind,
+          themePreset: board.themePreset,
+          themeCustom: board.themeCustom,
+        });
         setBoardTeamId(board.teamId ?? null);
         const mappedLists = board.lists.map(list => ({
           id: list.id,
@@ -651,7 +729,9 @@ export default function BoardPage() {
     let shouldFallback = false;
 
     setLists((currentLists) => {
-      const result = applyRealtimeEventToLists(currentLists, event, setBoardVisibility);
+      const result = applyRealtimeEventToLists(currentLists, event, setBoardVisibility, (patch) => {
+        setBoardAppearance((prev) => ({ ...prev, ...patch }));
+      });
       if (result.needsFallback) {
         shouldFallback = true;
       }
@@ -877,8 +957,54 @@ export default function BoardPage() {
     })
   }));
 
+  const resolveBoardBackground = (appearance: BoardAppearanceState): { className: string; style?: CSSProperties } => {
+    if (appearance.backgroundKind === "image" && appearance.backgroundImageUrl) {
+      return {
+        className: "bg-slate-950 bg-cover bg-center",
+        style: { backgroundImage: `url(${appearance.backgroundImageUrl})` },
+      };
+    }
+
+    if (appearance.backgroundKind === "color" && appearance.backgroundValue) {
+      return {
+        className: "bg-slate-950",
+        style: { backgroundColor: appearance.backgroundValue },
+      };
+    }
+
+    if (appearance.backgroundKind === "gradient" && appearance.backgroundGradient) {
+      if (appearance.backgroundGradient.startsWith("bg-")) {
+        return { className: appearance.backgroundGradient };
+      }
+
+      return {
+        className: "bg-slate-950",
+        style: { background: appearance.backgroundGradient },
+      };
+    }
+
+    if (appearance.backgroundKind === "preset" && appearance.backgroundValue) {
+      return { className: appearance.backgroundValue };
+    }
+
+    if (appearance.coverImageUrl && (/^https?:\/\//i.test(appearance.coverImageUrl) || appearance.coverImageUrl.startsWith("/") || appearance.coverImageUrl.startsWith("data:image/"))) {
+      return {
+        className: "bg-slate-950 bg-cover bg-center",
+        style: { backgroundImage: `url(${appearance.coverImageUrl})` },
+      };
+    }
+
+    if (appearance.coverImageUrl) {
+      return { className: appearance.coverImageUrl };
+    }
+
+    return { className: "bg-background" };
+  };
+
+  const boardBackground = resolveBoardBackground(boardAppearance);
+
   return (
-    <div className="flex flex-col h-full overflow-hidden bg-background relative">
+    <div className={`flex flex-col h-full overflow-hidden relative ${boardBackground.className}`} style={boardBackground.style}>
       {/* Board Header */}
       <header className="flex items-center justify-between px-6 py-3 border-b border-border/50 bg-background/80 backdrop-blur-sm z-10 w-full shrink-0">
         <div className="flex items-center space-x-4">
