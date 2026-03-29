@@ -21,7 +21,7 @@
     "date-fns": "^4.1.0",
     "diff": "^8.0.4",
     "hyperformula": "^3.2.0",
-    "lucide-react": "^0.577.0",
+    "lucide-react": "^1.7.0",
     "next": "15.5.12",
     "pdf-parse": "^2.4.5",
     "react": "19.0.0",

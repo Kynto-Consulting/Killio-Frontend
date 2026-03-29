@@ -258,9 +258,6 @@ export function BoardChatDrawer({
     if (kind === "media") {
       return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
     }
-    if (kind === "embed") {
-      return `embed(type=${brick?.embedType || brick?.content?.embedType || "url"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, href=${clipAiContext(brick?.href ?? brick?.content?.href, 90) || "none"}, summary=${clipAiContext(brick?.summary ?? brick?.content?.summary, 90) || "none"})`;
-    }
     if (kind === "ai") {
       return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
     }

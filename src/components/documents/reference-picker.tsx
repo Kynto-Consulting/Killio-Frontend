@@ -87,10 +87,6 @@ const selectorOptionsByKind: Record<string, SelectorOption[]> = {
   ],
   image: [{ value: "url", label: "URL" }],
   file: [{ value: "url", label: "URL" }],
-  embed: [
-    { value: "href", label: "Enlace" },
-    { value: "summary", label: "Resumen" },
-  ],
   graph: [
     { value: "series:value", label: "Serie value" },
     { value: "point:1", label: "Punto 1" },
@@ -178,10 +174,6 @@ function validateCustomSelectorForKind(kind: string, selectorRaw: string): boole
 
   if (normalizedKind === "ai") {
     return (name === "prompt" || name === "response") && parts.length === 1;
-  }
-
-  if (normalizedKind === "embed") {
-    return (name === "href" || name === "title" || name === "summary") && parts.length === 1;
   }
 
   if (normalizedKind === "media" || normalizedKind === "image" || normalizedKind === "file") {

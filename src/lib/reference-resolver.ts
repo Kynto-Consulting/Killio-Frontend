@@ -51,7 +51,6 @@ export class ReferenceResolver {
     if (kind === "text") return String(payload.markdown ?? payload.text ?? "");
     if (kind === "accordion") return String(payload.body ?? "");
     if (kind === "ai") return String(payload.response ?? payload.prompt ?? "");
-    if (kind === "embed") return String(payload.summary ?? payload.title ?? payload.href ?? "");
     return String(payload.markdown ?? payload.text ?? payload.body ?? payload.summary ?? "");
   }
 
@@ -164,13 +163,6 @@ export class ReferenceResolver {
     return String(payload.url ?? payload.title ?? payload.caption ?? "");
   }
 
-  private static embedSelector(payload: any, selector: string): string {
-    if (selector === "href") return String(payload.href ?? "");
-    if (selector === "title") return String(payload.title ?? "");
-    if (selector === "summary") return String(payload.summary ?? "");
-    return String(payload.summary ?? payload.href ?? payload.title ?? "");
-  }
-
   private static graphSelector(payload: any, selector: string, args: string[]): string {
     const data = Array.isArray(payload.data) ? payload.data : [];
     if (!data.length) return "";
@@ -236,10 +228,6 @@ export class ReferenceResolver {
 
     if (kind === "media" || kind === "image" || kind === "file") {
       return this.mediaSelector(payload, selector);
-    }
-
-    if (kind === "embed") {
-      return this.embedSelector(payload, selector);
     }
 
     if (kind === "graph") {

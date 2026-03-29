@@ -20,6 +20,7 @@ import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer
 import { Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -226,6 +227,73 @@ export default function DocumentPage() {
     }
   };
 
+  const handleUploadMediaFiles = useCallback(async ({
+    brickId,
+    files,
+  }: {
+    brickId: string;
+    files: File[];
+  }) => {
+    if (!accessToken || !document || files.length === 0) return;
+
+    const target = document.bricks.find((brick) => brick.id === brickId);
+    if (!target) return;
+
+    if (target.kind !== 'image' && target.kind !== 'media' && target.kind !== 'file') {
+      return;
+    }
+
+    const fallback: MediaCarouselItem = {
+      url: target.content?.url || '',
+      title: target.content?.title || '',
+      mimeType: target.content?.mimeType || null,
+      sizeBytes: target.content?.sizeBytes || null,
+      assetId: target.content?.assetId || null,
+    };
+
+    const existingMeta = parseMediaMeta(target.content?.caption, fallback);
+
+    const uploadedItems = await uploadFilesAsMediaItems({
+      files,
+      accessToken,
+      uploadFile,
+      onUploadError: (err) => {
+        console.error('Failed to upload media file for document brick', err);
+        toast('No se pudo subir uno de los archivos. Se mostrara localmente en esta sesion.', 'error');
+      },
+      allowLocalBlobFallback: true,
+    });
+
+    if (uploadedItems.length === 0) {
+      toast(t("createBlockError"), "error");
+      return;
+    }
+
+    const nextItems = [...existingMeta.items.filter((it: MediaCarouselItem) => it.url), ...uploadedItems];
+    const first = nextItems[0];
+
+    const updatedBrick = await updateDocumentBrick(docId, brickId, {
+      ...target.content,
+      mediaType: first?.mimeType?.startsWith('image/') ? 'image' : 'file',
+      title: first?.title || target.content?.title || 'Media',
+      url: first?.url || target.content?.url || '',
+      mimeType: first?.mimeType || null,
+      sizeBytes: first?.sizeBytes || null,
+      assetId: first?.assetId || null,
+      caption: buildMediaCaption({ subtitle: existingMeta.subtitle || '', items: nextItems }),
+    }, accessToken);
+
+    setDocument((current) => {
+      if (!current) return current;
+      return {
+        ...current,
+        bricks: current.bricks.map((brick) => (
+          brick.id === brickId ? updatedBrick : brick
+        )),
+      };
+    });
+  }, [accessToken, docId, document, t]);
+
   const handlePasteImageInTextBrick = useCallback(async ({
     brickId,
     file,
@@ -262,6 +330,9 @@ export default function DocumentPage() {
     const safeCursor = Math.max(0, Math.min(cursorOffset, sourceMarkdown.length));
     const beforeText = sourceMarkdown.slice(0, safeCursor);
     const afterText = sourceMarkdown.slice(safeCursor);
+    const isAtStart = safeCursor === 0;
+    const isAtEnd = safeCursor >= sourceMarkdown.length;
+    const isAtMiddle = !isAtStart && !isAtEnd;
 
     try {
       const uploaded = await uploadFile(file, accessToken);
@@ -272,32 +343,62 @@ export default function DocumentPage() {
         });
       }
 
-      const alt = (file.name || 'Imagen').replace(/[\[\]]/g, '').trim() || 'Imagen';
-      const imageMarkdown = `\n![${alt}](${uploaded.url})\n`;
-      const nextMarkdown = `${beforeText}${imageMarkdown}${afterText}`;
+      const mediaContent = {
+        mediaType: 'image',
+        title: (file.name || 'Imagen').trim() || 'Imagen',
+        url: uploaded.url,
+        mimeType: file.type || null,
+        sizeBytes: file.size || null,
+        caption: '',
+        assetId: uploaded.key,
+      };
 
-      const updatedTextBrick = await updateDocumentBrick(docId, brickId, {
-        ...target.content,
-        text: nextMarkdown,
-        markdown: nextMarkdown,
-      }, accessToken);
+      if (isAtMiddle) {
+        const updatedTextBrick = await updateDocumentBrick(docId, brickId, {
+          ...target.content,
+          text: beforeText,
+          markdown: beforeText,
+        }, accessToken);
 
-      setDocument((current) => {
-        if (!current) return current;
-        return {
-          ...current,
-          bricks: current.bricks.map((brick) => (
-            brick.id === brickId ? updatedTextBrick : brick
-          )),
-        };
-      });
-      if (process.env.NODE_ENV !== 'production') {
-        console.log('[DocumentTextPaste] updated text brick', {
-          brickId,
-          nextMarkdownLength: nextMarkdown.length,
+        const mediaBrick = await createDocumentBrick(docId, {
+          kind: 'image',
+          position: target.position + 0.5,
+          content: mediaContent,
+        }, accessToken);
+
+        const afterBrick = afterText.length > 0
+          ? await createDocumentBrick(docId, {
+              kind: 'text',
+              position: target.position + 1,
+              content: { text: afterText, markdown: afterText },
+            }, accessToken)
+          : null;
+
+        setDocument((current) => {
+          if (!current) return current;
+          const nextBricks = current.bricks
+            .map((brick) => (brick.id === brickId ? updatedTextBrick : brick))
+            .concat([mediaBrick, ...(afterBrick ? [afterBrick] : [])])
+            .sort((a, b) => a.position - b.position);
+          return { ...current, bricks: nextBricks };
+        });
+      } else {
+        const mediaBrick = await createDocumentBrick(docId, {
+          kind: 'image',
+          position: isAtStart ? target.position - 0.5 : target.position + 0.5,
+          content: mediaContent,
+        }, accessToken);
+
+        setDocument((current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            bricks: [...current.bricks, mediaBrick].sort((a, b) => a.position - b.position),
+          };
         });
       }
-      return nextMarkdown;
+
+      return;
     } catch (err) {
       console.error('Failed to paste image into document text brick', err);
       if (process.env.NODE_ENV !== 'production') {
@@ -614,6 +715,7 @@ export default function DocumentPage() {
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}
               onPasteImageInTextBrick={handlePasteImageInTextBrick}
+              onUploadMediaFiles={handleUploadMediaFiles}
             />
           </div>
         </div>

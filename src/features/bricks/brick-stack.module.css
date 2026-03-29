@@ -208,13 +208,6 @@
   border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-.embedType {
-  color: #7db5ff;
-  text-transform: uppercase;
-  letter-spacing: 0.16em;
-  font-size: 10px;
-}
-
 .embedLink {
   color: #8ec5ff;
   font-size: 13px;

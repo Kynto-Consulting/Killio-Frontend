@@ -24,6 +24,7 @@ import { RefPill } from "./ref-pill";
 import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTENT_REGEX, isTimestampInDateRange, resolveReportDateRange, toDocumentMentionToken } from "@/lib/ai-report";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
+import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -90,49 +91,6 @@ function clampTimerValue(value: string, max: number): string {
   const parsed = Number.parseInt(value || '0', 10);
   if (!Number.isFinite(parsed) || Number.isNaN(parsed) || parsed < 0) return '0';
   return String(Math.min(parsed, max));
-}
-
-type MediaCarouselItem = {
-  url: string;
-  title?: string | null;
-  mimeType?: string | null;
-  sizeBytes?: number | null;
-  assetId?: string | null;
-};
-
-type MediaMeta = {
-  subtitle?: string;
-  items: MediaCarouselItem[];
-};
-
-const MEDIA_META_PREFIX = "__media_meta_v1__:";
-
-function parseMediaMeta(caption: string | null | undefined, fallback: MediaCarouselItem): MediaMeta {
-  if (caption && caption.startsWith(MEDIA_META_PREFIX)) {
-    try {
-      const parsed = JSON.parse(caption.slice(MEDIA_META_PREFIX.length));
-      const items = Array.isArray(parsed?.items)
-        ? parsed.items.filter((it: any) => typeof it?.url === 'string' && it.url.length > 0)
-        : [];
-      if (items.length > 0) {
-        return {
-          subtitle: typeof parsed?.subtitle === 'string' ? parsed.subtitle : '',
-          items,
-        };
-      }
-    } catch {
-      // ignore and fallback
-    }
-  }
-
-  return {
-    subtitle: caption || '',
-    items: fallback.url ? [fallback] : [],
-  };
-}
-
-function buildMediaCaption(meta: MediaMeta): string {
-  return `${MEDIA_META_PREFIX}${JSON.stringify({ subtitle: meta.subtitle || '', items: meta.items })}`;
 }
 
 export function CardDetailModal({
@@ -617,9 +575,6 @@ export function CardDetailModal({
     }
     if (kind === "media") {
       return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
-    }
-    if (kind === "embed") {
-      return `embed(type=${brick?.embedType || brick?.content?.embedType || "url"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, href=${clipAiContext(brick?.href ?? brick?.content?.href, 90) || "none"}, summary=${clipAiContext(brick?.summary ?? brick?.content?.summary, 90) || "none"})`;
     }
     if (kind === "ai") {
       return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
@@ -1128,19 +1083,6 @@ export function CardDetailModal({
         parentBlockId: null,
       } as BoardBrick;
     }
-    if (input.kind === 'embed') {
-      return {
-        id: brickId,
-        kind: 'embed',
-        embedType: input.embedType,
-        title: input.title,
-        href: input.href,
-        targetId: input.targetId,
-        summary: input.summary,
-        position,
-        parentBlockId: null,
-      } as BoardBrick;
-    }
     return {
       id: brickId,
       kind: 'text',
@@ -1186,16 +1128,6 @@ export function CardDetailModal({
         sizeBytes: brick.sizeBytes,
         caption: brick.caption,
         assetId: brick.assetId,
-      };
-    }
-    if (brick.kind === 'embed') {
-      return {
-        kind: 'embed',
-        embedType: brick.embedType,
-        title: brick.title,
-        href: brick.href,
-        targetId: brick.targetId,
-        summary: brick.summary,
       };
     }
     if (brick.kind === 'ai') {
@@ -1327,36 +1259,16 @@ export function CardDetailModal({
     };
     const existingMeta = parseMediaMeta(target.caption, fallback);
 
-    const uploadedItems: MediaCarouselItem[] = [];
-    for (const file of files) {
-      let uploadedUrl = '';
-      let uploadedKey: string | null = null;
-
-      if (accessToken) {
-        try {
-          const uploaded = await uploadFile(file, accessToken);
-          uploadedUrl = uploaded.url;
-          uploadedKey = uploaded.key;
-        } catch (err) {
-          console.error('[MediaUpload] backend upload failed, using local blob fallback', err);
-          uploadedUrl = URL.createObjectURL(file);
-          uploadedKey = null;
-          toast('No se pudo subir uno de los archivos. Se mostrara localmente en esta sesion.', 'error');
-        }
-      } else {
-        uploadedUrl = URL.createObjectURL(file);
-        uploadedKey = null;
-      }
-
-      if (!uploadedUrl) continue;
-      uploadedItems.push({
-        url: uploadedUrl,
-        title: file.name,
-        mimeType: file.type || null,
-        sizeBytes: file.size || null,
-        assetId: uploadedKey,
-      });
-    }
+    const uploadedItems = await uploadFilesAsMediaItems({
+      files,
+      accessToken,
+      uploadFile,
+      onUploadError: (err) => {
+        console.error('[MediaUpload] backend upload failed, using local blob fallback', err);
+        toast('No se pudo subir uno de los archivos. Se mostrara localmente en esta sesion.', 'error');
+      },
+      allowLocalBlobFallback: true,
+    });
 
     if (!uploadedItems.length) return;
 

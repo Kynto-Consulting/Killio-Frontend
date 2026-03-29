@@ -109,15 +109,6 @@ export type MediaBrick = BrickBase & {
   assetId: string | null;
 };
 
-export type EmbedBrick = BrickBase & {
-  kind: 'embed';
-  embedType: 'board' | 'card' | 'url';
-  title: string;
-  href: string | null;
-  targetId: string | null;
-  summary: string | null;
-};
-
 export type AiBrick = BrickBase & {
   kind: 'ai';
   status: 'idle' | 'running' | 'done' | 'error';
@@ -152,7 +143,7 @@ export type AccordionBrick = BrickBase & {
   isExpanded: boolean;
 };
 
-export type BoardBrick = TextBrick | MediaBrick | EmbedBrick | AiBrick | TableBrick | GraphBrick | ChecklistBrick | AccordionBrick;
+export type BoardBrick = TextBrick | MediaBrick | AiBrick | TableBrick | GraphBrick | ChecklistBrick | AccordionBrick;
 
 export type BrickMutationInput =
   | {
@@ -169,14 +160,6 @@ export type BrickMutationInput =
     sizeBytes: number | null;
     caption: string | null;
     assetId: string | null;
-  }
-  | {
-    kind: 'embed';
-    embedType: EmbedBrick['embedType'];
-    title: string;
-    href: string | null;
-    targetId: string | null;
-    summary: string | null;
   }
   | {
     kind: 'ai';
@@ -987,10 +970,26 @@ export async function uploadFile(
     body: formData,
   });
 
-  if (uploaded.url.startsWith('/')) {
-    return { ...uploaded, url: `${API_BASE_URL}${uploaded.url}` };
+  const normalizePrivateImagePath = (url: string) => {
+    const prefix = '/uploads/image/';
+    if (!url.startsWith(prefix)) return url;
+
+    const rawKey = url.slice(prefix.length);
+    if (!rawKey) return url;
+
+    try {
+      return `${prefix}${decodeURIComponent(rawKey)}`;
+    } catch {
+      return url;
+    }
+  };
+
+  const normalizedUrl = normalizePrivateImagePath(uploaded.url);
+
+  if (normalizedUrl.startsWith('/')) {
+    return { ...uploaded, url: `${API_BASE_URL}${normalizedUrl}` };
   }
 
-  return uploaded;
+  return { ...uploaded, url: normalizedUrl };
 }
 

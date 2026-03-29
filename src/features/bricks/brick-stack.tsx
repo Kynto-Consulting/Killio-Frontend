@@ -2,7 +2,7 @@
 
 import { DragEvent, useEffect, useState } from 'react';
 
-import { AiBrick, BoardBrick, BrickMutationInput, EmbedBrick, MediaBrick, TextBrick } from '@/lib/api/contracts';
+import { AiBrick, BoardBrick, BrickMutationInput, MediaBrick, TextBrick } from '@/lib/api/contracts';
 
 import { BrickEditorForm } from './brick-editor-form';
 import { describeBrick } from './brick-editor-state';
@@ -28,7 +28,7 @@ export function BrickStack({ bricks, interactive = true, onReorder, onUpdate, on
   }, [bricks]);
 
   if (items.length === 0) {
-    return <div className={styles.empty}>No bricks yet. Add notes, files, embeds, or AI summaries to this card.</div>;
+    return <div className={styles.empty}>No bricks yet. Add notes, files, or AI summaries to this card.</div>;
   }
 
   return (
@@ -187,8 +187,6 @@ function renderBrick(brick: BoardBrick) {
       return <TextBrickView brick={brick} />;
     case 'media':
       return <MediaBrickView brick={brick} />;
-    case 'embed':
-      return <EmbedBrickView brick={brick} />;
     case 'ai':
       return <AiBrickView brick={brick} />;
     default:
@@ -241,22 +239,6 @@ function MediaBrickView({ brick }: { brick: MediaBrick }) {
         </div>
       )}
       {brick.caption ? <div className={styles.metaLine}>{brick.caption}</div> : null}
-    </div>
-  );
-}
-
-function EmbedBrickView({ brick }: { brick: EmbedBrick }) {
-  return (
-    <div className={styles.embedCard}>
-      <div className={styles.embedType}>{brick.embedType}</div>
-      <strong>{brick.title}</strong>
-      {brick.summary ? <div>{brick.summary}</div> : null}
-      {brick.href ? (
-        <a href={brick.href} target="_blank" rel="noreferrer" className={styles.embedLink}>
-          {brick.href}
-        </a>
-      ) : null}
-      {!brick.href && brick.targetId ? <div className={styles.metaLine}>Target ID: {brick.targetId}</div> : null}
     </div>
   );
 }

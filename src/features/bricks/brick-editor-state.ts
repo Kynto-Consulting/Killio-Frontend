@@ -11,9 +11,6 @@ export type BrickFormState = {
   sizeBytes: string;
   caption: string;
   assetId: string;
-  embedType: 'board' | 'card' | 'url';
-  targetId: string;
-  summary: string;
   status: 'idle' | 'running' | 'done' | 'error';
   prompt: string;
   response: string;
@@ -33,9 +30,6 @@ export function createDefaultBrickForm(kind: BrickMutationInput['kind']): BrickF
     sizeBytes: '',
     caption: '',
     assetId: '',
-    embedType: 'url',
-    targetId: '',
-    summary: '',
     status: 'idle',
     prompt: '',
     response: '',
@@ -64,16 +58,6 @@ export function brickFormFromBrick(brick: BoardBrick): BrickFormState {
         sizeBytes: brick.sizeBytes !== null ? String(brick.sizeBytes) : '',
         caption: brick.caption ?? '',
         assetId: brick.assetId ?? '',
-      };
-    case 'embed':
-      return {
-        ...createDefaultBrickForm('embed'),
-        kind: 'embed',
-        embedType: brick.embedType,
-        title: brick.title,
-        url: brick.href ?? '',
-        targetId: brick.targetId ?? '',
-        summary: brick.summary ?? '',
       };
     case 'ai':
       return {
@@ -110,15 +94,6 @@ export function brickFormToMutationInput(form: BrickFormState): BrickMutationInp
         caption: nullIfBlank(form.caption),
         assetId: nullIfBlank(form.assetId),
       };
-    case 'embed':
-      return {
-        kind: 'embed',
-        embedType: form.embedType,
-        title: form.title.trim() || 'Linked context',
-        href: nullIfBlank(form.url),
-        targetId: nullIfBlank(form.targetId),
-        summary: nullIfBlank(form.summary),
-      };
     case 'ai':
       return {
         kind: 'ai',
@@ -144,8 +119,6 @@ export function describeBrick(brick: BoardBrick) {
       return brick.markdown.split(/\r?\n/)[0] || 'Text brick';
     case 'media':
       return brick.title ?? 'Media brick';
-    case 'embed':
-      return brick.title;
     case 'ai':
       return brick.title;
     default:
