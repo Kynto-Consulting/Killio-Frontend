@@ -34,6 +34,13 @@ export type BoardSummary = {
   slug: string;
   description: string | null;
   coverImageUrl: string | null;
+  backgroundKind: 'none' | 'preset' | 'image' | 'color' | 'gradient';
+  backgroundValue: string | null;
+  backgroundImageUrl: string | null;
+  backgroundGradient: string | null;
+  themeKind: 'preset' | 'custom';
+  themePreset: string | null;
+  themeCustom: Record<string, unknown>;
   updatedAt: string;
 };
 
@@ -244,6 +251,13 @@ export type BoardView = {
   name: string;
   description: string | null;
   coverImageUrl: string | null;
+  backgroundKind: 'none' | 'preset' | 'image' | 'color' | 'gradient';
+  backgroundValue: string | null;
+  backgroundImageUrl: string | null;
+  backgroundGradient: string | null;
+  themeKind: 'preset' | 'custom';
+  themePreset: string | null;
+  themeCustom: Record<string, unknown>;
   visibility: 'private' | 'team' | 'public_link';
   lists: ListView[];
 };
@@ -305,6 +319,24 @@ type CreateBoardPayload = {
   slug: string;
   description?: string;
   coverImageUrl?: string;
+  backgroundKind?: 'none' | 'preset' | 'image' | 'color' | 'gradient';
+  backgroundValue?: string;
+  backgroundImageUrl?: string;
+  backgroundGradient?: string;
+  themeKind?: 'preset' | 'custom';
+  themePreset?: string;
+  themeCustom?: Record<string, unknown>;
+};
+
+export type UpdateBoardAppearancePayload = {
+  coverImageUrl?: string | null;
+  backgroundKind?: 'none' | 'preset' | 'image' | 'color' | 'gradient';
+  backgroundValue?: string | null;
+  backgroundImageUrl?: string | null;
+  backgroundGradient?: string | null;
+  themeKind?: 'preset' | 'custom';
+  themePreset?: string | null;
+  themeCustom?: Record<string, unknown>;
 };
 
 type InvitePayload = {
@@ -867,6 +899,18 @@ export async function updateBoardVisibility(
     method: 'PATCH',
     headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
     body: JSON.stringify({ visibility }),
+  });
+}
+
+export async function updateBoardAppearance(
+  boardId: string,
+  payload: UpdateBoardAppearancePayload,
+  accessToken: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/appearance`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
   });
 }
 
