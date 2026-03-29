@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Clock, Loader2, FileText, Search } from "lucide-react";
+import { Plus, Clock, Loader2, FileText, Search, Trash2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
+import { listDocuments, DocumentSummary, createDocument, deleteDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -14,6 +14,7 @@ export default function DocumentsPage() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -42,6 +43,33 @@ export default function DocumentsPage() {
   const filteredDocs = documents.filter(doc => 
     doc.title.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  const handleDeleteDocument = async (doc: DocumentSummary) => {
+    if (!accessToken || deletingDocumentId) return;
+
+    const typed = window.prompt(t("deletePrompt", { title: doc.title }));
+    if (typed !== doc.title) {
+      if (typed !== null) {
+        toast(t("deleteConfirmMismatch"), "error");
+      }
+      return;
+    }
+
+    const accepted = window.confirm(t("deleteFinalConfirm", { title: doc.title }));
+    if (!accepted) return;
+
+    setDeletingDocumentId(doc.id);
+    try {
+      await deleteDocument(doc.id, accessToken);
+      setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
+      toast(t("deleteSuccess", { title: doc.title }), "success");
+    } catch (error) {
+      console.error(error);
+      toast(t("deleteError"), "error");
+    } finally {
+      setDeletingDocumentId(null);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
@@ -90,11 +118,29 @@ export default function DocumentsPage() {
           </div>
 
           {filteredDocs.map((doc) => (
-            <Link 
-              href={`/d/${doc.id}`} 
-              key={doc.id} 
+            <div 
+              key={doc.id}
               className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[160px] overflow-hidden"
             >
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  void handleDeleteDocument(doc);
+                }}
+                disabled={deletingDocumentId === doc.id}
+                className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-60"
+                title={t("deleteDocument")}
+                aria-label={t("deleteDocument")}
+              >
+                {deletingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              </button>
+
+              <Link 
+                href={`/d/${doc.id}`}
+                className="flex flex-1 flex-col"
+              >
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-start justify-between">
                    <div className="flex items-center">
@@ -112,7 +158,8 @@ export default function DocumentsPage() {
                   </div>
                 </div>
               </div>
-            </Link>
+              </Link>
+            </div>
           ))}
         </div>
       ) : (
