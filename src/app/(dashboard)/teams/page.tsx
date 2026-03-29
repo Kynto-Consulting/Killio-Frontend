@@ -334,8 +334,8 @@ export default function TeamsPage() {
         </div>
       )}
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden shadow-sm relative">
-        <div className="p-4 border-b border-border/50 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="rounded-xl border border-border bg-card shadow-sm relative">
+        <div className="p-4 border-b border-border/50 bg-background/50 flex flex-col sm:flex-row sm:items-center justify-between gap-4 rounded-t-xl">
           <div className="relative max-w-sm w-full">
             <input
               type="text"

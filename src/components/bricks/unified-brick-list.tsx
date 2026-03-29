@@ -35,6 +35,7 @@ interface UnifiedBrickListProps {
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   addableKinds?: AddableKind[];
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
+  onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -48,7 +49,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   boards = [],
   users = [],
   addableKinds,
-  onPasteImageInTextBrick
+  onPasteImageInTextBrick,
+  onUploadMediaFiles
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const enabledKinds = addableKinds && addableKinds.length > 0
@@ -105,6 +107,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         activeBricks={bricks}
         users={users}
         onPasteImageInTextBrick={onPasteImageInTextBrick}
+        onUploadMediaFiles={onUploadMediaFiles}
       />
     );
   };

@@ -7,6 +7,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { listDocuments, DocumentSummary, createDocument, deleteDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { CreateDocumentModal } from "@/components/ui/create-document-modal";
 
 export default function DocumentsPage() {
   const t = useTranslations("documents");
@@ -15,6 +16,7 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -26,10 +28,8 @@ export default function DocumentsPage() {
       .finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId]);
 
-  const handleCreateDocument = async () => {
+  const handleCreateDocument = async (title: string) => {
     if (!accessToken || !activeTeamId) return;
-    const title = prompt(t("createPrompt"));
-    if (!title || !title.trim()) return;
 
     try {
       const doc = await createDocument({ teamId: activeTeamId, title }, accessToken);
@@ -37,6 +37,7 @@ export default function DocumentsPage() {
     } catch (e) {
       console.error(e);
       toast(t("createError"), "error");
+      throw e; 
     }
   };
 
@@ -90,7 +91,7 @@ export default function DocumentsPage() {
             />
           </div>
           <button 
-            onClick={handleCreateDocument} 
+            onClick={() => setIsCreateModalOpen(true)} 
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
           >
             <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
@@ -107,7 +108,7 @@ export default function DocumentsPage() {
       ) : filteredDocs.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div 
-            onClick={handleCreateDocument} 
+            onClick={() => setIsCreateModalOpen(true)} 
             className="group relative rounded-xl border border-dashed border-border/60 bg-transparent hover:border-accent hover:bg-accent/5 transition-all cursor-pointer flex flex-col items-center justify-center p-8 text-center min-h-[160px]"
           >
             <div className="mb-4 rounded-full bg-accent/10 p-3 text-accent group-hover:bg-accent/20 transition-colors">
@@ -172,13 +173,22 @@ export default function DocumentsPage() {
             {searchQuery ? t("noDocumentsMatch", { query: searchQuery }) : t("noDocumentsEmpty")}
           </p>
           <button 
-            onClick={handleCreateDocument}
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors bg-accent/10 text-accent hover:bg-accent/20 h-9 px-4"
           >
             {t("createFirstDocument")}
           </button>
         </div>
       )}
+
+      <CreateDocumentModal
+        isOpen={isCreateModalOpen}
+        onClose={() => setIsCreateModalOpen(false)}
+        onSubmit={async (title) => {
+          await handleCreateDocument(title);
+          setIsCreateModalOpen(false);
+        }}
+      />
     </div>
   );
 }

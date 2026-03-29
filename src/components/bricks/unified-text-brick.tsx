@@ -25,6 +25,12 @@ interface TextBrickProps {
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
 
+const logPasteDebug = (...args: unknown[]) => {
+  if (process.env.NODE_ENV !== "production") {
+    console.log("[TextBrickPaste]", ...args);
+  }
+};
+
 export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   id,
   text,
@@ -357,9 +363,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   // Sync content from prop if it changes and we are NOT focused
   useEffect(() => {
-    if (contentRef.current && document.activeElement !== contentRef.current) {
+    if (contentRef.current) {
       const rendered = processPseudoMarkdown(text);
+      const isFocused = document.activeElement === contentRef.current;
+      
+      // Always sync if content changed, regardless of focus
+      // This ensures pasted images update correctly
       if (contentRef.current.innerHTML !== rendered) {
+        logPasteDebug("useEffect syncing content", {
+          isFocused,
+          oldLength: contentRef.current.innerHTML.length,
+          newLength: rendered.length,
+        });
         contentRef.current.innerHTML = rendered;
       }
     }
@@ -537,7 +552,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const itemImage = Array.from(clipboardData.items).find((item) => item.type.startsWith("image/"));
     if (itemImage) {
       const file = itemImage.getAsFile();
-      if (file) return file;
+      if (file) {
+        logPasteDebug("resolved file from clipboard item image/*", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+        return file;
+      }
     }
 
     let itemFile: File | null = null;
@@ -546,13 +568,25 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const candidate = item.getAsFile();
       if (candidate && isLikelyImageFile(candidate)) {
         itemFile = candidate;
+        logPasteDebug("resolved file from clipboard item kind=file", {
+          name: candidate.name,
+          type: candidate.type,
+          size: candidate.size,
+        });
         break;
       }
     }
     if (itemFile) return itemFile;
 
     const fileImage = Array.from(clipboardData.files).find((file) => isLikelyImageFile(file));
-    if (fileImage) return fileImage;
+    if (fileImage) {
+      logPasteDebug("resolved file from clipboard files[]", {
+        name: fileImage.name,
+        type: fileImage.type,
+        size: fileImage.size,
+      });
+      return fileImage;
+    }
 
     const html = clipboardData.getData("text/html");
     if (html) {
@@ -566,7 +600,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             const response = await fetch(src);
             if (!response.ok) return null;
             const blob = await response.blob();
-            return makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+            const file = makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+            logPasteDebug("resolved file from text/html img data URL", {
+              name: file.name,
+              type: file.type,
+              size: file.size,
+            });
+            return file;
           }
 
           if (/^https?:\/\//i.test(src)) {
@@ -574,7 +614,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             if (!response.ok) return null;
             const blob = await response.blob();
             if (!blob.type.startsWith("image/")) return null;
-            return makeClipboardImageFile(blob);
+            const file = makeClipboardImageFile(blob);
+            logPasteDebug("resolved file from text/html img remote URL", {
+              name: file.name,
+              type: file.type,
+              size: file.size,
+            });
+            return file;
           }
         } catch (err) {
           console.error("Failed to convert HTML image from clipboard", err);
@@ -589,7 +635,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         const response = await fetch(plainText);
         if (!response.ok) return null;
         const blob = await response.blob();
-        return makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+        const file = makeClipboardImageFile(blob, DEFAULT_PASTED_IMAGE_NAME);
+        logPasteDebug("resolved file from text/plain data URL", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+        return file;
       } catch (err) {
         console.error("Failed to convert plain-text data URL image from clipboard", err);
       }
@@ -602,7 +654,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         if (!response.ok) return null;
         const blob = await response.blob();
         if (!blob.type.startsWith("image/")) return null;
-        return makeClipboardImageFile(blob);
+        const file = makeClipboardImageFile(blob);
+        logPasteDebug("resolved file from text/uri-list", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+        return file;
       } catch (err) {
         console.error("Failed to convert URI-list image from clipboard", err);
       }
@@ -617,12 +675,19 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
 
     try {
+      logPasteDebug("trying navigator.clipboard.read fallback");
       const clipboardItems = await navigator.clipboard.read();
       for (const item of clipboardItems) {
         const imageType = item.types.find((type) => type.startsWith("image/"));
         if (!imageType) continue;
         const blob = await item.getType(imageType);
-        return makeClipboardImageFile(blob);
+        const file = makeClipboardImageFile(blob);
+        logPasteDebug("resolved file from navigator.clipboard.read", {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+        });
+        return file;
       }
     } catch (err) {
       console.error("Clipboard API read failed", err);
@@ -645,25 +710,48 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       e.clipboardData.getData("text/plain").trim().startsWith("data:image/") ||
       /^https?:\/\//i.test(e.clipboardData.getData("text/uri-list").trim());
 
+    logPasteDebug("paste event received", {
+      types: clipboardTypes,
+      itemCount: e.clipboardData.items.length,
+      fileCount: e.clipboardData.files.length,
+      hasImageCandidate,
+    });
+
     if (!hasImageCandidate) return;
 
     e.preventDefault();
 
     const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
     const cursorOffset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
+    logPasteDebug("processing paste", { cursorOffset, markdownLength: markdown.length });
 
     void extractImageFileFromClipboard(e.clipboardData)
       .then(async (file) => {
+        logPasteDebug("extractImageFileFromClipboard resolved", {
+          hasFile: !!file,
+        });
         const resolvedFile = file || await extractImageFileFromClipboardApi();
-        if (!resolvedFile) return;
-        return Promise.resolve(onPasteImage({ file: resolvedFile, cursorOffset, markdown }))
-          .then((nextMarkdown) => {
-            if (typeof nextMarkdown !== "string" || !contentRef.current) return;
-            contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
-          });
+        if (!resolvedFile) {
+          logPasteDebug("no image file resolved from paste payload");
+          return;
+        }
+        logPasteDebug("calling onPasteImage", {
+          name: resolvedFile.name,
+          type: resolvedFile.type,
+          size: resolvedFile.size,
+          source: file ? "paste-event" : "clipboard-api-fallback",
+        });
+        // Call onPasteImage - the parent component handles all state updates
+        // We don't process the return value because the parent may create multiple bricks
+        // or reorganize the structure. Just let the modal handle it and our props will update naturally.
+        await Promise.resolve(onPasteImage({ file: resolvedFile, cursorOffset, markdown }));
+        logPasteDebug("onPasteImage completed");
       })
       .catch((err) => {
-        console.error("Failed to handle pasted image", err);
+        console.error("[TextBrickPaste] Error in paste handler:", err);
+        logPasteDebug("paste handler error", {
+          error: err instanceof Error ? err.message : String(err),
+        });
       });
   };
 

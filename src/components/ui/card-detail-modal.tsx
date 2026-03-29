@@ -92,6 +92,49 @@ function clampTimerValue(value: string, max: number): string {
   return String(Math.min(parsed, max));
 }
 
+type MediaCarouselItem = {
+  url: string;
+  title?: string | null;
+  mimeType?: string | null;
+  sizeBytes?: number | null;
+  assetId?: string | null;
+};
+
+type MediaMeta = {
+  subtitle?: string;
+  items: MediaCarouselItem[];
+};
+
+const MEDIA_META_PREFIX = "__media_meta_v1__:";
+
+function parseMediaMeta(caption: string | null | undefined, fallback: MediaCarouselItem): MediaMeta {
+  if (caption && caption.startsWith(MEDIA_META_PREFIX)) {
+    try {
+      const parsed = JSON.parse(caption.slice(MEDIA_META_PREFIX.length));
+      const items = Array.isArray(parsed?.items)
+        ? parsed.items.filter((it: any) => typeof it?.url === 'string' && it.url.length > 0)
+        : [];
+      if (items.length > 0) {
+        return {
+          subtitle: typeof parsed?.subtitle === 'string' ? parsed.subtitle : '',
+          items,
+        };
+      }
+    } catch {
+      // ignore and fallback
+    }
+  }
+
+  return {
+    subtitle: caption || '',
+    items: fallback.url ? [fallback] : [],
+  };
+}
+
+function buildMediaCaption(meta: MediaMeta): string {
+  return `${MEDIA_META_PREFIX}${JSON.stringify({ subtitle: meta.subtitle || '', items: meta.items })}`;
+}
+
 export function CardDetailModal({
   isOpen,
   onClose,
@@ -1186,15 +1229,40 @@ export function CardDetailModal({
   };
 
   const handleUpdateBrick = async (brickId: string, input: Partial<BrickMutationInput>) => {
-    if (!card?.id || !accessToken) {
-      setLocalBlocks(prev => prev.map(b => b.id === brickId ? { ...b, ...input } : b) as BoardBrick[]);
+    if (!accessToken) {
+      console.log('[UpdateBrick] early exit: missing accessToken');
       return;
     }
+    
+    console.log('[UpdateBrick] updating brick', { brickId, input });
+    
+    // Always update locally (optimistic update)
+    setLocalBlocks(prev => prev.map(b => {
+      if (b.id !== brickId) return b;
+
+      const inData = input as any;
+      // For text bricks, ensure we properly update markdown
+      if (b.kind === 'text' && inData.markdown !== undefined) {
+        return { ...b, markdown: inData.markdown, displayStyle: inData.displayStyle || (b as any).displayStyle };
+      }
+
+      // For other brick types, merge normally
+      return { ...b, ...input };
+    }) as BoardBrick[]);
+    
+    console.log('[UpdateBrick] local update complete');
+    
+    // If we have card.id, also sync with server
+    if (!card?.id) {
+      console.log('[UpdateBrick] no card.id, updated locally only (optimistic)');
+      return;
+    }
+    
     try {
-      setLocalBlocks(prev => prev.map(b => b.id === brickId ? { ...b, ...input } : b) as BoardBrick[]);
       await updateCardBrick(card.id, brickId, input as any, accessToken);
+      console.log('[UpdateBrick] server update complete');
     } catch (err) {
-      console.error("Failed to update brick", err);
+      console.error("Failed to update brick on server", err);
     }
   };
 
@@ -1235,6 +1303,77 @@ export function CardDetailModal({
     }
   };
 
+  const handleUploadMediaFiles = useCallback(async ({
+    brickId,
+    files,
+  }: {
+    brickId: string;
+    files: File[];
+  }) => {
+    if (!files.length) return;
+
+    const target = localBlocks.find((block) => block.id === brickId) as any;
+    if (!target || target.kind !== 'media') {
+      console.error('[MediaUpload] target brick is not media', { brickId });
+      return;
+    }
+
+    const fallback: MediaCarouselItem = {
+      url: target.url || '',
+      title: target.title || '',
+      mimeType: target.mimeType || null,
+      sizeBytes: target.sizeBytes || null,
+      assetId: target.assetId || null,
+    };
+    const existingMeta = parseMediaMeta(target.caption, fallback);
+
+    const uploadedItems: MediaCarouselItem[] = [];
+    for (const file of files) {
+      let uploadedUrl = '';
+      let uploadedKey: string | null = null;
+
+      if (accessToken) {
+        try {
+          const uploaded = await uploadFile(file, accessToken);
+          uploadedUrl = uploaded.url;
+          uploadedKey = uploaded.key;
+        } catch (err) {
+          console.error('[MediaUpload] backend upload failed, using local blob fallback', err);
+          uploadedUrl = URL.createObjectURL(file);
+          uploadedKey = null;
+          toast('No se pudo subir uno de los archivos. Se mostrara localmente en esta sesion.', 'error');
+        }
+      } else {
+        uploadedUrl = URL.createObjectURL(file);
+        uploadedKey = null;
+      }
+
+      if (!uploadedUrl) continue;
+      uploadedItems.push({
+        url: uploadedUrl,
+        title: file.name,
+        mimeType: file.type || null,
+        sizeBytes: file.size || null,
+        assetId: uploadedKey,
+      });
+    }
+
+    if (!uploadedItems.length) return;
+
+    const nextItems = [...existingMeta.items.filter((it) => it.url), ...uploadedItems];
+    const first = nextItems[0];
+    await handleUpdateBrick(brickId, {
+      kind: 'media',
+      mediaType: first?.mimeType?.startsWith('image/') ? 'image' : 'file',
+      title: first?.title || target.title || 'Media',
+      url: first?.url || target.url || '',
+      mimeType: first?.mimeType || null,
+      sizeBytes: first?.sizeBytes || null,
+      caption: buildMediaCaption({ subtitle: existingMeta.subtitle || '', items: nextItems }),
+      assetId: first?.assetId || null,
+    } as Partial<BrickMutationInput>);
+  }, [accessToken, handleUpdateBrick, localBlocks, toast]);
+
   const handlePasteImageInTextBrick = useCallback(async ({
     brickId,
     file,
@@ -1246,41 +1385,194 @@ export function CardDetailModal({
     cursorOffset: number;
     markdown: string;
   }) => {
-    if (!card?.id || !accessToken) return;
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[CardTextPaste] start', {
+        brickId,
+        fileName: file?.name,
+        fileType: file?.type,
+        fileSize: file?.size,
+        cursorOffset,
+        markdownLength: markdown?.length ?? 0,
+      });
+    }
 
     const targetIndex = localBlocks.findIndex((block) => block.id === brickId);
-    if (targetIndex < 0) return;
+    if (targetIndex < 0) {
+      console.log('[CardTextPaste] early exit: brick not found', {
+        brickId,
+        availableBrickIds: localBlocks.map((b) => b.id),
+      });
+      return;
+    }
 
     const target = localBlocks[targetIndex] as any;
-    if (target.kind !== 'text') return;
+    if (target.kind !== 'text') {
+      console.log('[CardTextPaste] early exit: brick is not text kind', {
+        brickId,
+        actualKind: target.kind,
+      });
+      return;
+    }
 
     const sourceMarkdown = typeof markdown === 'string' ? markdown : (target.markdown || '');
     const safeCursor = Math.max(0, Math.min(cursorOffset, sourceMarkdown.length));
-    const beforeText = sourceMarkdown.slice(0, safeCursor);
-    const afterText = sourceMarkdown.slice(safeCursor);
+    
+    // Determine position: start, end, or middle
+    const isAtStart = safeCursor === 0;
+    const isAtEnd = safeCursor >= sourceMarkdown.length;
+    const isAtMiddle = !isAtStart && !isAtEnd;
+    
+    console.log('[CardTextPaste] cursor position', {
+      cursorOffset: safeCursor,
+      textLength: sourceMarkdown.length,
+      isAtStart,
+      isAtEnd,
+      isAtMiddle,
+    });
 
     try {
-      const uploaded = await uploadFile(file, accessToken);
-      const alt = (file.name || 'Imagen').replace(/[\[\]]/g, '').trim() || 'Imagen';
-      const imageMarkdown = `\n![${alt}](${uploaded.url})\n`;
-      const nextMarkdown = `${beforeText}${imageMarkdown}${afterText}`;
+      let imageUrl: string | null = null;
+      let assetKey: string | null = null;
+      let uploadedToServer = false;
 
-      const updatedText = await updateCardBrick(card.id, brickId, {
-        kind: 'text',
-        displayStyle: target.displayStyle || 'paragraph',
-        markdown: nextMarkdown,
-      } as BrickMutationInput, accessToken);
+      if (accessToken) {
+        try {
+          console.log('[CardTextPaste] attempting upload...');
+          const uploaded = await uploadFile(file, accessToken);
+          imageUrl = uploaded.url;
+          assetKey = uploaded.key;
+          uploadedToServer = true;
+          console.log('[CardTextPaste] upload successful', {
+            url: uploaded.url,
+            key: uploaded.key,
+          });
+        } catch (uploadErr) {
+          console.error('[CardTextPaste] upload failed, using local blob fallback', uploadErr);
+          imageUrl = URL.createObjectURL(file);
+          assetKey = null;
+          toast('No se pudo subir la imagen. Se mostrara localmente en esta sesion.', 'error');
+        }
+      } else {
+        imageUrl = URL.createObjectURL(file);
+        assetKey = null;
+        console.log('[CardTextPaste] using local blob URL (no card.id/accessToken)');
+      }
 
-      setLocalBlocks((prev) => prev.map((block) => (
-        block.id === brickId ? (updatedText.brick as BoardBrick) : block
-      )));
-      return nextMarkdown;
+      if (!imageUrl) {
+        toast('No se pudo procesar la imagen pegada.', 'error');
+        return;
+      }
+
+      // Create media brick for the image
+      const mediaBrick: any = {
+        id: `temp-${crypto.randomUUID()}`,
+        kind: 'media',
+        mediaType: 'image',
+        title: file.name || 'Image',
+        url: imageUrl,
+        mimeType: file.type,
+        sizeBytes: file.size,
+        caption: null,
+        assetId: assetKey,
+        position: 0, // Will be set correctly below
+        parentBlockId: null,
+      };
+
+      const newBlocks: BoardBrick[] = [...localBlocks];
+      
+      if (isAtStart) {
+        // Insert media brick BEFORE text brick
+        console.log('[CardTextPaste] inserting media brick at start');
+        mediaBrick.position = target.position - 0.5; // Between previous and current
+        newBlocks.splice(targetIndex, 0, mediaBrick);
+      } else if (isAtEnd) {
+        // Insert media brick AFTER text brick
+        console.log('[CardTextPaste] inserting media brick at end');
+        mediaBrick.position = target.position + 0.5; // Between current and next
+        newBlocks.splice(targetIndex + 1, 0, mediaBrick);
+      } else if (isAtMiddle) {
+        // Split text brick and insert media brick in the middle
+        console.log('[CardTextPaste] splitting text brick and inserting media in middle');
+        const beforeText = sourceMarkdown.slice(0, safeCursor).trimEnd();
+        const afterText = sourceMarkdown.slice(safeCursor).trimStart();
+
+        // Create new brick for text after cursor
+        const afterBrick: BoardBrick = {
+          id: `temp-${crypto.randomUUID()}`,
+          kind: 'text',
+          displayStyle: target.displayStyle || 'paragraph',
+          markdown: afterText,
+          tasks: [],
+          position: target.position + 1,
+          parentBlockId: null,
+        };
+
+        // Update current brick with text before cursor
+        const beforeBrick = { ...target, markdown: beforeText, position: target.position };
+
+        // Set media brick position between
+        mediaBrick.position = target.position + 0.5;
+
+        // Replace original brick and insert new bricks
+        newBlocks[targetIndex] = beforeBrick;
+        newBlocks.splice(targetIndex + 1, 0, mediaBrick, afterBrick);
+      }
+
+      // Re-index positions
+      newBlocks.forEach((block, idx) => {
+        block.position = idx;
+      });
+
+      // Optimistic update: just update local state
+      setLocalBlocks(newBlocks as BoardBrick[]);
+
+      // If card has an ID, persist to server
+      if (card?.id && accessToken && uploadedToServer) {
+        console.log('[CardTextPaste] persisting to server...');
+        
+        // Create or update each brick on server
+        for (const block of newBlocks) {
+          if (block.id.startsWith('temp-')) {
+            // New brick, create it
+            await createCardBrick(card.id, {
+              kind: block.kind,
+              ...(block.kind === 'text' ? {
+                displayStyle: (block as any).displayStyle,
+                markdown: (block as any).markdown,
+              } : {}),
+              ...(block.kind === 'media' ? {
+                mediaType: (block as any).mediaType,
+                title: (block as any).title,
+                url: (block as any).url,
+                mimeType: (block as any).mimeType,
+                sizeBytes: (block as any).sizeBytes,
+                caption: (block as any).caption,
+                assetId: (block as any).assetId,
+              } : {}),
+            } as BrickMutationInput, accessToken);
+          }
+        }
+        
+        // Reorder all bricks
+        await reorderCardBricks(
+          card.id,
+          { clientId: crypto.randomUUID(), brickIds: newBlocks.map(b => b.id) },
+          accessToken
+        );
+      }
+
+      console.log('[CardTextPaste] image paste complete');
+      return; // Success, no string return needed since we created new bricks
     } catch (err) {
+      console.error('[CardTextPaste] EXCEPTION caught', {
+        error: err instanceof Error ? err.message : String(err),
+        errorFull: err,
+      });
       console.error('Failed to paste image into text block', err);
       toast('No se pudo pegar la imagen.', 'error');
       return;
     }
-  }, [accessToken, card?.id, localBlocks, toast]);
+  }, [accessToken, card, localBlocks, toast]);
 
   useEffect(() => {
     recalculateVisibleTags();
@@ -2103,6 +2395,7 @@ export function CardDetailModal({
                     onDeleteBrick={handleDeleteBrick}
                     onReorderBricks={handleReorderBricks}
                     onPasteImageInTextBrick={handlePasteImageInTextBrick}
+                    onUploadMediaFiles={handleUploadMediaFiles}
                   />
                 </div>
 

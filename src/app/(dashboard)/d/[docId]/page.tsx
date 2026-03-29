@@ -158,6 +158,7 @@ export default function DocumentPage() {
       // Wait for WS OR optimistic update:
       setDocument((prev) => {
         if (!prev) return prev;
+        if (prev.bricks.some((b) => b.id === newBrick.id)) return prev;
         return { ...prev, bricks: [...prev.bricks, newBrick].sort((a, b) => a.position - b.position) };
       });
     } catch (e) {
@@ -236,6 +237,17 @@ export default function DocumentPage() {
     cursorOffset: number;
     markdown: string;
   }) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('[DocumentTextPaste] start', {
+        brickId,
+        fileName: file?.name,
+        fileType: file?.type,
+        fileSize: file?.size,
+        cursorOffset,
+        markdownLength: markdown?.length ?? 0,
+      });
+    }
+
     if (!accessToken || !document) return;
 
     const targetIndex = document.bricks.findIndex((brick) => brick.id === brickId);
@@ -253,6 +265,12 @@ export default function DocumentPage() {
 
     try {
       const uploaded = await uploadFile(file, accessToken);
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[DocumentTextPaste] upload complete', {
+          url: uploaded.url,
+          key: uploaded.key,
+        });
+      }
 
       const alt = (file.name || 'Imagen').replace(/[\[\]]/g, '').trim() || 'Imagen';
       const imageMarkdown = `\n![${alt}](${uploaded.url})\n`;
@@ -273,9 +291,21 @@ export default function DocumentPage() {
           )),
         };
       });
+      if (process.env.NODE_ENV !== 'production') {
+        console.log('[DocumentTextPaste] updated text brick', {
+          brickId,
+          nextMarkdownLength: nextMarkdown.length,
+        });
+      }
       return nextMarkdown;
     } catch (err) {
       console.error('Failed to paste image into document text brick', err);
+      if (process.env.NODE_ENV !== 'production') {
+        console.error('[DocumentTextPaste] failed', {
+          brickId,
+          fileName: file?.name,
+        });
+      }
       toast(t("createBlockError"), "error");
       return;
     }

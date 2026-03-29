@@ -342,10 +342,13 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const isFormData = init?.body instanceof FormData;
+  const defaultHeaders: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
-      'Content-Type': 'application/json',
+      ...defaultHeaders,
       ...(init?.headers ?? {}),
     },
     cache: 'no-store',
