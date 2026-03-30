@@ -47,6 +47,15 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : (isArchived ? 0.58 : 1),
+    borderColor: isDragging
+      ? "var(--board-accent, rgba(56,189,248,0.9))"
+      : "var(--board-border, rgba(148,163,184,0.35))",
+    backgroundColor: isArchived
+      ? "rgba(148, 163, 184, 0.12)"
+      : "var(--board-panel-strong, rgba(15,23,42,0.72))",
+    boxShadow: isDragging
+      ? "0 0 0 1px var(--board-accent, rgba(56,189,248,0.9))"
+      : undefined,
   };
 
   const normalizeColor = (raw?: string | null) => {
@@ -90,10 +99,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         ref={setNodeRef}
         style={style}
         onClick={() => !isMenuOpen && setIsModalOpen(true)}
-        className={`group relative flex flex-col gap-3 rounded-lg border ${isDragging
-          ? "border-accent shadow-lg ring-1 ring-accent"
-          : "border-border shadow-sm hover:border-accent/40"
-          } p-3 ${isArchived ? 'cursor-default bg-muted/20' : 'cursor-grab active:cursor-grabbing'} transition-colors`}
+        className={`group relative flex flex-col gap-3 rounded-lg border p-3 ${isArchived ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} transition-colors`}
         {...(isArchived ? {} : attributes)}
         {...(isArchived ? {} : listeners)}
       >

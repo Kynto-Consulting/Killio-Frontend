@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { Plus, MoreHorizontal } from "lucide-react";
@@ -43,14 +43,23 @@ export function ListColumn({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isGuest = !canEdit;
+  const containerStyle: CSSProperties = isDropTarget
+    ? {
+      backgroundColor: "var(--board-panel, rgba(255,255,255,0.6))",
+      borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
+      boxShadow: "0 0 0 2px var(--board-ghost, rgba(56,189,248,0.16))",
+    }
+    : {
+      backgroundColor: "var(--board-panel, rgba(255,255,255,0.6))",
+      borderColor: "var(--board-border, rgba(148,163,184,0.35))",
+    };
 
   return (
     <>
     <div
       ref={setNodeRef}
-      className={`w-72 shrink-0 flex flex-col rounded-xl bg-card/60 border backdrop-blur-sm max-h-full transition-all ${
-        isDropTarget ? "border-accent/80 ring-2 ring-accent/30 shadow-lg" : "border-border"
-      }`}
+      className="w-72 shrink-0 flex flex-col rounded-xl border backdrop-blur-sm max-h-full transition-all"
+      style={containerStyle}
     >
       <div 
         className="p-3 flex items-center justify-between group border-b border-border/40"
@@ -91,8 +100,15 @@ export function ListColumn({
           {list.cards.map((card, index) => (
             <div key={card.id} className="space-y-2">
               {isDropTarget && dropHintIndex === index && draggingCardId !== card.id ? (
-                <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
-                  <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">{t("drag.dropHere")}</span>
+                <div
+                  className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
+                  style={{
+                    borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
+                    backgroundColor: "var(--board-ghost, rgba(56,189,248,0.16))",
+                    boxShadow: "0 0 0 4px var(--board-ghost, rgba(56,189,248,0.12))",
+                  }}
+                >
+                  <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
                 </div>
               ) : null}
           <KanbanCard 
@@ -111,8 +127,15 @@ export function ListColumn({
         </SortableContext>
 
         {isDropTarget && dropHintIndex === list.cards.length ? (
-          <div className="h-20 rounded-lg border-2 border-dashed border-accent/80 bg-accent/10 shadow-[0_0_0_4px_rgba(59,130,246,0.12)] flex items-center justify-center">
-            <span className="text-[11px] font-semibold tracking-wide uppercase text-accent/90">{t("drag.dropHere")}</span>
+          <div
+            className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
+            style={{
+              borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
+              backgroundColor: "var(--board-ghost, rgba(56,189,248,0.16))",
+              boxShadow: "0 0 0 4px var(--board-ghost, rgba(56,189,248,0.12))",
+            }}
+          >
+            <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
           </div>
         ) : null}
         
