@@ -52,8 +52,9 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
       }`}
     >
       {!readonly && (
-        <div className="mt-1.5 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
+        <div className="w-7 shrink-0 relative">
+          <div className="absolute top-1 right-0 flex flex-col items-center opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 bg-background/80 backdrop-blur-sm sm:bg-transparent border sm:border-transparent border-border/50 rounded-md py-0.5 shadow-sm sm:shadow-none">
+            <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
@@ -81,9 +82,10 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
               className="p-1 text-muted-foreground/40 hover:text-destructive cursor-pointer rounded transition-colors"
               title="Borrar bloque"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           )}
+        </div>
         </div>
       )}
       

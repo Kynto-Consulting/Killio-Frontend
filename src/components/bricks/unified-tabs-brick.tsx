@@ -56,8 +56,8 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
   };
 
   return (
-    <div className="flex flex-col border border-border/50 rounded-lg overflow-hidden group">
-      <div className="flex bg-muted/20 border-b border-border/50 relative px-1 pt-1 overflow-x-auto overflow-y-hidden">
+    <div className="flex flex-col border border-border/50 rounded-lg group">
+      <div className="flex bg-muted/20 border-b border-border/50 relative px-1 pt-1 overflow-x-auto overflow-y-hidden rounded-t-lg">
         {safeTabs.map((tab) => (
           <div
             key={tab.id}

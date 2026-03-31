@@ -44,7 +44,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
   };
 
   return (
-    <div className="w-full border-b border-border/40 last:border-0 overflow-hidden transition-all duration-300">
+    <div className="w-full border-b border-border/40 last:border-0 transition-all duration-300">
       <div
         className="flex items-center gap-2 py-3 px-1 group/acc cursor-pointer hover:bg-muted/5 rounded-lg transition-colors"
         onClick={toggle}

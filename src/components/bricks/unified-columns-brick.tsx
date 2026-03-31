@@ -63,7 +63,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({
         {safeColumns.map((col, index) => {
           const nestedBricks = activeBricks.filter((b: any) => b.content?.parentId === id && b.content?.containerId === col.id).sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
           return (
-            <div key={col.id} className="flex-1 flex flex-col min-w-0 group/col relative bg-muted/5 border border-transparent hover:border-border/50 rounded-lg transition-colors overflow-hidden">
+            <div key={col.id} className="flex-1 flex flex-col min-w-0 group/col relative bg-muted/5 border border-transparent hover:border-border/50 rounded-lg transition-colors">
                <div className="p-3 w-full h-full min-h-[100px]">
                  <UnifiedBrickList
                    hasExternalDndContext={true}
