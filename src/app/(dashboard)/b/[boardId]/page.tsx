@@ -120,6 +120,10 @@ function resolveThemeTokens(appearance: BoardAppearanceState): BoardThemeTokens 
   const accent = normalizeHexColor(custom?.accent, preset.accent);
   const surface = normalizeHexColor(custom?.surface, preset.surface);
   const text = isLightColor(surface) ? "#111827" : "#f8fafc";
+  const isClassicPreset = appearance.themeKind !== "custom" && presetKey === "killio-default";
+  const border = isClassicPreset
+    ? mixHex(surface, "#ffffff", 0.1)
+    : rgbaFromHex(accent, 0.35);
 
   return {
     accent,
@@ -127,7 +131,7 @@ function resolveThemeTokens(appearance: BoardAppearanceState): BoardThemeTokens 
     surface,
     surfaceStrong: mixHex(surface, "#ffffff", isLightColor(surface) ? 0.12 : 0.04),
     text,
-    border: rgbaFromHex(accent, 0.35),
+    border,
     panel: rgbaFromHex(surface, isLightColor(surface) ? 0.8 : 0.68),
     panelStrong: rgbaFromHex(surface, isLightColor(surface) ? 0.9 : 0.84),
     buttonGhost: rgbaFromHex(accent, 0.14),
@@ -1209,87 +1213,14 @@ export default function BoardPage() {
             <span className="hidden sm:inline">{t("header.teamChat")}</span>
           </button>
 
-          <button
-            onClick={() => { setSidebarTab('activity'); setIsChatOpen(true); }}
-            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'activity' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
-          >
-            <History className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("header.activity")}</span>
-          </button>
-
           <div className="relative">
             <button
-              onClick={() => setIsFilterMenuOpen((current) => !current)}
-              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isFilterMenuOpen || selectedTags.length > 0 ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
-            >
-              <Filter className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Filtros</span>
-              {selectedTags.length > 0 ? (
-                <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
-                  {selectedTags.length}
-                </span>
-              ) : null}
-            </button>
-
-            {isFilterMenuOpen && (
-              <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
-                <div className="p-3 border-b border-border bg-muted/20">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                      <Filter className="h-4 w-4 text-muted-foreground" />
-                      {t("header.filterByTags")}
-                    </div>
-                    {selectedTags.length > 0 ? (
-                      <button
-                        onClick={() => setSelectedTags([])}
-                        className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                      >
-                        {t("header.clearFilters")}
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                <div className="p-3 max-h-60 overflow-y-auto space-y-1">
-                  {allAvailableTags.length === 0 ? (
-                    <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
-                  ) : (
-                    allAvailableTags.map((tag: any) => {
-                      const isSelected = selectedTags.includes(tag.name);
-                      return (
-                        <label key={tag.name} className="flex items-center space-x-2 p-2 hover:bg-accent/5 rounded cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="rounded border-border text-accent focus:ring-accent"
-                            checked={isSelected}
-                            onChange={() => {
-                              setSelectedTags((prev) =>
-                                isSelected ? prev.filter((currentTag) => currentTag !== tag.name) : [...prev, tag.name]
-                              );
-                            }}
-                          />
-                          <TagBadge tag={tag} />
-                        </label>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => setIsBoardSettingsOpen(true)}
-              className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"
-            >
-              <Pencil className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Editar</span>
-            </button>
-          </div>
-
-          <div className="relative">
-            <button
-              onClick={() => setIsBoardMenuOpen((current) => !current)}
+              onClick={() => setIsBoardMenuOpen((current) => {
+                if (current) {
+                  setIsFilterMenuOpen(false);
+                }
+                return !current;
+              })}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
             >
               <Settings className="h-4 w-4 sm:mr-2" />
@@ -1301,24 +1232,101 @@ export default function BoardPage() {
                 <div className="p-3 border-b border-border bg-muted/20">
                   <h4 className="text-sm font-semibold text-foreground">Configuración del board</h4>
                 </div>
-                {(permissions.canManageBoard || permissions.canEdit) && (
-                  <div className="p-3 space-y-2">
-                    {permissions.canEdit && (
-                      <button
-                        onClick={() => {
-                          setIsBoardMenuOpen(false);
-                          setIsBoardSettingsOpen(true);
-                        }}
-                        className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
-                      >
-                        <Pencil className="h-4 w-4 mr-2" />
-                        Editar tablero
-                      </button>
-                    )}
+
+                <div className="p-3 space-y-2">
+                  <button
+                    onClick={() => {
+                      setIsFilterMenuOpen(false);
+                      setIsBoardMenuOpen(false);
+                      setSidebarTab('activity');
+                      setIsChatOpen(true);
+                    }}
+                    className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
+                  >
+                    <History className="h-4 w-4 mr-2" />
+                    {t("header.activity")}
+                  </button>
+
+                  <button
+                    onClick={() => setIsFilterMenuOpen((current) => !current)}
+                    className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${isFilterMenuOpen || selectedTags.length > 0 ? "text-accent" : "text-foreground"}`}
+                  >
+                    <Filter className="h-4 w-4 mr-2" />
+                    <span>Filtros</span>
+                    {selectedTags.length > 0 ? (
+                      <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
+                        {selectedTags.length}
+                      </span>
+                    ) : null}
+                  </button>
+
+                  {isFilterMenuOpen && (
+                    <div className="rounded-lg border border-border/70 overflow-hidden">
+                      <div className="p-3 border-b border-border bg-muted/20">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                            <Filter className="h-4 w-4 text-muted-foreground" />
+                            {t("header.filterByTags")}
+                          </div>
+                          {selectedTags.length > 0 ? (
+                            <button
+                              onClick={() => setSelectedTags([])}
+                              className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+                            >
+                              {t("header.clearFilters")}
+                            </button>
+                          ) : null}
+                        </div>
+                      </div>
+                      <div className="p-3 max-h-60 overflow-y-auto space-y-1">
+                        {allAvailableTags.length === 0 ? (
+                          <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
+                        ) : (
+                          allAvailableTags.map((tag: any) => {
+                            const isSelected = selectedTags.includes(tag.name);
+                            return (
+                              <label key={tag.name} className="flex items-center space-x-2 p-2 hover:bg-accent/5 rounded cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  className="rounded border-border text-accent focus:ring-accent"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setSelectedTags((prev) =>
+                                      isSelected ? prev.filter((currentTag) => currentTag !== tag.name) : [...prev, tag.name]
+                                    );
+                                  }}
+                                />
+                                <TagBadge tag={tag} />
+                              </label>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {permissions.canEdit && (
+                    <button
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        setIsFilterMenuOpen(false);
+                        setIsBoardSettingsOpen(true);
+                      }}
+                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
+                    >
+                      <Pencil className="h-4 w-4 mr-2" />
+                      Editar tablero
+                    </button>
+                  )}
+
+                  {(permissions.canManageBoard || permissions.canEdit) && (
+                    <>
+                      <div className="my-1 border-t border-border" />
                     {permissions.canManageBoard && (
                       <button
                         onClick={() => {
                           setIsBoardMenuOpen(false);
+                          setIsFilterMenuOpen(false);
                           setIsShareModalOpen(true);
                         }}
                         className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
@@ -1331,6 +1339,7 @@ export default function BoardPage() {
                       <button
                         onClick={() => {
                           setIsBoardMenuOpen(false);
+                          setIsFilterMenuOpen(false);
                           setIsDeleteModalOpen(true);
                         }}
                         disabled={isDeleting}
@@ -1340,8 +1349,9 @@ export default function BoardPage() {
                         {t("header.deleteBoard")}
                       </button>
                     )}
-                  </div>
-                )}
+                    </>
+                  )}
+                </div>
               </div>
             )}
           </div>

@@ -59,17 +59,69 @@ export default function BoardsPage() {
     return uploaded.url;
   };
 
-  const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
-    if (board.coverImageUrl && (/^https?:\/\//i.test(board.coverImageUrl) || board.coverImageUrl.startsWith("/") || board.coverImageUrl.startsWith("data:image/"))) {
+  const resolveSerializedCover = (raw?: string | null): { className: string; style?: CSSProperties } | null => {
+    if (!raw) return null;
+    const source = raw.trim();
+    if (!source) return null;
+
+    const separatorIndex = source.indexOf("::");
+    let kind = "";
+    let value = source;
+
+    if (separatorIndex > 0) {
+      kind = source.slice(0, separatorIndex);
+      value = source.slice(separatorIndex + 2);
+    }
+
+    if (!kind) {
+      if (/^https?:\/\//i.test(source) || source.startsWith("/") || source.startsWith("data:image/")) {
+        kind = "image";
+      } else if (source.startsWith("bg-")) {
+        kind = "preset";
+      } else if (source.startsWith("#")) {
+        kind = "color";
+      } else {
+        kind = "gradient";
+      }
+    }
+
+    if (kind === "none") return null;
+
+    if (kind === "image") {
+      if (!(/^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/"))) {
+        return null;
+      }
+
       return {
         className: "bg-slate-800 bg-cover bg-center",
-        style: { backgroundImage: `url(${board.coverImageUrl})` },
+        style: { backgroundImage: `url(${value})` },
       };
     }
 
-    if (board.coverImageUrl) {
-      return { className: board.coverImageUrl };
+    if (kind === "preset") {
+      return { className: value };
     }
+
+    if (kind === "color") {
+      return {
+        className: "bg-slate-800",
+        style: { backgroundColor: value },
+      };
+    }
+
+    if (value.startsWith("bg-")) {
+      return { className: value };
+    }
+
+    return {
+      className: "bg-slate-800",
+      style: { background: value },
+    };
+  };
+
+  const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
+    const cover = resolveSerializedCover(board.coverImageUrl);
+    if (cover) return cover;
 
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle } from "lucide-react";
+
+type CoverKind = "none" | "preset" | "image" | "color" | "gradient";
 
 type BoardAppearanceDraft = {
   coverImageUrl?: string | null;
@@ -23,6 +25,9 @@ const BACKGROUND_PRESETS = [
   "bg-gradient-to-tr from-indigo-500 to-cyan-400",
 ];
 
+const DEFAULT_GRADIENT = "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)";
+const DEFAULT_COLOR = "#0f172a";
+
 const THEME_PRESET_OPTIONS = [
   { id: "killio-default", label: "Clásico", accent: "#d8ff72", surface: "#0b0f14", Icon: Sparkles },
   { id: "trello-ocean", label: "Océano", accent: "#67e8f9", surface: "#0c2233", Icon: Waves },
@@ -33,6 +38,69 @@ const THEME_PRESET_OPTIONS = [
 function isImageUrl(value?: string | null): boolean {
   if (!value) return false;
   return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
+}
+
+function parseCoverValue(raw?: string | null): { kind: CoverKind; value: string } {
+  const source = typeof raw === "string" ? raw.trim() : "";
+  if (!source) {
+    return { kind: "none", value: "" };
+  }
+
+  const separatorIndex = source.indexOf("::");
+  if (separatorIndex > 0) {
+    const encodedKind = source.slice(0, separatorIndex);
+    const encodedValue = source.slice(separatorIndex + 2);
+
+    if (encodedKind === "none") return { kind: "none", value: "" };
+    if (encodedKind === "preset") return { kind: "preset", value: encodedValue };
+    if (encodedKind === "image") return { kind: "image", value: encodedValue };
+    if (encodedKind === "color") return { kind: "color", value: encodedValue };
+    if (encodedKind === "gradient") return { kind: "gradient", value: encodedValue };
+  }
+
+  if (isImageUrl(source)) return { kind: "image", value: source };
+  if (source.startsWith("bg-")) return { kind: "preset", value: source };
+  if (source.startsWith("#")) return { kind: "color", value: source };
+  return { kind: "gradient", value: source };
+}
+
+function serializeCoverValue(kind: CoverKind, value: string): string | null {
+  if (kind === "none") return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  return `${kind}::${trimmed}`;
+}
+
+function resolveCoverPreview(kind: CoverKind, value: string): { className: string; style?: CSSProperties } | null {
+  if (kind === "none") return null;
+
+  if (kind === "image") {
+    if (!isImageUrl(value)) return null;
+    return {
+      className: "bg-slate-900 bg-cover bg-center",
+      style: { backgroundImage: `url(${value})` },
+    };
+  }
+
+  if (kind === "preset") {
+    return { className: value || BACKGROUND_PRESETS[0] };
+  }
+
+  if (kind === "color") {
+    return {
+      className: "bg-slate-900",
+      style: { backgroundColor: value || DEFAULT_COLOR },
+    };
+  }
+
+  if (value.startsWith("bg-")) {
+    return { className: value };
+  }
+
+  return {
+    className: "bg-slate-900",
+    style: { background: value || DEFAULT_GRADIENT },
+  };
 }
 
 type BoardSettingsModalProps = {
@@ -66,11 +134,16 @@ export function BoardSettingsModal({
 }: BoardSettingsModalProps) {
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const backgroundFileInputRef = useRef<HTMLInputElement>(null);
+  const initialCover = parseCoverValue(boardAppearance.coverImageUrl ?? null);
 
   const [activeTab, setActiveTab] = useState<"general" | "appearance" | "sharing" | "danger">("general");
   const [name, setName] = useState(boardName);
   const [description, setDescription] = useState(boardDescription ?? "");
-  const [coverImageUrl, setCoverImageUrl] = useState(boardAppearance.coverImageUrl ?? "");
+  const [coverKind, setCoverKind] = useState<CoverKind>(initialCover.kind);
+  const [coverPreset, setCoverPreset] = useState(initialCover.kind === "preset" ? (initialCover.value || BACKGROUND_PRESETS[0]) : BACKGROUND_PRESETS[0]);
+  const [coverImage, setCoverImage] = useState(initialCover.kind === "image" ? initialCover.value : "");
+  const [coverColor, setCoverColor] = useState(initialCover.kind === "color" ? initialCover.value : DEFAULT_COLOR);
+  const [coverGradient, setCoverGradient] = useState(initialCover.kind === "gradient" ? initialCover.value : DEFAULT_GRADIENT);
   const [backgroundKind, setBackgroundKind] = useState<"none" | "preset" | "image" | "color" | "gradient">(
     boardAppearance.backgroundKind ?? "preset",
   );
@@ -91,15 +164,20 @@ export function BoardSettingsModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    const parsedCover = parseCoverValue(boardAppearance.coverImageUrl ?? null);
     setActiveTab("general");
     setName(boardName);
     setDescription(boardDescription ?? "");
-    setCoverImageUrl(boardAppearance.coverImageUrl ?? "");
+    setCoverKind(parsedCover.kind);
+    setCoverPreset(parsedCover.kind === "preset" ? (parsedCover.value || BACKGROUND_PRESETS[0]) : BACKGROUND_PRESETS[0]);
+    setCoverImage(parsedCover.kind === "image" ? parsedCover.value : "");
+    setCoverColor(parsedCover.kind === "color" ? parsedCover.value : DEFAULT_COLOR);
+    setCoverGradient(parsedCover.kind === "gradient" ? parsedCover.value : DEFAULT_GRADIENT);
     setBackgroundKind(boardAppearance.backgroundKind ?? "preset");
     setPresetBackground(boardAppearance.backgroundValue ?? BACKGROUND_PRESETS[0]);
     setImageBackground(boardAppearance.backgroundImageUrl ?? "");
-    setColorBackground(boardAppearance.backgroundValue ?? "#0f172a");
-    setGradientBackground(boardAppearance.backgroundGradient ?? "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
+    setColorBackground(boardAppearance.backgroundValue ?? DEFAULT_COLOR);
+    setGradientBackground(boardAppearance.backgroundGradient ?? DEFAULT_GRADIENT);
     setThemeKind(boardAppearance.themeKind ?? "preset");
     setThemePreset(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
     setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
@@ -117,6 +195,15 @@ export function BoardSettingsModal({
         : backgroundKind === "gradient"
           ? gradientBackground
           : presetBackground;
+  const currentCover =
+    coverKind === "image"
+      ? coverImage
+      : coverKind === "color"
+        ? coverColor
+        : coverKind === "gradient"
+          ? coverGradient
+          : coverPreset;
+  const coverPreview = resolveCoverPreview(coverKind, currentCover);
 
   const handleUpload = async (file: File, target: "cover" | "background") => {
     if (!onUploadImage) return;
@@ -130,7 +217,8 @@ export function BoardSettingsModal({
     try {
       const uploadedUrl = await onUploadImage(file);
       if (target === "cover") {
-        setCoverImageUrl(uploadedUrl);
+        setCoverKind("image");
+        setCoverImage(uploadedUrl);
       } else {
         setBackgroundKind("image");
         setImageBackground(uploadedUrl);
@@ -165,7 +253,7 @@ export function BoardSettingsModal({
     setIsSavingAppearance(true);
     try {
       const payload: BoardAppearanceDraft = {
-        coverImageUrl: coverImageUrl.trim() || null,
+        coverImageUrl: serializeCoverValue(coverKind, currentCover),
         backgroundKind,
         themeKind,
       };
@@ -256,36 +344,66 @@ export function BoardSettingsModal({
                   className={`h-24 relative ${isImageUrl(currentBackground) ? "bg-slate-800 bg-cover bg-center" : (currentBackground?.startsWith("bg-") ? currentBackground : "bg-slate-900")}`}
                   style={isImageUrl(currentBackground) ? { backgroundImage: `url(${currentBackground})` } : (!currentBackground?.startsWith("bg-") ? { background: currentBackground } : undefined)}
                 >
-                  {isImageUrl(coverImageUrl) ? (
-                    <div className="absolute bottom-2 left-2 right-2 h-8 rounded border border-white/20 bg-cover bg-center" style={{ backgroundImage: `url(${coverImageUrl})` }} />
+                  {coverPreview ? (
+                    <div className={`absolute bottom-2 left-2 right-2 h-8 rounded border border-white/20 ${coverPreview.className}`} style={coverPreview.style} />
                   ) : null}
                 </div>
               </div>
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Portada</label>
-                <input value={coverImageUrl} onChange={(e) => setCoverImageUrl(e.target.value)} placeholder="https://... (opcional)" className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs" />
-                <input
-                  ref={coverFileInputRef}
-                  type="file"
-                  accept="image/*"
-                  className="hidden"
-                  onChange={(event) => {
-                    const file = event.target.files?.[0];
-                    if (file) void handleUpload(file, "cover");
-                    event.target.value = "";
-                  }}
-                />
-                <div className="flex gap-2">
-                  <button onClick={() => coverFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
-                    <ImagePlus className="h-3.5 w-3.5" /> Subir portada
-                  </button>
-                  {coverImageUrl ? (
-                    <button onClick={() => setCoverImageUrl("")} type="button" disabled={!canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
-                      <Trash2 className="h-3.5 w-3.5" /> Quitar portada
-                    </button>
-                  ) : null}
+                <div className="grid grid-cols-5 gap-2">
+                  <button type="button" onClick={() => setCoverKind("none")} className={`h-8 rounded-md border text-xs ${coverKind === "none" ? "border-primary bg-primary/10" : "border-border"}`}>Sin fondo</button>
+                  <button type="button" onClick={() => setCoverKind("preset")} className={`h-8 rounded-md border text-xs ${coverKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
+                  <button type="button" onClick={() => setCoverKind("gradient")} className={`h-8 rounded-md border text-xs ${coverKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>Gradiente</button>
+                  <button type="button" onClick={() => setCoverKind("color")} className={`h-8 rounded-md border text-xs ${coverKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>Color</button>
+                  <button type="button" onClick={() => setCoverKind("image")} className={`h-8 rounded-md border text-xs ${coverKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>Imagen</button>
                 </div>
+
+                {coverKind === "preset" && (
+                  <div className="grid grid-cols-6 gap-2">
+                    {BACKGROUND_PRESETS.map((bg) => (
+                      <button key={bg} type="button" onClick={() => setCoverPreset(bg)} className={`h-9 rounded-md ${bg} border ${coverPreset === bg ? "ring-2 ring-primary" : "opacity-80"}`} />
+                    ))}
+                  </div>
+                )}
+
+                {coverKind === "image" && (
+                  <>
+                    <input value={coverImage} onChange={(e) => setCoverImage(e.target.value)} placeholder="https://..." className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs" />
+                    <input
+                      ref={coverFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) void handleUpload(file, "cover");
+                        event.target.value = "";
+                      }}
+                    />
+                    <button onClick={() => coverFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
+                      <ImagePlus className="h-3.5 w-3.5" /> Subir portada
+                    </button>
+                  </>
+                )}
+
+                {coverKind === "color" && (
+                  <div className="flex gap-2">
+                    <input type="color" value={coverColor} onChange={(e) => setCoverColor(e.target.value)} className="h-9 w-14 rounded-md border border-input bg-background" />
+                    <input value={coverColor} onChange={(e) => setCoverColor(e.target.value)} className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-xs" />
+                  </div>
+                )}
+
+                {coverKind === "gradient" && (
+                  <input value={coverGradient} onChange={(e) => setCoverGradient(e.target.value)} placeholder="linear-gradient(...) o clase bg-*" className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs" />
+                )}
+
+                {coverKind !== "none" ? (
+                  <button onClick={() => setCoverKind("none")} type="button" disabled={!canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
+                    <Trash2 className="h-3.5 w-3.5" /> Quitar portada
+                  </button>
+                ) : null}
               </div>
 
               <div className="space-y-2">
