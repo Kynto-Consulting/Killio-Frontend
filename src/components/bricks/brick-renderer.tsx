@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, MessageSquarePlus, Send, Paperclip, AtSign, ArrowUp } from "lucide-react";
+import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, MessageSquarePlus, Send, Paperclip, AtSign, ArrowUp, SmilePlus, Check, Copy, Edit, BellOff, Trash } from "lucide-react";
 import { UnifiedTableBrick } from "./unified-table-brick";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedGraphBrick } from "./unified-graph-brick";
@@ -11,6 +11,7 @@ import { DocumentBrick, DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { cn } from "@/lib/utils";
 
 type MediaCarouselItem = {
   url: string;
@@ -426,6 +427,7 @@ export function UnifiedBrickRenderer({
   const { kind, content } = brick;
   const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
   const [newComment, setNewComment] = React.useState("");
+  const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
 
   const comments = React.useMemo(() => normalizeBrickComments(content?.comments), [content?.comments]);
 
@@ -565,7 +567,13 @@ export function UnifiedBrickRenderer({
 
   return (
     <div className="group/brick relative w-full">
-      <div className={isCommentsOpen ? "bg-accent/5 rounded-sm transition-all shadow-[inset_2px_0_0_0_hsl(var(--accent))]" : "transition-all"}>
+      <div 
+        className={cn(
+          "transition-all rounded-sm",
+          comments.length > 0 && "bg-[#ffeb3b]/30 dark:bg-[#ffd54f]/20",
+          isCommentsOpen && "ring-2 ring-accent/40"
+        )}
+      >
         {brickBody}
       </div>
 
@@ -600,16 +608,80 @@ export function UnifiedBrickRenderer({
           {comments.length > 0 && (
             <div className="max-h-[300px] overflow-y-auto px-4 py-3 space-y-4">
               {comments.map((comment) => (
-                <div key={comment.id} className="flex flex-col gap-1.5 border-b border-border/30 pb-3 last:border-0 last:pb-0">
+                <div key={comment.id} className="group/comment flex flex-col gap-1.5 border-b border-border/30 pb-3 last:border-0 last:pb-0 relative">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-semibold text-foreground">
-                      {comment.userName && comment.userName.trim() ? comment.userName : t("brickComments.anonymous")}
-                    </span>
-                    <span className="text-[10px] text-muted-foreground">
-                      {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[10px] font-bold text-accent">
+                        {comment.userName ? comment.userName.charAt(0).toUpperCase() : "A"}
+                      </div>
+                      <span className="text-xs font-semibold text-foreground">
+                        {comment.userName && comment.userName.trim() ? comment.userName : t("brickComments.anonymous")}
+                      </span>
+                      <span className="text-[10px] text-muted-foreground ml-1">
+                        {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+
+                    {/* Notion style hover buttons */}
+                    <div className={cn(
+                      "flex items-center gap-0.5 opacity-0 group-hover/comment:opacity-100 transition-opacity absolute right-0 top-0 bg-background rounded-md border border-border/50 shadow-sm p-0.5 z-10",
+                      activeMenu === comment.id && "opacity-100"
+                    )}>
+                      <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="Añadir reacción"><SmilePlus className="w-3.5 h-3.5" /></button>
+                      <button 
+                        className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" 
+                        title="Resolver"
+                        onClick={() => {
+                          const newComments = comments.filter(c => c.id !== comment.id);
+                          onUpdate({ ...content, comments: newComments });
+                        }}
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="relative">
+                        <button 
+                          className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" 
+                          title="Más acciones"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveMenu(activeMenu === comment.id ? null : comment.id);
+                          }}
+                        >
+                          <MoreHorizontal className="w-3.5 h-3.5" />
+                        </button>
+                        
+                        {/* Menu desplegable */}
+                        {activeMenu === comment.id && (
+                          <div className="absolute right-0 top-full mt-1 w-48 rounded-md border border-border/60 bg-popover shadow-md p-1 flex flex-col z-[150]">
+                            <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
+                              <Check className="w-3.5 h-3.5 invisible" /> Marcar como no leído
+                            </button>
+                            <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
+                              <Edit className="w-3.5 h-3.5" /> Editar
+                            </button>
+                            <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
+                              <LinkIcon className="w-3.5 h-3.5" /> Copiar enlace
+                            </button>
+                            <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
+                              <BellOff className="w-3.5 h-3.5" /> Silenciar las respuestas
+                            </button>
+                            <button 
+                              className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-destructive/10 text-destructive w-full text-left" 
+                              onClick={() => {
+                                 const newComments = comments.filter(c => c.id !== comment.id);
+                                 onUpdate({ ...content, comments: newComments });
+                                 setActiveMenu(null);
+                              }}
+                            >
+                              <Trash className="w-3.5 h-3.5" /> Eliminar
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
-                  <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{comment.text}</p>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed pl-7">{comment.text}</p>
                 </div>
               ))}
             </div>

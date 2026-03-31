@@ -10,7 +10,7 @@ interface SortableBrickProps {
   children: React.ReactNode;
   readonly?: boolean;
   onDelete?: () => void;
-  onAddBelow?: () => void;
+  onAddBelow?: (rect: DOMRect) => void;
 }
 
 export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: SortableBrickProps) {
@@ -57,7 +57,7 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              onAddBelow?.();
+              onAddBelow?.(e.currentTarget.getBoundingClientRect());
             }}
             className="p-1 text-muted-foreground/40 hover:text-foreground rounded cursor-pointer transition-colors"
             title={"Haz clic para añadir debajo\nPulsa Alt y haz clic para añadir un bloque arriba"}
@@ -72,25 +72,24 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
           >
             <GripVertical className="w-4 h-4" />
           </div>
+          {!readonly && onDelete && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete();
+              }}
+              className="p-1 text-muted-foreground/40 hover:text-destructive cursor-pointer rounded transition-colors"
+              title="Borrar bloque"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
         </div>
       )}
       
       <div className="flex-1 min-w-0">
         {children}
       </div>
-
-      {!readonly && onDelete && (
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onDelete();
-          }}
-          className="mt-2 p-1 text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-all rounded"
-          title="Delete block"
-        >
-          <Trash2 className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 }

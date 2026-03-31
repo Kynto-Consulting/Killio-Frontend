@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon } from "lucide-react";
+import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon, Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Table, BarChart2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
@@ -10,6 +10,7 @@ import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
 import { RichText } from "../ui/rich-text";
+import { type SlashCommand, slashCommands } from "./slash-commands";
 
 interface TextBrickProps {
   id: string;
@@ -26,15 +27,7 @@ interface TextBrickProps {
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
 
-type SlashCommand = {
-  id: string;
-  label: string;
-  description: string;
-  search: string;
-  kind: "inline" | "block";
-  insertText?: string;
-  blockKind?: string;
-};
+
 
 const logPasteDebug = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== "production") {
@@ -65,19 +58,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const pasteInFlightRef = useRef(false);
   const router = useRouter();
 
-  const slashCommands: SlashCommand[] = [
-    { id: "text", label: "Texto", description: "Párrafo", search: "texto parrafo", kind: "inline", insertText: "" },
-    { id: "heading-1", label: "Encabezado 1", description: "Título grande", search: "h1 heading encabezado", kind: "inline", insertText: "# " },
-    { id: "heading-2", label: "Encabezado 2", description: "Título mediano", search: "h2 heading encabezado", kind: "inline", insertText: "## " },
-    { id: "heading-3", label: "Encabezado 3", description: "Título pequeño", search: "h3 heading encabezado", kind: "inline", insertText: "### " },
-    { id: "bulleted-list", label: "Lista con viñetas", description: "Crear lista", search: "lista viñetas bullets", kind: "inline", insertText: "- " },
-    { id: "numbered-list", label: "Lista numerada", description: "Crear lista", search: "lista numerada numbers", kind: "inline", insertText: "1. " },
-    { id: "checklist", label: "Lista de tareas", description: "Bloque checklist", search: "checklist tareas to-do", kind: "block", blockKind: "checklist" },
-    { id: "accordion", label: "Desplegable", description: "Bloque acordeón", search: "desplegable acordeon toggle", kind: "block", blockKind: "accordion" },
-    { id: "image", label: "Imagen", description: "Bloque multimedia", search: "imagen media", kind: "block", blockKind: "image" },
-    { id: "table", label: "Tabla", description: "Bloque tabla", search: "tabla table", kind: "block", blockKind: "table" },
-    { id: "graph", label: "Gráfico", description: "Bloque gráfico", search: "grafico chart", kind: "block", blockKind: "graph" },
-  ];
+  
 
   const tokenEscapeAttr = (value: string): string => {
     return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
@@ -430,10 +411,23 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const selection = typeof window !== "undefined" ? window.getSelection() : null;
     if (selection && selection.rangeCount > 0) {
       const rect = selection.getRangeAt(0).getBoundingClientRect();
-      setSlashMenuPosition({
-        top: Math.max(12, rect.bottom + 8),
-        left: Math.max(12, rect.left),
-      });
+      let top = Math.max(12, rect.bottom + 8);
+      let left = Math.max(12, rect.left);
+
+      // Smart position a la Notion (avoid bottom and right clipping)
+      const menuHeight = 320; // max height of our menu
+      const menuWidth = 320; // width of our menu
+      
+      if (typeof window !== "undefined") {
+        if (top + menuHeight > window.innerHeight) {
+          top = Math.max(12, rect.top - menuHeight - 8);
+        }
+        if (left + menuWidth > window.innerWidth) {
+          left = window.innerWidth - menuWidth - 12;
+        }
+      }
+
+      setSlashMenuPosition({ top, left });
     }
 
     setSlashRange({ from: context.from, to: context.to });
@@ -1022,12 +1016,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                     }}
                     onClick={() => applySlashCommand(command)}
                     className={cn(
-                      "flex w-full items-start justify-between rounded-md px-2 py-2 text-left transition-colors",
-                      index === slashActiveIndex ? "bg-accent/15 text-foreground" : "hover:bg-accent/10 text-muted-foreground"
+                      "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                      index === slashActiveIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
                     )}
                   >
-                    <span className="text-sm font-medium text-foreground">{command.label}</span>
-                    <span className="ml-3 text-[11px] text-muted-foreground">{command.description}</span>
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                      {command.icon}
+                    </div>
+                    <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                      <span className="text-sm font-medium text-foreground">{command.label}</span>
+                      <span className="truncate text-xs text-muted-foreground/80">{command.description}</span>
+                    </div>
+                    {command.shortcut && (
+                      <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                    )}
                   </button>
                 ))
               )}

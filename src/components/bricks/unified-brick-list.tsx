@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -20,6 +20,9 @@ import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon } 
 import { UnifiedBrickRenderer } from "./brick-renderer";
 import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
+import { Portal } from "../ui/portal";
+import { cn } from "@/lib/utils";
+import { slashCommands, type SlashCommand } from "./slash-commands";
 
 type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'image';
 
@@ -53,9 +56,29 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onUploadMediaFiles
 }) => {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [plusMenuState, setPlusMenuState] = useState<{ brickId: string, top: number, left: number } | null>(null);
   const enabledKinds = addableKinds && addableKinds.length > 0
     ? addableKinds
     : ['text', 'table', 'graph', 'checklist', 'accordion'];
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (plusMenuState) {
+        setPlusMenuState(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [plusMenuState]);
+
+  const handleApplyPlusCommand = (command: SlashCommand, afterBrickId: string) => {
+    // If it's inline, text block. If block, specific kind.
+    // For text, we could theoretically insert the text, but the api onAddBrick only takes kind.
+    // Let's map it based on command.blockKind or 'text'.
+    const kindToInsert = command.blockKind || "text";
+    onAddBrick(kindToInsert, afterBrickId);
+    setPlusMenuState(null);
+  };
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -124,7 +147,33 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2 min-h-[50px]">
             {sortedBricks.map(brick => (
-              <SortableBrick key={brick.id} id={brick.id} readonly={!canEdit} onDelete={() => onDeleteBrick(brick.id)} onAddBelow={() => onAddBrick('text', brick.id)}>
+              <SortableBrick 
+                key={brick.id} 
+                id={brick.id} 
+                readonly={!canEdit} 
+                onDelete={() => onDeleteBrick(brick.id)} 
+                onAddBelow={(rect) => {
+                  if (rect) {
+                    let top = rect.bottom + 8;
+                    let left = rect.left;
+                    
+                    const menuHeight = 320;
+                    const menuWidth = 320;
+                    if (typeof window !== "undefined") {
+                      if (top + menuHeight > window.innerHeight) {
+                        top = Math.max(12, rect.top - menuHeight - 8);
+                      }
+                      if (left + menuWidth > window.innerWidth) {
+                        left = window.innerWidth - menuWidth - 12;
+                      }
+                    }
+                    
+                    setPlusMenuState({ brickId: brick.id, top, left });
+                  } else {
+                    onAddBrick('text', brick.id);
+                  }
+                }}
+              >
                 {renderBrick(brick)}
               </SortableBrick>
             ))}
@@ -173,6 +222,46 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             </Button>
           )}
         </div>
+      )}
+
+      {plusMenuState && canEdit && (
+        <Portal>
+          <div
+            className="fixed z-[150] w-[320px] overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            style={{ top: plusMenuState.top, left: plusMenuState.left }}
+            onMouseDown={(e) => e.stopPropagation()} // Prevent closing immediately
+          >
+            <div className="border-b border-border/70 px-3 py-2 bg-muted/30">
+              <span className="text-xs font-semibold text-muted-foreground w-full block">Añadir bloque</span>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto p-1.5">
+              {slashCommands.map((command, index) => (
+                <button
+                  key={command.id}
+                  type="button"
+                  onMouseDown={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                  onClick={() => handleApplyPlusCommand(command, plusMenuState.brickId)}
+                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent/50 text-muted-foreground"
+                >
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                    {command.icon}
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                    <span className="text-sm font-medium text-foreground">{command.label}</span>
+                    <span className="truncate text-xs text-muted-foreground/80">{command.description}</span>
+                  </div>
+                  {command.shortcut && (
+                    <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Portal>
       )}
     </div>
   );
