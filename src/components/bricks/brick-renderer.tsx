@@ -10,6 +10,8 @@ import { UnifiedAccordionBrick } from "./unified-accordion-brick";
 import { UnifiedQuoteBrick } from "./unified-quote-brick";
 import { UnifiedDividerBrick } from "./unified-divider-brick";
 import { UnifiedCalloutBrick } from "./unified-callout-brick";
+import { UnifiedTabsBrick } from "./unified-tabs-brick";
+import { UnifiedColumnsBrick } from "./unified-columns-brick";
 import { DocumentBrick, DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
@@ -609,6 +611,28 @@ export function UnifiedBrickRenderer({
       );
       break;
     }
+
+    case 'tabs':
+      brickBody = (
+        <UnifiedTabsBrick
+          id={brick.id}
+          tabs={content.tabs}
+          onUpdate={(data) => onUpdate({ ...content, kind: 'tabs', ...data })}
+          readonly={!canEdit}
+        />
+      );
+      break;
+
+    case 'columns':
+      brickBody = (
+        <UnifiedColumnsBrick
+          id={brick.id}
+          columns={content.columns}
+          onUpdate={(data) => onUpdate({ ...content, kind: 'columns', ...data })}
+          readonly={!canEdit}
+        />
+      );
+      break;
 
     // Add other cases as they are implemented...
 
