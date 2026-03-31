@@ -53,7 +53,7 @@ export default function BoardsPage() {
 
   const handleUploadBoardCover = async (file: File): Promise<string> => {
     if (!accessToken) {
-      throw new Error("Sesion expirada. Inicia sesion nuevamente.");
+      throw new Error("Sesión expirada. Inicia sesión nuevamente.");
     }
     const uploaded = await uploadFile(file, accessToken);
     return uploaded.url;

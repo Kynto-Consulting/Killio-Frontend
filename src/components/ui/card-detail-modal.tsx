@@ -276,7 +276,7 @@ export function CardDetailModal({
     const sourceSummaryText = textBricks.map(b => b.markdown).join("\n\n");
 
     if (!sourceTitle && !sourceSummaryText) {
-      setImproveError("Escribe un titulo o una descripcion antes de mejorar con IA.");
+      setImproveError("Escribe un título o una descripción antes de mejorar con IA.");
       return;
     }
 
@@ -2488,7 +2488,7 @@ export function CardDetailModal({
                     return (
                       <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-70 font-medium">
                         <MessageSquare className="h-8 w-8 mb-2" />
-                        <p>Aun no hay comentarios en esta tarjeta.</p>
+                        <p>Aún no hay comentarios en esta tarjeta.</p>
                       </div>
                     );
                   }
@@ -2602,7 +2602,7 @@ export function CardDetailModal({
             <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
                 <ReferenceTokenInput
-                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : (canComment ? "Write a comment or @ mention..." : "No tienes permiso para comentar")}
+                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : (canComment ? "Escribe un comentario o menciona con @..." : "No tienes permiso para comentar")}
                   value={newComment}
                   onChange={setNewComment}
                   onSubmit={() => {

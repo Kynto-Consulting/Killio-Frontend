@@ -9,8 +9,8 @@
     "teamChat": "Chat de equipo",
     "activity": "Actividad",
     "filter": "Filtrar",
-    "filterByTags": "Filtrar por tags",
-    "noTags": "No hay tags en este tablero",
+    "filterByTags": "Filtrar por etiquetas",
+    "noTags": "No hay etiquetas en este tablero",
     "clearFilters": "Limpiar filtros",
     "share": "Compartir",
     "deleteBoard": "Eliminar tablero",
@@ -19,25 +19,25 @@
   "drag": {
     "movingCard": "Moviendo tarjeta",
     "card": "Tarjeta",
-    "dropHere": "Soltar aqui"
+    "dropHere": "Suelta aquí"
   },
   "list": {
     "addCard": "Agregar tarjeta",
     "addCardMenu": "Agregar tarjeta...",
     "archiveList": "Archivar esta lista",
-    "archiveComingSoon": "Archivar lista proximamente",
+    "archiveComingSoon": "Archivar lista próximamente",
     "addAnother": "Agregar otra lista",
     "add": "Agregar lista",
     "cancel": "Cancelar",
-    "placeholder": "Ingresa titulo de la lista..."
+    "placeholder": "Ingresa título de la lista..."
   },
   "card": {
     "editCard": "Editar tarjeta...",
-    "editTags": "Editar tags...",
+    "editTags": "Editar etiquetas...",
     "delete": "Eliminar tarjeta",
-    "deleteConfirm": "Eliminar esta tarjeta permanentemente? Esta accion no se puede deshacer.",
-    "hasDescription": "Esta tarjeta tiene descripcion",
-    "checklistItems": "Items de checklist",
+    "deleteConfirm": "¿Eliminar esta tarjeta permanentemente? Esta acción no se puede deshacer.",
+    "hasDescription": "Esta tarjeta tiene descripción",
+    "checklistItems": "Ítems del checklist",
     "comments": "Comentarios",
     "attachments": "Adjuntos",
     "archived": "Archivada"
@@ -48,28 +48,28 @@
     "timer": {
       "remaining": "Faltan {{duration}}",
       "overdue": "Vencida hace {{duration}}",
-      "durationTitle": "Duracion",
-      "durationDescription": "Configura horas y minutos. Maximo 72h.",
+      "durationTitle": "Duración",
+      "durationDescription": "Configura horas y minutos. Máximo 72h.",
       "hours": "Horas",
       "minutes": "Minutos",
-      "startTask": "Iniciar timer",
+      "startTask": "Iniciar temporizador",
       "starting": "Iniciando...",
       "assigneeRequired": "Asigna al menos una persona antes de iniciar la tarea.",
-      "dueDate": "Fecha limite",
+      "dueDate": "Fecha límite",
       "archived": "Archivada",
       "completed": "Completada",
       "startedAt": "Inicio: {{value}}",
       "finishedAt": "Fin: {{value}}",
-      "startTimer": "Iniciar timer",
+      "startTimer": "Iniciar temporizador",
       "cancel": "Cancelar",
       "finish": "Terminar",
-      "durationRequired": "Define una duracion mayor a 0 minutos.",
-      "maxDuration": "La duracion maxima es de 72 horas.",
-      "startedSuccess": "Timer iniciado por {{duration}}.",
-      "startedError": "No se pudo iniciar el timer.",
-      "cancelledSuccess": "Timer cancelado.",
-      "cancelledError": "No se pudo cancelar el timer.",
-      "completedEarly": "Terminaste {{duration}} antes del limite.",
+      "durationRequired": "Define una duración mayor a 0 minutos.",
+      "maxDuration": "La duración máxima es de 72 horas.",
+      "startedSuccess": "Temporizador iniciado por {{duration}}.",
+      "startedError": "No se pudo iniciar el temporizador.",
+      "cancelledSuccess": "Temporizador cancelado.",
+      "cancelledError": "No se pudo cancelar el temporizador.",
+      "completedEarly": "Terminaste {{duration}} antes del límite.",
       "completedSuccess": "Tarea finalizada.",
       "completedError": "No se pudo finalizar la tarea.",
       "archivedSuccess": "Tarjeta archivada.",
@@ -80,15 +80,15 @@
       "activeTask": "Tarea activa",
       "loading": "Cargando...",
       "goToCard": "Ir a la tarjeta",
-      "dueAt": "Limite: {{value}}",
+      "dueAt": "Límite: {{value}}",
       "cancelTimer": "Cancelar",
       "finishTask": "Finalizar",
-      "otherTasks": "+{{count}} mas"
+      "otherTasks": "+{{count}} más"
     }
   },
   "shareModal": {
     "title": "Compartir \"{{boardName}}\"",
-    "subtitle": "Gestiona quien tiene acceso a este tablero.",
+    "subtitle": "Gestiona quién tiene acceso a este tablero.",
     "invitePeople": "Invitar personas",
     "emailPlaceholder": "Correo...",
     "viewer": "Lector",
@@ -96,7 +96,7 @@
     "editor": "Editor",
     "invite": "Invitar",
     "suggestDocs": "Sugerir documentos relacionados ({{count}})",
-    "autoGrant": "Acceso automatico",
+    "autoGrant": "Acceso automático",
     "invitedUser": "Usuario invitado",
     "generalAccess": "Acceso general",
     "restrictedMembers": "Restringido (solo miembros)",
@@ -104,14 +104,14 @@
     "anyoneLink": "Cualquiera con el enlace",
     "internetDesc": "Cualquiera en internet con el enlace puede acceder",
     "teamDesc": "Cualquiera en el equipo del workspace puede acceder",
-    "restrictedDesc": "Solo miembros agregados especificamente pueden acceder",
+    "restrictedDesc": "Solo miembros agregados específicamente pueden acceder",
     "copyLink": "Copiar enlace",
     "copiedToast": "Enlace copiado al portapapeles",
     "done": "Listo",
-    "inviteError": "Error al invitar usuario. Asegurate que el correo este registrado."
+    "inviteError": "Error al invitar usuario. Asegúrate de que el correo esté registrado."
   },
   "confirmDelete": {
     "title": "Eliminar tablero",
-    "description": "Seguro que quieres eliminar este tablero? Esta accion no se puede deshacer."
+    "description": "¿Seguro que quieres eliminar este tablero? Esta acción no se puede deshacer."
   }
 }
