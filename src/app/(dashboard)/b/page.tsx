@@ -60,6 +60,17 @@ export default function BoardsPage() {
   };
 
   const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
+    if (board.coverImageUrl && (/^https?:\/\//i.test(board.coverImageUrl) || board.coverImageUrl.startsWith("/") || board.coverImageUrl.startsWith("data:image/"))) {
+      return {
+        className: "bg-slate-800 bg-cover bg-center",
+        style: { backgroundImage: `url(${board.coverImageUrl})` },
+      };
+    }
+
+    if (board.coverImageUrl) {
+      return { className: board.coverImageUrl };
+    }
+
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {
         className: "bg-slate-800 bg-cover bg-center",
@@ -89,14 +100,7 @@ export default function BoardsPage() {
       return { className: board.backgroundValue };
     }
 
-    if (board.coverImageUrl && (/^https?:\/\//i.test(board.coverImageUrl) || board.coverImageUrl.startsWith("/") || board.coverImageUrl.startsWith("data:image/"))) {
-      return {
-        className: "bg-slate-800 bg-cover bg-center",
-        style: { backgroundImage: `url(${board.coverImageUrl})` },
-      };
-    }
-
-    return { className: board.coverImageUrl || "bg-gradient-to-tr from-accent/20 to-primary/20" };
+    return { className: "bg-gradient-to-tr from-accent/20 to-primary/20" };
   };
 
   const handleDeleteBoard = async () => {

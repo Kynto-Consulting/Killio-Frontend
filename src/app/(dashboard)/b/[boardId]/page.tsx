@@ -1074,17 +1074,6 @@ export default function BoardPage() {
       return { className: appearance.backgroundValue };
     }
 
-    if (appearance.coverImageUrl && (/^https?:\/\//i.test(appearance.coverImageUrl) || appearance.coverImageUrl.startsWith("/") || appearance.coverImageUrl.startsWith("data:image/"))) {
-      return {
-        className: "bg-slate-950 bg-cover bg-center",
-        style: { backgroundImage: `url(${appearance.coverImageUrl})` },
-      };
-    }
-
-    if (appearance.coverImageUrl) {
-      return { className: appearance.coverImageUrl };
-    }
-
     return { className: "bg-background" };
   };
 

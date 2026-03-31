@@ -6,7 +6,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 
 export type CreateBoardSubmitPayload = {
   name: string;
-  coverImageUrl: string;
+  coverImageUrl?: string;
   backgroundKind: "none" | "preset" | "image" | "color" | "gradient";
   backgroundValue?: string;
   backgroundImageUrl?: string;
@@ -74,8 +74,10 @@ function isTailwindGradient(value: string): boolean {
 export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage }: CreateBoardModalProps) {
   const t = useTranslations("modals");
   const tCommon = useTranslations("common");
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const coverFileInputRef = useRef<HTMLInputElement>(null);
+  const backgroundFileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
+  const [coverImageUrl, setCoverImageUrl] = useState("");
   const [backgroundKind, setBackgroundKind] = useState<"preset" | "image" | "color" | "gradient">("preset");
   const [presetBackground, setPresetBackground] = useState(BACKGROUNDS[0]);
   const [imageBackground, setImageBackground] = useState("");
@@ -91,6 +93,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
 
   if (!isOpen) {
     if (name) setName("");
+    if (coverImageUrl) setCoverImageUrl("");
     if (backgroundKind !== "preset") setBackgroundKind("preset");
     if (presetBackground !== BACKGROUNDS[0]) setPresetBackground(BACKGROUNDS[0]);
     if (imageBackground) setImageBackground("");
@@ -106,7 +109,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
     return null;
   }
 
-  const currentCover =
+  const currentBackground =
     backgroundKind === "image"
       ? imageBackground
       : backgroundKind === "color"
@@ -115,10 +118,36 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
           ? gradientBackground
           : presetBackground;
 
-  const usingImageCover = isImageCover(currentCover);
-  const usingCssGradient = backgroundKind === "gradient" && !isTailwindGradient(currentCover);
+  const usingImageBackground = isImageCover(currentBackground);
+  const usingCssGradient = backgroundKind === "gradient" && !isTailwindGradient(currentBackground);
+  const usingImageCover = isImageCover(coverImageUrl);
 
   const handleSelectCoverFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!onUploadCoverImage) return;
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      setError("El archivo debe ser una imagen.");
+      event.target.value = "";
+      return;
+    }
+
+    setIsUploadingCover(true);
+    setError(null);
+    try {
+      const uploadedUrl = await onUploadCoverImage(file);
+      setCoverImageUrl(uploadedUrl);
+    } catch (err: any) {
+      console.error(err);
+      setError(err?.message || "No se pudo subir la portada.");
+    } finally {
+      setIsUploadingCover(false);
+      event.target.value = "";
+    }
+  };
+
+  const handleSelectBackgroundFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
     if (!onUploadCoverImage) return;
     const file = event.target.files?.[0];
     if (!file) return;
@@ -137,7 +166,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
       setImageBackground(uploadedUrl);
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "No se pudo subir la portada.");
+      setError(err?.message || "No se pudo subir la imagen de fondo.");
     } finally {
       setIsUploadingCover(false);
       event.target.value = "";
@@ -153,10 +182,13 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
     try {
       const payload: CreateBoardSubmitPayload = {
         name: name.trim(),
-        coverImageUrl: currentCover,
         backgroundKind,
         themeKind,
       };
+
+      if (coverImageUrl.trim()) {
+        payload.coverImageUrl = coverImageUrl.trim();
+      }
 
       if (backgroundKind === "preset") payload.backgroundValue = presetBackground;
       if (backgroundKind === "image") payload.backgroundImageUrl = imageBackground;
@@ -174,6 +206,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
 
       await onSubmit(payload);
       setName("");
+      setCoverImageUrl("");
       setBackgroundKind("preset");
       setPresetBackground(BACKGROUNDS[0]);
       setImageBackground("");
@@ -204,11 +237,16 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
         </button>
 
         <div
-          className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${usingImageCover ? "bg-slate-800" : (isTailwindGradient(currentCover) ? currentCover : "bg-slate-800")} flex items-center justify-center transition-all duration-300 shadow-inner bg-cover bg-center`}
-          style={usingImageCover ? { backgroundImage: `url(${currentCover})` } : (usingCssGradient ? { background: currentCover } : undefined)}
+          className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${usingImageBackground ? "bg-slate-800" : (isTailwindGradient(currentBackground) ? currentBackground : "bg-slate-800")} flex items-center justify-center transition-all duration-300 shadow-inner bg-cover bg-center`}
+          style={usingImageBackground ? { backgroundImage: `url(${currentBackground})` } : (usingCssGradient ? { background: currentBackground } : undefined)}
         >
            <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
            <Layout className="h-12 w-12 text-white/90 drop-shadow-xl z-0" />
+           {usingImageCover ? (
+            <div className="absolute bottom-2 left-2 right-2 h-10 rounded-md border border-white/20 bg-slate-900/40 overflow-hidden">
+              <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: `url(${coverImageUrl})` }} />
+            </div>
+           ) : null}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
@@ -232,6 +270,44 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
           </div>
 
           <div className="space-y-2">
+            <label className="text-sm font-medium leading-none">Portada del board</label>
+            <input
+              type="text"
+              value={coverImageUrl}
+              onChange={(e) => setCoverImageUrl(e.target.value)}
+              placeholder="https://... (opcional)"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+            />
+            <input
+              ref={coverFileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleSelectCoverFile}
+              className="hidden"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => coverFileInputRef.current?.click()}
+                disabled={isSubmitting || isUploadingCover || !onUploadCoverImage}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+              >
+                <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir portada
+              </button>
+              {coverImageUrl ? (
+                <button
+                  type="button"
+                  onClick={() => setCoverImageUrl("")}
+                  disabled={isSubmitting || isUploadingCover}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+                >
+                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Quitar portada
+                </button>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="space-y-2">
             <label className="text-sm font-medium leading-none">
               {t("createBoard.backgroundLabel")}
             </label>
@@ -242,16 +318,16 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
               <button type="button" onClick={() => setBackgroundKind("image")} className={`h-8 rounded-md border text-xs ${backgroundKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>Image</button>
             </div>
             <input
-              ref={fileInputRef}
+              ref={backgroundFileInputRef}
               type="file"
               accept="image/*"
-              onChange={handleSelectCoverFile}
+              onChange={handleSelectBackgroundFile}
               className="hidden"
             />
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => backgroundFileInputRef.current?.click()}
                 disabled={isSubmitting || isUploadingCover || !onUploadCoverImage || backgroundKind !== "image"}
                 className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
               >
@@ -261,11 +337,11 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
                   </>
                 ) : (
                   <>
-                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir imagen
+                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir fondo
                   </>
                 )}
               </button>
-              {backgroundKind === "image" && usingImageCover ? (
+              {backgroundKind === "image" && usingImageBackground ? (
                 <button
                   type="button"
                   onClick={() => {
