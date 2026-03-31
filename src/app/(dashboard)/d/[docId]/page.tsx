@@ -376,9 +376,10 @@ export default function DocumentPage() {
 
         setDocument((current) => {
           if (!current) return current;
-          const nextBricks = current.bricks
+          const merged = current.bricks
             .map((brick) => (brick.id === brickId ? updatedTextBrick : brick))
-            .concat([mediaBrick, ...(afterBrick ? [afterBrick] : [])])
+            .concat([mediaBrick, ...(afterBrick ? [afterBrick] : [])]);
+          const nextBricks = Array.from(new Map(merged.map((brick) => [brick.id, brick])).values())
             .sort((a, b) => a.position - b.position);
           return { ...current, bricks: nextBricks };
         });
@@ -391,9 +392,12 @@ export default function DocumentPage() {
 
         setDocument((current) => {
           if (!current) return current;
+          const merged = [...current.bricks, mediaBrick];
+          const nextBricks = Array.from(new Map(merged.map((brick) => [brick.id, brick])).values())
+            .sort((a, b) => a.position - b.position);
           return {
             ...current,
-            bricks: [...current.bricks, mediaBrick].sort((a, b) => a.position - b.position),
+            bricks: nextBricks,
           };
         });
       }
