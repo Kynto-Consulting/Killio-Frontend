@@ -10,7 +10,9 @@ import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
 import { RichText } from "../ui/rich-text";
-import { type SlashCommand, slashCommands } from "./slash-commands";
+import { type SlashCommand, getSlashCommands } from "./slash-commands";
+import { InlineFormatToolbar } from "./inline-format-toolbar";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface TextBrickProps {
   id: string;
@@ -54,9 +56,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
   const [slashRange, setSlashRange] = useState<{ from: number; to: number } | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
+  const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
+  const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const pasteInFlightRef = useRef(false);
   const router = useRouter();
+  const tDetail = useTranslations("document-detail");
+  const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
   
 
@@ -558,8 +564,65 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
   };
 
+  const handleMouseUp = () => {
+    setTimeout(checkSelectionForToolbar, 10);
+  };
+
+  const handleFormat = (type: "bold" | "italic" | "strike" | "code" | "link") => {
+    if (!contentRef.current) return;
+    
+    switch (type) {
+      case "bold": document.execCommand("bold", false, undefined); break;
+      case "italic": document.execCommand("italic", false, undefined); break;
+      case "strike": document.execCommand("strikeThrough", false, undefined); break;
+      case "link":
+        const url = prompt("Enter link URL:");
+        if (url) document.execCommand("createLink", false, url);
+        break;
+      case "code":
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+          const range = selection.getRangeAt(0);
+          const codeNode = document.createElement("code");
+          codeNode.appendChild(range.extractContents());
+          range.insertNode(codeNode);
+          selection.removeAllRanges();
+        }
+        break;
+    }
+    const md = revertToMarkdown(contentRef.current.innerHTML || "");
+    onUpdate(md);
+  };
+
+  const checkSelectionForToolbar = () => {
+    if (readonly) return;
+    const selection = window.getSelection();
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !contentRef.current?.contains(selection.anchorNode)) {
+      setIsFormatToolbarOpen(false);
+      return;
+    }
+
+    const text = selection.toString().trim();
+    if (!text) {
+      setIsFormatToolbarOpen(false);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const rect = range.getBoundingClientRect();
+    
+    setFormatToolbarPosition({
+      top: rect.top + window.scrollY,
+      left: rect.left + window.scrollX + (rect.width / 2),
+    });
+    setIsFormatToolbarOpen(true);
+  };
+
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (!contentRef.current) return;
+    
+    // Check selection after a short delay to allow selection APIs to catch up
+    setTimeout(checkSelectionForToolbar, 10);
 
     const markdown = revertToMarkdown(contentRef.current.innerHTML || "");
     const offset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
@@ -947,6 +1010,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           onFocus={handleFocus}
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
+          onMouseUp={handleMouseUp}
           onPaste={handlePaste}
           onInput={() => {
              const text = contentRef.current?.textContent || "";
@@ -1037,6 +1101,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           </div>
         </Portal>
       ) : null}
+
+      <Portal>
+        <InlineFormatToolbar
+          position={formatToolbarPosition}
+          isVisible={isFormatToolbarOpen}
+          onFormat={handleFormat}
+        />
+      </Portal>
     </div>
   );
 };

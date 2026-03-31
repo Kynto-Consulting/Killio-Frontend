@@ -22,7 +22,8 @@ import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
 import { Portal } from "../ui/portal";
 import { cn } from "@/lib/utils";
-import { slashCommands, type SlashCommand } from "./slash-commands";
+import { getSlashCommands, type SlashCommand } from "./slash-commands";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'image';
 
@@ -55,6 +56,9 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onPasteImageInTextBrick,
   onUploadMediaFiles
 }) => {
+  const tDetail = useTranslations("document-detail");
+  const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plusMenuState, setPlusMenuState] = useState<{ brickId: string, top: number, left: number } | null>(null);
   const enabledKinds = addableKinds && addableKinds.length > 0

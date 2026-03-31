@@ -7,6 +7,9 @@ import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedGraphBrick } from "./unified-graph-brick";
 import { UnifiedChecklistBrick } from "./unified-checklist-brick";
 import { UnifiedAccordionBrick } from "./unified-accordion-brick";
+import { UnifiedQuoteBrick } from "./unified-quote-brick";
+import { UnifiedDividerBrick } from "./unified-divider-brick";
+import { UnifiedCalloutBrick } from "./unified-callout-brick";
 import { DocumentBrick, DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
@@ -518,6 +521,47 @@ export function UnifiedBrickRenderer({
           readonly={!canEdit}
           documents={documents}
           boards={boards}
+          users={users}
+        />
+      );
+      break;
+
+    case 'quote':
+      brickBody = (
+        <UnifiedQuoteBrick
+          id={brick.id}
+          text={content.text || content.markdown || ""}
+          onAddBrick={(k) => onAddBrick?.(k, brick.id)}
+          onUpdate={(text: any) => onUpdate({ ...content, kind: 'quote', markdown: text })}
+          readonly={!canEdit}
+          documents={documents}
+          boards={boards}
+          activeBricks={activeBricks}
+          users={users}
+        />
+      );
+      break;
+
+    case 'divider':
+      brickBody = (
+        <UnifiedDividerBrick
+          id={brick.id}
+          readonly={!canEdit}
+        />
+      );
+      break;
+
+    case 'callout':
+      brickBody = (
+        <UnifiedCalloutBrick
+          id={brick.id}
+          text={content.text || content.markdown || ""}
+          onAddBrick={(k) => onAddBrick?.(k, brick.id)}
+          onUpdate={(text: any) => onUpdate({ ...content, kind: 'callout', markdown: text })}
+          readonly={!canEdit}
+          documents={documents}
+          boards={boards}
+          activeBricks={activeBricks}
           users={users}
         />
       );
