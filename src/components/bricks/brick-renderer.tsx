@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, Send } from "lucide-react";
+import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, MessageSquarePlus, Send, Paperclip, AtSign, ArrowUp } from "lucide-react";
 import { UnifiedTableBrick } from "./unified-table-brick";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedGraphBrick } from "./unified-graph-brick";
@@ -564,37 +564,63 @@ export function UnifiedBrickRenderer({
   }
 
   return (
-    <div className="space-y-2">
-      {brickBody}
+    <div className="group/brick relative w-full">
+      <div className={isCommentsOpen ? "ring-2 ring-accent/20 rounded-sm transition-all" : "transition-all"}>
+        {brickBody}
+      </div>
 
-      <div className="rounded-md border border-border/40 bg-muted/10 px-2 py-1.5">
-        <button
-          type="button"
-          onClick={() => setIsCommentsOpen((current) => !current)}
-          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+      {/* Botón Flotante tipo Notion al hacer hover */}
+      {(canEdit || comments.length > 0) && (
+        <div 
+          className={`absolute top-1.5 right-1 z-10 flex items-center transition-opacity duration-200 ${
+            isCommentsOpen || comments.length > 0 ? "opacity-100" : "opacity-0 group-hover/brick:opacity-100"
+          }`}
         >
-          <MessageSquare className="h-3.5 w-3.5" />
-          {t("brickComments.toggle")}
-          {comments.length > 0 ? <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">{comments.length}</span> : null}
-        </button>
-
-        {isCommentsOpen ? (
-          <div className="mt-2 space-y-2">
+          <button
+            type="button"
+            onClick={() => setIsCommentsOpen((o) => !o)}
+            className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium shadow-sm border transition-colors ${
+              comments.length > 0
+                ? "bg-accent text-accent-foreground border-accent hover:opacity-90"
+                : "bg-background text-muted-foreground border-border/40 hover:bg-muted/50 hover:text-foreground"
+            }`}
+          >
+            {comments.length === 0 ? <MessageSquarePlus className="h-3.5 w-3.5" /> : <MessageSquare className="h-3.5 w-3.5" />}
             {comments.length === 0 ? (
-              <p className="text-xs text-muted-foreground">{t("brickComments.empty")}</p>
+              <span className="hidden sm:inline">Comentar</span>
+            ) : (
+              <span>{comments.length}</span>
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* Popover tipo Notion para los comentarios, aparece pegado debajo del ladrillo */}
+      {isCommentsOpen && (
+        <div className="relative z-20 mt-1 mb-3 rounded-lg border border-border/50 bg-background shadow-lg overflow-hidden flex flex-col md:max-w-[400px] w-full float-right mr-2 md:mr-4">
+          <div className="max-h-[300px] overflow-y-auto p-3 space-y-3 bg-muted/5">
+            {comments.length === 0 ? (
+              <p className="text-xs text-muted-foreground italic text-center py-2">{t("brickComments.empty")}</p>
             ) : (
               comments.map((comment) => (
-                <div key={comment.id} className="rounded-md border border-border/50 bg-background/80 p-2">
-                  <p className="text-xs text-foreground whitespace-pre-wrap">{comment.text}</p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {(comment.userName && comment.userName.trim()) || t("brickComments.anonymous")} - {new Date(comment.createdAt).toLocaleString()}
-                  </p>
+                <div key={comment.id} className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-foreground">
+                      {comment.userName && comment.userName.trim() ? comment.userName : t("brickComments.anonymous")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {new Date(comment.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </div>
+                  <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{comment.text}</p>
                 </div>
               ))
             )}
+          </div>
 
-            {canEdit ? (
-              <div className="flex items-center gap-2">
+          {canEdit && (
+            <div className="p-3 bg-background border-t border-border/30">
+              <div className="flex items-center gap-1.5 rounded-full border border-input focus-within:ring-1 focus-within:ring-ring focus-within:border-accent bg-background px-3 py-1.5 transition-all w-full">
                 <input
                   value={newComment}
                   onChange={(event) => setNewComment(event.target.value)}
@@ -604,22 +630,31 @@ export function UnifiedBrickRenderer({
                       submitComment();
                     }
                   }}
-                  placeholder={t("brickComments.placeholder")}
-                  className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+                  autoFocus
+                  placeholder="Añadir un comentario..."
+                  className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
+                
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                  <Paperclip className="w-3.5 h-3.5" />
+                </button>
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                  <AtSign className="w-3.5 h-3.5" />
+                </button>
+                
                 <button
                   type="button"
                   onClick={submitComment}
                   disabled={!newComment.trim()}
-                  className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                  className="inline-flex h-6 w-6 ml-0.5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors hover:bg-accent hover:text-accent-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                 >
-                  <Send className="h-3.5 w-3.5" />
+                  <ArrowUp className="h-3.5 w-3.5" />
                 </button>
               </div>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
