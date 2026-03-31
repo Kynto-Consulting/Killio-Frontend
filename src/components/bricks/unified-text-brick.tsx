@@ -45,6 +45,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerCursorOffset, setPickerCursorOffset] = useState<number | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const pasteInFlightRef = useRef(false);
   const router = useRouter();
 
   const tokenEscapeAttr = (value: string): string => {
@@ -698,6 +699,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     if (readonly || !onPasteImage) return;
+    if (pasteInFlightRef.current) {
+      e.preventDefault();
+      logPasteDebug("paste skipped because another paste is in flight");
+      return;
+    }
     const clipboardTypes = Array.from(e.clipboardData.types || []);
     const hasLikelyImageFile = Array.from(e.clipboardData.files).some((file) => isLikelyImageFile(file));
     const hasImageCandidate =
@@ -720,6 +726,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     if (!hasImageCandidate) return;
 
     e.preventDefault();
+    pasteInFlightRef.current = true;
 
     const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
     const cursorOffset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
@@ -752,6 +759,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         logPasteDebug("paste handler error", {
           error: err instanceof Error ? err.message : String(err),
         });
+      })
+      .finally(() => {
+        pasteInFlightRef.current = false;
       });
   };
 

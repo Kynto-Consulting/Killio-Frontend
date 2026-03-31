@@ -1034,9 +1034,10 @@ export async function uploadFile(
     if (!rawKey) return url;
 
     try {
-      return `${prefix}${decodeURIComponent(rawKey)}`;
+      const decodedKey = decodeURIComponent(rawKey);
+      return `${prefix}${encodeURIComponent(decodedKey)}`;
     } catch {
-      return url;
+      return `${prefix}${encodeURIComponent(rawKey)}`;
     }
   };
 
