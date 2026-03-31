@@ -25,10 +25,11 @@ import { cn } from "@/lib/utils";
 import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
-type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image';
+type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
 
 interface UnifiedBrickListProps {
   bricks: any[];
+  activeBricks?: any[];
   canEdit: boolean;
   onUpdateBrick: (id: string, content: any) => void;
   onDeleteBrick: (id: string) => void;
@@ -46,6 +47,7 @@ interface UnifiedBrickListProps {
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   bricks,
+  activeBricks,
   canEdit,
   onUpdateBrick,
   onDeleteBrick,
@@ -148,7 +150,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         onReorderBricks={onReorderBricks}
         documents={documents}
         boards={boards}
-        activeBricks={bricks}
+        activeBricks={activeBricks || bricks}
         users={users}
         onPasteImageInTextBrick={onPasteImageInTextBrick}
         onUploadMediaFiles={onUploadMediaFiles}
@@ -216,7 +218,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         </DndContext>
       )}
 
-      {canEdit && (
+      {canEdit && (!hasExternalDndContext || bricks.length === 0) && (
         <div className="pt-6 border-t border-border flex flex-wrap gap-2 items-center justify-center">
           {enabledKinds.includes('text') && (
             <Button variant="ghost" size="sm" onClick={() => onAddBrick('text')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">

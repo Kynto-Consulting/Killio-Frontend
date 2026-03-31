@@ -3,6 +3,8 @@ import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
 import { RefPill } from "./ref-pill";
 import { TagBadge } from "./tag-badge";
 import { AiSuggestion } from "./ai-suggestion";
+import "katex/dist/katex.min.css";
+import { BlockMath, InlineMath } from "react-katex";
 
 interface RichTextProps {
   content: string;
@@ -28,6 +30,34 @@ export function RichText({
   onSuggestionApply 
 }: RichTextProps) {
   if (!content) return null;
+
+  // Handle block math
+  if (content.includes("$$")) {
+    const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
+    if (parts.length > 1) {
+      return (
+        <div className={className}>
+          {parts.map((part, partIdx) => {
+            if (part.startsWith("$$") && part.endsWith("$$")) {
+              const formula = part.slice(2, -2).trim();
+              return <div key={partIdx} className="my-2 p-2 bg-muted/10 rounded-md overflow-x-auto"><BlockMath math={formula} /></div>;
+            }
+            if (!part) return null;
+            return (
+              <RichText 
+                key={partIdx} 
+                content={part} 
+                context={context} 
+                availableTags={availableTags} 
+                onReferenceClick={onReferenceClick} 
+                onSuggestionApply={onSuggestionApply}
+              />
+            );
+          })}
+        </div>
+      );
+    }
+  }
 
   // Handle [SUGGESTION:TYPE] tags first (block level)
   if (content.includes("[SUGGESTION:")) {
@@ -166,8 +196,8 @@ export function RichText({
 }
 
 function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
-  // Split on inline code first (`...`)
-  const segments = text.split(/(`[^`]+`)/g);
+  // Use InlineMath to interpret `$ ... $` syntax, and ignore standard text
+  const segments = text.split(/(`[^`]+`|\$[^$]+\$)/g);
 
   const renderBoldTags = (t: string, keyPrefix: string) => {
     const chunks = t.split(/(\*\*[^*]+\*\*)/g);
@@ -204,6 +234,17 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
               {seg.slice(1, -1)}
             </code>
           );
+        }
+        if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
+          try {
+            return (
+              <span key={`math-${i}`} className="inline-block mx-1">
+                <InlineMath math={seg.slice(1, -1)} />
+              </span>
+            );
+          } catch (err) {
+            return <span key={`math-error-${i}`} className="text-red-500 font-mono text-xs">{seg}</span>;
+          }
         }
         return <Fragment key={i}>{renderBoldTags(seg, `seg-${i}`)}</Fragment>;
       })}

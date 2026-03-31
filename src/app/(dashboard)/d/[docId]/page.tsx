@@ -167,7 +167,13 @@ export default function DocumentPage() {
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
     if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true };
     if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
-    if (kind === 'image') content = { url: '' };
+    if (kind === 'image') content = { url: '', mediaType: 'image' };
+    if (kind === 'video') content = { url: '', mediaType: 'video' };
+    if (kind === 'audio') content = { url: '', mediaType: 'audio' };
+    if (kind === 'file') content = { url: '', mediaType: 'file' };
+    if (kind === 'bookmark') content = { url: '', mediaType: 'bookmark' };
+    if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
+    if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
     if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }] };
     if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }] };
 
@@ -176,8 +182,12 @@ export default function DocumentPage() {
       content.containerId = parentProps.containerId;
     }
 
+    let finalKind = kind;
+    if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
+    if (kind === 'code' || kind === 'math') finalKind = 'text';
+
     try {
-      const newBrick = await createDocumentBrick(docId, { kind, position, content }, accessToken);
+      const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
       // Wait for WS OR optimistic update:
       setDocument((prev) => {
         if (!prev) return prev;
@@ -801,11 +811,12 @@ export default function DocumentPage() {
           <div className="pb-32">
             <UnifiedBrickList
               bricks={document.bricks.filter((b) => !b.content?.parentId)}
+              activeBricks={document.bricks}
               canEdit={canEdit}
               documents={teamDocs}
               boards={teamBoards}
               users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
-              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
+              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}

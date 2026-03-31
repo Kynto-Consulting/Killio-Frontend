@@ -103,7 +103,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
         {(nestedBricks.length > 0 || !readonly) ? (
           <UnifiedBrickList
             hasExternalDndContext={true}
-            bricks={nestedBricks}
+            bricks={nestedBricks} activeBricks={activeBricks}
             canEdit={!readonly}
             onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
             onDeleteBrick={(bId) => onDeleteBrick?.(bId)}

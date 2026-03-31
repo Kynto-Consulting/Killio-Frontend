@@ -67,7 +67,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({
                <div className="p-3 w-full h-full min-h-[100px]">
                  <UnifiedBrickList
                    hasExternalDndContext={true}
-                   bricks={nestedBricks}
+                   bricks={nestedBricks} activeBricks={activeBricks}
                    canEdit={!readonly}
                    onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
                    onDeleteBrick={(bId) => onDeleteBrick?.(bId)}

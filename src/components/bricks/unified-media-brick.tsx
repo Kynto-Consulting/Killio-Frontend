@@ -90,9 +90,10 @@ export const UnifiedMediaBrick: React.FC<{
 
   const activeItem = meta.items[activeIndex] || fallback;
   const mime = (activeItem?.mimeType || "").toLowerCase();
-  const isImage = mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(activeItem?.url || "");
-  const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "");
-  const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "");
+  const isImage = mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(activeItem?.url || "") || content.mediaType === "image";
+  const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "") || content.mediaType === "video";
+  const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "") || content.mediaType === "audio";
+  const isWebBookmark = content.mediaType === "bookmark";
 
   const updateMeta = (nextMeta: MediaMeta, nextIndex = 0) => {
     const first = nextMeta.items[0];
@@ -142,7 +143,18 @@ export const UnifiedMediaBrick: React.FC<{
       <div className={getMediaWrapperClassName()}>
         {/* MEDIA RENDER */}
         {activeItem?.url ? (
-          isVideo ? (
+          isWebBookmark ? (
+            <a href={activeItem.url} target="_blank" rel="noreferrer" className="block w-full max-w-lg mx-auto bg-card border border-border/50 rounded-lg overflow-hidden hover:border-accent/50 transition-colors shadow-sm">
+              <div className="p-4 flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
+                  <LinkIcon className="w-3 h-3" />
+                  <span className="truncate">{activeItem.url.startsWith('http') ? new URL(activeItem.url).hostname : activeItem.url}</span>
+                </div>
+                <h3 className="font-semibold text-sm truncate text-foreground">{activeItem.title || activeItem.url}</h3>
+                <div className="text-xs text-muted-foreground truncate opacity-80">{activeItem.url}</div>
+              </div>
+            </a>
+          ) : isVideo ? (
             <video src={activeItem.url} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
           ) : isAudio ? (
             <div className="flex flex-col items-center justify-center p-6 bg-muted/10 gap-4 min-w-[300px]">

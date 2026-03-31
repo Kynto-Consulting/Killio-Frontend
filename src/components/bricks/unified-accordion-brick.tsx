@@ -77,7 +77,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
           {(nestedBricks.length > 0 || !body || !readonly) ? (
             <UnifiedBrickList
               hasExternalDndContext={true}
-              bricks={nestedBricks}
+              bricks={nestedBricks} activeBricks={activeBricks}
               canEdit={!readonly}
               onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
               onDeleteBrick={(bId) => onDeleteBrick?.(bId)}

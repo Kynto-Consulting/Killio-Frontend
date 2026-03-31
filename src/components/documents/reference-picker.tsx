@@ -47,6 +47,7 @@ interface ReferencePickerProps {
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
+  allowedTypes?: MentionType[];
 }
 
 type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "selectors";
@@ -198,6 +199,7 @@ export function ReferencePicker({
   cards = [],
   activeBricks = [],
   localScopeId = "local",
+  allowedTypes,
 }: ReferencePickerProps) {
   const { accessToken } = useSession();
   const [query, setQuery] = useState("");
@@ -241,7 +243,7 @@ export function ReferencePicker({
 
   const mentionResults = useMemo(() => {
     const q = query.toLowerCase().trim();
-    const mentions: MentionResult[] = [
+    let mentions: MentionResult[] = [
       ...boards.map((b) => ({
         token: `@[board:${b.id}:${b.name}]`,
         label: b.name,
@@ -273,21 +275,31 @@ export function ReferencePicker({
       })),
     ];
 
+    if (allowedTypes && allowedTypes.length > 0) {
+      mentions = mentions.filter(m => m.mentionType && allowedTypes.includes(m.mentionType));
+    }
+
     const filteredMentions = mentions.filter((m) => {
       if (!q) return true;
       return m.search.includes(q) || m.label.toLowerCase().includes(q);
     });
 
-    const extra = [
+    let extra = [
       { key: "locals", label: "Locales", subtitle: "Referencia del documento actual" },
       { key: "documents", label: "Documentos", subtitle: "Referencia de otro documento" },
-    ].filter((it) => {
+    ];
+
+    if (allowedTypes && allowedTypes.length > 0) {
+      extra = []; // Hide extra complex pickers if restricted to just simple mentions
+    }
+
+    extra = extra.filter((it) => {
       if (!q) return true;
       return `${it.label} ${it.subtitle}`.toLowerCase().includes(q);
     });
 
     return { filteredMentions, extra };
-  }, [boards, documents, users, cards, query]);
+  }, [boards, documents, users, cards, query, allowedTypes]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
