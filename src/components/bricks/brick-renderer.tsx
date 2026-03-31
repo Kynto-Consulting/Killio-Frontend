@@ -565,45 +565,42 @@ export function UnifiedBrickRenderer({
 
   return (
     <div className="group/brick relative w-full">
-      <div className={isCommentsOpen ? "ring-2 ring-accent/20 rounded-sm transition-all" : "transition-all"}>
+      <div className={isCommentsOpen ? "bg-accent/5 rounded-sm transition-all shadow-[inset_2px_0_0_0_hsl(var(--accent))]" : "transition-all"}>
         {brickBody}
       </div>
 
       {/* Botón Flotante tipo Notion al hacer hover */}
       {(canEdit || comments.length > 0) && (
         <div 
-          className={`absolute top-1.5 right-1 z-10 flex items-center transition-opacity duration-200 ${
+          className={`absolute top-1.5 -right-3 sm:-right-8 z-10 flex items-center transition-opacity duration-200 ${
             isCommentsOpen || comments.length > 0 ? "opacity-100" : "opacity-0 group-hover/brick:opacity-100"
           }`}
         >
           <button
             type="button"
             onClick={() => setIsCommentsOpen((o) => !o)}
-            className={`flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium shadow-sm border transition-colors ${
+            className={`flex items-center justify-center h-7 w-7 rounded-full shadow-sm border transition-colors ${
               comments.length > 0
                 ? "bg-accent text-accent-foreground border-accent hover:opacity-90"
                 : "bg-background text-muted-foreground border-border/40 hover:bg-muted/50 hover:text-foreground"
             }`}
+             title="Comentar en este bloque"
           >
-            {comments.length === 0 ? <MessageSquarePlus className="h-3.5 w-3.5" /> : <MessageSquare className="h-3.5 w-3.5" />}
-            {comments.length === 0 ? (
-              <span className="hidden sm:inline">Comentar</span>
-            ) : (
-              <span>{comments.length}</span>
-            )}
+            {comments.length === 0 ? <MessageSquarePlus className="h-3.5 w-3.5" /> : <span className="text-[10px] font-bold">{comments.length}</span>}
           </button>
         </div>
       )}
 
-      {/* Popover tipo Notion para los comentarios, aparece pegado debajo del ladrillo */}
+      {/* Popover tipo Notion para los comentarios, flotando al lado o debajo */}
       {isCommentsOpen && (
-        <div className="relative z-20 mt-1 mb-3 rounded-lg border border-border/50 bg-background shadow-lg overflow-hidden flex flex-col md:max-w-[400px] w-full float-right mr-2 md:mr-4">
-          <div className="max-h-[300px] overflow-y-auto p-3 space-y-3 bg-muted/5">
-            {comments.length === 0 ? (
-              <p className="text-xs text-muted-foreground italic text-center py-2">{t("brickComments.empty")}</p>
-            ) : (
-              comments.map((comment) => (
-                <div key={comment.id} className="flex flex-col gap-1">
+        <div 
+          className="absolute z-[100] right-0 top-full mt-1 w-full sm:w-[320px] rounded-lg border border-border/60 bg-background shadow-xl flex flex-col no-drag-focus"
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          {comments.length > 0 && (
+            <div className="max-h-[300px] overflow-y-auto px-4 py-3 space-y-4">
+              {comments.map((comment) => (
+                <div key={comment.id} className="flex flex-col gap-1.5 border-b border-border/30 pb-3 last:border-0 last:pb-0">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-semibold text-foreground">
                       {comment.userName && comment.userName.trim() ? comment.userName : t("brickComments.anonymous")}
@@ -614,19 +611,20 @@ export function UnifiedBrickRenderer({
                   </div>
                   <p className="text-xs text-foreground/90 whitespace-pre-wrap leading-relaxed">{comment.text}</p>
                 </div>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
 
           {canEdit && (
-            <div className="p-3 bg-background border-t border-border/30">
-              <div className="flex items-center gap-1.5 rounded-full border border-input focus-within:ring-1 focus-within:ring-ring focus-within:border-accent bg-background px-3 py-1.5 transition-all w-full">
+            <div className={comments.length > 0 ? "p-3 bg-muted/10 border-t border-border/30" : "p-3 bg-background"}>
+              <div className="flex items-center gap-1.5 rounded-md border border-input focus-within:ring-1 focus-within:ring-ring focus-within:border-accent bg-background px-3 py-1.5 transition-all w-full shadow-sm">
                 <input
                   value={newComment}
                   onChange={(event) => setNewComment(event.target.value)}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
                       event.preventDefault();
+                      event.stopPropagation();
                       submitComment();
                     }
                   }}
@@ -635,18 +633,22 @@ export function UnifiedBrickRenderer({
                   className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
                 
-                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1 outline-none">
                   <Paperclip className="w-3.5 h-3.5" />
                 </button>
-                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1">
+                <button type="button" className="text-muted-foreground hover:text-foreground transition-colors p-1 outline-none">
                   <AtSign className="w-3.5 h-3.5" />
                 </button>
                 
                 <button
                   type="button"
-                  onClick={submitComment}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    submitComment();
+                  }}
                   disabled={!newComment.trim()}
-                  className="inline-flex h-6 w-6 ml-0.5 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent transition-colors hover:bg-accent hover:text-accent-foreground disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
+                  className="inline-flex h-6 w-6 ml-0.5 shrink-0 items-center justify-center rounded bg-accent text-accent-foreground outline-none transition-colors hover:opacity-90 disabled:bg-muted disabled:text-muted-foreground disabled:cursor-not-allowed"
                 >
                   <ArrowUp className="h-3.5 w-3.5" />
                 </button>

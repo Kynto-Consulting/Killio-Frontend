@@ -33,7 +33,7 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
   const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
     // Forward clicks in the sortable wrapper padding area to the inner contenteditable
     const target = e.target as HTMLElement;
-    if (!target.closest('[contenteditable]') && !target.closest('[data-drag-handle]')) {
+    if (!target.closest('[contenteditable]') && !target.closest('[data-drag-handle]') && !target.closest('button') && !target.closest('input') && !target.closest('.no-drag-focus')) {
       const ce = (e.currentTarget as HTMLElement).querySelector<HTMLElement>('[contenteditable="true"]');
       if (ce && document.activeElement !== ce) {
         e.preventDefault();
