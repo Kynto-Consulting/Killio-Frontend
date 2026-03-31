@@ -164,6 +164,7 @@ export function CardDetailModal({
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const router = useRouter();
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
@@ -1540,56 +1541,62 @@ export function CardDetailModal({
   };
 
   const handleAddComment = async () => {
-    if (!newComment.trim() || !card?.id || !accessToken) return;
+    if (!newComment.trim() || !card?.id || !accessToken || isSubmittingComment) return;
+    setIsSubmittingComment(true);
 
     if (activeTab === 'copilot') {
-      const userMsg = newComment.trim();
-      setAiMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-      setNewComment("");
-
-      if (GENERATE_REPORT_INTENT_REGEX.test(userMsg)) {
-        await generateReportFromCardContext(userMsg);
-        return;
-      }
-
-      setIsImprovingDescription(true);
       try {
-        const { scope, scopeId } = resolveAiScope();
-        const response = await improveCardWithAi(
-          {
-            scope,
-            scopeId,
-            currentTitle: card.title,
-            currentDescription: card.summary || '',
-            currentBricks: localBlocks,
-            userPrompt: userMsg
-          },
-          accessToken
-        );
+        const userMsg = newComment.trim();
+        setAiMessages(prev => [...prev, { role: 'user', content: userMsg }]);
+        setNewComment("");
 
-        const assistantMsg = response.explanation || "He analizado tu solicitud. ¿Deseas aplicar los cambios sugeridos?";
-        setAiMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
-
-        if (response.title || response.bricks) {
-          setPendingImprovement({
-            title: response.title || (card?.title || ""),
-            bricks: response.bricks || [],
-            diffText: response.bricks?.filter((b: any) => b.kind === 'text').map((b: any) => b.content.markdown).join('\n\n') || "",
-            originalText: localBlocks.filter(b => b.kind === 'text').map(b => b.markdown).join("\n\n"),
-            explanation: response.explanation
-          });
+        if (GENERATE_REPORT_INTENT_REGEX.test(userMsg)) {
+          await generateReportFromCardContext(userMsg);
+          return;
         }
-      } catch (err) {
-        console.error("AI Chat failed", err);
-        setAiMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu solicitud." }]);
+
+        setIsImprovingDescription(true);
+        try {
+          const { scope, scopeId } = resolveAiScope();
+          const response = await improveCardWithAi(
+            {
+              scope,
+              scopeId,
+              currentTitle: card.title,
+              currentDescription: card.summary || '',
+              currentBricks: localBlocks,
+              userPrompt: userMsg
+            },
+            accessToken
+          );
+
+          const assistantMsg = response.explanation || "He analizado tu solicitud. ¿Deseas aplicar los cambios sugeridos?";
+          setAiMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
+
+          if (response.title || response.bricks) {
+            setPendingImprovement({
+              title: response.title || (card?.title || ""),
+              bricks: response.bricks || [],
+              diffText: response.bricks?.filter((b: any) => b.kind === 'text').map((b: any) => b.content.markdown).join('\n\n') || "",
+              originalText: localBlocks.filter(b => b.kind === 'text').map(b => b.markdown).join("\n\n"),
+              explanation: response.explanation
+            });
+          }
+        } catch (err) {
+          console.error("AI Chat failed", err);
+          setAiMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu solicitud." }]);
+        } finally {
+          setIsImprovingDescription(false);
+        }
       } finally {
-        setIsImprovingDescription(false);
+        setIsSubmittingComment(false);
       }
       return;
     }
 
     if (!canComment) {
       toast("No tienes permisos para comentar en esta tarjeta.", "error");
+      setIsSubmittingComment(false);
       return;
     }
 
@@ -1604,6 +1611,8 @@ export function CardDetailModal({
       console.error("Failed to add comment", err);
       const message = err instanceof ApiError ? err.message : "No se pudo enviar el comentario.";
       toast(message, "error");
+    } finally {
+      setIsSubmittingComment(false);
     }
   };
 
@@ -2619,8 +2628,8 @@ export function CardDetailModal({
                   className="w-full"
                   inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
                 />
-                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription || (activeTab !== 'copilot' && !canComment)} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
-                  {isImprovingDescription ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
+                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription || isSubmittingComment || (activeTab !== 'copilot' && !canComment)} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
+                  {(isImprovingDescription || isSubmittingComment) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>

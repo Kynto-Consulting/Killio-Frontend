@@ -107,6 +107,7 @@ export function BoardChatDrawer({
   ]);
   const [inputVal, setInputVal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
   const [realtimeEvents, setRealtimeEvents] = useState<string[]>([]);
   const [allAvailableTags, setAllAvailableTags] = useState<any[]>([]);
@@ -655,7 +656,7 @@ export function BoardChatDrawer({
   async function sendMessage(e?: React.FormEvent, presetPrompt?: string) {
     e?.preventDefault();
     const messageToSend = (presetPrompt ?? inputVal).trim();
-    if (!messageToSend || isLoading || !boardId || !accessToken) return;
+    if (!messageToSend || isLoading || isSendingMessage || !boardId || !accessToken) return;
 
     const userMsg: Message = { 
       id: Date.now(), 
@@ -666,6 +667,7 @@ export function BoardChatDrawer({
       email: user?.email || null
     };
     setInputVal("");
+    setIsSendingMessage(true);
 
     if (activeTab === 'chat') {
       // Human-to-human flow
@@ -676,6 +678,8 @@ export function BoardChatDrawer({
       } catch (err) {
         console.error("Failed to send board comment", err);
         setChatMessages(prev => [...prev, { id: Date.now(), role: 'system', content: '⚠️ Error enviando mensaje.' }]);
+      } finally {
+        setIsSendingMessage(false);
       }
       return;
     }
@@ -713,6 +717,7 @@ export function BoardChatDrawer({
       setAiMessages((prev) => [...prev.filter((m) => !m.loading), errMsg]);
     } finally {
       setIsLoading(false);
+      setIsSendingMessage(false);
     }
   }
 
@@ -1014,7 +1019,7 @@ export function BoardChatDrawer({
 
       {(activeTab === 'chat' || activeTab === 'copilot') && (
         <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
-          <form className="relative flex items-center" onSubmit={sendMessage}>
+          <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
             <ReferenceTokenInput
               value={inputVal}
               onChange={setInputVal}
@@ -1034,8 +1039,11 @@ export function BoardChatDrawer({
               inputClassName={`pr-10 shadow-sm ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : ''}`}
             />
             <button
-              type="submit"
-              disabled={!inputVal.trim() || isLoading}
+              type="button"
+              onClick={() => {
+                void sendMessage();
+              }}
+              disabled={!inputVal.trim() || isLoading || isSendingMessage}
               className={`absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-accent text-accent-foreground'}`}
             >
               <Send className="h-3.5 w-3.5" />
