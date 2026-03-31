@@ -13,6 +13,7 @@ import { RichText } from "../ui/rich-text";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
 
 interface TextBrickProps {
   id: string;
@@ -50,6 +51,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   onPasteImage
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [pickerFilter, setPickerFilter] = useState<any[] | undefined>(undefined);
+  const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
+  const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isMathPickerOpen, setIsMathPickerOpen] = useState(false);
   const [pickerCursorOffset, setPickerCursorOffset] = useState<number | null>(null);
   const [isSlashOpen, setIsSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -457,10 +462,23 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const after = markdown.slice(context.to);
 
     if (command.kind === "inline") {
-      const insertText = command.insertText || "";
+      let insertText = command.insertText || "";
       const nextMarkdown = `${before}${insertText}${after}`;
       onUpdate(nextMarkdown);
       contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+      
+      const newCursorOffset = context.from + insertText.length;
+      
+      // Special actions for specific inline commands
+      if (command.id === "mention-person") {
+        setPickerCursorOffset(newCursorOffset);
+        setPickerFilter(["user"]);
+        setIsPickerOpen(true);
+      } else if (command.id === "mention-page") {
+        setPickerCursorOffset(newCursorOffset);
+        setPickerFilter(["doc", "board"]);
+        setIsPickerOpen(true);
+      }
     } else if (command.blockKind && onAddBrick) {
       const nextMarkdown = `${before}${after}`;
       onUpdate(nextMarkdown);
@@ -568,12 +586,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setTimeout(checkSelectionForToolbar, 10);
   };
 
-  const handleFormat = (type: "bold" | "italic" | "strike" | "code" | "link") => {
+  const handleFormat = (type: "bold" | "italic" | "strike" | "code" | "link" | "underline" | "math") => {
     if (!contentRef.current) return;
     
     switch (type) {
       case "bold": document.execCommand("bold", false, undefined); break;
       case "italic": document.execCommand("italic", false, undefined); break;
+      case "underline": document.execCommand("underline", false, undefined); break;
       case "strike": document.execCommand("strikeThrough", false, undefined); break;
       case "link":
         const url = prompt("Enter link URL:");
@@ -1036,7 +1055,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             documents={documents}
             users={users}
             activeBricks={activeBricks as any[]}
-            onClose={() => setIsPickerOpen(false)}
+ onClose={() => { setIsPickerOpen(false); setPickerFilter(undefined); }} allowedTypes={pickerFilter as any}
             onSelect={(item: ReferencePickerSelection) => {
               const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
               const insertToken = item.token;
@@ -1126,8 +1145,89 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           position={formatToolbarPosition}
           isVisible={isFormatToolbarOpen}
           onFormat={handleFormat}
+          onAction={(action) => {
+            setIsFormatToolbarOpen(false);
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0) {
+              const r = sel.getRangeAt(0);
+              const rect = r.getBoundingClientRect();
+              setSlashMenuPosition({ top: Math.max(12, rect.bottom + window.scrollY + 8), left: Math.max(12, rect.left + window.scrollX) });
+              if (contentRef.current) {
+                const offset = getMarkdownCursorOffset(contentRef.current);
+                if (offset !== null) setPickerCursorOffset(offset);
+              }
+            }
+            if (action === "emoji") {
+              setIsEmojiPickerOpen(true);
+            } else if (action === "math") {
+              setIsMathPickerOpen(true);
+            } else if (action === "date") {
+              setIsDatePickerOpen(true);
+            } else {
+              console.log("Action clicked:", action);
+            }
+          }}
         />
       </Portal>
-    </div>
-  );
-};
+
+        {isDatePickerOpen && !readonly && (
+          <Portal>
+            <DatePickerPopover 
+              top={slashMenuPosition.top} 
+              left={slashMenuPosition.left} 
+              onClose={() => setIsDatePickerOpen(false)}
+              onSelect={(ts) => {
+                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+                const cursor = pickerCursorOffset ?? markdown.length;
+                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
+                const newMarkdown = `${markdown.slice(0, safeCursor)}${ts} ${markdown.slice(safeCursor)}`;
+                onUpdate(newMarkdown);
+                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                setIsDatePickerOpen(false);
+                setPickerCursorOffset(null);
+              }}
+            />
+          </Portal>
+        )}
+
+        {isEmojiPickerOpen && !readonly && (
+          <Portal>
+            <EmojiPickerPopover 
+              top={slashMenuPosition.top} 
+              left={slashMenuPosition.left} 
+              onSelect={(emoji) => {
+                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+                const cursor = pickerCursorOffset ?? markdown.length;
+                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
+                const newMarkdown = `${markdown.slice(0, safeCursor)}${emoji} ${markdown.slice(safeCursor)}`;
+                onUpdate(newMarkdown);
+                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                setIsEmojiPickerOpen(false);
+                setPickerCursorOffset(null);
+              }}
+            />
+          </Portal>
+        )}
+
+        {isMathPickerOpen && !readonly && (
+          <Portal>
+            <MathPickerPopover 
+              top={slashMenuPosition.top} 
+              left={slashMenuPosition.left} 
+              onClose={() => setIsMathPickerOpen(false)}
+              onSelect={(formula) => {
+                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+                const cursor = pickerCursorOffset ?? markdown.length;
+                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
+                const newMarkdown = `${markdown.slice(0, safeCursor)}${formula} ${markdown.slice(safeCursor)}`;
+                onUpdate(newMarkdown);
+                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                setIsMathPickerOpen(false);
+                setPickerCursorOffset(null);
+              }}
+            />
+          </Portal>
+        )}
+      </div>
+    );
+  };
