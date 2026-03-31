@@ -43,6 +43,7 @@ interface UnifiedBrickListProps {
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   hasExternalDndContext?: boolean;
   onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  emptyPlaceholder?: string;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -60,7 +61,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onPasteImageInTextBrick,
   onUploadMediaFiles,
   hasExternalDndContext = false,
-  onCrossContainerDrop
+  onCrossContainerDrop,
+  emptyPlaceholder
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -218,7 +220,16 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         </DndContext>
       )}
 
-      {canEdit && (!hasExternalDndContext || bricks.length === 0) && (
+      {canEdit && bricks.length === 0 && emptyPlaceholder && (
+        <div 
+          className="flex items-center justify-start text-[15px] text-muted-foreground/50 cursor-text min-h-[40px] hover:bg-muted/10 transition-colors rounded-lg w-full"
+          onClick={() => onAddBrick('text')}
+        >
+          {emptyPlaceholder}
+        </div>
+      )}
+
+      {canEdit && !emptyPlaceholder && (!hasExternalDndContext || bricks.length === 0) && (
         <div className="pt-6 border-t border-border flex flex-wrap gap-2 items-center justify-center">
           {enabledKinds.includes('text') && (
             <Button variant="ghost" size="sm" onClick={() => onAddBrick('text')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">

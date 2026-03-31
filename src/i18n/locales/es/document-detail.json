@@ -122,7 +122,11 @@
     "tabs": {
       "defaultTab1": "Tab 1",
       "defaultTabn": "Tab",
-      "placeholder": "Escribe el contenido de la pestaña..."
+      "placeholder": "Escribe el contenido de la pesta\u00f1a...",
+      "empty": "Pesta\u00f1a vac\u00eda. Haz clic o suelta un bloque dentro."
+    },
+    "accordion": {
+      "empty": "Acorde\u00f3n vac\u00edo. Haz clic o suelta un bloque dentro."
     },
     "columns": {
       "placeholder": "Columna",

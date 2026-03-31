@@ -99,12 +99,13 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
           </button>
         )}
       </div>
-      <div className="p-4 bg-background min-h-[100px]">
+      <div className="p-4 bg-background min-h-[50px]">
         {(nestedBricks.length > 0 || !readonly) ? (
           <UnifiedBrickList
             hasExternalDndContext={true}
             bricks={nestedBricks} activeBricks={activeBricks}
             canEdit={!readonly}
+            emptyPlaceholder={t("bricks.tabs.empty")}
             onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
             onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
             onReorderBricks={(ids) => onReorderBricks?.(ids)}

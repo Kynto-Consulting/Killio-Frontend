@@ -122,7 +122,11 @@
     "tabs": {
       "defaultTab1": "Tab 1",
       "defaultTabn": "Tab",
-      "placeholder": "Write tab content..."
+      "placeholder": "Write tab content...",
+      "empty": "Empty tab. Click or drop a block inside."
+    },
+    "accordion": {
+      "empty": "Empty accordion. Click or drop a block inside."
     },
     "columns": {
       "placeholder": "Column",

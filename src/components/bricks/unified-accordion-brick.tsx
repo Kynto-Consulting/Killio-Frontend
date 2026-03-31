@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedBrickList } from "./unified-brick-list";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
@@ -29,6 +30,7 @@ interface AccordionBrickProps {
 export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
   id, title, body, isExpanded, onUpdate, readonly, documents, boards, activeBricks, users = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, onCrossContainerDrop
 }) => {
+  const t = useTranslations("document-detail");
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
 
   useEffect(() => {
@@ -79,6 +81,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
               hasExternalDndContext={true}
               bricks={nestedBricks} activeBricks={activeBricks}
               canEdit={!readonly}
+              emptyPlaceholder={t("bricks.accordion.empty")}
               onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
               onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
               onReorderBricks={(ids) => onReorderBricks?.(ids)}
