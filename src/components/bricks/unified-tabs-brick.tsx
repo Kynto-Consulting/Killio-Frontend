@@ -4,18 +4,31 @@ import React, { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { UnifiedBrickList } from "./unified-brick-list";
 
 interface TabsBrickProps {
   id: string;
-  tabs: { id: string; label: string; content: string }[];
-  onUpdate: (data: { tabs: { id: string; label: string; content: string }[] }) => void;
+  tabs: { id: string; label: string; content?: string }[];
+  onUpdate: (data: { tabs: { id: string; label: string; content?: string }[] }) => void;
   readonly?: boolean;
+  activeBricks?: any[];
+  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }) => void;
+  onDeleteBrick?: (id: string) => void;
+  onUpdateBrick?: (id: string, content: any) => void;
+  onReorderBricks?: (ids: string[]) => void;
+  documents?: any[];
+  boards?: any[];
+  users?: any[];
 }
 
-export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ id, tabs = [], onUpdate, readonly }) => {
+export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ 
+  id, tabs = [], onUpdate, readonly, activeBricks = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, documents, boards, users 
+}) => {
   const t = useTranslations("document-detail");
   const safeTabs = tabs.length > 0 ? tabs : [{ id: "1", label: t("bricks.tabs.defaultTab1"), content: "" }];
   const [activeTab, setActiveTab] = useState(safeTabs[0].id);
+
+  const nestedBricks = activeBricks.filter((b: any) => b.content?.parentId === id && b.content?.containerId === activeTab).sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
 
   const activeContent = safeTabs.find((t) => t.id === activeTab)?.content || "";
 
@@ -87,12 +100,18 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ id, tabs = [], onUp
         )}
       </div>
       <div className="p-4 bg-background min-h-[100px]">
-        {!readonly ? (
-          <textarea
-            value={activeContent}
-            onChange={(e) => updateTab(activeTab, { content: e.target.value })}
-            placeholder={t("bricks.tabPlaceholder")}
-            className="w-full resize-none bg-transparent outline-none min-h-[80px] text-sm leading-relaxed"
+        {(nestedBricks.length > 0 || !readonly) ? (
+          <UnifiedBrickList
+            hasExternalDndContext={true}
+            bricks={nestedBricks}
+            canEdit={!readonly}
+            onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
+            onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
+            onReorderBricks={(ids) => onReorderBricks?.(ids)}
+            onAddBrick={(k, aId) => onAddBrick?.(k, aId, { parentId: id, containerId: activeTab })}
+            documents={documents}
+            boards={boards}
+            users={users}
           />
         ) : (
           <div className="text-sm leading-relaxed whitespace-pre-wrap">{activeContent}</div>

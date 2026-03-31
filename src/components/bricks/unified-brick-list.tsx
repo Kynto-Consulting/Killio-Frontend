@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
-type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'image';
+type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'image';
 
 interface UnifiedBrickListProps {
   bricks: any[];
@@ -40,6 +40,7 @@ interface UnifiedBrickListProps {
   addableKinds?: AddableKind[];
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
+  hasExternalDndContext?: boolean;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -54,7 +55,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   users = [],
   addableKinds,
   onPasteImageInTextBrick,
-  onUploadMediaFiles
+  onUploadMediaFiles,
+  hasExternalDndContext = false
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -131,6 +133,9 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         canEdit={canEdit}
         onUpdate={(content) => onUpdateBrick(brick.id, content)}
         onAddBrick={onAddBrick}
+        onDeleteBrick={onDeleteBrick}
+        onUpdateBrick={onUpdateBrick}
+        onReorderBricks={onReorderBricks}
         documents={documents}
         boards={boards}
         activeBricks={bricks}
@@ -141,58 +146,65 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     );
   };
 
+  const listContent = (
+    <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
+      <div className="space-y-2 min-h-[50px]">
+        {sortedBricks.map(brick => (
+          <SortableBrick 
+            key={brick.id} 
+            id={brick.id} 
+            readonly={!canEdit} 
+            onDelete={() => onDeleteBrick(brick.id)} 
+            onAddBelow={(rect) => {
+              if (rect) {
+                let top = rect.bottom + 8;
+                let left = rect.left;
+                
+                const menuHeight = 320;
+                const menuWidth = 320;
+                if (typeof window !== "undefined") {
+                  if (top + menuHeight > window.innerHeight) {
+                    top = Math.max(12, rect.top - menuHeight - 8);
+                  }
+                  if (left + menuWidth > window.innerWidth) {
+                    left = window.innerWidth - menuWidth - 12;
+                  }
+                }
+                
+                setPlusMenuState({ brickId: brick.id, top, left });
+              } else {
+                onAddBrick('text', brick.id);
+              }
+            }}
+          >
+            {renderBrick(brick)}
+          </SortableBrick>
+        ))}
+      </div>
+    </SortableContext>
+  );
+
   return (
     <div className="w-full space-y-4">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={(e) => setActiveId(e.active.id as string)}
-        onDragEnd={handleDragEnd}
-      >
-        <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-          <div className="space-y-2 min-h-[50px]">
-            {sortedBricks.map(brick => (
-              <SortableBrick 
-                key={brick.id} 
-                id={brick.id} 
-                readonly={!canEdit} 
-                onDelete={() => onDeleteBrick(brick.id)} 
-                onAddBelow={(rect) => {
-                  if (rect) {
-                    let top = rect.bottom + 8;
-                    let left = rect.left;
-                    
-                    const menuHeight = 320;
-                    const menuWidth = 320;
-                    if (typeof window !== "undefined") {
-                      if (top + menuHeight > window.innerHeight) {
-                        top = Math.max(12, rect.top - menuHeight - 8);
-                      }
-                      if (left + menuWidth > window.innerWidth) {
-                        left = window.innerWidth - menuWidth - 12;
-                      }
-                    }
-                    
-                    setPlusMenuState({ brickId: brick.id, top, left });
-                  } else {
-                    onAddBrick('text', brick.id);
-                  }
-                }}
-              >
-                {renderBrick(brick)}
-              </SortableBrick>
-            ))}
-          </div>
-        </SortableContext>
-        
-        <DragOverlay>
-          {activeId ? (
-             <div className="opacity-80 scale-[1.02] shadow-xl bg-background border border-border rounded-lg p-2">
-                {renderBrick(bricks.find(b => b.id === activeId))}
-             </div>
-          ) : null}
-        </DragOverlay>
-      </DndContext>
+      {hasExternalDndContext ? (
+        listContent
+      ) : (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={(e) => setActiveId(e.active.id as string)}
+          onDragEnd={handleDragEnd}
+        >
+          {listContent}
+          <DragOverlay>
+            {activeId ? (
+               <div className="opacity-80 scale-[1.02] shadow-xl bg-background border border-border rounded-lg p-2">
+                  {renderBrick(bricks.find(b => b.id === activeId))}
+               </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {canEdit && (
         <div className="pt-6 border-t border-border flex flex-wrap gap-2 items-center justify-center">

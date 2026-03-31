@@ -141,25 +141,31 @@ export default function DocumentPage() {
     }
   });
 
-  const handleAddBrick = async (kind: string, afterBrickId?: string) => {
+  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }) => {
     if (!accessToken || !document) return;
     
+    const contextBricks = document.bricks.filter(b => b.content?.parentId === parentProps?.parentId && b.content?.containerId === parentProps?.containerId).sort((a,b) => a.position - b.position);
+
     let position = 1000;
     if (afterBrickId) {
-      const idx = document.bricks.findIndex(b => b.id === afterBrickId);
+      const idx = contextBricks.findIndex(b => b.id === afterBrickId);
       if (idx >= 0) {
-        if (idx === document.bricks.length - 1) {
-          position = document.bricks[idx].position + 1000;
+        if (idx === contextBricks.length - 1) {
+          position = contextBricks[idx].position + 1000;
         } else {
-          position = (document.bricks[idx].position + document.bricks[idx + 1].position) / 2;
+          position = (contextBricks[idx].position + contextBricks[idx + 1].position) / 2;
         }
       }
     } else {
-      position = document.bricks.length > 0 ? document.bricks[document.bricks.length - 1].position + 1000 : 1000;
+      position = contextBricks.length > 0 ? contextBricks[contextBricks.length - 1].position + 1000 : 1000;
     }
 
     // Default empty content based on kind
     let content: any = {};
+    if (parentProps) {
+      content.parentId = parentProps.parentId;
+      content.containerId = parentProps.containerId;
+    }
     if (kind === 'text') content = { text: '' };
     if (kind === 'checklist') content = { items: [] };
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
@@ -222,17 +228,19 @@ export default function DocumentPage() {
   const handleReorderBricks = async (brickIds: string[]) => {
     if (!accessToken || !document) return;
 
+    const updates = brickIds.map((id, index) => ({ id, position: index * 1000 + 1000 }));
+
     // Optimistic update
     setDocument((prev) => {
       if (!prev) return prev;
-      const newBricks = brickIds
-        .map((id) => prev.bricks.find((b) => b.id === id))
-        .filter(Boolean) as DocumentBrick[];
+      const newBricks = prev.bricks.map((b) => {
+        const u = updates.find((x) => x.id === b.id);
+        return u ? { ...b, position: u.position } : b;
+      });
       return { ...prev, bricks: newBricks };
     });
 
     try {
-      const updates = brickIds.map((id, index) => ({ id, position: index }));
       await reorderDocumentBricks(docId, updates, accessToken);
     } catch (e) {
       console.error(e);
@@ -721,13 +729,13 @@ export default function DocumentPage() {
 
           <div className="pb-32">
             <UnifiedBrickList
-              bricks={document.bricks}
+              bricks={document.bricks.filter((b) => !b.content?.parentId)}
               canEdit={canEdit}
               documents={teamDocs}
               boards={teamBoards}
               users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
-              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
-              onAddBrick={(kind, afterBrickId) => handleAddBrick(kind, afterBrickId)}
+              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'image']}
+              onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}

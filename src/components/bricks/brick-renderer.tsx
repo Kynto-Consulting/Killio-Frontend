@@ -24,6 +24,9 @@ interface BrickRendererProps {
   canEdit: boolean;
   onUpdate: (content: any) => void;
   onAddBrick?: (kind: string, afterBrickId?: string) => void;
+  onDeleteBrick?: (id: string) => void;
+  onUpdateBrick?: (id: string, content: any) => void;
+  onReorderBricks?: (ids: string[]) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
@@ -76,6 +79,9 @@ export function UnifiedBrickRenderer({
   canEdit,
   onUpdate,
   onAddBrick,
+  onDeleteBrick,
+  onUpdateBrick,
+  onReorderBricks,
   documents = [],
   boards = [],
   activeBricks = [],
@@ -237,6 +243,11 @@ export function UnifiedBrickRenderer({
           documents={documents}
           boards={boards}
           activeBricks={activeBricks}
+          users={users}
+          onAddBrick={onAddBrick}
+          onDeleteBrick={onDeleteBrick}
+          onUpdateBrick={onUpdateBrick}
+          onReorderBricks={onReorderBricks}
         />
       );
       break;
@@ -263,6 +274,14 @@ export function UnifiedBrickRenderer({
           tabs={content.tabs}
           onUpdate={(data) => onUpdate({ ...content, kind: 'tabs', ...data })}
           readonly={!canEdit}
+          activeBricks={activeBricks}
+          onAddBrick={onAddBrick}
+          onDeleteBrick={onDeleteBrick}
+          onUpdateBrick={onUpdateBrick}
+          onReorderBricks={onReorderBricks}
+          documents={documents}
+          boards={boards}
+          users={users}
         />
       );
       break;
