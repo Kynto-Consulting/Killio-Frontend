@@ -165,10 +165,11 @@ export default function DocumentPage() {
     if (kind === 'text') content = { text: '' };
     if (kind === 'checklist') content = { items: [] };
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
-    if (kind === 'accordion') content = { title: 'Toggle Header', body: '', isExpanded: true };
+    if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true };
     if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
     if (kind === 'image') content = { url: '' };
     if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }] };
+    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }] };
 
     if (parentProps) {
       content.parentId = parentProps.parentId;
@@ -184,14 +185,25 @@ export default function DocumentPage() {
         return { ...prev, bricks: [...prev.bricks, newBrick].sort((a, b) => a.position - b.position) };
       });
       
-      // If we just created a tabs container, scaffold an initial text brick inside it
-      if (kind === 'tabs') {
-        const textContent = { text: '', parentId: newBrick.id, containerId: '1' };
+      // If we just created a tabs, accordion, or columns container, scaffold an initial text brick inside it
+      if (['tabs', 'accordion', 'columns'].includes(kind)) {
+        const defaultContainerId = kind === 'tabs' ? '1' : kind === 'columns' ? '1' : 'body';
+        const textContent = { text: '', parentId: newBrick.id, containerId: defaultContainerId };
         const innerBrick = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent }, accessToken);
+        
+        // For columns, scaffold a second one immediately
+        let innerBrick2: any = null;
+        if (kind === 'columns') {
+          const textContent2 = { text: '', parentId: newBrick.id, containerId: '2' };
+          innerBrick2 = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent2 }, accessToken);
+        }
+
         setDocument((prev) => {
           if (!prev) return prev;
-          if (prev.bricks.some((b) => b.id === innerBrick.id)) return prev;
-          return { ...prev, bricks: [...prev.bricks, innerBrick].sort((a, b) => a.position - b.position) };
+          let newBricks = [...prev.bricks];
+          if (!newBricks.some((b) => b.id === innerBrick.id)) newBricks.push(innerBrick);
+          if (innerBrick2 && !newBricks.some((b) => b.id === innerBrick2.id)) newBricks.push(innerBrick2);
+          return { ...prev, bricks: newBricks.sort((a, b) => a.position - b.position) };
         });
       }
     } catch (e) {
@@ -793,7 +805,7 @@ export default function DocumentPage() {
               documents={teamDocs}
               boards={teamBoards}
               users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
-              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'image']}
+              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}

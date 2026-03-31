@@ -27,6 +27,7 @@ interface BrickRendererProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
+  onCrossContainerDrop?: (activeId: string, overId: string) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
@@ -82,6 +83,7 @@ export function UnifiedBrickRenderer({
   onDeleteBrick,
   onUpdateBrick,
   onReorderBricks,
+  onCrossContainerDrop,
   documents = [],
   boards = [],
   activeBricks = [],
@@ -248,6 +250,7 @@ export function UnifiedBrickRenderer({
           onDeleteBrick={onDeleteBrick}
           onUpdateBrick={onUpdateBrick}
           onReorderBricks={onReorderBricks}
+          onCrossContainerDrop={onCrossContainerDrop}
         />
       );
       break;
@@ -293,6 +296,15 @@ export function UnifiedBrickRenderer({
           columns={content.columns}
           onUpdate={(data) => onUpdate({ ...content, kind: 'columns', ...data })}
           readonly={!canEdit}
+          activeBricks={activeBricks}
+          onAddBrick={onAddBrick}
+          onDeleteBrick={onDeleteBrick}
+          onUpdateBrick={onUpdateBrick}
+          onReorderBricks={onReorderBricks}
+          onCrossContainerDrop={onCrossContainerDrop}
+          documents={documents}
+          boards={boards}
+          users={users}
         />
       );
       break;

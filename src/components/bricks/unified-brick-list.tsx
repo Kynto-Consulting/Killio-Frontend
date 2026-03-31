@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
-type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'image';
+type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image';
 
 interface UnifiedBrickListProps {
   bricks: any[];

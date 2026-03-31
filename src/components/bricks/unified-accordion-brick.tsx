@@ -23,10 +23,11 @@ interface AccordionBrickProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
+  onCrossContainerDrop?: (activeId: string, overId: string) => void;
 }
 
 export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
-  id, title, body, isExpanded, onUpdate, readonly, documents, boards, activeBricks, users = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks
+  id, title, body, isExpanded, onUpdate, readonly, documents, boards, activeBricks, users = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, onCrossContainerDrop
 }) => {
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
 
@@ -82,6 +83,8 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
               onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
               onReorderBricks={(ids) => onReorderBricks?.(ids)}
               onAddBrick={(k, aId) => onAddBrick?.(k, aId, { parentId: id, containerId: "body" })}
+              onCrossContainerDrop={onCrossContainerDrop}
+              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
               documents={documents}
               boards={boards}
               users={users}
