@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { X, Loader2, Layout, ImagePlus, Trash2 } from "lucide-react";
+import { X, Loader2, Layout, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 export type CreateBoardSubmitPayload = {
@@ -32,7 +32,36 @@ const BACKGROUNDS = [
   "bg-gradient-to-tr from-indigo-500 to-cyan-400"
 ];
 
-const THEME_PRESETS = ["killio-default", "trello-ocean", "trello-forest", "trello-sunrise"];
+const THEME_PRESET_OPTIONS = [
+  {
+    id: "killio-default",
+    label: "Clásico",
+    accent: "#d8ff72",
+    surface: "#0b0f14",
+    Icon: Sparkles,
+  },
+  {
+    id: "trello-ocean",
+    label: "Océano",
+    accent: "#67e8f9",
+    surface: "#0c2233",
+    Icon: Waves,
+  },
+  {
+    id: "trello-forest",
+    label: "Bosque",
+    accent: "#86efac",
+    surface: "#10251f",
+    Icon: Trees,
+  },
+  {
+    id: "trello-sunrise",
+    label: "Amanecer",
+    accent: "#fcd34d",
+    surface: "#3b1f10",
+    Icon: Sun,
+  },
+] as const;
 
 function isImageCover(value: string): boolean {
   return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
@@ -53,7 +82,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
   const [colorBackground, setColorBackground] = useState("#0f172a");
   const [gradientBackground, setGradientBackground] = useState("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
   const [themeKind, setThemeKind] = useState<"preset" | "custom">("preset");
-  const [themePreset, setThemePreset] = useState(THEME_PRESETS[0]);
+  const [themePreset, setThemePreset] = useState<string>(THEME_PRESET_OPTIONS[0].id);
   const [themeAccent, setThemeAccent] = useState("#d8ff72");
   const [themeSurface, setThemeSurface] = useState("#0b0f14");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -70,7 +99,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
       setGradientBackground("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
     }
     if (themeKind !== "preset") setThemeKind("preset");
-    if (themePreset !== THEME_PRESETS[0]) setThemePreset(THEME_PRESETS[0]);
+    if (themePreset !== THEME_PRESET_OPTIONS[0].id) setThemePreset(THEME_PRESET_OPTIONS[0].id);
     if (themeAccent !== "#d8ff72") setThemeAccent("#d8ff72");
     if (themeSurface !== "#0b0f14") setThemeSurface("#0b0f14");
     if (error) setError(null);
@@ -151,7 +180,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
       setColorBackground("#0f172a");
       setGradientBackground("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
       setThemeKind("preset");
-      setThemePreset(THEME_PRESETS[0]);
+      setThemePreset(THEME_PRESET_OPTIONS[0].id);
       setThemeAccent("#d8ff72");
       setThemeSurface("#0b0f14");
       onClose();
@@ -290,11 +319,31 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
             </div>
 
             {themeKind === "preset" ? (
-              <select value={themePreset} onChange={(e) => setThemePreset(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-xs">
-                {THEME_PRESETS.map((preset) => (
-                  <option key={preset} value={preset}>{preset}</option>
-                ))}
-              </select>
+              <div className="grid grid-cols-2 gap-2">
+                {THEME_PRESET_OPTIONS.map((preset) => {
+                  const selected = themePreset === preset.id;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => setThemePreset(preset.id)}
+                      className={`rounded-md border p-2 text-left transition-all ${selected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 hover:bg-accent/5"}`}
+                    >
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-xs font-semibold flex items-center gap-1.5">
+                          <preset.Icon className="h-3.5 w-3.5" />
+                          {preset.label}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: preset.accent }} />
+                        <span className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: preset.surface }} />
+                        <span className="text-[10px] text-muted-foreground">Paleta</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             ) : (
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1">
