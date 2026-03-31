@@ -3,16 +3,17 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2, Plus } from "lucide-react";
 
 interface SortableBrickProps {
   id: string;
   children: React.ReactNode;
   readonly?: boolean;
   onDelete?: () => void;
+  onAddBelow?: () => void;
 }
 
-export function SortableBrick({ id, children, readonly, onDelete }: SortableBrickProps) {
+export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: SortableBrickProps) {
   const {
     attributes,
     listeners,
@@ -51,13 +52,26 @@ export function SortableBrick({ id, children, readonly, onDelete }: SortableBric
       }`}
     >
       {!readonly && (
-        <div
-          {...attributes}
-          {...listeners}
-          className="mt-2 p-1 cursor-grab active:cursor-grabbing text-muted-foreground/30 hover:text-accent opacity-0 group-hover:opacity-100 transition-all rounded"
-          title="Drag to reorder"
-        >
-          <GripVertical className="w-4 h-4" />
+        <div className="mt-1.5 flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddBelow?.();
+            }}
+            className="p-1 text-muted-foreground/40 hover:text-foreground rounded cursor-pointer transition-colors"
+            title={"Haz clic para añadir debajo\nPulsa Alt y haz clic para añadir un bloque arriba"}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+          <div
+            {...attributes}
+            {...listeners}
+            className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded transition-colors"
+            title={"Arrastra para mover\nHaz clic o pulsa ctrl/ para abrir el menú."}
+          >
+            <GripVertical className="w-4 h-4" />
+          </div>
         </div>
       )}
       

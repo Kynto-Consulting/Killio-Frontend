@@ -141,9 +141,22 @@ export default function DocumentPage() {
     }
   });
 
-  const handleAddBrick = async (kind: string) => {
+  const handleAddBrick = async (kind: string, afterBrickId?: string) => {
     if (!accessToken || !document) return;
-    const position = document.bricks.length > 0 ? document.bricks[document.bricks.length - 1].position + 1000 : 1000;
+    
+    let position = 1000;
+    if (afterBrickId) {
+      const idx = document.bricks.findIndex(b => b.id === afterBrickId);
+      if (idx >= 0) {
+        if (idx === document.bricks.length - 1) {
+          position = document.bricks[idx].position + 1000;
+        } else {
+          position = (document.bricks[idx].position + document.bricks[idx + 1].position) / 2;
+        }
+      }
+    } else {
+      position = document.bricks.length > 0 ? document.bricks[document.bricks.length - 1].position + 1000 : 1000;
+    }
 
     // Default empty content based on kind
     let content: any = {};
@@ -714,7 +727,7 @@ export default function DocumentPage() {
               boards={teamBoards}
               users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
               addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
-              onAddBrick={(kind) => handleAddBrick(kind as any)}
+              onAddBrick={(kind, afterBrickId) => handleAddBrick(kind, afterBrickId)}
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}

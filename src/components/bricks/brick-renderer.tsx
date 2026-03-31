@@ -361,7 +361,7 @@ interface BrickRendererProps {
   brick: DocumentBrick;
   canEdit: boolean;
   onUpdate: (content: any) => void;
-  onAddBrick?: (kind: string) => void;
+  onAddBrick?: (kind: string, afterBrickId?: string) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
@@ -461,7 +461,7 @@ export function UnifiedBrickRenderer({
         <UnifiedTextBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
-          onAddBrick={onAddBrick}
+          onAddBrick={(kind) => onAddBrick?.(kind, brick.id)}
           onUpdate={(text: any) => {
             // Pass only the fields that matter for text brick
             onUpdate({

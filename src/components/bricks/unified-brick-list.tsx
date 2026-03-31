@@ -29,7 +29,7 @@ interface UnifiedBrickListProps {
   onUpdateBrick: (id: string, content: any) => void;
   onDeleteBrick: (id: string) => void;
   onReorderBricks: (ids: string[]) => void;
-  onAddBrick: (kind: string) => void;
+  onAddBrick: (kind: string, afterBrickId?: string) => void;
   documents?: any[];
   boards?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
@@ -124,7 +124,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
           <div className="space-y-2 min-h-[50px]">
             {sortedBricks.map(brick => (
-              <SortableBrick key={brick.id} id={brick.id} readonly={!canEdit} onDelete={() => onDeleteBrick(brick.id)}>
+              <SortableBrick key={brick.id} id={brick.id} readonly={!canEdit} onDelete={() => onDeleteBrick(brick.id)} onAddBelow={() => onAddBrick('text', brick.id)}>
                 {renderBrick(brick)}
               </SortableBrick>
             ))}

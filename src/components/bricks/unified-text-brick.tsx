@@ -490,6 +490,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         });
         contentRef.current.innerHTML = rendered;
       }
+      
+      const tc = contentRef.current.textContent || "";
+      if (tc.length === 0) {
+        contentRef.current.setAttribute("data-empty", "true");
+      } else {
+        contentRef.current.removeAttribute("data-empty");
+      }
     }
   }, [text, documents, boards, activeBricks]);
 
@@ -497,6 +504,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     if (contentRef.current) {
       // In markdown mode keep references as pills and leave markdown syntax as plain text.
       contentRef.current.innerHTML = processMarkdownWithPills(text || "");
+      const tc = contentRef.current.textContent || "";
+      if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
+      else contentRef.current.removeAttribute("data-empty");
     }
   };
 
@@ -506,6 +516,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const rawMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
       onUpdate(rawMarkdown);
       contentRef.current.innerHTML = processPseudoMarkdown(rawMarkdown);
+      const tc = contentRef.current.textContent || "";
+      if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
+      else contentRef.current.removeAttribute("data-empty");
     }
     setIsPickerOpen(false);
     setPickerCursorOffset(null);
@@ -941,12 +954,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
           onPaste={handlePaste}
+          onInput={() => {
+             const text = contentRef.current?.textContent || "";
+             if (text.length === 0) {
+               contentRef.current?.setAttribute("data-empty", "true");
+             } else {
+               contentRef.current?.removeAttribute("data-empty");
+             }
+          }}
           className={cn(
-            "w-full min-h-[3rem] outline-none p-2 leading-relaxed text-sm rounded-md transition-all",
-            "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
-            "relative empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none empty:before:block"
+            "text-brick-editor w-full min-h-[1.5rem] outline-none p-1.5 leading-relaxed text-sm rounded-md transition-all",
+            "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text relative",
+            "data-[empty=true]:before:content-[attr(data-placeholder)] data-[empty=true]:before:text-muted-foreground/50 data-[empty=true]:before:pointer-events-none data-[empty=true]:before:absolute data-[empty=true]:before:top-1.5 data-[empty=true]:before:left-1.5"
           )}
-          data-placeholder="Escribe algo... usa / para comandos y @ para vincular"
+          data-placeholder="Pulsa «Espacio» para activar la IA o escribe «/» para mostrar los comandos"
         />
       )}
 
