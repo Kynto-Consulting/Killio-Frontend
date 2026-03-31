@@ -162,16 +162,18 @@ export default function DocumentPage() {
 
     // Default empty content based on kind
     let content: any = {};
-    if (parentProps) {
-      content.parentId = parentProps.parentId;
-      content.containerId = parentProps.containerId;
-    }
     if (kind === 'text') content = { text: '' };
     if (kind === 'checklist') content = { items: [] };
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
     if (kind === 'accordion') content = { title: 'Toggle Header', body: '', isExpanded: true };
     if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
     if (kind === 'image') content = { url: '' };
+    if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }] };
+
+    if (parentProps) {
+      content.parentId = parentProps.parentId;
+      content.containerId = parentProps.containerId;
+    }
 
     try {
       const newBrick = await createDocumentBrick(docId, { kind, position, content }, accessToken);
@@ -181,6 +183,17 @@ export default function DocumentPage() {
         if (prev.bricks.some((b) => b.id === newBrick.id)) return prev;
         return { ...prev, bricks: [...prev.bricks, newBrick].sort((a, b) => a.position - b.position) };
       });
+      
+      // If we just created a tabs container, scaffold an initial text brick inside it
+      if (kind === 'tabs') {
+        const textContent = { text: '', parentId: newBrick.id, containerId: '1' };
+        const innerBrick = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent }, accessToken);
+        setDocument((prev) => {
+          if (!prev) return prev;
+          if (prev.bricks.some((b) => b.id === innerBrick.id)) return prev;
+          return { ...prev, bricks: [...prev.bricks, innerBrick].sort((a, b) => a.position - b.position) };
+        });
+      }
     } catch (e) {
       console.error(e);
       toast(t("createBlockError"), "error");
@@ -245,6 +258,52 @@ export default function DocumentPage() {
     } catch (e) {
       console.error(e);
       fetchDoc(); // Rollback on error
+    }
+  };
+
+  const handleCrossContainerDrop = async (activeId: string, overId: string) => {
+    if (!accessToken || !document) return;
+    const activeBrick = document.bricks.find(b => b.id === activeId);
+    const overBrick = document.bricks.find(b => b.id === overId);
+    if (!activeBrick || !overBrick) return;
+
+    const parentId = overBrick.content?.parentId;
+    const containerId = overBrick.content?.containerId;
+
+    const newContent = { ...activeBrick.content };
+    if (parentId) newContent.parentId = parentId;
+    else delete newContent.parentId;
+    
+    if (containerId) newContent.containerId = containerId;
+    else delete newContent.containerId;
+
+    const contextBricks = document.bricks.filter(b => b.content?.parentId === parentId && b.content?.containerId === containerId).sort((a,b) => a.position - b.position);
+    const idx = contextBricks.findIndex(b => b.id === overBrick.id);
+    let position = 1000;
+    if (idx >= 0) {
+       if (idx === contextBricks.length - 1) position = contextBricks[idx].position + 1000;
+       else position = (contextBricks[idx].position + contextBricks[idx + 1].position) / 2;
+    }
+
+    // Optimistically update
+    setDocument((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        bricks: prev.bricks.map(b => 
+          b.id === activeId 
+            ? { ...b, content: newContent, position } 
+            : b
+        ).sort((a,b) => a.position - b.position)
+      };
+    });
+
+    try {
+      await updateDocumentBrick(docId, activeId, newContent, accessToken);
+      await reorderDocumentBricks(docId, [{ id: activeId, position }], accessToken);
+    } catch (e) {
+      toast(t("brickError") || "Error moving brick", "error");
+      fetchDoc();
     }
   };
 
@@ -739,6 +798,7 @@ export default function DocumentPage() {
               onUpdateBrick={handleUpdateBrick}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}
+              onCrossContainerDrop={handleCrossContainerDrop}
               onPasteImageInTextBrick={handlePasteImageInTextBrick}
               onUploadMediaFiles={handleUploadMediaFiles}
             />

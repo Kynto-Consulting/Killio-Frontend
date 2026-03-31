@@ -41,6 +41,7 @@ interface UnifiedBrickListProps {
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   hasExternalDndContext?: boolean;
+  onCrossContainerDrop?: (activeId: string, overId: string) => void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -56,7 +57,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   addableKinds,
   onPasteImageInTextBrick,
   onUploadMediaFiles,
-  hasExternalDndContext = false
+  hasExternalDndContext = false,
+  onCrossContainerDrop
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -100,6 +102,14 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     if (over && active.id !== over.id) {
       const oldIndex = bricks.findIndex((b) => b.id === active.id);
       const newIndex = bricks.findIndex((b) => b.id === over.id);
+      
+      // If either isn't found in current scope, it's a cross-container drop
+      if (oldIndex === -1 || newIndex === -1) {
+        if (onCrossContainerDrop) {
+           onCrossContainerDrop(active.id as string, over.id as string);
+        }
+        return;
+      }
       
       const newOrder = [...bricks];
       const [moved] = newOrder.splice(oldIndex, 1);
