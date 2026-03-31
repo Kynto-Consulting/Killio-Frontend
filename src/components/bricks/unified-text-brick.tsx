@@ -1096,32 +1096,54 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 {filteredSlashCommands.length === 0 ? (
                   <div className="px-2 py-3 text-xs text-muted-foreground">Sin resultados</div>
                 ) : (
-                  filteredSlashCommands.map((command, index) => (
-                    <button
-                      key={command.id}
-                      type="button"
-                      onMouseDown={(event) => {
-                        event.preventDefault();
-                      }}
-                      onMouseEnter={() => setSlashActiveIndex(index)}
-                      onClick={() => applySlashCommand(command)}
-                      className={cn(
-                        "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
-                        index === slashActiveIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
-                      )}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
-                        {command.icon}
-                      </div>
-                      <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                        <span className="text-sm font-medium text-foreground">{command.label}</span>
-                        <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
-                      </div>
-                      {command.shortcut && (
-                        <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
-                      )}
-                    </button>
-                  ))
+                  filteredSlashCommands.map((command, index) => {
+                    const CategoryHeader = () => {
+                      if (index === 0 || command.category !== filteredSlashCommands[index - 1].category) {
+                        const catLabels: Record<string, string> = {
+                          basic: "Bloques básicos",
+                          media: "Contenido multimedia",
+                          advanced: "Avanzado",
+                          inline: "Integraciones"
+                        };
+                        const catName = command.category ? (catLabels[command.category] || command.category) : "Otros";
+                        return (
+                          <div className="px-2 pt-3 pb-1">
+                            <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    };
+
+                    return (
+                      <React.Fragment key={command.id}>
+                        <CategoryHeader />
+                        <button
+                          type="button"
+                          onMouseDown={(event) => {
+                            event.preventDefault();
+                          }}
+                          onMouseEnter={() => setSlashActiveIndex(index)}
+                          onClick={() => applySlashCommand(command)}
+                          className={cn(
+                            "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                            index === slashActiveIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
+                          )}
+                        >
+                          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                            {command.icon}
+                          </div>
+                          <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                            <span className="text-sm font-medium text-foreground">{command.label}</span>
+                            <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
+                          </div>
+                          {command.shortcut && (
+                            <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                          )}
+                        </button>
+                      </React.Fragment>
+                    );
+                  })
                 )}
               </div>
             </div>

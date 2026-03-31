@@ -277,38 +277,56 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             onMouseDown={(e) => e.stopPropagation()} // Prevent closing immediately
           >
             <div className="flex-1 w-[320px] flex flex-col border-r border-border/50">
-              <div className="border-b border-border/70 px-3 py-2 bg-muted/30">
-                <span className="text-xs font-semibold text-muted-foreground w-full block">Añadir bloque</span>
-              </div>
-
               <div className="max-h-72 overflow-y-auto p-1.5 flex-1">
-                {slashCommands.map((command, index) => (
-                  <button
-                    key={command.id}
-                    type="button"
-                    onMouseEnter={() => setPlusMenuHoverIndex(index)}
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                    }}
-                    onClick={() => handleApplyPlusCommand(command, plusMenuState.brickId)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
-                      index === plusMenuHoverIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
-                    )}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
-                      {command.icon}
-                    </div>
-                    <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                      <span className="text-sm font-medium text-foreground">{command.label}</span>
-                      <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
-                    </div>
-                    {command.shortcut && (
-                      <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
-                    )}
-                  </button>
-                ))}
+                {slashCommands.map((command, index) => {
+                  const CategoryHeader = () => {
+                    if (index === 0 || command.category !== slashCommands[index - 1].category) {
+                      const catLabels: Record<string, string> = {
+                        basic: "Bloques básicos",
+                        media: "Contenido multimedia",
+                        advanced: "Avanzado",
+                        inline: "Integraciones"
+                      };
+                      const catName = command.category ? (catLabels[command.category] || command.category) : "Otros";
+                      return (
+                        <div className="px-2 pt-3 pb-1">
+                          <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
+                        </div>
+                      );
+                    }
+                    return null;
+                  };
+
+                  return (
+                    <React.Fragment key={command.id}>
+                      <CategoryHeader />
+                      <button
+                        type="button"
+                        onMouseEnter={() => setPlusMenuHoverIndex(index)}
+                        onMouseDown={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                        }}
+                        onClick={() => handleApplyPlusCommand(command, plusMenuState.brickId)}
+                        className={cn(
+                          "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                          index === plusMenuHoverIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
+                        )}
+                      >
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                          {command.icon}
+                        </div>
+                        <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                          <span className="text-sm font-medium text-foreground">{command.label}</span>
+                          <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
+                        </div>
+                        {command.shortcut && (
+                          <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                        )}
+                      </button>
+                    </React.Fragment>
+                  );
+                })}
               </div>
             </div>
             {slashCommands[plusMenuHoverIndex]?.preview && (
