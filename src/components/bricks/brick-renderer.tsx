@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
+import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, Send } from "lucide-react";
 import { UnifiedTableBrick } from "./unified-table-brick";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedGraphBrick } from "./unified-graph-brick";
@@ -9,6 +9,8 @@ import { UnifiedChecklistBrick } from "./unified-checklist-brick";
 import { UnifiedAccordionBrick } from "./unified-accordion-brick";
 import { DocumentBrick, DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
+import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type MediaCarouselItem = {
   url: string;
@@ -359,6 +361,7 @@ interface BrickRendererProps {
   brick: DocumentBrick;
   canEdit: boolean;
   onUpdate: (content: any) => void;
+  onAddBrick?: (kind: string) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
@@ -367,10 +370,50 @@ interface BrickRendererProps {
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
 }
 
+type BrickComment = {
+  id: string;
+  text: string;
+  createdAt: string;
+  userId?: string | null;
+  userName?: string | null;
+  resolved?: boolean;
+};
+
+function normalizeBrickComments(raw: unknown): BrickComment[] {
+  if (!Array.isArray(raw)) return [];
+
+  const comments: BrickComment[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== "object") continue;
+    const record = item as Record<string, unknown>;
+    const text = typeof record.text === "string" ? record.text.trim() : "";
+    if (!text) continue;
+
+    const id = typeof record.id === "string" && record.id.trim().length > 0
+      ? record.id
+      : `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const createdAt = typeof record.createdAt === "string" && record.createdAt.trim().length > 0
+      ? record.createdAt
+      : new Date().toISOString();
+
+    comments.push({
+      id,
+      text,
+      createdAt,
+      userId: typeof record.userId === "string" ? record.userId : null,
+      userName: typeof record.userName === "string" ? record.userName : null,
+      resolved: Boolean(record.resolved),
+    });
+  }
+
+  return comments;
+}
+
 export function UnifiedBrickRenderer({
   brick,
   canEdit,
   onUpdate,
+  onAddBrick,
   documents = [],
   boards = [],
   activeBricks = [],
@@ -378,14 +421,47 @@ export function UnifiedBrickRenderer({
   onPasteImageInTextBrick,
   onUploadMediaFiles
 }: BrickRendererProps) {
+  const t = useTranslations("document-detail");
+  const { user } = useSession();
   const { kind, content } = brick;
+  const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
+  const [newComment, setNewComment] = React.useState("");
+
+  const comments = React.useMemo(() => normalizeBrickComments(content?.comments), [content?.comments]);
+
+  const submitComment = () => {
+    if (!canEdit) return;
+    const text = newComment.trim();
+    if (!text) return;
+
+    const nextComment: BrickComment = {
+      id: typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+        ? crypto.randomUUID()
+        : `comment-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text,
+      createdAt: new Date().toISOString(),
+      userId: user?.id ?? null,
+      userName: user?.displayName || user?.username || "Anon",
+      resolved: false,
+    };
+
+    onUpdate({
+      ...content,
+      comments: [...comments, nextComment],
+    });
+    setNewComment("");
+    setIsCommentsOpen(true);
+  };
+
+  let brickBody: React.ReactNode;
 
   switch (kind) {
     case 'text':
-      return (
+      brickBody = (
         <UnifiedTextBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
+          onAddBrick={onAddBrick}
           onUpdate={(text: any) => {
             // Pass only the fields that matter for text brick
             onUpdate({
@@ -402,9 +478,10 @@ export function UnifiedBrickRenderer({
           onPasteImage={(payload) => onPasteImageInTextBrick?.({ ...payload, brickId: brick.id })}
         />
       );
+      break;
 
     case 'table':
-      return (
+      brickBody = (
         <UnifiedTableBrick
           id={brick.id}
           data={content.rows || [['Header 1', 'Header 2'], ['', '']]}
@@ -416,9 +493,10 @@ export function UnifiedBrickRenderer({
           activeBricks={activeBricks}
         />
       );
+      break;
 
     case 'graph':
-      return (
+      brickBody = (
         <UnifiedGraphBrick
           id={brick.id}
           config={content as any}
@@ -427,9 +505,10 @@ export function UnifiedBrickRenderer({
           activeBricks={activeBricks as any[]}
         />
       );
+      break;
 
     case 'checklist':
-      return (
+      brickBody = (
         <UnifiedChecklistBrick
           id={brick.id}
           items={content.items || []}
@@ -440,9 +519,10 @@ export function UnifiedBrickRenderer({
           users={users}
         />
       );
+      break;
 
     case 'accordion':
-      return (
+      brickBody = (
         <UnifiedAccordionBrick
           id={brick.id}
           title={content.title || ""}
@@ -455,11 +535,12 @@ export function UnifiedBrickRenderer({
           activeBricks={activeBricks}
         />
       );
+      break;
 
     case 'media':
     case 'image':
     case 'file': {
-      return (
+      brickBody = (
         <MediaBrickCard
           brickId={brick.id}
           content={content}
@@ -468,15 +549,77 @@ export function UnifiedBrickRenderer({
           onUploadMediaFiles={onUploadMediaFiles}
         />
       );
+      break;
     }
 
     // Add other cases as they are implemented...
 
     default:
-      return (
+      brickBody = (
         <div className="p-4 border border-border/50 rounded bg-muted/20 text-muted-foreground italic text-sm">
           Unsupported block type: {kind}
         </div>
       );
+      break;
   }
+
+  return (
+    <div className="space-y-2">
+      {brickBody}
+
+      <div className="rounded-md border border-border/40 bg-muted/10 px-2 py-1.5">
+        <button
+          type="button"
+          onClick={() => setIsCommentsOpen((current) => !current)}
+          className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+        >
+          <MessageSquare className="h-3.5 w-3.5" />
+          {t("brickComments.toggle")}
+          {comments.length > 0 ? <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold text-accent">{comments.length}</span> : null}
+        </button>
+
+        {isCommentsOpen ? (
+          <div className="mt-2 space-y-2">
+            {comments.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t("brickComments.empty")}</p>
+            ) : (
+              comments.map((comment) => (
+                <div key={comment.id} className="rounded-md border border-border/50 bg-background/80 p-2">
+                  <p className="text-xs text-foreground whitespace-pre-wrap">{comment.text}</p>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {(comment.userName && comment.userName.trim()) || t("brickComments.anonymous")} - {new Date(comment.createdAt).toLocaleString()}
+                  </p>
+                </div>
+              ))
+            )}
+
+            {canEdit ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={newComment}
+                  onChange={(event) => setNewComment(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      submitComment();
+                    }
+                  }}
+                  placeholder={t("brickComments.placeholder")}
+                  className="h-8 flex-1 rounded-md border border-input bg-background px-2 text-xs"
+                />
+                <button
+                  type="button"
+                  onClick={submitComment}
+                  disabled={!newComment.trim()}
+                  className="inline-flex h-8 items-center justify-center rounded-md border border-input bg-background px-2 text-xs font-medium text-foreground transition-colors hover:bg-accent/10 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Send className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
 }

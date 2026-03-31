@@ -23,5 +23,11 @@
   },
   "title": {
     "editHint": "Editar titulo"
+  },
+  "brickComments": {
+    "toggle": "Comentarios del bloque",
+    "empty": "Aún no hay comentarios en este bloque.",
+    "placeholder": "Añadir un comentario...",
+    "anonymous": "Anónimo"
   }
 }

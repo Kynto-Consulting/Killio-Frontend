@@ -16,10 +16,23 @@ export type DocumentBrick = {
   documentId: string;
   kind: string;
   position: number;
-  content: Record<string, any>;
+  content: DocumentBrickContent;
   createdByUserId: string;
   createdAt: string;
   updatedAt: string;
+};
+
+export type DocumentBrickComment = {
+  id: string;
+  text: string;
+  createdAt: string;
+  userId?: string | null;
+  userName?: string | null;
+  resolved?: boolean;
+};
+
+export type DocumentBrickContent = Record<string, any> & {
+  comments?: DocumentBrickComment[];
 };
 
 export type DocumentView = DocumentSummary & {

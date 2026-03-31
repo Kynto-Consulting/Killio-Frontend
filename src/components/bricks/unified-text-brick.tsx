@@ -15,6 +15,7 @@ interface TextBrickProps {
   id: string;
   text: string;
   onUpdate: (text: string) => void;
+  onAddBrick?: (kind: string) => void;
   readonly?: boolean;
   documents: DocumentSummary[];
   boards: BoardSummary[];
@@ -24,6 +25,16 @@ interface TextBrickProps {
 }
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
+
+type SlashCommand = {
+  id: string;
+  label: string;
+  description: string;
+  search: string;
+  kind: "inline" | "block";
+  insertText?: string;
+  blockKind?: string;
+};
 
 const logPasteDebug = (...args: unknown[]) => {
   if (process.env.NODE_ENV !== "production") {
@@ -35,6 +46,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   id,
   text,
   onUpdate,
+  onAddBrick,
   readonly,
   documents,
   boards,
@@ -44,9 +56,28 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerCursorOffset, setPickerCursorOffset] = useState<number | null>(null);
+  const [isSlashOpen, setIsSlashOpen] = useState(false);
+  const [slashQuery, setSlashQuery] = useState("");
+  const [slashMenuPosition, setSlashMenuPosition] = useState({ top: 0, left: 0 });
+  const [slashRange, setSlashRange] = useState<{ from: number; to: number } | null>(null);
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const contentRef = useRef<HTMLDivElement>(null);
   const pasteInFlightRef = useRef(false);
   const router = useRouter();
+
+  const slashCommands: SlashCommand[] = [
+    { id: "text", label: "Texto", description: "Párrafo", search: "texto parrafo", kind: "inline", insertText: "" },
+    { id: "heading-1", label: "Encabezado 1", description: "Título grande", search: "h1 heading encabezado", kind: "inline", insertText: "# " },
+    { id: "heading-2", label: "Encabezado 2", description: "Título mediano", search: "h2 heading encabezado", kind: "inline", insertText: "## " },
+    { id: "heading-3", label: "Encabezado 3", description: "Título pequeño", search: "h3 heading encabezado", kind: "inline", insertText: "### " },
+    { id: "bulleted-list", label: "Lista con viñetas", description: "Crear lista", search: "lista viñetas bullets", kind: "inline", insertText: "- " },
+    { id: "numbered-list", label: "Lista numerada", description: "Crear lista", search: "lista numerada numbers", kind: "inline", insertText: "1. " },
+    { id: "checklist", label: "Lista de tareas", description: "Bloque checklist", search: "checklist tareas to-do", kind: "block", blockKind: "checklist" },
+    { id: "accordion", label: "Desplegable", description: "Bloque acordeón", search: "desplegable acordeon toggle", kind: "block", blockKind: "accordion" },
+    { id: "image", label: "Imagen", description: "Bloque multimedia", search: "imagen media", kind: "block", blockKind: "image" },
+    { id: "table", label: "Tabla", description: "Bloque tabla", search: "tabla table", kind: "block", blockKind: "table" },
+    { id: "graph", label: "Gráfico", description: "Bloque gráfico", search: "grafico chart", kind: "block", blockKind: "graph" },
+  ];
 
   const tokenEscapeAttr = (value: string): string => {
     return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
@@ -362,6 +393,87 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     return html;
   };
 
+  const filteredSlashCommands = slashCommands.filter((command) => {
+    if (!slashQuery.trim()) return true;
+    const query = slashQuery.toLowerCase();
+    return command.label.toLowerCase().includes(query) || command.search.includes(query);
+  });
+
+  useEffect(() => {
+    setSlashActiveIndex(0);
+  }, [slashQuery, isSlashOpen]);
+
+  const closeSlashMenu = () => {
+    setIsSlashOpen(false);
+    setSlashQuery("");
+    setSlashRange(null);
+    setSlashActiveIndex(0);
+  };
+
+  const getSlashContext = (markdown: string, cursorOffset: number): { from: number; to: number; query: string } | null => {
+    const beforeCursor = markdown.slice(0, cursorOffset);
+    const match = beforeCursor.match(/(^|\s)\/([^\s\/]*)$/);
+    if (!match) return null;
+    const query = match[2] || "";
+    const from = cursorOffset - query.length - 1;
+    if (from < 0) return null;
+    return { from, to: cursorOffset, query };
+  };
+
+  const updateSlashMenuFromCursor = (markdown: string, cursorOffset: number) => {
+    const context = getSlashContext(markdown, cursorOffset);
+    if (!context) {
+      if (isSlashOpen) closeSlashMenu();
+      return;
+    }
+
+    const selection = typeof window !== "undefined" ? window.getSelection() : null;
+    if (selection && selection.rangeCount > 0) {
+      const rect = selection.getRangeAt(0).getBoundingClientRect();
+      setSlashMenuPosition({
+        top: Math.max(12, rect.bottom + 8),
+        left: Math.max(12, rect.left),
+      });
+    }
+
+    setSlashRange({ from: context.from, to: context.to });
+    setSlashQuery(context.query);
+    setIsSlashOpen(true);
+  };
+
+  const applySlashCommand = (command: SlashCommand) => {
+    if (!contentRef.current) return;
+
+    const markdown = revertToMarkdown(contentRef.current.innerHTML || "");
+    const cursorOffset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
+    const context = getSlashContext(markdown, cursorOffset) || (slashRange ? { ...slashRange, query: slashQuery } : null);
+
+    if (!context) {
+      closeSlashMenu();
+      return;
+    }
+
+    const before = markdown.slice(0, context.from);
+    const after = markdown.slice(context.to);
+
+    if (command.kind === "inline") {
+      const insertText = command.insertText || "";
+      const nextMarkdown = `${before}${insertText}${after}`;
+      onUpdate(nextMarkdown);
+      contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+    } else if (command.blockKind && onAddBrick) {
+      const nextMarkdown = `${before}${after}`;
+      onUpdate(nextMarkdown);
+      contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+      onAddBrick(command.blockKind);
+    }
+
+    closeSlashMenu();
+    requestAnimationFrame(() => {
+      contentRef.current?.focus();
+    });
+  };
+
   // Sync content from prop if it changes and we are NOT focused
   useEffect(() => {
     if (contentRef.current) {
@@ -395,6 +507,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       onUpdate(rawMarkdown);
       contentRef.current.innerHTML = processPseudoMarkdown(rawMarkdown);
     }
+    setIsPickerOpen(false);
+    setPickerCursorOffset(null);
+    closeSlashMenu();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -437,12 +552,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   };
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
+    if (!contentRef.current) return;
+
+    const markdown = revertToMarkdown(contentRef.current.innerHTML || "");
+    const offset = getMarkdownCursorOffset(contentRef.current) ?? markdown.length;
+
     if (e.key === '@') {
-      const offset = getMarkdownCursorOffset(contentRef.current);
       setPickerCursorOffset(offset);
       // Small delay to ensure the @ character is in the DOM
       setTimeout(() => setIsPickerOpen(true), 50);
+      closeSlashMenu();
+      return;
     }
+
+    updateSlashMenuFromCursor(markdown, offset);
   };
 
   const findAdjacentToken = (direction: "backward" | "forward") => {
@@ -497,8 +620,40 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
     if (readonly) return;
 
+    if (isSlashOpen) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (filteredSlashCommands.length > 0) {
+          setSlashActiveIndex((current) => (current + 1) % filteredSlashCommands.length);
+        }
+        return;
+      }
+
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (filteredSlashCommands.length > 0) {
+          setSlashActiveIndex((current) => (current - 1 + filteredSlashCommands.length) % filteredSlashCommands.length);
+        }
+        return;
+      }
+
+      if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const command = filteredSlashCommands[slashActiveIndex];
+        if (command) applySlashCommand(command);
+        return;
+      }
+    }
+
     if (e.key === "Escape") {
       e.preventDefault();
+      if (isSlashOpen || isPickerOpen) {
+        closeSlashMenu();
+        setIsPickerOpen(false);
+        setPickerCursorOffset(null);
+        return;
+      }
+      closeSlashMenu();
       setIsPickerOpen(false);
       setPickerCursorOffset(null);
       contentRef.current?.blur();
@@ -791,7 +946,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             "focus:bg-accent/5 focus:ring-1 focus:ring-accent/20 cursor-text",
             "relative empty:before:content-[attr(data-placeholder)] empty:before:text-muted-foreground/50 empty:before:pointer-events-none empty:before:block"
           )}
-          data-placeholder="Escribe algo... usa @ para vincular"
+          data-placeholder="Escribe algo... usa / para comandos y @ para vincular"
         />
       )}
 
@@ -820,6 +975,45 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           />
         </Portal>
       )}
+
+      {isSlashOpen && !readonly ? (
+        <Portal>
+          <div
+            className="fixed z-[150] w-[320px] overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            style={{ top: slashMenuPosition.top, left: slashMenuPosition.left }}
+          >
+            <div className="border-b border-border/70 px-3 py-2">
+              <div className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-muted-foreground">
+                /{slashQuery || "..."}
+              </div>
+            </div>
+
+            <div className="max-h-72 overflow-y-auto p-1.5">
+              {filteredSlashCommands.length === 0 ? (
+                <div className="px-2 py-3 text-xs text-muted-foreground">Sin resultados</div>
+              ) : (
+                filteredSlashCommands.map((command, index) => (
+                  <button
+                    key={command.id}
+                    type="button"
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                    }}
+                    onClick={() => applySlashCommand(command)}
+                    className={cn(
+                      "flex w-full items-start justify-between rounded-md px-2 py-2 text-left transition-colors",
+                      index === slashActiveIndex ? "bg-accent/15 text-foreground" : "hover:bg-accent/10 text-muted-foreground"
+                    )}
+                  >
+                    <span className="text-sm font-medium text-foreground">{command.label}</span>
+                    <span className="ml-3 text-[11px] text-muted-foreground">{command.description}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </Portal>
+      ) : null}
     </div>
   );
 };

@@ -102,6 +102,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         brick={normalized}
         canEdit={canEdit}
         onUpdate={(content) => onUpdateBrick(brick.id, content)}
+        onAddBrick={onAddBrick}
         documents={documents}
         boards={boards}
         activeBricks={bricks}
