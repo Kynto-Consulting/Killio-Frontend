@@ -75,7 +75,63 @@
     "divSearch": "separador linea divider hr horizontal",
     "callLabel": "Resaltado",
     "callDesc": "Bloque de atención",
-    "callSearch": "resaltado callout info atencion alerta"
+    "callSearch": "resaltado callout info atencion alerta",
+    "tabsLabel": "Pestañas",
+    "tabsDesc": "Organiza el contenido en pestañas",
+    "tabsSearch": "pestañas tabs",
+    "colsLabel": "Columnas",
+    "colsDesc": "Crea un diseño de varias columnas",
+    "colsSearch": "columnas cols grid"
+  },
+  "slashPreviews": {
+    "text": "Texto simple",
+    "h1": "Encabezado 1",
+    "h2": "Encabezado 2",
+    "h3": "Encabezado 3",
+    "h4": "Encabezado 4",
+    "bullet1": "Elemento 1",
+    "bullet2": "Elemento 2",
+    "bullet3": "Elemento 3",
+    "num1": "Paso 1",
+    "num2": "Paso 2",
+    "num3": "Paso 3",
+    "checkCompleted": "Completado",
+    "checkPending": "Pendiente",
+    "accClick": "Hacer clic para expandir",
+    "accContent": "Contenido oculto aquí...",
+    "tabCol1": "Col 1",
+    "tabCol2": "Col 2",
+    "tabDataA": "Dato A",
+    "tabDataB": "Dato B",
+    "tabDataC": "Dato C",
+    "tabDataD": "Dato D",
+    "quoteText": "\"La simplicidad es la máxima sofisticación.\"",
+    "calloutText": "Información importante o idea destacada aquí.",
+    "tab1": "Tab 1",
+    "tab2": "Tab 2",
+    "tabContent1": "Contenido de la pestaña 1"
+  },
+  "brickRenderer": {
+    "openFile": "Abrir archivo",
+    "attachMedia": "Adjunta imagen, video o archivo",
+    "upload": "Subir",
+    "attachedDoc": "Documento adjunto",
+    "download": "Descargar"
+  },
+  "bricks": {
+    "tabs": {
+      "defaultTab1": "Tab 1",
+      "defaultTabn": "Tab",
+      "placeholder": "Escribe el contenido de la pestaña..."
+    },
+    "columns": {
+      "placeholder": "Columna",
+      "addColumn": "Añadir columna"
+    },
+    "list": {
+      "noResults": "Sin resultados",
+      "addBlock": "Añadir bloque"
+    }
   },
   "formatToolbar": {
     "bold": "Negrita",

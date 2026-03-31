@@ -1,5 +1,8 @@
+"use client";
+
 import React from "react";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface ColumnsBrickProps {
   id: string;
@@ -9,6 +12,7 @@ interface ColumnsBrickProps {
 }
 
 export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({ id, columns = [], onUpdate, readonly }) => {
+  const t = useTranslations("document-detail");
   const safeColumns = columns.length > 0 ? columns : [
     { id: "1", content: "" },
     { id: "2", content: "" }
@@ -42,7 +46,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({ id, columns =
                <textarea
                  value={col.content}
                  onChange={(e) => updateColumn(col.id, e.target.value)}
-                 placeholder={`Columna ${index + 1}...`}
+                 placeholder={`${t("bricks.colPrefix")} ${index + 1}...`}
                  className="w-full resize-none bg-transparent outline-none min-h-[100px] text-sm leading-relaxed"
                />
              ) : (
@@ -63,7 +67,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({ id, columns =
         <button 
           onClick={addColumn}
           className="absolute -right-8 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-background border border-border rounded-full p-1.5 shadow-sm hover:bg-muted text-muted-foreground"
-          title="Añadir columna"
+          title={t("bricks.addCol")}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-plus"><line x1="12" x2="12" y1="5" y2="19"/><line x1="5" x2="19" y1="12" y2="12"/></svg>
         </button>

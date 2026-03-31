@@ -75,7 +75,63 @@
     "divSearch": "divider line hr horizontal",
     "callLabel": "Callout",
     "callDesc": "Callout block",
-    "callSearch": "callout highlight alert info"
+    "callSearch": "callout highlight alert info",
+    "tabsLabel": "Tabs",
+    "tabsDesc": "Organize content in tabs",
+    "tabsSearch": "tabs layout",
+    "colsLabel": "Columns",
+    "colsDesc": "Create a multi-column layout",
+    "colsSearch": "columns layout grid"
+  },
+  "slashPreviews": {
+    "text": "Simple text",
+    "h1": "Heading 1",
+    "h2": "Heading 2",
+    "h3": "Heading 3",
+    "h4": "Heading 4",
+    "bullet1": "Item 1",
+    "bullet2": "Item 2",
+    "bullet3": "Item 3",
+    "num1": "Step 1",
+    "num2": "Step 2",
+    "num3": "Step 3",
+    "checkCompleted": "Completed",
+    "checkPending": "Pending",
+    "accClick": "Click to expand",
+    "accContent": "Hidden content here...",
+    "tabCol1": "Col 1",
+    "tabCol2": "Col 2",
+    "tabDataA": "Data A",
+    "tabDataB": "Data B",
+    "tabDataC": "Data C",
+    "tabDataD": "Data D",
+    "quoteText": "\"Simplicity is the ultimate sophistication.\"",
+    "calloutText": "Important information or highlighted idea here.",
+    "tab1": "Tab 1",
+    "tab2": "Tab 2",
+    "tabContent1": "Tab 1 content"
+  },
+  "brickRenderer": {
+    "openFile": "Open file",
+    "attachMedia": "Attach image, video or file",
+    "upload": "Upload",
+    "attachedDoc": "Attached document",
+    "download": "Download"
+  },
+  "bricks": {
+    "tabs": {
+      "defaultTab1": "Tab 1",
+      "defaultTabn": "Tab",
+      "placeholder": "Write tab content..."
+    },
+    "columns": {
+      "placeholder": "Column",
+      "addColumn": "Add column"
+    },
+    "list": {
+      "noResults": "No results",
+      "addBlock": "Add block"
+    }
   },
   "formatToolbar": {
     "bold": "Bold",

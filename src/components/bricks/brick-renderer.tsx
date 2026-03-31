@@ -83,6 +83,7 @@ const MediaBrickCard: React.FC<{
   onUpdate: (content: any) => void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
 }> = ({ brickId, content, canEdit, onUpdate, onUploadMediaFiles }) => {
+  const t = useTranslations("document-detail");
   const fallback: MediaCarouselItem = {
     url: content.url || "",
     title: content.title || "",
@@ -169,22 +170,22 @@ const MediaBrickCard: React.FC<{
               <div className="flex items-center gap-3">
                 <FileText className="w-8 h-8 text-accent shrink-0" />
                 <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-semibold truncate max-w-[200px]">{activeItem.title || "Documento adjunto"}</span>
+                  <span className="text-sm font-semibold truncate max-w-[200px]">{activeItem.title || t("brickRenderer.defaultDocTitle")}</span>
                   {activeItem.sizeBytes && <span className="text-xs text-muted-foreground">{(activeItem.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>}
                 </div>
               </div>
               <a href={activeItem.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
-                Descargar
+                {t("brickRenderer.download")}
               </a>
             </div>
           )
         ) : (
           <div className="flex flex-col items-center justify-center p-8 gap-3 text-center">
             <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
-            <div className="text-sm text-muted-foreground font-medium">Adjunta imagen, video o archivo</div>
+            <div className="text-sm text-muted-foreground font-medium">{t("brickRenderer.attachPrompt")}</div>
             {canEdit && (
               <label className="cursor-pointer bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 mt-2">
-                Subir
+                {t("brickRenderer.uploadBtn")}
                 <input
                   type="file"
                   multiple
@@ -246,7 +247,7 @@ const MediaBrickCard: React.FC<{
              <input
                value={meta.subtitle || ""}
                onChange={(event) => updateMeta({ ...meta, subtitle: event.target.value }, activeIndex)}
-               placeholder="Escribe un subtítulo..."
+               placeholder={t("brickRenderer.subtitlePlaceholder")}
                className="bg-transparent text-center text-sm text-muted-foreground outline-none border-none placeholder:text-muted-foreground/50 w-full resize-none min-h-[1.5rem]"
              />
            ) : (
@@ -260,41 +261,41 @@ const MediaBrickCard: React.FC<{
         <div className="w-full max-w-2xl mt-4 p-4 rounded-xl border border-border/60 bg-muted/10 shadow-sm space-y-4 text-sm animate-in fade-in slide-in-from-top-2">
           {/* Layout Controls */}
           <div className="flex flex-col gap-2">
-            <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Alineación</span>
+            <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">{t("brickRenderer.alignment")}</span>
             <div className="flex items-center gap-1 bg-muted/20 p-1 rounded-lg w-fit border border-border/50">
-              <button onClick={() => updateMeta({ ...meta, layout: "left" })} className={`p-1.5 rounded-md ${layout === "left" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title="Izquierda"><AlignLeft className="w-4 h-4" /></button>
-              <button onClick={() => updateMeta({ ...meta, layout: "center" })} className={`p-1.5 rounded-md ${layout === "center" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title="Centro"><AlignCenter className="w-4 h-4" /></button>
-              <button onClick={() => updateMeta({ ...meta, layout: "right" })} className={`p-1.5 rounded-md ${layout === "right" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title="Derecha"><AlignRight className="w-4 h-4" /></button>
-              <button onClick={() => updateMeta({ ...meta, layout: "full" })} className={`p-1.5 rounded-md ${layout === "full" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title="Ancho Completo"><Maximize className="w-4 h-4" /></button>
+              <button onClick={() => updateMeta({ ...meta, layout: "left" })} className={`p-1.5 rounded-md ${layout === "left" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title={t("brickRenderer.alignLeft")}><AlignLeft className="w-4 h-4" /></button>
+              <button onClick={() => updateMeta({ ...meta, layout: "center" })} className={`p-1.5 rounded-md ${layout === "center" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title={t("brickRenderer.alignCenter")}><AlignCenter className="w-4 h-4" /></button>
+              <button onClick={() => updateMeta({ ...meta, layout: "right" })} className={`p-1.5 rounded-md ${layout === "right" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title={t("brickRenderer.alignRight")}><AlignRight className="w-4 h-4" /></button>
+              <button onClick={() => updateMeta({ ...meta, layout: "full" })} className={`p-1.5 rounded-md ${layout === "full" ? "bg-background shadow-sm" : "hover:bg-background/50 text-muted-foreground"}`} title={t("brickRenderer.alignFull")}><Maximize className="w-4 h-4" /></button>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">
             {/* Border Options */}
             <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Bordes</span>
+              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">{t("brickRenderer.borders")}</span>
                <select
                 value={border}
                 onChange={(e) => updateMeta({ ...meta, border: e.target.value as any })}
                 className="w-full rounded-md border border-input shadow-sm bg-background px-3 py-1.5 text-sm outline-none"
               >
-                <option value="none">Sin borde</option>
-                <option value="soft">Borde Suave</option>
-                <option value="strong">Borde Fuerte</option>
+                <option value="none">{t("brickRenderer.borderNone")}</option>
+                <option value="soft">{t("brickRenderer.borderSoft")}</option>
+                <option value="strong">{t("brickRenderer.borderStrong")}</option>
               </select>
             </div>
 
             {/* Shadow Options */}
              <div className="flex flex-col gap-2">
-              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">Sombra</span>
+              <span className="text-xs font-semibold text-muted-foreground tracking-wider uppercase">{t("brickRenderer.shadow")}</span>
                <select
                 value={shadow}
                 onChange={(e) => updateMeta({ ...meta, shadow: e.target.value as any })}
                 className="w-full rounded-md border border-input shadow-sm bg-background px-3 py-1.5 text-sm outline-none"
               >
-                <option value="none">Sin sombra</option>
-                <option value="md">Media</option>
-                <option value="lg">Grande</option>
+                <option value="none">{t("brickRenderer.shadowNone")}</option>
+                <option value="md">{t("brickRenderer.shadowMd")}</option>
+                <option value="lg">{t("brickRenderer.shadowLg")}</option>
               </select>
             </div>
           </div>
@@ -305,7 +306,7 @@ const MediaBrickCard: React.FC<{
                  <LinkIcon className="w-4 h-4 text-muted-foreground" />
                  <input 
                    value={activeItem?.url || ""} 
-                   placeholder="URL del archivo actual" 
+                   placeholder={t("brickRenderer.urlPlaceholder")} 
                    onChange={(e) => {
                      const newItems = [...meta.items];
                      newItems[activeIndex] = { ...activeItem, url: e.target.value };
@@ -317,14 +318,14 @@ const MediaBrickCard: React.FC<{
 
                <input 
                  value={meta.subtitle || ""} 
-                 placeholder="Escribe un subtítulo general..." 
+                 placeholder={t("brickRenderer.subtitleGeneralPlaceholder")} 
                  onChange={(e) => updateMeta({ ...meta, subtitle: e.target.value }, activeIndex)}
                  className="w-full rounded-md border border-input shadow-sm bg-background px-3 py-1.5 text-sm outline-none" 
                />
 
                <div className="flex items-center gap-2 mt-2">
                 <label className="inline-flex cursor-pointer items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted/40 shadow-sm">
-                  Subir más archivos
+                  {t("brickRenderer.uploadMore")}
                   <input
                     type="file"
                     multiple
@@ -341,7 +342,7 @@ const MediaBrickCard: React.FC<{
                   />
                 </label>
                  <button onClick={() => setShowSettings(false)} className="ml-auto bg-primary text-primary-foreground text-xs font-semibold px-4 py-1.5 rounded-md hover:bg-primary/90 shadow-sm">
-                   Aceptar
+                   {t("brickRenderer.acceptControls")}
                  </button>
                </div>
            </div>
@@ -639,7 +640,7 @@ export function UnifiedBrickRenderer({
     default:
       brickBody = (
         <div className="p-4 border border-border/50 rounded bg-muted/20 text-muted-foreground italic text-sm">
-          Unsupported block type: {kind}
+          {t("brickRenderer.unsupportedBlock", { kind })}
         </div>
       );
       break;
@@ -672,7 +673,7 @@ export function UnifiedBrickRenderer({
                 ? "bg-accent text-accent-foreground border-accent hover:opacity-90"
                 : "bg-background text-muted-foreground border-border/40 hover:bg-muted/50 hover:text-foreground"
             }`}
-             title="Comentar en este bloque"
+             title={t("brickRenderer.commentHoverTitle")}
           >
             {comments.length === 0 ? <MessageSquarePlus className="h-3.5 w-3.5" /> : <span className="text-[10px] font-bold">{comments.length}</span>}
           </button>
@@ -707,10 +708,10 @@ export function UnifiedBrickRenderer({
                       "flex items-center gap-0.5 opacity-0 group-hover/comment:opacity-100 transition-opacity absolute right-0 top-0 bg-background rounded-md border border-border/50 shadow-sm p-0.5 z-10",
                       activeMenu === comment.id && "opacity-100"
                     )}>
-                      <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title="Añadir reacción"><SmilePlus className="w-3.5 h-3.5" /></button>
+                      <button className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" title={t("brickComments.addReaction")}><SmilePlus className="w-3.5 h-3.5" /></button>
                       <button 
                         className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" 
-                        title="Resolver"
+                        title={t("brickComments.resolve")}
                         onClick={() => {
                           const newComments = comments.filter(c => c.id !== comment.id);
                           onUpdate({ ...content, comments: newComments });
@@ -721,7 +722,7 @@ export function UnifiedBrickRenderer({
                       <div className="relative">
                         <button 
                           className="p-1 hover:bg-muted rounded text-muted-foreground hover:text-foreground" 
-                          title="Más acciones"
+                          title={t("brickComments.moreActions")}
                           onClick={(e) => {
                             e.stopPropagation();
                             setActiveMenu(activeMenu === comment.id ? null : comment.id);
@@ -734,16 +735,16 @@ export function UnifiedBrickRenderer({
                         {activeMenu === comment.id && (
                           <div className="absolute right-0 top-full mt-1 w-48 rounded-md border border-border/60 bg-popover shadow-md p-1 flex flex-col z-[150]">
                             <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
-                              <Check className="w-3.5 h-3.5 invisible" /> Marcar como no leído
+                              <Check className="w-3.5 h-3.5 invisible" /> {t("brickComments.markUnread")}
                             </button>
                             <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
-                              <Edit className="w-3.5 h-3.5" /> Editar
+                              <Edit className="w-3.5 h-3.5" /> {t("brickComments.edit")}
                             </button>
                             <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
-                              <LinkIcon className="w-3.5 h-3.5" /> Copiar enlace
+                              <LinkIcon className="w-3.5 h-3.5" /> {t("brickComments.copyLink")}
                             </button>
                             <button className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-muted text-foreground w-full text-left" onClick={() => setActiveMenu(null)}>
-                              <BellOff className="w-3.5 h-3.5" /> Silenciar las respuestas
+                              <BellOff className="w-3.5 h-3.5" /> {t("brickComments.muteReplies")}
                             </button>
                             <button 
                               className="flex items-center gap-2 px-2 py-1.5 text-xs rounded-sm hover:bg-destructive/10 text-destructive w-full text-left" 
@@ -753,7 +754,7 @@ export function UnifiedBrickRenderer({
                                  setActiveMenu(null);
                               }}
                             >
-                              <Trash className="w-3.5 h-3.5" /> Eliminar
+                              <Trash className="w-3.5 h-3.5" /> {t("brickComments.delete")}
                             </button>
                           </div>
                         )}
@@ -781,7 +782,7 @@ export function UnifiedBrickRenderer({
                     }
                   }}
                   autoFocus
-                  placeholder="Añadir un comentario..."
+                  placeholder={t("brickComments.addComment")}
                   className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
                 
