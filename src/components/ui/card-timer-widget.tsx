@@ -178,7 +178,7 @@ export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards
     return () => window.removeEventListener("killio:toast-count", handleToastCount);
   }, []);
 
-  if (!timers.length && !isLoading) return null;
+  if (!timers.length) return null;
 
   const stacked = timers.filter((item) => item.cardId !== activeTimer?.cardId).slice(0, 2);
   const overflowCount = Math.max(0, timers.length - 1 - stacked.length);
@@ -195,8 +195,14 @@ export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t("cardModal.widget.activeTask")}</p>
-            <p className="mt-1 truncate text-base font-semibold text-foreground">{activeTimer?.title || t("cardModal.widget.loading")}</p>
-            <p className="mt-1 text-xs text-muted-foreground">{activeTimer?.boardName || "-"} / {activeTimer?.listName || "-"}</p>
+            <p className="mt-1 truncate text-base font-semibold text-foreground">{activeTimer?.title}</p>
+            {activeTimer?.boardName || activeTimer?.listName ? (
+              <p className="mt-1 text-xs text-muted-foreground">
+                {activeTimer?.boardName || ""}
+                {activeTimer?.boardName && activeTimer?.listName ? " / " : ""}
+                {activeTimer?.listName || ""}
+              </p>
+            ) : null}
             {dueAtLabel ? <p className="mt-2 text-[11px] text-muted-foreground">{t("cardModal.widget.dueAt", { value: dueAtLabel })}</p> : null}
             {remainingMs !== null ? (
               <p className={`mt-3 text-3xl font-semibold tabular-nums ${remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
