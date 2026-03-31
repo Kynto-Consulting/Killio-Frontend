@@ -521,6 +521,18 @@ export async function deleteBoard(boardId: string, accessToken: string): Promise
   });
 }
 
+export async function updateBoardDetails(
+  boardId: string,
+  payload: { name?: string; description?: string | null },
+  accessToken: string,
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createList(
   boardId: string,
   payload: { name: string; position?: number },

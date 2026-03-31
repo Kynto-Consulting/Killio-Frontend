@@ -2,11 +2,12 @@
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 import { useRef, useState, useCallback, type CSSProperties } from "react";
-import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings } from "lucide-react";
+import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings, Pencil } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
+import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { ShareModal } from "@/components/ui/share-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { MessageSquare } from "lucide-react";
@@ -16,7 +17,7 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary } from "@/lib/api/contracts";
+import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary, updateBoardAppearance, updateBoardDetails, uploadFile } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -526,6 +527,7 @@ function applyBrickReordered(lists: BoardListState[], payload: Record<string, un
 function applyBoardUpdated(
   lists: BoardListState[],
   payload: Record<string, unknown>,
+  onBoardMetaChange: (patch: { name?: string; description?: string | null }) => void,
   onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
   onAppearanceChange: (appearancePatch: Partial<BoardAppearanceState>) => void,
 ): ApplyEventResult {
@@ -538,6 +540,16 @@ function applyBoardUpdated(
   const visibility = asString(changes.visibility);
   if (visibility === "private" || visibility === "team" || visibility === "public_link") {
     onVisibilityChange(visibility);
+  }
+
+  const boardName = asString(changes.name);
+  if (boardName) {
+    onBoardMetaChange({ name: boardName });
+  }
+
+  const description = changes.description;
+  if (typeof description === "string" || description === null) {
+    onBoardMetaChange({ description });
   }
 
   const appearanceRaw = changes.appearance as Record<string, unknown> | undefined;
@@ -615,6 +627,7 @@ function applyBoardUpdated(
 function applyRealtimeEventToLists(
   lists: BoardListState[],
   event: BoardEvent,
+  onBoardMetaChange: (patch: { name?: string; description?: string | null }) => void,
   onVisibilityChange: (visibility: "private" | "team" | "public_link") => void,
   onAppearanceChange: (appearancePatch: Partial<BoardAppearanceState>) => void,
 ): ApplyEventResult {
@@ -634,7 +647,7 @@ function applyRealtimeEventToLists(
     case "brick.reordered":
       return applyBrickReordered(lists, event.payload);
     case "board.updated":
-      return applyBoardUpdated(lists, event.payload, onVisibilityChange, onAppearanceChange);
+      return applyBoardUpdated(lists, event.payload, onBoardMetaChange, onVisibilityChange, onAppearanceChange);
     case "brick.created":
     case "brick.updated":
       return { nextLists: lists, needsFallback: true };
@@ -657,6 +670,7 @@ export default function BoardPage() {
 
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState(t("loadingBoard"));
+  const [boardDescription, setBoardDescription] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'chat' | 'activity'>('activity');
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
@@ -733,6 +747,7 @@ export default function BoardPage() {
   };
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
   const [boardAppearance, setBoardAppearance] = useState<BoardAppearanceState>({
     backgroundKind: "preset",
@@ -751,6 +766,7 @@ export default function BoardPage() {
     getBoard(boardId, accessToken)
       .then((board) => {
         setBoardName(board.name);
+        setBoardDescription(board.description ?? null);
         setBoardVisibility(board.visibility || "team");
         setBoardAppearance({
           coverImageUrl: board.coverImageUrl,
@@ -773,8 +789,32 @@ export default function BoardPage() {
       .catch((err) => {
         console.error("Failed to fetch board", err);
         setBoardName(t("loadBoardError"));
+        setBoardDescription(null);
       });
   }, [accessToken, boardId, t]);
+
+  const handleSaveBoardGeneral = useCallback(async ({ name, description }: { name: string; description: string | null }) => {
+    if (!accessToken) return;
+    await updateBoardDetails(boardId, { name, description }, accessToken);
+    setBoardName(name);
+    setBoardDescription(description);
+    toast("Configuración general actualizada.", "success");
+  }, [accessToken, boardId]);
+
+  const handleSaveBoardAppearance = useCallback(async (payload: BoardAppearanceState) => {
+    if (!accessToken) return;
+    await updateBoardAppearance(boardId, payload, accessToken);
+    setBoardAppearance((prev) => ({ ...prev, ...payload }));
+    toast("Apariencia actualizada.", "success");
+  }, [accessToken, boardId]);
+
+  const handleUploadBoardImage = useCallback(async (file: File): Promise<string> => {
+    if (!accessToken) {
+      throw new Error("Sesión expirada. Inicia sesión nuevamente.");
+    }
+    const uploaded = await uploadFile(file, accessToken);
+    return uploaded.url;
+  }, [accessToken]);
 
   const scheduleBoardReload = useCallback((delayMs = 120) => {
     if (realtimeReloadTimerRef.current) {
@@ -816,9 +856,18 @@ export default function BoardPage() {
     let shouldFallback = false;
 
     setLists((currentLists) => {
-      const result = applyRealtimeEventToLists(currentLists, event, setBoardVisibility, (patch) => {
-        setBoardAppearance((prev) => ({ ...prev, ...patch }));
-      });
+      const result = applyRealtimeEventToLists(
+        currentLists,
+        event,
+        (patch) => {
+          if (patch.name) setBoardName(patch.name);
+          if (patch.description !== undefined) setBoardDescription(patch.description);
+        },
+        setBoardVisibility,
+        (patch) => {
+          setBoardAppearance((prev) => ({ ...prev, ...patch }));
+        },
+      );
       if (result.needsFallback) {
         shouldFallback = true;
       }
@@ -1230,6 +1279,16 @@ export default function BoardPage() {
 
           <div className="relative">
             <button
+              onClick={() => setIsBoardSettingsOpen(true)}
+              className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"
+            >
+              <Pencil className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Editar</span>
+            </button>
+          </div>
+
+          <div className="relative">
+            <button
               onClick={() => setIsBoardMenuOpen((current) => !current)}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
             >
@@ -1244,6 +1303,18 @@ export default function BoardPage() {
                 </div>
                 {(permissions.canManageBoard || permissions.canEdit) && (
                   <div className="p-3 space-y-2">
+                    {permissions.canEdit && (
+                      <button
+                        onClick={() => {
+                          setIsBoardMenuOpen(false);
+                          setIsBoardSettingsOpen(true);
+                        }}
+                        className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
+                      >
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Editar tablero
+                      </button>
+                    )}
                     {permissions.canManageBoard && (
                       <button
                         onClick={() => {
@@ -1368,6 +1439,21 @@ export default function BoardPage() {
       </main>
 
       <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} />
+
+      <BoardSettingsModal
+        isOpen={isBoardSettingsOpen}
+        onClose={() => setIsBoardSettingsOpen(false)}
+        boardName={boardName}
+        boardDescription={boardDescription}
+        boardAppearance={boardAppearance}
+        canManageBoard={permissions.canManageBoard}
+        canEdit={permissions.canEdit}
+        onSaveGeneral={handleSaveBoardGeneral}
+        onSaveAppearance={handleSaveBoardAppearance}
+        onOpenShare={() => setIsShareModalOpen(true)}
+        onOpenDelete={() => setIsDeleteModalOpen(true)}
+        onUploadImage={handleUploadBoardImage}
+      />
 
       <ShareModal
         isOpen={isShareModalOpen}
