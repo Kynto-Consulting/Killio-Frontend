@@ -103,6 +103,7 @@ const MediaBrickCard: React.FC<{
   const mime = (activeItem?.mimeType || "").toLowerCase();
   const isImage = mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(activeItem?.url || "");
   const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "");
+  const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "");
 
   const updateMeta = (nextMeta: MediaMeta, nextIndex = 0) => {
     const first = nextMeta.items[0];
@@ -154,13 +155,24 @@ const MediaBrickCard: React.FC<{
         {activeItem?.url ? (
           isVideo ? (
             <video src={activeItem.url} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
+          ) : isAudio ? (
+            <div className="flex flex-col items-center justify-center p-6 bg-muted/10 gap-4 min-w-[300px]">
+              <audio src={activeItem.url} controls className="w-full" />
+              {activeItem.title && <span className="text-xs text-muted-foreground">{activeItem.title}</span>}
+            </div>
           ) : isImage ? (
             <img src={activeItem.url} alt={activeItem.title || content.title || "Media"} className={`bg-transparent ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[70vh] object-contain w-auto mx-auto"}`} />
           ) : (
-            <div className="flex flex-col items-center justify-center p-6 bg-muted/20 gap-2 min-w-[200px]">
-              <FileText className="w-10 h-10 text-muted-foreground/60" />
-              <a href={activeItem.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-accent hover:underline break-all max-w-[300px] text-center">
-                {activeItem.title || "Abrir archivo"}
+            <div className="flex items-center justify-between p-4 bg-muted/10 border border-border/50 rounded-md min-w-[300px] gap-4">
+              <div className="flex items-center gap-3">
+                <FileText className="w-8 h-8 text-accent shrink-0" />
+                <div className="flex flex-col overflow-hidden">
+                  <span className="text-sm font-semibold truncate max-w-[200px]">{activeItem.title || "Documento adjunto"}</span>
+                  {activeItem.sizeBytes && <span className="text-xs text-muted-foreground">{(activeItem.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>}
+                </div>
+              </div>
+              <a href={activeItem.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                Descargar
               </a>
             </div>
           )
