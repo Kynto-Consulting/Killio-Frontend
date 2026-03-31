@@ -14,7 +14,7 @@ interface TabsBrickProps {
 
 export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ id, tabs = [], onUpdate, readonly }) => {
   const t = useTranslations("document-detail");
-  const safeTabs = tabs.length > 0 ? tabs : [{ id: "1", label: t("bricks.tab1"), content: "" }];
+  const safeTabs = tabs.length > 0 ? tabs : [{ id: "1", label: t("bricks.tabs.defaultTab1"), content: "" }];
   const [activeTab, setActiveTab] = useState(safeTabs[0].id);
 
   const activeContent = safeTabs.find((t) => t.id === activeTab)?.content || "";
@@ -28,7 +28,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ id, tabs = [], onUp
   const addTab = () => {
     const newId = Math.random().toString(36).substring(7);
     onUpdate({
-      tabs: [...safeTabs, { id: newId, label: `${t("bricks.tabPrefix")} ${safeTabs.length + 1}`, content: "" }],
+      tabs: [...safeTabs, { id: newId, label: `${t("bricks.tabs.defaultTabn")} ${safeTabs.length + 1}`, content: "" }],
     });
     setActiveTab(newId);
   };
