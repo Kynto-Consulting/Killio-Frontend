@@ -61,6 +61,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plusMenuState, setPlusMenuState] = useState<{ brickId: string, top: number, left: number } | null>(null);
+  const [plusMenuHoverIndex, setPlusMenuHoverIndex] = useState<number>(0);
   const enabledKinds = addableKinds && addableKinds.length > 0
     ? addableKinds
     : ['text', 'table', 'graph', 'checklist', 'accordion'];
@@ -231,39 +232,60 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
       {plusMenuState && canEdit && (
         <Portal>
           <div
-            className="fixed z-[150] w-[320px] overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
-            style={{ top: plusMenuState.top, left: plusMenuState.left }}
+            className="fixed z-[150] flex flex-row overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            style={{ 
+              top: plusMenuState.top, 
+              left: plusMenuState.left,
+              maxWidth: slashCommands[plusMenuHoverIndex]?.preview ? '600px' : '320px',
+              minWidth: '320px'
+            }}
             onMouseDown={(e) => e.stopPropagation()} // Prevent closing immediately
           >
-            <div className="border-b border-border/70 px-3 py-2 bg-muted/30">
-              <span className="text-xs font-semibold text-muted-foreground w-full block">Añadir bloque</span>
-            </div>
+            <div className="flex-1 w-[320px] flex flex-col border-r border-border/50">
+              <div className="border-b border-border/70 px-3 py-2 bg-muted/30">
+                <span className="text-xs font-semibold text-muted-foreground w-full block">Añadir bloque</span>
+              </div>
 
-            <div className="max-h-72 overflow-y-auto p-1.5">
-              {slashCommands.map((command, index) => (
-                <button
-                  key={command.id}
-                  type="button"
-                  onMouseDown={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
-                  onClick={() => handleApplyPlusCommand(command, plusMenuState.brickId)}
-                  className="flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-accent/50 text-muted-foreground"
-                >
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
-                    {command.icon}
-                  </div>
-                  <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                    <span className="text-sm font-medium text-foreground">{command.label}</span>
-                    <span className="truncate text-xs text-muted-foreground/80">{command.description}</span>
-                  </div>
-                  {command.shortcut && (
-                    <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
-                  )}
-                </button>
-              ))}
+              <div className="max-h-72 overflow-y-auto p-1.5 flex-1">
+                {slashCommands.map((command, index) => (
+                  <button
+                    key={command.id}
+                    type="button"
+                    onMouseEnter={() => setPlusMenuHoverIndex(index)}
+                    onMouseDown={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                    }}
+                    onClick={() => handleApplyPlusCommand(command, plusMenuState.brickId)}
+                    className={cn(
+                      "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                      index === plusMenuHoverIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
+                    )}
+                  >
+                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                      {command.icon}
+                    </div>
+                    <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                      <span className="text-sm font-medium text-foreground">{command.label}</span>
+                      <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
+                    </div>
+                    {command.shortcut && (
+                      <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
+            {slashCommands[plusMenuHoverIndex]?.preview && (
+              <div className="hidden sm:flex w-[280px] bg-muted/10 flex-col">
+                <div className="p-4 flex-1">
+                   {slashCommands[plusMenuHoverIndex].preview}
+                </div>
+                <div className="p-4 mt-auto border-t border-border/50 bg-muted/5 text-xs text-muted-foreground">
+                   {slashCommands[plusMenuHoverIndex].description}
+                </div>
+              </div>
+            )}
           </div>
         </Portal>
       )}

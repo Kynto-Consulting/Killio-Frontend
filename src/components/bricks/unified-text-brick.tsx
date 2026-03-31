@@ -1058,46 +1058,65 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       {isSlashOpen && !readonly ? (
         <Portal>
           <div
-            className="fixed z-[150] w-[320px] overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
-            style={{ top: slashMenuPosition.top, left: slashMenuPosition.left }}
+            className="fixed z-[150] flex flex-row overflow-hidden rounded-xl border border-border bg-card shadow-2xl"
+            style={{ 
+              top: slashMenuPosition.top, 
+              left: slashMenuPosition.left,
+              maxWidth: filteredSlashCommands.length > 0 && filteredSlashCommands[slashActiveIndex]?.preview ? '600px' : '320px',
+              minWidth: '320px'
+            }}
           >
-            <div className="border-b border-border/70 px-3 py-2">
-              <div className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-muted-foreground">
-                /{slashQuery || "..."}
+            <div className="flex-1 w-[320px] flex flex-col border-r border-border/50">
+              <div className="border-b border-border/70 px-3 py-2">
+                <div className="rounded-md border border-input bg-background px-2 py-1.5 text-xs text-muted-foreground">
+                  /{slashQuery || "..."}
+                </div>
+              </div>
+
+              <div className="max-h-72 overflow-y-auto p-1.5 flex-1">
+                {filteredSlashCommands.length === 0 ? (
+                  <div className="px-2 py-3 text-xs text-muted-foreground">Sin resultados</div>
+                ) : (
+                  filteredSlashCommands.map((command, index) => (
+                    <button
+                      key={command.id}
+                      type="button"
+                      onMouseDown={(event) => {
+                        event.preventDefault();
+                      }}
+                      onMouseEnter={() => setSlashActiveIndex(index)}
+                      onClick={() => applySlashCommand(command)}
+                      className={cn(
+                        "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
+                        index === slashActiveIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
+                      )}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
+                        {command.icon}
+                      </div>
+                      <div className="flex flex-col items-start gap-0.5 overflow-hidden">
+                        <span className="text-sm font-medium text-foreground">{command.label}</span>
+                        <span className="truncate text-xs text-muted-foreground/80 w-full">{command.description}</span>
+                      </div>
+                      {command.shortcut && (
+                        <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
+                      )}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
-
-            <div className="max-h-72 overflow-y-auto p-1.5">
-              {filteredSlashCommands.length === 0 ? (
-                <div className="px-2 py-3 text-xs text-muted-foreground">Sin resultados</div>
-              ) : (
-                filteredSlashCommands.map((command, index) => (
-                  <button
-                    key={command.id}
-                    type="button"
-                    onMouseDown={(event) => {
-                      event.preventDefault();
-                    }}
-                    onClick={() => applySlashCommand(command)}
-                    className={cn(
-                      "flex w-full items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors",
-                      index === slashActiveIndex ? "bg-accent/80 text-foreground" : "hover:bg-accent/50 text-muted-foreground"
-                    )}
-                  >
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-border/50 bg-background shadow-sm text-foreground">
-                      {command.icon}
-                    </div>
-                    <div className="flex flex-col items-start gap-0.5 overflow-hidden">
-                      <span className="text-sm font-medium text-foreground">{command.label}</span>
-                      <span className="truncate text-xs text-muted-foreground/80">{command.description}</span>
-                    </div>
-                    {command.shortcut && (
-                      <div className="ml-auto text-xs text-muted-foreground/60">{command.shortcut}</div>
-                    )}
-                  </button>
-                ))
-              )}
-            </div>
+            
+            {filteredSlashCommands.length > 0 && filteredSlashCommands[slashActiveIndex]?.preview && (
+              <div className="hidden sm:flex w-[280px] bg-muted/10 flex-col">
+                <div className="p-4 flex-1">
+                   {filteredSlashCommands[slashActiveIndex].preview}
+                </div>
+                <div className="p-4 mt-auto border-t border-border/50 bg-muted/5 text-xs text-muted-foreground">
+                   {filteredSlashCommands[slashActiveIndex].description}
+                </div>
+              </div>
+            )}
           </div>
         </Portal>
       ) : null}
