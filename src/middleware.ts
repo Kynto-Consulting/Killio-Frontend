@@ -37,14 +37,25 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
-  // Unauthenticated user trying to access a protected route → send to login
+  // Device detection from User-Agent
+  const userAgent = request.headers.get('user-agent') || '';
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  
+  // Set x-device-type header on the response headers passed to the next component
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-device-type', isMobile ? 'mobile' : 'desktop');
+
   if (!token && !isPublic(pathname)) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('from', `${pathname}${request.nextUrl.search}`);
-    return NextResponse.redirect(loginUrl);
+    return NextResponse.redirect(loginUrl, { headers: requestHeaders });
   }
 
-  return NextResponse.next();
+  return NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    }
+  });
 }
 
 export const config = {
