@@ -4,6 +4,7 @@ import { X, History } from "lucide-react";
 import { Portal } from "./portal";
 import { type ActivityLogEntry } from "@/lib/api/contracts";
 import { RichText } from "./rich-text";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type Props = {
   isOpen: boolean;
@@ -32,6 +33,7 @@ export function ActivityLogModal({
   fieldLabels,
   getResolverContext
 }: Props) {
+  const t = useTranslations("history");
   if (!isOpen) return null;
 
   return (
@@ -86,7 +88,7 @@ export function ActivityLogModal({
                     <div className="space-y-2">
                       <p className="text-sm text-foreground/90 leading-relaxed">
                         <span className="font-bold text-foreground">
-                          {member?.displayName || "Alguien"}
+                          {member?.displayName || t("someone")}
                         </span>
                         <span className="text-muted-foreground/80">
                           {" "}
@@ -96,7 +98,7 @@ export function ActivityLogModal({
 
                       {changedFields && (
                         <p className="text-xs bg-muted/40 px-3 py-1.5 rounded-lg border border-border/30 text-muted-foreground italic">
-                          Campos: {changedFields}
+                          {t("fieldsLabel")}: {changedFields}
                         </p>
                       )}
 
@@ -121,7 +123,7 @@ export function ActivityLogModal({
                 onClick={onClose}
                 className="px-4 py-2 bg-foreground text-background rounded-xl text-sm font-bold shadow-lg hover:opacity-90 transition-opacity"
              >
-                Cerrar
+                {t("close")}
              </button>
           </div>
         </div>

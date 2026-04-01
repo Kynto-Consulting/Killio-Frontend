@@ -61,5 +61,8 @@
   "historyTitle": "{{badge}} History",
   "summary": "Summary",
   "andMore": "and {{count}} more...",
-  "viewDetailedHistory": "View detailed history"
+  "viewDetailedHistory": "View detailed history",
+  "someone": "Someone",
+  "fieldsLabel": "Fields",
+  "close": "Close"
 }

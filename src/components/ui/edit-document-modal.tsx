@@ -47,7 +47,7 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
       onClose();
     } catch (err: any) {
       console.error(err);
-      setError(err?.message || "Error al actualizar documento");
+      setError(err?.message || t("updateError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -67,15 +67,15 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-accent/10">
             <FileText className="h-6 w-6 text-accent" />
           </div>
-          <h2 className="text-xl font-semibold">Editar Documento</h2>
+          <h2 className="text-xl font-semibold">{t("editDocumentTitle")}</h2>
           <p className="text-sm text-muted-foreground text-center">
-            Modifica el nombre o mueve este documento a otra carpeta.
+            {t("editDocumentDesc")}
           </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <label className="text-sm font-medium">Nombre del documento</label>
+            <label className="text-sm font-medium">{t("documentName")}</label>
             <input
               ref={inputRef}
               type="text"
@@ -87,14 +87,14 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center"><FolderIcon className="w-4 h-4 mr-2"/> UbicaciÃ³n (Carpeta)</label>
+            <label className="text-sm font-medium flex items-center"><FolderIcon className="w-4 h-4 mr-2"/> {t("locationFolder")}</label>
             <select
               value={folderId || ""}
               onChange={(e) => setFolderId(e.target.value === "" ? null : e.target.value)}
               disabled={isSubmitting}
               className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
-              <option value="">(RaÃ­z) Todos los documentos</option>
+              <option value="">{t("rootAllDocuments")}</option>
               {folders.map((f) => (
                 <option key={f.id} value={f.id}>
                   {f.name}
@@ -111,7 +111,7 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
               disabled={isSubmitting}
               className="h-10 px-4 py-2 rounded-md border border-input hover:bg-accent/10 transition-colors"
             >
-              Cancelar
+              {t("cancel")}
             </button>
             <button
               type="submit"
@@ -119,7 +119,7 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
               className="h-10 px-4 py-2 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 text-sm font-medium flex transition-colors"
             >
               {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Guardar Cambios
+              {t("saveChanges")}
             </button>
           </div>
         </form>

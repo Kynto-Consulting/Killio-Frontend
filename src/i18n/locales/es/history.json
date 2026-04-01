@@ -61,5 +61,8 @@
   "historyTitle": "Historial de {{badge}}",
   "summary": "Resumen",
   "andMore": "y {{count}} más...",
-  "viewDetailedHistory": "Ver historial detallado"
+  "viewDetailedHistory": "Ver historial detallado",
+  "someone": "Alguien",
+  "fieldsLabel": "Campos",
+  "close": "Cerrar"
 }

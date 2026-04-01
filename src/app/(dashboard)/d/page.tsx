@@ -27,6 +27,8 @@ export default function DocumentsPage() {
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+  const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
+  const [createTypeFromTree, setCreateTypeFromTree] = useState<{parent: string, type: "folder" | "document"} | null>(null);
 
   const buildTree = (allF: Folder[], parentId: string | null = null): FolderNode[] => {
     return allF
@@ -119,18 +121,41 @@ export default function DocumentsPage() {
     }
   };
 
+  const toggleSelection = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      setSelectedItemIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+    } else {
+      setSelectedItemIds([id]);
+    }
+  };
+
+  const handleDragStartNodes = (e: React.DragEvent, id: string, type: "document" | "folder") => {
+    // If dragging an unselected item, act as if only that item is selected/dragged
+    const idsToDrag = selectedItemIds.includes(id) ? selectedItemIds : [id];
+    e.dataTransfer.setData("application/json", JSON.stringify({ ids: idsToDrag, type }));
+    e.dataTransfer.setData("documentId", id); // legacy fallback
+  };
+
   const handleDropDocumentOnFolder = async (e: React.DragEvent, targetFolderId: string | null) => {
     e.preventDefault();
     e.stopPropagation();
     
     if (!accessToken || !activeTeamId) return;
     
+    const jsonStr = e.dataTransfer.getData("application/json");
+    let payload = null;
+    try { payload = jsonStr ? JSON.parse(jsonStr) : null; } catch(e) {}
+    
     const docId = e.dataTransfer.getData("documentId");
-    if (!docId) return;
+    const ids = payload?.ids || (docId ? [docId] : []);
+    if (ids.length === 0) return;
 
     try {
-      await updateDocument(docId, { folderId: targetFolderId }, accessToken);
-      setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, folderId: targetFolderId || undefined } : d));
+      await Promise.all(ids.map((id: string) => updateDocument(id, { folderId: targetFolderId }, accessToken)));
+      setDocuments((prev) => prev.map(d => ids.includes(d.id) ? { ...d, folderId: targetFolderId || undefined } : d));
+      setSelectedItemIds([]);
       toast("Documento movido", "success");
     } catch (error) {
       console.error(error);
@@ -243,7 +268,7 @@ export default function DocumentsPage() {
           <FolderTree 
             folders={folderTree} 
             activeFolderId={activeFolderId} 
-            onSelectFolder={setActiveFolderId} 
+            onSelectFolder={(id) => { setActiveFolderId(id); setSelectedItemIds([]); }} 
           />
         </div>
 
@@ -257,7 +282,7 @@ export default function DocumentsPage() {
                   <FolderCard 
                     key={folder.id} 
                     folder={folder} 
-                    onClick={() => setActiveFolderId(folder.id)}
+                    onClick={() => () => { setActiveFolderId(folder.id); setSelectedItemIds([]); }}
                     isActive={activeFolderId === folder.id}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleDropDocumentOnFolder(e, folder.id)}
