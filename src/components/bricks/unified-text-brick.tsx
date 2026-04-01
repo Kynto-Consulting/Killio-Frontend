@@ -526,11 +526,15 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (command.id === "mention-person") {
         setPickerCursorOffset(newCursorOffset);
         setPickerFilter(["user"]);
-        setIsPickerOpen(true);
+        closeSlashMenu();
+        setTimeout(() => setIsPickerOpen(true), 50);
+        return;
       } else if (command.id === "mention-page") {
         setPickerCursorOffset(newCursorOffset);
         setPickerFilter(["doc", "board"]);
-        setIsPickerOpen(true);
+        closeSlashMenu();
+        setTimeout(() => setIsPickerOpen(true), 50);
+        return;
       }
     } else if (command.blockKind && onAddBrick) {
       const nextMarkdown = `${before}${after}`;
@@ -591,9 +595,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
     }
-    setIsPickerOpen(false);
-    setPickerCursorOffset(null);
-    closeSlashMenu();
+      
+      // DO NOT close picker here, otherwise when ReferencePicker modal
+      // takes focus, it instantly kills itself.
+      // setIsPickerOpen(false);
+      // setPickerCursorOffset(null);
+      closeSlashMenu();
   };
 
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -1114,7 +1121,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               const insertToken = item.token;
               const cursor = pickerCursorOffset ?? markdown.length;
               const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
-              const replaceFrom = safeCursor > 0 && markdown[safeCursor - 1] === "@" ? safeCursor - 1 : safeCursor;
+              
+              // Remove the trigger character (@ or +) right before the cursor
+              const isTriggerChar = safeCursor > 0 && (markdown[safeCursor - 1] === "@" || markdown[safeCursor - 1] === "+");
+              const replaceFrom = isTriggerChar ? safeCursor - 1 : safeCursor;
+              
               const newMarkdown = `${markdown.slice(0, replaceFrom)}${insertToken} ${markdown.slice(safeCursor)}`;
               onUpdate(newMarkdown);
               if (contentRef.current) {
@@ -1122,6 +1133,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               }
               setIsPickerOpen(false);
               setPickerCursorOffset(null);
+              // Bring focus back to text block
+              requestAnimationFrame(() => contentRef.current?.focus());
             }}
           />
         </Portal>
