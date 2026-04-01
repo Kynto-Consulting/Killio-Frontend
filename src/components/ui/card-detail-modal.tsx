@@ -2266,6 +2266,7 @@ export function CardDetailModal({
 
                 <div className="mt-4">
                   <UnifiedBrickList
+                    isCompact
                     bricks={localBlocks}
                     canEdit={!readonly}
                     documents={contextDocs}

@@ -47,6 +47,7 @@ interface UnifiedBrickListProps {
   onCrossContainerDrop?: (activeId: string, overId: string) => void;
   emptyPlaceholder?: string;
   onAiAction?: (action: string, contextText: string) => void;
+  isCompact?: boolean;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -67,7 +68,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   hasExternalDndContext = false,
   onCrossContainerDrop,
   emptyPlaceholder,
-  onAiAction
+  onAiAction,
+  isCompact = false
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -170,6 +172,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         onPasteImageInTextBrick={onPasteImageInTextBrick}
         onUploadMediaFiles={onUploadMediaFiles}
         onAiAction={onAiAction}
+        isCompact={isCompact}
       />
     );
   };
@@ -182,6 +185,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             key={brick.id} 
             id={brick.id} 
             readonly={!canEdit} 
+            isCompact={isCompact}
             onDelete={() => onDeleteBrick(brick.id)} 
             onAddBelow={(rect) => {
               if (rect) {

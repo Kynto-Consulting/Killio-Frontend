@@ -11,9 +11,10 @@ interface SortableBrickProps {
   readonly?: boolean;
   onDelete?: () => void;
   onAddBelow?: (rect: DOMRect) => void;
+  isCompact?: boolean;
 }
 
-export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: SortableBrickProps) {
+export function SortableBrick({ id, children, readonly, onDelete, onAddBelow, isCompact }: SortableBrickProps) {
   const {
     attributes,
     listeners,
@@ -52,26 +53,30 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
       }`}
     >
       {!readonly && (
-        <div className="absolute -left-16 flex flex-row items-center justify-end px-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 top-1.5">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onAddBelow?.(e.currentTarget.getBoundingClientRect());
-            }}
-            className="p-1 text-muted-foreground/40 hover:text-foreground rounded cursor-pointer transition-colors"
-            title={"Haz clic para añadir debajo\nPulsa Alt y haz clic para añadir un bloque arriba"}
-          >
-            <Plus className="w-4 h-4" />
-          </button>
-          <div
-            {...attributes}
-            {...listeners}
-            className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded transition-colors"
-            title={"Arrastra para mover\nHaz clic o pulsa ctrl/ para abrir el menú."}
-          >
-            <GripVertical className="w-4 h-4" />
-          </div>
+        <div className={`absolute ${isCompact ? "-left-10" : "-left-16"} flex flex-row items-center justify-end px-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 top-1.5`}>
+          {!isCompact && (
+            <>
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onAddBelow?.(e.currentTarget.getBoundingClientRect());
+                }}
+                className="p-1 text-muted-foreground/40 hover:text-foreground rounded cursor-pointer transition-colors"
+                title={"Haz clic para añadir debajo\nPulsa Alt y haz clic para añadir un bloque arriba"}
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+              <div
+                {...attributes}
+                {...listeners}
+                className="p-1 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-foreground hover:bg-muted rounded transition-colors"
+                title={"Arrastra para mover\nHaz clic o pulsa ctrl/ para abrir el menú."}
+              >
+                <GripVertical className="w-4 h-4" />
+              </div>
+            </>
+          )}
           {!readonly && onDelete && (
             <button
               onClick={(e) => {

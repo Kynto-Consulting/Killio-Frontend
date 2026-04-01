@@ -35,6 +35,7 @@ interface BrickRendererProps {
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   onAiAction?: (action: string, contextText: string) => void;
+  isCompact?: boolean;
 }
 
 type BrickComment = {
@@ -91,7 +92,8 @@ export function UnifiedBrickRenderer({
   users = [],
   onPasteImageInTextBrick,
   onUploadMediaFiles,
-  onAiAction
+  onAiAction,
+  isCompact = false
 }: BrickRendererProps) {
   const t = useTranslations("document-detail");
   const { user } = useSession();
@@ -339,8 +341,8 @@ export function UnifiedBrickRenderer({
         {brickBody}
       </div>
 
-      {/* Botón Flotante tipo Notion al hacer hover */}
-      {(canEdit || comments.length > 0) && (
+      {/* Action Button: Comments for normal mode, Trash for compact mode */}
+      {((canEdit || comments.length > 0) && !isCompact) && (
         <div 
           className={`absolute top-1.5 -right-3 sm:-right-8 z-10 flex items-center transition-opacity duration-200 ${
             isCommentsOpen || comments.length > 0 ? "opacity-100" : "opacity-0 group-hover/brick:opacity-100"
@@ -357,6 +359,24 @@ export function UnifiedBrickRenderer({
              title={t("brickRenderer.commentHoverTitle")}
           >
             {comments.length === 0 ? <MessageSquarePlus className="h-3.5 w-3.5" /> : <span className="text-[10px] font-bold">{comments.length}</span>}
+          </button>
+        </div>
+      )}
+
+      {(isCompact && canEdit && onDeleteBrick && kind !== 'table') && (
+        <div 
+          className="absolute top-1.5 -right-3 sm:-right-8 z-10 flex items-center transition-opacity duration-200 opacity-0 group-hover/brick:opacity-100"
+        >
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onDeleteBrick(brick.id);
+            }}
+            className="flex items-center justify-center h-7 w-7 rounded-full shadow-sm border transition-colors bg-background text-destructive border-border/40 hover:bg-destructive/10 hover:border-destructive/30"
+             title={t("brickComments.delete") || "Eliminar"}
+          >
+            <Trash className="h-3.5 w-3.5" />
           </button>
         </div>
       )}
@@ -463,7 +483,7 @@ export function UnifiedBrickRenderer({
                     }
                   }}
                   autoFocus
-                  placeholder={t("brickComments.addComment")}
+                  placeholder={t("brickComments.placeholder")}
                   className="flex-1 bg-transparent text-xs text-foreground outline-none placeholder:text-muted-foreground"
                 />
                 
