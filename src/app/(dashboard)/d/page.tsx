@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { Suspense, useState, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Clock, Loader2, FileText, Search, Trash2, Edit2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
@@ -16,6 +16,14 @@ import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folde
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export default function DocumentsPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-muted-foreground" /></div>}>
+      <DocumentsPageContent />
+    </Suspense>
+  );
+}
+
+function DocumentsPageContent() {
   const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
   const searchParams = useSearchParams();
