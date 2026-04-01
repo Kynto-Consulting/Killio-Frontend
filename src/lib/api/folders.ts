@@ -5,6 +5,8 @@ export type Folder = {
   teamId: string;
   parentFolderId?: string | null;
   name: string;
+  icon?: string | null;
+  color?: string | null;
   createdByUserId?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -22,7 +24,7 @@ export async function listFolders(
 }
 
 export async function createFolder(
-  payload: { teamId: string; name: string; parentFolderId?: string },
+  payload: { teamId: string; name: string; parentFolderId?: string; icon?: string; color?: string },
   accessToken: string
 ): Promise<Folder> {
   return fetchApi('/folders', {
@@ -34,7 +36,7 @@ export async function createFolder(
 
 export async function updateFolder(
   id: string,
-  payload: { name: string },
+  payload: { name?: string; icon?: string; color?: string },
   accessToken: string
 ): Promise<Folder> {
   return fetchApi(`/folders/${id}`, {

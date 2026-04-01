@@ -10,7 +10,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { CreateDocumentModal } from "@/components/ui/create-document-modal";
 import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
-import { Folder, listFolders, createFolder } from "@/lib/api/folders";
+import { FolderModal } from "@/components/folders/FolderModal";
+import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
 
 export default function DocumentsPage() {
   const t = useTranslations("documents");
@@ -21,8 +22,8 @@ export default function DocumentsPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
+  const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
+  const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
 
   const buildTree = (allF: Folder[], parentId: string | null = null): FolderNode[] => {
@@ -31,6 +32,8 @@ export default function DocumentsPage() {
       .map(f => ({
         id: f.id,
         name: f.name,
+        icon: f.icon,
+        color: f.color,
         children: buildTree(allF, f.id)
       }));
   };
@@ -56,17 +59,22 @@ export default function DocumentsPage() {
     .finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId, activeFolderId]);
 
-  const handleCreateFolder = async () => {
-    if (!accessToken || !activeTeamId || !newFolderName.trim()) return;
+  const handleFolderSubmit = async (data: { name: string; icon: string; color: string; parentFolderId: string | null }) => {
+    if (!accessToken || !activeTeamId) return;
     try {
-      const f = await createFolder({ teamId: activeTeamId, name: newFolderName, parentFolderId: activeFolderId || undefined }, accessToken);
-      setFolders([...folders, f]);
-      setNewFolderName("");
-      setIsCreateFolderModalOpen(false);
-      toast("Carpeta creada", "success");
+      if (editingFolder) {
+        const f = await updateFolder(editingFolder.id, data, accessToken);
+        setFolders(folders.map(folder => folder.id === editingFolder.id ? f : folder));
+        toast("Carpeta actualizada", "success");
+      } else {
+        const f = await createFolder({ teamId: activeTeamId, ...data }, accessToken);
+        setFolders([...folders, f]);
+        toast("Carpeta creada", "success");
+      }
+      setIsFolderModalOpen(false);
     } catch (e) {
       console.error(e);
-      toast("Error al crear carpeta", "error");
+      toast("Error al guardar carpeta", "error");
     }
   };
 
@@ -159,21 +167,35 @@ export default function DocumentsPage() {
           {/* Folders navigation/creation actions */}
           <div className="flex flex-wrap gap-2 mb-4">
             <button
-              onClick={() => setIsCreateFolderModalOpen(true)}
+              onClick={() => {
+                setEditingFolder(null);
+                setIsFolderModalOpen(true);
+              }}
               className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-sm h-9 px-4"
             >
               <Plus className="mr-2 h-4 w-4" />
               Nueva Carpeta
             </button>
             {activeFolderId && (
-               <button
-                 onClick={() => {
-                   setActiveFolderId(currentFolder?.parentFolderId || null);
-                 }}
-                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
-               >
-                 Subir de nivel
-               </button>
+               <>
+                 <button
+                   onClick={() => {
+                     setEditingFolder(currentFolder || null);
+                     setIsFolderModalOpen(true);
+                   }}
+                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
+                 >
+                   Editar Carpeta
+                 </button>
+                 <button
+                   onClick={() => {
+                     setActiveFolderId(currentFolder?.parentFolderId || null);
+                   }}
+                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
+                 >
+                   Subir de nivel
+                 </button>
+               </>
             )}
           </div>
 
@@ -289,35 +311,14 @@ export default function DocumentsPage() {
         }}
       />
 
-      {isCreateFolderModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
-          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
-            <h2 className="text-xl font-semibold mb-4">Nueva Carpeta</h2>
-            <input 
-              type="text" 
-              placeholder="Nombre de la carpeta"
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              className="w-full mb-4 px-3 py-2 rounded-md border border-input bg-card shadow-sm"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <button 
-                onClick={() => setIsCreateFolderModalOpen(false)}
-                className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent hover:text-accent-foreground"
-              >
-                Cancelar
-              </button>
-              <button 
-                onClick={handleCreateFolder}
-                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
-              >
-                Crear
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <FolderModal
+        isOpen={isFolderModalOpen}
+        onClose={() => setIsFolderModalOpen(false)}
+        onSubmit={handleFolderSubmit}
+        initialData={editingFolder}
+        folders={folders}
+        currentParentId={activeFolderId}
+      />
     </div>
   );
 }

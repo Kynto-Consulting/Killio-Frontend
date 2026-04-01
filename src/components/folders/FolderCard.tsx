@@ -22,11 +22,15 @@ export function FolderCard({ folder, isActive, onClick }: FolderCardProps) {
       <div className={cn(
         "flex h-10 w-10 shrink-0 items-center justify-center rounded-md", 
         isActive ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
-      )}>
-        <Folder className="h-5 w-5 fill-current opacity-80" />
+      )} style={folder.color ? { backgroundColor: `${folder.color}20`, color: folder.color } : {}}>
+        {folder.icon ? (
+            <span className="text-xl">{folder.icon}</span>
+        ) : (
+            <Folder className="h-5 w-5 fill-current opacity-80" />
+        )}
       </div>
       <div className="flex flex-col overflow-hidden">
-        <span className="text-sm font-medium truncate">{folder.name}</span>
+        <span className="text-sm font-medium truncate" style={{ color: folder.color || undefined }}>{folder.name}</span>
         <span className="text-xs text-muted-foreground truncate">
           {folder.documentCount !== undefined ? `${folder.documentCount} documentos` : "Vacio"}
         </span>

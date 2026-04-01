@@ -6,6 +6,8 @@ import { cn } from "@/lib/utils";
 export type FolderNode = {
   id: string;
   name: string;
+  color?: string | null;
+  icon?: string | null;
   children?: FolderNode[];
   documentCount?: number;
 };
@@ -77,11 +79,19 @@ function FolderTreeNode({
           {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </button>
         {isOpen ? (
-          <FolderOpen className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} />
+          node.icon ? (
+            <span className="h-4 w-4 flex items-center justify-center text-[14px]" style={{ color: node.color || undefined }}>{node.icon}</span>
+          ) : (
+            <FolderOpen className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} style={{ color: node.color || undefined }} />
+          )
         ) : (
-          <Folder className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} />
+          node.icon ? (
+            <span className="h-4 w-4 flex items-center justify-center text-[14px]" style={{ color: node.color || undefined }}>{node.icon}</span>
+          ) : (
+            <Folder className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} style={{ color: node.color || undefined }} />
+          )
         )}
-        <span className="truncate flex-1">{node.name}</span>
+        <span className="truncate flex-1" style={{ color: node.color || undefined }}>{node.name}</span>
         {node.documentCount !== undefined && (
           <span className="text-xs opacity-50 group-hover:opacity-100 transition-opacity">
             {node.documentCount}
