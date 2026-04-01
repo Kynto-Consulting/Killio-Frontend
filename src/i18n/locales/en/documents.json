@@ -39,5 +39,10 @@
   "documentName": "Document name",
   "locationFolder": "Location (Folder)",
   "rootAllDocuments": "(Root) All documents",
-  "saveChanges": "Save Changes"
+  "saveChanges": "Save Changes",
+  "selectDestinationFolder": "Select destination folder",
+  "searchFolders": "Search folders...",
+  "noFolder": "No folder",
+  "noFoldersFound": "No folders found",
+  "noFoldersAvailable": "No folders available"
 }

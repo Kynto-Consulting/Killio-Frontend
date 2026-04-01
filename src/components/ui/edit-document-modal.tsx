@@ -5,6 +5,7 @@ import { X, Loader2, FileText, Folder as FolderIcon } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { Folder } from "@/lib/api/folders";
 import { DocumentSummary } from "@/lib/api/documents";
+import { FolderSelect } from "@/components/ui/folder-select";
 
 interface EditDocumentModalProps {
   isOpen: boolean;
@@ -87,20 +88,13 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center"><FolderIcon className="w-4 h-4 mr-2"/> {t("locationFolder")}</label>
-            <select
-              value={folderId || ""}
-              onChange={(e) => setFolderId(e.target.value === "" ? null : e.target.value)}
+            <label className="text-sm font-medium flex items-center"><FolderIcon className="w-4 h-4 mr-2"/> {t("selectDestinationFolder")}</label>
+            <FolderSelect 
+              value={folderId}
+              onChange={setFolderId}
+              folders={folders}
               disabled={isSubmitting}
-              className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
-            >
-              <option value="">{t("rootAllDocuments")}</option>
-              {folders.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.name}
-                </option>
-              ))}
-            </select>
+            />
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
           </div>
 

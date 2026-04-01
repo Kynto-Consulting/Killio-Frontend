@@ -39,5 +39,10 @@
   "documentName": "Nombre del documento",
   "locationFolder": "Ubicación (Carpeta)",
   "rootAllDocuments": "(Raíz) Todos los documentos",
-  "saveChanges": "Guardar Cambios"
+  "saveChanges": "Guardar Cambios",
+  "selectDestinationFolder": "Seleccionar carpeta de destino",
+  "searchFolders": "Buscar carpetas...",
+  "noFolder": "Sin carpeta",
+  "noFoldersFound": "No se encontraron carpetas",
+  "noFoldersAvailable": "No hay carpetas disponibles"
 }
