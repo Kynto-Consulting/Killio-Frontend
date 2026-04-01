@@ -36,6 +36,7 @@ interface ReferenceTokenInputProps {
   inputClassName?: string;
   documents?: any[];
   boards?: any[];
+  folders?: any[];
   users?: PickerUser[];
   cards?: PickerCard[];
   activeBricks?: any[];
@@ -66,6 +67,7 @@ export function ReferenceTokenInput({
   inputClassName,
   documents = [],
   boards = [],
+  folders = [],
   users = [],
   cards = [],
   activeBricks = [],
@@ -80,8 +82,8 @@ export function ReferenceTokenInput({
   const [documentBricksById, setDocumentBricksById] = useState<Record<string, DocumentBrick[]>>({});
 
   const resolverContext = useMemo(
-    () => ({ documents, boards, users, activeBricks, documentBricksById } as any),
-    [documents, boards, users, activeBricks, documentBricksById]
+    () => ({ documents, boards, folders, users, activeBricks, documentBricksById } as any),
+    [documents, boards, folders, users, activeBricks, documentBricksById]
   );
 
   const getRichParts = useCallback(
@@ -574,6 +576,7 @@ export function ReferenceTokenInput({
           <ReferencePicker
             boards={boards}
             documents={documents}
+            folders={folders}
             users={users}
             cards={cards}
             activeBricks={activeBricks}

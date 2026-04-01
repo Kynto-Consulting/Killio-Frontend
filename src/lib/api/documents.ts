@@ -94,6 +94,18 @@ export async function deleteDocument(
   });
 }
 
+export async function updateDocument(
+  documentId: string,
+  updates: { title?: string; folderId?: string | null },
+  accessToken: string
+): Promise<DocumentSummary> {
+  return fetchApi(`/documents/${documentId}`, {
+    method: 'PUT',
+    accessToken,
+    body: updates,
+  });
+}
+
 export async function createDocumentBrick(
   documentId: string,
   payload: { kind: string; position: number; content: any },

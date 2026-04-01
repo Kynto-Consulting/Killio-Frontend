@@ -1,10 +1,12 @@
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
+import { Folder } from "@/lib/api/folders";
 import { sheetEngine } from "@/lib/sheetEngine";
 
 export interface ResolverContext {
   documents: DocumentSummary[];
   boards: BoardSummary[];
+  folders?: Folder[];
   activeBricks?: DocumentBrick[]; // Bricks of the current document for local resolution
   documentBricksById?: Record<string, DocumentBrick[]>;
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
@@ -292,6 +294,11 @@ export class ReferenceResolver {
       return { label: board ? board.name : 'Unknown Board', href: `/b/${id}` };
     }
 
+    if (type === 'folder' && context.folders) {
+      const folder = context.folders.find(b => b.id === id);
+      return { label: folder ? folder.name : 'Carpeta', href: `/d?folder=${id}` };
+    }
+
     if (type === 'brick' && context.activeBricks) {
       // Local brick reference: @[brick:id:property]
       const brick = context.activeBricks.find(b => b.id === id);
@@ -337,18 +344,20 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[(?:doc|board|card|user):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[(?:doc|board|card|user|folder):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     return parts.map((part, i) => {
-      const match = part.match(/@\[(doc|board|card|user):([^:\]]+)(?::([^\]]+))?\]/);
+      const match = part.match(/@\[(doc|board|card|user|folder):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
-        const mentionType = type as "doc" | "board" | "card" | "user";
+        const mentionType = type as "doc" | "board" | "card" | "user" | "folder";
         const fallbackName =
           mentionType === "doc"
             ? context.documents.find((d) => d.id === id)?.title
             : mentionType === "board"
               ? context.boards.find((b) => b.id === id)?.name
+              : mentionType === "folder"
+                ? context.folders?.find((f) => f.id === id)?.name
               : mentionType === "user"
                 ? context.users?.find((u) => u.id === id)?.name
                 : undefined;

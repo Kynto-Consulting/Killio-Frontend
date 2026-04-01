@@ -896,6 +896,7 @@ export default function DocumentPage() {
         docId={docId}
         documents={teamDocs}
         boards={teamBoards}
+        folders={folders}
         members={teamMembers}
         initialTab={sidebarTab}
         initialAiInput={aiInitialInput}

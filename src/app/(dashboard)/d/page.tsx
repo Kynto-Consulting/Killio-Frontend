@@ -2,12 +2,13 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Plus, Clock, Loader2, FileText, Search, Trash2 } from "lucide-react";
+import { Plus, Clock, Loader2, FileText, Search, Trash2, Edit2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listDocuments, DocumentSummary, createDocument, deleteDocument } from "@/lib/api/documents";
+import { listDocuments, DocumentSummary, createDocument, deleteDocument, updateDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { CreateDocumentModal } from "@/components/ui/create-document-modal";
+import { EditDocumentModal } from "@/components/ui/edit-document-modal";
 import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
@@ -21,6 +22,7 @@ export default function DocumentsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [editingDocument, setEditingDocument] = useState<DocumentSummary | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
@@ -101,6 +103,38 @@ export default function DocumentsPage() {
       console.error(e);
       toast(t("createError"), "error");
       throw e; 
+    }
+  };
+
+  const handleEditDocumentSubmit = async (documentId: string, updates: { title?: string; folderId?: string | null }) => {
+    if (!accessToken || !activeTeamId) return;
+
+    try {
+      const updatedDoc = await updateDocument(documentId, updates, accessToken);
+      setDocuments((prev) => prev.map(d => d.id === documentId ? { ...d, ...updates, folderId: updates.folderId === null ? undefined : (updates.folderId ?? d.folderId) } : d));
+      toast("Documento actualizado", "success");
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  };
+
+  const handleDropDocumentOnFolder = async (e: React.DragEvent, targetFolderId: string | null) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (!accessToken || !activeTeamId) return;
+    
+    const docId = e.dataTransfer.getData("documentId");
+    if (!docId) return;
+
+    try {
+      await updateDocument(docId, { folderId: targetFolderId }, accessToken);
+      setDocuments((prev) => prev.map(d => d.id === docId ? { ...d, folderId: targetFolderId || undefined } : d));
+      toast("Documento movido", "success");
+    } catch (error) {
+      console.error(error);
+      toast("Error al mover el documento", "error");
     }
   };
 
@@ -225,6 +259,8 @@ export default function DocumentsPage() {
                     folder={folder} 
                     onClick={() => setActiveFolderId(folder.id)}
                     isActive={activeFolderId === folder.id}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDropDocumentOnFolder(e, folder.id)}
                   />
                 ))}
               </div>
@@ -254,22 +290,40 @@ export default function DocumentsPage() {
               {filteredDocs.map((doc) => (
                 <div 
                   key={doc.id}
-                  className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[160px] overflow-hidden"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("documentId", doc.id);
+                  }}
+                  className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[160px] overflow-hidden cursor-grab active:cursor-grabbing"
                 >
-                  <button
-                    type="button"
-                    onClick={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      void handleDeleteDocument(doc);
-                    }}
-                    disabled={deletingDocumentId === doc.id}
-                    className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-60"
-                    title={t("deleteDocument")}
-                    aria-label={t("deleteDocument")}
-                  >
-                    {deletingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
-                  </button>
+                  <div className="absolute right-3 top-3 z-10 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        setEditingDocument(doc);
+                      }}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-accent hover:border-accent/40"
+                      title="Editar documento"
+                    >
+                      <Edit2 className="h-4 w-4" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        void handleDeleteDocument(doc);
+                      }}
+                      disabled={deletingDocumentId === doc.id}
+                      className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/60 bg-background/80 text-muted-foreground hover:text-destructive hover:border-destructive/40 disabled:opacity-60"
+                      title={t("deleteDocument")}
+                      aria-label={t("deleteDocument")}
+                    >
+                      {deletingDocumentId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                    </button>
+                  </div>
 
                   <Link 
                     href={`/d/${doc.id}`}
@@ -332,6 +386,14 @@ export default function DocumentsPage() {
         initialData={editingFolder}
         folders={folders}
         currentParentId={activeFolderId}
+      />
+
+      <EditDocumentModal
+        isOpen={!!editingDocument}
+        onClose={() => setEditingDocument(null)}
+        document={editingDocument}
+        folders={folders}
+        onSubmit={handleEditDocumentSubmit}
       />
     </div>
   );

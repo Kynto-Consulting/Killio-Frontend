@@ -8,14 +8,18 @@ interface FolderCardProps {
   folder: FolderNode;
   isActive?: boolean;
   onClick: () => void;
+  onDrop?: (e: React.DragEvent) => void;
+  onDragOver?: (e: React.DragEvent) => void;
 }
 
-export function FolderCard({ folder, isActive, onClick }: FolderCardProps) {
+export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: FolderCardProps) {
   const isEmojiFallback = folder.icon && !PRESET_ICONS.find(i => i.id === folder.icon);
 
   return (
     <div 
       onClick={onClick}
+      onDrop={onDrop}
+      onDragOver={onDragOver}
       className={cn(
         "flex min-w-[200px] flex-1 md:flex-none items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 cursor-pointer transition-all",
         isActive ? "border-primary/50 shadow-sm" : "border-border shadow-sm hover:border-primary/30"

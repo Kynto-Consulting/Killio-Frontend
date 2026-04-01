@@ -79,8 +79,7 @@ export function DocumentCommentsDrawer({
   onClose,
   docId,
   documents = [],
-  boards = [],
-  members = [],
+  boards = [],  folders = [],  members = [],
   initialTab = "comments",
   contextSummary = "",
   initialAiInput = "",
@@ -414,9 +413,9 @@ export function DocumentCommentsDrawer({
                 <p>No hay comentarios aún.</p>
               </div>
             )}
-            {comments.map((entry) => {
+              {[...comments].reverse().map((entry) => {
               const isMe = entry.actorId === user?.id;
-              const member = members.find(m => m.id === entry.actorId);
+                const member = members.find(m => m.id === entry.actorId || m.userId === entry.actorId);
               const tint = getUserTintStyles(entry.actorId || member?.email || "user");
               return (
                 <div key={entry.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
@@ -554,8 +553,7 @@ export function DocumentCommentsDrawer({
               }}
               placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Comenta o menciona con @..."}
               documents={documents}
-              boards={boards}
-              users={members.map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))}
+              boards={boards}                folders={folders}              users={members.map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))}
               activeBricks={docBricks as any[]}
               onSubmit={() => {
                 if (activeTab === 'copilot') {

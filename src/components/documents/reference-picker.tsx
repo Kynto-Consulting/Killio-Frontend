@@ -15,7 +15,7 @@ import { BoardSummary } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 
-type MentionType = "board" | "doc" | "card" | "user";
+type MentionType = "board" | "doc" | "card" | "user" | "folder";
 
 type ActiveBrick = {
   id: string;
@@ -42,6 +42,7 @@ interface ReferencePickerProps {
   onClose: () => void;
   boards: BoardSummary[];
   documents: DocumentSummary[];
+  folders?: any[];
   users: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   cards?: Array<{ id: string; title: string }>;
   activeBricks?: ActiveBrick[];
@@ -266,20 +267,19 @@ export function ReferencePicker({
         avatarUrl: u.avatarUrl,
         search: `user ${u.name} ${u.id}`.toLowerCase(),
       })),
-      ...cards.map((c) => ({
-        token: `@[card:${c.id}:${c.title}]`,
-        label: c.title,
-        category: "mention" as const,
-        mentionType: "card" as const,
-        search: `card ${c.title} ${c.id}`.toLowerCase(),
-      })),
-    ];
-
-    if (allowedTypes && allowedTypes.length > 0) {
-      mentions = mentions.filter(m => m.mentionType && allowedTypes.includes(m.mentionType));
-    }
-
-    const filteredMentions = mentions.filter((m) => {
+        ...(cards || []).map((c) => ({
+          token: `@[card:${c.id}:${c.title}]`,
+          label: c.title,
+          category: "mention" as const,
+          mentionType: "card" as const,
+          search: `card ${c.title} ${c.id}`.toLowerCase(),
+        })),
+        ...(folders || []).map((f) => ({
+          token: `@[folder:${f.id}:${f.name}]`,
+          label: f.name,
+          category: "mention" as const,
+          mentionType: "folder" as const,
+          search: `folder ${f.name} ${f.id}`.toLowerCase(),
       if (!q) return true;
       return m.search.includes(q) || m.label.toLowerCase().includes(q);
     });
