@@ -85,6 +85,18 @@ export const UnifiedMediaBrick: React.FC<{
   
   const [emptyTab, setEmptyTab] = React.useState<"upload" | "link">(kind === "bookmark" ? "link" : "upload");
   const [linkInput, setLinkInput] = React.useState("");
+  const [isFormOpen, setIsFormOpen] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (isFormOpen && containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setIsFormOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isFormOpen]);
 
   React.useEffect(() => {
     if (activeIndex >= meta.items.length) {
@@ -128,7 +140,10 @@ export const UnifiedMediaBrick: React.FC<{
   };
 
   const getMediaWrapperClassName = () => {
-    let classes = "transition-all duration-200 overflow-hidden relative group/media ";
+    let classes = "transition-all duration-200 relative group/media ";
+    if (!activeItem?.url) return classes + "w-full"; // Single simple wrapper for empty state
+
+    classes += "overflow-hidden ";
     if (layout === "full") classes += "w-full ";
     else classes += "w-auto max-w-full ";
 
@@ -138,7 +153,6 @@ export const UnifiedMediaBrick: React.FC<{
     if (shadow === "md") classes += "shadow-md ";
     else if (shadow === "lg") classes += "shadow-lg ";
 
-    if (!activeItem?.url) classes += "bg-muted/10 min-w-[200px] border-dashed border-2 py-6 ";
     return classes;
   };
 
@@ -182,101 +196,78 @@ export const UnifiedMediaBrick: React.FC<{
             </div>
           )
         ) : (
-          <div className="w-full max-w-2xl border border-border/70 rounded-lg overflow-hidden bg-card shadow-sm mt-2 flex flex-col">
-            <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/20 border-b border-border/50 text-muted-foreground">
-              {kind === "image" ? <ImageIcon className="w-4 h-4" /> : kind === "video" ? <Video className="w-4 h-4" /> : kind === "audio" ? <Music className="w-4 h-4" /> : kind === "bookmark" ? <Bookmark className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-              <span className="text-sm font-medium">
-                {kind === "image" ? t("brickRenderer.titleImage") : kind === "video" ? t("brickRenderer.titleVideo") : kind === "audio" ? t("brickRenderer.titleAudio") : kind === "bookmark" ? t("brickRenderer.titleBookmark") : t("brickRenderer.titleFile")}
-              </span>
-            </div>
-            
-            <div className="flex border-b border-border/50 px-2 bg-muted/10">
-              {kind !== "bookmark" && (
-                <button
-                  type="button"
-                  onClick={() => setEmptyTab("upload")}
-                  className={`px-4 py-2 pt-2.5 text-sm font-medium border-b-2 transition-colors ${emptyTab === "upload" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-                >
-                  {t("brickRenderer.uploadTab")}
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={() => setEmptyTab("link")}
-                className={`px-4 py-2 pt-2.5 text-sm font-medium border-b-2 transition-colors ${emptyTab === "link" || kind === "bookmark" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
-              >
-                {t("brickRenderer.embedTab")}
-              </button>
-            </div>
-            
-            <div className="p-4 bg-card/60">
-              {emptyTab === "upload" && kind !== "bookmark" ? (
-                canEdit ? (
-                  <div className="flex flex-col items-start gap-3">
-                    <label className="cursor-pointer bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
-                      {kind === "image" ? t("brickRenderer.chooseImage") : kind === "video" ? t("brickRenderer.chooseVideo") : kind === "audio" ? t("brickRenderer.chooseAudio") : t("brickRenderer.chooseFile")}
-                      <input
-                        type="file"
-                        multiple
-                        accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"}
-                        className="hidden"
-                        onChange={(event) => {
-                          const files = Array.from(event.target.files || []);
-                          if (files.length === 0) return;
-                          if (onUploadMediaFiles) {
-                            void Promise.resolve(onUploadMediaFiles({ brickId, files }));
-                          }
-                          event.currentTarget.value = "";
-                        }}
-                      />
-                    </label>
-                  </div>
-                ) : (
-                  <div className="text-sm text-muted-foreground py-2">{t("brickRenderer.attachPrompt")}</div>
-                )
-              ) : (
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (!canEdit || !linkInput.trim()) return;
-                    
-                    const newItem: MediaCarouselItem = {
-                      url: linkInput.trim(),
-                      title: kind === "bookmark" ? "Bookmark" : "",
-                      mimeType: kind === "bookmark" ? "text/html" : undefined,
-                      sizeBytes: null,
-                      assetId: null,
-                    };
-                    
-                    if (meta.items.length === 0) {
-                      updateMeta({ ...meta, items: [newItem] }, 0);
-                    } else {
-                      updateMeta({ ...meta, items: [...meta.items, newItem] }, meta.items.length);
-                    }
-                  }}
-                  className="flex flex-col gap-3"
-                >
-                  <input
-                     type="url"
-                     value={linkInput}
-                     onChange={(e) => setLinkInput(e.target.value)}
-                     placeholder={t("brickRenderer.embedPlaceholder")}
-                     className="w-full bg-background border border-border/70 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
-                  />
-                  <button
-                     type="submit"
-                     disabled={!linkInput.trim() || !canEdit}
-                     className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+          <div className="w-full relative group/empty mt-1 mb-1 max-w-[800px]">
+            <div className="flex items-center gap-3 py-1.5 px-2 rounded-sm bg-muted/10 border border-transparent hover:border-border/40 hover:bg-muted/30 transition-all text-[15px] group-hover/empty:bg-muted/20">
+              <div className="text-muted-foreground flex items-center justify-center p-1 rounded-sm">
+                {kind === "image" ? <ImageIcon className="w-[18px] h-[18px]" /> : kind === "video" ? <Video className="w-[18px] h-[18px]" /> : kind === "audio" ? <Music className="w-[18px] h-[18px]" /> : kind === "bookmark" ? <Bookmark className="w-[18px] h-[18px]" /> : <FileText className="w-[18px] h-[18px]" />}
+              </div>
+              
+              <div className="flex-1 flex items-center gap-4 text-muted-foreground min-w-0">
+                {kind !== "bookmark" && canEdit && (
+                  <label className="cursor-pointer hover:text-foreground transition-colors whitespace-nowrap">
+                    {kind === "image" ? t("brickRenderer.chooseImage") ?? "Upload image" : kind === "video" ? t("brickRenderer.chooseVideo") ?? "Upload video" : kind === "audio" ? t("brickRenderer.chooseAudio") ?? "Upload audio" : t("brickRenderer.chooseFile") ?? "Upload file"}
+                    <input
+                      type="file"
+                      multiple
+                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"}
+                      className="hidden"
+                      onChange={(event) => {
+                        const files = Array.from(event.target.files || []);
+                        if (files.length === 0) return;
+                        if (onUploadMediaFiles) {
+                          void Promise.resolve(onUploadMediaFiles({ brickId, files }));
+                        }
+                        event.currentTarget.value = "";
+                      }}
+                    />
+                  </label>
+                )}
+                
+                {canEdit && (
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      if (!canEdit || !linkInput.trim()) return;
+                      
+                      const newItem = {
+                        url: linkInput.trim(),
+                        title: kind === "bookmark" ? "Bookmark" : "",
+                        mimeType: kind === "bookmark" ? "text/html" : undefined,
+                        sizeBytes: null,
+                        assetId: null,
+                      };
+                      
+                      if (meta.items.length === 0) {
+                        updateMeta({ ...meta, items: [newItem] }, 0);
+                      } else {
+                        updateMeta({ ...meta, items: [...meta.items, newItem] }, meta.items.length);
+                      }
+                    }}
+                    className="flex-1 flex items-center min-w-0"
                   >
-                     {kind === "bookmark" ? t("brickRenderer.bookmarkButton") : t("brickRenderer.embedButton")}
-                  </button>
-                  {kind === "bookmark" && (
-                    <div className="text-xs text-muted-foreground mt-0.5 text-center">
-                      Crea una miniatura visual a partir de un enlace.
-                    </div>
-                  )}
-                </form>
-              )}
+                    <span className="text-muted-foreground/40 mr-3 hidden sm:inline-block">/</span>
+                    <input
+                       type="url"
+                       value={linkInput}
+                       onChange={(e) => setLinkInput(e.target.value)}
+                       placeholder={t("brickRenderer.embedPlaceholder") ?? "Embed link..."}
+                       className="flex-1 bg-transparent border-none outline-none focus:ring-0 text-foreground placeholder:text-muted-foreground/50 py-0.5 min-w-0 px-0 h-auto"
+                    />
+                     {linkInput.trim() && (
+                      <button
+                        type="submit"
+                        className="ml-2 px-3 py-1 bg-primary text-primary-foreground text-xs rounded font-medium hover:bg-primary/90 transition-colors shrink-0"
+                      >
+                        {kind === "bookmark" ? t("brickRenderer.bookmarkButton") ?? "Add bookmark" : t("brickRenderer.embedButton") ?? "Embed"}
+                      </button>
+                    )}
+                  </form>
+                )}
+                
+                {!canEdit && (
+                  <span className="text-muted-foreground">{t("brickRenderer.attachPrompt")}</span>
+                )}
+              </div>
             </div>
           </div>
         )}
