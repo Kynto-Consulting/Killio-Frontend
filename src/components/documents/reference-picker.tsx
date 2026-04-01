@@ -10,6 +10,7 @@ import {
   ChevronRight,
   ArrowLeft,
   Loader2,
+  Folder,
 } from "lucide-react";
 import { BoardSummary } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
@@ -613,6 +614,7 @@ export function ReferencePicker({
                   {item.category === "mention" && item.mentionType === "board" && <LayoutDashboard className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "doc" && <FileText className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "card" && <CreditCard className="h-4 w-4 opacity-70" />}
+                  {item.category === "mention" && item.mentionType === "folder" && <Folder className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "user" &&
                     (item.avatarUrl ? <img src={item.avatarUrl} className="h-4 w-4 rounded-full" alt="avatar" /> : <User className="h-4 w-4 opacity-70" />)}
                   <div className="flex flex-col min-w-0">
