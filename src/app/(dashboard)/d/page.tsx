@@ -67,7 +67,11 @@ export default function DocumentsPage() {
         setFolders(folders.map(folder => folder.id === editingFolder.id ? f : folder));
         toast("Carpeta actualizada", "success");
       } else {
-        const f = await createFolder({ teamId: activeTeamId, ...data }, accessToken);
+        const parsedData = {
+          ...data,
+          parentFolderId: data.parentFolderId === null ? undefined : data.parentFolderId,
+        };
+        const f = await createFolder({ teamId: activeTeamId, ...parsedData }, accessToken);
         setFolders([...folders, f]);
         toast("Carpeta creada", "success");
       }
@@ -124,6 +128,71 @@ export default function DocumentsPage() {
 
   return (
     <div className="container mx-auto p-4 lg:p-8 max-w-[1400px]">
+      {/* Global Header */}
+      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight mb-2">
+            {t("title")}
+          </h1>
+          <p className="text-muted-foreground">{t("subtitle")}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <input 
+              type="text"
+              placeholder={t("searchPlaceholder")}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
+            />
+          </div>
+          <button 
+            onClick={() => setIsCreateModalOpen(true)} 
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
+          >
+            <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
+            {t("newDocument")}
+          </button>
+        </div>
+      </div>
+
+      {/* Folders creation & navigation acts as a toolbar right below header */}
+      <div className="flex flex-wrap gap-2 mb-8">
+        <button
+          onClick={() => {
+            setEditingFolder(null);
+            setIsFolderModalOpen(true);
+          }}
+          className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-sm h-9 px-4"
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Nueva Carpeta
+        </button>
+        {activeFolderId && (
+           <>
+             <button
+               onClick={() => {
+                 setEditingFolder(currentFolder || null);
+                 setIsFolderModalOpen(true);
+               }}
+               className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
+             >
+               Editar Carpeta
+             </button>
+             <button
+               onClick={() => {
+                 setActiveFolderId(currentFolder?.parentFolderId || null);
+               }}
+               className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
+             >
+               Subir de nivel
+             </button>
+           </>
+        )}
+      </div>
+
+      {/* Main layout split: Sidebar on left, contents on right */}
       <div className="flex flex-col lg:flex-row gap-8">
         {/* Sidebar for Folder Tree */}
         <div className="lg:w-64 flex-shrink-0">
@@ -136,68 +205,6 @@ export default function DocumentsPage() {
 
         {/* Main Content Area */}
         <div className="flex-1 min-w-0">
-          <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-            <div>
-              <h1 className="text-3xl font-bold tracking-tight mb-2">
-                {currentFolder ? currentFolder.name : t("title")}
-              </h1>
-              <p className="text-muted-foreground">{t("subtitle")}</p>
-            </div>
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <input 
-                  type="text"
-                  placeholder={t("searchPlaceholder")}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
-                />
-              </div>
-              <button 
-                onClick={() => setIsCreateModalOpen(true)} 
-                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
-              >
-                <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
-                {t("newDocument")}
-              </button>
-            </div>
-          </div>
-
-          {/* Folders navigation/creation actions */}
-          <div className="flex flex-wrap gap-2 mb-4">
-            <button
-              onClick={() => {
-                setEditingFolder(null);
-                setIsFolderModalOpen(true);
-              }}
-              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-sm h-9 px-4"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Nueva Carpeta
-            </button>
-            {activeFolderId && (
-               <>
-                 <button
-                   onClick={() => {
-                     setEditingFolder(currentFolder || null);
-                     setIsFolderModalOpen(true);
-                   }}
-                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
-                 >
-                   Editar Carpeta
-                 </button>
-                 <button
-                   onClick={() => {
-                     setActiveFolderId(currentFolder?.parentFolderId || null);
-                   }}
-                   className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
-                 >
-                   Subir de nivel
-                 </button>
-               </>
-            )}
-          </div>
 
           <div className="mb-8">
             {activeChildrenFolders.length > 0 && (
