@@ -68,6 +68,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
   const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
+  const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
   const router = useRouter();
   const tDetail = useTranslations("document-detail");
@@ -1263,18 +1264,25 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         {isDatePickerOpen && !readonly && (
           <Portal>
             <DatePickerPopover 
-              top={slashMenuPosition.top} 
-              left={slashMenuPosition.left} 
+              top={formatToolbarPosition.top || slashMenuPosition.top} 
+              left={formatToolbarPosition.left || slashMenuPosition.left} 
               onClose={() => setIsDatePickerOpen(false)}
               onSelect={(ts) => {
-                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
-                const cursor = pickerCursorOffset ?? markdown.length;
-                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
-                const newMarkdown = `${markdown.slice(0, safeCursor)}${ts} ${markdown.slice(safeCursor)}`;
-                onUpdate(newMarkdown);
-                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                if (contentRef.current) {
+                  contentRef.current.focus();
+                  const sel = window.getSelection();
+                  if (savedRangeRef.current && sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRangeRef.current);
+                  }
+                  document.execCommand("insertText", false, ts + " ");
+                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                  onUpdate(newMarkdown);
+                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                }
                 setIsDatePickerOpen(false);
                 setPickerCursorOffset(null);
+                savedRangeRef.current = null;
               }}
             />
           </Portal>
@@ -1283,17 +1291,24 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         {isEmojiPickerOpen && !readonly && (
           <Portal>
             <EmojiPickerPopover 
-              top={slashMenuPosition.top} 
-              left={slashMenuPosition.left} 
+              top={formatToolbarPosition.top || slashMenuPosition.top} 
+              left={formatToolbarPosition.left || slashMenuPosition.left} 
               onSelect={(emoji) => {
-                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
-                const cursor = pickerCursorOffset ?? markdown.length;
-                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
-                const newMarkdown = `${markdown.slice(0, safeCursor)}${emoji} ${markdown.slice(safeCursor)}`;
-                onUpdate(newMarkdown);
-                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                if (contentRef.current) {
+                  contentRef.current.focus();
+                  const sel = window.getSelection();
+                  if (savedRangeRef.current && sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRangeRef.current);
+                  }
+                  document.execCommand("insertText", false, emoji + " ");
+                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                  onUpdate(newMarkdown);
+                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                }
                 setIsEmojiPickerOpen(false);
                 setPickerCursorOffset(null);
+                savedRangeRef.current = null;
               }}
             />
           </Portal>
@@ -1302,18 +1317,25 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         {isMathPickerOpen && !readonly && (
           <Portal>
             <MathPickerPopover 
-              top={slashMenuPosition.top} 
-              left={slashMenuPosition.left} 
+              top={formatToolbarPosition.top || slashMenuPosition.top} 
+              left={formatToolbarPosition.left || slashMenuPosition.left} 
               onClose={() => setIsMathPickerOpen(false)}
               onSelect={(formula) => {
-                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
-                const cursor = pickerCursorOffset ?? markdown.length;
-                const safeCursor = Math.max(0, Math.min(cursor, markdown.length));
-                const newMarkdown = `${markdown.slice(0, safeCursor)}${formula} ${markdown.slice(safeCursor)}`;
-                onUpdate(newMarkdown);
-                if (contentRef.current) contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                if (contentRef.current) {
+                  contentRef.current.focus();
+                  const sel = window.getSelection();
+                  if (savedRangeRef.current && sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRangeRef.current);
+                  }
+                  document.execCommand("insertText", false, formula + " ");
+                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                  onUpdate(newMarkdown);
+                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                }
                 setIsMathPickerOpen(false);
                 setPickerCursorOffset(null);
+                savedRangeRef.current = null;
               }}
             />
           </Portal>

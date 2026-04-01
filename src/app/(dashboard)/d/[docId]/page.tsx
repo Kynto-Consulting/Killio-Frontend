@@ -249,6 +249,7 @@ export default function DocumentPage() {
     else if (action === "ai-fix") prompt = `Corrige la ortografía y gramática de este texto:\n\n${selectedText}`;
     else if (action === "ai-shorter") prompt = `Resume y acorta este texto:\n\n${selectedText}`;
     else if (action === "ai-explain") prompt = `Explica en detalle este texto:\n\n${selectedText}`;
+    else if (action === "ai-format") prompt = `Modifica el formato de este texto (usa Markdown, negritas, viñetas, etc.):\n\n${selectedText}`;
     else prompt = `${action}:\n\n${selectedText}`;
 
     setSidebarTab('copilot');

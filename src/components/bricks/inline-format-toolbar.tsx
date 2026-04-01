@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useLayoutEffect } from "react";
 import { 
   Bold, Italic, Strikethrough, Code, Link, 
   Underline, List, MessageSquare, SmilePlus, Calendar, 
@@ -24,15 +24,42 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
   isVisible,
 }) => {
   const t = useTranslations("document-detail");
+  const toolbarRef = useRef<HTMLDivElement>(null);
+  const [adjustedPos, setAdjustedPosition] = useState(position);
+
+  useLayoutEffect(() => {
+    if (isVisible && toolbarRef.current) {
+      const rect = toolbarRef.current.getBoundingClientRect();
+      const screenWidth = window.innerWidth;
+      
+      let newLeft = position.left;
+      let newTop = position.top;
+
+      if (newLeft - rect.width / 2 < 12) {
+        newLeft = rect.width / 2 + 12;
+      } else if (newLeft + rect.width / 2 > screenWidth - 12) {
+        newLeft = screenWidth - rect.width / 2 - 12;
+      }
+
+      if (newTop - rect.height - 12 < 12) {
+         newTop = 12 + rect.height + 12; 
+      }
+      
+      setAdjustedPosition({ top: newTop, left: newLeft });
+    } else {
+      setAdjustedPosition(position);
+    }
+  }, [position, isVisible]);
 
   if (!isVisible) return null;
 
   return (
     <div
-      className="absolute z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-2xl w-[260px] animate-in fade-in zoom-in-95 duration-100"
+      ref={toolbarRef}
+      className="absolute z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-xl w-[260px] animate-in fade-in zoom-in-95 duration-100"
       style={{
-        top: position.top,
-        left: position.left,
+        top: adjustedPos.top,
+        left: adjustedPos.left,
         transform: "translate(-50%, -100%)",
         marginTop: "-12px",
       }}
@@ -175,7 +202,9 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
             Explicar
           </button>
           
-          <div className="flex items-center justify-between px-2 py-1.5 text-sm hover:bg-muted rounded-md text-left text-muted-foreground transition-colors cursor-pointer">
+          <div 
+            onClick={() => onAction?.("ai-format")}
+            className="flex items-center justify-between px-2 py-1.5 text-sm hover:bg-muted hover:text-foreground rounded-md text-left text-muted-foreground transition-colors cursor-pointer">
             <span>Modificar formato</span>
             <ChevronDown className="w-3.5 h-3.5 opacity-50" />
           </div>
