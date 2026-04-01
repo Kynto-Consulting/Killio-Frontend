@@ -52,8 +52,14 @@ export default function DocumentsPage() {
       listFolders(activeTeamId, accessToken)
     ])
     .then(([docs, flds]) => {
-      setDocuments(docs);
-      setFolders(flds);
+      // Ensure docs is iterable and properly format if backend returns a wrapped response accidentally
+      let parsedDocs = [];
+      if (Array.isArray(docs)) parsedDocs = docs;
+      else if (docs && typeof docs === 'object' && Array.isArray((docs as any).data)) parsedDocs = (docs as any).data;
+      else if (docs && typeof docs === 'object' && Array.isArray((docs as any).documents)) parsedDocs = (docs as any).documents;
+      
+      setDocuments(parsedDocs);
+      setFolders(Array.isArray(flds) ? flds : []);
     })
     .catch(console.error)
     .finally(() => setIsLoading(false));
@@ -86,8 +92,11 @@ export default function DocumentsPage() {
     if (!accessToken || !activeTeamId) return;
 
     try {
-      const doc = await createDocument({ teamId: activeTeamId, title, folderId: activeFolderId || undefined }, accessToken);
-      setDocuments([doc, ...documents]);
+      const resp = await createDocument({ teamId: activeTeamId, title, folderId: activeFolderId || undefined }, accessToken);
+      const doc = (resp && (resp as any).data) ? (resp as any).data : resp;
+      if (doc && doc.id) {
+        setDocuments([doc, ...documents]);
+      }
     } catch (e) {
       console.error(e);
       toast(t("createError"), "error");
@@ -95,9 +104,10 @@ export default function DocumentsPage() {
     }
   };
 
-  const filteredDocs = documents.filter(doc => 
-    doc.title.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredDocs = documents.filter(doc => {
+    if (!doc || !doc.title) return false;
+    return doc.title.toLowerCase().includes((searchQuery || "").toLowerCase());
+  });
 
   const handleDeleteDocument = async (doc: DocumentSummary) => {
     if (!accessToken || deletingDocumentId) return;
@@ -204,25 +214,22 @@ export default function DocumentsPage() {
         </div>
 
         {/* Main Content Area */}
-        <div className="flex-1 min-w-0">
-
-          <div className="mb-8">
-            {activeChildrenFolders.length > 0 && (
-              <>
-                <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Carpetas</h2>
-                <div className="flex flex-wrap gap-3">
-                  {activeChildrenFolders.map(folder => (
-                    <FolderCard 
-                      key={folder.id} 
-                      folder={folder} 
-                      onClick={() => setActiveFolderId(folder.id)}
-                      isActive={activeFolderId === folder.id}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
+        <div className="flex-1 min-w-0 lg:pt-[10px]">
+          {activeChildrenFolders.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Carpetas</h2>
+              <div className="flex flex-wrap gap-3">
+                {activeChildrenFolders.map(folder => (
+                  <FolderCard 
+                    key={folder.id} 
+                    folder={folder} 
+                    onClick={() => setActiveFolderId(folder.id)}
+                    isActive={activeFolderId === folder.id}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           
           <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Archivos</h2>
 
