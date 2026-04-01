@@ -3,6 +3,7 @@ import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
 import { RefPill } from "./ref-pill";
 import { TagBadge } from "./tag-badge";
 import { AiSuggestion } from "./ai-suggestion";
+// @ts-ignore
 import "katex/dist/katex.min.css";
 import { BlockMath, InlineMath } from "react-katex";
 

@@ -15,6 +15,7 @@ import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
 import katex from "katex";
+// @ts-ignore
 import "katex/dist/katex.min.css";
 
 interface TextBrickProps {
@@ -1253,7 +1254,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             } else if (action === "date") {
               setIsDatePickerOpen(true);
             } else if (action.startsWith('ai-')) {
-              onAiAction?.(action, window.getSelection()?.toString() || '');
+              const selectedText = window.getSelection()?.toString() || '';
+              if (selectedText) {
+                const docIdMatch = typeof window !== 'undefined' ? window.location.pathname.match(/\/d\/([^/]+)/) : null;
+                const docId = docIdMatch ? docIdMatch[1] : '';
+                const startIdx = text.indexOf(selectedText);
+                let aiContext = selectedText;
+                
+                if (docId && id && startIdx !== -1) {
+                  const endIdx = startIdx + selectedText.length;
+                  aiContext = `$[${docId}:${id}:chars:${startIdx}-${endIdx}]`;
+                } else if (docId && id) {
+                  aiContext = `$[${docId}:${id}] \n"${selectedText}"`;
+                }
+                
+                onAiAction?.(action, aiContext);
+              }
             } else {
               console.log('Action clicked:', action);
             }
