@@ -2,10 +2,12 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
+import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
+import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, uploadFile } from "@/lib/api/contracts";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
@@ -29,6 +31,7 @@ export default function DocumentPage() {
   const router = useRouter();
 
   const [document, setDocument] = useState<DocumentView | null>(null);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
   const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
@@ -60,14 +63,20 @@ export default function DocumentPage() {
       setDocument(doc);
 
       if (activeTeamId) {
-        const [docs, boards, members] = await Promise.all([
+        const [docs, boards, members, flds] = await Promise.all([
           listDocuments(activeTeamId, accessToken),
           listTeamBoards(activeTeamId, accessToken),
-          listTeamMembers(activeTeamId, accessToken)
+          listTeamMembers(activeTeamId, accessToken),
+          listFolders(activeTeamId, accessToken)
         ]);
         setTeamDocs(docs);
         setTeamBoards(boards);
         setTeamMembers(members);
+        
+        let parsedFlds = [];
+        if (Array.isArray(flds)) parsedFlds = flds;
+        else if (flds && typeof flds === 'object' && Array.isArray((flds as any).data)) parsedFlds = (flds as any).data;
+        setFolders(parsedFlds);
       }
     } catch (e: any) {
       setError(e.message || t("loadError"));
@@ -616,19 +625,55 @@ export default function DocumentPage() {
 
   const canEdit = document.role === 'owner' || document.role === 'editor';
 
+  // Build breadcrumb path
+  const getBreadcrumbs = () => {
+    if (!document.folderId) return null;
+    const breadcrumbs = [];
+    let currentId = document.folderId;
+    while (currentId) {
+      const f = folders.find(folder => folder.id === currentId);
+      if (f) {
+        breadcrumbs.unshift(f);
+        currentId = f.parentFolderId || "";
+      } else {
+        break;
+      }
+    }
+    return breadcrumbs;
+  };
+  const docBreadcrumbs = getBreadcrumbs();
+
   return (
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 backdrop-blur-md z-40 shrink-0 shadow-sm sticky top-0">
-        <div className="flex items-center space-x-4">
-          <Link href="/" className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
-            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
-          </Link>
-          <div className="h-4 w-px bg-border/80"></div>
+<div className="flex items-center space-x-2">
+            <Link href="/" className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
+              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+            </Link>
+            <div className="h-4 w-px bg-border/80 mx-2"></div>
 
-          <div className="flex items-center space-x-2">
-            <FileText className="h-5 w-5 text-accent" />
-            <h1 className="text-base font-semibold tracking-tight">{document.title}</h1>
+            <div className="flex items-center text-sm">
+              <Link href="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
+                 <FolderIcon className="h-4 w-4 opacity-70" />
+                 <span className="hidden sm:inline">Todos los documentos</span>
+              </Link>
+
+              {docBreadcrumbs && docBreadcrumbs.map(f => (
+                <div key={f.id} className="flex items-center">
+                  <span className="text-muted-foreground/40 mx-1">/</span>
+                  <div className="flex items-center gap-1.5 text-muted-foreground px-1.5 py-1 rounded-md transition-colors" title={f.name}>
+                    <FolderIconDisplay icon={f.icon} color={f.color} className="h-3.5 w-3.5" isTextFallback />
+                    <span className="hidden sm:inline max-w-[100px] truncate">{f.name}</span>
+                  </div>
+                </div>
+              ))}
+
+              <span className="text-muted-foreground/40 mx-2.5">/</span>
+              <div className="flex items-center gap-1.5 text-foreground bg-accent/5 px-2 py-1 rounded-md">
+                <FileText className="h-4 w-4 text-accent" />
+                <h1 className="font-semibold tracking-tight truncate max-w-[150px] sm:max-w-[200px]">{document.title}</h1>
+              </div>
           </div>
         </div>
 
