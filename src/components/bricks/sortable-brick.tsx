@@ -52,7 +52,7 @@ export function SortableBrick({ id, children, readonly, onDelete, onAddBelow }: 
       }`}
     >
       {!readonly && (
-        <div className="absolute left-1 sm:static flex flex-row sm:w-[72px] sm:justify-end px-1 sm:pr-2 items-center shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 bg-background/95 sm:bg-transparent backdrop-blur-md sm:backdrop-blur-none border border-border/50 sm:border-transparent rounded-md py-0.5 shadow-md sm:shadow-none top-1 sm:top-auto sm:mt-1">
+        <div className="absolute -left-16 flex flex-row items-center justify-end px-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 top-1.5">
           <button
             type="button"
             onClick={(e) => {
