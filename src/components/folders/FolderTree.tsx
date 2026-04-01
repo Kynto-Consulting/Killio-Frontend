@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { Folder, FolderOpen, ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { FolderNode } from "@/lib/mock-folders";
+export type FolderNode = {
+  id: string;
+  name: string;
+  children?: FolderNode[];
+  documentCount?: number;
+};
 
 interface FolderTreeProps {
   folders: FolderNode[];

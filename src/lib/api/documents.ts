@@ -6,6 +6,7 @@ export type DocumentSummary = {
   id: string;
   title: string;
   teamId: string;
+  folderId?: string;
   createdByUserId: string;
   createdAt: string;
   updatedAt: string;
@@ -40,12 +41,13 @@ export type DocumentView = DocumentSummary & {
   bricks: DocumentBrick[];
 };
 
-export async function listDocuments(teamId: string, accessToken: string): Promise<DocumentSummary[]> {
-  return fetchApi(`/documents?teamId=${teamId}`, { accessToken });
+export async function listDocuments(teamId: string, accessToken: string, folderId?: string): Promise<DocumentSummary[]> {
+  const url = folderId ? `/documents?teamId=${teamId}&folderId=${folderId}` : `/documents?teamId=${teamId}`;
+  return fetchApi(url, { accessToken });
 }
 
 export async function createDocument(
-  payload: { teamId: string; title: string },
+  payload: { teamId: string; title: string; folderId?: string },
   accessToken: string
 ): Promise<DocumentSummary> {
   return fetchApi('/documents', {

@@ -8,37 +8,73 @@ import { listDocuments, DocumentSummary, createDocument, deleteDocument } from "
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { CreateDocumentModal } from "@/components/ui/create-document-modal";
-import { FolderTree } from "@/components/folders/FolderTree";
+import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
-import { MOCK_FOLDERS, MOCK_FOLDER_CARDS } from "@/lib/mock-folders";
+import { Folder, listFolders, createFolder } from "@/lib/api/folders";
 
 export default function DocumentsPage() {
   const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
+  const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreateFolderModalOpen, setIsCreateFolderModalOpen] = useState(false);
+  const [newFolderName, setNewFolderName] = useState("");
   const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
+
+  const buildTree = (allF: Folder[], parentId: string | null = null): FolderNode[] => {
+    return allF
+      .filter(f => (f.parentFolderId || null) === parentId)
+      .map(f => ({
+        id: f.id,
+        name: f.name,
+        children: buildTree(allF, f.id)
+      }));
+  };
+  
+  const folderTree = buildTree(folders);
+  const activeChildrenFolders = folders.filter(f => (f.parentFolderId || null) === activeFolderId);
+  const currentFolder = folders.find(f => f.id === activeFolderId);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
     
     setIsLoading(true);
-    // TODO: update api to accept folder_id filtering
-    listDocuments(activeTeamId, accessToken)
-      .then(setDocuments)
-      .catch(console.error)
-      .finally(() => setIsLoading(false));
+    
+    Promise.all([
+      listDocuments(activeTeamId, accessToken, activeFolderId || undefined),
+      listFolders(activeTeamId, accessToken)
+    ])
+    .then(([docs, flds]) => {
+      setDocuments(docs);
+      setFolders(flds);
+    })
+    .catch(console.error)
+    .finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId, activeFolderId]);
+
+  const handleCreateFolder = async () => {
+    if (!accessToken || !activeTeamId || !newFolderName.trim()) return;
+    try {
+      const f = await createFolder({ teamId: activeTeamId, name: newFolderName, parentFolderId: activeFolderId || undefined }, accessToken);
+      setFolders([...folders, f]);
+      setNewFolderName("");
+      setIsCreateFolderModalOpen(false);
+      toast("Carpeta creada", "success");
+    } catch (e) {
+      console.error(e);
+      toast("Error al crear carpeta", "error");
+    }
+  };
 
   const handleCreateDocument = async (title: string) => {
     if (!accessToken || !activeTeamId) return;
 
     try {
-      // TODO: send activeFolderId when server supports it
-      const doc = await createDocument({ teamId: activeTeamId, title }, accessToken);
+      const doc = await createDocument({ teamId: activeTeamId, title, folderId: activeFolderId || undefined }, accessToken);
       setDocuments([doc, ...documents]);
     } catch (e) {
       console.error(e);
@@ -84,7 +120,7 @@ export default function DocumentsPage() {
         {/* Sidebar for Folder Tree */}
         <div className="lg:w-64 flex-shrink-0">
           <FolderTree 
-            folders={MOCK_FOLDERS} 
+            folders={folderTree} 
             activeFolderId={activeFolderId} 
             onSelectFolder={setActiveFolderId} 
           />
@@ -95,9 +131,7 @@ export default function DocumentsPage() {
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
             <div>
               <h1 className="text-3xl font-bold tracking-tight mb-2">
-                {activeFolderId 
-                  ? MOCK_FOLDERS.find(f => f.id === activeFolderId)?.name || MOCK_FOLDERS.flatMap(f => f.children || []).find(f => f.id === activeFolderId)?.name || t("title")
-                  : t("title")}
+                {currentFolder ? currentFolder.name : t("title")}
               </h1>
               <p className="text-muted-foreground">{t("subtitle")}</p>
             </div>
@@ -122,19 +156,43 @@ export default function DocumentsPage() {
             </div>
           </div>
 
-          {/* Folder Cards Grid (Subfolders) */}
+          {/* Folders navigation/creation actions */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            <button
+              onClick={() => setIsCreateFolderModalOpen(true)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-sm h-9 px-4"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Nueva Carpeta
+            </button>
+            {activeFolderId && (
+               <button
+                 onClick={() => {
+                   setActiveFolderId(currentFolder?.parentFolderId || null);
+                 }}
+                 className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
+               >
+                 Subir de nivel
+               </button>
+            )}
+          </div>
+
           <div className="mb-8">
-            <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Carpetas</h2>
-            <div className="flex flex-wrap gap-3">
-              {MOCK_FOLDER_CARDS.map(folder => (
-                <FolderCard 
-                  key={folder.id} 
-                  folder={folder} 
-                  onClick={() => setActiveFolderId(folder.id)}
-                  isActive={activeFolderId === folder.id}
-                />
-              ))}
-            </div>
+            {activeChildrenFolders.length > 0 && (
+              <>
+                <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Carpetas</h2>
+                <div className="flex flex-wrap gap-3">
+                  {activeChildrenFolders.map(folder => (
+                    <FolderCard 
+                      key={folder.id} 
+                      folder={folder} 
+                      onClick={() => setActiveFolderId(folder.id)}
+                      isActive={activeFolderId === folder.id}
+                    />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
           
           <h2 className="text-sm font-medium text-muted-foreground mb-4 uppercase tracking-wider">Archivos</h2>
@@ -230,6 +288,36 @@ export default function DocumentsPage() {
           setIsCreateModalOpen(false);
         }}
       />
+
+      {isCreateFolderModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
+            <h2 className="text-xl font-semibold mb-4">Nueva Carpeta</h2>
+            <input 
+              type="text" 
+              placeholder="Nombre de la carpeta"
+              value={newFolderName}
+              onChange={(e) => setNewFolderName(e.target.value)}
+              className="w-full mb-4 px-3 py-2 rounded-md border border-input bg-card shadow-sm"
+              autoFocus
+            />
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setIsCreateFolderModalOpen(false)}
+                className="px-4 py-2 rounded-md border border-border text-sm font-medium hover:bg-accent hover:text-accent-foreground"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={handleCreateFolder}
+                className="px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90"
+              >
+                Crear
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
