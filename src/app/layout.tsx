@@ -9,18 +9,24 @@ export const metadata: Metadata = {
 import { SessionProvider } from '@/components/providers/session-provider';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
+import { PlatformProvider } from '@/components/providers/platform-provider';
+import { getPlatform } from '@/lib/platform';
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const platform = await getPlatform();
+
   return (
     <html lang="en" className="dark">
       <body className="antialiased">
-        <SessionProvider>
-          <I18nProvider>
-            {children}
-            <Toaster />
-          </I18nProvider>
-        </SessionProvider>
+        <PlatformProvider platform={platform}>
+          <SessionProvider>
+            <I18nProvider>
+              {children}
+              <Toaster />
+            </I18nProvider>
+          </SessionProvider>
+        </PlatformProvider>
       </body>
     </html>
-);
+  );
 }
