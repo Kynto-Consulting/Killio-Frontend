@@ -196,6 +196,7 @@ export function ReferencePicker({
   onClose,
   boards,
   documents,
+  folders,
   users,
   cards = [],
   activeBricks = [],
@@ -280,6 +281,14 @@ export function ReferencePicker({
           category: "mention" as const,
           mentionType: "folder" as const,
           search: `folder ${f.name} ${f.id}`.toLowerCase(),
+        })),
+    ];
+
+    if (allowedTypes && allowedTypes.length > 0) {
+      mentions = mentions.filter(m => m.mentionType && allowedTypes.includes(m.mentionType));
+    }
+
+    const filteredMentions = mentions.filter((m) => {
       if (!q) return true;
       return m.search.includes(q) || m.label.toLowerCase().includes(q);
     });

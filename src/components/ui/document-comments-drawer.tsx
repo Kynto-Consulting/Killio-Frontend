@@ -90,6 +90,7 @@ export function DocumentCommentsDrawer({
   docId: string;
   documents?: DocumentSummary[];
   boards?: any[];
+  folders?: any[];
   members?: any[];
   initialTab?: 'copilot' | 'comments' | 'activity';
   contextSummary?: string;

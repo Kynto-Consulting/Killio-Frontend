@@ -102,7 +102,7 @@ export async function updateDocument(
   return fetchApi(`/documents/${documentId}`, {
     method: 'PUT',
     accessToken,
-    body: updates,
+    body: JSON.stringify(updates),
   });
 }
 
