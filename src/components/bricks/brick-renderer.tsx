@@ -23,7 +23,7 @@ interface BrickRendererProps {
   brick: DocumentBrick;
   canEdit: boolean;
   onUpdate: (content: any) => void;
-  onAddBrick?: (kind: string, afterBrickId?: string) => void;
+  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: any, initialContent?: any) => void;
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
@@ -134,7 +134,7 @@ export function UnifiedBrickRenderer({
         <UnifiedTextBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
-          onAddBrick={(kind) => onAddBrick?.(kind, brick.id)}
+            onAddBrick={(kind, aId, parentProps, initialContent) => onAddBrick?.(kind, brick.id, parentProps, initialContent)}
           onUpdate={(text: any) => {
             // Pass only the fields that matter for text brick
             onUpdate({
@@ -200,7 +200,7 @@ export function UnifiedBrickRenderer({
         <UnifiedQuoteBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
-          onAddBrick={(k) => onAddBrick?.(k, brick.id)}
+            onAddBrick={(k, aId, parentProps, initialContent) => onAddBrick?.(k, brick.id, parentProps, initialContent)}
           onUpdate={(text: any) => onUpdate({ ...content, kind: 'quote', markdown: text })}
           readonly={!canEdit}
           documents={documents}
@@ -225,7 +225,7 @@ export function UnifiedBrickRenderer({
         <UnifiedCalloutBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
-          onAddBrick={(k) => onAddBrick?.(k, brick.id)}
+            onAddBrick={(k, aId, parentProps, initialContent) => onAddBrick?.(k, brick.id, parentProps, initialContent)}
           onUpdate={(text: any) => onUpdate({ ...content, kind: 'callout', markdown: text })}
           readonly={!canEdit}
           documents={documents}

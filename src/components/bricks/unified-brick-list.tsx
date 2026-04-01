@@ -24,6 +24,7 @@ import { Portal } from "../ui/portal";
 import { cn } from "@/lib/utils";
 import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
 
 type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
 
@@ -34,7 +35,7 @@ interface UnifiedBrickListProps {
   onUpdateBrick: (id: string, content: any) => void;
   onDeleteBrick: (id: string) => void;
   onReorderBricks: (ids: string[]) => void;
-  onAddBrick: (kind: string, afterBrickId?: string) => void;
+  onAddBrick: (kind: string, afterBrickId?: string, initialContent?: any) => void;
   documents?: any[];
   boards?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
@@ -72,6 +73,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plusMenuState, setPlusMenuState] = useState<{ brickId: string, top: number, left: number } | null>(null);
   const [plusMenuHoverIndex, setPlusMenuHoverIndex] = useState<number>(0);
+  const [pickerState, setPickerState] = useState<{ isOpen: boolean; filter: string[]; triggerBrickId: string } | null>(null);
   const enabledKinds = addableKinds && addableKinds.length > 0
     ? addableKinds
     : ['text', 'table', 'graph', 'checklist', 'accordion'];
@@ -87,9 +89,16 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   }, [plusMenuState]);
 
   const handleApplyPlusCommand = (command: SlashCommand, afterBrickId: string) => {
-    // If it's inline, text block. If block, specific kind.
-    // For text, we could theoretically insert the text, but the api onAddBrick only takes kind.
-    // Let's map it based on command.blockKind or 'text'.
+    if (command.id === "mention-person" || command.id === "mention-page") {
+      setPickerState({
+        isOpen: true,
+        filter: command.id === "mention-person" ? ["user"] : ["document", "board"],
+        triggerBrickId: afterBrickId
+      });
+      setPlusMenuState(null);
+      return;
+    }
+
     const kindToInsert = command.blockKind || "text";
     onAddBrick(kindToInsert, afterBrickId);
     setPlusMenuState(null);
@@ -343,6 +352,30 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
               </div>
             )}
           </div>
+        </Portal>
+      )}
+
+      {pickerState?.isOpen && (
+        <Portal>
+          <ReferencePicker
+            boards={boards}
+            documents={documents}
+            users={users}
+            activeBricks={activeBricks || []}
+            onClose={() => setPickerState(null)}
+            allowedTypes={pickerState.filter as any}
+            onSelect={(item: ReferencePickerSelection) => {
+              const targetBrick = bricks.find(b => b.id === pickerState.triggerBrickId);
+              if (targetBrick && targetBrick.kind === "text") {
+                const currentText = targetBrick.content?.text || targetBrick.markdown || "";
+                const newText = currentText ? `${currentText} ${item.token}` : item.token;
+                onUpdateBrick(targetBrick.id, { ...targetBrick.content, text: newText, markdown: newText });
+              } else {
+                onAddBrick("text", pickerState.triggerBrickId, { text: item.token, markdown: item.token });
+              }
+              setPickerState(null);
+            }}
+          />
         </Portal>
       )}
     </div>

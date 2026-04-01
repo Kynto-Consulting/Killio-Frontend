@@ -21,7 +21,7 @@ interface TextBrickProps {
   id: string;
   text: string;
   onUpdate: (text: string) => void;
-  onAddBrick?: (kind: string) => void;
+  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: any, initialContent?: any) => void;
   readonly?: boolean;
   documents: DocumentSummary[];
   boards: BoardSummary[];

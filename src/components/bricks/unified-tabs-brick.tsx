@@ -12,7 +12,7 @@ interface TabsBrickProps {
   onUpdate: (data: { tabs: { id: string; label: string; content?: string }[] }) => void;
   readonly?: boolean;
   activeBricks?: any[];
-  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }) => void;
+  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => void;
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
@@ -109,7 +109,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
             onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
             onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
             onReorderBricks={(ids) => onReorderBricks?.(ids)}
-            onAddBrick={(k, aId) => onAddBrick?.(k, aId, { parentId: id, containerId: activeTab })}
+              onAddBrick={(k, aId, initialContent) => onAddBrick?.(k, aId, { parentId: id, containerId: activeTab }, initialContent)}
             documents={documents}
             boards={boards}
             users={users}

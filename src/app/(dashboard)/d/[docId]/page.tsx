@@ -142,7 +142,7 @@ export default function DocumentPage() {
     }
   });
 
-  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }) => {
+  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     if (!accessToken || !document) return;
     
     const contextBricks = document.bricks.filter(b => b.content?.parentId === parentProps?.parentId && b.content?.containerId === parentProps?.containerId).sort((a,b) => a.position - b.position);
@@ -162,7 +162,7 @@ export default function DocumentPage() {
     }
 
     // Default empty content based on kind
-    let content: any = {};
+    let content: any = initialContent || {}; if(!initialContent) {
     if (kind === 'text') content = { text: '' };
     if (kind === 'checklist') content = { items: [] };
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
@@ -176,7 +176,7 @@ export default function DocumentPage() {
     if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
     if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
     if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }] };
-    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }] };
+    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }] }; }
 
     if (parentProps) {
       content.parentId = parentProps.parentId;

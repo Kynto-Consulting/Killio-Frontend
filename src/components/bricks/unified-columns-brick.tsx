@@ -16,7 +16,7 @@ interface ColumnsBrickProps {
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
   users?: any[];
-  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }) => void;
+  onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => void;
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
@@ -72,7 +72,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({
                    onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
                    onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
                    onReorderBricks={(ids) => onReorderBricks?.(ids)}
-                   onAddBrick={(k, aId) => onAddBrick?.(k, aId, { parentId: id, containerId: col.id })}
+                    onAddBrick={(k, aId, initialContent) => onAddBrick?.(k, aId, { parentId: id, containerId: col.id }, initialContent)}
                    onCrossContainerDrop={onCrossContainerDrop}
                    addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
                    documents={documents}

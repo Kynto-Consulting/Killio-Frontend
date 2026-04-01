@@ -2272,7 +2272,7 @@ export function CardDetailModal({
                     boards={teamBoards}
                     users={boardMembers}
                       addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
-                    onAddBrick={async (kind) => {
+                    onAddBrick={async (kind, afterBrickId, initContent) => {
                       let input: BrickMutationInput;
                       if (kind === 'checklist') {
                         input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
@@ -2296,7 +2296,7 @@ export function CardDetailModal({
                             body: '',
                             isExpanded: true,
                           };
-                      } else if (kind === 'image') {
+                      } else if (kind === 'text' && initContent) { input = { kind: 'text', markdown: initContent.markdown, displayStyle: 'paragraph' }; } else if (kind === 'image') {
                         input = {
                           kind: 'media',
                           mediaType: 'image',
