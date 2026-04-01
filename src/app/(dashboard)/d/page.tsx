@@ -13,10 +13,15 @@ import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 
 export default function DocumentsPage() {
   const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -26,9 +31,22 @@ export default function DocumentsPage() {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
-  const [activeFolderId, setActiveFolderId] = useState<string | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
   const [createTypeFromTree, setCreateTypeFromTree] = useState<{parent: string, type: "folder" | "document"} | null>(null);
+
+  // Read the folderId from URL instead of useState
+  const activeFolderId = searchParams.get("folderId") || null;
+
+  // Convenience setter so we only update the URL
+  const setActiveFolderId = (id: string | null) => {
+    const newParams = new URLSearchParams(searchParams.toString());
+    if (id) {
+      newParams.set("folderId", id);
+    } else {
+      newParams.delete("folderId");
+    }
+    router.replace(`${pathname}?${newParams.toString()}`);
+  };
 
   const buildTree = (allF: Folder[], parentId: string | null = null): FolderNode[] => {
     return allF
@@ -165,6 +183,10 @@ export default function DocumentsPage() {
 
   const filteredDocs = documents.filter(doc => {
     if (!doc || !doc.title) return false;
+    // ensure doc is in current folder
+    const docFolderId = doc.folderId || null;
+    if (docFolderId !== activeFolderId) return false;
+    
     return doc.title.toLowerCase().includes((searchQuery || "").toLowerCase());
   });
 

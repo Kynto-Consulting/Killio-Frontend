@@ -648,24 +648,28 @@ export default function DocumentPage() {
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 backdrop-blur-md z-40 shrink-0 shadow-sm sticky top-0">
 <div className="flex items-center space-x-2">
-            <Link href="/" className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
+            <Link href={`/d${document.folderId ? `?folderId=${document.folderId}` : ''}`} className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
               <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
             </Link>
             <div className="h-4 w-px bg-border/80 mx-2"></div>
 
             <div className="flex items-center text-sm">
-              <Link href="/" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
+              <Link href="/d" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
                  <FolderIcon className="h-4 w-4 opacity-70" />
-                 <span className="hidden sm:inline">Todos los documentos</span>
+                 <span className="hidden sm:inline">{t("allDocuments") || "Todos los documentos"}</span>
               </Link>
 
-              {docBreadcrumbs && docBreadcrumbs.map(f => (
+              {docBreadcrumbs && docBreadcrumbs.map((f, i) => (
                 <div key={f.id} className="flex items-center">
                   <span className="text-muted-foreground/40 mx-1">/</span>
-                  <div className="flex items-center gap-1.5 text-muted-foreground px-1.5 py-1 rounded-md transition-colors" title={f.name}>
+                  <Link 
+                    href={`/d?folderId=${f.id}`}
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors" 
+                    title={f.name}
+                  >
                     <FolderIconDisplay icon={f.icon} color={f.color} className="h-3.5 w-3.5" isTextFallback />
                     <span className="hidden sm:inline max-w-[100px] truncate">{f.name}</span>
-                  </div>
+                  </Link>
                 </div>
               ))}
 
