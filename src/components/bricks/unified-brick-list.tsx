@@ -44,6 +44,7 @@ interface UnifiedBrickListProps {
   hasExternalDndContext?: boolean;
   onCrossContainerDrop?: (activeId: string, overId: string) => void;
   emptyPlaceholder?: string;
+  onAiAction?: (action: string, contextText: string) => void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -62,7 +63,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onUploadMediaFiles,
   hasExternalDndContext = false,
   onCrossContainerDrop,
-  emptyPlaceholder
+  emptyPlaceholder,
+  onAiAction
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -156,6 +158,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         users={users}
         onPasteImageInTextBrick={onPasteImageInTextBrick}
         onUploadMediaFiles={onUploadMediaFiles}
+        onAiAction={onAiAction}
       />
     );
   };

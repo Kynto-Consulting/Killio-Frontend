@@ -34,6 +34,7 @@ interface BrickRendererProps {
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
+  onAiAction?: (action: string, contextText: string) => void;
 }
 
 type BrickComment = {
@@ -89,7 +90,8 @@ export function UnifiedBrickRenderer({
   activeBricks = [],
   users = [],
   onPasteImageInTextBrick,
-  onUploadMediaFiles
+  onUploadMediaFiles,
+  onAiAction
 }: BrickRendererProps) {
   const t = useTranslations("document-detail");
   const { user } = useSession();
@@ -147,6 +149,7 @@ export function UnifiedBrickRenderer({
           activeBricks={activeBricks}
           users={users}
           onPasteImage={(payload) => onPasteImageInTextBrick?.({ ...payload, brickId: brick.id })}
+          onAiAction={onAiAction}
         />
       );
       break;

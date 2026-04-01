@@ -41,6 +41,7 @@ export default function DocumentPage() {
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [aiInitialInput, setAiInitialInput] = useState("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
   const [exportStyle, setExportStyle] = useState<'carta' | 'harvard'>('carta');
@@ -241,6 +242,19 @@ export default function DocumentPage() {
       // Revert or show error
     }
   };
+
+  const handleAiAction = useCallback((action: string, selectedText: string) => {
+    let prompt = "";
+    if (action === "ai-improve") prompt = `Mejora este texto:\n\n${selectedText}`;
+    else if (action === "ai-fix") prompt = `Corrige la ortografía y gramática de este texto:\n\n${selectedText}`;
+    else if (action === "ai-shorter") prompt = `Resume y acorta este texto:\n\n${selectedText}`;
+    else if (action === "ai-explain") prompt = `Explica en detalle este texto:\n\n${selectedText}`;
+    else prompt = `${action}:\n\n${selectedText}`;
+
+    setSidebarTab('copilot');
+    setAiInitialInput(prompt);
+    setIsCommentsOpen(true);
+  }, []);
 
   const handleDeleteBrick = async (brickId: string) => {
     if (!accessToken || !document) return;
@@ -824,6 +838,7 @@ export default function DocumentPage() {
               onCrossContainerDrop={handleCrossContainerDrop}
               onPasteImageInTextBrick={handlePasteImageInTextBrick}
               onUploadMediaFiles={handleUploadMediaFiles}
+              onAiAction={handleAiAction}
             />
           </div>
         </div>
@@ -837,6 +852,8 @@ export default function DocumentPage() {
         boards={teamBoards}
         members={teamMembers}
         initialTab={sidebarTab}
+        initialAiInput={aiInitialInput}
+        onAiInputClear={() => setAiInitialInput("")}
       />
     </div>
   );

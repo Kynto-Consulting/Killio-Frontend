@@ -82,7 +82,9 @@ export function DocumentCommentsDrawer({
   boards = [],
   members = [],
   initialTab = "comments",
-  contextSummary = ""
+  contextSummary = "",
+  initialAiInput = "",
+  onAiInputClear
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -92,6 +94,8 @@ export function DocumentCommentsDrawer({
   members?: any[];
   initialTab?: 'copilot' | 'comments' | 'activity';
   contextSummary?: string;
+  initialAiInput?: string;
+  onAiInputClear?: () => void;
 }) {
   const { accessToken, user, activeTeamId } = useSession();
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -116,6 +120,13 @@ export function DocumentCommentsDrawer({
   useEffect(() => {
     setActiveTab(initialTab);
   }, [initialTab]);
+
+  useEffect(() => {
+    if (initialAiInput && isOpen) {
+      setAiInput(initialAiInput);
+      if (onAiInputClear) onAiInputClear();
+    }
+  }, [initialAiInput, isOpen, onAiInputClear]);
 
   const fetchComments = async () => {
     if (!accessToken || !docId) return;
