@@ -304,7 +304,7 @@ export default function DocumentsPage() {
                   <FolderCard 
                     key={folder.id} 
                     folder={folder} 
-                    onClick={() => () => { setActiveFolderId(folder.id); setSelectedItemIds([]); }}
+                    onClick={() => { setActiveFolderId(folder.id); setSelectedItemIds([]); }}
                     isActive={activeFolderId === folder.id}
                     onDragOver={(e) => e.preventDefault()}
                     onDrop={(e) => handleDropDocumentOnFolder(e, folder.id)}

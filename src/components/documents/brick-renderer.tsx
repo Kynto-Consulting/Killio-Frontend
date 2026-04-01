@@ -14,10 +14,11 @@ interface BrickRendererProps {
   onUpdate: (content: any) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
+  folders?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
 }
 
-export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards = [], users = [] }: BrickRendererProps) {
+export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards = [], folders = [], users = [] }: BrickRendererProps) {
   const { kind, content } = brick;
   const [isEditingText, setIsEditingText] = useState(false);
   const [isExpanded, setIsExpanded] = useState(content.isExpanded ?? false);
@@ -106,6 +107,7 @@ export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards
           <ReferencePicker 
             boards={boards}
             documents={documents}
+            folders={folders}
             users={users}
             onClose={() => setIsReferencePickerOpen(false)}
             onSelect={(item) => {

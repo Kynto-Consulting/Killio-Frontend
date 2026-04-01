@@ -37,9 +37,11 @@ export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: Fo
       </div>
       <div className="flex flex-col overflow-hidden">
         <span className="text-sm font-medium truncate" style={{ color: folder.color || undefined }}>{folder.name}</span>
-        <span className="text-xs text-muted-foreground truncate">
-          {folder.documentCount !== undefined ? `${folder.documentCount} documentos` : "Vacio"}
-        </span>
+        {folder.documentCount !== undefined && (
+          <span className="text-xs text-muted-foreground truncate">
+            {folder.documentCount} documentos
+          </span>
+        )}
       </div>
     </div>
   );

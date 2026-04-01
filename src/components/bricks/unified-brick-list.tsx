@@ -38,6 +38,7 @@ interface UnifiedBrickListProps {
   onAddBrick: (kind: string, afterBrickId?: string, initialContent?: any) => void;
   documents?: any[];
   boards?: any[];
+  folders?: any[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   addableKinds?: AddableKind[];
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
@@ -58,6 +59,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onAddBrick,
   documents = [],
   boards = [],
+  folders = [],
   users = [],
   addableKinds,
   onPasteImageInTextBrick,
@@ -360,6 +362,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
           <ReferencePicker
             boards={boards}
             documents={documents}
+            folders={folders}
             users={users}
             activeBricks={activeBricks || []}
             onClose={() => setPickerState(null)}

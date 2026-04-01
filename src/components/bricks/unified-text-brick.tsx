@@ -26,6 +26,7 @@ interface TextBrickProps {
   readonly?: boolean;
   documents: DocumentSummary[];
   boards: BoardSummary[];
+  folders?: any[];
   activeBricks: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
@@ -50,6 +51,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   readonly,
   documents,
   boards,
+  folders = [],
   activeBricks,
   users = [],
   onPasteImage,
@@ -1115,6 +1117,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           <ReferencePicker
             boards={boards}
             documents={documents}
+            folders={folders}
             users={users}
             activeBricks={activeBricks as any[]}
  onClose={() => { setIsPickerOpen(false); setPickerFilter(undefined); }} allowedTypes={pickerFilter as any}

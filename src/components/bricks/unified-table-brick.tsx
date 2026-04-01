@@ -21,6 +21,7 @@ interface TableBrickProps {
   readonly?: boolean;
   documents?: any[];
   boards?: any[];
+  folders?: any[];
   users?: any[];
   activeBricks?: DocumentBrick[];
 }
@@ -32,6 +33,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   readonly,
   documents = [],
   boards = [],
+  folders = [],
   users = [],
   activeBricks = [],
 }) => {
@@ -501,6 +503,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
           <ReferencePicker
             boards={boards as any[]}
             documents={documents as any[]}
+            folders={folders as any[]}
             users={users as any[]}
             activeBricks={activeBricks as any[]}
             onClose={() => {
