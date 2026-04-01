@@ -1,3 +1,4 @@
+import React from "react";
 import { headers } from "next/headers";
 
 /**
@@ -13,7 +14,7 @@ export async function getPlatform() {
 /**
  * Render a platform specific component dynamically.
  */
-export async function PlatformComponent<TProps extends React.JSX.IntrinsicAttributes>({
+export async function PlatformComponent<TProps extends Record<string, any>>({
   mobile: MobileComponent,
   web: WebComponent,
   props,
@@ -24,7 +25,7 @@ export async function PlatformComponent<TProps extends React.JSX.IntrinsicAttrib
 }) {
   const platform = await getPlatform();
   if (platform === "mobile" && MobileComponent) {
-    return <MobileComponent {...props} />;
+    return React.createElement(MobileComponent, props);
   }
-  return <WebComponent {...props} />;
+  return React.createElement(WebComponent, props);
 }
