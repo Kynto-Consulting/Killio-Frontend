@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, Video, Music, Bookmark } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 export type MediaCarouselItem = {
@@ -64,11 +64,12 @@ const buildMediaCaption = (meta: MediaMeta): string => {
 
 export const UnifiedMediaBrick: React.FC<{
   brickId: string;
+  kind?: string;
   content: any;
   canEdit: boolean;
   onUpdate: (content: any) => void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
-}> = ({ brickId, content, canEdit, onUpdate, onUploadMediaFiles }) => {
+}> = ({ brickId, kind = "media", content, canEdit, onUpdate, onUploadMediaFiles }) => {
   const t = useTranslations("document-detail");
   const fallback: MediaCarouselItem = {
     url: content.url || "",
@@ -81,6 +82,9 @@ export const UnifiedMediaBrick: React.FC<{
   const meta = parseMediaMeta(content.caption, fallback);
   const [activeIndex, setActiveIndex] = React.useState(0);
   const [showSettings, setShowSettings] = React.useState(false);
+  
+  const [emptyTab, setEmptyTab] = React.useState<"upload" | "link">(kind === "bookmark" ? "link" : "upload");
+  const [linkInput, setLinkInput] = React.useState("");
 
   React.useEffect(() => {
     if (activeIndex >= meta.items.length) {
@@ -91,9 +95,9 @@ export const UnifiedMediaBrick: React.FC<{
   const activeItem = meta.items[activeIndex] || fallback;
   const mime = (activeItem?.mimeType || "").toLowerCase();
   const isImage = mime.startsWith("image/") || /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(activeItem?.url || "") || content.mediaType === "image";
-  const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "") || content.mediaType === "video";
-  const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "") || content.mediaType === "audio";
-  const isWebBookmark = content.mediaType === "bookmark";
+  const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "") || content.mediaType === "video" || kind === "video";
+  const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "") || content.mediaType === "audio" || kind === "audio";
+  const isWebBookmark = content.mediaType === "bookmark" || kind === "bookmark" || mime === "text/html";
 
   const updateMeta = (nextMeta: MediaMeta, nextIndex = 0) => {
     const first = nextMeta.items[0];
@@ -178,28 +182,102 @@ export const UnifiedMediaBrick: React.FC<{
             </div>
           )
         ) : (
-          <div className="flex flex-col items-center justify-center p-8 gap-3 text-center">
-            <ImageIcon className="w-10 h-10 text-muted-foreground/40" />
-            <div className="text-sm text-muted-foreground font-medium">{t("brickRenderer.attachPrompt")}</div>
-            {canEdit && (
-              <label className="cursor-pointer bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 mt-2">
-                {t("brickRenderer.uploadBtn")}
-                <input
-                  type="file"
-                  multiple
-                  accept="image/*,video/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
-                  className="hidden"
-                  onChange={(event) => {
-                    const files = Array.from(event.target.files || []);
-                    if (files.length === 0) return;
-                    if (onUploadMediaFiles) {
-                      void Promise.resolve(onUploadMediaFiles({ brickId, files }));
+          <div className="w-full max-w-2xl border border-border/70 rounded-lg overflow-hidden bg-card shadow-sm mt-2 flex flex-col">
+            <div className="flex items-center gap-2 px-3 py-2.5 bg-muted/20 border-b border-border/50 text-muted-foreground">
+              {kind === "image" ? <ImageIcon className="w-4 h-4" /> : kind === "video" ? <Video className="w-4 h-4" /> : kind === "audio" ? <Music className="w-4 h-4" /> : kind === "bookmark" ? <Bookmark className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
+              <span className="text-sm font-medium">
+                {kind === "image" ? t("brickRenderer.titleImage") : kind === "video" ? t("brickRenderer.titleVideo") : kind === "audio" ? t("brickRenderer.titleAudio") : kind === "bookmark" ? t("brickRenderer.titleBookmark") : t("brickRenderer.titleFile")}
+              </span>
+            </div>
+            
+            <div className="flex border-b border-border/50 px-2 bg-muted/10">
+              {kind !== "bookmark" && (
+                <button
+                  type="button"
+                  onClick={() => setEmptyTab("upload")}
+                  className={`px-4 py-2 pt-2.5 text-sm font-medium border-b-2 transition-colors ${emptyTab === "upload" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                >
+                  {t("brickRenderer.uploadTab")}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setEmptyTab("link")}
+                className={`px-4 py-2 pt-2.5 text-sm font-medium border-b-2 transition-colors ${emptyTab === "link" || kind === "bookmark" ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+              >
+                {t("brickRenderer.embedTab")}
+              </button>
+            </div>
+            
+            <div className="p-4 bg-card/60">
+              {emptyTab === "upload" && kind !== "bookmark" ? (
+                canEdit ? (
+                  <div className="flex flex-col items-start gap-3">
+                    <label className="cursor-pointer bg-primary text-primary-foreground px-4 py-1.5 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors">
+                      {kind === "image" ? t("brickRenderer.chooseImage") : kind === "video" ? t("brickRenderer.chooseVideo") : kind === "audio" ? t("brickRenderer.chooseAudio") : t("brickRenderer.chooseFile")}
+                      <input
+                        type="file"
+                        multiple
+                        accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"}
+                        className="hidden"
+                        onChange={(event) => {
+                          const files = Array.from(event.target.files || []);
+                          if (files.length === 0) return;
+                          if (onUploadMediaFiles) {
+                            void Promise.resolve(onUploadMediaFiles({ brickId, files }));
+                          }
+                          event.currentTarget.value = "";
+                        }}
+                      />
+                    </label>
+                  </div>
+                ) : (
+                  <div className="text-sm text-muted-foreground py-2">{t("brickRenderer.attachPrompt")}</div>
+                )
+              ) : (
+                <form 
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (!canEdit || !linkInput.trim()) return;
+                    
+                    const newItem: MediaCarouselItem = {
+                      url: linkInput.trim(),
+                      title: kind === "bookmark" ? "Bookmark" : "",
+                      mimeType: kind === "bookmark" ? "text/html" : undefined,
+                      sizeBytes: null,
+                      assetId: null,
+                    };
+                    
+                    if (meta.items.length === 0) {
+                      updateMeta({ ...meta, items: [newItem] }, 0);
+                    } else {
+                      updateMeta({ ...meta, items: [...meta.items, newItem] }, meta.items.length);
                     }
-                    event.currentTarget.value = "";
                   }}
-                />
-              </label>
-            )}
+                  className="flex flex-col gap-3"
+                >
+                  <input
+                     type="url"
+                     value={linkInput}
+                     onChange={(e) => setLinkInput(e.target.value)}
+                     placeholder={t("brickRenderer.embedPlaceholder")}
+                     className="w-full bg-background border border-border/70 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary shadow-sm"
+                  />
+                  <button
+                     type="submit"
+                     disabled={!linkInput.trim() || !canEdit}
+                     className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
+                  >
+                     {kind === "bookmark" ? t("brickRenderer.bookmarkButton") : t("brickRenderer.embedButton")}
+                  </button>
+                  {kind === "bookmark" && (
+                    <div className="text-xs text-muted-foreground mt-0.5 text-center">
+                      Crea una miniatura visual a partir de un enlace.
+                    </div>
+                  )}
+                </form>
+              )}
+            </div>
           </div>
         )}
 

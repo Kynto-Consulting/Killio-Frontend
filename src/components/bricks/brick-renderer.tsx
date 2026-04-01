@@ -260,10 +260,14 @@ export function UnifiedBrickRenderer({
 
     case 'media':
     case 'image':
+    case 'video':
+    case 'audio':
+    case 'bookmark':
     case 'file': {
       brickBody = (
         <UnifiedMediaBrick
           brickId={brick.id}
+          kind={kind}
           content={content}
           canEdit={canEdit}
           onUpdate={onUpdate}
