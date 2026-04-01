@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
+import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -269,70 +270,25 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
         <header className="relative z-[90] flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md">
-          <div className="flex flex-1 items-center">
-            {/* Global Search / Command Palette trigger */}
-            <button
-              onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}
-              className="flex w-full max-w-sm items-center space-x-2 rounded-md border border-border bg-card/40 px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/5 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent md:w-80"
-            >
-              <Search className="h-4 w-4 opacity-70" />
-              <span>{tDashboard("search.placeholder")}</span>
-              <span className="ml-auto hidden rounded bg-muted/50 px-1.5 py-0.5 text-xs font-semibold tracking-widest text-muted-foreground md:inline-block">
-                ⌘K
-              </span>
-            </button>
+          <div className="flex flex-1 items-center mr-2">
+            <MobileNavSheet
+              teams={teams}
+              activeTeamId={activeTeamId}
+              setActiveTeamId={setActiveTeamId}
+              navigation={navigation}
+              user={user}
+              logout={logout}
+            />
           </div>
 
-          <div className="flex items-center space-x-1 sm:space-x-3">
-            {/* Team Switcher */}
-            <div className="relative">
-              <button
-                onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
-                className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
-              >
-                <div className="h-5 w-5 rounded bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                  {teams.find(t => t.id === activeTeamId)?.icon || teams.find(t => t.id === activeTeamId)?.name.substring(0, 1).toUpperCase() || "W"}
-                </div>
-                <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
-                  {teams.find(t => t.id === activeTeamId)?.name || tDashboard("teamSwitcher.selectWorkspace")}
-                </span>
-                <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
-              </button>
-
-              {isTeamSwitcherOpen && (
-                <div className="absolute top-10 right-0 z-[120] w-56 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in slide-in-from-top-2">
-                  <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tDashboard("teamSwitcher.yourWorkspaces")}</div>
-                  <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
-                    {teams.map(team => (
-                      <button
-                        key={team.id}
-                        onClick={() => {
-                          setActiveTeamId(team.id);
-                          setIsTeamSwitcherOpen(false);
-                        }}
-                        className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center justify-between"
-                      >
-                        <div className="flex items-center truncate">
-                          <span className="mr-2 text-base leading-none">{team.icon || team.name.charAt(0).toUpperCase()}</span>
-                          <span className="truncate pr-2">{team.name}</span>
-                        </div>
-                        {activeTeamId === team.id && <Check className="h-4 w-4 text-primary shrink-0" />}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="h-px bg-border/50 my-1"></div>
-                  <button onClick={() => {
-                    setIsTeamSwitcherOpen(false);
-                    setIsCreateWorkspaceModalOpen(true);
-                  }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
-                    <Plus className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createWorkspace")}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            <div className="h-4 w-px bg-border/80 hidden sm:block mx-1"></div>
-
+          <div className="flex items-center space-x-1 shrink-0">
+            <button
+              onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}
+              className="flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent/10 transition-colors"
+            >
+              <Search className="h-4 w-4 opacity-70" />
+            </button>
+            <div className="h-4 w-px bg-border/80 mx-1"></div>
             <NotificationCenter />
           </div>
         </header>
