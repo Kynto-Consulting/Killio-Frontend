@@ -14,6 +14,8 @@ import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
+import katex from "katex";
+import "katex/dist/katex.min.css";
 
 interface TextBrickProps {
   id: string;
@@ -26,6 +28,7 @@ interface TextBrickProps {
   activeBricks: DocumentBrick[];
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
   onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
+  onAiAction?: (action: string, contextText: string) => void;
 }
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
@@ -48,7 +51,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   boards,
   activeBricks,
   users = [],
-  onPasteImage
+  onPasteImage,
+  onAiAction
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerFilter, setPickerFilter] = useState<any[] | undefined>(undefined);
@@ -158,7 +162,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           markdown += "~~";
           Array.from(el.childNodes).forEach(walk);
           markdown += "~~";
-        } else if (tag === "pre") {
+        } else if (el.hasAttribute('data-math')) {
+            const math = el.getAttribute('data-math') || '';
+            const isBlock = el.hasAttribute('data-math-block');
+            if (isBlock) {
+               if (markdown.length > 0 && !markdown.endsWith('\n')) markdown += '\n';
+               markdown += 'src/components/bricks/unified-text-brick.tsx\n' + math + '\nsrc/components/bricks/unified-text-brick.tsx';
+            } else {
+               markdown += ' + math + ';
+            }
+            return;
+          } else if (tag === "pre") {
           const lang = (el as HTMLElement).getAttribute("data-code-block") || "";
           const codeEl = el.querySelector("code");
           const code = codeEl ? (codeEl.textContent || "") : (el.textContent || "");
@@ -316,10 +330,23 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const processPseudoMarkdown = (rawText: string): string => {
     // Pre-extract fenced code blocks so they bypass reference + markdown processing
     const codeBlocks: Array<{ lang: string; code: string }> = [];
-    const sanitized = (rawText || "").replace(/```([\w]*)\r?\n([\s\S]*?)```/g, (_, lang, code) => {
+    let sanitized = (rawText || "").replace(/```([\w]*)\r?\n([\s\S]*?)```/g, (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({ lang: lang || "", code: code.replace(/\n$/, "") });
       return `\x00CB${idx}\x00`;
+    });
+
+    // Pre-extract math blocks
+    const mathBlocks: Array<{ formula: string; isBlock: boolean }> = [];
+    sanitized = sanitized.replace(/\$\$([\s\S]*?)\$\$/g, (_, formula) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push({ formula: formula.trim(), isBlock: true });
+      return `\x00MB${idx}\x00`;
+    });
+    sanitized = sanitized.replace(/\$([^\$\n]+?)\$/g, (_, formula) => {
+      const idx = mathBlocks.length;
+      mathBlocks.push({ formula: formula.trim(), isBlock: false });
+      return `\x00MI${idx}\x00`;
     });
 
     const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users });
@@ -330,7 +357,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let listBuffer: string[] = [];
     let listType: "ul" | "ol" | null = null;
 
-    const formatInline = (t: string) => t
+    const formatInline = (t: string) => {
+      let tFormat = t
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
         const src = normalizeImageUrl(rawUrl);
         if (!src) return `![${escapeHtml(alt)}](${escapeHtml(rawUrl)})`;
@@ -341,6 +369,19 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/__(.*?)__/g, "<u>$1</u>")
       .replace(/\*(.*?)\*/g, "<i>$1</i>")
       .replace(/~~(.*?)~~/g, "<s>$1</s>");
+
+      // Replace inline math
+      tFormat = tFormat.replace(/\x00MI(\d+)\x00/g, (_, idxStr) => {
+        const mInfo = mathBlocks[parseInt(idxStr)];
+        if (!mInfo) return "";
+        try {
+          return `<span contenteditable="false" data-math="${escapeHtmlAttr(mInfo.formula)}" class="mx-1 render-math math-inline inline-block whitespace-nowrap">${katex.renderToString(mInfo.formula, { throwOnError: false, displayMode: false })}</span>`;
+        } catch (e) {
+          return `<span contenteditable="false" data-math="${escapeHtmlAttr(mInfo.formula)}" class="mx-1 text-red-500">$${escapeHtml(mInfo.formula)}$</span>`;
+        }
+      });
+      return tFormat;
+    };
 
     const flushList = () => {
       if (listBuffer.length > 0 && listType) {
@@ -356,12 +397,24 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
       // Code block placeholder
       const cbMatch = trimmed.match(/^\x00CB(\d+)\x00$/);
+      const mbMatch = trimmed.match(/^\x00MB(\d+)\x00$/);
       if (cbMatch) {
         flushList();
         const { lang, code } = codeBlocks[parseInt(cbMatch[1])];
         const escaped = escapeHtml(code);
         const langLabel = lang ? `<div class="text-xs text-muted-foreground/60 font-mono uppercase tracking-wider mb-2">${lang}</div>` : "";
         html += `<pre contenteditable="false" class="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto" data-code-block="${lang}">${langLabel}<code class="text-xs font-mono text-foreground/80 whitespace-pre">${escaped}</code></pre>`;
+        return;
+      }
+      if (mbMatch) {
+        flushList();
+        const mInfo = mathBlocks[parseInt(mbMatch[1])];
+        try {
+          const rendered = katex.renderToString(mInfo.formula, { throwOnError: false, displayMode: true });
+          html += `<div contenteditable="false" class="my-4 render-math math-block w-full overflow-x-auto text-center" data-math-block="true" data-math="${escapeHtmlAttr(mInfo.formula)}">${rendered}</div>`;
+        } catch (e) {
+          html += `<div contenteditable="false" class="my-4 text-red-500" data-math-block="true" data-math="${escapeHtmlAttr(mInfo.formula)}">$$${escapeHtml(mInfo.formula)}$$</div>`;
+        }
         return;
       }
 
@@ -1185,8 +1238,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               setIsMathPickerOpen(true);
             } else if (action === "date") {
               setIsDatePickerOpen(true);
+            } else if (action.startsWith('ai-')) {
+              onAiAction?.(action, window.getSelection()?.toString() || '');
             } else {
-              console.log("Action clicked:", action);
+              console.log('Action clicked:', action);
             }
           }}
         />
