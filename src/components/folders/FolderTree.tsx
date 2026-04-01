@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Folder, FolderOpen, ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { FolderIconDisplay, resolveFolderIcon, PRESET_ICONS } from "./FolderIconPicker";
 export type FolderNode = {
   id: string;
   name: string;
@@ -28,7 +29,7 @@ export function FolderTree({ folders, activeFolderId, onSelectFolder }: FolderTr
           activeFolderId === null ? "bg-accent text-accent-foreground font-medium" : "hover:bg-muted text-muted-foreground"
         )}
       >
-        <Folder className="h-4 w-4" />
+        <FolderIconDisplay icon="folder" className="h-4 w-4" />
         <span>Todos los documentos</span>
       </div>
       <div className="pl-4 border-l ml-3.5 mt-2 flex flex-col gap-1 border-border/50">
@@ -78,19 +79,12 @@ function FolderTreeNode({
         >
           {isOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
         </button>
-        {isOpen ? (
-          node.icon ? (
-            <span className="h-4 w-4 flex items-center justify-center text-[14px]" style={{ color: node.color || undefined }}>{node.icon}</span>
-          ) : (
-            <FolderOpen className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} style={{ color: node.color || undefined }} />
-          )
-        ) : (
-          node.icon ? (
-            <span className="h-4 w-4 flex items-center justify-center text-[14px]" style={{ color: node.color || undefined }}>{node.icon}</span>
-          ) : (
-            <Folder className={cn("h-4 w-4", isActive ? "text-accent-foreground" : "text-primary/70")} style={{ color: node.color || undefined }} />
-          )
-        )}
+        <FolderIconDisplay 
+          icon={node.icon} 
+          color={node.color} 
+          className={cn("h-4 w-4", (node.icon && !PRESET_ICONS.find(i => i.id === node.icon)) ? "text-[14px]" : (isActive ? "text-accent-foreground" : "text-primary/70"))} 
+          isTextFallback={true} 
+        />
         <span className="truncate flex-1" style={{ color: node.color || undefined }}>{node.name}</span>
         {node.documentCount !== undefined && (
           <span className="text-xs opacity-50 group-hover:opacity-100 transition-opacity">
