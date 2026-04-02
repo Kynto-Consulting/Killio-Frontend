@@ -249,6 +249,7 @@ export function DocumentCommentsDrawer({
           documents,
           boards,
           activeBricks: docBricks,
+          documentBricksById: { [docId]: docBricks as any },
           users: (members || []).map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
         }),
         contextSummary
@@ -577,7 +578,11 @@ export function DocumentCommentsDrawer({
           getActionTheme={getActionTheme}
           prettifyAction={prettifyAction}
           fieldLabels={fieldLabels}
-          getResolverContext={getResolverContext}
+          getResolverContext={(docs, boardItems, memberItems) => ({
+            ...getResolverContext(docs, boardItems, memberItems),
+            activeBricks: docBricks,
+            documentBricksById: { [docId]: docBricks as any },
+          })}
         />
       )}
     </div>

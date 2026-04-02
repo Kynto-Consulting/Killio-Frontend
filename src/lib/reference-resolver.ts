@@ -1,15 +1,22 @@
-import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
+import { DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { Folder } from "@/lib/api/folders";
 import { sheetEngine } from "@/lib/sheetEngine";
+
+type ResolverBrick = {
+  id: string;
+  kind: string;
+  content?: Record<string, any>;
+  [key: string]: any;
+};
 
 export interface ResolverContext {
   documents: DocumentSummary[];
   boards: BoardSummary[];
   folders?: Folder[];
-  activeBricks?: DocumentBrick[]; // Bricks of the current document for local resolution
-  documentBricksById?: Record<string, DocumentBrick[]>;
-  cardBricksById?: Record<string, any[]>;
+  activeBricks?: ResolverBrick[]; // Bricks available in current scope for local resolution
+  documentBricksById?: Record<string, ResolverBrick[]>;
+  cardBricksById?: Record<string, ResolverBrick[]>;
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
 }
 
