@@ -117,3 +117,25 @@ export function resolveNestedBricks(
 
   return ordered;
 }
+
+export function sanitizeChildrenByContainer(
+  content: Record<string, any> | undefined | null,
+  validBrickIds: Set<string>,
+): Record<string, any> {
+  const map = readChildrenByContainer(content);
+  const seen = new Set<string>();
+  const next: ChildrenByContainer = {};
+
+  for (const [containerId, ids] of Object.entries(map)) {
+    const cleaned: string[] = [];
+    for (const id of ids) {
+      if (!validBrickIds.has(id)) continue;
+      if (seen.has(id)) continue;
+      seen.add(id);
+      cleaned.push(id);
+    }
+    next[containerId] = cleaned;
+  }
+
+  return withChildrenByContainer(content, next);
+}

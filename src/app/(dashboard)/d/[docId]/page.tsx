@@ -23,7 +23,7 @@ import { Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
-import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, setContainerChildIds } from "@/lib/bricks/nesting";
+import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -56,12 +56,20 @@ export default function DocumentPage() {
   const { activeTeamId } = useSession();
   const presenceMembers = useDocumentPresence(docId, user, accessToken);
 
+  const sanitizeDocumentBricks = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
+    const ids = new Set(bricks.map((brick) => brick.id));
+    return bricks.map((brick) => ({
+      ...brick,
+      content: sanitizeChildrenByContainer(brick.content || {}, ids),
+    }));
+  }, []);
+
   const fetchDoc = useCallback(async () => {
     if (!accessToken) return;
     try {
       setIsLoading(true);
       const doc = await getDocument(docId, accessToken);
-      setDocument(doc);
+      setDocument({ ...doc, bricks: sanitizeDocumentBricks(doc.bricks) });
 
       if (activeTeamId) {
         const [docs, boards, members, flds] = await Promise.all([
@@ -84,7 +92,7 @@ export default function DocumentPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [docId, accessToken, activeTeamId, t]);
+  }, [docId, accessToken, activeTeamId, sanitizeDocumentBricks, t]);
 
   useEffect(() => {
     fetchDoc();
@@ -96,7 +104,8 @@ export default function DocumentPage() {
         if (!prev) return prev;
         const exists = prev.bricks.some((b) => b.id === event.payload.id);
         if (exists) return prev;
-        return { ...prev, bricks: [...prev.bricks, event.payload].sort((a, b) => a.position - b.position) };
+        const nextBricks = sanitizeDocumentBricks([...prev.bricks, event.payload]).sort((a, b) => a.position - b.position);
+        return { ...prev, bricks: nextBricks };
       });
     } else if (event.type === "brick.updated") {
       if (event.payload?.fullSyncRequired) {
@@ -120,9 +129,12 @@ export default function DocumentPage() {
       } else {
         setDocument((prev) => {
           if (!prev) return prev;
+          const nextBricks = sanitizeDocumentBricks(
+            prev.bricks.map((b) => (b.id === event.payload.id ? event.payload : b)),
+          );
           return {
             ...prev,
-            bricks: prev.bricks.map((b) => (b.id === event.payload.id ? event.payload : b)),
+            bricks: nextBricks,
           };
         });
       }
