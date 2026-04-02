@@ -23,6 +23,7 @@ import { Sparkles } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
+import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, setContainerChildIds } from "@/lib/bricks/nesting";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -153,8 +154,13 @@ export default function DocumentPage() {
 
   const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     if (!accessToken || !document) return;
-    
-    const contextBricks = document.bricks.filter(b => b.content?.parentId === parentProps?.parentId && b.content?.containerId === parentProps?.containerId).sort((a,b) => a.position - b.position);
+
+    const parentBrick = parentProps ? document.bricks.find((b) => b.id === parentProps.parentId) : null;
+    const contextBricks = parentProps && parentBrick
+      ? (resolveNestedBricks(parentBrick.content, parentProps.containerId, document.bricks as any[]) as DocumentBrick[])
+      : document.bricks
+          .filter((b) => getTopLevelBrickIds(document.bricks).has(b.id))
+          .sort((a, b) => a.position - b.position);
 
     let position = 1000;
     if (afterBrickId) {
@@ -175,7 +181,7 @@ export default function DocumentPage() {
     if (kind === 'text') content = { text: '' };
     if (kind === 'checklist') content = { items: [] };
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
-    if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true };
+    if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true, childrenByContainer: { body: [] } };
     if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
     if (kind === 'image') content = { url: '', mediaType: 'image' };
     if (kind === 'video') content = { url: '', mediaType: 'video' };
@@ -184,13 +190,8 @@ export default function DocumentPage() {
     if (kind === 'bookmark') content = { url: '', mediaType: 'bookmark' };
     if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
     if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
-    if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }] };
-    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }] }; }
-
-    if (parentProps) {
-      content.parentId = parentProps.parentId;
-      content.containerId = parentProps.containerId;
-    }
+    if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }], childrenByContainer: { '1': [] } };
+    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }], childrenByContainer: { '1': [], '2': [] } }; }
 
     let finalKind = kind;
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
@@ -204,25 +205,55 @@ export default function DocumentPage() {
         if (prev.bricks.some((b) => b.id === newBrick.id)) return prev;
         return { ...prev, bricks: [...prev.bricks, newBrick].sort((a, b) => a.position - b.position) };
       });
+
+      if (parentProps && parentBrick) {
+        const parentInLatest = (document.bricks.find((b) => b.id === parentBrick.id) || parentBrick) as DocumentBrick;
+        const siblings = resolveNestedBricks(parentInLatest.content, parentProps.containerId, document.bricks as any[]) as DocumentBrick[];
+        const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
+        const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
+        const updatedParentContent = insertChildId(parentInLatest.content || {}, parentProps.containerId, newBrick.id, insertIndex);
+
+        setDocument((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            bricks: prev.bricks.map((b) => (b.id === parentInLatest.id ? { ...b, content: updatedParentContent } : b)),
+          };
+        });
+
+        try {
+          await updateDocumentBrick(docId, parentInLatest.id, updatedParentContent, accessToken);
+        } catch {
+          fetchDoc();
+        }
+      }
       
       // If we just created a tabs, accordion, or columns container, scaffold an initial text brick inside it
       if (['tabs', 'accordion', 'columns'].includes(kind)) {
         const defaultContainerId = kind === 'tabs' ? '1' : kind === 'columns' ? '1' : 'body';
-        const textContent = { text: '', parentId: newBrick.id, containerId: defaultContainerId };
+        const textContent = { text: '' };
         const innerBrick = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent }, accessToken);
         
         // For columns, scaffold a second one immediately
         let innerBrick2: any = null;
         if (kind === 'columns') {
-          const textContent2 = { text: '', parentId: newBrick.id, containerId: '2' };
+          const textContent2 = { text: '' };
           innerBrick2 = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent2 }, accessToken);
         }
+
+        let updatedContainerContent = insertChildId(newBrick.content || {}, defaultContainerId, innerBrick.id);
+        if (innerBrick2) {
+          updatedContainerContent = insertChildId(updatedContainerContent, '2', innerBrick2.id);
+        }
+
+        const updatedContainer = await updateDocumentBrick(docId, newBrick.id, updatedContainerContent, accessToken);
 
         setDocument((prev) => {
           if (!prev) return prev;
           let newBricks = [...prev.bricks];
           if (!newBricks.some((b) => b.id === innerBrick.id)) newBricks.push(innerBrick);
           if (innerBrick2 && !newBricks.some((b) => b.id === innerBrick2.id)) newBricks.push(innerBrick2);
+          newBricks = newBricks.map((b) => (b.id === newBrick.id ? updatedContainer : b));
           return { ...prev, bricks: newBricks.sort((a, b) => a.position - b.position) };
         });
       }
@@ -310,43 +341,81 @@ export default function DocumentPage() {
   const handleCrossContainerDrop = async (activeId: string, overId: string) => {
     if (!accessToken || !document) return;
     const activeBrick = document.bricks.find(b => b.id === activeId);
-    const overBrick = document.bricks.find(b => b.id === overId);
-    if (!activeBrick || !overBrick) return;
+    if (!activeBrick) return;
 
-    const parentId = overBrick.content?.parentId;
-    const containerId = overBrick.content?.containerId;
+    const overBrick = document.bricks.find((b) => b.id === overId);
+    const sourceRef = document.bricks
+      .map((parent) => {
+        const map = parent.content?.childrenByContainer as Record<string, string[]> | undefined;
+        if (!map) return null;
+        for (const [containerId, ids] of Object.entries(map)) {
+          if (Array.isArray(ids) && ids.includes(activeId)) return { parentId: parent.id, containerId };
+        }
+        return null;
+      })
+      .find(Boolean) as { parentId: string; containerId: string } | undefined;
 
-    const newContent = { ...activeBrick.content };
-    if (parentId) newContent.parentId = parentId;
-    else delete newContent.parentId;
-    
-    if (containerId) newContent.containerId = containerId;
-    else delete newContent.containerId;
-
-    const contextBricks = document.bricks.filter(b => b.content?.parentId === parentId && b.content?.containerId === containerId).sort((a,b) => a.position - b.position);
-    const idx = contextBricks.findIndex(b => b.id === overBrick.id);
-    let position = 1000;
-    if (idx >= 0) {
-       if (idx === contextBricks.length - 1) position = contextBricks[idx].position + 1000;
-       else position = (contextBricks[idx].position + contextBricks[idx + 1].position) / 2;
+    let targetRef: { parentId: string; containerId: string } | null = null;
+    if (overId.includes(":")) {
+      const [parentId, containerId] = overId.split(":");
+      if (parentId && containerId) targetRef = { parentId, containerId };
+    } else if (overBrick) {
+      const nestedOver = document.bricks
+        .map((parent) => {
+          const map = parent.content?.childrenByContainer as Record<string, string[]> | undefined;
+          if (!map) return null;
+          for (const [containerId, ids] of Object.entries(map)) {
+            if (Array.isArray(ids) && ids.includes(overBrick.id)) return { parentId: parent.id, containerId };
+          }
+          return null;
+        })
+        .find(Boolean) as { parentId: string; containerId: string } | undefined;
+      if (nestedOver) targetRef = nestedOver;
     }
 
-    // Optimistically update
+    if (!sourceRef && !targetRef) return;
+
+    const updates: Array<{ parentId: string; content: Record<string, any> }> = [];
+    const nextById = new Map(document.bricks.map((b) => [b.id, b]));
+
+    if (sourceRef) {
+      const sourceParent = nextById.get(sourceRef.parentId);
+      if (sourceParent) {
+        const sourceIds = getContainerChildIds(sourceParent.content, sourceRef.containerId).filter((id) => id !== activeId);
+        const nextContent = setContainerChildIds(sourceParent.content, sourceRef.containerId, sourceIds);
+        updates.push({ parentId: sourceParent.id, content: nextContent });
+        nextById.set(sourceParent.id, { ...sourceParent, content: nextContent });
+      }
+    }
+
+    if (targetRef) {
+      const targetParent = nextById.get(targetRef.parentId);
+      if (targetParent) {
+        const targetIds = getContainerChildIds(targetParent.content, targetRef.containerId).filter((id) => id !== activeId);
+        const insertAt = overBrick ? Math.max(0, targetIds.indexOf(overBrick.id) + 1) : targetIds.length;
+        targetIds.splice(insertAt, 0, activeId);
+        const nextContent = setContainerChildIds(targetParent.content, targetRef.containerId, targetIds);
+        const existing = updates.find((u) => u.parentId === targetParent.id);
+        if (existing) existing.content = nextContent;
+        else updates.push({ parentId: targetParent.id, content: nextContent });
+      }
+    }
+
     setDocument((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        bricks: prev.bricks.map(b => 
-          b.id === activeId 
-            ? { ...b, content: newContent, position } 
-            : b
-        ).sort((a,b) => a.position - b.position)
+        bricks: prev.bricks.map((b) => {
+          const hit = updates.find((u) => u.parentId === b.id);
+          return hit ? { ...b, content: hit.content } : b;
+        }),
       };
     });
 
     try {
-      await updateDocumentBrick(docId, activeId, newContent, accessToken);
-      await reorderDocumentBricks(docId, [{ id: activeId, position }], accessToken);
+      for (const update of updates) {
+        await updateDocumentBrick(docId, update.parentId, update.content, accessToken);
+      }
     } catch (e) {
       toast(t("brickError") || "Error moving brick", "error");
       fetchDoc();
@@ -874,7 +943,7 @@ export default function DocumentPage() {
 
           <div className="pb-32">
             <UnifiedBrickList
-              bricks={document.bricks.filter((b) => !b.content?.parentId)}
+              bricks={document.bricks.filter((b) => getTopLevelBrickIds(document.bricks).has(b.id))}
               activeBricks={document.bricks}
               canEdit={canEdit}
               documents={teamDocs}
