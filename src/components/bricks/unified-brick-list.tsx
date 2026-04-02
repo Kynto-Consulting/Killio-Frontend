@@ -35,7 +35,7 @@ interface UnifiedBrickListProps {
   onUpdateBrick: (id: string, content: any) => void;
   onDeleteBrick: (id: string) => void;
   onReorderBricks: (ids: string[]) => void;
-  onAddBrick: (kind: string, afterBrickId?: string, initialContent?: any) => void;
+  onAddBrick: (kind: string, afterBrickId?: string, parentProps?: any, initialContent?: any) => void;
   documents?: any[];
   boards?: any[];
   folders?: any[];
@@ -45,6 +45,7 @@ interface UnifiedBrickListProps {
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   hasExternalDndContext?: boolean;
   onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  dropContainerToken?: string;
   emptyPlaceholder?: string;
   onAiAction?: (action: string, contextText: string) => void;
   isCompact?: boolean;
@@ -67,6 +68,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onUploadMediaFiles,
   hasExternalDndContext = false,
   onCrossContainerDrop,
+  dropContainerToken,
   emptyPlaceholder,
   onAiAction,
   isCompact = false
@@ -125,7 +127,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
       // If either isn't found in current scope, it's a cross-container drop
       if (oldIndex === -1 || newIndex === -1) {
         if (onCrossContainerDrop) {
-           onCrossContainerDrop(active.id as string, over.id as string);
+           onCrossContainerDrop(active.id as string, dropContainerToken || (over.id as string));
         }
         return;
       }
@@ -378,7 +380,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
                 const newText = currentText ? `${currentText} ${item.token}` : item.token;
                 onUpdateBrick(targetBrick.id, { ...targetBrick.content, text: newText, markdown: newText });
               } else {
-                onAddBrick("text", pickerState.triggerBrickId, { text: item.token, markdown: item.token });
+                  onAddBrick("text", pickerState.triggerBrickId, undefined, { text: item.token, markdown: item.token });
               }
               setPickerState(null);
             }}

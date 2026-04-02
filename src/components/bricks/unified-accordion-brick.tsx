@@ -81,6 +81,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
           {(resolvedNestedBricks.length > 0 || !body || !readonly) ? (
             <UnifiedBrickList
               hasExternalDndContext={true}
+              dropContainerToken={`${id}:body`}
               bricks={resolvedNestedBricks} activeBricks={activeBricks}
               canEdit={!readonly}
               emptyPlaceholder={t("bricks.accordion.empty")}

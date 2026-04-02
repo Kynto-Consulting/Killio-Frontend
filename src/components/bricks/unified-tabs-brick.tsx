@@ -105,6 +105,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
         {(nestedBricks.length > 0 || !readonly) ? (
           <UnifiedBrickList
             hasExternalDndContext={true}
+            dropContainerToken={`${id}:${activeTab}`}
             bricks={nestedBricks} activeBricks={activeBricks}
             canEdit={!readonly}
             emptyPlaceholder={t("bricks.tabs.empty")}
