@@ -32,6 +32,14 @@ export function RichText({
 }: RichTextProps) {
   if (!content) return null;
 
+  const stripWrappedBold = (value: string): string => {
+    const trimmed = value.trim();
+    if (/^\*\*[\s\S]+\*\*$/.test(trimmed)) {
+      return trimmed.slice(2, -2).trim();
+    }
+    return value;
+  };
+
   // Handle block math
   if (content.includes("$$")) {
     const parts = content.split(/(\$\$[\s\S]*?\$\$)/g);
@@ -163,12 +171,13 @@ export function RichText({
 
               if (part.type === "deep") {
                 if (part.isInline === false) {
+                  const resolvedText = typeof part.resolvedValue === 'string'
+                    ? stripWrappedBold(part.resolvedValue)
+                    : JSON.stringify(part.resolvedValue, null, 2);
+                  const hasResolvedContent = String(resolvedText || "").trim().length > 0;
                   return (
                     <div key={partIdx} className="my-2 p-3 rounded-md border border-amber-500/20 bg-amber-500/5 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
-                      <div className="flex items-center gap-1.5 mb-2 text-xs font-bold text-amber-600/80 uppercase tracking-wider">
-                        <span>{part.label}</span>
-                      </div>
-                      {typeof part.resolvedValue === 'string' ? renderInlineMarkdown(part.resolvedValue, availableTags) : JSON.stringify(part.resolvedValue, null, 2)}
+                      {hasResolvedContent ? renderInlineMarkdown(String(resolvedText), availableTags) : part.label}
                     </div>
                   );
                 }

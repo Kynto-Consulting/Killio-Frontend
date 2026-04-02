@@ -13,6 +13,50 @@ export interface ResolverContext {
 }
 
 export class ReferenceResolver {
+  private static stripOuterBoldMarkers(value: string): string {
+    if (!value) return value;
+    const trimmed = value.trim();
+    if (/^\*\*[\s\S]+\*\*$/.test(trimmed)) {
+      return trimmed.slice(2, -2).trim();
+    }
+    return value;
+  }
+
+  private static buildDeepLabel(resolvedValue: string, fallbackLabel: string): string {
+    const cleanResolved = this.stripOuterBoldMarkers(String(resolvedValue || "")).trim();
+    if (!cleanResolved) return fallbackLabel;
+
+    const lines = cleanResolved
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const preview = lines[0] || cleanResolved;
+    if (preview.length > 120) return `${preview.slice(0, 117)}...`;
+    return preview;
+  }
+
+  private static removeBoldWrappersAroundReferences(parts: (string | any)[]): (string | any)[] {
+    const normalized = [...parts];
+
+    for (let i = 1; i < normalized.length - 1; i += 1) {
+      const current = normalized[i];
+      if (!current || typeof current === "string") continue;
+
+      const prev = normalized[i - 1];
+      const next = normalized[i + 1];
+      if (typeof prev !== "string" || typeof next !== "string") continue;
+
+      const hasBoldStart = /\*\*\s*$/.test(prev);
+      const hasBoldEnd = /^\s*\*\*/.test(next);
+      if (!hasBoldStart || !hasBoldEnd) continue;
+
+      normalized[i - 1] = prev.replace(/\*\*\s*$/, "");
+      normalized[i + 1] = next.replace(/^\s*\*\*\s*/, "");
+    }
+
+    return normalized;
+  }
+
   private static columnLettersToIndex(letters: string): number {
     let result = 0;
     const normalized = letters.toUpperCase();
@@ -346,7 +390,7 @@ export class ReferenceResolver {
     const context = _context;
     const parts = text.split(/(@\[(?:doc|board|card|user|folder):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
-    return parts.map((part, i) => {
+    const resolvedParts = parts.map((part, i) => {
       const match = part.match(/@\[(doc|board|card|user|folder):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
@@ -378,24 +422,26 @@ export class ReferenceResolver {
         const brick = this.findDeepBrick(scopeId, brickId, deepPrefix, context);
         const docTitle = context.documents.find((d) => d.id === scopeId)?.title;
         const resolvedValue = brick ? this.resolveDeepToken(inner, context, deepPrefix) : "";
+        const normalizedResolvedValue = this.stripOuterBoldMarkers(String(resolvedValue || ""));
 
         const nonInlineSelectors = new Set(["range", "csv", "items", "checked", "unchecked", "json", "raw", "series"]);
-        const isSingleLine = !String(resolvedValue).includes("\n");
+        const isSingleLine = !normalizedResolvedValue.includes("\n");
         const isInline = !!brick && !nonInlineSelectors.has(selector) && isSingleLine;
-        const valueLabel = String(resolvedValue || "").trim();
+        const fallbackLabel = brick
+          ? `${String(brick.kind || "brick")} · ${selectorLabel}`
+          : docTitle
+            ? `${docTitle} · ${selectorLabel}`
+            : `Referencia · ${selectorLabel}`;
 
-        const label = isInline && valueLabel.length > 0
-          ? valueLabel
-          : brick
-            ? `${String(brick.kind || "brick")} · ${selectorLabel}`
-            : docTitle
-              ? `${docTitle} · ${selectorLabel}`
-              : `Referencia · ${selectorLabel}`;
+        const label = this.buildDeepLabel(normalizedResolvedValue, fallbackLabel);
 
-        return { type: 'deep', prefix, inner, label, key: i, isInline, resolvedValue };
+        return { type: 'deep', prefix, inner, label, key: i, isInline, resolvedValue: normalizedResolvedValue };
       }
 
       return part;
     });
+
+    return this.removeBoldWrappersAroundReferences(resolvedParts)
+      .filter((part, index, arr) => !(typeof part === "string" && part.length === 0 && typeof arr[index - 1] === "string" && typeof arr[index + 1] === "string"));
   }
 }
