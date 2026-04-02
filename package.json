@@ -26,6 +26,7 @@
     "hyperformula": "^3.2.0",
     "katex": "^0.16.44",
     "lucide-react": "^1.7.0",
+    "mathlive": "^0.109.1",
     "next": "15.5.12",
     "pdf-parse": "^2.4.5",
     "react": "19.0.0",

@@ -35,6 +35,21 @@ interface TextBrickProps {
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
 
+type MathMode = "block" | "inline";
+
+const extractSingleBlockMath = (markdown: string): string | null => {
+  const match = markdown.match(/^\s*\$\$\s*\n?([\s\S]*?)\n?\s*\$\$\s*$/);
+  if (!match) return null;
+  const formula = match[1].trim();
+  return formula.length > 0 ? formula : null;
+};
+
+const toMathMarkdown = (formula: string, mode: MathMode): string => {
+  const clean = formula.trim();
+  if (!clean) return "";
+  return mode === "block" ? `$$\n${clean}\n$$` : `$${clean}$`;
+};
+
 
 
 const logPasteDebug = (...args: unknown[]) => {
@@ -62,6 +77,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
   const [isMathPickerOpen, setIsMathPickerOpen] = useState(false);
+  const [mathPickerInitialFormula, setMathPickerInitialFormula] = useState("");
+  const [mathPickerInitialMode, setMathPickerInitialMode] = useState<MathMode>("block");
+  const [mathInsertMode, setMathInsertMode] = useState<"insert" | "replace-all">("insert");
   const [pickerCursorOffset, setPickerCursorOffset] = useState<number | null>(null);
   const [isSlashOpen, setIsSlashOpen] = useState(false);
   const [slashQuery, setSlashQuery] = useState("");
@@ -171,9 +189,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             const isBlock = el.hasAttribute('data-math-block');
             if (isBlock) {
                if (markdown.length > 0 && !markdown.endsWith('\n')) markdown += '\n';
-               markdown += 'src/components/bricks/unified-text-brick.tsx\n' + math + '\nsrc/components/bricks/unified-text-brick.tsx';
+              markdown += `$$\n${math}\n$$`;
             } else {
-               markdown += ' + math + ';
+              markdown += `$${math}$`;
             }
             return;
           } else if (tag === "pre") {
@@ -581,8 +599,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleFocus = () => {
     if (contentRef.current) {
+      const singleMathFormula = extractSingleBlockMath(text || "");
+      if (singleMathFormula) {
+        contentRef.current.innerHTML = processPseudoMarkdown(text || "");
+        setMathPickerInitialFormula(singleMathFormula);
+        setMathPickerInitialMode("block");
+        setMathInsertMode("replace-all");
+        setTimeout(() => setIsMathPickerOpen(true), 0);
+      } else {
       // In markdown mode keep references as pills and leave markdown syntax as plain text.
-      contentRef.current.innerHTML = processMarkdownWithPills(text || "");
+        contentRef.current.innerHTML = processMarkdownWithPills(text || "");
+      }
       const tc = contentRef.current.textContent || "";
       if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
@@ -590,6 +617,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   };
 
   const handleBlur = () => {
+    if (isPickerOpen || isDatePickerOpen || isEmojiPickerOpen || isMathPickerOpen) {
+      return;
+    }
+
     if (contentRef.current) {
       // Preserve references as tokens while serializing markdown.
       const rawMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
@@ -1253,6 +1284,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             if (action === "emoji") {
               setIsEmojiPickerOpen(true);
             } else if (action === "math") {
+              setMathInsertMode("insert");
+              setMathPickerInitialFormula("");
+              setMathPickerInitialMode("block");
               setIsMathPickerOpen(true);
             } else if (action === "date") {
               setIsDatePickerOpen(true);
@@ -1338,21 +1372,39 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             <MathPickerPopover 
               top={formatToolbarPosition.top || slashMenuPosition.top} 
               left={formatToolbarPosition.left || slashMenuPosition.left} 
-              onClose={() => setIsMathPickerOpen(false)}
-              onSelect={(formula) => {
+              initialFormula={mathPickerInitialFormula}
+              initialMode={mathPickerInitialMode}
+              onClose={() => {
+                setIsMathPickerOpen(false);
+                setMathInsertMode("insert");
+                setMathPickerInitialFormula("");
+                setMathPickerInitialMode("block");
+              }}
+              onSelect={({ formula, mode, markdown }) => {
                 if (contentRef.current) {
-                  contentRef.current.focus();
-                  const sel = window.getSelection();
-                  if (savedRangeRef.current && sel) {
-                    sel.removeAllRanges();
-                    sel.addRange(savedRangeRef.current);
+                  if (mathInsertMode === "replace-all") {
+                    const nextMarkdown = toMathMarkdown(formula, mode);
+                    if (nextMarkdown) {
+                      onUpdate(nextMarkdown);
+                      contentRef.current.innerHTML = processPseudoMarkdown(nextMarkdown);
+                    }
+                  } else {
+                    contentRef.current.focus();
+                    const sel = window.getSelection();
+                    if (savedRangeRef.current && sel) {
+                      sel.removeAllRanges();
+                      sel.addRange(savedRangeRef.current);
+                    }
+                    document.execCommand("insertText", false, markdown + " ");
+                    const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                    onUpdate(newMarkdown);
+                    contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
                   }
-                  document.execCommand("insertText", false, formula + " ");
-                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                  onUpdate(newMarkdown);
-                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
                 }
                 setIsMathPickerOpen(false);
+                setMathInsertMode("insert");
+                setMathPickerInitialFormula("");
+                setMathPickerInitialMode("block");
                 setPickerCursorOffset(null);
                 savedRangeRef.current = null;
               }}

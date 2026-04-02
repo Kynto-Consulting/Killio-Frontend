@@ -45,24 +45,23 @@ export function ListColumnWeb({
   const isGuest = !canEdit;
   const containerStyle: CSSProperties = isDropTarget
     ? {
-      backgroundColor: "var(--board-panel, rgba(255,255,255,0.6))",
+      backgroundColor: "transparent",
       borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
       boxShadow: "0 0 0 2px var(--board-ghost, rgba(56,189,248,0.16))",
     }
     : {
-      backgroundColor: "var(--board-panel, rgba(255,255,255,0.6))",
-      borderColor: "var(--board-border, rgba(148,163,184,0.35))",
+      
     };
 
   return (
     <>
     <div
       ref={setNodeRef}
-      className="w-72 shrink-0 flex flex-col rounded-xl border backdrop-blur-sm max-h-full transition-all"
+      className="w-[280px] shrink-0 flex flex-col rounded-xl bg-[#f1f2f4] dark:bg-[#101204] text-foreground max-h-full transition-all border-none shadow-sm"
       style={containerStyle}
     >
       <div 
-        className="p-3 flex items-center justify-between group border-b border-border/40"
+        className="px-3 py-2 flex items-center justify-between group"
       >
         <h3 className="font-semibold text-sm pl-1">{list.title}</h3>
         <div className="flex items-center space-x-1 relative">
@@ -95,10 +94,10 @@ export function ListColumnWeb({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-2 space-y-2">
+      <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-2">
         <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
           {list.cards.map((card, index) => (
-            <div key={card.id} className="space-y-2">
+            <div key={card.id} className="flex flex-col gap-2">
               {isDropTarget && dropHintIndex === index && draggingCardId !== card.id ? (
                 <div
                   className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
@@ -142,7 +141,7 @@ export function ListColumnWeb({
         {!isGuest && (
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="w-full flex items-center text-left p-2 rounded-lg hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors group text-sm font-medium"
+            className="w-full flex items-center text-left py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors group text-sm font-medium mt-1"
           >
             <Plus className="h-4 w-4 mr-2" />
             {t("list.addCard")}

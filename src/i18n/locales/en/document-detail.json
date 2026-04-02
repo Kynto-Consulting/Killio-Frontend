@@ -170,6 +170,16 @@
       "placeholder": "Column",
       "addColumn": "Add column"
     },
+    "table": {
+      "defaultTitle": "Sheet",
+      "titlePlaceholder": "Table title...",
+      "defaultColumnA": "Column A",
+      "defaultColumnB": "Column B",
+      "addRow": "Row",
+      "addColumn": "Column",
+      "addRowCompact": "Row",
+      "addColumnCompact": "Col"
+    },
     "list": {
       "noResults": "No results",
       "addBlock": "Add block"
@@ -181,5 +191,28 @@
     "strike": "Strikethrough",
     "code": "Inline Code",
     "link": "Link"
+  },
+  "mathEditor": {
+    "title": "Formula Editor",
+    "subtitle": "KaTeX preview, visual templates & shortcuts (Ctrl/Cmd + Enter)",
+    "preview": "Preview",
+    "manualLatex": "Manual LaTeX",
+    "showLatex": "Show LaTeX",
+    "hideLatex": "Hide LaTeX",
+    "inline": "Inline",
+    "block": "Block",
+    "cancel": "Cancel",
+    "insert": "Insert",
+    "invalidFormula": "Invalid formula",
+    "emptyFormula": "Type a formula to preview",
+    "hints": "Useful shortcuts in manual LaTeX:",
+    "categories": {
+      "basic": "Basic",
+      "algebra": "Algebra",
+      "calculus": "Calculus",
+      "greek": "Greek",
+      "matrices": "Matrices",
+      "logic": "Logic"
+    }
   }
 }

@@ -7,6 +7,7 @@ import { sheetEngine } from "@/lib/sheetEngine";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { ReferenceResolver } from "@/lib/reference-resolver";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { Portal } from "../ui/portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentBrick } from "@/lib/api/documents";
@@ -16,8 +17,10 @@ type FunctionMeta = { name: string; description: string; parameters: string[] };
 
 interface TableBrickProps {
   id: string;
+  title?: string;
   data: string[][];
   onUpdate: (newData: string[][]) => void;
+  onUpdateTitle?: (newTitle: string) => void;
   readonly?: boolean;
   documents?: any[];
   boards?: any[];
@@ -28,8 +31,10 @@ interface TableBrickProps {
 
 export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   id,
+  title,
   data,
   onUpdate,
+  onUpdateTitle,
   readonly,
   documents = [],
   boards = [],
@@ -37,10 +42,11 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   users = [],
   activeBricks = [],
 }) => {
+  const t = useTranslations("document-detail");
   const normalizedData = useMemo(() => {
     if (Array.isArray(data) && data.length > 0) return data;
-    return [["Columna A", "Columna B"], ["", ""]];
-  }, [data]);
+    return [[t("bricks.table.defaultColumnA"), t("bricks.table.defaultColumnB")], ["", ""]];
+  }, [data, t]);
 
   const [editingCell, setEditingCell] = useState<{ r: number; c: number } | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
@@ -59,12 +65,17 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   const [isReferencePickerOpen, setIsReferencePickerOpen] = useState(false);
   const [pickerRange, setPickerRange] = useState<{ trigger: number; cursor: number } | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [draftTitle, setDraftTitle] = useState(title || "");
 
   const inputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     setFunctions(sheetEngine.getFunctionsWithMetadata() as FunctionMeta[]);
   }, []);
+
+  useEffect(() => {
+    setDraftTitle(title || "");
+  }, [title]);
 
   useEffect(() => {
     sheetEngine.updateSheet(id, normalizedData);
@@ -134,6 +145,13 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
     closeReferencePickers();
     setEditingCell(null);
     setEditingValue("");
+  };
+
+  const commitTitle = () => {
+    if (readonly || !onUpdateTitle) return;
+    const currentTitle = title || "";
+    if (draftTitle === currentTitle) return;
+    onUpdateTitle(draftTitle);
   };
 
   const focusCell = (r: number, c: number) => {
@@ -285,18 +303,42 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
       isFullscreen ? "fixed inset-4 z-[9999] bg-card h-[calc(100vh-2rem)]" : "w-full"
     )}>
       <div className="flex items-center justify-between border-b border-border bg-muted/25 p-2">
-        <div className="flex items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <div className="flex min-w-0 flex-1 items-center gap-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           <TableIcon className="h-4 w-4 text-accent" />
-          Sheet
+          {readonly ? (
+            <span className="truncate">{title?.trim() || t("bricks.table.defaultTitle")}</span>
+          ) : (
+            <input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              onBlur={commitTitle}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitTitle();
+                  (e.currentTarget as HTMLInputElement).blur();
+                  return;
+                }
+                if (e.key === "Escape") {
+                  e.preventDefault();
+                  setDraftTitle(title || "");
+                  (e.currentTarget as HTMLInputElement).blur();
+                }
+              }}
+              placeholder={t("bricks.table.titlePlaceholder")}
+              className="no-drag-focus h-7 min-w-0 flex-1 rounded-md border border-transparent bg-transparent px-2 text-xs font-semibold tracking-wide text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus:border-border focus:bg-background"
+            />
+          )}
         </div>
         <div className="flex items-center gap-1">
           {!readonly && (
             <>
               <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addColumn}>
-                <Columns className="h-3 w-3" /> + Col
+                <Columns className="h-3 w-3" /> + {t("bricks.table.addColumnCompact")}
               </Button>
               <Button variant="ghost" size="sm" className="h-7 gap-1 px-2 text-[10px]" onClick={addRow}>
-                <Rows className="h-3 w-3" /> + Row
+                <Rows className="h-3 w-3" /> + {t("bricks.table.addRowCompact")}
               </Button>
             </>
           )}
@@ -520,10 +562,10 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
       {!readonly && (
         <div className="flex items-center justify-end gap-2 border-t border-border bg-muted/5 p-2 shrink-0">
           <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={addRow}>
-            <Plus className="h-3 w-3" /> Fila
+            <Plus className="h-3 w-3" /> {t("bricks.table.addRow")}
           </Button>
           <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={addColumn}>
-            <Plus className="h-3 w-3" /> Columna
+            <Plus className="h-3 w-3" /> {t("bricks.table.addColumn")}
           </Button>
         </div>
       )}

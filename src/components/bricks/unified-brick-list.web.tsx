@@ -147,7 +147,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     const normalized = {
       ...brick,
       content: {
-        text: brick.markdown || brick.content?.text || "",
+        text: brick.markdown! || brick.content?.text || "",
         rows: brick.rows || brick.content?.rows || [],
         items: brick.tasks || brick.items || brick.content?.items || [],
         title: brick.title || brick.content?.title || "",
@@ -181,7 +181,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
 
   const listContent = (
     <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
-      <div className="space-y-2 min-h-[50px]">
+      {sortedBricks.length > 0 && (
+<div className="space-y-2 min-h-[50px]">
         {sortedBricks.map(brick => (
           <SortableBrick 
             key={brick.id} 
@@ -214,7 +215,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             {renderBrick(brick)}
           </SortableBrick>
         ))}
-      </div>
+      </div>)}
     </SortableContext>
   );
 

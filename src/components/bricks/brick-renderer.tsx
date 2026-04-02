@@ -160,8 +160,10 @@ export function UnifiedBrickRenderer({
       brickBody = (
         <UnifiedTableBrick
           id={brick.id}
+          title={content.title}
           data={content.rows || [['Header 1', 'Header 2'], ['', '']]}
           onUpdate={(rows) => onUpdate({ ...content, rows })}
+          onUpdateTitle={(title) => onUpdate({ ...content, title })}
           readonly={!canEdit}
           documents={documents}
           boards={boards}

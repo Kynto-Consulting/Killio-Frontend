@@ -1,4 +1,5 @@
 ﻿"use client";
+import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
 import { RichText } from "./rich-text";
@@ -14,40 +15,11 @@ export interface BoardChatDrawerProps {
   initialTab?: 'copilot' | 'chat' | 'activity';
 }
 
-function getActionTheme(action: string) {
-  const lower = action.toLowerCase();
-  if (lower === "card.tag_added") return { icon: Tag, badge: "Etiqueta", badgeClass: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" };
-  if (lower === "card.tag_removed") return { icon: Tag, badge: "Borrado", badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30" };
-  if (lower === "card.commented" || lower === "board.commented") return { icon: MessageSquare, badge: "Comentario", badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30" };
-  if (lower === "card.updated") return { icon: Edit2, badge: "Actualizado", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30" };
-  if (lower.includes("created")) return { icon: Sparkles, badge: "Creado", badgeClass: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
-  if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
-  if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
-  return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
-}
 
-import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles, parseAiActions } from "@/hooks/use-board-chat-drawer";
 
-export interface BoardChatDrawerProps {
-  isOpen: boolean;
-  onClose: () => void;
-  boardId?: string;
-  initialTab?: 'copilot' | 'chat' | 'activity';
-}
-
-function getActionTheme(action: string) {
-  const lower = action.toLowerCase();
-  if (lower === "card.tag_added") return { icon: Tag, badge: "Etiqueta", badgeClass: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" };
-  if (lower === "card.tag_removed") return { icon: Tag, badge: "Borrado", badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30" };
-  if (lower === "card.commented" || lower === "board.commented") return { icon: MessageSquare, badge: "Comentario", badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30" };
-  if (lower === "card.updated") return { icon: Edit2, badge: "Actualizado", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30" };
-  if (lower.includes("created")) return { icon: Sparkles, badge: "Creado", badgeClass: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
-  if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
-  if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
-  return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
-}
 
 export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = 'chat' }: BoardChatDrawerProps) {
+  const getActionTheme = useActionTheme();
   const {
     state: {
       activeTab, setActiveTab, aiMessages, setAiMessages, chatMessages, inputVal, setInputVal,
@@ -60,73 +32,6 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
 
   if (!isOpen) return null;
 
-  async function sendMessage(e?: React.FormEvent, presetPrompt?: string) {
-    e?.preventDefault();
-    const messageToSend = (presetPrompt ?? inputVal).trim();
-    if (!messageToSend || isLoading || isSendingMessage || !boardId || !accessToken) return;
-
-    const userMsg: Message = { 
-      id: Date.now(), 
-      role: "user", 
-      content: messageToSend, 
-      avatar: user?.displayName?.[0] || "U",
-      avatarUrl: (user as any)?.user_metadata?.avatar_url || (user as any)?.avatarUrl || (user as any)?.photoURL || null,
-      email: user?.email || null
-    };
-    setInputVal("");
-    setIsSendingMessage(true);
-
-    if (activeTab === 'chat') {
-      // Human-to-human flow
-      setChatMessages(prev => [...prev, userMsg]);
-      try {
-        const { addBoardComment } = await import("@/lib/api/contracts");
-        await addBoardComment(boardId, userMsg.content, accessToken);
-      } catch (err) {
-        console.error("Failed to send board comment", err);
-        setChatMessages(prev => [...prev, { id: Date.now(), role: 'system', content: '⚠️ Error enviando mensaje.' }]);
-      } finally {
-        setIsSendingMessage(false);
-      }
-      return;
-    }
-
-    // AI Copilot flow
-    const loadingMsg: Message = { id: Date.now() + 1, role: "bot", content: "", loading: true };
-    setAiMessages((prev) => [...prev, userMsg, loadingMsg]);
-    setIsLoading(true);
-
-    try {
-      const [boardData, teamActivity] = await Promise.all([
-        getBoard(boardId, accessToken),
-        activeTeamId ? listTeamActivity(activeTeamId, accessToken) : Promise.resolve([] as ActivityLogEntry[]),
-      ]);
-
-      const scopedActivity = filterBoardActivity(teamActivity, boardId);
-      const contextSummary = boardData
-        ? buildBoardContextSummary(boardData, scopedActivity, realtimeEvents)
-        : "No board context could be loaded.";
-
-      const data = await chatWithAiScope(
-        {
-          scope: "board",
-          scopeId: boardId,
-          message: buildAiMessageWithReferenceContext(messageToSend, getResolverContext(teamDocs, teamBoardsForMentions, teamMembers)),
-          contextSummary,
-        },
-        accessToken,
-      );
-
-      const botMsg: Message = { id: Date.now() + 2, role: "bot", content: data.text ?? "Lo siento, no pude procesar eso." };
-      setAiMessages((prev) => [...prev.filter((m) => !m.loading), botMsg]);
-    } catch {
-      const errMsg: Message = { id: Date.now() + 2, role: "bot", content: "⚠️ AI no disponible ahora." };
-      setAiMessages((prev) => [...prev.filter((m) => !m.loading), errMsg]);
-    } finally {
-      setIsLoading(false);
-      setIsSendingMessage(false);
-    }
-  }
 
   return (
     <>

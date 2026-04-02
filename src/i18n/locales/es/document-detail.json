@@ -170,6 +170,16 @@
       "placeholder": "Columna",
       "addColumn": "Añadir columna"
     },
+    "table": {
+      "defaultTitle": "Hoja",
+      "titlePlaceholder": "Título de la tabla...",
+      "defaultColumnA": "Columna A",
+      "defaultColumnB": "Columna B",
+      "addRow": "Fila",
+      "addColumn": "Columna",
+      "addRowCompact": "Fila",
+      "addColumnCompact": "Col"
+    },
     "list": {
       "noResults": "Sin resultados",
       "addBlock": "Añadir bloque"
@@ -181,5 +191,28 @@
     "strike": "Tachado",
     "code": "Código",
     "link": "Enlace"
+  },
+  "mathEditor": {
+    "title": "Editor de Fórmula",
+    "subtitle": "Vista previa KaTeX, plantillas visuales y atajos (Ctrl/Cmd + Enter)",
+    "preview": "Vista previa",
+    "manualLatex": "LaTeX manual",
+    "showLatex": "Mostrar LaTeX",
+    "hideLatex": "Ocultar LaTeX",
+    "inline": "Inline",
+    "block": "Bloque",
+    "cancel": "Cancelar",
+    "insert": "Insertar",
+    "invalidFormula": "Fórmula inválida",
+    "emptyFormula": "Escribe una fórmula para previsualizar",
+    "hints": "Atajos útiles en LaTeX manual:",
+    "categories": {
+      "basic": "Básico",
+      "algebra": "Álgebra",
+      "calculus": "Cálculo",
+      "greek": "Griegos",
+      "matrices": "Matrices",
+      "logic": "Lógica"
+    }
   }
 }

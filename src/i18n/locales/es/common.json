@@ -12,5 +12,15 @@
   "account": {
     "fallbackUser": "Usuario",
     "fallbackAccount": "Cuenta"
+  },
+  "actionThemes": {
+    "tagAdded": "Etiqueta",
+    "tagRemoved": "Borrado",
+    "comment": "Comentario",
+    "updated": "Actualizado",
+    "created": "Creado",
+    "deleted": "Eliminado",
+    "changed": "Cambio",
+    "activity": "Actividad"
   }
 }

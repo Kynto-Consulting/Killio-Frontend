@@ -7,8 +7,7 @@ import {
   Menu, Search, Home, Layout, FileText, Users, History,
   Settings, LogOut, Check, Plus, ChevronsUpDown, UserCircle, ArrowRightLeft
 } from "lucide-react";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { MobileDrawer } from "@/components/ui/mobile-drawer"; // We might need a Drawer, let's use a simple Dialog or just inline code
+import { Portal } from "@/components/ui/portal";
 import { TeamView } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -45,7 +44,7 @@ export function MobileNavSheet({
   return (
     <>
       <button 
-        onClick={() => setIsOpen(true)}
+        onClick={() => setIsOpen(!isOpen)}
         className="flex items-center space-x-2 px-2 py-1.5 -ml-2 rounded-md hover:bg-accent/10 transition-colors max-w-[200px] sm:max-w-xs"
       >
         <div className="flex items-center justify-center h-5 w-5 rounded bg-primary/20 text-[10px] font-bold text-primary shrink-0">
@@ -62,25 +61,35 @@ export function MobileNavSheet({
       </button>
 
       {/* Notion like Navigation Drawer */}
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm flex-col rounded-r-2xl bg-card p-0 shadow-2xl transition-transform duration-300 data-[state=closed]:slide-out-to-left data-[state=open]:slide-in-from-left border-y-0 border-l-0 border-r sm:max-w-sm !rounded-l-none" hideCloseButton>
-          <DialogTitle className="sr-only">Menu</DialogTitle>
-          <div className="flex flex-col h-full overflow-hidden">
-            {/* Workspace Header Switcher */}
-            <div className="p-4 border-b border-border/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
-                  <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold text-primary border border-primary/20">
-                     {activeTeam?.icon || activeTeam?.name.charAt(0).toUpperCase() || "W"}
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold leading-tight">{activeTeam?.name || "Workspace"}</span>
-                    <span className="text-xs text-muted-foreground">Killio</span>
+      {isOpen && (
+        <Portal>
+          <div 
+            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+            onClick={() => setIsOpen(false)}
+          >
+            <div 
+              className="fixed inset-y-0 left-0 z-50 w-[85vw] max-w-sm flex-col rounded-r-2xl bg-card p-0 shadow-2xl transition-transform duration-300 animate-in slide-in-from-left border-y-0 border-l-0 border-r sm:max-w-sm !rounded-l-none"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="sr-only">Menu</div>
+              <div className="flex flex-col h-full overflow-hidden text-foreground">
+                {/* Workspace Header Switcher */}
+                <div className="p-4 border-b border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-3">
+                      <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-sm font-bold text-primary border border-primary/20">
+                         {activeTeam?.icon || activeTeam?.name.charAt(0).toUpperCase() || "W"}
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold leading-tight">{activeTeam?.name || "Workspace"}</span>
+                        <span className="text-xs text-muted-foreground">Killio</span>
+                      </div>
+                    </div>
+                    <button onClick={() => setIsOpen(false)} className="p-1 hover:bg-accent/10 rounded-md">
+                      <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
+                    </button>
                   </div>
                 </div>
-                <ChevronsUpDown className="h-4 w-4 text-muted-foreground" />
-              </div>
-            </div>
 
             {/* Navigation Routes */}
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
@@ -152,9 +161,11 @@ export function MobileNavSheet({
                   <Settings className="h-4 w-4 text-muted-foreground" />
                 </button>
             </div>
+            </div>
           </div>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </Portal>
+      )}
     </>
   );
 }

@@ -6,8 +6,6 @@ import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, S
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
-import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
-import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { ShareModal } from "@/components/ui/share-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { MessageSquare } from "lucide-react";
@@ -24,6 +22,8 @@ import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ApiError } from "@/lib/api/client";
+import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
+import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 
 type BoardListState = {
   id: string;

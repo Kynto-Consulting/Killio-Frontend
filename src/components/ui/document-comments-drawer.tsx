@@ -1,4 +1,5 @@
 "use client";
+import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
 import { chatWithAiScope, listTeamActivity, type ActivityLogEntry } from "@/lib/api/contracts";
@@ -22,17 +23,7 @@ const fieldLabels: Record<string, string> = {
   archived_at: "archivada",
 };
 
-function getActionTheme(action: string) {
-  const lower = action.toLowerCase();
-  if (lower === "card.tag_added") return { icon: Tag, badge: "Etiqueta", badgeClass: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" };
-  if (lower === "card.tag_removed") return { icon: Tag, badge: "Borrado", badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30" };
-  if (lower === "card.commented" || lower === "board.commented") return { icon: MessageSquare, badge: "Comentario", badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30" };
-  if (lower === "card.updated") return { icon: Edit2, badge: "Actualizado", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30" };
-  if (lower.includes("created")) return { icon: Sparkles, badge: "Creado", badgeClass: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
-  if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
-  if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
-  return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
-}
+
 
 function prettifyAction(action: string): string {
   const lower = action.toLowerCase();
@@ -97,6 +88,7 @@ export function DocumentCommentsDrawer({
   initialAiInput?: string;
   onAiInputClear?: () => void;
 }) {
+  const getActionTheme = useActionTheme();
   const { accessToken, user, activeTeamId } = useSession();
   const [activeTab, setActiveTab] = useState(initialTab);
 
