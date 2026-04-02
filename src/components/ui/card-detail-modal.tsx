@@ -1,4 +1,5 @@
 "use client";
+import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
@@ -25,6 +26,7 @@ import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTE
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
+import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -36,17 +38,7 @@ const fieldLabels: Record<string, string> = {
   archived_at: "archivada",
 };
 
-function getActionTheme(action: string) {
-  const lower = action.toLowerCase();
-  if (lower === "card.tag_added") return { icon: TagIcon, badge: "Etiqueta", badgeClass: "bg-fuchsia-500/15 text-fuchsia-400 border-fuchsia-500/30" };
-  if (lower === "card.tag_removed") return { icon: TagIcon, badge: "Borrado", badgeClass: "bg-rose-500/15 text-rose-400 border-rose-500/30" };
-  if (lower === "card.commented") return { icon: MessageSquare, badge: "Comentario", badgeClass: "bg-amber-500/15 text-amber-500 border-amber-500/30" };
-  if (lower === "card.updated") return { icon: Edit2, badge: "Actualizado", badgeClass: "bg-blue-500/15 text-blue-400 border-blue-500/30" };
-  if (lower.includes("created")) return { icon: Sparkles, badge: "Creado", badgeClass: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30" };
-  if (lower.includes("deleted") || lower.includes("removed")) return { icon: Trash2, badge: "Eliminado", badgeClass: "bg-red-500/15 text-red-400 border-red-500/30" };
-  if (lower.includes("updated") || lower.includes("edited")) return { icon: RefreshCcw, badge: "Cambio", badgeClass: "bg-cyan-500/15 text-cyan-400 border-cyan-500/30" };
-  return { icon: Layout, badge: "Actividad", badgeClass: "bg-accent/10 text-accent border-accent/20" };
-}
+
 
 function hashString(seed: string): number {
   let hash = 0;
@@ -118,6 +110,7 @@ export function CardDetailModal({
   teamDocs?: any[];
   teamBoards?: any[];
 }) {
+  const getActionTheme = useActionTheme();
   const t = useTranslations("board-detail");
   const { locale } = useI18n();
   const { accessToken, activeTeamId, user } = useSession();
@@ -160,7 +153,7 @@ export function CardDetailModal({
   const [isTimerSubmitting, setIsTimerSubmitting] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
-  const [activeTab, setActiveTab] = useState<'comments' | 'activity' | 'copilot'>(card?.id ? 'comments' : 'copilot');
+  const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity' | 'copilot'>('details');
   const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -1004,6 +997,10 @@ export function CardDetailModal({
 
   const buildDraftBrick = useCallback((input: BrickMutationInput, position: number): BoardBrick => {
     const brickId = `tmp-${crypto.randomUUID()}`;
+    const baseContent = {
+      ...(input as any).content || {},
+    };
+
     if (input.kind === 'text') {
       return {
         id: brickId,
@@ -1013,6 +1010,7 @@ export function CardDetailModal({
         tasks: [],
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'table') {
@@ -1022,6 +1020,7 @@ export function CardDetailModal({
         rows: input.rows || [],
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'checklist') {
@@ -1031,6 +1030,7 @@ export function CardDetailModal({
         items: input.items || [],
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'media') {
@@ -1046,6 +1046,7 @@ export function CardDetailModal({
         assetId: input.assetId,
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'ai') {
@@ -1060,6 +1061,7 @@ export function CardDetailModal({
         confidence: input.confidence,
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'graph') {
@@ -1071,6 +1073,7 @@ export function CardDetailModal({
         title: input.title,
         position,
         parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     if (input.kind === 'accordion') {
@@ -1082,6 +1085,27 @@ export function CardDetailModal({
         isExpanded: input.isExpanded,
         position,
         parentBlockId: null,
+        content: baseContent,
+      } as BoardBrick;
+    }
+    if (input.kind === 'tabs') {
+      return {
+        id: brickId,
+        kind: 'tabs',
+        tabs: input.tabs,
+        position,
+        parentBlockId: null,
+        content: baseContent,
+      } as BoardBrick;
+    }
+    if (input.kind === 'columns') {
+      return {
+        id: brickId,
+        kind: 'columns',
+        columnsCount: input.columnsCount,
+        position,
+        parentBlockId: null,
+        content: baseContent,
       } as BoardBrick;
     }
     return {
@@ -1092,6 +1116,7 @@ export function CardDetailModal({
       tasks: [],
       position,
       parentBlockId: null,
+      content: baseContent,
     } as BoardBrick;
   }, []);
 
@@ -1145,21 +1170,43 @@ export function CardDetailModal({
     return null;
   }, []);
 
-  const handleCreateBrick = async (input: BrickMutationInput) => {
+  const handleCreateBrick = async (input: BrickMutationInput): Promise<BoardBrick | null> => {
     if (!card?.id || !accessToken) {
+      const draft = buildDraftBrick(input, (localBlocks[localBlocks.length - 1]?.position ?? 0) + 1000);
       setLocalBlocks(prev => {
-        const nextPosition = (prev[prev.length - 1]?.position ?? 0) + 1000;
-        return [...prev, buildDraftBrick(input, nextPosition)];
+        return [...prev, draft];
       });
-      return;
+      return draft;
     }
     try {
       const res = await createCardBrick(card.id, input, accessToken);
       setLocalBlocks(prev => [...prev, res.brick]);
+      return res.brick;
     } catch (err) {
       console.error("Failed to create brick", err);
+      return null;
     }
   };
+
+  const handleCreateBrickWithNesting = useCallback(async (
+    input: BrickMutationInput,
+    parentProps?: { parentId: string; containerId: string },
+    afterBrickId?: string,
+  ) => {
+    const created = await handleCreateBrick(input);
+    if (!created || !parentProps) return;
+
+    setLocalBlocks((prev) => {
+      const parent = prev.find((b) => b.id === parentProps.parentId);
+      if (!parent) return prev;
+      const siblings = getContainerChildIds((parent as any).content, parentProps.containerId);
+      const base = siblings.filter((id) => id !== created.id);
+      const insertAt = afterBrickId ? Math.max(0, base.indexOf(afterBrickId) + 1) : base.length;
+      base.splice(insertAt, 0, created.id);
+      const nextParentContent = setContainerChildIds((parent as any).content || {}, parentProps.containerId, base);
+      return prev.map((b) => b.id === parent.id ? ({ ...(b as any), content: nextParentContent } as BoardBrick) : b);
+    });
+  }, [handleCreateBrick]);
 
   const handleUpdateBrick = async (brickId: string, input: Partial<BrickMutationInput>) => {
     if (!accessToken) {
@@ -1168,6 +1215,25 @@ export function CardDetailModal({
     }
     
     console.log('[UpdateBrick] updating brick', { brickId, input });
+
+    // Handle legacy summary fallback: dynamically convert to a real database brick
+    if (brickId.endsWith(':summary') && card?.id) {
+      console.log('[UpdateBrick] converting :summary fallback to a real brick');
+      try {
+        const fullInput: BrickMutationInput = {
+          ...input,
+          kind: input.kind || 'text',
+          markdown: (input as any).markdown || '',
+        } as BrickMutationInput;
+        const res = await createCardBrick(card.id, fullInput, accessToken);
+        setLocalBlocks(prev => prev.map(b => (b.id === brickId ? res.brick : b)));
+        console.log('[UpdateBrick] server fallback conversion complete', res.brick);
+        return;
+      } catch (err) {
+        console.error("Failed to convert fallback summary to brick", err);
+        return;
+      }
+    }
     
     // Always update locally (optimistic update)
     setLocalBlocks(prev => prev.map(b => {
@@ -1235,6 +1301,71 @@ export function CardDetailModal({
       console.error("Failed to reorder bricks", err);
     }
   };
+
+  const handleCrossContainerDrop = useCallback(async (activeId: string, overId: string) => {
+    const activeBlock = localBlocks.find(b => b.id === activeId);
+    if (!activeBlock) return;
+
+    let targetParentId: string | null = null;
+    let targetContainerId: string | null = null;
+
+    if (overId.includes(':')) {
+      const parts = overId.split(':');
+      targetParentId = parts[0];
+      targetContainerId = parts[1];
+    } else {
+      const overBlock = localBlocks.find(b => b.id === overId);
+      if (overBlock) {
+        for (const parent of localBlocks) {
+          const map = ((parent as any).content?.childrenByContainer || {}) as Record<string, string[]>;
+          for (const [containerId, ids] of Object.entries(map)) {
+            if (Array.isArray(ids) && ids.includes(overBlock.id)) {
+              targetParentId = parent.id;
+              targetContainerId = containerId;
+            }
+          }
+        }
+      }
+    }
+
+    let sourceParentId: string | null = null;
+    let sourceContainerId: string | null = null;
+    for (const parent of localBlocks) {
+      const map = ((parent as any).content?.childrenByContainer || {}) as Record<string, string[]>;
+      for (const [containerId, ids] of Object.entries(map)) {
+        if (Array.isArray(ids) && ids.includes(activeId)) {
+          sourceParentId = parent.id;
+          sourceContainerId = containerId;
+        }
+      }
+    }
+
+    setLocalBlocks(prev => {
+      let next = [...prev];
+
+      if (sourceParentId && sourceContainerId) {
+        next = next.map((brick) => {
+          if (brick.id !== sourceParentId) return brick;
+          const currentIds = getContainerChildIds((brick as any).content, sourceContainerId).filter((id) => id !== activeId);
+          const nextContent = setContainerChildIds((brick as any).content || {}, sourceContainerId, currentIds);
+          return { ...(brick as any), content: nextContent } as BoardBrick;
+        });
+      }
+
+      if (targetParentId && targetContainerId) {
+        next = next.map((brick) => {
+          if (brick.id !== targetParentId) return brick;
+          const currentIds = getContainerChildIds((brick as any).content, targetContainerId).filter((id) => id !== activeId);
+          const insertAt = overId && currentIds.includes(overId) ? currentIds.indexOf(overId) + 1 : currentIds.length;
+          currentIds.splice(insertAt, 0, activeId);
+          const nextContent = setContainerChildIds((brick as any).content || {}, targetContainerId, currentIds);
+          return { ...(brick as any), content: nextContent } as BoardBrick;
+        });
+      }
+
+      return next;
+    });
+  }, [localBlocks, brickToMutationInput, updateCardBrick]);
 
   const handleUploadMediaFiles = useCallback(async ({
     brickId,
@@ -1994,9 +2125,9 @@ export function CardDetailModal({
   if (!isOpen) return null;
 
   const content = (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-md p-4 sm:p-6 overflow-hidden" onClick={e => e.target === e.currentTarget && handleClose()}>
-      <div className="relative w-full max-w-5xl rounded-2xl border border-border/80 bg-background shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <div className="flex items-center justify-between p-4 border-b border-border bg-card/50">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 sm:p-4 overflow-hidden" onClick={e => e.target === e.currentTarget && handleClose()}>
+      <div className="relative w-full max-w-6xl rounded-2xl border border-border/80 bg-background shadow-2xl flex flex-col h-[96vh] max-h-[96vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+        <div className="flex shrink-0 items-center justify-between p-4 border-b border-border bg-card/50">
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
             <span className="hover:text-foreground cursor-pointer transition-colors">{boardName || "Board"}</span>
             <span className="text-border">/</span>
@@ -2039,9 +2170,15 @@ export function CardDetailModal({
             <button onClick={handleClose} className="rounded-full p-1.5 hover:bg-accent/10 hover:text-foreground transition-colors text-muted-foreground"><X className="h-5 w-5" /></button>
           </div>
         </div>
+        <div className="flex items-center space-x-6 px-6 border-b border-border bg-card/50 overflow-x-auto hide-scrollbar text-sm font-semibold text-muted-foreground shrink-0">
+          <button onClick={() => setActiveTab('details')} className={`py-3 whitespace-nowrap transition-colors border-b-2 ${activeTab === 'details' ? 'text-foreground border-primary' : 'border-transparent hover:text-foreground'}`}>Detalles</button>
+          <button onClick={() => setActiveTab('copilot')} className={`py-3 whitespace-nowrap transition-colors border-b-2 ${activeTab === 'copilot' ? 'text-amber-500 border-amber-500' : 'border-transparent hover:text-foreground'}`}>Copilot</button>
+          <button onClick={() => setActiveTab('comments')} className={`py-3 whitespace-nowrap transition-colors border-b-2 ${activeTab === 'comments' ? 'text-foreground border-primary' : 'border-transparent hover:text-foreground'}`}>Comentarios</button>
+          <button onClick={() => setActiveTab('activity')} className={`py-3 whitespace-nowrap transition-colors border-b-2 ${activeTab === 'activity' ? 'text-foreground border-primary' : 'border-transparent hover:text-foreground'}`}>Actividad</button>
+        </div>
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-          <div className="flex-1 overflow-y-auto p-6 md:p-10 hide-scrollbar border-r border-border min-h-[500px]">
-            <div className="max-w-2xl mx-auto space-y-6">
+          <div className={`flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar border-r border-border ${activeTab === 'details' ? 'block' : 'hidden'}`}>
+            <div className="max-w-4xl mx-auto space-y-6">
               <div className="group relative">
                 <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")} />
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground border-b border-border/50 pb-4">
@@ -2267,13 +2404,14 @@ export function CardDetailModal({
                 <div className="mt-4">
                   <UnifiedBrickList
                     isCompact
-                    bricks={localBlocks}
+                    bricks={localBlocks.filter((b) => getTopLevelBrickIds(localBlocks as any[]).has(b.id))}
+                    activeBricks={localBlocks}
                     canEdit={!readonly}
                     documents={contextDocs}
                     boards={teamBoards}
                     users={boardMembers}
                       addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
-                    onAddBrick={async (kind, afterBrickId, initContent) => {
+                    onAddBrick={async (kind, afterBrickId, parentProps, initContent) => {
                       let input: BrickMutationInput;
                       if (kind === 'checklist') {
                         input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
@@ -2311,11 +2449,25 @@ export function CardDetailModal({
                       } else {
                         input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
                       }
-                      await handleCreateBrick(input);
+                      
+                      if (kind === 'accordion') {
+                        (input as any).content = { childrenByContainer: { body: [] } };
+                      }
+                      if (kind === 'tabs') {
+                        (input as any).tabs = [{ id: '1', label: 'Tab 1' }];
+                        (input as any).content = { childrenByContainer: { '1': [] } };
+                      }
+                      if (kind === 'columns') {
+                        (input as any).columns = [{ id: '1' }, { id: '2' }];
+                        (input as any).content = { childrenByContainer: { '1': [], '2': [] } };
+                      }
+
+                      await handleCreateBrickWithNesting(input, parentProps, afterBrickId);
                     }}
                     onUpdateBrick={handleUpdateBrick}
                     onDeleteBrick={handleDeleteBrick}
                     onReorderBricks={handleReorderBricks}
+                    onCrossContainerDrop={handleCrossContainerDrop}
                     onPasteImageInTextBrick={handlePasteImageInTextBrick}
                     onUploadMediaFiles={handleUploadMediaFiles}
                   />
@@ -2326,12 +2478,7 @@ export function CardDetailModal({
             </div>
           </div>
 
-          <div className="w-full md:w-80 flex flex-col bg-card/20 border-t md:border-t-0 z-10">
-            <div className="p-4 border-b flex space-x-4 text-[11px] uppercase tracking-wider font-bold shrink-0 bg-background/50 overflow-x-auto hide-scrollbar">
-              <button onClick={() => setActiveTab('copilot')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'copilot' ? 'text-amber-500 border-b-2 border-amber-500' : 'text-muted-foreground hover:text-foreground'}`}>Copilot</button>
-              <button onClick={() => setActiveTab('comments')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'comments' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>Comments</button>
-              <button onClick={() => setActiveTab('activity')} className={`pb-1 whitespace-nowrap transition-colors ${activeTab === 'activity' ? 'text-foreground border-b-2 border-primary' : 'text-muted-foreground hover:text-foreground'}`}>Activity</button>
-            </div>
+          <div className={`w-full flex-1 flex flex-col bg-card/20 border-t md:border-t-0 z-10 ${activeTab !== 'details' ? 'flex' : 'hidden'}`}>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {activeTab === 'copilot' ? (
                 <div className="flex flex-col h-full space-y-4">
