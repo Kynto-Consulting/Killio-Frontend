@@ -32,8 +32,29 @@ export type DocumentBrickComment = {
   resolved?: boolean;
 };
 
+export type DocumentContainerContent = {
+  childrenByContainer?: Record<string, string[]>;
+};
+
+export type DocumentTabsContent = DocumentContainerContent & {
+  tabs?: Array<{ id: string; label: string; content?: string }>;
+};
+
+export type DocumentColumnsContent = DocumentContainerContent & {
+  columns?: Array<{ id: string }>;
+};
+
+export type DocumentAccordionContent = DocumentContainerContent & {
+  title?: string;
+  body?: string;
+  isExpanded?: boolean;
+};
+
 export type DocumentBrickContent = Record<string, any> & {
   comments?: DocumentBrickComment[];
+  childrenByContainer?: Record<string, string[]>;
+  tabs?: Array<{ id: string; label: string; content?: string }>;
+  columns?: Array<{ id: string }>;
 };
 
 export type DocumentView = DocumentSummary & {

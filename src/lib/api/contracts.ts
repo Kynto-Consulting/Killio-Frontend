@@ -94,6 +94,12 @@ type BrickBase = {
   parentBlockId: string | null;
 };
 
+export type ChildrenByContainer = Record<string, string[]>;
+
+export type ContainerMeta = {
+  childrenByContainer?: ChildrenByContainer;
+};
+
 export type TextBrick = BrickBase & {
   kind: 'text';
   displayStyle: 'paragraph' | 'checklist' | 'quote' | 'code' | 'callout';
@@ -148,9 +154,31 @@ export type AccordionBrick = BrickBase & {
   title: string;
   body: string;
   isExpanded: boolean;
+  content?: ContainerMeta & Record<string, unknown>;
 };
 
-export type BoardBrick = TextBrick | MediaBrick | AiBrick | TableBrick | GraphBrick | ChecklistBrick | AccordionBrick;
+export type TabsBrick = BrickBase & {
+  kind: 'tabs';
+  tabs: Array<{ id: string; label: string; content?: string }>;
+  content?: ContainerMeta & Record<string, unknown>;
+};
+
+export type ColumnsBrick = BrickBase & {
+  kind: 'columns';
+  columns: Array<{ id: string }>;
+  content?: ContainerMeta & Record<string, unknown>;
+};
+
+export type BoardBrick =
+  | TextBrick
+  | MediaBrick
+  | AiBrick
+  | TableBrick
+  | GraphBrick
+  | ChecklistBrick
+  | AccordionBrick
+  | TabsBrick
+  | ColumnsBrick;
 
 export type BrickMutationInput =
   | {
@@ -195,6 +223,18 @@ export type BrickMutationInput =
     title: string;
     body: string;
     isExpanded: boolean;
+    content?: ContainerMeta & Record<string, unknown>;
+  }
+  | {
+    kind: 'tabs';
+    tabs: Array<{ id: string; label: string; content?: string }>;
+    content?: ContainerMeta & Record<string, unknown>;
+  }
+  | {
+    kind: 'columns';
+    columns?: Array<{ id: string }>;
+    columnsCount?: number;
+    content?: ContainerMeta & Record<string, unknown>;
   };
 
 export type TagView = {
