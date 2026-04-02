@@ -66,7 +66,7 @@ export function RefPill({ type, id, name, label, onClick }: RefPillProps) {
   return (
     <button
       onClick={handleClick}
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm ${colors[type] || colors.deep}`}
+      className={`inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm align-middle relative -top-px ${colors[type] || colors.deep}`}
     >
       <Icon className="h-3 w-3 transition-transform group-hover:scale-110" />
       <span>{label || name}</span>
