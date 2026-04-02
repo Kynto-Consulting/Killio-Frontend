@@ -1167,6 +1167,38 @@ export function CardDetailModal({
         confidence: brick.confidence,
       };
     }
+    if (brick.kind === 'graph') {
+      return {
+        kind: 'graph',
+        type: brick.type,
+        data: brick.data,
+        title: brick.title,
+        content: (brick as any).content || {},
+      } as BrickMutationInput;
+    }
+    if (brick.kind === 'accordion') {
+      return {
+        kind: 'accordion',
+        title: brick.title || '',
+        body: brick.body || '',
+        isExpanded: !!brick.isExpanded,
+        content: (brick as any).content || {},
+      } as BrickMutationInput;
+    }
+    if (brick.kind === 'tabs') {
+      return {
+        kind: 'tabs',
+        tabs: (brick as any).tabs || [],
+        content: (brick as any).content || {},
+      } as BrickMutationInput;
+    }
+    if (brick.kind === 'columns') {
+      return {
+        kind: 'columns',
+        columns: (brick as any).columns || [],
+        content: (brick as any).content || {},
+      } as BrickMutationInput;
+    }
     return null;
   }, []);
 
@@ -1196,17 +1228,29 @@ export function CardDetailModal({
     const created = await handleCreateBrick(input);
     if (!created || !parentProps) return;
 
-    setLocalBlocks((prev) => {
-      const parent = prev.find((b) => b.id === parentProps.parentId);
-      if (!parent) return prev;
-      const siblings = getContainerChildIds((parent as any).content, parentProps.containerId);
-      const base = siblings.filter((id) => id !== created.id);
-      const insertAt = afterBrickId ? Math.max(0, base.indexOf(afterBrickId) + 1) : base.length;
-      base.splice(insertAt, 0, created.id);
-      const nextParentContent = setContainerChildIds((parent as any).content || {}, parentProps.containerId, base);
-      return prev.map((b) => b.id === parent.id ? ({ ...(b as any), content: nextParentContent } as BoardBrick) : b);
-    });
-  }, [handleCreateBrick]);
+    const parent = localBlocks.find((b) => b.id === parentProps.parentId);
+    if (!parent) return;
+
+    const siblings = getContainerChildIds((parent as any).content, parentProps.containerId);
+    const base = siblings.filter((id) => id !== created.id);
+    const insertAt = afterBrickId ? Math.max(0, base.indexOf(afterBrickId) + 1) : base.length;
+    base.splice(insertAt, 0, created.id);
+    const nextParentContent = setContainerChildIds((parent as any).content || {}, parentProps.containerId, base);
+    const parentToPersist = { ...(parent as any), content: nextParentContent } as BoardBrick;
+
+    setLocalBlocks((prev) => prev.map((b) => b.id === parent.id ? parentToPersist : b));
+
+    if (card?.id && accessToken) {
+      const payload = brickToMutationInput(parentToPersist);
+      if (payload) {
+        try {
+          await updateCardBrick(card.id, parentToPersist.id, payload, accessToken);
+        } catch (err) {
+          console.error('Failed to persist parent container after nested create', err);
+        }
+      }
+    }
+  }, [accessToken, brickToMutationInput, card?.id, handleCreateBrick, localBlocks]);
 
   const handleUpdateBrick = async (brickId: string, input: Partial<BrickMutationInput>) => {
     if (!accessToken) {
@@ -1340,32 +1384,45 @@ export function CardDetailModal({
       }
     }
 
-    setLocalBlocks(prev => {
-      let next = [...prev];
+    let sourceParentToPersist: BoardBrick | undefined;
+    let targetParentToPersist: BoardBrick | undefined;
 
-      if (sourceParentId && sourceContainerId) {
-        next = next.map((brick) => {
-          if (brick.id !== sourceParentId) return brick;
-          const currentIds = getContainerChildIds((brick as any).content, sourceContainerId).filter((id) => id !== activeId);
-          const nextContent = setContainerChildIds((brick as any).content || {}, sourceContainerId, currentIds);
-          return { ...(brick as any), content: nextContent } as BoardBrick;
-        });
+    const nextBlocks = localBlocks.map((brick) => {
+      if (sourceParentId && sourceContainerId && brick.id === sourceParentId) {
+        const currentIds = getContainerChildIds((brick as any).content, sourceContainerId).filter((id) => id !== activeId);
+        const nextContent = setContainerChildIds((brick as any).content || {}, sourceContainerId, currentIds);
+        sourceParentToPersist = { ...(brick as any), content: nextContent } as BoardBrick;
+        return sourceParentToPersist;
       }
-
-      if (targetParentId && targetContainerId) {
-        next = next.map((brick) => {
-          if (brick.id !== targetParentId) return brick;
-          const currentIds = getContainerChildIds((brick as any).content, targetContainerId).filter((id) => id !== activeId);
-          const insertAt = overId && currentIds.includes(overId) ? currentIds.indexOf(overId) + 1 : currentIds.length;
-          currentIds.splice(insertAt, 0, activeId);
-          const nextContent = setContainerChildIds((brick as any).content || {}, targetContainerId, currentIds);
-          return { ...(brick as any), content: nextContent } as BoardBrick;
-        });
+      if (targetParentId && targetContainerId && brick.id === targetParentId) {
+        const currentIds = getContainerChildIds((brick as any).content, targetContainerId).filter((id) => id !== activeId);
+        const insertAt = overId && currentIds.includes(overId) ? currentIds.indexOf(overId) + 1 : currentIds.length;
+        currentIds.splice(insertAt, 0, activeId);
+        const nextContent = setContainerChildIds((brick as any).content || {}, targetContainerId, currentIds);
+        targetParentToPersist = { ...(brick as any), content: nextContent } as BoardBrick;
+        return targetParentToPersist;
       }
-
-      return next;
+      return brick;
     });
-  }, [localBlocks, brickToMutationInput, updateCardBrick]);
+
+    setLocalBlocks(nextBlocks);
+
+    if (!card?.id || !accessToken) return;
+
+    const persistTargets = [sourceParentToPersist, targetParentToPersist]
+      .filter((brick): brick is BoardBrick => Boolean(brick))
+      .filter((brick, index, arr) => arr.findIndex((x) => x.id === brick.id) === index);
+
+    for (const parent of persistTargets) {
+      const payload = brickToMutationInput(parent);
+      if (!payload) continue;
+      try {
+        await updateCardBrick(card.id, parent.id, payload, accessToken);
+      } catch (err) {
+        console.error('Failed to persist parent container after cross-container drop', err);
+      }
+    }
+  }, [accessToken, brickToMutationInput, card?.id, localBlocks]);
 
   const handleUploadMediaFiles = useCallback(async ({
     brickId,
