@@ -12,6 +12,7 @@ import { ActivityLogModal } from "./activity-log-modal";
 import { useMemo } from "react";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
+import { buildDocumentContextSummary } from "@/lib/brick-context";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -239,41 +240,7 @@ export function DocumentCommentsDrawer({
   }
 
   function buildDocContextSummary(): string {
-    if (!docBricks || docBricks.length === 0) return contextSummary || "";
-    const lines: string[] = [];
-    if (contextSummary) lines.push(contextSummary, "");
-    lines.push("=== CONTENIDO DEL DOCUMENTO ===");
-    for (const brick of docBricks) {
-      const kind: string = brick.kind || "text";
-      const c = brick.content || {};
-      if (kind === "text") {
-        const val = c.value || c.text || "";
-        if (val.trim()) lines.push(val.trim());
-      } else if (kind === "table") {
-        const rows: any[][] = c.rows || [];
-        for (const row of rows) {
-          const cells = Array.isArray(row) ? row.map((cell: any) => typeof cell === "string" ? cell : (cell?.value || "")).join(" | ") : String(row);
-          if (cells.trim()) lines.push(`| ${cells} |`);
-        }
-      } else if (kind === "checklist") {
-        const items: any[] = c.items || [];
-        for (const item of items) {
-          const text = typeof item === "string" ? item : (item?.text || item?.value || "");
-          const done = item?.checked || item?.done ? "[x]" : "[ ]";
-          if (text.trim()) lines.push(`${done} ${text.trim()}`);
-        }
-      } else if (kind === "code") {
-        const code = c.code || c.value || "";
-        const lang = c.language || c.lang || "";
-        if (code.trim()) lines.push(`\`\`\`${lang}\n${code.trim()}\n\`\`\``);
-      } else {
-        // fallback: extract any string values
-        const fallback = Object.values(c).filter((v): v is string => typeof v === "string" && v.trim().length > 0).join(" ");
-        if (fallback.trim()) lines.push(`[${kind}] ${fallback.trim()}`);
-      }
-    }
-    lines.push("=== FIN DEL DOCUMENTO ===");
-    return lines.join("\n").slice(0, 8000);
+    return buildDocumentContextSummary(docBricks, contextSummary);
   }
 
   async function handleAiSubmit(e?: React.FormEvent, presetPrompt?: string) {
