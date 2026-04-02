@@ -2121,7 +2121,7 @@ export function CardDetailModal({
   const renderCommentWithMentions = (content: string): ReactNode => {
     const lines = content.split(/\r?\n/);
     return lines.map((line, index) => {
-      const richParts = ReferenceResolver.renderRich(line, { documents: contextDocs, boards: teamBoards, users: boardMembers } as any);
+      const richParts = ReferenceResolver.renderRich(line, getResolverContext(contextDocs, teamBoards, boardMembers) as any);
       const renderedLine = richParts.map((part, i) => {
         if (typeof part === 'string') return part;
 
@@ -2176,7 +2176,14 @@ export function CardDetailModal({
   };
 
   const getResolverContext = (docs: any[], boards: any[], members: any[]) => {
-    return { documents: docs, boards, users: members };
+    const cardScopeId = String(card?.id || "");
+    return {
+      documents: docs,
+      boards,
+      users: members,
+      activeBricks: localBlocks,
+      cardBricksById: cardScopeId ? { [cardScopeId]: localBlocks } : {},
+    };
   };
 
   if (!isOpen) return null;
@@ -2568,7 +2575,7 @@ export function CardDetailModal({
                               }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}>
                               <RichText
                                 content={cleanText}
-                                context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
+                                context={getResolverContext(contextDocs, teamBoards, boardMembers) as any}
                               />
                             </div>
                           </div>
@@ -2717,7 +2724,7 @@ export function CardDetailModal({
                           <div className="mt-1">
                             <RichText
                               content={log.payload?.text || ""}
-                              context={{ documents: contextDocs, boards: teamBoards, users: boardMembers }}
+                              context={getResolverContext(contextDocs, teamBoards, boardMembers) as any}
                             />
                           </div>
                         </div>
@@ -2830,6 +2837,7 @@ export function CardDetailModal({
                     name: m.displayName || m.name || m.email || m.username || "User",
                     avatarUrl: m.avatarUrl || m.avatar_url || null,
                   }))}
+                  activeBricks={localBlocks as any}
                   className="w-full"
                   inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
                 />

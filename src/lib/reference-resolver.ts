@@ -9,10 +9,62 @@ export interface ResolverContext {
   folders?: Folder[];
   activeBricks?: DocumentBrick[]; // Bricks of the current document for local resolution
   documentBricksById?: Record<string, DocumentBrick[]>;
+  cardBricksById?: Record<string, any[]>;
   users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
 }
 
 export class ReferenceResolver {
+  private static parseDeepReference(inner: string): {
+    entityType?: string;
+    scopeId: string;
+    brickId: string;
+    selector: string;
+    args: string[];
+  } | null {
+    const tokens = String(inner || "").split(":");
+    if (tokens.length < 2) return null;
+
+    const first = String(tokens[0] || "").toLowerCase();
+    const hasScopedPrefix = (first === "card" || first === "doc" || first === "document" || first === "board") && tokens.length >= 4;
+
+    if (hasScopedPrefix) {
+      const entityType = first;
+      const scopeId = tokens[1] || "";
+      const brickId = tokens[2] || "";
+      const selector = (tokens[3] || "text").toLowerCase();
+      const args = tokens.slice(4);
+      return { entityType, scopeId, brickId, selector, args };
+    }
+
+    const scopeId = tokens[0] || "";
+    const brickId = tokens[1] || "";
+    const selector = (tokens[2] || "text").toLowerCase();
+    const args = tokens.slice(3);
+    return { scopeId, brickId, selector, args };
+  }
+
+  private static findBrickByIdOrAlias(bricks: any[] | undefined, brickId: string): any {
+    const safeBricks = Array.isArray(bricks) ? bricks : [];
+    if (!safeBricks.length || !brickId) return null;
+
+    const exact = safeBricks.find((b) => String(b?.id || "") === brickId);
+    if (exact) return exact;
+
+    const normalized = String(brickId).trim().toLowerCase();
+    const aliasMatch = normalized.match(/^brick(\d+)$/);
+    if (aliasMatch) {
+      const index = Math.max(0, (Number.parseInt(aliasMatch[1], 10) || 1) - 1);
+      return safeBricks[index] || null;
+    }
+
+    if (/^\d+$/.test(normalized)) {
+      const index = Math.max(0, (Number.parseInt(normalized, 10) || 1) - 1);
+      return safeBricks[index] || null;
+    }
+
+    return null;
+  }
+
   private static stripOuterBoldMarkers(value: string): string {
     if (!value) return value;
     const trimmed = value.trim();
@@ -238,13 +290,33 @@ export class ReferenceResolver {
     return selector;
   }
 
-  private static findDeepBrick(scopeId: string, brickId: string, prefix: "$" | "#", context: ResolverContext): any {
-    const localBrick = context.activeBricks?.find((b) => b.id === brickId) as any;
+  private static findDeepBrick(parsed: {
+    entityType?: string;
+    scopeId: string;
+    brickId: string;
+  }, prefix: "$" | "#", context: ResolverContext): any {
+    const { entityType, scopeId, brickId } = parsed;
+
+    const localBrick = this.findBrickByIdOrAlias(context.activeBricks as any[], brickId) as any;
     if (localBrick) return localBrick;
+
+    if (entityType === "card") {
+      const cardBricks = context.cardBricksById?.[scopeId] || [];
+      const cardBrick = this.findBrickByIdOrAlias(cardBricks, brickId) as any;
+      if (cardBrick) return cardBrick;
+      return null;
+    }
+
+    if (entityType === "doc" || entityType === "document") {
+      const docBricks = context.documentBricksById?.[scopeId] || [];
+      const docBrick = this.findBrickByIdOrAlias(docBricks as any[], brickId) as any;
+      if (docBrick) return docBrick;
+      return null;
+    }
 
     if (prefix === "$") {
       const docBricks = context.documentBricksById?.[scopeId] || [];
-      const docBrick = docBricks.find((b) => b.id === brickId) as any;
+      const docBrick = this.findBrickByIdOrAlias(docBricks as any[], brickId) as any;
       if (docBrick) return docBrick;
     }
 
@@ -252,12 +324,12 @@ export class ReferenceResolver {
   }
 
   private static resolveDeepToken(inner: string, context: ResolverContext, prefix: "$" | "#"): string {
-    const parts = inner.split(":");
-    if (parts.length < 2) return `${prefix}[${inner}]`;
+    const parsed = this.parseDeepReference(inner);
+    if (!parsed) return `${prefix}[${inner}]`;
 
-    const [scopeId, brickId, selectorRaw, ...args] = parts;
-    const selector = (selectorRaw || "text").toLowerCase();
-    const brick = this.findDeepBrick(scopeId, brickId, prefix, context);
+    const { selector, args } = parsed;
+    const selectorRaw = selector;
+    const brick = this.findDeepBrick(parsed, prefix, context);
     if (!brick) return `${prefix}[${inner}]`;
 
     const { kind, payload } = this.normalizeBrickPayload(brick);
@@ -412,14 +484,13 @@ export class ReferenceResolver {
       const deepMatch = part.match(/([$#])\[([^\]]+)\]/);
       if (deepMatch) {
         const [_m, prefix, inner] = deepMatch;
-        const tokens = inner.split(':');
-        const scopeId = tokens[0] || "";
-        const brickId = tokens[1] || "";
-        const selector = (tokens[2] || "text").toLowerCase();
-        const args = tokens.slice(3);
-        const selectorLabel = this.describeSelector(selector, args);
         const deepPrefix = (prefix === "$" ? "$" : "#") as "$" | "#";
-        const brick = this.findDeepBrick(scopeId, brickId, deepPrefix, context);
+        const parsed = this.parseDeepReference(inner);
+        if (!parsed) return part;
+
+        const brick = this.findDeepBrick(parsed, deepPrefix, context);
+        const { entityType, scopeId, selector, args } = parsed;
+        const selectorLabel = this.describeSelector(selector, args);
         const docTitle = context.documents.find((d) => d.id === scopeId)?.title;
         const resolvedValue = brick ? this.resolveDeepToken(inner, context, deepPrefix) : "";
         const normalizedResolvedValue = this.stripOuterBoldMarkers(String(resolvedValue || ""));
@@ -427,10 +498,15 @@ export class ReferenceResolver {
         const nonInlineSelectors = new Set(["range", "csv", "items", "checked", "unchecked", "json", "raw", "series"]);
         const isSingleLine = !normalizedResolvedValue.includes("\n");
         const isInline = !!brick && !nonInlineSelectors.has(selector) && isSingleLine;
+        const scopeLabel = entityType === "card"
+          ? "Tarjeta"
+          : entityType === "board"
+            ? "Board"
+            : docTitle;
         const fallbackLabel = brick
           ? `${String(brick.kind || "brick")} · ${selectorLabel}`
-          : docTitle
-            ? `${docTitle} · ${selectorLabel}`
+          : scopeLabel
+            ? `${scopeLabel} · ${selectorLabel}`
             : `Referencia · ${selectorLabel}`;
 
         const label = this.buildDeepLabel(normalizedResolvedValue, fallbackLabel);
