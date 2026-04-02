@@ -1102,7 +1102,7 @@ export function CardDetailModal({
       return {
         id: brickId,
         kind: 'columns',
-        columnsCount: input.columnsCount,
+        columns: input.columns || [],
         position,
         parentBlockId: null,
         content: baseContent,

@@ -284,7 +284,7 @@ export function UnifiedBrickRenderer({
       brickBody = (
         <UnifiedTabsBrick
           id={brick.id}
-          tabs={content.tabs}
+          tabs={content.tabs || []}
           childrenByContainer={content.childrenByContainer}
           onUpdate={(data) => onUpdate({ ...content, kind: 'tabs', ...data })}
           readonly={!canEdit}
