@@ -888,6 +888,13 @@ export async function getCardActivity(cardId: string, accessToken: string): Prom
   });
 }
 
+export async function getDocumentActivity(documentId: string, accessToken: string): Promise<ActivityLogEntry[]> {
+  return request<ActivityLogEntry[]>(`/activity/document/${documentId}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export async function addCardComment(cardId: string, text: string, accessToken: string): Promise<void> {
   return request<void>(`/cards/${cardId}/comments`, {
     method: 'POST',

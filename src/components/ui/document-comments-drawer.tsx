@@ -2,7 +2,7 @@
 import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
-import { chatWithAiScope, listTeamActivity, type ActivityLogEntry } from "@/lib/api/contracts";
+import { chatWithAiScope, listTeamActivity, getDocumentActivity, type ActivityLogEntry } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { listDocumentComments, addDocumentComment, DocumentSummary, updateDocumentTitle, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, getDocument } from "@/lib/api/documents";
 import { BrickDiff } from "../bricks/brick-diff";
@@ -131,13 +131,12 @@ export function DocumentCommentsDrawer({
   };
 
   const fetchActivity = async () => {
-    if (!accessToken || !activeTeamId) return;
+    if (!accessToken || !docId) return;
     try {
-      const data = await listTeamActivity(activeTeamId, accessToken);
-      // Filter for this document
-      setActivities(data.filter(a => a.scopeId === docId || (a.payload as any)?.docId === docId));
+      const data = await getDocumentActivity(docId, accessToken);
+      setActivities(data);
     } catch (e) {
-      console.error("Failed to fetch activity", e);
+      console.error("Failed to fetch document activity", e);
     }
   };
 
@@ -230,6 +229,44 @@ export function DocumentCommentsDrawer({
     } catch (e) { console.error(e); } finally { setIsLoading(false); }
   }
 
+  function buildDocContextSummary(): string {
+    if (!docBricks || docBricks.length === 0) return contextSummary || "";
+    const lines: string[] = [];
+    if (contextSummary) lines.push(contextSummary, "");
+    lines.push("=== CONTENIDO DEL DOCUMENTO ===");
+    for (const brick of docBricks) {
+      const kind: string = brick.kind || "text";
+      const c = brick.content || {};
+      if (kind === "text") {
+        const val = c.value || c.text || "";
+        if (val.trim()) lines.push(val.trim());
+      } else if (kind === "table") {
+        const rows: any[][] = c.rows || [];
+        for (const row of rows) {
+          const cells = Array.isArray(row) ? row.map((cell: any) => typeof cell === "string" ? cell : (cell?.value || "")).join(" | ") : String(row);
+          if (cells.trim()) lines.push(`| ${cells} |`);
+        }
+      } else if (kind === "checklist") {
+        const items: any[] = c.items || [];
+        for (const item of items) {
+          const text = typeof item === "string" ? item : (item?.text || item?.value || "");
+          const done = item?.checked || item?.done ? "[x]" : "[ ]";
+          if (text.trim()) lines.push(`${done} ${text.trim()}`);
+        }
+      } else if (kind === "code") {
+        const code = c.code || c.value || "";
+        const lang = c.language || c.lang || "";
+        if (code.trim()) lines.push(`\`\`\`${lang}\n${code.trim()}\n\`\`\``);
+      } else {
+        // fallback: extract any string values
+        const fallback = Object.values(c).filter((v): v is string => typeof v === "string" && v.trim().length > 0).join(" ");
+        if (fallback.trim()) lines.push(`[${kind}] ${fallback.trim()}`);
+      }
+    }
+    lines.push("=== FIN DEL DOCUMENTO ===");
+    return lines.join("\n").slice(0, 8000);
+  }
+
   async function handleAiSubmit(e?: React.FormEvent, presetPrompt?: string) {
     e?.preventDefault();
     const messageToSend = (presetPrompt ?? aiInput).trim();
@@ -252,7 +289,7 @@ export function DocumentCommentsDrawer({
           documentBricksById: { [docId]: docBricks as any },
           users: (members || []).map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
         }),
-        contextSummary
+        contextSummary: buildDocContextSummary()
       }, accessToken);
       setAiMessages(prev => [...prev.filter(m => !m.loading), { id: Date.now(), role: "bot", content: data.text }]);
     } catch (e) {

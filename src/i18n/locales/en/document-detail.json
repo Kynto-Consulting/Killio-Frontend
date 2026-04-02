@@ -1,4 +1,5 @@
 {
+  "allDocuments": "All documents",
   "loadError": "Failed to load document",
   "createBlockError": "Failed to create block",
   "shareSuccess": "Shared with {{email}}",
