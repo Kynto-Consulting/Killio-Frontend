@@ -6,10 +6,12 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { UnifiedBrickList } from "./unified-brick-list";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
+import { resolveNestedBricks } from "@/lib/bricks/nesting";
 
 interface ColumnsBrickProps {
   id: string;
   columns?: { id: string }[];
+  childrenByContainer?: Record<string, string[]>;
   onUpdate: (data: { columns: { id: string }[] }) => void;
   readonly?: boolean;
   documents?: DocumentSummary[];
@@ -26,6 +28,7 @@ interface ColumnsBrickProps {
 export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({ 
   id, 
   columns = [], 
+  childrenByContainer,
   onUpdate, 
   readonly,
   documents = [],
@@ -61,7 +64,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({
     <div className="flex flex-col group my-2 relative">
       <div className="flex flex-col md:flex-row gap-4 w-full">
         {safeColumns.map((col, index) => {
-          const nestedBricks = activeBricks.filter((b: any) => b.content?.parentId === id && b.content?.containerId === col.id).sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+          const nestedBricks = resolveNestedBricks({ childrenByContainer: childrenByContainer || {} }, col.id, activeBricks as any[]) as any[];
           return (
             <div key={col.id} className="flex-1 flex flex-col min-w-0 group/col relative bg-muted/5 border border-transparent hover:border-border/50 rounded-lg transition-colors">
                <div className="p-3 w-full h-full min-h-[100px]">
@@ -72,7 +75,7 @@ export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({
                    onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
                    onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
                    onReorderBricks={(ids) => onReorderBricks?.(ids)}
-                    onAddBrick={(k, aId, initialContent) => onAddBrick?.(k, aId, { parentId: id, containerId: col.id }, initialContent)}
+                    onAddBrick={(k, aId, parentProps, initialContent) => onAddBrick?.(k, aId, parentProps || { parentId: id, containerId: col.id }, initialContent)}
                    onCrossContainerDrop={onCrossContainerDrop}
                    addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
                    documents={documents}

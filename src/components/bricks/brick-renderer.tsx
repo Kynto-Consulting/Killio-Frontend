@@ -245,6 +245,7 @@ export function UnifiedBrickRenderer({
           title={content.title || ""}
           body={content.body || ""}
           isExpanded={!!content.isExpanded}
+          childrenByContainer={content.childrenByContainer}
           onUpdate={(data) => onUpdate({ ...content, ...data })}
           readonly={!canEdit}
           documents={documents}
@@ -284,6 +285,7 @@ export function UnifiedBrickRenderer({
         <UnifiedTabsBrick
           id={brick.id}
           tabs={content.tabs}
+          childrenByContainer={content.childrenByContainer}
           onUpdate={(data) => onUpdate({ ...content, kind: 'tabs', ...data })}
           readonly={!canEdit}
           activeBricks={activeBricks}
@@ -303,6 +305,7 @@ export function UnifiedBrickRenderer({
         <UnifiedColumnsBrick
           id={brick.id}
           columns={content.columns}
+          childrenByContainer={content.childrenByContainer}
           onUpdate={(data) => onUpdate({ ...content, kind: 'columns', ...data })}
           readonly={!canEdit}
           activeBricks={activeBricks}

@@ -8,12 +8,14 @@ import { UnifiedBrickList } from "./unified-brick-list";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "../ui/reference-token-input";
+import { resolveNestedBricks } from "@/lib/bricks/nesting";
 
 interface AccordionBrickProps {
   id: string;
   title: string;
   body?: string;
   isExpanded: boolean;
+  childrenByContainer?: Record<string, string[]>;
   onUpdate: (data: any) => void;
   readonly?: boolean;
   documents: DocumentSummary[];
@@ -28,7 +30,7 @@ interface AccordionBrickProps {
 }
 
 export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
-  id, title, body, isExpanded, onUpdate, readonly, documents, boards, activeBricks, users = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, onCrossContainerDrop
+  id, title, body, isExpanded, childrenByContainer, onUpdate, readonly, documents, boards, activeBricks, users = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, onCrossContainerDrop
 }) => {
   const t = useTranslations("document-detail");
   const [localExpanded, setLocalExpanded] = useState(isExpanded);
@@ -37,7 +39,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
     setLocalExpanded(isExpanded);
   }, [isExpanded]);
 
-  const nestedBricks = activeBricks.filter((b: any) => b.content?.parentId === id && b.content?.containerId === "body").sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+  const resolvedNestedBricks = resolveNestedBricks({ childrenByContainer: childrenByContainer || {} }, "body", activeBricks as any[]) as any[];
 
   const toggle = () => {
     const newVal = !localExpanded;
@@ -76,16 +78,16 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
 
       <div className={`transition-all duration-300 ease-in-out ${localExpanded ? 'opacity-100 mb-4' : 'max-h-0 opacity-0 overflow-hidden'}`}>
         <div className="pl-9 pr-2 py-1 border-l-2 border-accent/20 ml-2.5 min-h-[50px]">
-          {(nestedBricks.length > 0 || !body || !readonly) ? (
+          {(resolvedNestedBricks.length > 0 || !body || !readonly) ? (
             <UnifiedBrickList
               hasExternalDndContext={true}
-              bricks={nestedBricks} activeBricks={activeBricks}
+              bricks={resolvedNestedBricks} activeBricks={activeBricks}
               canEdit={!readonly}
               emptyPlaceholder={t("bricks.accordion.empty")}
               onUpdateBrick={(bId, content) => onUpdateBrick?.(bId, content)}
               onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
               onReorderBricks={(ids) => onReorderBricks?.(ids)}
-              onAddBrick={(k, aId, initialContent) => onAddBrick?.(k, aId, { parentId: id, containerId: "body" }, initialContent)}
+              onAddBrick={(k, aId, parentProps, initialContent) => onAddBrick?.(k, aId, parentProps || { parentId: id, containerId: "body" }, initialContent)}
               onCrossContainerDrop={onCrossContainerDrop}
               addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image']}
               documents={documents}
