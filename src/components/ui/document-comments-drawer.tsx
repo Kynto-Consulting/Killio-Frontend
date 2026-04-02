@@ -74,7 +74,8 @@ export function DocumentCommentsDrawer({
   initialTab = "comments",
   contextSummary = "",
   initialAiInput = "",
-  onAiInputClear
+  onAiInputClear,
+  bricks: bricksProp = []
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -87,6 +88,7 @@ export function DocumentCommentsDrawer({
   contextSummary?: string;
   initialAiInput?: string;
   onAiInputClear?: () => void;
+  bricks?: any[];
 }) {
   const getActionTheme = useActionTheme();
   const { accessToken, user, activeTeamId } = useSession();
@@ -102,7 +104,7 @@ export function DocumentCommentsDrawer({
 
   // Activity State
   const [activities, setActivities] = useState<ActivityLogEntry[]>([]);
-  const [docBricks, setDocBricks] = useState<any[]>([]);
+  const [docBricks, setDocBricks] = useState<any[]>(bricksProp);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
@@ -139,6 +141,13 @@ export function DocumentCommentsDrawer({
       console.error("Failed to fetch document activity", e);
     }
   };
+
+  // Keep docBricks in sync when bricksProp updates from the parent page
+  useEffect(() => {
+    if (bricksProp && bricksProp.length > 0) {
+      setDocBricks(bricksProp);
+    }
+  }, [bricksProp]);
 
   const fetchDocContent = async () => {
     if (!accessToken || !docId) return;

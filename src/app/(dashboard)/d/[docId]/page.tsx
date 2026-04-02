@@ -986,6 +986,7 @@ export default function DocumentPage() {
         initialTab={sidebarTab}
         initialAiInput={aiInitialInput}
         onAiInputClear={() => setAiInitialInput("")}
+        bricks={document?.bricks ?? []}
       />
     </div>
   );
