@@ -960,7 +960,11 @@ export default function DocumentPage() {
               canEdit={canEdit}
               documents={teamDocs}
               boards={teamBoards}
-              users={teamMembers.map(m => ({ id: m.id, name: m.displayName || m.email, avatarUrl: m.avatarUrl }))}
+              users={teamMembers.map((m) => ({
+                id: m.userId || m.id,
+                name: m.displayName || m.email,
+                avatarUrl: m.avatarUrl,
+              }))}
               addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}

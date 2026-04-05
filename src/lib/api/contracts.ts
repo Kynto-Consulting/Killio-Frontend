@@ -77,12 +77,21 @@ export type RemoveTeamMemberResult = {
   removed: true;
 };
 
+export type UpdateTeamMemberAliasResult = {
+  membershipId: string;
+  userId: string;
+  workspaceAlias: string | null;
+  updated: true;
+};
+
 export type TeamMemberSummary = {
   id: string;
   userId: string;
   role: TeamRole;
   status: string;
   displayName: string;
+  workspaceAlias: string | null;
+  baseDisplayName: string;
   primaryEmail: string;
   avatarUrl: string | null;
   joinedAt: string | null;
@@ -813,6 +822,19 @@ export async function updateTeamMemberRole(
   });
 }
 
+export async function updateTeamMemberAlias(
+  teamId: string,
+  memberId: string,
+  alias: string | null,
+  accessToken: string,
+): Promise<UpdateTeamMemberAliasResult> {
+  return request<UpdateTeamMemberAliasResult>(`/teams/${teamId}/members/${memberId}/alias`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ alias }),
+  });
+}
+
 export async function removeTeamMember(teamId: string, memberId: string, accessToken: string): Promise<RemoveTeamMemberResult> {
   return request<RemoveTeamMemberResult>(`/teams/${teamId}/members/${memberId}`, {
     method: 'DELETE',
@@ -945,6 +967,8 @@ export interface BoardMemberSummary {
   id: string;
   email: string;
   displayName: string | null;
+  workspaceAlias: string | null;
+  baseDisplayName: string | null;
   role: string;
   avatarUrl: string | null;
 }

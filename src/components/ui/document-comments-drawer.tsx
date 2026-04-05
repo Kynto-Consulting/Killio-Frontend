@@ -44,7 +44,11 @@ function getResolverContext(documents: DocumentSummary[], boards: any[], members
   return {
     documents: documents || [],
     boards: boards || [],
-    users: (members || []).map(m => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
+    users: (members || []).map((m) => ({
+      id: m.userId || m.id,
+      name: m.displayName || m.name,
+      avatarUrl: m.avatarUrl,
+    }))
   };
 }
 
@@ -263,7 +267,11 @@ export function DocumentCommentsDrawer({
           boards,
           activeBricks: docBricks,
           documentBricksById: { [docId]: docBricks as any },
-          users: (members || []).map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
+          users: (members || []).map((m: any) => ({
+            id: m.userId || m.id,
+            name: m.displayName || m.name,
+            avatarUrl: m.avatarUrl,
+          }))
         }),
         contextSummary: buildDocContextSummary()
       }, accessToken);
@@ -560,7 +568,13 @@ export function DocumentCommentsDrawer({
               }}
               placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Comenta o menciona con @..."}
               documents={documents}
-              boards={boards}                folders={folders}              users={members.map((m: any) => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))}
+              boards={boards}
+              folders={folders}
+              users={members.map((m: any) => ({
+                id: m.userId || m.id,
+                name: m.displayName || m.name,
+                avatarUrl: m.avatarUrl,
+              }))}
               activeBricks={docBricks as any[]}
               onSubmit={() => {
                 if (activeTab === 'copilot') {

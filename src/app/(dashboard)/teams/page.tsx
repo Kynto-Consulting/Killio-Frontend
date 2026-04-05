@@ -14,6 +14,7 @@ import {
   TeamView,
   TeamMemberSummary,
   InviteSummary,
+  updateTeamMemberAlias,
   updateTeamMemberRole,
 } from "@/lib/api/contracts";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
@@ -38,6 +39,8 @@ export default function TeamsPage() {
   const [isInlineInviting, setIsInlineInviting] = useState(false);
   const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
   const [isMutatingInvite, setIsMutatingInvite] = useState<string | null>(null);
+  const [editingAliasMemberId, setEditingAliasMemberId] = useState<string | null>(null);
+  const [aliasDraft, setAliasDraft] = useState("");
 
   const myMembership = useMemo(() => members.find((member) => member.userId === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
@@ -155,6 +158,22 @@ export default function TeamsPage() {
       await reloadMembers();
     } catch (err: any) {
       toast(typeof err?.message === "string" ? err.message : t("roleUpdateError"), "error");
+    } finally {
+      setIsMutatingMember(null);
+    }
+  };
+
+  const handleUpdateMemberAlias = async (memberId: string, alias: string | null) => {
+    if (!accessToken || !activeTeamId || isMutatingMember) return;
+    setIsMutatingMember(memberId);
+    try {
+      await updateTeamMemberAlias(activeTeamId, memberId, alias, accessToken);
+      setEditingAliasMemberId(null);
+      setAliasDraft("");
+      setActiveMemberMenu(null);
+      await reloadMembers();
+    } catch (err: any) {
+      toast(typeof err?.message === "string" ? err.message : t("aliasUpdateError"), "error");
     } finally {
       setIsMutatingMember(null);
     }
@@ -356,6 +375,8 @@ export default function TeamsPage() {
           ) : (
             members.map((member) => {
               const isMe = member.userId === user?.id;
+              const canEditAlias = canManageMembers || isMe;
+              const isAliasEditing = editingAliasMemberId === member.id;
 
               return (
                 <div key={member.id} className="flex items-center justify-between p-4 bg-card hover:bg-accent/5 transition-colors relative">
@@ -371,8 +392,18 @@ export default function TeamsPage() {
                           {member.displayName}
                           {isMe && <span className="ml-1 text-muted-foreground font-normal">({t("you")})</span>}
                         </p>
+                        {member.workspaceAlias ? (
+                          <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
+                            {t("aliasBadge")}
+                          </span>
+                        ) : null}
                         {member.status === "active" && <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background"></span>}
                       </div>
+                      {member.workspaceAlias ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {t("baseNameLabel")} {member.baseDisplayName}
+                        </p>
+                      ) : null}
                       <p className="text-sm text-muted-foreground mt-1">{member.primaryEmail}</p>
                     </div>
                   </div>
@@ -386,7 +417,14 @@ export default function TeamsPage() {
                     <div className="relative">
                       {canManageMembers || isMe ? (
                         <button
-                          onClick={() => setActiveMemberMenu(activeMemberMenu === member.id ? null : member.id)}
+                          onClick={() => {
+                            const nextOpen = activeMemberMenu === member.id ? null : member.id;
+                            setActiveMemberMenu(nextOpen);
+                            if (!nextOpen) {
+                              setEditingAliasMemberId(null);
+                              setAliasDraft("");
+                            }
+                          }}
                           className="h-8 w-8 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors hover:bg-accent/10 hover:text-foreground text-muted-foreground"
                         >
                           <MoreHorizontal className="h-4 w-4" />
@@ -395,8 +433,71 @@ export default function TeamsPage() {
 
                       {activeMemberMenu === member.id && (canManageMembers || isMe) && (
                         <>
-                          <div className="fixed inset-0 z-40" onClick={() => setActiveMemberMenu(null)} />
-                          <div className="absolute right-0 top-10 w-56 rounded-md border border-border bg-background shadow-lg z-50 py-1 text-sm overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                          <div
+                            className="fixed inset-0 z-40"
+                            onClick={() => {
+                              setActiveMemberMenu(null);
+                              setEditingAliasMemberId(null);
+                              setAliasDraft("");
+                            }}
+                          />
+                          <div className="absolute right-0 top-10 w-64 rounded-md border border-border bg-background shadow-lg z-50 py-1 text-sm overflow-hidden animate-in fade-in zoom-in-95 duration-100">
+                            {canEditAlias ? (
+                              <>
+                                <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">{t("workspaceAlias")}</div>
+                                {isAliasEditing ? (
+                                  <div className="px-3 pb-2 space-y-2">
+                                    <input
+                                      value={aliasDraft}
+                                      onChange={(event) => setAliasDraft(event.target.value)}
+                                      placeholder={t("aliasPlaceholder")}
+                                      className="flex h-8 w-full rounded-md border border-input bg-background px-2 py-1 text-xs"
+                                    />
+                                    <div className="flex items-center gap-1">
+                                      <button
+                                        onClick={() => handleUpdateMemberAlias(member.id, aliasDraft.trim() ? aliasDraft : null)}
+                                        disabled={isMutatingMember === member.id}
+                                        className="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
+                                      >
+                                        {t("saveAlias")}
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setEditingAliasMemberId(null);
+                                          setAliasDraft("");
+                                        }}
+                                        className="rounded border border-border px-2 py-1 text-xs"
+                                      >
+                                        {t("cancelAlias")}
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="px-3 pb-2 space-y-1">
+                                    <button
+                                      onClick={() => {
+                                        setEditingAliasMemberId(member.id);
+                                        setAliasDraft(member.workspaceAlias || "");
+                                      }}
+                                      className="w-full text-left rounded px-2 py-1.5 hover:bg-accent/10"
+                                    >
+                                      {t("editAlias")}
+                                    </button>
+                                    {member.workspaceAlias ? (
+                                      <button
+                                        onClick={() => handleUpdateMemberAlias(member.id, null)}
+                                        disabled={isMutatingMember === member.id}
+                                        className="w-full text-left rounded px-2 py-1.5 text-muted-foreground hover:bg-accent/10 disabled:opacity-50"
+                                      >
+                                        {t("clearAlias")}
+                                      </button>
+                                    ) : null}
+                                  </div>
+                                )}
+                                <div className="my-1 border-t border-border/50" />
+                              </>
+                            ) : null}
+
                             {canManageMembers && !isMe && member.role !== "owner" ? (
                               <>
                                 <div className="px-3 py-1.5 text-[11px] uppercase tracking-wider text-muted-foreground">{t("changeRole")}</div>

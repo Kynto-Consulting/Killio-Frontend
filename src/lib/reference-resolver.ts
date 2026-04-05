@@ -484,7 +484,8 @@ export class ReferenceResolver {
               : mentionType === "user"
                 ? context.users?.find((u) => u.id === id)?.name
                 : undefined;
-        const name = String(nameRaw || fallbackName || "Referencia");
+        const resolvedName = mentionType === "user" ? (fallbackName || nameRaw) : (nameRaw || fallbackName);
+        const name = String(resolvedName || "Referencia");
         return { type: 'mention', mentionType: type, id, name, key: i };
       }
 

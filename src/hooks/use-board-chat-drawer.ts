@@ -62,7 +62,11 @@ export function getResolverContext(teamDocs: DocumentSummary[], teamBoards: any[
   return {
     documents: teamDocs,
     boards: teamBoards,
-    users: (teamMembers || []).map(m => ({ id: m.id, name: m.displayName || m.name, avatarUrl: m.avatarUrl }))
+    users: (teamMembers || []).map((m) => ({
+      id: m.userId || m.id,
+      name: m.displayName || m.name,
+      avatarUrl: m.avatarUrl,
+    }))
   };
 }
 
