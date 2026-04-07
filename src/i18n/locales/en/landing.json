@@ -43,6 +43,28 @@
       "description": "Role based access, activity history, and notifications designed for distributed teams."
     }
   },
+  "integrations": {
+    "title": "Integrations and automation that execute by themselves",
+    "description": "Connect GitHub and external tools, receive webhooks, and turn events into actions in your workspace.",
+    "items": {
+      "github": {
+        "title": "GitHub commits",
+        "description": "Trigger flows from push events and route work automatically."
+      },
+      "webhook": {
+        "title": "Public webhooks",
+        "description": "Receive external payloads with secure script-specific URLs."
+      },
+      "conditions": {
+        "title": "Smart routing",
+        "description": "Use conditions and transforms to send each item to the right action."
+      },
+      "actions": {
+        "title": "Killio actions",
+        "description": "Create, update, move, and assign cards from one automation graph."
+      }
+    }
+  },
   "showcase": {
     "surfaceLabel": "Product surface",
     "title": "One operating view for work that usually lives in five tabs.",

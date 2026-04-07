@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "github",
+      "titleKey": "presets.catalog.github.title",
+      "descriptionKey": "presets.catalog.github.description",
+      "summaryKey": "presets.catalog.github.summary",
+      "requirements": [
+        {
+          "type": "github_installation",
+          "messageKey": "presets.requirements.githubInstallation"
+        }
+      ],
+      "fields": [
+        {
+          "id": "repoFullName",
+          "param": "repoFullName",
+          "type": "text",
+          "required": true,
+          "labelKey": "presets.fields.repoFullName.label",
+          "placeholderKey": "presets.fields.repoFullName.placeholder"
+        },
+        {
+          "id": "branch",
+          "param": "branch",
+          "type": "text",
+          "required": false,
+          "defaultValue": "main",
+          "labelKey": "presets.fields.branch.label",
+          "placeholderKey": "presets.fields.branch.placeholder"
+        },
+        {
+          "id": "killioTableName",
+          "param": "killioTableName",
+          "type": "text",
+          "required": false,
+          "defaultValue": "GitHub Preset KillioTable",
+          "labelKey": "presets.fields.killioTableName.label",
+          "placeholderKey": "presets.fields.killioTableName.placeholder"
+        },
+        {
+          "id": "boardId",
+          "param": "boardId",
+          "type": "text",
+          "required": false,
+          "labelKey": "presets.fields.boardId.label",
+          "placeholderKey": "presets.fields.boardId.placeholder"
+        },
+        {
+          "id": "listId",
+          "param": "listId",
+          "type": "text",
+          "required": false,
+          "labelKey": "presets.fields.listId.label",
+          "placeholderKey": "presets.fields.listId.placeholder"
+        },
+        {
+          "id": "regexPattern",
+          "param": "regexPattern",
+          "type": "text",
+          "required": true,
+          "labelKey": "presets.fields.regexPattern.label",
+          "placeholderKey": "presets.fields.regexPattern.placeholder"
+        },
+        {
+          "id": "regexFlags",
+          "param": "regexFlags",
+          "type": "text",
+          "required": false,
+          "defaultValue": "i",
+          "labelKey": "presets.fields.regexFlags.label",
+          "placeholderKey": "presets.fields.regexFlags.placeholder"
+        },
+        {
+          "id": "mentionRegex",
+          "param": "mentionRegex",
+          "type": "text",
+          "required": false,
+          "defaultValue": "@([\\w.-]+)",
+          "labelKey": "presets.fields.mentionRegex.label",
+          "placeholderKey": "presets.fields.mentionRegex.placeholder"
+        }
+      ]
+    }
+  ]
+}

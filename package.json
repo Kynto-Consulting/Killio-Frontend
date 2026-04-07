@@ -16,6 +16,7 @@
     "@serwist/next": "^9.5.7",
     "@types/diff": "^7.0.2",
     "@types/uuid": "^10.0.0",
+    "@xyflow/react": "^12.10.2",
     "ably": "^2.19.0",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",

@@ -1,0 +1,946 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/components/providers/session-provider";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import {
+  ApplyScriptPresetResult,
+  SharedKillioTable,
+  ScriptSummary,
+  ScriptGraph,
+  ScriptMonthlyUsage,
+  ScriptPresetDefinition,
+  applyScriptPreset,
+  listScripts,
+  listScriptPresets,
+  createScript,
+  toggleScript,
+  deleteScript,
+  saveScriptGraph,
+  getScriptGraph,
+  getScriptsUsage,
+  listSharedTables,
+  runManualScript,
+} from "@/lib/api/scripts";
+import { GithubAppInstallation, listGithubInstallations } from "@/lib/api/integrations";
+import { ScriptList } from "@/components/scripts/ScriptList";
+import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
+import { KillioTable } from "../../../components/scripts/KillioTable";
+import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
+import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPanel";
+import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
+import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import scriptPresetsCatalog from "@/config/script-presets.json";
+import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle } from "lucide-react";
+
+type Tab = "integrations" | "scripts" | "table";
+type ScriptSubView = "canvas" | "runs";
+
+interface CreateScriptForm {
+  name: string;
+  description: string;
+}
+
+type PresetRequirementType = "github_installation";
+
+interface PresetRequirementConfig {
+  type: PresetRequirementType;
+  messageKey: string;
+}
+
+interface PresetFieldConfig {
+  id: string;
+  param: string;
+  type: "text";
+  required: boolean;
+  labelKey: string;
+  placeholderKey: string;
+  defaultValue?: string;
+}
+
+interface PresetCatalogEntry {
+  id: string;
+  titleKey: string;
+  descriptionKey: string;
+  summaryKey: string;
+  requirements: PresetRequirementConfig[];
+  fields: PresetFieldConfig[];
+}
+
+const PRESET_CATALOG: PresetCatalogEntry[] = scriptPresetsCatalog.presets as PresetCatalogEntry[];
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: "integrations", label: "tabs.integrations" },
+  { id: "scripts", label: "tabs.scripts" },
+  { id: "table", label: "tabs.table" },
+];
+
+function ComingSoonIntegrationCard({
+  title,
+  description,
+  icon: Icon,
+  badge,
+}: {
+  title: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge: string;
+}) {
+  return (
+    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+            <Icon className="h-4 w-4" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+        </div>
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{badge}</span>
+      </div>
+      <p className="mt-3 text-xs text-muted-foreground">{description}</p>
+      <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
+        <Clock3 className="h-3.5 w-3.5" />
+        {badge}
+      </div>
+    </div>
+  );
+}
+
+export default function IntegrationsPage() {
+  const router = useRouter();
+  const { locale } = useI18n();
+  const t = useTranslations("integrations");
+  const { user, accessToken, activeTeamId } = useSession();
+  const { role, isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+
+  const [tab, setTab] = useState<Tab>("integrations");
+  const [scripts, setScripts] = useState<ScriptSummary[]>([]);
+  const [scriptsLoading, setScriptsLoading] = useState(false);
+  const [selectedScript, setSelectedScript] = useState<ScriptSummary | null>(null);
+  const [scriptSubView, setScriptSubView] = useState<ScriptSubView>("canvas");
+  const [graph, setGraph] = useState<ScriptGraph | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [usage, setUsage] = useState<ScriptMonthlyUsage | null>(null);
+  const [usageLoading, setUsageLoading] = useState(false);
+  const [presets, setPresets] = useState<ScriptPresetDefinition[]>([]);
+  const [presetsLoading, setPresetsLoading] = useState(false);
+  const [applyingPresetId, setApplyingPresetId] = useState<string | null>(null);
+  const [presetError, setPresetError] = useState<string | null>(null);
+  const [presetResult, setPresetResult] = useState<ApplyScriptPresetResult | null>(null);
+  const [showPresetModal, setShowPresetModal] = useState(false);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [presetValues, setPresetValues] = useState<Record<string, string>>({});
+  const [githubInstallations, setGithubInstallations] = useState<GithubAppInstallation[]>([]);
+  const [presetTables, setPresetTables] = useState<SharedKillioTable[]>([]);
+  const [presetContextLoading, setPresetContextLoading] = useState(false);
+
+  // Create form state
+  const [showCreate, setShowCreate] = useState(false);
+  const [form, setForm] = useState<CreateScriptForm>({
+    name: "",
+    description: "",
+  });
+  const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isRoleLoading && activeTeamId && accessToken && role && !isAdmin) {
+      router.replace("/");
+    }
+  }, [isRoleLoading, activeTeamId, accessToken, role, isAdmin, router]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Load scripts when tab becomes active or team changes
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const loadScripts = useCallback(async () => {
+    if (!accessToken || !activeTeamId || !isAdmin) return;
+    setScriptsLoading(true);
+    try {
+      const data = await listScripts(activeTeamId, accessToken);
+      setScripts(data);
+    } finally {
+      setScriptsLoading(false);
+    }
+  }, [accessToken, activeTeamId, isAdmin]);
+
+  useEffect(() => {
+    if (isAdmin && (tab === "scripts" || tab === "table")) {
+      loadScripts();
+    }
+  }, [tab, loadScripts, isAdmin]);
+
+  useEffect(() => {
+    if (!accessToken || !activeTeamId || !isAdmin) return;
+
+    setUsageLoading(true);
+    getScriptsUsage(activeTeamId, accessToken)
+      .then(setUsage)
+      .catch(() => setUsage(null))
+      .finally(() => setUsageLoading(false));
+  }, [accessToken, activeTeamId, isAdmin]);
+
+  useEffect(() => {
+    if (!accessToken || !activeTeamId || !isAdmin || tab !== "scripts") return;
+
+    setPresetsLoading(true);
+    listScriptPresets(activeTeamId, accessToken)
+      .then(setPresets)
+      .catch(() => setPresets([]))
+      .finally(() => setPresetsLoading(false));
+  }, [accessToken, activeTeamId, isAdmin, tab]);
+
+  const presetCatalogById = useMemo(
+    () => new Map(PRESET_CATALOG.map((entry) => [entry.id, entry])),
+    [],
+  );
+
+  const selectedPresetCatalog = useMemo(
+    () => (selectedPresetId ? (presetCatalogById.get(selectedPresetId) ?? null) : null),
+    [presetCatalogById, selectedPresetId],
+  );
+
+  const activeGithubInstallations = useMemo(
+    () => githubInstallations.filter((installation) => installation.isActive),
+    [githubInstallations],
+  );
+
+  const initializePresetValues = useCallback((presetId: string | null) => {
+    if (!presetId) {
+      setPresetValues({});
+      return;
+    }
+
+    const catalogPreset = presetCatalogById.get(presetId);
+    if (!catalogPreset) {
+      setPresetValues({});
+      return;
+    }
+
+    const nextValues: Record<string, string> = {};
+    for (const field of catalogPreset.fields) {
+      nextValues[field.id] = field.defaultValue ?? "";
+    }
+    setPresetValues(nextValues);
+  }, [presetCatalogById]);
+
+  useEffect(() => {
+    if (!showPresetModal || !accessToken || !activeTeamId) return;
+
+    setPresetContextLoading(true);
+    Promise.all([
+      listGithubInstallations(activeTeamId, accessToken).catch(() => [] as GithubAppInstallation[]),
+      listSharedTables(activeTeamId, accessToken).catch(() => [] as SharedKillioTable[]),
+    ])
+      .then(([installations, tables]) => {
+        setGithubInstallations(installations);
+        setPresetTables(tables);
+      })
+      .finally(() => setPresetContextLoading(false));
+  }, [showPresetModal, accessToken, activeTeamId]);
+
+  useEffect(() => {
+    if (presets.length === 0) {
+      setSelectedPresetId(null);
+      setPresetValues({});
+      return;
+    }
+    if (!selectedPresetId || !presets.some((preset) => preset.id === selectedPresetId)) {
+      const firstPresetId = presets[0]?.id ?? null;
+      setSelectedPresetId(firstPresetId);
+      initializePresetValues(firstPresetId);
+    }
+  }, [presets, selectedPresetId, initializePresetValues]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Load graph when a script is selected
+  // ──────────────────────────────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!selectedScript || !accessToken || !activeTeamId) return;
+    setGraphLoading(true);
+    setGraph(null);
+    getScriptGraph(selectedScript.id, activeTeamId, accessToken)
+      .then(setGraph)
+      .catch(() => setGraph({ nodes: [], edges: [] }))
+      .finally(() => setGraphLoading(false));
+  }, [selectedScript?.id, accessToken, activeTeamId]);
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Handlers
+  // ──────────────────────────────────────────────────────────────────────────
+
+  const handleToggle = async (script: ScriptSummary) => {
+    if (!accessToken || !activeTeamId) return;
+    const result = await toggleScript(script.id, activeTeamId, !script.isActive, accessToken);
+    setScripts((prev) =>
+      prev.map((s) => (s.id === script.id ? { ...s, isActive: result.isActive } : s)),
+    );
+    if (selectedScript?.id === script.id) {
+      setSelectedScript((prev) => prev ? { ...prev, isActive: result.isActive } : prev);
+    }
+  };
+
+  const handleDelete = async (script: ScriptSummary) => {
+    if (!accessToken || !activeTeamId) return;
+    await deleteScript(script.id, activeTeamId, accessToken);
+    setScripts((prev) => prev.filter((s) => s.id !== script.id));
+    if (selectedScript?.id === script.id) setSelectedScript(null);
+  };
+
+  const handleSaveGraph = async (g: ScriptGraph) => {
+    if (!selectedScript || !accessToken || !activeTeamId) return;
+    const updatedScript = await saveScriptGraph(selectedScript.id, activeTeamId, g, accessToken);
+    setGraph(g);
+    setScripts((prev) => prev.map((script) => (script.id === updatedScript.id ? updatedScript : script)));
+    setSelectedScript(updatedScript);
+  };
+
+  const handleToggleActive = async (isActive: boolean) => {
+    if (!selectedScript) return;
+    await handleToggle({ ...selectedScript, isActive: !isActive });
+  };
+
+  const handleCreate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!accessToken || !activeTeamId || !form.name.trim()) return;
+    setCreating(true);
+    setCreateError(null);
+    try {
+      const newScript = await createScript(
+        {
+          teamId: activeTeamId,
+          name: form.name.trim(),
+          description: form.description.trim() || undefined,
+        },
+        accessToken,
+      );
+      setScripts((prev) => [newScript, ...prev]);
+      setShowCreate(false);
+      setForm({ name: "", description: "" });
+      setSelectedScript(newScript);
+      setScriptSubView("canvas");
+    } catch {
+      setCreateError(t("scripts.createError"));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const handleRunManual = async () => {
+    if (!selectedScript || !accessToken || !activeTeamId) return;
+    await runManualScript(selectedScript.id, activeTeamId, accessToken, {
+      data: {
+        source: "killio-ui",
+        requestedByUserId: user?.id,
+      },
+    });
+    setScriptSubView("runs");
+    if (accessToken && activeTeamId) {
+      getScriptsUsage(activeTeamId, accessToken).then(setUsage).catch(() => undefined);
+    }
+  };
+
+  const handleOpenPresets = () => {
+    setPresetError(null);
+    setPresetResult(null);
+
+    const firstPresetId = selectedPresetId ?? presets[0]?.id ?? null;
+    setSelectedPresetId(firstPresetId);
+    initializePresetValues(firstPresetId);
+    setShowPresetModal(true);
+  };
+
+  const handleSelectPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    initializePresetValues(presetId);
+    setPresetError(null);
+    setPresetResult(null);
+  };
+
+  const handleApplyPreset = async () => {
+    if (!accessToken || !activeTeamId || !selectedPresetId) return;
+
+    const catalogPreset = presetCatalogById.get(selectedPresetId);
+    const nextParams: {
+      teamId: string;
+      repoFullName?: string;
+      branch?: string;
+      boardId?: string;
+      listId?: string;
+      archiveListId?: string;
+      killioTableName?: string;
+    } = {
+      teamId: activeTeamId,
+    };
+
+    if (catalogPreset) {
+      for (const field of catalogPreset.fields) {
+        const value = (presetValues[field.id] ?? "").trim();
+        if (field.required && !value) {
+          setPresetError(t("presets.missingRequiredField", { field: t(field.labelKey) }));
+          return;
+        }
+        if (value) {
+          if (field.param === "repoFullName") nextParams.repoFullName = value;
+          if (field.param === "branch") nextParams.branch = value;
+          if (field.param === "boardId") nextParams.boardId = value;
+          if (field.param === "listId") nextParams.listId = value;
+          if (field.param === "archiveListId") nextParams.archiveListId = value;
+          if (field.param === "killioTableName") nextParams.killioTableName = value;
+        }
+      }
+    }
+
+    setApplyingPresetId(selectedPresetId);
+    setPresetError(null);
+    setPresetResult(null);
+
+    try {
+      const result = await applyScriptPreset(selectedPresetId, nextParams, accessToken);
+
+      setPresetResult(result);
+      await loadScripts();
+
+      if (result.scripts.length > 0) {
+        const firstScript = result.scripts[0];
+        const refreshed = await listScripts(activeTeamId, accessToken);
+        setScripts(refreshed);
+        const selected = refreshed.find((script) => script.id === firstScript.id) ?? null;
+        setSelectedScript(selected);
+        setScriptSubView("canvas");
+      }
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : t("presets.applyError");
+      setPresetError(message);
+    } finally {
+      setApplyingPresetId(null);
+    }
+  };
+
+  const presetRequirementChecks = useMemo(() => {
+    if (!selectedPresetCatalog) return [];
+
+    return selectedPresetCatalog.requirements.map((requirement) => {
+      if (requirement.type === "github_installation") {
+        const met = activeGithubInstallations.length > 0;
+        return {
+          key: requirement.type,
+          message: t(requirement.messageKey),
+          met,
+        };
+      }
+
+      return {
+        key: requirement.type,
+        message: t(requirement.messageKey),
+        met: true,
+      };
+    });
+  }, [selectedPresetCatalog, activeGithubInstallations, t]);
+
+  const presetRequirementsMet = presetRequirementChecks.every((requirement) => requirement.met);
+  const selectedPreset = selectedPresetId
+    ? presets.find((preset) => preset.id === selectedPresetId) ?? null
+    : null;
+  const selectedPresetFields = selectedPresetCatalog?.fields ?? [];
+  const requiredPresetFieldsFilled = selectedPresetFields.every((field) => {
+    if (!field.required) return true;
+    return (presetValues[field.id] ?? "").trim().length > 0;
+  });
+  const canApplySelectedPreset = !!selectedPreset
+    && !presetContextLoading
+    && presetRequirementsMet
+    && requiredPresetFieldsFilled;
+
+  const webhookToken =
+    selectedScript?.triggerType === "webhook"
+      ? selectedScript.triggerConfig?.publicToken
+      : null;
+
+  const webhookBase =
+    process.env.NEXT_PUBLIC_API_BASE_URL
+    ?? process.env.NEXT_PUBLIC_KILLIO_API_URL
+    ?? process.env.NEXT_PUBLIC_API_URL
+    ?? "http://localhost:4000";
+
+  const webhookUrl =
+    selectedScript
+    && selectedScript.triggerType === "webhook"
+    && activeTeamId
+    && typeof webhookToken === "string"
+    && webhookToken.length > 0
+      ? `${webhookBase.replace(/\/+$/, "")}/w/${activeTeamId}/webhook/${selectedScript.id}/${webhookToken}`
+      : null;
+
+  const usageResetDate = usage?.periodEnd
+    ? new Date(usage.periodEnd).toLocaleDateString(locale === "es" ? "es-ES" : "en-US", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+    : null;
+  const billingSubject = encodeURIComponent(t("usage.billingSubject"));
+  const billingBody = encodeURIComponent(t("usage.billingBody"));
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Render
+  // ──────────────────────────────────────────────────────────────────────────
+
+  if (!accessToken || !activeTeamId || isRoleLoading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="flex h-full items-center justify-center px-4 sm:px-6">
+        <div className="max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-sm">
+          <p className="text-base font-semibold text-foreground">{t("title")}</p>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {t("access.adminOnly")}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex h-full flex-col bg-background text-foreground">
+      {/* Page Header */}
+      <div className="border-b border-border bg-card/70 px-3 py-4 backdrop-blur-sm sm:px-6">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20 text-accent">
+            <Zap className="h-4 w-4" />
+          </div>
+          <h1 className="text-lg font-semibold">{t("title")}</h1>
+        </div>
+
+        {/* Tabs */}
+        <div className="mt-3 flex flex-wrap gap-1">
+          {TABS.map((tabItem) => (
+            <button
+              key={tabItem.id}
+              onClick={() => setTab(tabItem.id)}
+              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+                tab === tabItem.id
+                  ? "bg-accent/20 text-accent"
+                  : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+              }`}
+            >
+              {t(tabItem.label)}
+            </button>
+          ))}
+        </div>
+
+        <div className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
+          {usageLoading ? (
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {t("usage.loading")}
+            </div>
+          ) : usage ? (
+            <div className="flex flex-wrap items-center gap-3 text-xs">
+              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
+                <BarChart3 className="h-3.5 w-3.5" />
+                {t("usage.title", { plan: usage.planTier })}
+              </span>
+              <span className="rounded-full bg-background px-2 py-0.5 font-medium text-foreground">
+                {usage.limit === null
+                  ? t("usage.executedNoLimit", { count: usage.executed })
+                  : t("usage.executedWithLimit", { executed: usage.executed, limit: usage.limit })}
+              </span>
+              {usageResetDate && (
+                <span className="text-muted-foreground">{t("usage.reset", { date: usageResetDate })}</span>
+              )}
+              <a
+                href={`mailto:${usage.billingEmail}?subject=${billingSubject}&body=${billingBody}`}
+                className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium text-foreground hover:bg-accent/10"
+              >
+                <Mail className="h-3.5 w-3.5" />
+                {t("usage.billing")}
+              </a>
+            </div>
+          ) : (
+            <div className="text-xs text-muted-foreground">{t("usage.error")}</div>
+          )}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className={`flex min-h-0 flex-1 ${tab === "scripts" ? "overflow-y-auto lg:overflow-hidden" : "overflow-hidden"}`}>
+        {/* ── Integraciones ────────────────────────────────────────────────── */}
+        {tab === "integrations" && (
+          <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+
+              <ComingSoonIntegrationCard
+                title={t("integrations.catalog.googleTitle")}
+                description={t("integrations.catalog.googleDescription")}
+                icon={Globe}
+                badge={t("integrations.catalog.comingSoon")}
+              />
+
+              <ComingSoonIntegrationCard
+                title={t("integrations.catalog.jiraTitle")}
+                description={t("integrations.catalog.jiraDescription")}
+                icon={SquareKanban}
+                badge={t("integrations.catalog.comingSoon")}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Scripts ──────────────────────────────────────────────────────── */}
+        {tab === "scripts" && (
+          <div className="flex min-h-0 w-full flex-1 flex-col lg:flex-row lg:overflow-hidden">
+            {/* Sidebar list */}
+            <div className="w-full flex-shrink-0 border-b border-border bg-card/40 lg:flex lg:min-h-0 lg:w-72 lg:border-b-0 lg:border-r">
+              <ScriptList
+                scripts={scripts}
+                selectedId={selectedScript?.id ?? null}
+                onSelect={(s) => {
+                  setSelectedScript(s);
+                  setScriptSubView("canvas");
+                }}
+                onToggle={handleToggle}
+                onDelete={handleDelete}
+                onCreate={() => setShowCreate(true)}
+                onOpenPresets={handleOpenPresets}
+                loading={scriptsLoading}
+              />
+            </div>
+
+            {/* Main area */}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              {selectedScript ? (
+                <>
+                  {/* Script sub-tabs */}
+                  <div className="flex items-center gap-1 border-b border-border bg-card/60 px-3 py-2 sm:px-4">
+                    <button
+                      onClick={() => setScriptSubView("canvas")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                        scriptSubView === "canvas"
+                          ? "bg-accent/20 text-accent"
+                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                      }`}
+                    >
+                      {t("scripts.graphTab")}
+                    </button>
+                    <button
+                      onClick={() => setScriptSubView("runs")}
+                      className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                        scriptSubView === "runs"
+                          ? "bg-accent/20 text-accent"
+                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                      }`}
+                    >
+                      {t("scripts.runsTab")}
+                    </button>
+                    <div className="ml-auto">
+                      <span className="truncate text-xs font-medium text-muted-foreground">
+                        {selectedScript.name}
+                      </span>
+                    </div>
+                  </div>
+
+                  {scriptSubView === "canvas" ? (
+                    graphLoading ? (
+                      <div className="flex flex-1 items-center justify-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                      </div>
+                    ) : (
+                      <div className="flex flex-1 min-h-0 overflow-hidden">
+                        <ScriptCanvas
+                          scriptId={selectedScript.id}
+                          graph={graph}
+                          isActive={selectedScript.isActive}
+                          webhookUrl={webhookUrl}
+                          teamId={activeTeamId}
+                          accessToken={accessToken}
+                          onSave={handleSaveGraph}
+                          onToggle={handleToggleActive}
+                          canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
+                          onRunManual={handleRunManual}
+                        />
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex-1 overflow-hidden">
+                      <RunLogsPanel
+                        scriptId={selectedScript.id}
+                        teamId={activeTeamId}
+                        accessToken={accessToken}
+                      />
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  <div className="rounded-full bg-accent/10 p-5 text-accent">
+                    <Zap className="h-8 w-8" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">
+                    {t("scripts.selectToEdit")}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t("scripts.selectToEditHelp")}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── KillioTable ──────────────────────────────────────────────────── */}
+        {tab === "table" && (
+          <div className="flex-1 overflow-hidden">
+            <KillioTable
+              teamId={activeTeamId}
+              accessToken={accessToken}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* ── Preset Modal ─────────────────────────────────────────────────── */}
+      {showPresetModal && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm sm:p-6">
+          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">{t("presets.modalTitle")}</h2>
+                <p className="text-xs text-muted-foreground">{t("presets.modalSubtitle")}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowPresetModal(false)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                aria-label={t("actions.close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="grid min-h-0 flex-1 md:grid-cols-[260px,1fr]">
+              <div className="border-b border-border bg-muted/20 p-3 md:border-b-0 md:border-r">
+                {presetsLoading ? (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    {t("presets.loading")}
+                  </div>
+                ) : presets.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">{t("presets.empty")}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {presets.map((preset) => {
+                      const catalogPreset = presetCatalogById.get(preset.id);
+                      const isSelected = preset.id === selectedPresetId;
+                      return (
+                        <button
+                          key={preset.id}
+                          type="button"
+                          onClick={() => handleSelectPreset(preset.id)}
+                          className={`w-full rounded-lg border px-3 py-2 text-left transition-colors ${
+                            isSelected
+                              ? "border-accent bg-accent/15"
+                              : "border-border bg-background hover:bg-accent/10"
+                          }`}
+                        >
+                          <p className="text-sm font-medium text-foreground">
+                            {catalogPreset ? t(catalogPreset.titleKey) : preset.name}
+                          </p>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            {catalogPreset ? t(catalogPreset.descriptionKey) : preset.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              <div className="min-h-0 overflow-y-auto p-4 sm:p-6">
+                {selectedPreset ? (
+                  <>
+                    <p className="rounded-md border border-border bg-muted/30 px-3 py-2 text-xs text-foreground">
+                      {selectedPresetCatalog ? t(selectedPresetCatalog.summaryKey) : selectedPreset.applySummary}
+                    </p>
+
+                    <div className="mt-4">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t("presets.requirementsTitle")}
+                      </p>
+                      {presetContextLoading ? (
+                        <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          {t("presets.checkingRequirements")}
+                        </div>
+                      ) : (
+                        <div className="mt-2 space-y-2">
+                          {presetRequirementChecks.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">{t("presets.noRequirements")}</p>
+                          ) : (
+                            presetRequirementChecks.map((requirement) => (
+                              <div
+                                key={requirement.key}
+                                className={`flex items-center gap-2 rounded-md px-2.5 py-2 text-xs ${
+                                  requirement.met
+                                    ? "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+                                    : "bg-amber-500/10 text-amber-800 dark:text-amber-300"
+                                }`}
+                              >
+                                {requirement.met ? (
+                                  <CheckCircle2 className="h-3.5 w-3.5" />
+                                ) : (
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                )}
+                                {requirement.message}
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {t("presets.configureTitle")}
+                      </p>
+
+                      {selectedPresetFields.map((field) => {
+                        const isKillioTableNameField = field.id === "killioTableName";
+                        return (
+                          <div key={field.id}>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t(field.labelKey)} {field.required ? "*" : ""}
+                            </label>
+                            <input
+                              type="text"
+                              value={presetValues[field.id] ?? ""}
+                              onChange={(event) => {
+                                const value = event.target.value;
+                                setPresetValues((prev) => ({ ...prev, [field.id]: value }));
+                              }}
+                              list={isKillioTableNameField ? "preset-table-options" : undefined}
+                              placeholder={t(field.placeholderKey)}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                          </div>
+                        );
+                      })}
+
+                      <datalist id="preset-table-options">
+                        {presetTables.map((table) => (
+                          <option key={table.id} value={table.name} />
+                        ))}
+                      </datalist>
+                    </div>
+
+                    {presetError && (
+                      <p className="mt-4 rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                        {presetError}
+                      </p>
+                    )}
+
+                    {presetResult && (
+                      <p className="mt-4 rounded-md bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
+                        {presetResult.message}
+                      </p>
+                    )}
+
+                    <div className="mt-6 flex flex-wrap items-center justify-end gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setShowPresetModal(false)}
+                        className="rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-accent/10"
+                      >
+                        {t("actions.cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleApplyPreset}
+                        disabled={applyingPresetId === selectedPresetId || !canApplySelectedPreset}
+                        className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                      >
+                        {applyingPresetId === selectedPresetId ? t("presets.applying") : t("presets.apply")}
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">{t("presets.selectPreset")}</p>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Create Script Modal ───────────────────────────────────────────── */}
+      {showCreate && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h2 className="mb-4 text-base font-semibold text-foreground">{t("scripts.createTitle")}</h2>
+            <form onSubmit={handleCreate} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("scripts.name")} *
+                </label>
+                <input
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder={t("scripts.namePlaceholder")}
+                  required
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("scripts.description")}
+                </label>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  placeholder={t("scripts.descriptionPlaceholder")}
+                  rows={2}
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">
+                  {t("scripts.triggerInCanvasHelp")}
+                </p>
+              </div>
+              {createError && (
+                <p className="rounded-md bg-destructive/10 px-3 py-2 text-xs text-destructive">{createError}</p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => { setShowCreate(false); setCreateError(null); }}
+                  className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-accent/10"
+                >
+                  {t("actions.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={creating || !form.name.trim()}
+                  className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {creating && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {creating ? t("scripts.creating") : t("scripts.create")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

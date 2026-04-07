@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -12,6 +12,7 @@ import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -31,6 +32,10 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
+  const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const navigationItems = canAccessScripts
+    ? [...navigation, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
+    : navigation;
   const [teams, setTeams] = useState<TeamView[]>([]);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isFetchingBoards, setIsFetchingBoards] = useState(false);
@@ -137,7 +142,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
-            {navigation.map((item) => {
+            {navigationItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

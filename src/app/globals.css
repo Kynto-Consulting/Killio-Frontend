@@ -27,6 +27,7 @@
     --ring: 0 0% 3.9%;
     --panel: rgba(255, 255, 255, 0.72);
     --panel-strong: rgba(248, 250, 252, 0.9);
+    --rf-dots-color: rgba(100, 116, 139, 0.35);
     --radius: 0.5rem;
   }
 
@@ -59,6 +60,7 @@
     --ring: 0 0% 83.1%;
     --panel: rgba(16, 16, 16, 0.66);
     --panel-strong: rgba(24, 24, 24, 0.86);
+    --rf-dots-color: rgba(148, 163, 184, 0.28);
   }
 }
 
@@ -103,4 +105,42 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
+}
+
+/* React Flow theme alignment with app light/dark tokens */
+.killio-reactflow .react-flow__controls {
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: none;
+}
+
+.killio-reactflow .react-flow__controls-button {
+  background: hsl(var(--card));
+  color: hsl(var(--foreground));
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+.killio-reactflow .react-flow__controls-button:hover {
+  background: hsl(var(--accent));
+}
+
+.killio-reactflow .react-flow__minimap {
+  background: hsl(var(--card));
+  border: 1px solid hsl(var(--border));
+  border-radius: 8px;
+}
+
+.killio-reactflow .react-flow__edge-path {
+  stroke: hsl(var(--muted-foreground));
+  stroke-opacity: 0.75;
+}
+
+.killio-reactflow .react-flow__attribution {
+  background: transparent;
+  color: hsl(var(--muted-foreground));
+}
+
+.killio-reactflow .react-flow__attribution a {
+  color: hsl(var(--muted-foreground));
 }

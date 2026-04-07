@@ -43,6 +43,28 @@
       "description": "Acceso por roles, historial de actividad y notificaciones pensadas para equipos distribuidos."
     }
   },
+  "integrations": {
+    "title": "Integraciones y automatizacion que se ejecutan solas",
+    "description": "Conecta GitHub y herramientas externas, recibe webhooks y convierte eventos en acciones dentro del workspace.",
+    "items": {
+      "github": {
+        "title": "Commits de GitHub",
+        "description": "Dispara flujos desde eventos push y enruta trabajo automaticamente."
+      },
+      "webhook": {
+        "title": "Webhooks publicos",
+        "description": "Recibe payloads externos con URLs seguras por script."
+      },
+      "conditions": {
+        "title": "Ruteo inteligente",
+        "description": "Usa condiciones y transformaciones para enviar cada item a la accion correcta."
+      },
+      "actions": {
+        "title": "Acciones en Killio",
+        "description": "Crea, actualiza, mueve y asigna cards desde un solo grafo de automatizacion."
+      }
+    }
+  },
   "showcase": {
     "surfaceLabel": "Superficie del producto",
     "title": "Una vista operativa para trabajo que normalmente vive en cinco pestanas.",

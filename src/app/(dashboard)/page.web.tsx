@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { AlignLeft, ArrowRight, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, Layout, Loader2, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, Users, Workflow } from "lucide-react";
+import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
@@ -20,6 +20,12 @@ function PublicLanding({ t }: { t: TFunction }) {
     { key: "focus", icon: Workflow },
     { key: "ai", icon: BrainCircuit },
     { key: "trust", icon: ShieldCheck },
+  ] as const;
+  const integrations = [
+    { key: "github", icon: GitBranch },
+    { key: "webhook", icon: Webhook },
+    { key: "conditions", icon: Workflow },
+    { key: "actions", icon: ArrowRightLeft },
   ] as const;
 
   const steps = ["one", "two", "three"] as const;
@@ -282,6 +288,25 @@ function PublicLanding({ t }: { t: TFunction }) {
                 </div>
               ))}
             </div>
+          </div>
+        </section>
+
+        <section className="mt-14 rounded-[28px] border border-border/70 bg-card/70 p-6 backdrop-blur-sm md:p-8">
+          <h2 className="text-2xl font-semibold tracking-tight md:text-3xl">{t("integrations.title")}</h2>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
+            {t("integrations.description")}
+          </p>
+
+          <div className="mt-6 grid gap-4 md:grid-cols-2">
+            {integrations.map(({ key, icon: Icon }) => (
+              <article key={key} className="rounded-2xl border border-border/70 bg-background/70 p-5 transition-colors hover:border-[#d8ff72]/40">
+                <div className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-[#d8ff72]/10 text-[#d8ff72]">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <h3 className="mt-4 text-base font-semibold text-foreground">{t(`integrations.items.${key}.title`)}</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">{t(`integrations.items.${key}.description`)}</p>
+              </article>
+            ))}
           </div>
         </section>
 

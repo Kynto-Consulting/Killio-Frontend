@@ -1,0 +1,524 @@
+{
+  "title": "Scripts & Integrations",
+  "access": {
+    "adminOnly": "This section is only available to workspace admins and owners."
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "refresh": "Refresh",
+    "pause": "Pause",
+    "activate": "Activate"
+  },
+  "usage": {
+    "loading": "Loading monthly usage...",
+    "title": "Monthly usage ({{plan}})",
+    "executedNoLimit": "{{count}} runs",
+    "executedWithLimit": "{{executed}}/{{limit}} runs",
+    "reset": "Reset: {{date}}",
+    "billing": "Billing",
+    "billingSubject": "Killio Billing",
+    "billingBody": "Hi team, I want to upgrade my Scripts and Integrations plan.",
+    "error": "Failed to load monthly script usage."
+  },
+  "tabs": {
+    "integrations": "Integrations",
+    "scripts": "Scripts",
+    "table": "KillioTable"
+  },
+  "integrations": {
+    "catalog": {
+      "comingSoon": "Coming soon",
+      "googleTitle": "Google",
+      "googleDescription": "OAuth and workspace sync with Google services will be available soon.",
+      "jiraTitle": "Jira",
+      "jiraDescription": "Issue syncing and bidirectional workflow automation with Jira is planned next."
+    },
+    "github": {
+      "title": "GitHub",
+      "description": "Connect your GitHub App to listen for commits and automate cards.",
+      "connected": "Connected",
+      "notConnected": "Not connected",
+      "account": "Account: {{account}}",
+      "connect": "Connect GitHub App",
+      "connectButton": "Connect with GitHub App",
+      "connecting": "Redirecting to GitHub...",
+      "connectAutoHelp": "Use the button to install and connect the GitHub app automatically in your workspace.",
+      "activeInstallations": "Active installations",
+      "noInstallations": "No active installations yet.",
+      "connectHelp": "Install the Killio GitHub App on your repository and paste the installation_id here.",
+      "installationId": "Installation ID",
+      "installationIdPlaceholder": "e.g. 12345678",
+      "installationIdInvalid": "Installation ID must be a valid number.",
+      "installationFallback": "Installation",
+      "accountTypeFallback": "Account",
+      "save": "Save connection",
+      "saved": "Integration saved successfully.",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect the GitHub integration?",
+      "callbackInvalidInstallationId": "Invalid installation_id received from GitHub.",
+      "callbackWrongWorkspace": "The GitHub installation belongs to a different workspace.",
+      "callbackAutoSaveError": "Could not auto-save the GitHub installation.",
+      "connectStartError": "Could not start GitHub connection. Check backend env configuration.",
+      "saveError": "Failed to save integration",
+      "deleteError": "Failed to disconnect integration"
+    }
+  },
+  "scripts": {
+    "empty": "No scripts yet",
+    "emptyDescription": "Create a script to automate actions when events occur.",
+    "create": "New script",
+    "createTitle": "Create script",
+    "name": "Name",
+    "namePlaceholder": "e.g. Sync GitHub TODOs",
+    "description": "Description",
+    "descriptionPlaceholder": "e.g. Create cards from TODO comments in the repo",
+    "creating": "Creating...",
+    "triggerType": "Trigger type",
+    "triggerInCanvasHelp": "Trigger is defined inside the canvas. Drag exactly one trigger node into the graph.",
+    "triggers": {
+      "github": {
+        "commit": "GitHub: Commit"
+      },
+      "manual": "Manual",
+      "schedule": "Schedule",
+      "webhook": "External webhook"
+    },
+    "active": "Active",
+    "inactive": "Inactive",
+    "lastRun": "Last run",
+    "never": "Never",
+    "editGraph": "Edit graph",
+    "toggle": "Toggle active",
+    "delete": "Delete script",
+    "deleteConfirm": "Delete this script and all its data?",
+    "createError": "Failed to create script",
+    "saveGraphError": "Failed to save graph",
+    "toggleError": "Failed to toggle status",
+    "deleteError": "Failed to delete script",
+    "graphTab": "Graph",
+    "runsTab": "Runs",
+    "selectToEdit": "Select a script to edit",
+    "selectToEditHelp": "Or create a new one with the button on the left",
+    "relative": {
+      "justNow": "Just now",
+      "minutes": "{{value}}m ago",
+      "hours": "{{value}}h ago",
+      "days": "{{value}}d ago"
+    }
+  },
+  "presets": {
+    "title": "Script presets",
+    "subtitle": "Bootstrap common automation flows in one click.",
+    "openButton": "Presets +",
+    "modalTitle": "Preset catalog",
+    "modalSubtitle": "Select a preset, validate requirements, and provide setup data.",
+    "selectPreset": "Select a preset to continue.",
+    "loading": "Loading presets...",
+    "empty": "No presets available yet.",
+    "requirementsTitle": "Requirements",
+    "checkingRequirements": "Checking requirements...",
+    "noRequirements": "No requirements for this preset.",
+    "configureTitle": "Configuration",
+    "missingRequiredField": "Please complete: {{field}}",
+    "apply": "Apply preset",
+    "applying": "Applying...",
+    "applyError": "Failed to apply preset",
+    "catalog": {
+      "github": {
+        "title": "GitHub",
+        "description": "Creates a create-only GitHub automation assembled from regex and small helper blocks.",
+        "summary": "se creara 1 script de creacion y 1 killio table."
+      }
+    },
+    "requirements": {
+      "githubInstallation": "At least one active GitHub App installation is required."
+    },
+    "fields": {
+      "repoFullName": {
+        "label": "Repository",
+        "placeholder": "owner/repo"
+      },
+      "branch": {
+        "label": "Branch",
+        "placeholder": "main"
+      },
+      "killioTableName": {
+        "label": "KillioTable name",
+        "placeholder": "GitHub Preset KillioTable"
+      },
+      "boardId": {
+        "label": "Board ID (optional)",
+        "placeholder": "Optional board id"
+      },
+      "listId": {
+        "label": "List ID (optional)",
+        "placeholder": "Optional list id"
+      },
+      "regexPattern": {
+        "label": "Main match regex",
+        "placeholder": "\\b(?:TODO|FIXME)\\b\\s*[:\\-]?\\s*(.+)$"
+      },
+      "regexFlags": {
+        "label": "Regex flags",
+        "placeholder": "i"
+      },
+      "mentionRegex": {
+        "label": "Mention extraction regex",
+        "placeholder": "@([\\w.-]+)"
+      }
+    }
+  },
+  "canvas": {
+    "editorTitle": "Graph editor",
+    "fullscreen": "Fullscreen",
+    "exitFullscreen": "Exit fullscreen",
+    "save": "Save",
+    "saving": "Saving...",
+    "nodeConfigTitle": "Node configuration",
+    "nodeConfigHint": "Select a node to edit its settings and JSON config.",
+    "noNodeSelected": "Select a node from the canvas to configure it.",
+    "nodeType": "Node type",
+    "nodeLabel": "Node label",
+    "nodeLabelPlaceholder": "Custom node label",
+    "rawConfig": "Raw config JSON",
+    "invalidJson": "Invalid JSON format.",
+    "applyJson": "Apply JSON",
+    "runManual": "Run manual",
+    "running": "Running...",
+    "copyWebhook": "Copy URL",
+    "webhookCopied": "Copied",
+    "previewOutput": "Preview output",
+    "previewOutputHint": "Load the persisted output from the latest run for the selected node.",
+    "refreshPreview": "View JSON",
+    "refreshingPreview": "Loading...",
+    "payloadPreview": "Payload preview",
+    "githubPayloadHint": "Preview of the item this trigger sends to the next node.",
+    "lastRunOutput": "Latest run output",
+    "noOutputForNode": "This node has no persisted output in the latest run.",
+    "noPreviewLoaded": "No latest-run preview has been loaded yet.",
+    "palette": "Available blocks",
+    "categories": {
+      "triggers": "Triggers",
+      "conditions": "Conditions",
+      "transforms": "Transforms",
+      "actions": "Actions",
+      "logic": "Logic"
+    },
+    "nodes": {
+      "githubCommit": "GitHub: Commit",
+      "manualTrigger": "Manual Trigger",
+      "webhookTrigger": "Webhook Trigger",
+      "regexMatch": "Regex Match",
+      "fieldCompare": "Field Compare",
+      "jsonMap": "JSON Map",
+      "jsonNormalize": "JSON Normalize",
+      "regex": "Regex",
+      "regexExtractFiles": "Regex Extract Files",
+      "joinFields": "Join Fields",
+      "hashJoin": "Hash Join",
+      "template": "Template",
+      "iterator": "Iterator",
+      "textSplitLines": "Text Split Lines",
+      "regexExtractGroups": "Regex Extract Groups",
+      "regexExtractMentions": "Regex Extract Mentions",
+      "contextWindow": "Context Window",
+      "hashCompose": "Hash Compose",
+      "coalesce": "Coalesce",
+      "arrayCompact": "Array Compact",
+      "setField": "Set Field",
+      "ifElse": "If / Else",
+      "delay": "Delay",
+      "switch": "Switch",
+      "createCard": "Create Card",
+      "updateCard": "Update Card",
+      "moveCard": "Move Card",
+      "archiveCard": "Archive Card",
+      "assignCard": "Assign Card",
+      "tableRead": "Table Read",
+      "tableWrite": "Table Write",
+      "dedup": "Dedup",
+      "firstSeen": "First Seen",
+      "httpRequest": "HTTP Request",
+      "jsCode": "JS Code"
+    },
+    "fields": {
+      "repoFullName": "Repo (owner/repo)",
+      "branch": "Branch (optional)",
+      "filePathRegex": "File path regex",
+      "todoRegex": "TODO regex (optional)",
+      "field": "Field to evaluate",
+      "pattern": "Regex pattern",
+      "caseInsensitive": "Case insensitive",
+      "sourcePath": "Source path",
+      "sourceMode": "Source mode",
+      "linesPath": "Lines path",
+      "lineOutputPath": "Line output path",
+      "filePathPath": "File path field",
+      "outputPath": "Output path",
+      "mergeIntoRoot": "Merge object into root",
+      "flags": "Regex flags",
+      "markers": "Markers",
+      "includeNoMatches": "Include items with no matches",
+      "includeEmptyLines": "Include empty lines",
+      "trimLines": "Trim lines",
+      "fanout": "Fan-out",
+      "maxLines": "Max lines",
+      "fields": "Fields",
+      "separator": "Separator",
+      "skipEmpty": "Skip empty values",
+      "algorithm": "Hash algorithm",
+      "truncate": "Truncate length",
+      "setExternalKey": "Set external key from hash",
+      "arrayPath": "Array path",
+      "itemOutputPath": "Item output path",
+      "includeIndex": "Include index",
+      "indexOutputPath": "Index output path",
+      "lineIndexOutputPath": "Line index output path",
+      "linesOutputPath": "Lines output path",
+      "todoOutputPath": "TODO output path",
+      "lineNumberOutputPath": "Line number output path",
+      "lineNumberPath": "Line number path",
+      "beforeLines": "Before lines",
+      "afterLines": "After lines",
+      "outputMode": "Output mode",
+      "scanByLine": "Scan by line",
+      "matchOutputPath": "Match output path",
+      "groupsOutputPath": "Groups output path",
+      "captureGroupMappings": "Capture group mappings",
+      "groupIndex": "Group index",
+      "sourcePaths": "Source paths",
+      "aggregateOutputPath": "Aggregate output path",
+      "aggregateValueIndex": "Aggregate group index",
+      "aggregateValueName": "Aggregate group name",
+      "aggregateUseFullMatch": "Aggregate full matches",
+      "setExternalKeyFromMatch": "Set external key from match",
+      "externalKeyOutputPath": "External key output path",
+      "dedupe": "Dedupe",
+      "trimStrings": "Trim strings",
+      "removeEmpty": "Remove empty values",
+      "mentionsOutputPath": "Mentions output path",
+      "hashOutputPath": "Hash output path",
+      "keyPath": "Key path",
+      "keepFirst": "Keep first match",
+      "fallbackToExternalKey": "Fallback to external key",
+      "markOutputPath": "Mark output path",
+      "routes": "Routes",
+      "url": "URL",
+      "method": "Method",
+      "bodyTemplate": "Body template",
+      "code": "Code",
+      "boardId": "Board",
+      "listId": "List",
+      "targetListId": "Target list",
+      "titleTemplate": "Title template",
+      "summaryTemplate": "Summary template",
+      "archiveOnMove": "Archive instead of move",
+      "mentionCandidatesPath": "Mention candidates path",
+      "mentionSourcePath": "Mention source path",
+      "fallbackToCommitAuthor": "Fallback to commit author",
+      "commitAuthorPath": "Commit author path",
+      "staticAssigneeIds": "Static assignee IDs"
+    },
+    "placeholders": {
+      "repoFullName": "owner/repo",
+      "branch": "main",
+      "filePathRegex": ".*",
+      "todoRegex": "TODO|FIXME",
+      "field": "todoText",
+      "pattern": "fix|urgent|bug",
+      "sourceMode": "inline",
+      "operator": "contains",
+      "value": "[delete]",
+      "targetPath": "summary.generated",
+      "template": "TODO {todoText} in {filePath}",
+      "arrayPath": "files",
+      "itemOutputPath": "file",
+      "indexOutputPath": "fileIndex",
+      "lineIndexOutputPath": "lineIndex",
+      "lineOutputPath": "lineText",
+      "linesOutputPath": "fileLines",
+      "sourcePath": "todoText",
+      "linesPath": "fileLines",
+      "filePathPath": "filePath",
+      "markers": "TODO|FIXME",
+      "todoOutputPath": "todoText",
+      "lineNumberOutputPath": "lineNumber",
+      "mentionsOutputPath": "detectedMentions",
+      "hashOutputPath": "todoHash",
+      "lineNumberPath": "lineNumber",
+      "beforeLines": "2",
+      "afterLines": "2",
+      "outputMode": "fanout | first | aggregate",
+      "scanByLine": "false",
+      "matchOutputPath": "todoText",
+      "groupsOutputPath": "todoGroups",
+      "captureGroupMappings": "1:todoText",
+      "groupIndex": "1",
+      "aggregateOutputPath": "detectedMentions",
+      "aggregateValueName": "mention",
+      "sourcePaths": "repositoryFullName\nfilePath\nlineNumber\ntodoText",
+      "flags": "gi",
+      "externalKeyOutputPath": "todoHash",
+      "fields": "repoFullName\nfilePath\ntodoText",
+      "separator": ":",
+      "algorithm": "sha256",
+      "delayMs": "Delay (ms)",
+      "routes": "bug:out_1\nfeature:out_2",
+      "url": "https://api.example.com/items/{externalKey}",
+      "method": "POST",
+      "bodyTemplate": "{\"title\": \"{title}\"}",
+      "code": "const item = readInput();\nwriteOutput({ ...item.data, reviewed: true });",
+      "boardId": "Board id",
+      "listId": "List id",
+      "titleTemplate": "{todoText}",
+      "summaryTemplate": "[{repoFullName}] {filePath}",
+      "targetListId": "Target list id",
+      "mentionCandidatesPath": "detectedMentions",
+      "mentionSourcePath": "todoText",
+      "commitAuthorPath": "githubAuthor.login",
+      "staticAssigneeIds": "user-id-1\nuser-id-2",
+      "markOutputPath": "__firstSeen",
+      "tableId": "Table id",
+      "keyPath": "todoHash",
+      "outputPath": "tableRow",
+      "valuesPath": "item.data"
+    }
+  },
+  "nodes": {
+    "common": {
+      "branch": "Branch",
+      "operator": "Operator",
+      "value": "Value",
+      "target": "Target"
+    },
+    "github": {
+      "noRepo": "No repository configured"
+    },
+    "manual": {
+      "description": "Emits items when you run the script manually from Killio-Scripts."
+    },
+    "webhook": {
+      "description": "Receives external events from a public URL and emits items to the flow."
+    },
+    "regex": {
+      "noField": "No field configured"
+    },
+    "jsonMap": {
+      "mode": "Mode",
+      "mappings": "Mappings"
+    },
+    "template": {
+      "noTemplate": "No template"
+    },
+    "delay": {
+      "wait": "Wait"
+    },
+    "createCard": {
+      "noTitleTemplate": "No title template"
+    },
+    "updateCard": {
+      "noTemplate": "No template"
+    },
+    "moveCard": {
+      "noTargetList": "No target list"
+    },
+    "assignCard": {
+      "detectMentions": "Detects @mentions"
+    }
+  },
+  "guide": {
+    "title": "Killio-Scripts",
+    "description": "How logic flows through the script and how to use regex, remaps, and actions.",
+    "yes": "yes",
+    "no": "no",
+    "steps": {
+      "trigger": {
+        "title": "1. Trigger emits items",
+        "body": "Each trigger creates one or more items. An item is a JSON object with data such as todoText, filePath, branch, commitSha, or any manual payload."
+      },
+      "regex": {
+        "title": "2. Regex Match chooses the branch",
+        "body": "The Regex Match node reads a field from item.data, for example todoText or filePath, runs a pattern, and sets __matched=true or false.",
+        "exampleField": "field: todoText",
+        "examplePattern": "pattern: fix|urgent|bug",
+        "exampleOutput": "output: match_true or match_false",
+        "footer": "Use the match_true handle for the positive path and match_false for the rest."
+      },
+      "map": {
+        "title": "3. JSON remap reshapes the item",
+        "body": "JSON Map copies values from one path to another. You can map from $.todoText or another nested path to prepare data before an action.",
+        "exampleTarget": "targetPath: card.payload.title",
+        "exampleSource": "sourcePath: todoText"
+      },
+      "template": {
+        "title": "4. Template generates derived text",
+        "body": "The Template node writes text using placeholders. It supports braced paths, such as {todoText} or {repoFullName}.",
+        "exampleTemplate": "template: TODO {todoText} in {filePath}",
+        "exampleTarget": "targetPath: summary.generated"
+      },
+      "action": {
+        "title": "5. Action consumes the item",
+        "body": "Create/Update/Move/Assign actions use the transformed item. If you already mapped a title or payload, the action reads it from item.data."
+      }
+    },
+    "summary": {
+      "title": "Quick read of current graph",
+      "regex": "Regex Match present: {{value}}",
+      "jsonMap": "JSON Map present: {{value}}",
+      "template": "Template present: {{value}}",
+      "nodes": "Total nodes: {{count}}",
+      "edges": "Total connections: {{count}}"
+    }
+  },
+  "table": {
+    "title": "KillioTable",
+    "selectScript": "Select script",
+    "noScripts": "No scripts",
+    "empty": "No rows yet",
+    "emptyDescription": "When a script processes events, rows will appear here.",
+    "actions": {
+      "create_card": "Created",
+      "update_card": "Updated",
+      "move_card": "Moved",
+      "archive": "Archived",
+      "assign_card": "Assigned"
+    },
+    "columns": {
+      "todo": "TODO",
+      "file": "File",
+      "card": "Card",
+      "lastAction": "Last action",
+      "updatedAt": "Updated"
+    },
+    "shared": {
+      "create": "New table",
+      "createTitle": "Create shared KillioTable",
+      "namePlaceholder": "e.g. Leads Pipeline",
+      "descriptionPlaceholder": "Optional description for your team",
+      "columnsLabel": "Columns (key:label:type, one per line)",
+      "columnsHelp": "Example: status:Status:text",
+      "noTables": "No tables",
+      "emptyTablesTitle": "No shared KillioTables yet",
+      "emptyTablesDescription": "Create one table and reuse it across different scripts.",
+      "emptyRowsDescription": "Rows will appear here when scripts write data into this table.",
+      "loadError": "Failed to load shared tables",
+      "loadRowsError": "Failed to load rows for this table",
+      "createError": "Failed to create shared table",
+      "columns": {
+        "externalKey": "External key"
+      }
+    }
+  },
+  "runs": {
+    "title": "Run history",
+    "empty": "No runs yet",
+    "status": {
+      "running": "Running",
+      "completed": "Completed",
+      "failed": "Failed"
+    },
+    "items": "{{count}} item(s)",
+    "duration": "{{ms}}ms"
+  }
+}
