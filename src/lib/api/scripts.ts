@@ -332,9 +332,6 @@ export async function applyScriptPreset(
     branch?: string;
     boardId?: string;
     listId?: string;
-    regexPattern?: string;
-    regexFlags?: string;
-    mentionRegex?: string;
     killioTableName?: string;
   },
   accessToken: string,

@@ -20,6 +20,20 @@ export interface GithubConnectUrlResponse {
   state: string;
 }
 
+export interface GithubInstallationRepository {
+  id: number;
+  name: string;
+  fullName: string;
+  private: boolean;
+  defaultBranch: string;
+}
+
+export interface GithubInstallationBranch {
+  name: string;
+  isProtected: boolean;
+  commitSha: string;
+}
+
 export async function listGithubInstallations(
   teamId: string,
   accessToken: string,
@@ -70,4 +84,30 @@ export async function deleteGithubInstallation(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) throw new Error('Failed to delete GitHub installation');
+}
+
+export async function listGithubInstallationRepositories(
+  teamId: string,
+  installationId: number,
+  accessToken: string,
+): Promise<GithubInstallationRepository[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/github/${installationId}/repositories`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch GitHub repositories');
+  return res.json();
+}
+
+export async function listGithubInstallationBranches(
+  teamId: string,
+  installationId: number,
+  repoFullName: string,
+  accessToken: string,
+): Promise<GithubInstallationBranch[]> {
+  const encodedRepo = encodeURIComponent(repoFullName);
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/github/${installationId}/branches?repoFullName=${encodedRepo}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch GitHub branches');
+  return res.json();
 }

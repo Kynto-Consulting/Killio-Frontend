@@ -54,32 +54,6 @@
           "required": false,
           "labelKey": "presets.fields.listId.label",
           "placeholderKey": "presets.fields.listId.placeholder"
-        },
-        {
-          "id": "regexPattern",
-          "param": "regexPattern",
-          "type": "text",
-          "required": true,
-          "labelKey": "presets.fields.regexPattern.label",
-          "placeholderKey": "presets.fields.regexPattern.placeholder"
-        },
-        {
-          "id": "regexFlags",
-          "param": "regexFlags",
-          "type": "text",
-          "required": false,
-          "defaultValue": "i",
-          "labelKey": "presets.fields.regexFlags.label",
-          "placeholderKey": "presets.fields.regexFlags.placeholder"
-        },
-        {
-          "id": "mentionRegex",
-          "param": "mentionRegex",
-          "type": "text",
-          "required": false,
-          "defaultValue": "@([\\w.-]+)",
-          "labelKey": "presets.fields.mentionRegex.label",
-          "placeholderKey": "presets.fields.mentionRegex.placeholder"
         }
       ]
     }

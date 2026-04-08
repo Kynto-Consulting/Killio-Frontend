@@ -23,7 +23,15 @@ import {
   listSharedTables,
   runManualScript,
 } from "@/lib/api/scripts";
-import { GithubAppInstallation, listGithubInstallations } from "@/lib/api/integrations";
+import {
+  GithubAppInstallation,
+  GithubInstallationBranch,
+  GithubInstallationRepository,
+  listGithubInstallationBranches,
+  listGithubInstallationRepositories,
+  listGithubInstallations,
+} from "@/lib/api/integrations";
+import { BoardSummary, ListView, getBoard, listTeamBoards } from "@/lib/api/contracts";
 import { ScriptList } from "@/components/scripts/ScriptList";
 import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
 import { KillioTable } from "../../../components/scripts/KillioTable";
@@ -43,6 +51,7 @@ interface CreateScriptForm {
 }
 
 type PresetRequirementType = "github_installation";
+type PresetTableMode = "existing" | "new";
 
 interface PresetRequirementConfig {
   type: PresetRequirementType;
@@ -133,6 +142,13 @@ export default function IntegrationsPage() {
   const [presetValues, setPresetValues] = useState<Record<string, string>>({});
   const [githubInstallations, setGithubInstallations] = useState<GithubAppInstallation[]>([]);
   const [presetTables, setPresetTables] = useState<SharedKillioTable[]>([]);
+  const [presetBoards, setPresetBoards] = useState<BoardSummary[]>([]);
+  const [presetListsByBoard, setPresetListsByBoard] = useState<Record<string, ListView[]>>({});
+  const [presetRepositories, setPresetRepositories] = useState<GithubInstallationRepository[]>([]);
+  const [presetBranches, setPresetBranches] = useState<GithubInstallationBranch[]>([]);
+  const [presetReposLoading, setPresetReposLoading] = useState(false);
+  const [presetBranchesLoading, setPresetBranchesLoading] = useState(false);
+  const [presetTableMode, setPresetTableMode] = useState<PresetTableMode>("existing");
   const [presetContextLoading, setPresetContextLoading] = useState(false);
 
   // Create form state
@@ -206,6 +222,24 @@ export default function IntegrationsPage() {
     [githubInstallations],
   );
 
+  const isGithubPresetSelected = selectedPresetId === "github";
+  const selectedInstallationId = Number(presetValues.installationId ?? "");
+  const selectedBoardId = presetValues.boardId ?? "";
+  const selectedListId = presetValues.listId ?? "";
+  const selectedRepoFullName = presetValues.repoFullName ?? "";
+  const selectedBranch = presetValues.branch ?? "";
+
+  const selectedBoardLists = useMemo(
+    () => (selectedBoardId ? (presetListsByBoard[selectedBoardId] ?? []) : []),
+    [selectedBoardId, presetListsByBoard],
+  );
+
+  const selectedExistingTableName = useMemo(() => {
+    const tableId = presetValues.existingTableId;
+    if (!tableId) return "";
+    return presetTables.find((table) => table.id === tableId)?.name ?? "";
+  }, [presetValues.existingTableId, presetTables]);
+
   const initializePresetValues = useCallback((presetId: string | null) => {
     if (!presetId) {
       setPresetValues({});
@@ -222,6 +256,17 @@ export default function IntegrationsPage() {
     for (const field of catalogPreset.fields) {
       nextValues[field.id] = field.defaultValue ?? "";
     }
+
+    if (presetId === "github") {
+      nextValues.installationId = "";
+      nextValues.existingTableId = "";
+      nextValues.newKillioTableName = nextValues.killioTableName ?? "GitHub Preset KillioTable";
+      nextValues.repoFullName = nextValues.repoFullName ?? "";
+      nextValues.branch = nextValues.branch ?? "";
+      nextValues.boardId = nextValues.boardId ?? "";
+      nextValues.listId = nextValues.listId ?? "";
+    }
+
     setPresetValues(nextValues);
   }, [presetCatalogById]);
 
@@ -229,13 +274,18 @@ export default function IntegrationsPage() {
     if (!showPresetModal || !accessToken || !activeTeamId) return;
 
     setPresetContextLoading(true);
+    setPresetRepositories([]);
+    setPresetBranches([]);
+    setPresetListsByBoard({});
     Promise.all([
       listGithubInstallations(activeTeamId, accessToken).catch(() => [] as GithubAppInstallation[]),
       listSharedTables(activeTeamId, accessToken).catch(() => [] as SharedKillioTable[]),
+      listTeamBoards(activeTeamId, accessToken).catch(() => [] as BoardSummary[]),
     ])
-      .then(([installations, tables]) => {
+      .then(([installations, tables, boards]) => {
         setGithubInstallations(installations);
         setPresetTables(tables);
+        setPresetBoards(boards);
       })
       .finally(() => setPresetContextLoading(false));
   }, [showPresetModal, accessToken, activeTeamId]);
@@ -252,6 +302,133 @@ export default function IntegrationsPage() {
       initializePresetValues(firstPresetId);
     }
   }, [presets, selectedPresetId, initializePresetValues]);
+
+  useEffect(() => {
+    if (!showPresetModal || !isGithubPresetSelected) return;
+
+    setPresetTableMode((prev) => {
+      if (presetTables.length === 0) return "new";
+      return prev;
+    });
+
+    setPresetValues((prev) => {
+      const next = { ...prev };
+      if (!next.installationId && activeGithubInstallations.length > 0) {
+        next.installationId = String(activeGithubInstallations[0].installationId);
+      }
+      if (!next.existingTableId && presetTables.length > 0) {
+        next.existingTableId = presetTables[0].id;
+      }
+      if (!next.newKillioTableName) {
+        next.newKillioTableName = "GitHub Preset KillioTable";
+      }
+      if (!next.boardId && presetBoards.length > 0) {
+        next.boardId = presetBoards[0].id;
+      }
+      return next;
+    });
+  }, [showPresetModal, isGithubPresetSelected, presetTables, activeGithubInstallations, presetBoards]);
+
+  useEffect(() => {
+    if (!showPresetModal || !isGithubPresetSelected || !activeTeamId || !accessToken) return;
+
+    if (!Number.isFinite(selectedInstallationId) || selectedInstallationId <= 0) {
+      setPresetRepositories([]);
+      setPresetBranches([]);
+      return;
+    }
+
+    setPresetReposLoading(true);
+    listGithubInstallationRepositories(activeTeamId, selectedInstallationId, accessToken)
+      .then((repositories) => {
+        setPresetRepositories(repositories);
+        setPresetValues((prev) => {
+          const hasCurrentRepo = repositories.some((repo) => repo.fullName === prev.repoFullName);
+          if (hasCurrentRepo) return prev;
+          const firstRepo = repositories[0];
+          if (!firstRepo) return { ...prev, repoFullName: "", branch: "" };
+          return {
+            ...prev,
+            repoFullName: firstRepo.fullName,
+            branch: firstRepo.defaultBranch || prev.branch || "main",
+          };
+        });
+      })
+      .catch(() => {
+        setPresetRepositories([]);
+      })
+      .finally(() => setPresetReposLoading(false));
+  }, [showPresetModal, isGithubPresetSelected, activeTeamId, accessToken, selectedInstallationId]);
+
+  useEffect(() => {
+    if (!showPresetModal || !isGithubPresetSelected || !activeTeamId || !accessToken) return;
+    if (!selectedRepoFullName || !Number.isFinite(selectedInstallationId) || selectedInstallationId <= 0) {
+      setPresetBranches([]);
+      return;
+    }
+
+    setPresetBranchesLoading(true);
+    listGithubInstallationBranches(activeTeamId, selectedInstallationId, selectedRepoFullName, accessToken)
+      .then((branches) => {
+        setPresetBranches(branches);
+        setPresetValues((prev) => {
+          const hasCurrentBranch = branches.some((branch) => branch.name === prev.branch);
+          if (hasCurrentBranch) return prev;
+          const repoDefaultBranch = presetRepositories.find((repo) => repo.fullName === selectedRepoFullName)?.defaultBranch;
+          const fallbackBranch = repoDefaultBranch || branches[0]?.name || "main";
+          return { ...prev, branch: fallbackBranch };
+        });
+      })
+      .catch(() => {
+        setPresetBranches([]);
+      })
+      .finally(() => setPresetBranchesLoading(false));
+  }, [
+    showPresetModal,
+    isGithubPresetSelected,
+    activeTeamId,
+    accessToken,
+    selectedInstallationId,
+    selectedRepoFullName,
+    presetRepositories,
+  ]);
+
+  useEffect(() => {
+    if (!showPresetModal || !isGithubPresetSelected || !activeTeamId || !accessToken) return;
+    if (!selectedBoardId) return;
+
+    const cachedLists = presetListsByBoard[selectedBoardId];
+    if (cachedLists) {
+      if (!cachedLists.some((list) => list.id === selectedListId) && cachedLists.length > 0) {
+        setPresetValues((prev) => ({ ...prev, listId: cachedLists[0].id }));
+      }
+      return;
+    }
+
+    getBoard(selectedBoardId, accessToken)
+      .then((board) => {
+        const lists = board.lists ?? [];
+        setPresetListsByBoard((prev) => ({
+          ...prev,
+          [selectedBoardId]: lists,
+        }));
+        setPresetValues((prev) => {
+          if (lists.some((list) => list.id === prev.listId)) return prev;
+          return { ...prev, listId: lists[0]?.id ?? "" };
+        });
+      })
+      .catch(() => {
+        setPresetListsByBoard((prev) => ({ ...prev, [selectedBoardId]: [] }));
+      });
+  }, [
+    showPresetModal,
+    isGithubPresetSelected,
+    activeTeamId,
+    accessToken,
+    selectedBoardId,
+    selectedListId,
+    presetListsByBoard,
+  ]);
 
   // ──────────────────────────────────────────────────────────────────────────
   // Load graph when a script is selected
@@ -375,7 +552,45 @@ export default function IntegrationsPage() {
       teamId: activeTeamId,
     };
 
-    if (catalogPreset) {
+    if (selectedPresetId === "github") {
+      const repoFullName = selectedRepoFullName.trim();
+      const branch = selectedBranch.trim();
+      const boardId = selectedBoardId.trim();
+      const listId = selectedListId.trim();
+
+      if (!repoFullName) {
+        setPresetError(t("presets.missingRequiredField", { field: t("presets.fields.repoFullName.label") }));
+        return;
+      }
+      if (!branch) {
+        setPresetError(t("presets.missingRequiredField", { field: t("presets.fields.branch.label") }));
+        return;
+      }
+      if (!boardId) {
+        setPresetError(t("presets.missingRequiredField", { field: t("presets.fields.boardId.label") }));
+        return;
+      }
+      if (!listId) {
+        setPresetError(t("presets.missingRequiredField", { field: t("presets.fields.listId.label") }));
+        return;
+      }
+
+      const killioTableName = presetTableMode === "existing"
+        ? selectedExistingTableName.trim()
+        : (presetValues.newKillioTableName ?? "").trim();
+      if (!killioTableName) {
+        setPresetError(t("presets.missingRequiredField", { field: t("presets.fields.killioTableName.label") }));
+        return;
+      }
+
+      nextParams.repoFullName = repoFullName;
+      nextParams.branch = branch;
+      nextParams.boardId = boardId;
+      nextParams.listId = listId;
+      nextParams.killioTableName = killioTableName;
+    }
+
+    if (catalogPreset && selectedPresetId !== "github") {
       for (const field of catalogPreset.fields) {
         const value = (presetValues[field.id] ?? "").trim();
         if (field.required && !value) {
@@ -449,10 +664,19 @@ export default function IntegrationsPage() {
     if (!field.required) return true;
     return (presetValues[field.id] ?? "").trim().length > 0;
   });
+  const githubPresetFieldsReady = selectedRepoFullName.trim().length > 0
+    && selectedBranch.trim().length > 0
+    && selectedBoardId.trim().length > 0
+    && selectedListId.trim().length > 0
+    && (
+      presetTableMode === "existing"
+        ? selectedExistingTableName.trim().length > 0
+        : (presetValues.newKillioTableName ?? "").trim().length > 0
+    );
   const canApplySelectedPreset = !!selectedPreset
     && !presetContextLoading
     && presetRequirementsMet
-    && requiredPresetFieldsFilled;
+    && (isGithubPresetSelected ? githubPresetFieldsReady : requiredPresetFieldsFilled);
 
   const webhookToken =
     selectedScript?.triggerType === "webhook"
@@ -813,9 +1037,183 @@ export default function IntegrationsPage() {
                         {t("presets.configureTitle")}
                       </p>
 
-                      {selectedPresetFields.map((field) => {
-                        const isKillioTableNameField = field.id === "killioTableName";
-                        return (
+                      {isGithubPresetSelected ? (
+                        <>
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.installation.label")} *
+                            </label>
+                            <select
+                              value={presetValues.installationId ?? ""}
+                              onChange={(event) => {
+                                const installationId = event.target.value;
+                                setPresetValues((prev) => ({
+                                  ...prev,
+                                  installationId,
+                                  repoFullName: "",
+                                  branch: "",
+                                }));
+                                setPresetRepositories([]);
+                                setPresetBranches([]);
+                              }}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                            >
+                              <option value="">{t("presets.selectPlaceholder")}</option>
+                              {activeGithubInstallations.map((installation) => (
+                                <option key={installation.id} value={String(installation.installationId)}>
+                                  {installation.accountLogin} ({installation.accountType})
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.repoFullName.label")} *
+                            </label>
+                            <select
+                              value={presetValues.repoFullName ?? ""}
+                              onChange={(event) => {
+                                const repoFullName = event.target.value;
+                                const matchedRepo = presetRepositories.find((repo) => repo.fullName === repoFullName);
+                                setPresetValues((prev) => ({
+                                  ...prev,
+                                  repoFullName,
+                                  branch: matchedRepo?.defaultBranch ?? "",
+                                }));
+                              }}
+                              disabled={presetReposLoading || presetRepositories.length === 0}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            >
+                              <option value="">{presetReposLoading ? t("presets.loading") : t("presets.selectPlaceholder")}</option>
+                              {presetRepositories.map((repo) => (
+                                <option key={repo.id} value={repo.fullName}>
+                                  {repo.fullName}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.branch.label")} *
+                            </label>
+                            <select
+                              value={presetValues.branch ?? ""}
+                              onChange={(event) => {
+                                const branch = event.target.value;
+                                setPresetValues((prev) => ({ ...prev, branch }));
+                              }}
+                              disabled={presetBranchesLoading || presetBranches.length === 0}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            >
+                              <option value="">{presetBranchesLoading ? t("presets.loading") : t("presets.selectPlaceholder")}</option>
+                              {presetBranches.map((branch) => (
+                                <option key={branch.name} value={branch.name}>
+                                  {branch.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.boardId.label")} *
+                            </label>
+                            <select
+                              value={presetValues.boardId ?? ""}
+                              onChange={(event) => {
+                                const boardId = event.target.value;
+                                setPresetValues((prev) => ({ ...prev, boardId, listId: "" }));
+                              }}
+                              disabled={presetBoards.length === 0}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            >
+                              <option value="">{t("presets.selectPlaceholder")}</option>
+                              {presetBoards.map((board) => (
+                                <option key={board.id} value={board.id}>
+                                  {board.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.listId.label")} *
+                            </label>
+                            <select
+                              value={presetValues.listId ?? ""}
+                              onChange={(event) => {
+                                const listId = event.target.value;
+                                setPresetValues((prev) => ({ ...prev, listId }));
+                              }}
+                              disabled={!selectedBoardId || selectedBoardLists.length === 0}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            >
+                              <option value="">{t("presets.selectPlaceholder")}</option>
+                              {selectedBoardLists.map((list) => (
+                                <option key={list.id} value={list.id}>
+                                  {list.name}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-xs font-medium text-muted-foreground">
+                              {t("presets.fields.killioTableName.label")} *
+                            </label>
+                            <div className="mb-2 flex gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setPresetTableMode("existing")}
+                                className={`rounded-md border px-2.5 py-1.5 text-xs ${presetTableMode === "existing" ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground"}`}
+                              >
+                                {t("presets.tableModes.existing")}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setPresetTableMode("new")}
+                                className={`rounded-md border px-2.5 py-1.5 text-xs ${presetTableMode === "new" ? "border-accent bg-accent/15 text-foreground" : "border-border text-muted-foreground"}`}
+                              >
+                                {t("presets.tableModes.new")}
+                              </button>
+                            </div>
+
+                            {presetTableMode === "existing" ? (
+                              <select
+                                value={presetValues.existingTableId ?? ""}
+                                onChange={(event) => {
+                                  const existingTableId = event.target.value;
+                                  setPresetValues((prev) => ({ ...prev, existingTableId }));
+                                }}
+                                disabled={presetTables.length === 0}
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-60"
+                              >
+                                <option value="">{t("presets.selectPlaceholder")}</option>
+                                {presetTables.map((table) => (
+                                  <option key={table.id} value={table.id}>
+                                    {table.name}
+                                  </option>
+                                ))}
+                              </select>
+                            ) : (
+                              <input
+                                type="text"
+                                value={presetValues.newKillioTableName ?? ""}
+                                onChange={(event) => {
+                                  const newKillioTableName = event.target.value;
+                                  setPresetValues((prev) => ({ ...prev, newKillioTableName }));
+                                }}
+                                placeholder={t("presets.fields.killioTableName.placeholder")}
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                            )}
+                          </div>
+                        </>
+                      ) : (
+                        selectedPresetFields.map((field) => (
                           <div key={field.id}>
                             <label className="mb-1 block text-xs font-medium text-muted-foreground">
                               {t(field.labelKey)} {field.required ? "*" : ""}
@@ -827,19 +1225,12 @@ export default function IntegrationsPage() {
                                 const value = event.target.value;
                                 setPresetValues((prev) => ({ ...prev, [field.id]: value }));
                               }}
-                              list={isKillioTableNameField ? "preset-table-options" : undefined}
                               placeholder={t(field.placeholderKey)}
                               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                             />
                           </div>
-                        );
-                      })}
-
-                      <datalist id="preset-table-options">
-                        {presetTables.map((table) => (
-                          <option key={table.id} value={table.name} />
-                        ))}
-                      </datalist>
+                        ))
+                      )}
                     </div>
 
                     {presetError && (

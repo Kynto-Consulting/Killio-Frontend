@@ -124,17 +124,25 @@
     "apply": "Apply preset",
     "applying": "Applying...",
     "applyError": "Failed to apply preset",
+    "selectPlaceholder": "Select an option",
+    "tableModes": {
+      "existing": "Use existing table",
+      "new": "Create new table"
+    },
     "catalog": {
       "github": {
         "title": "GitHub",
-        "description": "Creates a create-only GitHub automation assembled from regex and small helper blocks.",
-        "summary": "se creara 1 script de creacion y 1 killio table."
+        "description": "Creates a full GitHub automation with creation, sync, and deletion scripts.",
+        "summary": "Creates 3 scripts and 1 KillioTable if you do not select an existing one."
       }
     },
     "requirements": {
       "githubInstallation": "At least one active GitHub App installation is required."
     },
     "fields": {
+      "installation": {
+        "label": "GitHub installation"
+      },
       "repoFullName": {
         "label": "Repository",
         "placeholder": "owner/repo"
@@ -148,24 +156,12 @@
         "placeholder": "GitHub Preset KillioTable"
       },
       "boardId": {
-        "label": "Board ID (optional)",
-        "placeholder": "Optional board id"
+        "label": "Board",
+        "placeholder": "Select a board"
       },
       "listId": {
-        "label": "List ID (optional)",
-        "placeholder": "Optional list id"
-      },
-      "regexPattern": {
-        "label": "Main match regex",
-        "placeholder": "\\b(?:TODO|FIXME)\\b\\s*[:\\-]?\\s*(.+)$"
-      },
-      "regexFlags": {
-        "label": "Regex flags",
-        "placeholder": "i"
-      },
-      "mentionRegex": {
-        "label": "Mention extraction regex",
-        "placeholder": "@([\\w.-]+)"
+        "label": "List",
+        "placeholder": "Select a list"
       }
     }
   },
