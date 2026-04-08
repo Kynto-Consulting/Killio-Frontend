@@ -858,10 +858,10 @@ export default function IntegrationsPage() {
               {selectedScript ? (
                 <>
                   {/* Script sub-tabs */}
-                  <div className="flex items-center gap-1 border-b border-border bg-card/60 px-3 py-2 sm:px-4">
+                  <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b border-border bg-card/60 px-3 py-2 sm:px-4">
                     <button
                       onClick={() => setScriptSubView("canvas")}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                      className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium ${
                         scriptSubView === "canvas"
                           ? "bg-accent/20 text-accent"
                           : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
@@ -871,7 +871,7 @@ export default function IntegrationsPage() {
                     </button>
                     <button
                       onClick={() => setScriptSubView("runs")}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium ${
+                      className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium ${
                         scriptSubView === "runs"
                           ? "bg-accent/20 text-accent"
                           : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
@@ -879,11 +879,9 @@ export default function IntegrationsPage() {
                     >
                       {t("scripts.runsTab")}
                     </button>
-                    <div className="ml-auto min-w-0 max-w-[40%] overflow-hidden">
-                      <span className="block truncate text-xs font-medium text-muted-foreground">
-                        {selectedScript.name}
-                      </span>
-                    </div>
+                    <p className="ml-auto min-w-0 truncate text-right text-xs font-medium text-muted-foreground">
+                      {selectedScript.name}
+                    </p>
                   </div>
 
                   {scriptSubView === "canvas" ? (
