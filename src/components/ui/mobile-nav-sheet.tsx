@@ -95,20 +95,30 @@ export function MobileNavSheet({
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
               {navigation.map((item) => {
                 const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                const isScriptsMenu = item.href === "/integrations";
                 return (
-                  <Link
-                    key={item.name}
-                    href={item.href}
-                    onClick={() => setIsOpen(false)}
-                    className={`flex items-center space-x-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-                      isActive
-                        ? "bg-accent/10 text-accent font-semibold"
-                        : "text-foreground/80 hover:bg-accent/5 hover:text-foreground"
-                    }`}
-                  >
-                    <item.icon className="h-4 w-4 opacity-70" />
-                    <span>{item.name}</span>
-                  </Link>
+                  <div key={item.name} className="flex flex-col">
+                    <Link
+                      href={item.href}
+                      onClick={() => setIsOpen(false)}
+                      className={`flex items-center space-x-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
+                        isActive && !isScriptsMenu
+                          ? "bg-accent/10 text-accent font-semibold"
+                          : isActive && isScriptsMenu
+                          ? "bg-accent/5 text-foreground font-semibold"
+                          : "text-foreground/80 hover:bg-accent/5 hover:text-foreground"
+                      }`}
+                    >
+                      <item.icon className="h-4 w-4 opacity-70" />
+                      <span>{item.name}</span>
+                    </Link>
+                    {isActive && isScriptsMenu && (
+                      <div
+                        id="sidebar-scripts-options-mobile"
+                        className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
+                      ></div>
+                    )}
+                  </div>
                 );
               })}
 

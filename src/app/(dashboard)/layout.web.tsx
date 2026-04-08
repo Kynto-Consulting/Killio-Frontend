@@ -144,18 +144,31 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
           <nav className="space-y-1 px-2">
             {navigationItems.map((item) => {
               const isActive = pathname === item.href;
+              const isScriptsMenu = item.href === "/integrations";
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive
-                      ? "bg-accent/20 text-accent font-semibold"
-                      : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                <div key={item.name} className="flex flex-col">
+                  <Link
+                    href={item.href}
+                    className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
+                      isActive && !isScriptsMenu
+                        ? "bg-accent/20 text-accent font-semibold"
+                        : isActive && isScriptsMenu
+                        ? "bg-accent/5 text-foreground font-semibold"
+                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
                     }`}
-                >
-                  <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
-                  <span>{item.name}</span>
-                </Link>
+                  >
+                    <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
+                    <span>{item.name}</span>
+                  </Link>
+
+                  {/* Render slot for integrations sub-tabs */}
+                  {isActive && isScriptsMenu && (
+                    <div
+                      id="sidebar-scripts-options"
+                      className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
+                    ></div>
+                  )}
+                </div>
               );
             })}
           </nav>
@@ -274,18 +287,19 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
         <header className="relative z-[90] flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md">
-          <div className="flex flex-1 items-center">
+          <div className="flex flex-1 items-center min-w-0 pr-4">
             {/* Global Search / Command Palette trigger */}
             <button
               onClick={() => window.dispatchEvent(new CustomEvent("open-cmdk"))}
-              className="flex w-full max-w-sm items-center space-x-2 rounded-md border border-border bg-card/40 px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/5 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent md:w-80"
+              className="flex w-full max-w-sm items-center space-x-2 rounded-md border border-border bg-card/40 px-3 py-1.5 text-sm text-muted-foreground shadow-sm transition-colors hover:bg-accent/5 hover:text-foreground focus:outline-none focus:ring-1 focus:ring-accent md:w-80 flex-shrink-0"
             >
-              <Search className="h-4 w-4 opacity-70" />
-              <span>{tDashboard("search.placeholder")}</span>
-              <span className="ml-auto hidden rounded bg-muted/50 px-1.5 py-0.5 text-xs font-semibold tracking-widest text-muted-foreground md:inline-block">
+              <Search className="h-4 w-4 opacity-70 flex-shrink-0" />
+              <span className="truncate">{tDashboard("search.placeholder")}</span>
+              <span className="ml-auto hidden rounded bg-muted/50 px-1.5 py-0.5 text-xs font-semibold tracking-widest text-muted-foreground md:inline-block flex-shrink-0">
                 ⌘K
               </span>
             </button>
+            <div id="navbar-usage-slot" className="ml-4 flex items-center min-w-0 overflow-hidden"></div>
           </div>
 
           <div className="flex items-center space-x-1 sm:space-x-3">
