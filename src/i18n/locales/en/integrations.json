@@ -124,6 +124,8 @@
     "apply": "Apply preset",
     "applying": "Applying...",
     "applyError": "Failed to apply preset",
+    "repositoriesLoadError": "Failed to load repositories for this GitHub installation.",
+    "branchesLoadError": "Failed to load branches for the selected repository.",
     "selectPlaceholder": "Select an option",
     "tableModes": {
       "existing": "Use existing table",

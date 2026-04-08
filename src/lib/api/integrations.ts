@@ -34,6 +34,21 @@ export interface GithubInstallationBranch {
   commitSha: string;
 }
 
+async function parseApiError(res: Response, fallbackMessage: string): Promise<never> {
+  let message = fallbackMessage;
+  try {
+    const payload = await res.json();
+    if (typeof payload?.message === 'string') {
+      message = payload.message;
+    } else if (Array.isArray(payload?.message) && typeof payload.message[0] === 'string') {
+      message = payload.message[0];
+    }
+  } catch {
+    // Keep fallback message when response body is not JSON.
+  }
+  throw new Error(message);
+}
+
 export async function listGithubInstallations(
   teamId: string,
   accessToken: string,
@@ -94,7 +109,7 @@ export async function listGithubInstallationRepositories(
   const res = await fetch(`${BASE_URL}/integrations/${teamId}/github/${installationId}/repositories`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error('Failed to fetch GitHub repositories');
+  if (!res.ok) return parseApiError(res, 'Failed to fetch GitHub repositories');
   return res.json();
 }
 
@@ -108,6 +123,6 @@ export async function listGithubInstallationBranches(
   const res = await fetch(`${BASE_URL}/integrations/${teamId}/github/${installationId}/branches?repoFullName=${encodedRepo}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
   });
-  if (!res.ok) throw new Error('Failed to fetch GitHub branches');
+  if (!res.ok) return parseApiError(res, 'Failed to fetch GitHub branches');
   return res.json();
 }

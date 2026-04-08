@@ -339,6 +339,7 @@ export default function IntegrationsPage() {
     }
 
     setPresetReposLoading(true);
+    setPresetError(null);
     listGithubInstallationRepositories(activeTeamId, selectedInstallationId, accessToken)
       .then((repositories) => {
         setPresetRepositories(repositories);
@@ -354,8 +355,12 @@ export default function IntegrationsPage() {
           };
         });
       })
-      .catch(() => {
+      .catch((error) => {
         setPresetRepositories([]);
+        const message = error instanceof Error && error.message
+          ? error.message
+          : t("presets.repositoriesLoadError");
+        setPresetError(message);
       })
       .finally(() => setPresetReposLoading(false));
   }, [showPresetModal, isGithubPresetSelected, activeTeamId, accessToken, selectedInstallationId]);
@@ -368,6 +373,7 @@ export default function IntegrationsPage() {
     }
 
     setPresetBranchesLoading(true);
+    setPresetError(null);
     listGithubInstallationBranches(activeTeamId, selectedInstallationId, selectedRepoFullName, accessToken)
       .then((branches) => {
         setPresetBranches(branches);
@@ -379,8 +385,12 @@ export default function IntegrationsPage() {
           return { ...prev, branch: fallbackBranch };
         });
       })
-      .catch(() => {
+      .catch((error) => {
         setPresetBranches([]);
+        const message = error instanceof Error && error.message
+          ? error.message
+          : t("presets.branchesLoadError");
+        setPresetError(message);
       })
       .finally(() => setPresetBranchesLoading(false));
   }, [

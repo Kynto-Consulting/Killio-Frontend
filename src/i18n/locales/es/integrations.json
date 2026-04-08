@@ -124,6 +124,8 @@
     "apply": "Aplicar preset",
     "applying": "Aplicando...",
     "applyError": "No se pudo aplicar el preset",
+    "repositoriesLoadError": "No se pudieron cargar los repositorios para esta instalación de GitHub.",
+    "branchesLoadError": "No se pudieron cargar las ramas para el repositorio seleccionado.",
     "selectPlaceholder": "Selecciona una opción",
     "tableModes": {
       "existing": "Usar tabla existente",
