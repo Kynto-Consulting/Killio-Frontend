@@ -12,7 +12,6 @@ interface ScriptListProps {
   onToggle: (script: ScriptSummary) => Promise<void>;
   onDelete: (script: ScriptSummary) => Promise<void>;
   onCreate: () => void;
-  onOpenPresets?: () => void;
   loading?: boolean;
 }
 
@@ -29,7 +28,6 @@ export function ScriptList({
   onToggle,
   onDelete,
   onCreate,
-  onOpenPresets,
   loading,
 }: ScriptListProps) {
   const t = useTranslations("integrations");
@@ -70,25 +68,8 @@ export function ScriptList({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-3 sm:px-4">
-        <span className="mr-auto min-w-0 text-sm font-semibold text-foreground">{t("tabs.scripts")}</span>
-        <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
-          {onOpenPresets && (
-            <button
-              onClick={onOpenPresets}
-              className="whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10"
-            >
-              {t("presets.openButton")}
-            </button>
-          )}
-          <button
-            onClick={onCreate}
-            className="flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-2.5 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90 sm:px-3"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("scripts.create")}
-          </button>
-        </div>
+      <div className="flex items-center border-b border-border px-3 py-3 sm:px-4">
+        <span className="min-w-0 text-sm font-semibold text-foreground">{t("tabs.scripts")}</span>
       </div>
 
       {scripts.length === 0 ? (

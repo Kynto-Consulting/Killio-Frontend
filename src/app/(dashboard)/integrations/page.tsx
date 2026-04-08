@@ -856,99 +856,128 @@ export default function IntegrationsPage() {
 
         {/* ── Scripts ──────────────────────────────────────────────────────── */}
         {tab === "scripts" && (
-          <div className="flex min-h-0 w-full flex-1 flex-col lg:flex-row lg:overflow-hidden">
-            {/* Sidebar list */}
-            <div className="w-full flex-shrink-0 border-b border-border bg-card/40 lg:flex lg:min-h-0 lg:w-72 lg:border-b-0 lg:border-r">
-              <ScriptList
-                scripts={scripts}
-                selectedId={selectedScript?.id ?? null}
-                onSelect={(s) => {
-                  setSelectedScript(s);
-                  setScriptSubView("canvas");
-                }}
-                onToggle={handleToggle}
-                onDelete={handleDelete}
-                onCreate={() => setShowCreate(true)}
-                onOpenPresets={handleOpenPresets}
-                loading={scriptsLoading}
-              />
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
+            <div className="border-b border-border bg-card/60 px-3 py-2 sm:px-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setScriptSubView("canvas")}
+                    disabled={!selectedScript}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      scriptSubView === "canvas"
+                        ? "bg-accent/20 text-accent"
+                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                    } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    {t("scripts.graphTab")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScriptSubView("runs")}
+                    disabled={!selectedScript}
+                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+                      scriptSubView === "runs"
+                        ? "bg-accent/20 text-accent"
+                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                    } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                  >
+                    {t("scripts.runsTab")}
+                  </button>
+                </div>
+
+                <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                  <button
+                    type="button"
+                    onClick={handleOpenPresets}
+                    className="whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10"
+                  >
+                    {t("presets.openButton")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowCreate(true)}
+                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
+                  >
+                    <span className="text-sm leading-none">+</span>
+                    {t("scripts.create")}
+                  </button>
+                </div>
+
+                {selectedScript && (
+                  <p className="w-full min-w-0 truncate text-xs font-medium text-muted-foreground">
+                    {selectedScript.name}
+                  </p>
+                )}
+              </div>
             </div>
 
-            {/* Main area */}
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-              {selectedScript ? (
-                <>
-                  {/* Script sub-tabs */}
-                  <div className="flex min-w-0 items-center gap-1 overflow-hidden border-b border-border bg-card/60 px-3 py-2 sm:px-4">
-                    <button
-                      onClick={() => setScriptSubView("canvas")}
-                      className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium ${
-                        scriptSubView === "canvas"
-                          ? "bg-accent/20 text-accent"
-                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                      }`}
-                    >
-                      {t("scripts.graphTab")}
-                    </button>
-                    <button
-                      onClick={() => setScriptSubView("runs")}
-                      className={`flex-shrink-0 rounded-md px-3 py-1.5 text-xs font-medium ${
-                        scriptSubView === "runs"
-                          ? "bg-accent/20 text-accent"
-                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                      }`}
-                    >
-                      {t("scripts.runsTab")}
-                    </button>
-                    <p className="ml-auto min-w-0 truncate text-right text-xs font-medium text-muted-foreground">
-                      {selectedScript.name}
-                    </p>
-                  </div>
+            <div className="flex min-h-0 w-full flex-1 flex-col lg:flex-row lg:overflow-hidden">
+              {/* Sidebar list */}
+              <div className="w-full flex-shrink-0 border-b border-border bg-card/40 lg:flex lg:min-h-0 lg:w-72 lg:border-b-0 lg:border-r">
+                <ScriptList
+                  scripts={scripts}
+                  selectedId={selectedScript?.id ?? null}
+                  onSelect={(s) => {
+                    setSelectedScript(s);
+                    setScriptSubView("canvas");
+                  }}
+                  onToggle={handleToggle}
+                  onDelete={handleDelete}
+                  onCreate={() => setShowCreate(true)}
+                  loading={scriptsLoading}
+                />
+              </div>
 
-                  {scriptSubView === "canvas" ? (
-                    graphLoading ? (
-                      <div className="flex flex-1 items-center justify-center">
-                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                      </div>
+              {/* Main area */}
+              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                {selectedScript ? (
+                  <>
+                    {scriptSubView === "canvas" ? (
+                      graphLoading ? (
+                        <div className="flex flex-1 items-center justify-center">
+                          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                        </div>
+                      ) : (
+                        <div className="flex flex-1 min-h-0 overflow-hidden">
+                          <ScriptCanvas
+                            scriptId={selectedScript.id}
+                            graph={graph}
+                            isActive={selectedScript.isActive}
+                            webhookUrl={webhookUrl}
+                            teamId={activeTeamId}
+                            accessToken={accessToken}
+                            onSave={handleSaveGraph}
+                            onToggle={handleToggleActive}
+                            canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
+                            onRunManual={handleRunManual}
+                          />
+                        </div>
+                      )
                     ) : (
-                      <div className="flex flex-1 min-h-0 overflow-hidden">
-                        <ScriptCanvas
+                      <div className="flex-1 overflow-hidden">
+                        <RunLogsPanel
                           scriptId={selectedScript.id}
-                          graph={graph}
-                          isActive={selectedScript.isActive}
-                          webhookUrl={webhookUrl}
                           teamId={activeTeamId}
                           accessToken={accessToken}
-                          onSave={handleSaveGraph}
-                          onToggle={handleToggleActive}
-                          canRunManually={!!graph?.nodes.some((node) => node.nodeKind === "core.trigger.manual")}
-                          onRunManual={handleRunManual}
                         />
                       </div>
-                    )
-                  ) : (
-                    <div className="flex-1 overflow-hidden">
-                      <RunLogsPanel
-                        scriptId={selectedScript.id}
-                        teamId={activeTeamId}
-                        accessToken={accessToken}
-                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                    <div className="rounded-full bg-accent/10 p-5 text-accent">
+                      <Zap className="h-8 w-8" />
                     </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
-                  <div className="rounded-full bg-accent/10 p-5 text-accent">
-                    <Zap className="h-8 w-8" />
+                    <p className="text-sm font-medium text-foreground">
+                      {t("scripts.selectToEdit")}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("scripts.selectToEditHelp")}
+                    </p>
                   </div>
-                  <p className="text-sm font-medium text-foreground">
-                    {t("scripts.selectToEdit")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {t("scripts.selectToEditHelp")}
-                  </p>
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
