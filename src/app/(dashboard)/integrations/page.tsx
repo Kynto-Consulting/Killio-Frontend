@@ -625,7 +625,6 @@ export default function IntegrationsPage() {
     try {
       const result = await applyScriptPreset(selectedPresetId, nextParams, accessToken);
 
-      setPresetResult(result);
       await loadScripts();
 
       if (result.scripts.length > 0) {
@@ -636,6 +635,10 @@ export default function IntegrationsPage() {
         setSelectedScript(selected);
         setScriptSubView("canvas");
       }
+
+      setShowPresetModal(false);
+      setPresetResult(null);
+      setPresetError(null);
     } catch (error) {
       const message = error instanceof Error && error.message ? error.message : t("presets.applyError");
       setPresetError(message);
@@ -876,8 +879,8 @@ export default function IntegrationsPage() {
                     >
                       {t("scripts.runsTab")}
                     </button>
-                    <div className="ml-auto">
-                      <span className="truncate text-xs font-medium text-muted-foreground">
+                    <div className="ml-auto min-w-0 max-w-[40%] overflow-hidden">
+                      <span className="block truncate text-xs font-medium text-muted-foreground">
                         {selectedScript.name}
                       </span>
                     </div>
