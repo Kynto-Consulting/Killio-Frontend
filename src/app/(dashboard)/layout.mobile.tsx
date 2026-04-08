@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -13,6 +13,7 @@ import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -32,6 +33,11 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
+  const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const navigationItems = canAccessScripts
+    ? [...navigation, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
+    : navigation;
+
   const [teams, setTeams] = useState<TeamView[]>([]);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isFetchingBoards, setIsFetchingBoards] = useState(false);
@@ -270,15 +276,16 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Top Navbar */}
         <header className="relative z-[90] flex h-14 items-center justify-between border-b border-border bg-background/60 px-4 backdrop-blur-md">
-          <div className="flex flex-1 items-center mr-2">
+          <div className="flex flex-1 items-center min-w-0 mr-2">
             <MobileNavSheet
               teams={teams}
               activeTeamId={activeTeamId}
               setActiveTeamId={setActiveTeamId}
-              navigation={navigation}
+              navigation={navigationItems}
               user={user}
               logout={logout}
             />
+            <div id="navbar-usage-slot" className="ml-2 flex items-center min-w-0 overflow-hidden"></div>
           </div>
 
           <div className="flex items-center space-x-1 shrink-0">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
@@ -127,6 +128,30 @@ export default function IntegrationsPage() {
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptsLoading, setScriptsLoading] = useState(false);
   const [selectedScript, setSelectedScript] = useState<ScriptSummary | null>(null);
+
+  // Portal targets
+  const [sidebarOptionsEl, setSidebarOptionsEl] = useState<Element | null>(null);
+  const [mobileSidebarOptionsEl, setMobileSidebarOptionsEl] = useState<Element | null>(null);
+  const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
+
+  useEffect(() => {
+    const checkDomElements = () => {
+      const side = document.getElementById("sidebar-scripts-options");
+      const mobSide = document.getElementById("sidebar-scripts-options-mobile");
+      const navSlot = document.getElementById("navbar-usage-slot");
+
+      setSidebarOptionsEl((prev) => (prev === side ? prev : side));
+      setMobileSidebarOptionsEl((prev) => (prev === mobSide ? prev : mobSide));
+      setNavbarUsageSlotEl((prev) => (prev === navSlot ? prev : navSlot));
+    };
+
+    checkDomElements();
+
+    const observer = new MutationObserver(checkDomElements);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
   const [scriptSubView, setScriptSubView] = useState<ScriptSubView>("canvas");
   const [graph, setGraph] = useState<ScriptGraph | null>(null);
   const [graphLoading, setGraphLoading] = useState(false);
@@ -721,6 +746,56 @@ export default function IntegrationsPage() {
   const billingSubject = encodeURIComponent(t("usage.billingSubject"));
   const billingBody = encodeURIComponent(t("usage.billingBody"));
 
+  const tabsPortalContent = (
+    <div className="space-y-1 py-1">
+      {TABS.map((tabItem) => (
+        <button
+          key={tabItem.id}
+          type="button"
+          onClick={() => setTab(tabItem.id)}
+          className={`w-full rounded-md px-2.5 py-1.5 text-left text-sm font-medium transition-colors ${
+            tab === tabItem.id
+              ? "bg-accent/20 text-accent"
+              : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+          }`}
+        >
+          {t(tabItem.label)}
+        </button>
+      ))}
+    </div>
+  );
+
+  const usagePortalContent = tab === "scripts" ? (
+    <div className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 py-1 text-[11px] text-muted-foreground">
+      {usageLoading ? (
+        <>
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          <span className="hidden sm:inline">{t("usage.loading")}</span>
+        </>
+      ) : usage ? (
+        <>
+          <span className="inline-flex items-center gap-1 text-foreground">
+            <BarChart3 className="h-3.5 w-3.5" />
+            <span className="font-medium">
+              {usage.limit === null ? `${usage.executed}` : `${usage.executed}/${usage.limit}`}
+            </span>
+          </span>
+          <span className="hidden xl:inline truncate">{t("usage.title", { plan: usage.planTier })}</span>
+          {usageResetDate && <span className="hidden 2xl:inline">{t("usage.reset", { date: usageResetDate })}</span>}
+          <a
+            href={`mailto:${usage.billingEmail}?subject=${billingSubject}&body=${billingBody}`}
+            className="hidden items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground hover:bg-accent/10 xl:inline-flex"
+          >
+            <Mail className="h-3.5 w-3.5" />
+            {t("usage.billing")}
+          </a>
+        </>
+      ) : (
+        <span>{t("usage.error")}</span>
+      )}
+    </div>
+  ) : null;
+
   // ──────────────────────────────────────────────────────────────────────────
   // Render
   // ──────────────────────────────────────────────────────────────────────────
@@ -747,69 +822,15 @@ export default function IntegrationsPage() {
   }
 
   return (
-    <div className="flex h-full flex-col bg-background text-foreground">
-      {/* Page Header */}
-      <div className="border-b border-border bg-card/70 px-3 py-4 backdrop-blur-sm sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/20 text-accent">
-            <Zap className="h-4 w-4" />
-          </div>
-          <h1 className="text-lg font-semibold">{t("title")}</h1>
-        </div>
+    <>
+      {sidebarOptionsEl ? createPortal(tabsPortalContent, sidebarOptionsEl) : null}
+      {mobileSidebarOptionsEl ? createPortal(tabsPortalContent, mobileSidebarOptionsEl) : null}
+      {navbarUsageSlotEl && usagePortalContent ? createPortal(usagePortalContent, navbarUsageSlotEl) : null}
 
-        {/* Tabs */}
-        <div className="mt-3 flex flex-wrap gap-1">
-          {TABS.map((tabItem) => (
-            <button
-              key={tabItem.id}
-              onClick={() => setTab(tabItem.id)}
-              className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
-                tab === tabItem.id
-                  ? "bg-accent/20 text-accent"
-                  : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-              }`}
-            >
-              {t(tabItem.label)}
-            </button>
-          ))}
-        </div>
+      <div className="flex h-full flex-col bg-background text-foreground">
 
-        <div className="mt-3 rounded-lg border border-border bg-muted/30 px-3 py-2">
-          {usageLoading ? (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              {t("usage.loading")}
-            </div>
-          ) : usage ? (
-            <div className="flex flex-wrap items-center gap-3 text-xs">
-              <span className="inline-flex items-center gap-1.5 font-medium text-foreground">
-                <BarChart3 className="h-3.5 w-3.5" />
-                {t("usage.title", { plan: usage.planTier })}
-              </span>
-              <span className="rounded-full bg-background px-2 py-0.5 font-medium text-foreground">
-                {usage.limit === null
-                  ? t("usage.executedNoLimit", { count: usage.executed })
-                  : t("usage.executedWithLimit", { executed: usage.executed, limit: usage.limit })}
-              </span>
-              {usageResetDate && (
-                <span className="text-muted-foreground">{t("usage.reset", { date: usageResetDate })}</span>
-              )}
-              <a
-                href={`mailto:${usage.billingEmail}?subject=${billingSubject}&body=${billingBody}`}
-                className="ml-auto inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 font-medium text-foreground hover:bg-accent/10"
-              >
-                <Mail className="h-3.5 w-3.5" />
-                {t("usage.billing")}
-              </a>
-            </div>
-          ) : (
-            <div className="text-xs text-muted-foreground">{t("usage.error")}</div>
-          )}
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      <div className={`flex min-h-0 flex-1 ${tab === "scripts" ? "overflow-y-auto lg:overflow-hidden" : "overflow-hidden"}`}>
+        {/* Tab Content */}
+        <div className={`flex min-h-0 flex-1 ${tab === "scripts" ? "overflow-y-auto lg:overflow-hidden" : "overflow-hidden"}`}>
         {/* ── Integraciones ────────────────────────────────────────────────── */}
         {tab === "integrations" && (
           <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
@@ -941,26 +962,26 @@ export default function IntegrationsPage() {
             />
           </div>
         )}
-      </div>
+        </div>
 
-      {/* ── Preset Modal ─────────────────────────────────────────────────── */}
-      {showPresetModal && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm sm:p-6">
-          <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl">
-            <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
-              <div>
-                <h2 className="text-base font-semibold text-foreground">{t("presets.modalTitle")}</h2>
-                <p className="text-xs text-muted-foreground">{t("presets.modalSubtitle")}</p>
+        {/* ── Preset Modal ─────────────────────────────────────────────────── */}
+        {showPresetModal && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 p-3 backdrop-blur-sm sm:p-6">
+            <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-xl border border-border bg-card shadow-xl">
+              <div className="flex items-center justify-between border-b border-border px-4 py-3 sm:px-6">
+                <div>
+                  <h2 className="text-base font-semibold text-foreground">{t("presets.modalTitle")}</h2>
+                  <p className="text-xs text-muted-foreground">{t("presets.modalSubtitle")}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowPresetModal(false)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                  aria-label={t("actions.close")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setShowPresetModal(false)}
-                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                aria-label={t("actions.close")}
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
 
             <div className="grid min-h-0 flex-1 md:grid-cols-[260px,1fr]">
               <div className="border-b border-border bg-muted/20 p-3 md:border-b-0 md:border-r">
@@ -1341,8 +1362,9 @@ export default function IntegrationsPage() {
               </div>
             </form>
           </div>
-        </div>
-      )}
-    </div>
+          </div>
+        )}
+      </div>
+    </>
   );
 }
