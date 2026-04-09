@@ -55,7 +55,10 @@ import { JsCodeNode } from "./nodes/JsCodeNode";
 import { NodePalette } from "@/components/scripts/NodePalette";
 import { cn } from "@/lib/utils";
 
-import { ScriptGraph, ScriptNodeData, ScriptEdgeData, NodeKind, ScriptRunLog, getLatestRunOutputs } from "@/lib/api/scripts";
+import { ScriptGraph, ScriptNodeData, ScriptEdgeData, NodeKind, ScriptRunLog, getLatestRunOutputs, listSharedTables } from "@/lib/api/scripts";
+import { getBoard, listTeamBoards, type BoardSummary, type ListView } from "@/lib/api/contracts";
+import { listFolders, type Folder } from "@/lib/api/folders";
+import { listGithubInstallations, listGithubInstallationRepositories, listGithubInstallationBranches, type GithubAppInstallation, type GithubInstallationRepository, type GithubInstallationBranch } from "@/lib/api/integrations";
 import { Loader2, Save, Power, Play, Copy, Check, Maximize2, Minimize2, Eye } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -102,7 +105,18 @@ type ConfigFieldType = "text" | "textarea" | "code" | "number" | "boolean" | "se
 
 interface ConfigFieldOption {
   value: string;
-  labelKey: string;
+  labelKey?: string;
+  label?: string;
+}
+
+interface SelectOptionContext {
+  config: Record<string, any>;
+  boards: BoardSummary[];
+  boardListsByBoardId: Record<string, ListView[]>;
+  folders: Folder[];
+  tables: Array<{ id: string; name: string }>;
+  githubRepositories: GithubInstallationRepository[];
+  githubBranchesByRepo: Record<string, GithubInstallationBranch[]>;
 }
 
 interface ConfigField {
@@ -111,6 +125,7 @@ interface ConfigField {
   labelKey: string;
   placeholderKey?: string;
   options?: ConfigFieldOption[];
+  optionsResolver?: (context: SelectOptionContext) => ConfigFieldOption[];
   /** Show this field only when another field's value matches */
   showWhen?: { key: string; isIn?: string[]; notIn?: string[] };
 }
@@ -123,10 +138,63 @@ function isFieldVisible(field: ConfigField, config: Record<string, any>): boolea
   return true;
 }
 
+function buildFolderPath(folder: Folder, foldersById: Map<string, Folder>, cache: Map<string, string>): string {
+  const cached = cache.get(folder.id);
+  if (cached) return cached;
+
+  const parentId = folder.parentFolderId ?? null;
+  const path = parentId && foldersById.has(parentId)
+    ? `${buildFolderPath(foldersById.get(parentId) as Folder, foldersById, cache)} / ${folder.name}`
+    : folder.name;
+  cache.set(folder.id, path);
+  return path;
+}
+
+function flattenBoardLists(boards: BoardSummary[], boardListsByBoardId: Record<string, ListView[]>): ConfigFieldOption[] {
+  return boards.flatMap((board) => {
+    const lists = boardListsByBoardId[board.id] ?? [];
+    return lists.map((list) => ({
+      value: list.id,
+      label: `${board.name} / ${list.name}`,
+    }));
+  });
+}
+
+async function loadAllFolders(teamId: string, accessToken: string, parentFolderId?: string, collected: Folder[] = []): Promise<Folder[]> {
+  const currentLevel = await listFolders(teamId, accessToken, parentFolderId);
+  for (const folder of currentLevel) {
+    collected.push(folder);
+    await loadAllFolders(teamId, accessToken, folder.id, collected);
+  }
+  return collected;
+}
+
 const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   "github.trigger.commit": [
-    { key: "repoFullName", type: "text", labelKey: "canvas.fields.repoFullName", placeholderKey: "canvas.placeholders.repoFullName" },
-    { key: "branch", type: "text", labelKey: "canvas.fields.branch", placeholderKey: "canvas.placeholders.branch" },
+    {
+      key: "repoFullName",
+      type: "select",
+      labelKey: "canvas.fields.repoFullName",
+      placeholderKey: "canvas.placeholders.repoFullName",
+      optionsResolver: ({ githubRepositories }) => githubRepositories.map((repo) => ({
+        value: repo.fullName,
+        label: repo.fullName,
+      })),
+    },
+    {
+      key: "branch",
+      type: "select",
+      labelKey: "canvas.fields.branch",
+      placeholderKey: "canvas.placeholders.branch",
+      showWhen: { key: "repoFullName", notIn: [""] },
+      optionsResolver: ({ config, githubBranchesByRepo }) => {
+        const repoFullName = String(config.repoFullName ?? "").trim();
+        return (githubBranchesByRepo[repoFullName] ?? []).map((branch) => ({
+          value: branch.name,
+          label: branch.name,
+        }));
+      },
+    },
     { key: "filePathRegex", type: "text", labelKey: "canvas.fields.filePathRegex", placeholderKey: "canvas.placeholders.filePathRegex" },
   ],
   "core.condition.regex_match": [
@@ -305,8 +373,24 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "delayMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
   ],
   "killio.action.create_card": [
-    { key: "boardId", type: "text", labelKey: "canvas.fields.boardId", placeholderKey: "canvas.placeholders.boardId" },
-    { key: "listId", type: "text", labelKey: "canvas.fields.listId", placeholderKey: "canvas.placeholders.listId" },
+    {
+      key: "boardId",
+      type: "select",
+      labelKey: "canvas.fields.boardId",
+      placeholderKey: "canvas.placeholders.boardId",
+      optionsResolver: ({ boards }) => boards.map((board) => ({ value: board.id, label: board.name })),
+    },
+    {
+      key: "listId",
+      type: "select",
+      labelKey: "canvas.fields.listId",
+      placeholderKey: "canvas.placeholders.listId",
+      showWhen: { key: "boardId", notIn: [""] },
+      optionsResolver: ({ config, boardListsByBoardId }) => {
+        const boardId = String(config.boardId ?? "").trim();
+        return (boardListsByBoardId[boardId] ?? []).map((list) => ({ value: list.id, label: list.name }));
+      },
+    },
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
   ],
   "killio.action.add_brick": [
@@ -412,13 +496,32 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   ],
   "killio.action.document.create": [
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
-    { key: "folderId", type: "text", labelKey: "canvas.fields.folderId", placeholderKey: "canvas.placeholders.folderId" },
+    {
+      key: "folderId",
+      type: "select",
+      labelKey: "canvas.fields.folderId",
+      placeholderKey: "canvas.placeholders.folderId",
+      optionsResolver: ({ folders }) => {
+        const foldersById = new Map(folders.map((folder) => [folder.id, folder] as const));
+        const cache = new Map<string, string>();
+        return folders.map((folder) => ({
+          value: folder.id,
+          label: buildFolderPath(folder, foldersById, cache),
+        }));
+      },
+    },
   ],
   "killio.action.update_card": [
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
   ],
   "killio.action.move_card": [
-    { key: "targetListId", type: "text", labelKey: "canvas.fields.targetListId", placeholderKey: "canvas.placeholders.targetListId" },
+    {
+      key: "targetListId",
+      type: "select",
+      labelKey: "canvas.fields.targetListId",
+      placeholderKey: "canvas.placeholders.targetListId",
+      optionsResolver: ({ boards, boardListsByBoardId }) => flattenBoardLists(boards, boardListsByBoardId),
+    },
     { key: "archiveOnMove", type: "boolean", labelKey: "canvas.fields.archiveOnMove" },
   ],
   "killio.action.assign_card": [
@@ -426,12 +529,24 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "staticAssigneeIds", type: "textarea", labelKey: "canvas.fields.staticAssigneeIds", placeholderKey: "canvas.placeholders.staticAssigneeIds" },
   ],
   "killio.table.read": [
-    { key: "tableId", type: "text", labelKey: "canvas.placeholders.tableId", placeholderKey: "canvas.placeholders.tableId" },
+    {
+      key: "tableId",
+      type: "select",
+      labelKey: "canvas.placeholders.tableId",
+      placeholderKey: "canvas.placeholders.tableId",
+      optionsResolver: ({ tables }) => tables.map((table) => ({ value: table.id, label: table.name })),
+    },
     { key: "keyPath", type: "text", labelKey: "canvas.placeholders.keyPath", placeholderKey: "canvas.placeholders.keyPath" },
     { key: "outputPath", type: "text", labelKey: "canvas.placeholders.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
   ],
   "killio.table.write": [
-    { key: "tableId", type: "text", labelKey: "canvas.placeholders.tableId", placeholderKey: "canvas.placeholders.tableId" },
+    {
+      key: "tableId",
+      type: "select",
+      labelKey: "canvas.placeholders.tableId",
+      placeholderKey: "canvas.placeholders.tableId",
+      optionsResolver: ({ tables }) => tables.map((table) => ({ value: table.id, label: table.name })),
+    },
     { key: "keyPath", type: "text", labelKey: "canvas.placeholders.keyPath", placeholderKey: "canvas.placeholders.keyPath" },
     { key: "valuesPath", type: "text", labelKey: "canvas.placeholders.valuesPath", placeholderKey: "canvas.placeholders.valuesPath" },
   ],
@@ -597,6 +712,13 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [rawConfigError, setRawConfigError] = useState<string | null>(null);
   const [previewRun, setPreviewRun] = useState<ScriptRunLog | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [boards, setBoards] = useState<BoardSummary[]>([]);
+  const [boardListsByBoardId, setBoardListsByBoardId] = useState<Record<string, ListView[]>>({});
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [tables, setTables] = useState<Array<{ id: string; name: string }>>([]);
+  const [githubRepositories, setGithubRepositories] = useState<GithubInstallationRepository[]>([]);
+  const [githubBranchesByRepo, setGithubBranchesByRepo] = useState<Record<string, GithubInstallationBranch[]>>({});
+  const [repoInstallationByFullName, setRepoInstallationByFullName] = useState<Record<string, number>>({});
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
   const selectedNode = useMemo(
@@ -622,6 +744,23 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     return base;
   }, [selectedNodeKind, selectedNodeConfig]);
 
+  const selectFieldContext = useMemo<SelectOptionContext>(() => ({
+    config: selectedNodeConfig,
+    boards,
+    boardListsByBoardId,
+    folders,
+    tables,
+    githubRepositories,
+    githubBranchesByRepo,
+  }), [selectedNodeConfig, boards, boardListsByBoardId, folders, tables, githubRepositories, githubBranchesByRepo]);
+
+  const resolveSelectOptions = useCallback((field: ConfigField): ConfigFieldOption[] => {
+    if (field.optionsResolver) {
+      return field.optionsResolver(selectFieldContext);
+    }
+    return field.options ?? [];
+  }, [selectFieldContext]);
+
   const selectedNodeOutputs = useMemo(() => {
     if (!previewRun || !selectedNodeId) return null;
     const outputs = previewRun.nodeOutputs as Record<string, unknown[]>;
@@ -641,6 +780,107 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setSelectedNodeId(null);
     }
   }, [graph, setNodes, setEdges]);
+
+  useEffect(() => {
+    if (!teamId || !accessToken) {
+      setBoards([]);
+      setBoardListsByBoardId({});
+      setFolders([]);
+      setTables([]);
+      setGithubRepositories([]);
+      setGithubBranchesByRepo({});
+      setRepoInstallationByFullName({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadWorkspaceEntities = async () => {
+      const [teamBoards, sharedTables, allFolders, installations] = await Promise.all([
+        listTeamBoards(teamId, accessToken).catch(() => [] as BoardSummary[]),
+        listSharedTables(teamId, accessToken).catch(() => []),
+        loadAllFolders(teamId, accessToken).catch(() => [] as Folder[]),
+        listGithubInstallations(teamId, accessToken).catch(() => [] as GithubAppInstallation[]),
+      ]);
+
+      const boardViews = await Promise.all(
+        teamBoards.map(async (board) => {
+          try {
+            return await getBoard(board.id, accessToken);
+          } catch {
+            return null;
+          }
+        }),
+      );
+
+      const listMap: Record<string, ListView[]> = {};
+      boardViews.forEach((boardView, index) => {
+        if (!boardView) return;
+        listMap[boardView.id] = boardView.lists ?? [];
+      });
+
+      const repoPairs = await Promise.all(
+        installations.filter((installation) => installation.isActive).map(async (installation) => {
+          try {
+            const repositories = await listGithubInstallationRepositories(teamId, installation.installationId, accessToken);
+            return { installationId: installation.installationId, repositories };
+          } catch {
+            return { installationId: installation.installationId, repositories: [] as GithubInstallationRepository[] };
+          }
+        }),
+      );
+
+      const nextRepositories: GithubInstallationRepository[] = [];
+      const nextRepoInstallationByFullName: Record<string, number> = {};
+      const seenRepoNames = new Set<string>();
+      repoPairs.forEach(({ installationId, repositories }) => {
+        repositories.forEach((repo) => {
+          if (seenRepoNames.has(repo.fullName)) return;
+          seenRepoNames.add(repo.fullName);
+          nextRepositories.push(repo);
+          nextRepoInstallationByFullName[repo.fullName] = installationId;
+        });
+      });
+
+      if (cancelled) return;
+      setBoards(teamBoards);
+      setBoardListsByBoardId(listMap);
+      setFolders(allFolders);
+      setTables(sharedTables.map((table) => ({ id: table.id, name: table.name })));
+      setGithubRepositories(nextRepositories);
+      setRepoInstallationByFullName(nextRepoInstallationByFullName);
+    };
+
+    void loadWorkspaceEntities();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, accessToken]);
+
+  useEffect(() => {
+    if (!teamId || !accessToken) return;
+    const repoFullName = String(selectedNodeConfig.repoFullName ?? "").trim();
+    if (selectedNodeKind !== "github.trigger.commit" || !repoFullName || githubBranchesByRepo[repoFullName]) return;
+
+    const installationId = repoInstallationByFullName[repoFullName];
+    if (!installationId) return;
+
+    let cancelled = false;
+    void listGithubInstallationBranches(teamId, installationId, repoFullName, accessToken)
+      .then((branches) => {
+        if (cancelled) return;
+        setGithubBranchesByRepo((current) => ({
+          ...current,
+          [repoFullName]: branches,
+        }));
+      })
+      .catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, accessToken, selectedNodeKind, selectedNodeConfig.repoFullName, githubBranchesByRepo, repoInstallationByFullName]);
 
   useEffect(() => {
     if (!selectedNode) {
@@ -750,6 +990,14 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
         } else {
           nextConfig[field.key] = textValue;
         }
+      }
+
+      if (field.key === "boardId") {
+        delete nextConfig.listId;
+      }
+
+      if (field.key === "repoFullName") {
+        delete nextConfig.branch;
       }
 
       return {
@@ -1039,6 +1287,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
                   if (field.type === "select") {
                     const selectedValue = typeof value === "string" ? value : "";
+                    const selectOptions = resolveSelectOptions(field);
                     return (
                       <div key={field.key}>
                         <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
@@ -1049,9 +1298,13 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                           onChange={(event) => handleConfigFieldChange(field, event.target.value)}
                           className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         >
-                          <option value="">{t("canvas.selectPlaceholder")}</option>
-                          {(field.options ?? []).map((option) => (
-                            <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
+                          <option value="">
+                            {field.placeholderKey ? t(field.placeholderKey) : t("canvas.selectPlaceholder")}
+                          </option>
+                          {selectOptions.map((option) => (
+                            <option key={option.value} value={option.value}>
+                              {option.label ?? (option.labelKey ? t(option.labelKey) : option.value)}
+                            </option>
                           ))}
                         </select>
                       </div>
