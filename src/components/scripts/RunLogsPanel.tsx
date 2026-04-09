@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { ScriptRunLog, getScriptGraph, getScriptRuns } from "@/lib/api/scripts";
+import { getAblyClient } from "@/lib/ably";
 import { CheckCircle, XCircle, Loader2, RefreshCw, Clock, ChevronDown, ChevronRight } from "lucide-react";
 
 interface RunLogsPanelProps {
@@ -30,6 +31,8 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
   const [nodeMetaById, setNodeMetaById] = useState<Record<string, { label: string; kind: string }>>({});
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [liveEventsByRunId, setLiveEventsByRunId] = useState<Record<string, string[]>>({});
+  const reloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fmt = (value: unknown): string => JSON.stringify(value ?? {}, null, 2);
 
@@ -68,6 +71,84 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
   useEffect(() => {
     load();
   }, [scriptId]);
+
+  useEffect(() => {
+    if (!accessToken || !scriptId) return;
+
+    const ably = getAblyClient(accessToken);
+    const channel = ably.channels.get(`script:${scriptId}`);
+
+    const queueReload = () => {
+      if (reloadTimerRef.current) return;
+      reloadTimerRef.current = setTimeout(() => {
+        reloadTimerRef.current = null;
+        void load();
+      }, 280);
+    };
+
+    const appendLiveEvent = (runId: string | null, text: string) => {
+      if (!runId) return;
+      setLiveEventsByRunId((prev) => ({
+        ...prev,
+        [runId]: [text, ...(prev[runId] ?? [])].slice(0, 40),
+      }));
+    };
+
+    const handleRunEvent = (eventType: "script.run.started" | "script.run.completed" | "script.run.failed") =>
+      (message: { data?: unknown }) => {
+        const data = (message?.data ?? {}) as Record<string, unknown>;
+        const runId = typeof data.runId === "string" ? data.runId : null;
+        const status = typeof data.status === "string" ? data.status : "running";
+        appendLiveEvent(runId, `[run:${status}] ${eventType}`);
+        queueReload();
+      };
+
+    const handleNodeEvent = (eventType: "script.node.started" | "script.node.completed" | "script.node.failed") =>
+      (message: { data?: unknown }) => {
+        const data = (message?.data ?? {}) as Record<string, unknown>;
+        const runId = typeof data.runId === "string" ? data.runId : null;
+        const nodeLabel = typeof data.nodeLabel === "string" && data.nodeLabel.length > 0
+          ? data.nodeLabel
+          : (typeof data.nodeKind === "string" ? data.nodeKind : "node");
+        const inputItems = typeof data.inputItems === "number" ? data.inputItems : null;
+        const outputItems = typeof data.outputItems === "number" ? data.outputItems : null;
+        const durationMs = typeof data.durationMs === "number" ? data.durationMs : null;
+        const suffix = [
+          inputItems != null ? `in:${inputItems}` : null,
+          outputItems != null ? `out:${outputItems}` : null,
+          durationMs != null ? `${durationMs}ms` : null,
+        ].filter(Boolean).join(" ");
+        appendLiveEvent(runId, `[node] ${eventType} ${nodeLabel}${suffix ? ` (${suffix})` : ""}`);
+        queueReload();
+      };
+
+    const runStartedListener = handleRunEvent("script.run.started");
+    const runCompletedListener = handleRunEvent("script.run.completed");
+    const runFailedListener = handleRunEvent("script.run.failed");
+    const nodeStartedListener = handleNodeEvent("script.node.started");
+    const nodeCompletedListener = handleNodeEvent("script.node.completed");
+    const nodeFailedListener = handleNodeEvent("script.node.failed");
+
+    channel.subscribe("script.run.started", runStartedListener);
+    channel.subscribe("script.run.completed", runCompletedListener);
+    channel.subscribe("script.run.failed", runFailedListener);
+    channel.subscribe("script.node.started", nodeStartedListener);
+    channel.subscribe("script.node.completed", nodeCompletedListener);
+    channel.subscribe("script.node.failed", nodeFailedListener);
+
+    return () => {
+      if (reloadTimerRef.current) {
+        clearTimeout(reloadTimerRef.current);
+        reloadTimerRef.current = null;
+      }
+      channel.unsubscribe("script.run.started", runStartedListener);
+      channel.unsubscribe("script.run.completed", runCompletedListener);
+      channel.unsubscribe("script.run.failed", runFailedListener);
+      channel.unsubscribe("script.node.started", nodeStartedListener);
+      channel.unsubscribe("script.node.completed", nodeCompletedListener);
+      channel.unsubscribe("script.node.failed", nodeFailedListener);
+    };
+  }, [accessToken, scriptId]);
 
   if (loading) {
     return (
@@ -179,6 +260,23 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
                             );
                           })}
                         </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Eventos realtime por nodo
+                      </p>
+                      {((liveEventsByRunId[log.id] ?? []).length === 0) ? (
+                        <p className="text-xs text-muted-foreground">Aun no hay eventos realtime para este run.</p>
+                      ) : (
+                        <ul className="max-h-48 space-y-1 overflow-auto rounded-md border border-border bg-background p-2">
+                          {(liveEventsByRunId[log.id] ?? []).map((eventLine, index) => (
+                            <li key={`${log.id}-live-${index}`} className="text-[11px] text-foreground">
+                              {eventLine}
+                            </li>
+                          ))}
+                        </ul>
                       )}
                     </div>
                   </div>
