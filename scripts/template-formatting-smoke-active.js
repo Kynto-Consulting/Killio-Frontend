@@ -35,7 +35,6 @@ function validatePlaceholderExamples(localeData, localeName) {
       `${localeName}: unbalanced braces in canvas.placeholders.${placeholderKey}`,
     );
 
-    // In script template examples we use single-brace tokens like {todoText}.
     assert.equal(
       /\{\{[^}]+\}\}/.test(placeholderValue),
       false,

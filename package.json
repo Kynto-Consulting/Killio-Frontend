@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:template-format": "node scripts/test-template-formatting.js"
+    "test:template-format": "node scripts/template-formatting-smoke-active.js"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
