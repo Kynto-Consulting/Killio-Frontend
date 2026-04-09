@@ -29,10 +29,15 @@
   "integrations": {
     "catalog": {
       "comingSoon": "Coming soon",
+      "manualSetup": "Manual setup",
       "googleTitle": "Google",
       "googleDescription": "OAuth and workspace sync with Google services will be available soon.",
       "jiraTitle": "Jira",
-      "jiraDescription": "Issue syncing and bidirectional workflow automation with Jira is planned next."
+      "jiraDescription": "Issue syncing and bidirectional workflow automation with Jira is planned next.",
+      "whatsappTitle": "WhatsApp",
+      "whatsappDescription": "Ready to automate with Webhook + WhatsApp Send Message nodes. Uses token-based API calls in script config without backend env changes.",
+      "metaTitle": "Meta",
+      "metaDescription": "Ready to automate with Webhook + Meta Send Conversion nodes through Graph API payload templates."
     },
     "github": {
       "title": "GitHub",
@@ -207,6 +212,17 @@
     "noOutputForNode": "This node has no persisted output in the latest run.",
     "noPreviewLoaded": "No latest-run preview has been loaded yet.",
     "palette": "Available blocks",
+    "integrationFilterLabel": "Integration",
+    "paletteSearchPlaceholder": "Search nodes...",
+    "noPaletteMatches": "No nodes match the current integration and search filters.",
+    "noHeaders": "No headers yet.",
+    "integrationFilter": {
+      "all": "All",
+      "core": "Core",
+      "github": "GitHub",
+      "whatsapp": "WhatsApp",
+      "meta": "Meta"
+    },
     "categories": {
       "triggers": "Triggers",
       "conditions": "Conditions",
@@ -251,7 +267,11 @@
       "dedup": "Dedup",
       "firstSeen": "First Seen",
       "httpRequest": "HTTP Request",
-      "jsCode": "JS Code"
+      "jsCode": "JS Code",
+      "whatsappWebhookTrigger": "WhatsApp Webhook Trigger",
+      "whatsappSendMessage": "WhatsApp Send Message",
+      "metaWebhookTrigger": "Meta Webhook Trigger",
+      "metaSendConversion": "Meta Send Conversion"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -316,6 +336,7 @@
       "markOutputPath": "Mark output path",
       "routes": "Routes",
       "url": "URL",
+      "headers": "Headers",
       "method": "Method",
       "bodyTemplate": "Body template",
       "code": "Code",
@@ -403,6 +424,9 @@
       "delayMs": "Delay (ms)",
       "routes": "bug:out_1\nfeature:out_2",
       "url": "https://api.example.com/items/{externalKey}",
+      "headers": "Authorization: Bearer {apiToken}",
+      "headerKey": "Authorization",
+      "headerValue": "Bearer {apiToken}",
       "method": "POST",
       "bodyTemplate": "{\"title\": \"{title}\"}",
       "code": "const item = readInput();\nwriteOutput({ ...item.data, reviewed: true });",

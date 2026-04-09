@@ -29,10 +29,15 @@
   "integrations": {
     "catalog": {
       "comingSoon": "Próximamente",
+      "manualSetup": "Configuración manual",
       "googleTitle": "Google",
       "googleDescription": "La conexión OAuth y sincronización de workspace con servicios de Google llegará pronto.",
       "jiraTitle": "Jira",
-      "jiraDescription": "La sincronización de issues y automatización bidireccional con Jira está planificada para la siguiente etapa."
+      "jiraDescription": "La sincronización de issues y automatización bidireccional con Jira está planificada para la siguiente etapa.",
+      "whatsappTitle": "WhatsApp",
+      "whatsappDescription": "Listo para automatizar con nodos Webhook + Enviar Mensaje WhatsApp. Usa llamadas API con token en la configuración del script, sin cambiar env del backend.",
+      "metaTitle": "Meta",
+      "metaDescription": "Listo para automatizar con nodos Webhook + Enviar Conversión Meta usando plantillas de payload para Graph API."
     },
     "github": {
       "title": "GitHub",
@@ -207,6 +212,17 @@
     "noOutputForNode": "Este nodo no tiene salida persistida en el ultimo run.",
     "noPreviewLoaded": "Todavia no cargaste un preview del ultimo run.",
     "palette": "Bloques disponibles",
+    "integrationFilterLabel": "Integración",
+    "paletteSearchPlaceholder": "Buscar nodos...",
+    "noPaletteMatches": "No hay nodos que coincidan con la integración y búsqueda actuales.",
+    "noHeaders": "Todavía no hay headers.",
+    "integrationFilter": {
+      "all": "Todas",
+      "core": "Core",
+      "github": "GitHub",
+      "whatsapp": "WhatsApp",
+      "meta": "Meta"
+    },
     "categories": {
       "triggers": "Triggers",
       "conditions": "Condiciones",
@@ -251,7 +267,11 @@
       "dedup": "Dedup",
       "firstSeen": "Primera vez",
       "httpRequest": "HTTP Request",
-      "jsCode": "JS Code"
+      "jsCode": "JS Code",
+      "whatsappWebhookTrigger": "Webhook de WhatsApp",
+      "whatsappSendMessage": "Enviar mensaje de WhatsApp",
+      "metaWebhookTrigger": "Webhook de Meta",
+      "metaSendConversion": "Enviar conversión a Meta"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -316,6 +336,7 @@
       "markOutputPath": "Ruta de marca",
       "routes": "Rutas",
       "url": "URL",
+      "headers": "Headers",
       "method": "Metodo",
       "bodyTemplate": "Body template",
       "code": "Codigo",
@@ -403,6 +424,9 @@
       "delayMs": "Retraso (ms)",
       "routes": "bug:out_1\nfeature:out_2",
       "url": "https://api.example.com/items/{externalKey}",
+      "headers": "Authorization: Bearer {apiToken}",
+      "headerKey": "Authorization",
+      "headerValue": "Bearer {apiToken}",
       "method": "POST",
       "bodyTemplate": "{\"title\": \"{title}\"}",
       "code": "const item = readInput();\nwriteOutput({ ...item.data, reviewed: true });",

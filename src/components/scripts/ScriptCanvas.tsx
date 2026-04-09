@@ -247,6 +247,55 @@ function normalizeJsonMappings(raw: unknown): Array<{ targetPath: string; source
   return [];
 }
 
+function normalizeHttpHeaders(raw: unknown): Array<{ key: string; value: string }> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return Object.entries(raw as Record<string, unknown>).map(([key, value]) => ({
+      key,
+      value: String(value ?? ""),
+    }));
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const parsed = entry as Record<string, unknown>;
+      const key = String(parsed.key ?? parsed.name ?? "").trim();
+      const value = String(parsed.value ?? "").trim();
+      if (!key) return [];
+      return [{ key, value }];
+    });
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const separatorIndex = line.indexOf(":");
+        if (separatorIndex > 0) {
+          return {
+            key: line.slice(0, separatorIndex).trim(),
+            value: line.slice(separatorIndex + 1).trim(),
+          };
+        }
+
+        const equalsIndex = line.indexOf("=");
+        if (equalsIndex > 0) {
+          return {
+            key: line.slice(0, equalsIndex).trim(),
+            value: line.slice(equalsIndex + 1).trim(),
+          };
+        }
+
+        return { key: line, value: "" };
+      })
+      .filter((entry) => entry.key.length > 0);
+  }
+
+  return [];
+}
+
 async function loadAllFolders(teamId: string, accessToken: string, parentFolderId?: string, collected: Folder[] = []): Promise<Folder[]> {
   const currentLevel = await listFolders(teamId, accessToken, parentFolderId);
   for (const folder of currentLevel) {
@@ -664,6 +713,7 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
         { value: "DELETE", labelKey: "canvas.options.httpMethod.delete" },
       ],
     },
+    { key: "headers", type: "textarea", labelKey: "canvas.fields.headers", placeholderKey: "canvas.placeholders.headers" },
     { key: "bodyTemplate", type: "textarea", labelKey: "canvas.fields.bodyTemplate", placeholderKey: "canvas.placeholders.bodyTemplate" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
     { key: "timeoutMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
@@ -806,6 +856,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [githubRepositories, setGithubRepositories] = useState<GithubInstallationRepository[]>([]);
   const [githubBranchesByRepo, setGithubBranchesByRepo] = useState<Record<string, GithubInstallationBranch[]>>({});
   const [repoInstallationByFullName, setRepoInstallationByFullName] = useState<Record<string, number>>({});
+  const [hasActiveGithubIntegration, setHasActiveGithubIntegration] = useState(false);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
   const selectedNode = useMemo(
@@ -833,6 +884,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
   const switchRouteRows = useMemo(() => normalizeSwitchRoutes(selectedNodeConfig.routes), [selectedNodeConfig.routes]);
   const jsonMapRows = useMemo(() => normalizeJsonMappings(selectedNodeConfig.mappings), [selectedNodeConfig.mappings]);
+  const httpHeaderRows = useMemo(() => normalizeHttpHeaders(selectedNodeConfig.headers), [selectedNodeConfig.headers]);
 
   const selectFieldContext = useMemo<SelectOptionContext>(() => ({
     config: selectedNodeConfig,
@@ -880,6 +932,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setGithubRepositories([]);
       setGithubBranchesByRepo({});
       setRepoInstallationByFullName({});
+      setHasActiveGithubIntegration(false);
       return;
     }
 
@@ -939,6 +992,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setTables(sharedTables.map((table) => ({ id: table.id, name: table.name })));
       setGithubRepositories(nextRepositories);
       setRepoInstallationByFullName(nextRepoInstallationByFullName);
+      setHasActiveGithubIntegration(installations.some((installation) => installation.isActive));
     };
 
     void loadWorkspaceEntities();
@@ -995,6 +1049,22 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       const nodeKind = event.dataTransfer.getData("application/killio-node-kind") as NodeKind;
       if (!nodeKind || !rfInstanceRef.current) return;
 
+      let templatePayload: { label?: string; config?: Record<string, unknown> } | null = null;
+      const rawTemplatePayload = event.dataTransfer.getData("application/killio-node-template");
+      if (rawTemplatePayload) {
+        try {
+          const parsed = JSON.parse(rawTemplatePayload) as Record<string, unknown>;
+          templatePayload = {
+            label: typeof parsed.label === "string" ? parsed.label : undefined,
+            config: parsed.config && typeof parsed.config === "object" && !Array.isArray(parsed.config)
+              ? (parsed.config as Record<string, unknown>)
+              : undefined,
+          };
+        } catch {
+          templatePayload = null;
+        }
+      }
+
       const position = rfInstanceRef.current.screenToFlowPosition({
         x: event.clientX,
         y: event.clientY,
@@ -1004,7 +1074,10 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
         id: `node-${Date.now()}`,
         type: nodeKind,
         position,
-        data: { config: {}, label: nodeKind },
+        data: {
+          config: (templatePayload?.config as Record<string, any> | undefined) ?? {},
+          label: templatePayload?.label ?? nodeKind,
+        },
       };
 
       setNodes((nds) => nds.concat(newNode));
@@ -1220,6 +1293,81 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     });
   }, [updateSelectedNode]);
 
+  const addHttpHeaderRow = useCallback(() => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextHeaders = normalizeHttpHeaders(currentConfig.headers);
+      nextHeaders.push({ key: "", value: "" });
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            headers: nextHeaders,
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const updateHttpHeaderRow = useCallback((index: number, nextHeader: { key: string; value: string }) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextHeaders = normalizeHttpHeaders(currentConfig.headers);
+      nextHeaders[index] = nextHeader;
+      const normalizedHeaders = nextHeaders
+        .filter((entry) => entry.key.trim().length > 0)
+        .reduce<Record<string, string>>((accumulator, entry) => {
+          accumulator[entry.key.trim()] = entry.value;
+          return accumulator;
+        }, {});
+
+      const nextConfig = { ...currentConfig };
+      if (Object.keys(normalizedHeaders).length === 0) {
+        delete nextConfig.headers;
+      } else {
+        nextConfig.headers = normalizedHeaders;
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: nextConfig,
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const removeHttpHeaderRow = useCallback((index: number) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextHeaders = normalizeHttpHeaders(currentConfig.headers).filter((_, currentIndex) => currentIndex !== index);
+      const normalizedHeaders = nextHeaders
+        .filter((entry) => entry.key.trim().length > 0)
+        .reduce<Record<string, string>>((accumulator, entry) => {
+          accumulator[entry.key.trim()] = entry.value;
+          return accumulator;
+        }, {});
+
+      const nextConfig = { ...currentConfig };
+      if (Object.keys(normalizedHeaders).length === 0) {
+        delete nextConfig.headers;
+      } else {
+        nextConfig.headers = normalizedHeaders;
+      }
+
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: nextConfig,
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
   const handleApplyRawConfig = useCallback(() => {
     try {
       const parsed = JSON.parse(rawConfigDraft) as Record<string, any>;
@@ -1399,7 +1547,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
       {/* Canvas + Palette */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
-        <NodePalette />
+        <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, meta: true }} />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
           <div
             className="min-h-0 min-w-0 flex-1"
@@ -1572,6 +1720,55 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                               <button
                                 type="button"
                                 onClick={() => removeJsonMapRow(index)}
+                                className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-destructive hover:bg-destructive/10"
+                              >
+                                {t("canvas.remove")}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (selectedNodeKind === "core.action.http_request" && field.key === "headers") {
+                    return (
+                      <div key={field.key}>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <label className="block text-[11px] font-medium text-muted-foreground">
+                            {t(field.labelKey)}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addHttpHeaderRow}
+                            className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-accent/10"
+                          >
+                            {t("canvas.addRow")}
+                          </button>
+                        </div>
+                        <div className="space-y-2 rounded-md border border-border bg-background p-2.5">
+                          {httpHeaderRows.length === 0 && (
+                            <p className="text-[11px] italic text-muted-foreground">{t("canvas.noHeaders")}</p>
+                          )}
+                          {httpHeaderRows.map((header, index) => (
+                            <div key={`${header.key}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                              <input
+                                type="text"
+                                value={header.key}
+                                onChange={(event) => updateHttpHeaderRow(index, { ...header, key: event.target.value })}
+                                placeholder={t("canvas.placeholders.headerKey")}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <input
+                                type="text"
+                                value={header.value}
+                                onChange={(event) => updateHttpHeaderRow(index, { ...header, value: event.target.value })}
+                                placeholder={t("canvas.placeholders.headerValue")}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeHttpHeaderRow(index)}
                                 className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-destructive hover:bg-destructive/10"
                               >
                                 {t("canvas.remove")}

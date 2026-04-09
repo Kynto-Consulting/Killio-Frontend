@@ -41,7 +41,7 @@ import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPa
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
-import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
+import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2, MessageCircle } from "lucide-react";
 
 type Tab = "integrations" | "scripts" | "table";
 type ScriptSubView = "canvas" | "runs";
@@ -836,6 +836,20 @@ export default function IntegrationsPage() {
           <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
               <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+
+              <ComingSoonIntegrationCard
+                title={t("integrations.catalog.whatsappTitle")}
+                description={t("integrations.catalog.whatsappDescription")}
+                icon={MessageCircle}
+                badge={t("integrations.catalog.manualSetup")}
+              />
+
+              <ComingSoonIntegrationCard
+                title={t("integrations.catalog.metaTitle")}
+                description={t("integrations.catalog.metaDescription")}
+                icon={Globe}
+                badge={t("integrations.catalog.manualSetup")}
+              />
 
               <ComingSoonIntegrationCard
                 title={t("integrations.catalog.googleTitle")}
