@@ -225,6 +225,8 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "boardId", type: "text", labelKey: "canvas.fields.boardId", placeholderKey: "canvas.placeholders.boardId" },
     { key: "listId", type: "text", labelKey: "canvas.fields.listId", placeholderKey: "canvas.placeholders.listId" },
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
+    { key: "descriptionTemplate", type: "textarea", labelKey: "canvas.fields.descriptionTemplate", placeholderKey: "canvas.placeholders.descriptionTemplate" },
+    { key: "createTextBrickOnCreate", type: "boolean", labelKey: "canvas.fields.createTextBrickOnCreate" },
   ],
   "killio.action.update_card": [
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
