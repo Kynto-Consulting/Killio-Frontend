@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ScriptSummary } from "@/lib/api/scripts";
-import { Plus, Play, Pause, Trash2, ChevronRight, Loader2 } from "lucide-react";
+import { Plus, Play, Pause, Trash2, ChevronRight, Loader2, Sparkles } from "lucide-react";
 
 interface ScriptListProps {
   scripts: ScriptSummary[];
@@ -12,6 +12,7 @@ interface ScriptListProps {
   onToggle: (script: ScriptSummary) => Promise<void>;
   onDelete: (script: ScriptSummary) => Promise<void>;
   onCreate: () => void;
+  onOpenPresets: () => void;
   loading?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function ScriptList({
   onToggle,
   onDelete,
   onCreate,
+  onOpenPresets,
   loading,
 }: ScriptListProps) {
   const t = useTranslations("integrations");
@@ -60,16 +62,39 @@ export function ScriptList({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center p-8">
+      <div className="flex h-full items-center justify-center rounded-xl border border-border bg-card/50 p-8">
         <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
       </div>
     );
   }
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex items-center border-b border-border px-3 py-3 sm:px-4">
-        <span className="min-w-0 text-sm font-semibold text-foreground">{t("tabs.scripts")}</span>
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/70">
+      <div className="space-y-3 border-b border-border px-3 py-3 sm:px-4">
+        <div className="flex items-center justify-between gap-2">
+          <span className="min-w-0 text-sm font-semibold text-foreground">{t("tabs.scripts")}</span>
+          <span className="rounded-full border border-border bg-background px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+            {scripts.length}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={onOpenPresets}
+            className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md border border-border bg-background px-2 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent/10"
+          >
+            <Sparkles className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{t("presets.openButton")}</span>
+          </button>
+          <button
+            type="button"
+            onClick={onCreate}
+            className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-md bg-primary px-2 py-2 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
+          >
+            <Plus className="h-3.5 w-3.5 shrink-0" />
+            <span className="truncate">{t("scripts.create")}</span>
+          </button>
+        </div>
       </div>
 
       {scripts.length === 0 ? (
@@ -87,7 +112,7 @@ export function ScriptList({
           </button>
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2 sm:p-3">
           {scripts.map((script) => {
             const isSelected = script.id === selectedId;
             const dot = script.lastRunStatus ? STATUS_COLORS[script.lastRunStatus] : "bg-muted-foreground/40";
@@ -95,11 +120,12 @@ export function ScriptList({
               <li
                 key={script.id}
                 onClick={() => onSelect(script)}
-                className={`group flex cursor-pointer items-start gap-3 px-4 py-3 transition-colors hover:bg-accent/10 ${
-                  isSelected ? "bg-accent/15" : ""
+                className={`group flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-3 transition-colors ${
+                  isSelected
+                    ? "border-accent/40 bg-accent/15"
+                    : "border-border bg-background/40 hover:border-accent/30 hover:bg-accent/10"
                 }`}
               >
-                {/* Status dot */}
                 <span className={`mt-1.5 h-2 w-2 flex-shrink-0 rounded-full ${dot}`} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
@@ -118,12 +144,11 @@ export function ScriptList({
                     {t("scripts.lastRun")}: {relativeTime(script.lastRunAt)}
                   </p>
                 </div>
-                {/* Actions */}
-                <div className="flex items-center gap-1 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100">
+                <div className="flex items-center gap-1">
                   <button
                     onClick={(e) => handleToggle(e, script)}
                     title={script.isActive ? t("actions.pause") : t("actions.activate")}
-                    className="rounded p-1 text-muted-foreground hover:bg-accent/20 hover:text-foreground"
+                    className="rounded-md border border-transparent p-1.5 text-muted-foreground transition-colors hover:border-border hover:bg-accent/20 hover:text-foreground"
                   >
                     {toggling === script.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -136,7 +161,7 @@ export function ScriptList({
                   <button
                     onClick={(e) => handleDelete(e, script)}
                     title={t("scripts.delete")}
-                    className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    className="rounded-md border border-transparent p-1.5 text-muted-foreground transition-colors hover:border-destructive/20 hover:bg-destructive/10 hover:text-destructive"
                   >
                     {deleting === script.id ? (
                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -147,7 +172,7 @@ export function ScriptList({
                 </div>
                 <ChevronRight
                   className={`h-4 w-4 flex-shrink-0 self-center transition-colors ${
-                    isSelected ? "text-accent" : "text-muted-foreground/50"
+                    isSelected ? "text-accent" : "text-muted-foreground/50 group-hover:text-foreground/70"
                   }`}
                 />
               </li>

@@ -41,7 +41,7 @@ import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPa
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
-import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle } from "lucide-react";
+import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
 
 type Tab = "integrations" | "scripts" | "table";
 type ScriptSubView = "canvas" | "runs";
@@ -856,65 +856,9 @@ export default function IntegrationsPage() {
 
         {/* ── Scripts ──────────────────────────────────────────────────────── */}
         {tab === "scripts" && (
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden">
-            <div className="border-b border-border bg-card/60 px-3 py-2 sm:px-4">
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setScriptSubView("canvas")}
-                    disabled={!selectedScript}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      scriptSubView === "canvas"
-                        ? "bg-accent/20 text-accent"
-                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                    } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    {t("scripts.graphTab")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setScriptSubView("runs")}
-                    disabled={!selectedScript}
-                    className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
-                      scriptSubView === "runs"
-                        ? "bg-accent/20 text-accent"
-                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                    } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
-                  >
-                    {t("scripts.runsTab")}
-                  </button>
-                </div>
-
-                <div className="ml-auto flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
-                  <button
-                    type="button"
-                    onClick={handleOpenPresets}
-                    className="whitespace-nowrap rounded-md border border-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground hover:bg-accent/10"
-                  >
-                    {t("presets.openButton")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCreate(true)}
-                    className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:opacity-90"
-                  >
-                    <span className="text-sm leading-none">+</span>
-                    {t("scripts.create")}
-                  </button>
-                </div>
-
-                {selectedScript && (
-                  <p className="w-full min-w-0 truncate text-xs font-medium text-muted-foreground">
-                    {selectedScript.name}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="flex min-h-0 w-full flex-1 flex-col lg:flex-row lg:overflow-hidden">
-              {/* Sidebar list */}
-              <div className="w-full flex-shrink-0 border-b border-border bg-card/40 lg:flex lg:min-h-0 lg:w-72 lg:border-b-0 lg:border-r">
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+            <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[320px,minmax(0,1fr)] xl:grid-cols-[340px,minmax(0,1fr)]">
+              <div className="min-h-[320px] lg:min-h-0">
                 <ScriptList
                   scripts={scripts}
                   selectedId={selectedScript?.id ?? null}
@@ -925,12 +869,67 @@ export default function IntegrationsPage() {
                   onToggle={handleToggle}
                   onDelete={handleDelete}
                   onCreate={() => setShowCreate(true)}
+                  onOpenPresets={handleOpenPresets}
                   loading={scriptsLoading}
                 />
               </div>
 
-              {/* Main area */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+              <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/40 lg:min-h-0">
+                <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-foreground">
+                      {selectedScript?.name ?? t("tabs.scripts")}
+                    </p>
+                    {selectedScript ? (
+                      <p className="truncate text-xs text-muted-foreground">{selectedScript.description || t("scripts.selectToEditHelp")}</p>
+                    ) : (
+                      <p className="truncate text-xs text-muted-foreground">{t("scripts.selectToEditHelp")}</p>
+                    )}
+                  </div>
+
+                  {selectedScript && (
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (window.confirm(t("scripts.deleteConfirm"))) {
+                          await handleDelete(selectedScript);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      {t("scripts.delete")}
+                    </button>
+                  )}
+
+                  <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-background p-1">
+                    <button
+                      type="button"
+                      onClick={() => setScriptSubView("canvas")}
+                      disabled={!selectedScript}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        scriptSubView === "canvas"
+                          ? "bg-accent/20 text-accent"
+                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                      } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                    >
+                      {t("scripts.graphTab")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setScriptSubView("runs")}
+                      disabled={!selectedScript}
+                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                        scriptSubView === "runs"
+                          ? "bg-accent/20 text-accent"
+                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                      } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                    >
+                      {t("scripts.runsTab")}
+                    </button>
+                  </div>
+                </div>
+
                 {selectedScript ? (
                   <>
                     {scriptSubView === "canvas" ? (
@@ -939,7 +938,7 @@ export default function IntegrationsPage() {
                           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                         </div>
                       ) : (
-                        <div className="flex flex-1 min-h-0 overflow-hidden">
+                        <div className="flex min-h-0 flex-1 overflow-hidden">
                           <ScriptCanvas
                             scriptId={selectedScript.id}
                             graph={graph}
@@ -955,7 +954,7 @@ export default function IntegrationsPage() {
                         </div>
                       )
                     ) : (
-                      <div className="flex-1 overflow-hidden">
+                      <div className="min-h-0 flex-1 overflow-hidden">
                         <RunLogsPanel
                           scriptId={selectedScript.id}
                           teamId={activeTeamId}
@@ -965,7 +964,7 @@ export default function IntegrationsPage() {
                     )}
                   </>
                 ) : (
-                  <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+                  <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
                     <div className="rounded-full bg-accent/10 p-5 text-accent">
                       <Zap className="h-8 w-8" />
                     </div>
