@@ -82,7 +82,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["card", "updated", "trigger", "webhook"],
     template: {
       label: "Card Updated Trigger",
-      config: {},
+      config: { _webhookType: "killio.card.updated" },
     },
   },
   {
@@ -96,7 +96,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["list", "updated", "trigger", "webhook"],
     template: {
       label: "List Updated Trigger",
-      config: {},
+      config: { _webhookType: "killio.list.updated" },
     },
   },
   {
@@ -110,7 +110,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["document", "updated", "trigger", "webhook"],
     template: {
       label: "Document Updated Trigger",
-      config: {},
+      config: { _webhookType: "killio.document.updated" },
     },
   },
   {
@@ -124,7 +124,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["board", "updated", "trigger", "webhook"],
     template: {
       label: "Board Updated Trigger",
-      config: {},
+      config: { _webhookType: "killio.board.updated" },
     },
   },
   {
@@ -138,7 +138,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["whatsapp", "webhook", "meta", "message"],
     template: {
       label: "WhatsApp Webhook Trigger",
-      config: {},
+      config: { _webhookType: "whatsapp" },
     },
   },
   // ── Conditions ──────────────────────────────────────────────────────────
