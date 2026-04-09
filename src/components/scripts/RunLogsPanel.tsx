@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
-import { ScriptRunLog, getScriptRuns } from "@/lib/api/scripts";
-import { CheckCircle, XCircle, Loader2, RefreshCw, Clock } from "lucide-react";
+import { ScriptRunLog, getScriptGraph, getScriptRuns } from "@/lib/api/scripts";
+import { CheckCircle, XCircle, Loader2, RefreshCw, Clock, ChevronDown, ChevronRight } from "lucide-react";
 
 interface RunLogsPanelProps {
   scriptId: string;
@@ -27,13 +27,39 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
   const { locale } = useI18n();
   const t = useTranslations("integrations");
   const [logs, setLogs] = useState<ScriptRunLog[]>([]);
+  const [nodeMetaById, setNodeMetaById] = useState<Record<string, { label: string; kind: string }>>({});
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const fmt = (value: unknown): string => JSON.stringify(value ?? {}, null, 2);
 
   const load = async () => {
     setLoading(true);
     try {
-      const data = await getScriptRuns(scriptId, teamId, accessToken);
-      setLogs(data);
+      const [runs, graph] = await Promise.all([
+        getScriptRuns(scriptId, teamId, accessToken),
+        getScriptGraph(scriptId, teamId, accessToken).catch(() => null),
+      ]);
+      setLogs(runs);
+
+      if (graph) {
+        const nextMeta: Record<string, { label: string; kind: string }> = {};
+        for (const node of graph.nodes) {
+          nextMeta[node.id] = {
+            label: node.label || node.nodeKind,
+            kind: node.nodeKind,
+          };
+        }
+        setNodeMetaById(nextMeta);
+      } else {
+        setNodeMetaById({});
+      }
+
+      setExpandedRunId((prev) => {
+        if (!runs.length) return null;
+        if (prev && runs.some((run) => run.id === prev)) return prev;
+        return runs[0].id;
+      });
     } finally {
       setLoading(false);
     }
@@ -72,34 +98,91 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
       ) : (
         <ul className="divide-y divide-border overflow-y-auto">
           {logs.map((log) => {
+            const isExpanded = expandedRunId === log.id;
             const Icon = STATUS_ICON[log.status] ?? Clock;
             const color = STATUS_COLOR[log.status] ?? "text-muted-foreground";
+            const outputEntries = Object.entries(log.nodeOutputs || {});
             return (
-              <li key={log.id} className="flex items-start gap-3 px-4 py-3">
-                <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${color} ${log.status === "running" ? "animate-spin" : ""}`} />
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className={`text-xs font-semibold ${color}`}>
-                      {log.status === "completed"
-                        ? t("runs.status.completed")
-                        : log.status === "failed"
-                          ? t("runs.status.failed")
-                          : t("runs.status.running")}
-                    </span>
-                    {log.durationMs != null && (
-                      <span className="text-xs text-muted-foreground">{t("runs.duration", { ms: log.durationMs })}</span>
+              <li key={log.id} className="px-3 py-2 sm:px-4 sm:py-3">
+                <button
+                  type="button"
+                  onClick={() => setExpandedRunId((prev) => (prev === log.id ? null : log.id))}
+                  className="flex w-full items-start gap-3 text-left"
+                >
+                  <Icon className={`mt-0.5 h-4 w-4 flex-shrink-0 ${color} ${log.status === "running" ? "animate-spin" : ""}`} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`text-xs font-semibold ${color}`}>
+                        {log.status === "completed"
+                          ? t("runs.status.completed")
+                          : log.status === "failed"
+                            ? t("runs.status.failed")
+                            : t("runs.status.running")}
+                      </span>
+                      {log.durationMs != null && (
+                        <span className="text-xs text-muted-foreground">{t("runs.duration", { ms: log.durationMs })}</span>
+                      )}
+                      <span className="text-xs text-muted-foreground">
+                        · {t("runs.items", { count: log.itemsProcessed })}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        · {outputEntries.length} node(s)
+                      </span>
+                    </div>
+                    {log.errorMessage && (
+                      <p className="mt-1 truncate text-xs text-red-500">{log.errorMessage}</p>
                     )}
-                    <span className="text-xs text-muted-foreground">
-                      · {t("runs.items", { count: log.itemsProcessed })}
-                    </span>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {new Date(log.startedAt).toLocaleString(locale === "es" ? "es-ES" : "en-US")}
+                    </p>
                   </div>
-                  {log.errorMessage && (
-                    <p className="mt-1 truncate text-xs text-red-500">{log.errorMessage}</p>
+                  {isExpanded ? (
+                    <ChevronDown className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                  ) : (
+                    <ChevronRight className="mt-0.5 h-4 w-4 text-muted-foreground" />
                   )}
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">
-                    {new Date(log.startedAt).toLocaleString(locale === "es" ? "es-ES" : "en-US")}
-                  </p>
-                </div>
+                </button>
+
+                {isExpanded && (
+                  <div className="mt-3 space-y-3 rounded-lg border border-border bg-card/40 p-3">
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Data recibida (triggerPayload)
+                      </p>
+                      <pre className="max-h-52 overflow-auto rounded-md border border-border bg-background p-2 text-[11px] text-foreground">
+                        {fmt(log.triggerPayload)}
+                      </pre>
+                    </div>
+
+                    <div>
+                      <p className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Flujo y outputs por nodo
+                      </p>
+                      {outputEntries.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">No hay outputs por nodo para esta ejecución.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {outputEntries.map(([nodeId, output]) => {
+                            const meta = nodeMetaById[nodeId];
+                            const outputCount = Array.isArray(output) ? output.length : null;
+                            const title = meta ? `${meta.label} (${meta.kind})` : nodeId;
+                            return (
+                              <details key={nodeId} className="rounded-md border border-border bg-background p-2">
+                                <summary className="cursor-pointer text-xs font-medium text-foreground">
+                                  {title}
+                                  {outputCount !== null ? ` - ${outputCount} item(s)` : ""}
+                                </summary>
+                                <pre className="mt-2 max-h-48 overflow-auto rounded border border-border bg-card/40 p-2 text-[11px] text-foreground">
+                                  {fmt(output)}
+                                </pre>
+                              </details>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
               </li>
             );
           })}
