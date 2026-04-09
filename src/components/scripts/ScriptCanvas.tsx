@@ -115,6 +115,14 @@ interface ConfigField {
   showWhen?: { key: string; isIn?: string[]; notIn?: string[] };
 }
 
+function isFieldVisible(field: ConfigField, config: Record<string, any>): boolean {
+  if (!field.showWhen) return true;
+  const condVal = String(config[field.showWhen.key] ?? "");
+  if (field.showWhen.isIn && !field.showWhen.isIn.includes(condVal)) return false;
+  if (field.showWhen.notIn && field.showWhen.notIn.includes(condVal)) return false;
+  return true;
+}
+
 const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   "github.trigger.commit": [
     { key: "repoFullName", type: "text", labelKey: "canvas.fields.repoFullName", placeholderKey: "canvas.placeholders.repoFullName" },
@@ -303,13 +311,36 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   ],
   "killio.action.add_brick": [
     {
+      key: "targetType",
+      type: "select",
+      labelKey: "canvas.fields.targetType",
+      options: [
+        { value: "card", labelKey: "canvas.options.targetType.card" },
+        { value: "document", labelKey: "canvas.options.targetType.document" },
+      ],
+    },
+    {
       key: "brickType",
       type: "select",
       labelKey: "canvas.fields.brickType",
       options: [
         { value: "text", labelKey: "canvas.options.brickType.text" },
+        { value: "image", labelKey: "canvas.options.brickType.image" },
+        { value: "file", labelKey: "canvas.options.brickType.file" },
+        { value: "checklist", labelKey: "canvas.options.brickType.checklist" },
+        { value: "code", labelKey: "canvas.options.brickType.code" },
+        { value: "quote", labelKey: "canvas.options.brickType.quote" },
+        { value: "callout", labelKey: "canvas.options.brickType.callout" },
+        { value: "ai", labelKey: "canvas.options.brickType.ai" },
+        { value: "table", labelKey: "canvas.options.brickType.table" },
+        { value: "graph", labelKey: "canvas.options.brickType.graph" },
+        { value: "accordion", labelKey: "canvas.options.brickType.accordion" },
+        { value: "tabs", labelKey: "canvas.options.brickType.tabs" },
+        { value: "columns", labelKey: "canvas.options.brickType.columns" },
       ],
     },
+    { key: "cardIdPath", type: "text", labelKey: "canvas.fields.cardIdPath", placeholderKey: "canvas.placeholders.cardIdPath", showWhen: { key: "targetType", isIn: ["card", ""] } },
+    { key: "documentIdPath", type: "text", labelKey: "canvas.fields.documentIdPath", placeholderKey: "canvas.placeholders.documentIdPath", showWhen: { key: "targetType", isIn: ["document"] } },
     {
       key: "displayStyle",
       type: "select",
@@ -321,10 +352,63 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
         { value: "code", labelKey: "canvas.options.displayStyle.code" },
         { value: "callout", labelKey: "canvas.options.displayStyle.callout" },
       ],
+      showWhen: { key: "brickType", isIn: ["text"] },
     },
-    { key: "contentTemplate", type: "textarea", labelKey: "canvas.fields.contentTemplate", placeholderKey: "canvas.placeholders.contentTemplate" },
+    { key: "contentTemplate", type: "textarea", labelKey: "canvas.fields.contentTemplate", placeholderKey: "canvas.placeholders.contentTemplate", showWhen: { key: "brickType", isIn: ["text", "code", "quote", "callout", "checklist"] } },
+    {
+      key: "mediaType",
+      type: "select",
+      labelKey: "canvas.fields.mediaType",
+      options: [
+        { value: "image", labelKey: "canvas.options.mediaType.image" },
+        { value: "file", labelKey: "canvas.options.mediaType.file" },
+        { value: "video", labelKey: "canvas.options.mediaType.video" },
+        { value: "audio", labelKey: "canvas.options.mediaType.audio" },
+        { value: "bookmark", labelKey: "canvas.options.mediaType.bookmark" },
+      ],
+      showWhen: { key: "brickType", isIn: ["image", "file"] },
+    },
+    { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate", showWhen: { key: "brickType", isIn: ["image", "file", "ai", "graph", "accordion"] } },
+    { key: "bodyTemplate", type: "textarea", labelKey: "canvas.fields.bodyTemplate", placeholderKey: "canvas.placeholders.bodyTemplate", showWhen: { key: "brickType", isIn: ["accordion"] } },
+    { key: "urlTemplate", type: "text", labelKey: "canvas.fields.urlTemplate", placeholderKey: "canvas.placeholders.urlTemplate", showWhen: { key: "brickType", isIn: ["image", "file"] } },
+    { key: "captionTemplate", type: "text", labelKey: "canvas.fields.captionTemplate", placeholderKey: "canvas.placeholders.captionTemplate", showWhen: { key: "brickType", isIn: ["image", "file"] } },
+    { key: "mimeTypeTemplate", type: "text", labelKey: "canvas.fields.mimeTypeTemplate", placeholderKey: "canvas.placeholders.mimeTypeTemplate", showWhen: { key: "brickType", isIn: ["image", "file"] } },
+    { key: "sizeBytesTemplate", type: "text", labelKey: "canvas.fields.sizeBytesTemplate", placeholderKey: "canvas.placeholders.sizeBytesTemplate", showWhen: { key: "brickType", isIn: ["image", "file"] } },
+    { key: "checklistItemsTemplate", type: "textarea", labelKey: "canvas.fields.checklistItemsTemplate", placeholderKey: "canvas.placeholders.checklistItemsTemplate", showWhen: { key: "brickType", isIn: ["checklist"] } },
+    { key: "tableRowsTemplate", type: "textarea", labelKey: "canvas.fields.tableRowsTemplate", placeholderKey: "canvas.placeholders.tableRowsTemplate", showWhen: { key: "brickType", isIn: ["table"] } },
+    {
+      key: "graphType",
+      type: "select",
+      labelKey: "canvas.fields.graphType",
+      options: [
+        { value: "line", labelKey: "canvas.options.graphType.line" },
+        { value: "bar", labelKey: "canvas.options.graphType.bar" },
+        { value: "pie", labelKey: "canvas.options.graphType.pie" },
+      ],
+      showWhen: { key: "brickType", isIn: ["graph"] },
+    },
+    { key: "graphDataTemplate", type: "textarea", labelKey: "canvas.fields.graphDataTemplate", placeholderKey: "canvas.placeholders.graphDataTemplate", showWhen: { key: "brickType", isIn: ["graph"] } },
+    {
+      key: "aiStatus",
+      type: "select",
+      labelKey: "canvas.fields.aiStatus",
+      options: [
+        { value: "idle", labelKey: "canvas.options.aiStatus.idle" },
+        { value: "running", labelKey: "canvas.options.aiStatus.running" },
+        { value: "done", labelKey: "canvas.options.aiStatus.done" },
+        { value: "error", labelKey: "canvas.options.aiStatus.error" },
+      ],
+      showWhen: { key: "brickType", isIn: ["ai"] },
+    },
+    { key: "promptTemplate", type: "textarea", labelKey: "canvas.fields.promptTemplate", placeholderKey: "canvas.placeholders.promptTemplate", showWhen: { key: "brickType", isIn: ["ai"] } },
+    { key: "responseTemplate", type: "textarea", labelKey: "canvas.fields.responseTemplate", placeholderKey: "canvas.placeholders.responseTemplate", showWhen: { key: "brickType", isIn: ["ai"] } },
+    { key: "modelTemplate", type: "text", labelKey: "canvas.fields.modelTemplate", placeholderKey: "canvas.placeholders.modelTemplate", showWhen: { key: "brickType", isIn: ["ai"] } },
+    { key: "confidenceTemplate", type: "text", labelKey: "canvas.fields.confidenceTemplate", placeholderKey: "canvas.placeholders.confidenceTemplate", showWhen: { key: "brickType", isIn: ["ai"] } },
+    { key: "accordionExpandedTemplate", type: "text", labelKey: "canvas.fields.accordionExpandedTemplate", placeholderKey: "canvas.placeholders.accordionExpandedTemplate", showWhen: { key: "brickType", isIn: ["accordion"] } },
+    { key: "tabsTemplate", type: "textarea", labelKey: "canvas.fields.tabsTemplate", placeholderKey: "canvas.placeholders.tabsTemplate", showWhen: { key: "brickType", isIn: ["tabs"] } },
+    { key: "columnsTemplate", type: "textarea", labelKey: "canvas.fields.columnsTemplate", placeholderKey: "canvas.placeholders.columnsTemplate", showWhen: { key: "brickType", isIn: ["columns"] } },
     { key: "position", type: "number", labelKey: "canvas.fields.position" },
-    { key: "parentBlockId", type: "text", labelKey: "canvas.fields.parentBlockId", placeholderKey: "canvas.placeholders.parentBlockId" },
+    { key: "parentBlockId", type: "text", labelKey: "canvas.fields.parentBlockId", placeholderKey: "canvas.placeholders.parentBlockId", showWhen: { key: "targetType", isIn: ["card", ""] } },
   ],
   "killio.action.document.create": [
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
@@ -522,6 +606,21 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
   const selectedNodeKind = selectedNode?.type as NodeKind | undefined;
   const selectedNodeFields = (selectedNodeKind ? NODE_CONFIG_FIELDS[selectedNodeKind] : undefined) ?? [];
+  const selectedNodeConfig = ((selectedNode?.data?.config as Record<string, any>) ?? {});
+  const visibleSelectedNodeFields = useMemo(
+    () => selectedNodeFields.filter((field) => isFieldVisible(field, selectedNodeConfig)),
+    [selectedNodeFields, selectedNodeConfig],
+  );
+
+  const addBrickDslVariables = useMemo(() => {
+    if (selectedNodeKind !== "killio.action.add_brick") return [] as string[];
+    const brickType = String(selectedNodeConfig.brickType ?? "text");
+    const base = ["{todoText}", "{canonicalTitle}", "{cardBodyText}", "{filePath}", "{lineNumber}", "{repoFullName}", "{branch}", "{commitSha}", "{authorName}"];
+    if (brickType === "ai") return [...base, "{prompt}", "{response}"];
+    if (brickType === "table" || brickType === "graph") return [...base, "{tableRowData}"];
+    if (brickType === "image" || brickType === "file") return [...base, "{assetUrl}", "{mimeType}"];
+    return base;
+  }, [selectedNodeKind, selectedNodeConfig]);
 
   const selectedNodeOutputs = useMemo(() => {
     if (!previewRun || !selectedNodeId) return null;
@@ -898,16 +997,8 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                   />
                 </div>
 
-                {selectedNodeFields.map((field) => {
-                  const config = (selectedNode.data?.config as Record<string, any>) ?? {};
-
-                  if (field.showWhen) {
-                    const condVal = String(config[field.showWhen.key] ?? "");
-                    if (field.showWhen.isIn && !field.showWhen.isIn.includes(condVal)) return null;
-                    if (field.showWhen.notIn && field.showWhen.notIn.includes(condVal)) return null;
-                  }
-
-                  const value = config[field.key];
+                {visibleSelectedNodeFields.map((field) => {
+                  const value = selectedNodeConfig[field.key];
 
                   if (field.type === "boolean") {
                     return (
@@ -1000,6 +1091,43 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                     </div>
                   );
                 })}
+
+                {selectedNodeKind === "killio.action.add_brick" && (
+                  <div className="rounded-md border border-border bg-background px-2.5 py-2">
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t("canvas.addBrickGuide.title")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("canvas.addBrickGuide.description")}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {visibleSelectedNodeFields.map((field) => (
+                        <span
+                          key={`guide-${field.key}`}
+                          className="rounded bg-accent/20 px-1.5 py-0.5 text-[10px] text-foreground"
+                        >
+                          {t(field.labelKey)}
+                        </span>
+                      ))}
+                    </div>
+                    <p className="mt-3 text-[11px] font-medium text-muted-foreground">
+                      {t("canvas.addBrickGuide.dslTitle")}
+                    </p>
+                    <p className="mt-1 text-[11px] text-muted-foreground">
+                      {t("canvas.addBrickGuide.dslBody")}
+                    </p>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {addBrickDslVariables.map((variable) => (
+                        <span
+                          key={variable}
+                          className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] text-foreground"
+                        >
+                          {variable}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 <div className="border-t border-border pt-3">
                   <div className="mb-2 flex items-center justify-between gap-2">

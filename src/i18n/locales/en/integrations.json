@@ -192,6 +192,12 @@
     "refreshPreview": "View JSON",
     "refreshingPreview": "Loading...",
     "payloadPreview": "Payload preview",
+    "addBrickGuide": {
+      "title": "Add Brick Guide",
+      "description": "Fields below change dynamically based on target and brick type.",
+      "dslTitle": "DSL and Variables",
+      "dslBody": "Template fields support placeholders like {todoText} and {filePath}. JSON template fields also support placeholders before parsing."
+    },
     "githubPayloadHint": "Preview of the item this trigger sends to the next node.",
     "lastRunOutput": "Latest run output",
     "noOutputForNode": "This node has no persisted output in the latest run.",
@@ -313,9 +319,29 @@
       "listId": "List",
       "targetListId": "Target list",
       "titleTemplate": "Title template",
+      "targetType": "Target type",
+      "cardIdPath": "Card ID path",
+      "documentIdPath": "Document ID path",
       "brickType": "Brick type",
+      "mediaType": "Media type",
       "displayStyle": "Display style",
       "contentTemplate": "Content template",
+      "urlTemplate": "URL template",
+      "captionTemplate": "Caption template",
+      "mimeTypeTemplate": "MIME type template",
+      "sizeBytesTemplate": "Size bytes template",
+      "checklistItemsTemplate": "Checklist items template",
+      "tableRowsTemplate": "Table rows template",
+      "graphType": "Graph type",
+      "graphDataTemplate": "Graph data template",
+      "aiStatus": "AI status",
+      "promptTemplate": "Prompt template",
+      "responseTemplate": "Response template",
+      "modelTemplate": "Model template",
+      "confidenceTemplate": "Confidence template",
+      "accordionExpandedTemplate": "Accordion expanded template",
+      "tabsTemplate": "Tabs template",
+      "columnsTemplate": "Columns template",
       "position": "Position",
       "parentBlockId": "Parent block ID",
       "folderId": "Folder",
@@ -385,6 +411,22 @@
       "targetListId": "Target list id",
       "folderId": "Folder id",
       "parentBlockId": "Optional parent block id",
+      "cardIdPath": "__cardId",
+      "documentIdPath": "documentId",
+      "urlTemplate": "https://cdn.example.com/file.png",
+      "captionTemplate": "Captured from {filePath}",
+      "mimeTypeTemplate": "image/png",
+      "sizeBytesTemplate": "2048",
+      "checklistItemsTemplate": "[{\"label\":\"Review\",\"checked\":false}]",
+      "tableRowsTemplate": "[[\"Name\",\"Value\"],[\"File\",\"{filePath}\"]]",
+      "graphDataTemplate": "[{\"label\":\"Open\",\"value\":12}]",
+      "promptTemplate": "Summarize TODO from {filePath}",
+      "responseTemplate": "Generated output",
+      "modelTemplate": "gpt-4o-mini",
+      "confidenceTemplate": "0.92",
+      "accordionExpandedTemplate": "true",
+      "tabsTemplate": "[{\"label\":\"Overview\",\"content\":\"{cardBodyText}\"}]",
+      "columnsTemplate": "2",
       "mentionCandidatesPath": "detectedMentions",
       "mentionSourcePath": "todoText",
       "commitAuthorPath": "githubAuthor.login",
@@ -431,7 +473,41 @@
         "delete": "DELETE"
       },
       "brickType": {
-        "text": "Text"
+        "text": "Text",
+        "image": "Image",
+        "file": "File",
+        "checklist": "Checklist",
+        "code": "Code",
+        "quote": "Quote",
+        "callout": "Callout",
+        "ai": "AI",
+        "table": "Table",
+        "graph": "Graph",
+        "accordion": "Accordion",
+        "tabs": "Tabs",
+        "columns": "Columns"
+      },
+      "targetType": {
+        "card": "Card",
+        "document": "Document"
+      },
+      "mediaType": {
+        "image": "Image",
+        "file": "File",
+        "video": "Video",
+        "audio": "Audio",
+        "bookmark": "Bookmark"
+      },
+      "graphType": {
+        "line": "Line",
+        "bar": "Bar",
+        "pie": "Pie"
+      },
+      "aiStatus": {
+        "idle": "Idle",
+        "running": "Running",
+        "done": "Done",
+        "error": "Error"
       },
       "displayStyle": {
         "paragraph": "Paragraph",
@@ -556,6 +632,19 @@
     },
     "shared": {
       "create": "New table",
+      "newRow": "New row",
+      "editRow": "Edit row",
+      "newRowTitle": "Create manual row",
+      "editRowTitle": "Edit row",
+      "externalKeyLabel": "External key",
+      "rowDataJsonLabel": "Row data (JSON object)",
+      "rowDataJsonHelp": "Use a valid JSON object. Example: {\"status\":\"open\"}",
+      "saveRow": "Save row",
+      "savingRow": "Saving...",
+      "invalidRowJson": "Row data must be a valid JSON object.",
+      "upsertRowError": "Failed to save row",
+      "rowsCount": "Rows: {{count}}",
+      "memoryUsed": "Memory used: {{size}}",
       "createTitle": "Create shared KillioTable",
       "namePlaceholder": "e.g. Leads Pipeline",
       "descriptionPlaceholder": "Optional description for your team",
@@ -569,7 +658,8 @@
       "loadRowsError": "Failed to load rows for this table",
       "createError": "Failed to create shared table",
       "columns": {
-        "externalKey": "External key"
+        "externalKey": "External key",
+        "actions": "Actions"
       }
     }
   },

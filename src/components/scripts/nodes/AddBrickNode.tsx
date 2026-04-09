@@ -6,6 +6,7 @@ import { Handle, Position, NodeProps } from "@xyflow/react";
 import { FileText } from "lucide-react";
 
 interface AddBrickConfig {
+  targetType?: string;
   brickType?: string;
   contentTemplate?: string;
   displayStyle?: string;
@@ -27,6 +28,9 @@ export const AddBrickNode = memo(({ data, selected }: NodeProps) => {
         <span className="text-xs font-semibold text-white">{t("canvas.nodes.addBrick")}</span>
       </div>
       <div className="space-y-1 p-3 text-xs text-muted-foreground">
+        <p className="truncate text-foreground">
+          {t("canvas.fields.targetType")}: {config.targetType || "card"}
+        </p>
         <p className="truncate text-foreground">
           {t("canvas.fields.brickType")}: {config.brickType || "text"}
         </p>

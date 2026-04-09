@@ -192,6 +192,12 @@
     "refreshPreview": "Ver JSON",
     "refreshingPreview": "Cargando...",
     "payloadPreview": "Payload preview",
+    "addBrickGuide": {
+      "title": "Guía de Add Brick",
+      "description": "Los campos cambian dinámicamente según el target y el tipo de brick.",
+      "dslTitle": "DSL y Variables",
+      "dslBody": "Los campos de plantilla soportan placeholders como {todoText} y {filePath}. Los campos JSON también soportan placeholders antes de parsearse."
+    },
     "githubPayloadHint": "Vista previa del item que este trigger le entrega al siguiente nodo.",
     "lastRunOutput": "Salida del ultimo run",
     "noOutputForNode": "Este nodo no tiene salida persistida en el ultimo run.",
@@ -313,9 +319,29 @@
       "listId": "Lista",
       "targetListId": "Lista destino",
       "titleTemplate": "Plantilla de título",
+      "targetType": "Tipo de destino",
+      "cardIdPath": "Ruta de ID de card",
+      "documentIdPath": "Ruta de ID de documento",
       "brickType": "Tipo de brick",
+      "mediaType": "Tipo de media",
       "displayStyle": "Estilo visual",
       "contentTemplate": "Plantilla de contenido",
+      "urlTemplate": "Plantilla de URL",
+      "captionTemplate": "Plantilla de caption",
+      "mimeTypeTemplate": "Plantilla de MIME type",
+      "sizeBytesTemplate": "Plantilla de tamaño en bytes",
+      "checklistItemsTemplate": "Plantilla de items checklist",
+      "tableRowsTemplate": "Plantilla de filas de tabla",
+      "graphType": "Tipo de gráfico",
+      "graphDataTemplate": "Plantilla de datos de gráfico",
+      "aiStatus": "Estado AI",
+      "promptTemplate": "Plantilla de prompt",
+      "responseTemplate": "Plantilla de respuesta",
+      "modelTemplate": "Plantilla de modelo",
+      "confidenceTemplate": "Plantilla de confianza",
+      "accordionExpandedTemplate": "Plantilla expandido de acordeón",
+      "tabsTemplate": "Plantilla de tabs",
+      "columnsTemplate": "Plantilla de columnas",
       "position": "Posición",
       "parentBlockId": "ID de bloque padre",
       "folderId": "Carpeta",
@@ -385,6 +411,22 @@
       "targetListId": "ID de lista destino",
       "folderId": "ID de carpeta",
       "parentBlockId": "ID opcional de bloque padre",
+      "cardIdPath": "__cardId",
+      "documentIdPath": "documentId",
+      "urlTemplate": "https://cdn.example.com/file.png",
+      "captionTemplate": "Capturado desde {filePath}",
+      "mimeTypeTemplate": "image/png",
+      "sizeBytesTemplate": "2048",
+      "checklistItemsTemplate": "[{\"label\":\"Revisar\",\"checked\":false}]",
+      "tableRowsTemplate": "[[\"Nombre\",\"Valor\"],[\"Archivo\",\"{filePath}\"]]",
+      "graphDataTemplate": "[{\"label\":\"Abiertos\",\"value\":12}]",
+      "promptTemplate": "Resume TODO de {filePath}",
+      "responseTemplate": "Salida generada",
+      "modelTemplate": "gpt-4o-mini",
+      "confidenceTemplate": "0.92",
+      "accordionExpandedTemplate": "true",
+      "tabsTemplate": "[{\"label\":\"Resumen\",\"content\":\"{cardBodyText}\"}]",
+      "columnsTemplate": "2",
       "mentionCandidatesPath": "detectedMentions",
       "mentionSourcePath": "todoText",
       "commitAuthorPath": "githubAuthor.login",
@@ -431,7 +473,41 @@
         "delete": "DELETE"
       },
       "brickType": {
-        "text": "Texto"
+        "text": "Texto",
+        "image": "Imagen",
+        "file": "Archivo",
+        "checklist": "Checklist",
+        "code": "Código",
+        "quote": "Cita",
+        "callout": "Callout",
+        "ai": "AI",
+        "table": "Tabla",
+        "graph": "Gráfico",
+        "accordion": "Acordeón",
+        "tabs": "Pestañas",
+        "columns": "Columnas"
+      },
+      "targetType": {
+        "card": "Card",
+        "document": "Documento"
+      },
+      "mediaType": {
+        "image": "Imagen",
+        "file": "Archivo",
+        "video": "Video",
+        "audio": "Audio",
+        "bookmark": "Bookmark"
+      },
+      "graphType": {
+        "line": "Línea",
+        "bar": "Barras",
+        "pie": "Pie"
+      },
+      "aiStatus": {
+        "idle": "Idle",
+        "running": "Running",
+        "done": "Done",
+        "error": "Error"
       },
       "displayStyle": {
         "paragraph": "Párrafo",
@@ -556,6 +632,19 @@
     },
     "shared": {
       "create": "Nueva tabla",
+      "newRow": "Nueva fila",
+      "editRow": "Editar fila",
+      "newRowTitle": "Crear fila manual",
+      "editRowTitle": "Editar fila",
+      "externalKeyLabel": "Clave externa",
+      "rowDataJsonLabel": "Datos de la fila (objeto JSON)",
+      "rowDataJsonHelp": "Usa un objeto JSON válido. Ejemplo: {\"status\":\"open\"}",
+      "saveRow": "Guardar fila",
+      "savingRow": "Guardando...",
+      "invalidRowJson": "Los datos de la fila deben ser un objeto JSON válido.",
+      "upsertRowError": "No se pudo guardar la fila",
+      "rowsCount": "Filas: {{count}}",
+      "memoryUsed": "Memoria usada: {{size}}",
       "createTitle": "Crear KillioTable compartida",
       "namePlaceholder": "Ej: Pipeline de leads",
       "descriptionPlaceholder": "Descripción opcional para tu equipo",
@@ -569,7 +658,8 @@
       "loadRowsError": "No se pudieron cargar las filas de esta tabla",
       "createError": "No se pudo crear la tabla compartida",
       "columns": {
-        "externalKey": "Clave externa"
+        "externalKey": "Clave externa",
+        "actions": "Acciones"
       }
     }
   },
