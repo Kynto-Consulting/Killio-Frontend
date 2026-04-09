@@ -255,7 +255,7 @@
       "dslTitle": "DSL and Variables",
       "dslBody": "Template fields support placeholders like {todoText} and {filePath}. JSON template fields also support placeholders before parsing."
     },
-    "githubPayloadHint": "Preview of the item this trigger sends to the next node.",
+    "triggerPayloadHint": "Preview of the item this trigger sends to the next node.",
     "lastRunOutput": "Latest run output",
     "noOutputForNode": "This node has no persisted output in the latest run.",
     "noPreviewLoaded": "No latest-run preview has been loaded yet.",

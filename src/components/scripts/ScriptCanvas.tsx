@@ -829,51 +829,166 @@ function fromRfGraph(nodes: Node[], edges: Edge[], scriptId: string): ScriptGrap
 }
 
 function buildNodePayloadPreview(node: Node | null): Record<string, unknown> | null {
-  if (!node || node.type !== "github.trigger.commit") {
+  if (!node || !node.type || !node.type.includes("trigger")) {
     return null;
   }
 
   const config = (node.data?.config as Record<string, any>) ?? {};
-  const repoFullName = typeof config.repoFullName === "string" && config.repoFullName.trim().length > 0
-    ? config.repoFullName.trim()
-    : "owner/repo";
-  const branch = typeof config.branch === "string" && config.branch.trim().length > 0
-    ? config.branch.trim()
-    : "main";
 
-  return {
-    externalKey: "8f3d2a4c6b9e1f0a7c5d4e2b1a098765",
-    data: {
-      repositoryFullName: repoFullName,
-      repoFullName,
-      commitSha: "abc123def4567890",
-      commitMessage: "feat: update automation flow",
-      authorName: "Jane Doe",
-      authorEmail: "jane@example.com",
-      authorUsername: "janedoe",
-      branch,
-      installationId: 123456,
-      filesCount: 2,
-      files: [
-        {
-          filePath: "src/example.ts",
-          fileContent: "// TODO: improve this function",
-          fileDiff: "@@ -10,0 +11,1 @@\n+// TODO: improve this function",
-          fileStatus: "modified",
-          commitSha: "abc123def4567890",
-          removed: false,
+  if (node.type === "core.trigger.webhook") {
+    const webhookType = config._webhookType as string | undefined;
+
+    if (webhookType === "whatsapp") {
+      return {
+        externalKey: "msg-123456",
+        data: {
+          whatsappEvent: "message",
+          from: "1234567890",
+          body: "Hello from WhatsApp",
+          timestamp: new Date().toISOString(),
         },
-        {
-          filePath: "src/legacy.ts",
-          fileContent: null,
-          fileDiff: "@@ -1,12 +0,0 @@\n- old file removed",
-          fileStatus: "removed",
-          commitSha: "abc123def4567890",
-          removed: true,
+      };
+    }
+
+    if (webhookType === "slack") {
+      return {
+        externalKey: "slk-123",
+        data: {
+          type: "event_callback",
+          event: {
+            type: "message",
+            text: "Hello from Slack",
+            user: "U123456",
+          },
         },
-      ],
-    },
-  };
+      };
+    }
+
+    if (webhookType?.includes("killio.card")) {
+      return {
+        externalKey: "card-uuid",
+        data: {
+          event: "card.updated",
+          cardId: "card-uuid",
+          boardId: "board-uuid",
+          title: "New Task Title",
+          description: "Task description",
+          status: "inProgress",
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (webhookType?.includes("killio.list")) {
+      return {
+        externalKey: "list-uuid",
+        data: {
+          event: "list.updated",
+          listId: "list-uuid",
+          title: "List Name",
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (webhookType?.includes("killio.document")) {
+      return {
+        externalKey: "doc-uuid",
+        data: {
+          event: "document.updated",
+          documentId: "doc-uuid",
+          title: "Document Name",
+          content: "Body of the document",
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    if (webhookType?.includes("killio.board")) {
+      return {
+        externalKey: "board-uuid",
+        data: {
+          event: "board.updated",
+          boardId: "board-uuid",
+          title: "Board Name",
+          updatedAt: new Date().toISOString(),
+        },
+      };
+    }
+
+    return {
+      externalKey: "webhook-req-id",
+      data: {
+        body: {
+          someField: "someValue",
+          nested: {
+            id: 123,
+          },
+        },
+        headers: {
+          "user-agent": "CustomApp/1.0",
+        },
+        query: {
+          token: "abc",
+        },
+      },
+    };
+  }
+
+  if (node.type === "core.trigger.manual") {
+    return {
+      externalKey: "manual-run-id",
+      data: {
+        triggeredBy: "user@example.com",
+        timestamp: new Date().toISOString(),
+      },
+    };
+  }
+
+  if (node.type === "github.trigger.commit") {
+    const repoFullName = typeof config.repoFullName === "string" && config.repoFullName.trim().length > 0
+      ? config.repoFullName.trim()
+      : "owner/repo";
+    const branch = typeof config.branch === "string" && config.branch.trim().length > 0
+      ? config.branch.trim()
+      : "main";
+
+    return {
+      externalKey: "8f3d2a4c6b9e1f0a7c5d4e2b1a098765",
+      data: {
+        repositoryFullName: repoFullName,
+        repoFullName,
+        commitSha: "abc123def4567890",
+        commitMessage: "feat: update automation flow",
+        authorName: "Jane Doe",
+        authorEmail: "jane@example.com",
+        authorUsername: "janedoe",
+        branch,
+        installationId: 123456,
+        filesCount: 2,
+        files: [
+          {
+            filePath: "src/example.ts",
+            fileContent: "// TODO: improve this function",
+            fileDiff: "@@ -10,0 +11,1 @@\n+// TODO: improve this function",
+            fileStatus: "modified",
+            commitSha: "abc123def4567890",
+            removed: false,
+          },
+          {
+            filePath: "src/legacy.ts",
+            fileContent: null,
+            fileDiff: "@@ -1,12 +0,0 @@\n- old file removed",
+            fileStatus: "removed",
+            commitSha: "abc123def4567890",
+            removed: true,
+          },
+        ],
+      },
+    };
+  }
+
+  return null;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1998,7 +2113,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                         {t("canvas.payloadPreview")}
                       </p>
                       <p className="mb-2 text-[11px] text-muted-foreground">
-                        {t("canvas.githubPayloadHint")}
+                        {t("canvas.triggerPayloadHint")}
                       </p>
                       <pre className="max-h-48 overflow-auto rounded-md border border-border bg-background p-2 font-mono text-[10px] text-foreground">
                         {JSON.stringify(selectedNodePayloadPreview, null, 2)}

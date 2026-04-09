@@ -255,7 +255,7 @@
       "dslTitle": "DSL y Variables",
       "dslBody": "Los campos de plantilla soportan placeholders como {todoText} y {filePath}. Los campos JSON también soportan placeholders antes de parsearse."
     },
-    "githubPayloadHint": "Vista previa del item que este trigger le entrega al siguiente nodo.",
+    "triggerPayloadHint": "Vista previa del item que este trigger le entrega al siguiente nodo.",
     "lastRunOutput": "Salida del ultimo run",
     "noOutputForNode": "Este nodo no tiene salida persistida en el ultimo run.",
     "noPreviewLoaded": "Todavia no cargaste un preview del ultimo run.",
