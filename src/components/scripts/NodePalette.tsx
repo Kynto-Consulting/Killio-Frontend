@@ -5,7 +5,7 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces,
+  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2,
 } from "lucide-react";
 
 interface PaletteItem {
@@ -184,6 +184,13 @@ const PALETTE_ITEMS: PaletteItem[] = [
     category: "actions",
   },
   {
+    kind: "killio.action.add_brick",
+    labelKey: "addBrick",
+    icon: FileText,
+    color: "bg-fuchsia-500 text-white",
+    category: "actions",
+  },
+  {
     kind: "killio.action.update_card",
     labelKey: "updateCard",
     icon: Pencil,
@@ -202,6 +209,13 @@ const PALETTE_ITEMS: PaletteItem[] = [
     labelKey: "assignCard",
     icon: UserPlus,
     color: "bg-teal-500 text-white",
+    category: "actions",
+  },
+  {
+    kind: "killio.action.document.create",
+    labelKey: "documentCreate",
+    icon: FilePlus2,
+    color: "bg-emerald-600 text-white",
     category: "actions",
   },
   {

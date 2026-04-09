@@ -42,6 +42,8 @@ import { CreateCardNode } from "./nodes/CreateCardNode";
 import { UpdateCardNode } from "./nodes/UpdateCardNode";
 import { MoveCardNode } from "./nodes/MoveCardNode";
 import { AssignCardNode } from "./nodes/AssignCardNode";
+import { AddBrickNode } from "./nodes/AddBrickNode";
+import { DocumentCreateNode } from "./nodes/DocumentCreateNode";
 import { TableReadNode } from "./nodes/TableReadNode";
 import { TableWriteNode } from "./nodes/TableWriteNode";
 import { SetFieldNode } from "./nodes/SetFieldNode";
@@ -84,6 +86,8 @@ const nodeTypes: NodeTypes = {
   "killio.action.update_card": UpdateCardNode,
   "killio.action.move_card": MoveCardNode,
   "killio.action.assign_card": AssignCardNode,
+  "killio.action.add_brick": AddBrickNode,
+  "killio.action.document.create": DocumentCreateNode,
   "killio.table.read": TableReadNode,
   "killio.table.write": TableWriteNode,
   "core.transform.set_field": SetFieldNode,
@@ -94,13 +98,19 @@ const nodeTypes: NodeTypes = {
   "core.action.js_code": JsCodeNode,
 };
 
-type ConfigFieldType = "text" | "textarea" | "code" | "number" | "boolean";
+type ConfigFieldType = "text" | "textarea" | "code" | "number" | "boolean" | "select";
+
+interface ConfigFieldOption {
+  value: string;
+  labelKey: string;
+}
 
 interface ConfigField {
   key: string;
   type: ConfigFieldType;
   labelKey: string;
   placeholderKey?: string;
+  options?: ConfigFieldOption[];
   /** Show this field only when another field's value matches */
   showWhen?: { key: string; isIn?: string[]; notIn?: string[] };
 }
@@ -118,7 +128,23 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   ],
   "core.condition.field_compare": [
     { key: "field", type: "text", labelKey: "canvas.fields.field", placeholderKey: "canvas.placeholders.field" },
-    { key: "operator", type: "text", labelKey: "nodes.common.operator", placeholderKey: "canvas.placeholders.operator" },
+    {
+      key: "operator",
+      type: "select",
+      labelKey: "nodes.common.operator",
+      options: [
+        { value: "contains", labelKey: "canvas.options.operator.contains" },
+        { value: "equals", labelKey: "canvas.options.operator.equals" },
+        { value: "not_equals", labelKey: "canvas.options.operator.notEquals" },
+        { value: "starts_with", labelKey: "canvas.options.operator.startsWith" },
+        { value: "ends_with", labelKey: "canvas.options.operator.endsWith" },
+        { value: "regex", labelKey: "canvas.options.operator.regex" },
+        { value: "gt", labelKey: "canvas.options.operator.gt" },
+        { value: "gte", labelKey: "canvas.options.operator.gte" },
+        { value: "lt", labelKey: "canvas.options.operator.lt" },
+        { value: "lte", labelKey: "canvas.options.operator.lte" },
+      ],
+    },
     { key: "value", type: "text", labelKey: "nodes.common.value", placeholderKey: "canvas.placeholders.value" },
   ],
   "core.transform.template": [
@@ -143,11 +169,28 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "maxLines", type: "number", labelKey: "canvas.fields.maxLines" },
   ],
   "core.transform.regex": [
-    { key: "sourceMode", type: "text", labelKey: "canvas.fields.sourceMode", placeholderKey: "canvas.placeholders.sourceMode" },
+    {
+      key: "sourceMode",
+      type: "select",
+      labelKey: "canvas.fields.sourceMode",
+      options: [
+        { value: "inline", labelKey: "canvas.options.sourceMode.inline" },
+        { value: "path", labelKey: "canvas.options.sourceMode.path" },
+      ],
+    },
     { key: "sourcePath", type: "text", labelKey: "canvas.fields.sourcePath", placeholderKey: "canvas.placeholders.sourcePath" },
     { key: "pattern", type: "text", labelKey: "canvas.fields.pattern", placeholderKey: "canvas.placeholders.pattern" },
     { key: "flags", type: "text", labelKey: "canvas.fields.flags", placeholderKey: "canvas.placeholders.flags" },
-    { key: "outputMode", type: "text", labelKey: "canvas.fields.outputMode", placeholderKey: "canvas.placeholders.outputMode" },
+    {
+      key: "outputMode",
+      type: "select",
+      labelKey: "canvas.fields.outputMode",
+      options: [
+        { value: "fanout", labelKey: "canvas.options.outputMode.fanout" },
+        { value: "first", labelKey: "canvas.options.outputMode.first" },
+        { value: "aggregate", labelKey: "canvas.options.outputMode.aggregate" },
+      ],
+    },
     // fanout / first fields (hidden in aggregate mode)
     { key: "scanByLine", type: "boolean", labelKey: "canvas.fields.scanByLine", showWhen: { key: "outputMode", notIn: ["aggregate"] } },
     { key: "includeNoMatches", type: "boolean", labelKey: "canvas.fields.includeNoMatches", showWhen: { key: "outputMode", notIn: ["aggregate"] } },
@@ -175,7 +218,17 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   "core.transform.hash_compose": [
     { key: "sourcePaths", type: "textarea", labelKey: "canvas.fields.sourcePaths", placeholderKey: "canvas.placeholders.sourcePaths" },
     { key: "separator", type: "text", labelKey: "canvas.fields.separator", placeholderKey: "canvas.placeholders.separator" },
-    { key: "algorithm", type: "text", labelKey: "canvas.fields.algorithm", placeholderKey: "canvas.placeholders.algorithm" },
+    {
+      key: "algorithm",
+      type: "select",
+      labelKey: "canvas.fields.algorithm",
+      options: [
+        { value: "sha1", labelKey: "canvas.options.algorithm.sha1" },
+        { value: "sha256", labelKey: "canvas.options.algorithm.sha256" },
+        { value: "sha512", labelKey: "canvas.options.algorithm.sha512" },
+        { value: "md5", labelKey: "canvas.options.algorithm.md5" },
+      ],
+    },
     { key: "truncate", type: "number", labelKey: "canvas.fields.truncate" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
     { key: "setExternalKey", type: "boolean", labelKey: "canvas.fields.setExternalKey" },
@@ -208,14 +261,36 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "sourcePath", type: "text", labelKey: "canvas.fields.sourcePath", placeholderKey: "canvas.placeholders.sourcePath" },
     { key: "fields", type: "textarea", labelKey: "canvas.fields.fields", placeholderKey: "canvas.placeholders.fields" },
     { key: "separator", type: "text", labelKey: "canvas.fields.separator", placeholderKey: "canvas.placeholders.separator" },
-    { key: "algorithm", type: "text", labelKey: "canvas.fields.algorithm", placeholderKey: "canvas.placeholders.algorithm" },
+    {
+      key: "algorithm",
+      type: "select",
+      labelKey: "canvas.fields.algorithm",
+      options: [
+        { value: "sha1", labelKey: "canvas.options.algorithm.sha1" },
+        { value: "sha256", labelKey: "canvas.options.algorithm.sha256" },
+        { value: "sha512", labelKey: "canvas.options.algorithm.sha512" },
+        { value: "md5", labelKey: "canvas.options.algorithm.md5" },
+      ],
+    },
     { key: "truncate", type: "number", labelKey: "canvas.fields.truncate" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
     { key: "setExternalKey", type: "boolean", labelKey: "canvas.fields.setExternalKey" },
   ],
   "core.logic.if_else": [
     { key: "field", type: "text", labelKey: "canvas.fields.field", placeholderKey: "canvas.placeholders.field" },
-    { key: "operator", type: "text", labelKey: "nodes.common.operator", placeholderKey: "canvas.placeholders.operator" },
+    {
+      key: "operator",
+      type: "select",
+      labelKey: "nodes.common.operator",
+      options: [
+        { value: "contains", labelKey: "canvas.options.operator.contains" },
+        { value: "equals", labelKey: "canvas.options.operator.equals" },
+        { value: "not_equals", labelKey: "canvas.options.operator.notEquals" },
+        { value: "starts_with", labelKey: "canvas.options.operator.startsWith" },
+        { value: "ends_with", labelKey: "canvas.options.operator.endsWith" },
+        { value: "regex", labelKey: "canvas.options.operator.regex" },
+      ],
+    },
     { key: "value", type: "text", labelKey: "nodes.common.value", placeholderKey: "canvas.placeholders.value" },
   ],
   "core.action.delay": [
@@ -225,8 +300,35 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "boardId", type: "text", labelKey: "canvas.fields.boardId", placeholderKey: "canvas.placeholders.boardId" },
     { key: "listId", type: "text", labelKey: "canvas.fields.listId", placeholderKey: "canvas.placeholders.listId" },
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
-    { key: "descriptionTemplate", type: "textarea", labelKey: "canvas.fields.descriptionTemplate", placeholderKey: "canvas.placeholders.descriptionTemplate" },
-    { key: "createTextBrickOnCreate", type: "boolean", labelKey: "canvas.fields.createTextBrickOnCreate" },
+  ],
+  "killio.action.add_brick": [
+    {
+      key: "brickType",
+      type: "select",
+      labelKey: "canvas.fields.brickType",
+      options: [
+        { value: "text", labelKey: "canvas.options.brickType.text" },
+      ],
+    },
+    {
+      key: "displayStyle",
+      type: "select",
+      labelKey: "canvas.fields.displayStyle",
+      options: [
+        { value: "paragraph", labelKey: "canvas.options.displayStyle.paragraph" },
+        { value: "checklist", labelKey: "canvas.options.displayStyle.checklist" },
+        { value: "quote", labelKey: "canvas.options.displayStyle.quote" },
+        { value: "code", labelKey: "canvas.options.displayStyle.code" },
+        { value: "callout", labelKey: "canvas.options.displayStyle.callout" },
+      ],
+    },
+    { key: "contentTemplate", type: "textarea", labelKey: "canvas.fields.contentTemplate", placeholderKey: "canvas.placeholders.contentTemplate" },
+    { key: "position", type: "number", labelKey: "canvas.fields.position" },
+    { key: "parentBlockId", type: "text", labelKey: "canvas.fields.parentBlockId", placeholderKey: "canvas.placeholders.parentBlockId" },
+  ],
+  "killio.action.document.create": [
+    { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
+    { key: "folderId", type: "text", labelKey: "canvas.fields.folderId", placeholderKey: "canvas.placeholders.folderId" },
   ],
   "killio.action.update_card": [
     { key: "titleTemplate", type: "text", labelKey: "canvas.fields.titleTemplate", placeholderKey: "canvas.placeholders.titleTemplate" },
@@ -264,7 +366,18 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
   ],
   "core.action.http_request": [
     { key: "url", type: "text", labelKey: "canvas.fields.url", placeholderKey: "canvas.placeholders.url" },
-    { key: "method", type: "text", labelKey: "canvas.fields.method", placeholderKey: "canvas.placeholders.method" },
+    {
+      key: "method",
+      type: "select",
+      labelKey: "canvas.fields.method",
+      options: [
+        { value: "GET", labelKey: "canvas.options.httpMethod.get" },
+        { value: "POST", labelKey: "canvas.options.httpMethod.post" },
+        { value: "PUT", labelKey: "canvas.options.httpMethod.put" },
+        { value: "PATCH", labelKey: "canvas.options.httpMethod.patch" },
+        { value: "DELETE", labelKey: "canvas.options.httpMethod.delete" },
+      ],
+    },
     { key: "bodyTemplate", type: "textarea", labelKey: "canvas.fields.bodyTemplate", placeholderKey: "canvas.placeholders.bodyTemplate" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
     { key: "timeoutMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
@@ -829,6 +942,27 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
                           placeholder={field.placeholderKey ? t(field.placeholderKey) : undefined}
                           className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
                         />
+                      </div>
+                    );
+                  }
+
+                  if (field.type === "select") {
+                    const selectedValue = typeof value === "string" ? value : "";
+                    return (
+                      <div key={field.key}>
+                        <label className="mb-1 block text-[11px] font-medium text-muted-foreground">
+                          {t(field.labelKey)}
+                        </label>
+                        <select
+                          value={selectedValue}
+                          onChange={(event) => handleConfigFieldChange(field, event.target.value)}
+                          className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="">{t("canvas.selectPlaceholder")}</option>
+                          {(field.options ?? []).map((option) => (
+                            <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
+                          ))}
+                        </select>
                       </div>
                     );
                   }

@@ -180,6 +180,7 @@
     "nodeLabel": "Etiqueta del nodo",
     "nodeLabelPlaceholder": "Etiqueta personalizada",
     "rawConfig": "JSON de configuración",
+    "selectPlaceholder": "Selecciona una opción",
     "invalidJson": "Formato JSON inválido.",
     "applyJson": "Aplicar JSON",
     "runManual": "Run manual",
@@ -229,10 +230,12 @@
       "delay": "Delay",
       "switch": "Switch",
       "createCard": "Crear Card",
+      "addBrick": "Agregar Brick",
       "updateCard": "Actualizar Card",
       "moveCard": "Mover Card",
       "archiveCard": "Archivar Card",
       "assignCard": "Asignar Card",
+      "documentCreate": "Crear Documento",
       "tableRead": "Leer tabla",
       "tableWrite": "Escribir tabla",
       "dedup": "Dedup",
@@ -310,8 +313,12 @@
       "listId": "Lista",
       "targetListId": "Lista destino",
       "titleTemplate": "Plantilla de título",
-      "descriptionTemplate": "Plantilla de descripción",
-      "createTextBrickOnCreate": "Crear bloque de texto inicial",
+      "brickType": "Tipo de brick",
+      "displayStyle": "Estilo visual",
+      "contentTemplate": "Plantilla de contenido",
+      "position": "Posición",
+      "parentBlockId": "ID de bloque padre",
+      "folderId": "Carpeta",
       "summaryTemplate": "Plantilla de descripción",
       "archiveOnMove": "Archivar en vez de mover",
       "mentionCandidatesPath": "Ruta de candidatos de menciones",
@@ -373,8 +380,11 @@
       "listId": "ID de lista",
       "titleTemplate": "{todoText}",
       "descriptionTemplate": "{cardBodyText}",
+      "contentTemplate": "{cardBodyText}",
       "summaryTemplate": "[{repoFullName}] {filePath}",
       "targetListId": "ID de lista destino",
+      "folderId": "ID de carpeta",
+      "parentBlockId": "ID opcional de bloque padre",
       "mentionCandidatesPath": "detectedMentions",
       "mentionSourcePath": "todoText",
       "commitAuthorPath": "githubAuthor.login",
@@ -384,6 +394,52 @@
       "keyPath": "todoHash",
       "outputPath": "tableRow",
       "valuesPath": "item.data"
+    },
+    "options": {
+      "sourceMode": {
+        "inline": "Texto directo",
+        "path": "Ruta de datos"
+      },
+      "outputMode": {
+        "fanout": "Fan-out",
+        "first": "Primera coincidencia",
+        "aggregate": "Coincidencias agregadas"
+      },
+      "operator": {
+        "contains": "Contiene",
+        "equals": "Igual",
+        "notEquals": "Distinto",
+        "startsWith": "Empieza con",
+        "endsWith": "Termina con",
+        "regex": "Regex",
+        "gt": "Mayor que",
+        "gte": "Mayor o igual",
+        "lt": "Menor que",
+        "lte": "Menor o igual"
+      },
+      "algorithm": {
+        "sha1": "SHA-1",
+        "sha256": "SHA-256",
+        "sha512": "SHA-512",
+        "md5": "MD5"
+      },
+      "httpMethod": {
+        "get": "GET",
+        "post": "POST",
+        "put": "PUT",
+        "patch": "PATCH",
+        "delete": "DELETE"
+      },
+      "brickType": {
+        "text": "Texto"
+      },
+      "displayStyle": {
+        "paragraph": "Párrafo",
+        "checklist": "Checklist",
+        "quote": "Cita",
+        "code": "Código",
+        "callout": "Callout"
+      }
     }
   },
   "nodes": {
@@ -426,6 +482,12 @@
     },
     "assignCard": {
       "detectMentions": "Detecta @menciones"
+    },
+    "addBrick": {
+      "noContentTemplate": "Sin plantilla de contenido"
+    },
+    "documentCreate": {
+      "noTitleTemplate": "Sin plantilla de título"
     }
   },
   "guide": {

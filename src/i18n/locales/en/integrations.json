@@ -180,6 +180,7 @@
     "nodeLabel": "Node label",
     "nodeLabelPlaceholder": "Custom node label",
     "rawConfig": "Raw config JSON",
+    "selectPlaceholder": "Select an option",
     "invalidJson": "Invalid JSON format.",
     "applyJson": "Apply JSON",
     "runManual": "Run manual",
@@ -229,10 +230,12 @@
       "delay": "Delay",
       "switch": "Switch",
       "createCard": "Create Card",
+      "addBrick": "Add Brick",
       "updateCard": "Update Card",
       "moveCard": "Move Card",
       "archiveCard": "Archive Card",
       "assignCard": "Assign Card",
+      "documentCreate": "Create Document",
       "tableRead": "Table Read",
       "tableWrite": "Table Write",
       "dedup": "Dedup",
@@ -310,8 +313,12 @@
       "listId": "List",
       "targetListId": "Target list",
       "titleTemplate": "Title template",
-      "descriptionTemplate": "Description template",
-      "createTextBrickOnCreate": "Create initial text brick",
+      "brickType": "Brick type",
+      "displayStyle": "Display style",
+      "contentTemplate": "Content template",
+      "position": "Position",
+      "parentBlockId": "Parent block ID",
+      "folderId": "Folder",
       "summaryTemplate": "Summary template",
       "archiveOnMove": "Archive instead of move",
       "mentionCandidatesPath": "Mention candidates path",
@@ -373,8 +380,11 @@
       "listId": "List id",
       "titleTemplate": "{todoText}",
       "descriptionTemplate": "{cardBodyText}",
+      "contentTemplate": "{cardBodyText}",
       "summaryTemplate": "[{repoFullName}] {filePath}",
       "targetListId": "Target list id",
+      "folderId": "Folder id",
+      "parentBlockId": "Optional parent block id",
       "mentionCandidatesPath": "detectedMentions",
       "mentionSourcePath": "todoText",
       "commitAuthorPath": "githubAuthor.login",
@@ -384,6 +394,52 @@
       "keyPath": "todoHash",
       "outputPath": "tableRow",
       "valuesPath": "item.data"
+    },
+    "options": {
+      "sourceMode": {
+        "inline": "Inline text",
+        "path": "Data path"
+      },
+      "outputMode": {
+        "fanout": "Fan-out",
+        "first": "First match",
+        "aggregate": "Aggregate matches"
+      },
+      "operator": {
+        "contains": "Contains",
+        "equals": "Equals",
+        "notEquals": "Not equals",
+        "startsWith": "Starts with",
+        "endsWith": "Ends with",
+        "regex": "Regex",
+        "gt": "Greater than",
+        "gte": "Greater or equal",
+        "lt": "Less than",
+        "lte": "Less or equal"
+      },
+      "algorithm": {
+        "sha1": "SHA-1",
+        "sha256": "SHA-256",
+        "sha512": "SHA-512",
+        "md5": "MD5"
+      },
+      "httpMethod": {
+        "get": "GET",
+        "post": "POST",
+        "put": "PUT",
+        "patch": "PATCH",
+        "delete": "DELETE"
+      },
+      "brickType": {
+        "text": "Text"
+      },
+      "displayStyle": {
+        "paragraph": "Paragraph",
+        "checklist": "Checklist",
+        "quote": "Quote",
+        "code": "Code",
+        "callout": "Callout"
+      }
     }
   },
   "nodes": {
@@ -426,6 +482,12 @@
     },
     "assignCard": {
       "detectMentions": "Detects @mentions"
+    },
+    "addBrick": {
+      "noContentTemplate": "No content template"
+    },
+    "documentCreate": {
+      "noTitleTemplate": "No title template"
     }
   },
   "guide": {
