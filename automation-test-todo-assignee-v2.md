@@ -6,6 +6,7 @@ Test id: 2026-04-08-v2-email-mention
 
 - TODO: [AUTOTEST-V2] Create card from this TODO and assign @arubik4u@gmail.com
 - TODO: [AUTOTEST-V2-MOD] Verify fileDiff and fileContent in iterator after backend fix @arubik4u@gmail.com
+- TODO: [AUTOTEST-V2-MOD-2] Validate public API fallback for diff/content @arubik4u@gmail.com
 
 ## Notes
 - Repo: Kynto-Consulting/Killio-Frontend
