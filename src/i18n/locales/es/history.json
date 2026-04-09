@@ -5,6 +5,7 @@
   "noRecent": "No hay actividad reciente en este equipo.",
   "you": "Tú",
   "teamMember": "Miembro del equipo",
+  "system": "Sistema",
   "badges": {
     "tagAdded": "Etiqueta agregada",
     "tagRemoved": "Etiqueta eliminada",
@@ -19,7 +20,14 @@
     "addedTag": "Agregó etiqueta",
     "removedTag": "Eliminó etiqueta",
     "commented": "Comentó",
-    "updatedCard": "Actualizó tarjeta"
+    "updatedCard": "Actualizó tarjeta",
+    "createdCard": "Creó tarjeta",
+    "createdDocument": "Creó documento",
+    "updatedDocument": "Actualizó documento",
+    "createdList": "Creó lista",
+    "updatedList": "Actualizó lista",
+    "createdBoard": "Creó tablero",
+    "updatedBoard": "Actualizó tablero"
   },
   "inBoard": "en {{board}}",
   "cardLabel": "tarjeta",

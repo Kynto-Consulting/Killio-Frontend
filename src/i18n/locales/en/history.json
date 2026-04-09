@@ -5,6 +5,7 @@
   "noRecent": "No recent activity in this team.",
   "you": "You",
   "teamMember": "Team Member",
+  "system": "System",
   "badges": {
     "tagAdded": "Tag Added",
     "tagRemoved": "Tag Removed",
@@ -19,7 +20,14 @@
     "addedTag": "Added tag",
     "removedTag": "Removed tag",
     "commented": "Commented",
-    "updatedCard": "Updated card"
+    "updatedCard": "Updated card",
+    "createdCard": "Created card",
+    "createdDocument": "Created document",
+    "updatedDocument": "Updated document",
+    "createdList": "Created list",
+    "updatedList": "Updated list",
+    "createdBoard": "Created board",
+    "updatedBoard": "Updated board"
   },
   "inBoard": "in {{board}}",
   "cardLabel": "card",

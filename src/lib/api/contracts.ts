@@ -6,7 +6,7 @@ export type BackendHealth = {
 
 export type ActivityLogEntry = {
   id: string;
-  scope: 'team' | 'board' | 'list' | 'card';
+  scope: 'team' | 'board' | 'list' | 'card' | 'document';
   scopeId: string;
   actorId: string;
   entityType: string;

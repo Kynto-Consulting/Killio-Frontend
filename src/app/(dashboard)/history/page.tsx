@@ -123,6 +123,13 @@ function prettifyAction(action: string, t: TFunc): string {
   if (lower === "card.tag_removed") return t("actions.removedTag");
   if (lower === "card.commented") return t("actions.commented");
   if (lower === "card.updated") return t("actions.updatedCard");
+  if (lower === "card.created") return t("actions.createdCard");
+  if (lower === "document.created") return t("actions.createdDocument");
+  if (lower === "document.updated") return t("actions.updatedDocument");
+  if (lower === "list.created") return t("actions.createdList");
+  if (lower === "list.updated") return t("actions.updatedList");
+  if (lower === "board.created") return t("actions.createdBoard");
+  if (lower === "board.updated") return t("actions.updatedBoard");
   return action.replace(/\./g, " ").replace(/_/g, " ");
 }
 
@@ -456,6 +463,7 @@ export default function HistoryPage() {
 
               const Icon = head.icon;
               const isMe = head.actorId === user?.id;
+              const isSystem = head.actorId === "i18n.system";
               const summary = summarizeGroup(group, t);
 
               return (
@@ -469,7 +477,9 @@ export default function HistoryPage() {
                   <div className="flex-1 rounded-xl border border-border bg-card/70 backdrop-blur-sm p-4 shadow-sm hover:shadow-md hover:border-accent/40 transition-all">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <p className="text-sm font-medium leading-relaxed flex flex-wrap items-center gap-1.5">
-                        <span className="font-semibold text-foreground">{isMe ? t("you") : t("teamMember")}</span>
+                        <span className="font-semibold text-foreground">
+                          {isMe ? t("you") : isSystem ? t("system") : t("teamMember")}
+                        </span>
                         <span className={`px-2 py-0.5 rounded text-xs border ${head.badgeClass}`}>{head.badge}</span>
                         <span className="font-semibold text-foreground">{renderMessageTokens(summary.message)}</span>
                       </p>

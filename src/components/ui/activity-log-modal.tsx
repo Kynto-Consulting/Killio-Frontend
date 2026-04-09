@@ -58,6 +58,7 @@ export function ActivityLogModal({
               const theme = getActionTheme(a.action);
               const Icon = theme.icon;
               const member = teamMembers.find((m) => m.id === a.actorId || m.userId === a.actorId);
+              const actorLabel = a.actorId === 'i18n.system' ? t('system') : member?.displayName || t('someone');
               const changes = (a.payload as any)?.changes || {};
               const changedFields = Object.keys(changes)
                 .map((k) => fieldLabels[k] || k)
@@ -88,7 +89,7 @@ export function ActivityLogModal({
                     <div className="space-y-2">
                       <p className="text-sm text-foreground/90 leading-relaxed">
                         <span className="font-bold text-foreground">
-                          {member?.displayName || t("someone")}
+                          {actorLabel}
                         </span>
                         <span className="text-muted-foreground/80">
                           {" "}
