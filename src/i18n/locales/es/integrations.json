@@ -31,6 +31,7 @@
       "comingSoon": "Próximamente",
       "manualSetup": "Configuración manual",
       "tutorial": "Tutorial",
+      "viewTutorial": "Ver tutorial",
       "googleTitle": "Google",
       "googleDescription": "La conexión OAuth y sincronización de workspace con servicios de Google llegará pronto.",
       "jiraTitle": "Jira",
@@ -85,7 +86,9 @@
       "deleteConfirm": "¿Eliminar esta credencial de WhatsApp?",
       "loadError": "No se pudieron cargar las credenciales de WhatsApp.",
       "saveError": "No se pudo guardar la credencial de WhatsApp.",
-      "deleteError": "No se pudo eliminar la credencial de WhatsApp."
+      "deleteError": "No se pudo eliminar la credencial de WhatsApp.",
+      "connect": "Conectar WhatsApp",
+      "connectModalTitle": "Conectar credenciales de WhatsApp"
     },
     "slack": {
       "title": "Slack Webhook",
@@ -102,7 +105,16 @@
       "deleteConfirm": "¿Eliminar esta credencial de webhook de Slack?",
       "loadError": "No se pudieron cargar las credenciales de webhook de Slack.",
       "saveError": "No se pudo guardar la credencial de webhook de Slack.",
-      "deleteError": "No se pudo eliminar la credencial de webhook de Slack."
+      "deleteError": "No se pudo eliminar la credencial de webhook de Slack.",
+      "connect": "Conectar Slack Webhook",
+      "connectModalTitle": "Conectar webhook de Slack"
+    },
+    "metaTutorial": {
+      "title": "Tutorial de webhook para Meta",
+      "description": "Usa este flujo mientras los nodos trigger nativos de Meta están pausados.",
+      "step1": "Agrega un nodo Webhook Trigger en tu script y copia la URL del webhook.",
+      "step2": "Configura tu fuente de eventos de Meta para enviar payloads por POST a esa URL.",
+      "step3": "Mapea los campos entrantes y usa un nodo HTTP Request para llamar a Meta Graph API si hace falta."
     }
   },
   "scripts": {

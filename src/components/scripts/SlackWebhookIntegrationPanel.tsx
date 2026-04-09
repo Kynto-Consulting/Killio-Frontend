@@ -8,7 +8,7 @@ import {
   saveSlackWebhookCredential,
   deleteSlackWebhookCredential,
 } from "@/lib/api/integrations";
-import { Send, Loader2, CheckCircle, AlertCircle, Trash2, Plus } from "lucide-react";
+import { Send, Loader2, CheckCircle, AlertCircle, Trash2, Plus, Link2, X } from "lucide-react";
 
 interface SlackWebhookIntegrationPanelProps {
   teamId: string;
@@ -22,6 +22,7 @@ export function SlackWebhookIntegrationPanel({ teamId, accessToken }: SlackWebho
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showConnectModal, setShowConnectModal] = useState(false);
 
   const [name, setName] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
@@ -60,6 +61,7 @@ export function SlackWebhookIntegrationPanel({ teamId, accessToken }: SlackWebho
       setName("");
       setWebhookUrl("");
       setSuccess(true);
+      setShowConnectModal(false);
       setTimeout(() => setSuccess(false), 2500);
     } catch {
       setError(t("integrations.slack.saveError"));
@@ -90,29 +92,17 @@ export function SlackWebhookIntegrationPanel({ teamId, accessToken }: SlackWebho
         </div>
       </div>
 
-      <div className="mt-4 space-y-2">
-        <input
-          type="text"
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          placeholder={t("integrations.slack.fields.name")}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
-        <input
-          type="password"
-          value={webhookUrl}
-          onChange={(event) => setWebhookUrl(event.target.value)}
-          placeholder={t("integrations.slack.fields.webhookUrl")}
-          className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-        />
+      <div className="mt-4">
         <button
           type="button"
-          onClick={handleSave}
-          disabled={saving || !name.trim() || !webhookUrl.trim()}
+          onClick={() => {
+            setError(null);
+            setShowConnectModal(true);
+          }}
           className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-          {t("integrations.slack.save")}
+          <Link2 className="h-4 w-4" />
+          {t("integrations.slack.connect")}
         </button>
       </div>
 
@@ -158,6 +148,50 @@ export function SlackWebhookIntegrationPanel({ teamId, accessToken }: SlackWebho
           <p className="mt-2 text-xs text-muted-foreground">{t("integrations.slack.noCredentials")}</p>
         )}
       </div>
+
+      {showConnectModal && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-xl border border-border bg-card p-4 shadow-xl">
+            <div className="mb-3 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-foreground">{t("integrations.slack.connectModalTitle")}</h3>
+              <button
+                type="button"
+                onClick={() => setShowConnectModal(false)}
+                className="rounded-md p-1.5 text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                aria-label={t("actions.close")}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <input
+                type="text"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder={t("integrations.slack.fields.name")}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <input
+                type="password"
+                value={webhookUrl}
+                onChange={(event) => setWebhookUrl(event.target.value)}
+                placeholder={t("integrations.slack.fields.webhookUrl")}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <button
+                type="button"
+                onClick={handleSave}
+                disabled={saving || !name.trim() || !webhookUrl.trim()}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-3 py-2 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+              >
+                {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                {t("integrations.slack.save")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

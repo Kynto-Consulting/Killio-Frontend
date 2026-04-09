@@ -31,6 +31,7 @@
       "comingSoon": "Coming soon",
       "manualSetup": "Manual setup",
       "tutorial": "Tutorial",
+      "viewTutorial": "View tutorial",
       "googleTitle": "Google",
       "googleDescription": "OAuth and workspace sync with Google services will be available soon.",
       "jiraTitle": "Jira",
@@ -85,7 +86,9 @@
       "deleteConfirm": "Delete this WhatsApp credential?",
       "loadError": "Failed to load WhatsApp credentials.",
       "saveError": "Failed to save WhatsApp credential.",
-      "deleteError": "Failed to delete WhatsApp credential."
+      "deleteError": "Failed to delete WhatsApp credential.",
+      "connect": "Connect WhatsApp",
+      "connectModalTitle": "Connect WhatsApp credentials"
     },
     "slack": {
       "title": "Slack Webhook",
@@ -102,7 +105,16 @@
       "deleteConfirm": "Delete this Slack webhook credential?",
       "loadError": "Failed to load Slack webhook credentials.",
       "saveError": "Failed to save Slack webhook credential.",
-      "deleteError": "Failed to delete Slack webhook credential."
+      "deleteError": "Failed to delete Slack webhook credential.",
+      "connect": "Connect Slack Webhook",
+      "connectModalTitle": "Connect Slack webhook"
+    },
+    "metaTutorial": {
+      "title": "Meta webhook tutorial",
+      "description": "Use this flow while native Meta trigger nodes are paused.",
+      "step1": "Add a Webhook Trigger node in your script and copy the webhook URL.",
+      "step2": "Configure your Meta event source to POST payloads to that webhook URL.",
+      "step3": "Map incoming fields and use an HTTP Request node to call the Meta Graph API if needed."
     }
   },
   "scripts": {

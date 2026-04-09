@@ -93,11 +93,17 @@ function ComingSoonIntegrationCard({
   description,
   icon: Icon,
   badge,
+  actionLabel,
+  onAction,
+  actionDisabled,
 }: {
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string }>;
   badge: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  actionDisabled?: boolean;
 }) {
   return (
     <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
@@ -111,10 +117,22 @@ function ComingSoonIntegrationCard({
         <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{badge}</span>
       </div>
       <p className="mt-3 text-xs text-muted-foreground">{description}</p>
-      <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
-        <Clock3 className="h-3.5 w-3.5" />
-        {badge}
-      </div>
+      {actionLabel ? (
+        <button
+          type="button"
+          onClick={onAction}
+          disabled={actionDisabled || !onAction}
+          className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-accent/10 disabled:cursor-default disabled:opacity-70"
+        >
+          <Clock3 className="h-3.5 w-3.5" />
+          {actionLabel}
+        </button>
+      ) : (
+        <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
+          <Clock3 className="h-3.5 w-3.5" />
+          {badge}
+        </div>
+      )}
     </div>
   );
 }
@@ -177,6 +195,7 @@ export default function IntegrationsPage() {
   const [presetBranchesLoading, setPresetBranchesLoading] = useState(false);
   const [presetTableMode, setPresetTableMode] = useState<PresetTableMode>("existing");
   const [presetContextLoading, setPresetContextLoading] = useState(false);
+  const [showMetaTutorialModal, setShowMetaTutorialModal] = useState(false);
 
   // Create form state
   const [showCreate, setShowCreate] = useState(false);
@@ -848,6 +867,8 @@ export default function IntegrationsPage() {
                 description={t("integrations.catalog.metaDescription")}
                 icon={Globe}
                 badge={t("integrations.catalog.tutorial")}
+                actionLabel={t("integrations.catalog.viewTutorial")}
+                onAction={() => setShowMetaTutorialModal(true)}
               />
 
               <ComingSoonIntegrationCard
@@ -1004,6 +1025,41 @@ export default function IntegrationsPage() {
           </div>
         )}
         </div>
+
+        {showMetaTutorialModal && (
+          <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-lg rounded-xl border border-border bg-card p-5 shadow-xl">
+              <div className="mb-3 flex items-center justify-between">
+                <h3 className="text-base font-semibold text-foreground">{t("integrations.metaTutorial.title")}</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowMetaTutorialModal(false)}
+                  className="rounded-md p-1.5 text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                  aria-label={t("actions.close")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+
+              <p className="text-sm text-muted-foreground">{t("integrations.metaTutorial.description")}</p>
+              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm text-foreground">
+                <li>{t("integrations.metaTutorial.step1")}</li>
+                <li>{t("integrations.metaTutorial.step2")}</li>
+                <li>{t("integrations.metaTutorial.step3")}</li>
+              </ol>
+
+              <div className="mt-5 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowMetaTutorialModal(false)}
+                  className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:opacity-90"
+                >
+                  {t("actions.close")}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── Preset Modal ─────────────────────────────────────────────────── */}
         {showPresetModal && (
