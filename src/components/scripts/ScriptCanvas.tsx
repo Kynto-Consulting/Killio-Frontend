@@ -58,7 +58,18 @@ import { cn } from "@/lib/utils";
 import { ScriptGraph, ScriptNodeData, ScriptEdgeData, NodeKind, ScriptRunLog, getLatestRunOutputs, listSharedTables } from "@/lib/api/scripts";
 import { getBoard, listTeamBoards, type BoardSummary, type ListView } from "@/lib/api/contracts";
 import { listFolders, type Folder } from "@/lib/api/folders";
-import { listGithubInstallations, listGithubInstallationRepositories, listGithubInstallationBranches, type GithubAppInstallation, type GithubInstallationRepository, type GithubInstallationBranch } from "@/lib/api/integrations";
+import {
+  listGithubInstallations,
+  listGithubInstallationRepositories,
+  listGithubInstallationBranches,
+  listWhatsappCredentials,
+  listSlackWebhookCredentials,
+  type GithubAppInstallation,
+  type GithubInstallationRepository,
+  type GithubInstallationBranch,
+  type WhatsappManualCredential,
+  type SlackWebhookManualCredential,
+} from "@/lib/api/integrations";
 import { Loader2, Save, Power, Play, Copy, Check, Maximize2, Minimize2, Eye } from "lucide-react";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -117,6 +128,8 @@ interface SelectOptionContext {
   tables: Array<{ id: string; name: string }>;
   githubRepositories: GithubInstallationRepository[];
   githubBranchesByRepo: Record<string, GithubInstallationBranch[]>;
+  whatsappCredentials: WhatsappManualCredential[];
+  slackWebhookCredentials: SlackWebhookManualCredential[];
 }
 
 interface ConfigField {
@@ -158,6 +171,24 @@ function flattenBoardLists(boards: BoardSummary[], boardListsByBoardId: Record<s
       label: `${board.name} / ${list.name}`,
     }));
   });
+}
+
+function resolveWhatsappCredentialOptions(credentials: WhatsappManualCredential[]): ConfigFieldOption[] {
+  return credentials
+    .filter((credential) => credential.isActive)
+    .map((credential) => ({
+      value: credential.id,
+      label: `${credential.name} · ${credential.phoneNumberId}`,
+    }));
+}
+
+function resolveSlackWebhookCredentialOptions(credentials: SlackWebhookManualCredential[]): ConfigFieldOption[] {
+  return credentials
+    .filter((credential) => credential.isActive)
+    .map((credential) => ({
+      value: credential.id,
+      label: credential.name,
+    }));
 }
 
 function normalizeSwitchRoutes(raw: unknown): Array<{ value: string; handle: string }> {
@@ -713,6 +744,20 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
         { value: "DELETE", labelKey: "canvas.options.httpMethod.delete" },
       ],
     },
+    {
+      key: "whatsappCredentialId",
+      type: "select",
+      labelKey: "canvas.fields.whatsappCredentialId",
+      placeholderKey: "canvas.placeholders.whatsappCredentialId",
+      optionsResolver: ({ whatsappCredentials }) => resolveWhatsappCredentialOptions(whatsappCredentials),
+    },
+    {
+      key: "slackWebhookCredentialId",
+      type: "select",
+      labelKey: "canvas.fields.slackWebhookCredentialId",
+      placeholderKey: "canvas.placeholders.slackWebhookCredentialId",
+      optionsResolver: ({ slackWebhookCredentials }) => resolveSlackWebhookCredentialOptions(slackWebhookCredentials),
+    },
     { key: "headers", type: "textarea", labelKey: "canvas.fields.headers", placeholderKey: "canvas.placeholders.headers" },
     { key: "bodyTemplate", type: "textarea", labelKey: "canvas.fields.bodyTemplate", placeholderKey: "canvas.placeholders.bodyTemplate" },
     { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
@@ -856,6 +901,8 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
   const [githubRepositories, setGithubRepositories] = useState<GithubInstallationRepository[]>([]);
   const [githubBranchesByRepo, setGithubBranchesByRepo] = useState<Record<string, GithubInstallationBranch[]>>({});
   const [repoInstallationByFullName, setRepoInstallationByFullName] = useState<Record<string, number>>({});
+  const [whatsappCredentials, setWhatsappCredentials] = useState<WhatsappManualCredential[]>([]);
+  const [slackWebhookCredentials, setSlackWebhookCredentials] = useState<SlackWebhookManualCredential[]>([]);
   const [hasActiveGithubIntegration, setHasActiveGithubIntegration] = useState(false);
   const rfInstanceRef = useRef<ReactFlowInstance | null>(null);
 
@@ -894,7 +941,9 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     tables,
     githubRepositories,
     githubBranchesByRepo,
-  }), [selectedNodeConfig, boards, boardListsByBoardId, folders, tables, githubRepositories, githubBranchesByRepo]);
+    whatsappCredentials,
+    slackWebhookCredentials,
+  }), [selectedNodeConfig, boards, boardListsByBoardId, folders, tables, githubRepositories, githubBranchesByRepo, whatsappCredentials, slackWebhookCredentials]);
 
   const resolveSelectOptions = useCallback((field: ConfigField): ConfigFieldOption[] => {
     if (field.optionsResolver) {
@@ -932,6 +981,8 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setGithubRepositories([]);
       setGithubBranchesByRepo({});
       setRepoInstallationByFullName({});
+      setWhatsappCredentials([]);
+      setSlackWebhookCredentials([]);
       setHasActiveGithubIntegration(false);
       return;
     }
@@ -939,11 +990,13 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     let cancelled = false;
 
     const loadWorkspaceEntities = async () => {
-      const [teamBoards, sharedTables, allFolders, installations] = await Promise.all([
+      const [teamBoards, sharedTables, allFolders, installations, whatsappCredentialsData, slackWebhookCredentialsData] = await Promise.all([
         listTeamBoards(teamId, accessToken).catch(() => [] as BoardSummary[]),
         listSharedTables(teamId, accessToken).catch(() => []),
         loadAllFolders(teamId, accessToken).catch(() => [] as Folder[]),
         listGithubInstallations(teamId, accessToken).catch(() => [] as GithubAppInstallation[]),
+        listWhatsappCredentials(teamId, accessToken).catch(() => [] as WhatsappManualCredential[]),
+        listSlackWebhookCredentials(teamId, accessToken).catch(() => [] as SlackWebhookManualCredential[]),
       ]);
 
       const boardViews = await Promise.all(
@@ -992,6 +1045,8 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
       setTables(sharedTables.map((table) => ({ id: table.id, name: table.name })));
       setGithubRepositories(nextRepositories);
       setRepoInstallationByFullName(nextRepoInstallationByFullName);
+      setWhatsappCredentials(whatsappCredentialsData.filter((credential) => credential.isActive));
+      setSlackWebhookCredentials(slackWebhookCredentialsData.filter((credential) => credential.isActive));
       setHasActiveGithubIntegration(installations.some((installation) => installation.isActive));
     };
 
@@ -1547,7 +1602,7 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
       {/* Canvas + Palette */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden md:flex-row">
-        <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, meta: true }} />
+        <NodePalette integrationAvailability={{ github: hasActiveGithubIntegration, whatsapp: true, slack: true }} />
         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden xl:flex-row">
           <div
             className="min-h-0 min-w-0 flex-1"

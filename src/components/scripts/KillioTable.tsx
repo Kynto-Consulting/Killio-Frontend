@@ -8,6 +8,7 @@ import {
   createSharedTable,
   getSharedTableRows,
   listSharedTables,
+  upsertSharedTableRow,
 } from "@/lib/api/scripts";
 import { Loader2, Plus, RefreshCw } from "lucide-react";
 
@@ -43,6 +44,18 @@ function formatCellValue(value: unknown): string {
   }
 }
 
+function byteSize(value: string): number {
+  return new TextEncoder().encode(value).length;
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  if (kb < 1024) return `${kb.toFixed(1)} KB`;
+  const mb = kb / 1024;
+  return `${mb.toFixed(2)} MB`;
+}
+
 export function KillioTable({ teamId, accessToken }: KillioTableProps) {
   const { locale } = useI18n();
   const t = useTranslations("integrations");
@@ -59,12 +72,25 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
   const [createDescription, setCreateDescription] = useState("");
   const [createColumns, setCreateColumns] = useState("externalKey:External Key:text\nstatus:Status:text");
   const [creating, setCreating] = useState(false);
+  const [showRowEditor, setShowRowEditor] = useState(false);
+  const [editingRowId, setEditingRowId] = useState<string | null>(null);
+  const [rowExternalKey, setRowExternalKey] = useState("");
+  const [rowDataDraft, setRowDataDraft] = useState("{}");
+  const [savingRow, setSavingRow] = useState(false);
+  const [rowEditorError, setRowEditorError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const selectedTable = useMemo(
     () => tables.find((table) => table.id === selectedTableId) ?? null,
     [tables, selectedTableId],
   );
+
+  const usedBytes = useMemo(() => {
+    return rows.reduce((acc, row) => {
+      const payload = JSON.stringify({ externalKey: row.externalKey, data: row.data ?? {} });
+      return acc + byteSize(payload);
+    }, 0);
+  }, [rows]);
 
   const loadTables = useCallback(async () => {
     setLoadingTables(true);
@@ -147,6 +173,68 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
     }
   };
 
+  const openCreateRowEditor = () => {
+    setEditingRowId(null);
+    setRowExternalKey("");
+    setRowDataDraft("{}");
+    setRowEditorError(null);
+    setShowRowEditor(true);
+  };
+
+  const openEditRowEditor = (row: SharedKillioTableRow) => {
+    setEditingRowId(row.id);
+    setRowExternalKey(row.externalKey);
+    setRowDataDraft(JSON.stringify(row.data ?? {}, null, 2));
+    setRowEditorError(null);
+    setShowRowEditor(true);
+  };
+
+  const closeRowEditor = () => {
+    setShowRowEditor(false);
+    setEditingRowId(null);
+    setRowExternalKey("");
+    setRowDataDraft("{}");
+    setRowEditorError(null);
+  };
+
+  const handleSaveRow = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedTable || !rowExternalKey.trim()) return;
+
+    let parsedData: Record<string, any>;
+    try {
+      const parsed = JSON.parse(rowDataDraft);
+      if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+        setRowEditorError(t("table.shared.invalidRowJson"));
+        return;
+      }
+      parsedData = parsed as Record<string, any>;
+    } catch {
+      setRowEditorError(t("table.shared.invalidRowJson"));
+      return;
+    }
+
+    setSavingRow(true);
+    setRowEditorError(null);
+    try {
+      await upsertSharedTableRow(
+        selectedTable.id,
+        {
+          teamId,
+          externalKey: rowExternalKey.trim(),
+          data: parsedData,
+        },
+        accessToken,
+      );
+      await loadRows(selectedTable.id);
+      closeRowEditor();
+    } catch {
+      setRowEditorError(t("table.shared.upsertRowError"));
+    } finally {
+      setSavingRow(false);
+    }
+  };
+
   const dateLocale = locale === "es" ? "es-ES" : "en-US";
 
   return (
@@ -190,8 +278,28 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
             <Plus className="h-3.5 w-3.5" />
             {t("table.shared.create")}
           </button>
+          <button
+            type="button"
+            onClick={openCreateRowEditor}
+            disabled={!selectedTable}
+            className="inline-flex items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground hover:bg-accent/10 disabled:opacity-50"
+          >
+            <Plus className="h-3.5 w-3.5" />
+            {t("table.shared.newRow")}
+          </button>
         </div>
       </div>
+
+      {selectedTable && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-border bg-background px-3 py-2 text-[11px] text-muted-foreground sm:px-4">
+          <span>
+            {t("table.shared.rowsCount", { count: String(rows.length) })}
+          </span>
+          <span>
+            {t("table.shared.memoryUsed", { size: formatBytes(usedBytes) })}
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="border-b border-border bg-destructive/10 px-3 py-2 text-xs text-destructive sm:px-4">
@@ -225,6 +333,7 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
                   </th>
                 ))}
                 <th className="px-4 py-2 text-left font-semibold text-muted-foreground">{t("table.columns.updatedAt")}</th>
+                <th className="px-4 py-2 text-left font-semibold text-muted-foreground">{t("table.shared.columns.actions")}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -238,6 +347,15 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
                   ))}
                   <td className="px-4 py-2 text-muted-foreground">
                     {new Date(row.updatedAt).toLocaleDateString(dateLocale)}
+                  </td>
+                  <td className="px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => openEditRowEditor(row)}
+                      className="rounded-md border border-border bg-background px-2 py-1 text-[11px] text-foreground hover:bg-accent/10"
+                    >
+                      {t("table.shared.editRow")}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -296,6 +414,62 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
                 >
                   {creating && <Loader2 className="h-4 w-4 animate-spin" />}
                   {creating ? t("scripts.creating") : t("table.shared.create")}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showRowEditor && selectedTable && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-xl">
+            <h2 className="mb-4 text-base font-semibold text-foreground">
+              {editingRowId ? t("table.shared.editRowTitle") : t("table.shared.newRowTitle")}
+            </h2>
+            <form onSubmit={handleSaveRow} className="space-y-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("table.shared.externalKeyLabel")}
+                </label>
+                <input
+                  value={rowExternalKey}
+                  onChange={(e) => setRowExternalKey(e.target.value)}
+                  placeholder="todo-hash-123"
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("table.shared.rowDataJsonLabel")}
+                </label>
+                <textarea
+                  value={rowDataDraft}
+                  onChange={(e) => setRowDataDraft(e.target.value)}
+                  rows={12}
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 font-mono text-xs placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                <p className="mt-1 text-[11px] text-muted-foreground">{t("table.shared.rowDataJsonHelp")}</p>
+              </div>
+              {rowEditorError && (
+                <p className="text-xs text-destructive">{rowEditorError}</p>
+              )}
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeRowEditor}
+                  className="rounded-lg px-4 py-2 text-sm text-muted-foreground hover:bg-accent/10"
+                >
+                  {t("actions.cancel")}
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingRow || !rowExternalKey.trim()}
+                  className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-50"
+                >
+                  {savingRow && <Loader2 className="h-4 w-4 animate-spin" />}
+                  {savingRow ? t("table.shared.savingRow") : t("table.shared.saveRow")}
                 </button>
               </div>
             </form>

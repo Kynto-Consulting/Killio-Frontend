@@ -30,6 +30,7 @@
     "catalog": {
       "comingSoon": "Próximamente",
       "manualSetup": "Configuración manual",
+      "tutorial": "Tutorial",
       "googleTitle": "Google",
       "googleDescription": "La conexión OAuth y sincronización de workspace con servicios de Google llegará pronto.",
       "jiraTitle": "Jira",
@@ -37,7 +38,7 @@
       "whatsappTitle": "WhatsApp",
       "whatsappDescription": "Listo para automatizar con nodos Webhook + Enviar Mensaje WhatsApp. Usa llamadas API con token en la configuración del script, sin cambiar env del backend.",
       "metaTitle": "Meta",
-      "metaDescription": "Listo para automatizar con nodos Webhook + Enviar Conversión Meta usando plantillas de payload para Graph API."
+      "metaDescription": "Usa un tutorial con trigger webhook para eventos de Meta mientras los nodos trigger nativos de Meta quedan pausados por ahora."
     },
     "github": {
       "title": "GitHub",
@@ -67,6 +68,41 @@
       "connectStartError": "No se pudo iniciar la conexión con GitHub. Revisa configuración de env en backend.",
       "saveError": "Error al guardar la integración",
       "deleteError": "Error al desconectar la integración"
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "description": "Guarda credenciales reutilizables (token + phone number id) para seleccionarlas desde nodos de scripts.",
+      "fields": {
+        "name": "Nombre de credencial",
+        "phoneNumberId": "Phone Number ID",
+        "accessToken": "Token de acceso"
+      },
+      "save": "Guardar credencial",
+      "saved": "Credencial guardada correctamente.",
+      "savedCredentials": "Credenciales guardadas",
+      "noCredentials": "Aún no hay credenciales guardadas.",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar esta credencial de WhatsApp?",
+      "loadError": "No se pudieron cargar las credenciales de WhatsApp.",
+      "saveError": "No se pudo guardar la credencial de WhatsApp.",
+      "deleteError": "No se pudo eliminar la credencial de WhatsApp."
+    },
+    "slack": {
+      "title": "Slack Webhook",
+      "description": "Guarda URLs de webhook entrante para reutilizarlas en nodos de scripts.",
+      "fields": {
+        "name": "Nombre de credencial",
+        "webhookUrl": "Webhook URL"
+      },
+      "save": "Guardar credencial",
+      "saved": "Credencial guardada correctamente.",
+      "savedCredentials": "Credenciales guardadas",
+      "noCredentials": "Aún no hay credenciales guardadas.",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar esta credencial de webhook de Slack?",
+      "loadError": "No se pudieron cargar las credenciales de webhook de Slack.",
+      "saveError": "No se pudo guardar la credencial de webhook de Slack.",
+      "deleteError": "No se pudo eliminar la credencial de webhook de Slack."
     }
   },
   "scripts": {
@@ -221,6 +257,7 @@
       "core": "Core",
       "github": "GitHub",
       "whatsapp": "WhatsApp",
+      "slack": "Slack",
       "meta": "Meta"
     },
     "categories": {
@@ -270,6 +307,7 @@
       "jsCode": "JS Code",
       "whatsappWebhookTrigger": "Webhook de WhatsApp",
       "whatsappSendMessage": "Enviar mensaje de WhatsApp",
+      "slackSendMessage": "Enviar mensaje a Slack",
       "metaWebhookTrigger": "Webhook de Meta",
       "metaSendConversion": "Enviar conversión a Meta"
     },
@@ -337,6 +375,8 @@
       "routes": "Rutas",
       "url": "URL",
       "headers": "Headers",
+      "whatsappCredentialId": "Credencial de WhatsApp",
+      "slackWebhookCredentialId": "Credencial de webhook de Slack",
       "method": "Metodo",
       "bodyTemplate": "Body template",
       "code": "Codigo",
@@ -425,6 +465,8 @@
       "routes": "bug:out_1\nfeature:out_2",
       "url": "https://api.example.com/items/{externalKey}",
       "headers": "Authorization: Bearer {apiToken}",
+      "whatsappCredentialId": "Selecciona una credencial guardada",
+      "slackWebhookCredentialId": "Selecciona una credencial guardada",
       "headerKey": "Authorization",
       "headerValue": "Bearer {apiToken}",
       "method": "POST",

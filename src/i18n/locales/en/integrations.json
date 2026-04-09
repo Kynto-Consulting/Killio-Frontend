@@ -30,6 +30,7 @@
     "catalog": {
       "comingSoon": "Coming soon",
       "manualSetup": "Manual setup",
+      "tutorial": "Tutorial",
       "googleTitle": "Google",
       "googleDescription": "OAuth and workspace sync with Google services will be available soon.",
       "jiraTitle": "Jira",
@@ -37,7 +38,7 @@
       "whatsappTitle": "WhatsApp",
       "whatsappDescription": "Ready to automate with Webhook + WhatsApp Send Message nodes. Uses token-based API calls in script config without backend env changes.",
       "metaTitle": "Meta",
-      "metaDescription": "Ready to automate with Webhook + Meta Send Conversion nodes through Graph API payload templates."
+      "metaDescription": "Use a webhook trigger tutorial for Meta events while native Meta trigger nodes are paused for now."
     },
     "github": {
       "title": "GitHub",
@@ -67,6 +68,41 @@
       "connectStartError": "Could not start GitHub connection. Check backend env configuration.",
       "saveError": "Failed to save integration",
       "deleteError": "Failed to disconnect integration"
+    },
+    "whatsapp": {
+      "title": "WhatsApp",
+      "description": "Save reusable credentials (token + phone number id) to select from script nodes.",
+      "fields": {
+        "name": "Credential name",
+        "phoneNumberId": "Phone Number ID",
+        "accessToken": "Access token"
+      },
+      "save": "Save credential",
+      "saved": "Credential saved successfully.",
+      "savedCredentials": "Saved credentials",
+      "noCredentials": "No credentials saved yet.",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this WhatsApp credential?",
+      "loadError": "Failed to load WhatsApp credentials.",
+      "saveError": "Failed to save WhatsApp credential.",
+      "deleteError": "Failed to delete WhatsApp credential."
+    },
+    "slack": {
+      "title": "Slack Webhook",
+      "description": "Save incoming webhook URLs to reuse in script nodes.",
+      "fields": {
+        "name": "Credential name",
+        "webhookUrl": "Webhook URL"
+      },
+      "save": "Save credential",
+      "saved": "Credential saved successfully.",
+      "savedCredentials": "Saved credentials",
+      "noCredentials": "No credentials saved yet.",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this Slack webhook credential?",
+      "loadError": "Failed to load Slack webhook credentials.",
+      "saveError": "Failed to save Slack webhook credential.",
+      "deleteError": "Failed to delete Slack webhook credential."
     }
   },
   "scripts": {
@@ -221,6 +257,7 @@
       "core": "Core",
       "github": "GitHub",
       "whatsapp": "WhatsApp",
+      "slack": "Slack",
       "meta": "Meta"
     },
     "categories": {
@@ -270,6 +307,7 @@
       "jsCode": "JS Code",
       "whatsappWebhookTrigger": "WhatsApp Webhook Trigger",
       "whatsappSendMessage": "WhatsApp Send Message",
+      "slackSendMessage": "Slack Send Message",
       "metaWebhookTrigger": "Meta Webhook Trigger",
       "metaSendConversion": "Meta Send Conversion"
     },
@@ -337,6 +375,8 @@
       "routes": "Routes",
       "url": "URL",
       "headers": "Headers",
+      "whatsappCredentialId": "WhatsApp credential",
+      "slackWebhookCredentialId": "Slack webhook credential",
       "method": "Method",
       "bodyTemplate": "Body template",
       "code": "Code",
@@ -425,6 +465,8 @@
       "routes": "bug:out_1\nfeature:out_2",
       "url": "https://api.example.com/items/{externalKey}",
       "headers": "Authorization: Bearer {apiToken}",
+      "whatsappCredentialId": "Select a saved credential",
+      "slackWebhookCredentialId": "Select a saved credential",
       "headerKey": "Authorization",
       "headerValue": "Bearer {apiToken}",
       "method": "POST",

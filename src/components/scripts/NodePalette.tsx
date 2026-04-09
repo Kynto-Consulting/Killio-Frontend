@@ -6,10 +6,10 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle,
+  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send,
 } from "lucide-react";
 
-export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "meta";
+export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "slack";
 
 interface PaletteTemplatePayload {
   label?: string;
@@ -20,7 +20,7 @@ interface IntegrationAvailability {
   core?: boolean;
   github?: boolean;
   whatsapp?: boolean;
-  meta?: boolean;
+  slack?: boolean;
 }
 
 interface NodePaletteProps {
@@ -82,20 +82,6 @@ const PALETTE_ITEMS: PaletteItem[] = [
     searchTerms: ["whatsapp", "webhook", "meta", "message"],
     template: {
       label: "WhatsApp Webhook Trigger",
-      config: {},
-    },
-  },
-  {
-    id: "meta.webhook.trigger",
-    kind: "core.trigger.webhook",
-    labelKey: "metaWebhookTrigger",
-    icon: Webhook,
-    color: "bg-blue-700 text-white",
-    category: "triggers",
-    integration: "meta",
-    searchTerms: ["meta", "facebook", "webhook", "lead"],
-    template: {
-      label: "Meta Webhook Trigger",
       config: {},
     },
   },
@@ -368,6 +354,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
     template: {
       label: "WhatsApp Send Message",
       config: {
+        whatsappCredentialId: "",
         method: "POST",
         url: "https://graph.facebook.com/v22.0/{phoneNumberId}/messages",
         headers: {
@@ -379,24 +366,25 @@ const PALETTE_ITEMS: PaletteItem[] = [
     },
   },
   {
-    id: "meta.send.conversion",
+    id: "slack.send.message",
     kind: "core.action.http_request",
-    labelKey: "metaSendConversion",
-    icon: Globe,
-    color: "bg-blue-700 text-white",
+    labelKey: "slackSendMessage",
+    icon: Send,
+    color: "bg-sky-700 text-white",
     category: "actions",
-    integration: "meta",
-    searchTerms: ["meta", "facebook", "conversion", "api", "pixel"],
+    integration: "slack",
+    searchTerms: ["slack", "webhook", "send", "message"],
     template: {
-      label: "Meta Send Conversion",
+      label: "Slack Send Message",
       config: {
+        slackWebhookCredentialId: "",
         method: "POST",
-        url: "https://graph.facebook.com/v22.0/{pixelId}/events",
+        url: "{slackWebhookUrl}",
         headers: {
           "Content-Type": "application/json",
         },
-        bodyTemplate: "{\"data\":[{\"event_name\":\"{eventName}\",\"event_time\":{eventTimeUnix},\"action_source\":\"website\",\"event_source_url\":\"{sourceUrl}\",\"user_data\":{\"em\":\"{hashedEmail}\"}}],\"access_token\":\"{metaAccessToken}\"}",
-        outputPath: "metaConversionResponse",
+        bodyTemplate: "{\"text\":\"{messageText}\"}",
+        outputPath: "slackResponse",
       },
     },
   },
@@ -411,7 +399,7 @@ const PALETTE_ITEMS: PaletteItem[] = [
   },
 ];
 
-const INTEGRATION_ORDER: PaletteIntegrationKey[] = ["core", "github", "whatsapp", "meta"];
+const INTEGRATION_ORDER: PaletteIntegrationKey[] = ["core", "github", "whatsapp", "slack"];
 
 export function NodePalette({ integrationAvailability }: NodePaletteProps) {
   const t = useTranslations("integrations");
@@ -422,7 +410,7 @@ export function NodePalette({ integrationAvailability }: NodePaletteProps) {
     core: true,
     github: false,
     whatsapp: true,
-    meta: true,
+    slack: true,
     ...integrationAvailability,
   };
 
