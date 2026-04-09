@@ -160,6 +160,93 @@ function flattenBoardLists(boards: BoardSummary[], boardListsByBoardId: Record<s
   });
 }
 
+function normalizeSwitchRoutes(raw: unknown): Array<{ value: string; handle: string }> {
+  if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+    return Object.entries(raw as Record<string, unknown>).map(([value, handle]) => ({
+      value,
+      handle: String(handle ?? ""),
+    }));
+  }
+
+  if (Array.isArray(raw)) {
+    return raw.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const parsed = entry as Record<string, unknown>;
+      const value = String(parsed.value ?? parsed.key ?? "").trim();
+      const handle = String(parsed.handle ?? parsed.output ?? "").trim();
+      if (!value) return [];
+      return [{ value, handle }];
+    });
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const separatorIndex = line.indexOf(":");
+        if (separatorIndex > 0) {
+          return {
+            value: line.slice(0, separatorIndex).trim(),
+            handle: line.slice(separatorIndex + 1).trim(),
+          };
+        }
+        const equalsIndex = line.indexOf("=");
+        if (equalsIndex > 0) {
+          return {
+            value: line.slice(0, equalsIndex).trim(),
+            handle: line.slice(equalsIndex + 1).trim(),
+          };
+        }
+        return { value: line, handle: "default" };
+      })
+      .filter((entry) => entry.value.length > 0);
+  }
+
+  return [];
+}
+
+function normalizeJsonMappings(raw: unknown): Array<{ targetPath: string; sourcePath: string }> {
+  if (Array.isArray(raw)) {
+    return raw.flatMap((entry) => {
+      if (!entry || typeof entry !== "object") return [];
+      const parsed = entry as Record<string, unknown>;
+      const targetPath = String(parsed.targetPath ?? "").trim();
+      const sourcePath = String(parsed.sourcePath ?? parsed.value ?? "").trim();
+      if (!targetPath && !sourcePath) return [];
+      return [{ targetPath, sourcePath }];
+    });
+  }
+
+  if (typeof raw === "string" && raw.trim()) {
+    return raw
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const separatorIndex = line.indexOf(":");
+        if (separatorIndex > 0) {
+          return {
+            targetPath: line.slice(0, separatorIndex).trim(),
+            sourcePath: line.slice(separatorIndex + 1).trim(),
+          };
+        }
+        const equalsIndex = line.indexOf("=");
+        if (equalsIndex > 0) {
+          return {
+            targetPath: line.slice(0, equalsIndex).trim(),
+            sourcePath: line.slice(equalsIndex + 1).trim(),
+          };
+        }
+        return { targetPath: line, sourcePath: "" };
+      })
+      .filter((entry) => entry.targetPath.length > 0 || entry.sourcePath.length > 0);
+  }
+
+  return [];
+}
+
 async function loadAllFolders(teamId: string, accessToken: string, parentFolderId?: string, collected: Folder[] = []): Promise<Folder[]> {
   const currentLevel = await listFolders(teamId, accessToken, parentFolderId);
   for (const folder of currentLevel) {
@@ -744,6 +831,9 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     return base;
   }, [selectedNodeKind, selectedNodeConfig]);
 
+  const switchRouteRows = useMemo(() => normalizeSwitchRoutes(selectedNodeConfig.routes), [selectedNodeConfig.routes]);
+  const jsonMapRows = useMemo(() => normalizeJsonMappings(selectedNodeConfig.mappings), [selectedNodeConfig.mappings]);
+
   const selectFieldContext = useMemo<SelectOptionContext>(() => ({
     config: selectedNodeConfig,
     boards,
@@ -1010,6 +1100,126 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
     });
   }, [updateSelectedNode]);
 
+  const updateSelectedNodeConfigValue = useCallback((key: string, value: unknown) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextConfig = { ...currentConfig };
+      if (value === undefined || value === null || value === "") {
+        delete nextConfig[key];
+      } else {
+        nextConfig[key] = value;
+      }
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: nextConfig,
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const updateSwitchRoute = useCallback((index: number, nextRoute: { value: string; handle: string }) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextRoutes = normalizeSwitchRoutes(currentConfig.routes);
+      nextRoutes[index] = {
+        value: nextRoute.value.trim(),
+        handle: nextRoute.handle.trim(),
+      };
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            routes: nextRoutes.reduce<Record<string, string>>((accumulator, entry) => {
+              if (entry.value.trim().length > 0) {
+                accumulator[entry.value.trim()] = entry.handle.trim() || "default";
+              }
+              return accumulator;
+            }, {}),
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const removeSwitchRoute = useCallback((index: number) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const currentRoutes = normalizeSwitchRoutes(currentConfig.routes).filter((_, currentIndex) => currentIndex !== index);
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            routes: currentRoutes.reduce<Record<string, string>>((accumulator, entry) => {
+              if (entry.value.trim().length > 0) {
+                accumulator[entry.value.trim()] = entry.handle.trim() || "default";
+              }
+              return accumulator;
+            }, {}),
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const updateJsonMapRow = useCallback((index: number, nextRow: { targetPath: string; sourcePath: string }) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextMappings = normalizeJsonMappings(currentConfig.mappings);
+      nextMappings[index] = nextRow;
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            mappings: nextMappings.filter((entry) => entry.targetPath.trim().length > 0 || entry.sourcePath.trim().length > 0),
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const addJsonMapRow = useCallback(() => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextMappings = normalizeJsonMappings(currentConfig.mappings);
+      nextMappings.push({ targetPath: "", sourcePath: "" });
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            mappings: nextMappings,
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
+  const removeJsonMapRow = useCallback((index: number) => {
+    updateSelectedNode((node) => {
+      const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+      const nextMappings = normalizeJsonMappings(currentConfig.mappings).filter((_, currentIndex) => currentIndex !== index);
+      return {
+        ...node,
+        data: {
+          ...node.data,
+          config: {
+            ...currentConfig,
+            mappings: nextMappings,
+          },
+        },
+      };
+    });
+  }, [updateSelectedNode]);
+
   const handleApplyRawConfig = useCallback(() => {
     try {
       const parsed = JSON.parse(rawConfigDraft) as Record<string, any>;
@@ -1247,6 +1457,131 @@ export function ScriptCanvas({ scriptId, graph, isActive, webhookUrl, teamId, ac
 
                 {visibleSelectedNodeFields.map((field) => {
                   const value = selectedNodeConfig[field.key];
+
+                  if (selectedNodeKind === "core.logic.switch" && field.key === "routes") {
+                    const routeValues = switchRouteRows;
+                    const handleOptions = ["out_1", "out_2", "out_3", "default"];
+
+                    return (
+                      <div key={field.key}>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <label className="block text-[11px] font-medium text-muted-foreground">
+                            {t(field.labelKey)}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const nextIndex = routeValues.length;
+                              updateSelectedNode((node) => {
+                                const currentConfig = (node.data?.config as Record<string, any>) ?? {};
+                                const nextRoutes = normalizeSwitchRoutes(currentConfig.routes);
+                                nextRoutes.splice(nextIndex, 0, { value: `value_${routeValues.length + 1}`, handle: "default" });
+                                return {
+                                  ...node,
+                                  data: {
+                                    ...node.data,
+                                    config: {
+                                      ...currentConfig,
+                                      routes: nextRoutes.reduce<Record<string, string>>((accumulator, entry) => {
+                                        if (entry.value.trim().length > 0) {
+                                          accumulator[entry.value.trim()] = entry.handle.trim() || "default";
+                                        }
+                                        return accumulator;
+                                      }, {}),
+                                    },
+                                  },
+                                };
+                              });
+                            }}
+                            className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-accent/10"
+                          >
+                            {t("canvas.addRow")}
+                          </button>
+                        </div>
+                        <div className="space-y-2 rounded-md border border-border bg-background p-2.5">
+                          {routeValues.length === 0 && (
+                            <p className="text-[11px] italic text-muted-foreground">{t("canvas.noRoutes")}</p>
+                          )}
+                          {routeValues.map((route, index) => (
+                            <div key={`${route.value}-${index}`} className="grid grid-cols-[1fr_120px_auto] gap-2">
+                              <input
+                                type="text"
+                                value={route.value}
+                                onChange={(event) => updateSwitchRoute(index, { ...route, value: event.target.value })}
+                                placeholder="value"
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <select
+                                value={route.handle}
+                                onChange={(event) => updateSwitchRoute(index, { ...route, handle: event.target.value })}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              >
+                                {handleOptions.map((option) => (
+                                  <option key={option} value={option}>{option}</option>
+                                ))}
+                              </select>
+                              <button
+                                type="button"
+                                onClick={() => removeSwitchRoute(index)}
+                                className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-destructive hover:bg-destructive/10"
+                              >
+                                {t("canvas.remove")}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  if (selectedNodeKind === "core.transform.json_map" && field.key === "mappings") {
+                    return (
+                      <div key={field.key}>
+                        <div className="mb-1 flex items-center justify-between gap-2">
+                          <label className="block text-[11px] font-medium text-muted-foreground">
+                            {t(field.labelKey)}
+                          </label>
+                          <button
+                            type="button"
+                            onClick={addJsonMapRow}
+                            className="rounded-md border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground hover:bg-accent/10"
+                          >
+                            {t("canvas.addRow")}
+                          </button>
+                        </div>
+                        <div className="space-y-2 rounded-md border border-border bg-background p-2.5">
+                          {jsonMapRows.length === 0 && (
+                            <p className="text-[11px] italic text-muted-foreground">{t("canvas.noMappings")}</p>
+                          )}
+                          {jsonMapRows.map((mapping, index) => (
+                            <div key={`${mapping.targetPath}-${index}`} className="grid grid-cols-[1fr_1fr_auto] gap-2">
+                              <input
+                                type="text"
+                                value={mapping.targetPath}
+                                onChange={(event) => updateJsonMapRow(index, { ...mapping, targetPath: event.target.value })}
+                                placeholder={t("canvas.fields.targetPath")}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <input
+                                type="text"
+                                value={mapping.sourcePath}
+                                onChange={(event) => updateJsonMapRow(index, { ...mapping, sourcePath: event.target.value })}
+                                placeholder={t("canvas.fields.sourcePath")}
+                                className="w-full rounded-md border border-border bg-background px-2.5 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => removeJsonMapRow(index)}
+                                className="rounded-md border border-border bg-background px-2 py-2 text-[11px] text-destructive hover:bg-destructive/10"
+                              >
+                                {t("canvas.remove")}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   if (field.type === "boolean") {
                     return (
