@@ -410,14 +410,9 @@ const PALETTE_ITEMS: PaletteItem[] = [
     template: {
       label: "WhatsApp Send Message",
       config: {
+        _nodeVariant: "whatsapp.send_message",
         whatsappCredentialId: "",
-        method: "POST",
-        url: "https://graph.facebook.com/v22.0/{phoneNumberId}/messages",
-        headers: {
-          Authorization: "Bearer {whatsappAccessToken}",
-        },
-        bodyTemplate: "{\"messaging_product\":\"whatsapp\",\"to\":\"{recipientPhone}\",\"type\":\"text\",\"text\":{\"body\":\"{messageText}\"}}",
-        outputPath: "whatsappResponse",
+        messageText: "{messageText}",
       },
     },
   },

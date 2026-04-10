@@ -143,6 +143,8 @@ interface ConfigField {
   showWhen?: { key: string; isIn?: string[]; notIn?: string[] };
 }
 
+const WHATSAPP_SEND_VARIANT = "whatsapp.send_message";
+
 function isFieldVisible(field: ConfigField, config: Record<string, any>): boolean {
   if (!field.showWhen) return true;
   const condVal = String(config[field.showWhen.key] ?? "");
@@ -731,11 +733,33 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "routes", type: "textarea", labelKey: "canvas.fields.routes", placeholderKey: "canvas.placeholders.routes" },
   ],
   "core.action.http_request": [
-    { key: "url", type: "text", labelKey: "canvas.fields.url", placeholderKey: "canvas.placeholders.url" },
+    {
+      key: "whatsappCredentialId",
+      type: "select",
+      labelKey: "canvas.fields.whatsappCredentialId",
+      placeholderKey: "canvas.placeholders.whatsappCredentialId",
+      optionsResolver: ({ whatsappCredentials }) => resolveWhatsappCredentialOptions(whatsappCredentials),
+      showWhen: { key: "_nodeVariant", isIn: [WHATSAPP_SEND_VARIANT] },
+    },
+    {
+      key: "messageText",
+      type: "textarea",
+      labelKey: "canvas.fields.messageText",
+      placeholderKey: "canvas.placeholders.messageText",
+      showWhen: { key: "_nodeVariant", isIn: [WHATSAPP_SEND_VARIANT] },
+    },
+    {
+      key: "url",
+      type: "text",
+      labelKey: "canvas.fields.url",
+      placeholderKey: "canvas.placeholders.url",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
+    },
     {
       key: "method",
       type: "select",
       labelKey: "canvas.fields.method",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
       options: [
         { value: "GET", labelKey: "canvas.options.httpMethod.get" },
         { value: "POST", labelKey: "canvas.options.httpMethod.post" },
@@ -745,23 +769,40 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
       ],
     },
     {
-      key: "whatsappCredentialId",
-      type: "select",
-      labelKey: "canvas.fields.whatsappCredentialId",
-      placeholderKey: "canvas.placeholders.whatsappCredentialId",
-      optionsResolver: ({ whatsappCredentials }) => resolveWhatsappCredentialOptions(whatsappCredentials),
-    },
-    {
       key: "slackWebhookCredentialId",
       type: "select",
       labelKey: "canvas.fields.slackWebhookCredentialId",
       placeholderKey: "canvas.placeholders.slackWebhookCredentialId",
       optionsResolver: ({ slackWebhookCredentials }) => resolveSlackWebhookCredentialOptions(slackWebhookCredentials),
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
     },
-    { key: "headers", type: "textarea", labelKey: "canvas.fields.headers", placeholderKey: "canvas.placeholders.headers" },
-    { key: "bodyTemplate", type: "textarea", labelKey: "canvas.fields.bodyTemplate", placeholderKey: "canvas.placeholders.bodyTemplate" },
-    { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.outputPath" },
-    { key: "timeoutMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
+    {
+      key: "headers",
+      type: "textarea",
+      labelKey: "canvas.fields.headers",
+      placeholderKey: "canvas.placeholders.headers",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
+    },
+    {
+      key: "bodyTemplate",
+      type: "textarea",
+      labelKey: "canvas.fields.bodyTemplate",
+      placeholderKey: "canvas.placeholders.bodyTemplate",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
+    },
+    {
+      key: "outputPath",
+      type: "text",
+      labelKey: "canvas.fields.outputPath",
+      placeholderKey: "canvas.placeholders.outputPath",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
+    },
+    {
+      key: "timeoutMs",
+      type: "number",
+      labelKey: "canvas.placeholders.delayMs",
+      showWhen: { key: "_nodeVariant", notIn: [WHATSAPP_SEND_VARIANT] },
+    },
   ],
   "core.action.js_code": [
     { key: "code", type: "code", labelKey: "canvas.fields.code", placeholderKey: "canvas.placeholders.code" },
@@ -791,8 +832,58 @@ function toRfNodes(backendNodes: ScriptNodeData[]): Node[] {
     id: n.id,
     type: n.nodeKind,
     position: { x: n.positionX, y: n.positionY },
-    data: { config: n.config, label: n.label ?? n.nodeKind },
+    data: { config: normalizeHttpRequestConfigForCanvas(n.nodeKind, n.config), label: n.label ?? n.nodeKind },
   }));
+}
+
+function extractWhatsappMessageTextFromBodyTemplate(bodyTemplate: string): string {
+  const match = bodyTemplate.match(/"body"\s*:\s*"([^"\\]*(?:\\.[^"\\]*)*)"/);
+  if (!match || !match[1]) return "{messageText}";
+
+  return match[1]
+    .replace(/\\n/g, "\n")
+    .replace(/\\"/g, '"')
+    .replace(/\\\\/g, "\\");
+}
+
+function isWhatsappSendHttpConfig(config: Record<string, any>): boolean {
+  const url = String(config.url ?? "").toLowerCase();
+  const bodyTemplate = String(config.bodyTemplate ?? "");
+  return url.includes("graph.facebook.com")
+    && bodyTemplate.includes("\"messaging_product\":\"whatsapp\"")
+    && bodyTemplate.includes("\"text\":{")
+    && bodyTemplate.includes("\"body\":");
+}
+
+function normalizeHttpRequestConfigForCanvas(nodeKind: NodeKind, config: Record<string, any>): Record<string, any> {
+  if (nodeKind !== "core.action.http_request") return config;
+  if (!isWhatsappSendHttpConfig(config)) return config;
+
+  return {
+    _nodeVariant: WHATSAPP_SEND_VARIANT,
+    whatsappCredentialId: String(config.whatsappCredentialId ?? ""),
+    messageText: extractWhatsappMessageTextFromBodyTemplate(String(config.bodyTemplate ?? "")),
+  };
+}
+
+function buildWhatsappHttpRequestConfig(config: Record<string, any>): Record<string, any> {
+  const messageTextRaw = String(config.messageText ?? "").trim();
+  const messageText = messageTextRaw.length > 0 ? messageTextRaw : "{messageText}";
+  const escapedMessageText = messageText
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, "\\\"")
+    .replace(/\r?\n/g, "\\n");
+
+  return {
+    whatsappCredentialId: String(config.whatsappCredentialId ?? "").trim(),
+    method: "POST",
+    url: "https://graph.facebook.com/v22.0/{phoneNumberId}/messages",
+    headers: {
+      Authorization: "Bearer {whatsappAccessToken}",
+    },
+    bodyTemplate: `{"messaging_product":"whatsapp","to":"{recipientPhone}","type":"text","text":{"body":"${escapedMessageText}"}}`,
+    outputPath: "whatsappSendResult",
+  };
 }
 
 function toRfEdges(backendEdges: ScriptEdgeData[]): Edge[] {
@@ -807,11 +898,17 @@ function toRfEdges(backendEdges: ScriptEdgeData[]): Edge[] {
 
 function fromRfGraph(nodes: Node[], edges: Edge[], scriptId: string): ScriptGraph {
   const backendNodes: ScriptNodeData[] = nodes.map((n) => ({
+    ...(() => {
+      const rawConfig = (n.data?.config as Record<string, any>) ?? {};
+      if (n.type === "core.action.http_request" && String(rawConfig._nodeVariant ?? "") === WHATSAPP_SEND_VARIANT) {
+        return { config: buildWhatsappHttpRequestConfig(rawConfig) };
+      }
+      return { config: rawConfig };
+    })(),
     id: n.id,
     scriptId,
     nodeKind: n.type as NodeKind,
     label: (n.data?.label as string) ?? null,
-    config: (n.data?.config as Record<string, any>) ?? {},
     positionX: n.position.x,
     positionY: n.position.y,
   }));
