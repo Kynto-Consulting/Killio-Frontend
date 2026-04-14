@@ -1,182 +1,212 @@
-<p align="center">
-  <img src="./public/killio.webp" alt="Killio" width="140" />
-</p>
+# Killio Frontend
 
-<h1 align="center">Killio Frontend</h1>
+Killio es una plataforma de ejecucion de trabajo para equipos que necesitan pasar de la idea a la accion sin perder contexto.
+Este frontend es la cara visible del producto: una experiencia unificada para boards, documentos, automatizaciones, integraciones y colaboracion en tiempo real.
 
-<!-- update: comentario no funcional para commit -->
+## Que es Killio
 
-<p align="center">
-  The web client for Killio, a restriction-free productivity execution platform built for teams that need boards, documents, AI support, and decision history in one operating surface.
-</p>
+Killio reemplaza la combinacion fragil de notas sueltas, chats dispersos, hojas de calculo, tableros separados y documentos aislados.
+En un solo lugar permite:
+- planear trabajo
+- ejecutar tareas
+- documentar decisiones
+- automatizar flujos
+- conectar herramientas externas
+- ver actividad y progreso en vivo
 
-<p align="center">
-  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black" />
-  <img alt="React" src="https://img.shields.io/badge/React-19-111827" />
-  <img alt="TypeScript" src="https://img.shields.io/badge/TypeScript-5-3178C6" />
-  <img alt="Tailwind CSS" src="https://img.shields.io/badge/Tailwind-3-06B6D4" />
-</p>
+## Para quien es
 
-## What Is Killio?
+Killio esta pensado para equipos que necesitan claridad operativa y velocidad de ejecucion:
+- equipos de producto y operaciones
+- agencias y equipos de delivery
+- startups que trabajan con mucha coordinacion
+- equipos tecnicos que documentan y automatizan su trabajo
+- grupos que necesitan trazabilidad entre decisiones, tareas y documentos
 
-Killio is the frontend for a collaborative execution workspace where teams can plan work, write structured documents, discuss decisions, and use AI without jumping across disconnected tools.
+## Lo que resuelve
 
-The product combines several surfaces that usually live in separate tabs:
+### 1. Boards que realmente mueven trabajo
+Los boards de Killio no son solo columnas bonitas. Sirven para convertir prioridades en avance real.
 
-- Team workspaces and onboarding flows
-- Boards with lists, cards, assignees, tags, comments, and activity history
-- Rich document editing with reusable content blocks called bricks
-- AI copilots for drafting, summarizing, and report generation
-- Realtime presence, notifications, and collaboration signals
-- Public landing, auth, invite acceptance, and legal routes
+Con Killio puedes:
+- crear boards por equipo o iniciativa
+- organizar listas y cards por etapa
+- asignar responsables
+- etiquetar y priorizar trabajo
+- comentar avances sin salir del flujo
+- ver timers y actividad reciente
+- compartir boards con el nivel de visibilidad adecuado
 
-The goal is simple: keep context attached to execution so work moves faster with less operational drag.
+### 2. Documentos que no se rompen cuando el trabajo crece
+Killio usa documents por bricks para que la documentacion sea modular, editable y utilizable en serio.
 
-## Product Pillars
+Eso significa poder:
+- escribir con bloques estructurados
+- insertar tablas, graficos, accordions, columnas y media
+- reordenar contenido con facilidad
+- colaborar en tiempo real
+- comentar y mantener historiales
+- exportar contenido cuando hace falta compartirlo fuera del producto
 
-### Context-first boards
+### 3. Automatizaciones que reducen trabajo repetitivo
+Killio incluye scripts y workflows visuales para que el equipo no tenga que repetir tareas manuales.
 
-Killio boards are designed to keep planning and execution visible. Teams can create boards, organize cards across lists, assign ownership, track movement, and keep conversation close to the work.
+Desde el frontend puedes:
+- abrir el canvas visual de automatizaciones
+- crear y editar scripts
+- ejecutar flujos manualmente
+- revisar logs y resultados
+- usar presets para arrancar mas rapido
+- conectar nodos visuales para mover informacion entre sistemas
 
-### Structured docs, not loose notes
+### 4. Integraciones que conectan el trabajo con el mundo real
+Killio no vive aislado. El frontend permite administrar conexiones que hacen que el producto entre en la operacion diaria.
 
-Documents are composed of bricks, which let teams build living documents from text, checklists, tables, graphs, accordions, media, embeds, and AI-generated content.
+Actualmente se soporta:
+- GitHub App
+- Slack webhooks
+- WhatsApp credentials
+- vistas de integraciones dentro del dashboard
 
-### AI inside the workflow
+### 5. Colaboracion visible
+Killio esta pensado para que el contexto no se pierda entre pantallas.
 
-Instead of pushing users into a separate chat product, Killio brings AI into board and document flows for summarization, drafting, contextual suggestions, and technical report generation.
+Incluye:
+- presencia de usuarios
+- chat de equipo
+- activity history por scope
+- notificaciones
+- invitaciones y roles
+- rutas publicas para compartir o aceptar acceso
 
-### Collaboration you can trust
+## Experiencia principal del producto
 
-The frontend includes invites, sharing flows, permissions, activity tracking, presence, and notifications so distributed teams can collaborate without losing visibility.
+### Boards
+Los boards son el centro de ejecucion de Killio. Ahí el equipo ve:
+- trabajo en curso
+- prioridades
+- comentarios
+- asignaciones
+- cambios recientes
+- estado visual del board
 
-## What This Repository Contains
+### Documents
+Los documents funcionan como una capa de conocimiento viva. Ahí el equipo puede:
+- definir procesos
+- registrar decisiones
+- armar reports
+- documentar operaciones
+- crear contenido reutilizable
 
-This repository contains the Next.js application that powers the Killio web experience, including:
+### Scripts
+Los scripts convierten procesos repetitivos en flujos visibles y mantenibles.
+Son utiles para automatizar desde eventos de GitHub hasta movimientos de cards o generacion de contenido.
 
-- Public marketing and entry pages
-- Login, signup, and invite acceptance flows
-- Team, board, history, and dashboard views
-- Board chat, realtime updates, and activity feeds
-- Document editing and export flows
-- Shared UI primitives and feature components
-- API client integrations for the Killio backend
+### Integrations
+Las integraciones conectan Killio con el stack real del equipo.
+Esto permite que los boards y los documentos no sean islas, sino nodos dentro de una operacion mas amplia.
 
-## Core Capabilities
+## Por que se siente distinto
 
-- Boards, lists, and cards with drag-and-drop interactions via dnd-kit
-- Document editor with brick-based composition
-- Board and document comments, history, and sharing flows
-- AI generation panels and contextual copilot actions
-- Realtime collaboration through Ably channels and presence
-- Internationalization support for English and Spanish
-- PWA manifest and branded app icons
+Killio no intenta ser solo un tablero, ni solo un editor, ni solo un automatizador.
+La propuesta es combinar todo eso en una superficie coherente:
+- una decision termina en una card
+- una card puede alimentar un documento
+- un documento puede disparar un workflow
+- un workflow puede actualizar boards o integraciones
+- todo queda trazado en actividad y notificaciones
 
-## Tech Stack
+## Qué incluye este repositorio
 
-- Next.js 15 App Router
+Este repositorio contiene la aplicacion web completa de Killio, incluyendo:
+- auth y sesion
+- dashboard principal
+- boards y cards
+- editor de documentos por bricks
+- historial de actividad
+- integraciones
+- workflows/scripts
+- chat y realtime
+- soporte i18n
+- PWA y experiencia mobile
+
+## Stack tecnico
+
+La tecnologia existe para sostener el producto, no para definirlo. Aun asi, el frontend se apoya en:
+- Next.js 15
 - React 19
 - TypeScript
 - Tailwind CSS
-- Zustand for client-side state
-- dnd-kit for board interactions
-- Ably for realtime events and presence
-- Recharts and HyperFormula for structured data and visualization
+- Ably para realtime
+- dnd-kit para interacciones de board
+- Serwist para PWA
+- River para automatizaciones
+- HyperFormula y Recharts para bricks de datos
 
-## Getting Started
+## Como se usa
 
-### Prerequisites
+1. Inicia sesion.
+2. Crea o abre un team.
+3. Organiza boards y cards.
+4. Documenta el trabajo en bricks.
+5. Conecta integraciones.
+6. Automatiza tareas repetitivas con scripts.
+7. Revisa actividad, notificaciones y cambios en vivo.
 
+## Setup local
+
+### Requisitos
 - Node.js 20+
 - npm 10+
-- A running Killio backend API
+- Killio Backend corriendo
 
-### Install dependencies
-
-```bash
-npm install
-```
-
-### Environment variables
-
-Create a local environment file such as `.env.local` and point the frontend at your backend.
+### Variables de entorno
 
 ```bash
 NEXT_PUBLIC_API_BASE_URL=http://localhost:4000
 NEXT_PUBLIC_API_URL=http://localhost:4000
+NEXT_PUBLIC_KILLIO_API_URL=http://localhost:4000
 ```
 
-Both variables are worth setting today because the codebase still references both names in different areas.
-
-### Run the app
+### Arranque
 
 ```bash
+npm install
 npm run dev
 ```
 
-Open http://localhost:3000.
+Abre http://localhost:3000.
 
-### Production build
+## Rutas principales
+- `/` -> landing y entrada principal
+- `/login` y `/signup` -> acceso
+- `/b` -> boards
+- `/d` -> documents
+- `/history` -> actividad
+- `/teams` -> equipos
+- `/integrations` -> integraciones y workflows
+- `/accept-invite` -> invitaciones
 
-```bash
-npm run build
-npm run start
-```
+## Operacion de producto
 
-## Scripts
+Antes de publicar cambios importantes, conviene validar:
+- boards y cards siguen siendo usables en desktop y mobile
+- documents siguen editandose y reordenandose bien
+- scripts siguen mostrando el canvas y los runs
+- integrations siguen reflejando el estado real de conexiones
+- el realtime sigue actualizando presencia y actividad
 
-```bash
-npm run dev     # Start the Next.js development server
-npm run build   # Create a production build
-npm run start   # Serve the production build
-```
+## Relacion con el backend
 
-## Project Shape
+Este frontend consume la API de Killio Backend para:
+- auth y sesion
+- teams, boards, cards y documents
+- activity y notifications
+- ai y uploads
+- scripts e integrations
+- ably auth para realtime
 
-```text
-src/
-  app/                Next.js routes and layouts
-  components/         Shared UI, marketing, documents, and bricks
-  features/           Higher-level feature modules
-  hooks/              Realtime, presence, permissions, and user hooks
-  i18n/               Locale dictionaries and i18n wiring
-  lib/                API clients, helpers, AI context, and utilities
-  types/              Shared frontend types
-public/               Brand assets, icons, and PWA files
-```
+## Mensaje de producto
 
-## Backend Contract
-
-This frontend expects the Killio backend to provide:
-
-- Authentication and session flows
-- Team, board, list, card, and document APIs
-- Invite and membership management
-- AI endpoints for generation and reporting
-- Ably auth endpoints for realtime access
-- Export endpoints for document output
-
-If you are running the full platform locally, start the backend first and then launch this app.
-
-## Brand Notes
-
-Killio uses a dark, high-contrast visual system with a sharp execution-oriented tone. The branding in this repo includes:
-
-- Killio logo assets in `public/killio.webp` and `public/killio_white.webp`
-- PWA icons and manifest metadata under `public/` and `src/app/manifest.ts`
-- A landing experience centered around clarity, momentum, and operational trust
-
-## Status
-
-This repo is the active frontend application for Killio and is structured as a product surface, not a component sandbox. Expect application code, integrated API flows, and product-facing UX patterns throughout the codebase.
-
-## Related Repositories
-
-- Killio backend API repository
-- Killio contracts and shared integrations used across the wider workspace
-
-## License
-
-No license file is currently included in this repository.
-
-Update note (2026-03-27): non-functional README refresh for deployment commit.
+Killio ayuda a que el trabajo deje de depender de demasiadas herramientas separadas.
+Es una experiencia para equipos que quieren ver el trabajo, documentarlo, automatizarlo y moverlo de forma ordenada desde una sola interfaz.
