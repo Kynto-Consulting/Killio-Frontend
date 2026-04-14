@@ -42,6 +42,22 @@
     "trend": {
       "new": "new"
     },
+    "filters": {
+      "title": "Filters",
+      "reset": "Reset",
+      "search": "Search",
+      "searchPlaceholder": "Search member, board or action",
+      "user": "User",
+      "allUsers": "All users",
+      "board": "Board",
+      "allBoards": "All boards",
+      "action": "Action",
+      "allActions": "All actions",
+      "scope": "Scope",
+      "allScopes": "All scopes",
+      "dateFrom": "Date from",
+      "dateTo": "Date to"
+    },
     "sections": {
       "activityTrend": "Activity trend",
       "memberLoad": "Member workload",

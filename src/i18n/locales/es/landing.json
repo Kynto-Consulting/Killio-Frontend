@@ -10,6 +10,7 @@
     "finalSecondary": "Leer terminos"
   },
   "nav": {
+    "pricing": "Planes",
     "privacy": "Privacidad",
     "terms": "Terminos",
     "cookies": "Cookies"
@@ -63,6 +64,48 @@
         "title": "Acciones en Killio",
         "description": "Crea, actualiza, mueve y asigna cards desde un solo grafo de automatizacion."
       }
+    }
+  },
+  "pricing": {
+    "label": "Planes",
+    "title": "Empieza gratis y escala con Enterprise",
+    "subtitle": "Solo hay dos planes por ahora: Free y Enterprise. No existe plan Pro en este momento.",
+    "jumpCta": "Ver planes",
+    "noProNotice": "No hay plan Pro por ahora",
+    "free": {
+      "name": "Free",
+      "badge": "Para equipos que inician",
+      "price": "$0 / mes",
+      "description": "Para equipos pequenos que validan flujos y automatizaciones.",
+      "limit1": "Hasta 100 ejecuciones de automatizacion por mes",
+      "limit2": "Hasta 10 scripts activos",
+      "limit3": "Tableros, documentos e historial de actividad base",
+      "limit4": "Soporte de comunidad",
+      "cta": "Crear espacio gratis"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "badge": "Escala",
+      "price": "Personalizado",
+      "description": "Para organizaciones que necesitan control, escala y gobierno.",
+      "limit1": "Capacidad de automatizacion y SLA personalizados",
+      "limit2": "Gobierno avanzado y politicas de workspace",
+      "limit3": "SSO y controles de seguridad enterprise",
+      "limit4": "Onboarding dedicado y soporte prioritario",
+      "cta": "Contactar ventas"
+    }
+  },
+  "routes": {
+    "title": "Chequeo de rutas publicas",
+    "subtitle": "Estas rutas publicas estan activas y listas.",
+    "links": {
+      "home": "Inicio",
+      "login": "Login",
+      "signup": "Registro",
+      "terms": "Terminos",
+      "privacy": "Privacidad",
+      "cookies": "Cookies",
+      "offline": "Offline"
     }
   },
   "showcase": {
@@ -153,6 +196,7 @@
     "signupCta": "Ir a registro"
   },
   "final": {
+    "kicker": "Lanza con intencion",
     "title": "Pon estructura a la ejecucion antes de que el trabajo se vuelva ruido.",
     "description": "Crea un workspace, acepta los terminos una vez y dale a tu equipo un sistema operativo mas claro desde el primer dia."
   },

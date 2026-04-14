@@ -42,6 +42,22 @@
     "trend": {
       "new": "nuevo"
     },
+    "filters": {
+      "title": "Filtros",
+      "reset": "Limpiar",
+      "search": "Buscar",
+      "searchPlaceholder": "Buscar miembro, tablero o accion",
+      "user": "Usuario",
+      "allUsers": "Todos los usuarios",
+      "board": "Tablero",
+      "allBoards": "Todos los tableros",
+      "action": "Accion",
+      "allActions": "Todas las acciones",
+      "scope": "Ambito",
+      "allScopes": "Todos los ambitos",
+      "dateFrom": "Fecha desde",
+      "dateTo": "Fecha hasta"
+    },
     "sections": {
       "activityTrend": "Tendencia de actividad",
       "memberLoad": "Carga por miembro",

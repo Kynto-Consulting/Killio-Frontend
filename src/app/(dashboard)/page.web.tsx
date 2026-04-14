@@ -7,6 +7,7 @@ import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { PublicFooter } from "@/components/marketing/public-footer";
+import { KillioLanding } from "@/components/marketing/killio-landing";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
@@ -577,7 +578,7 @@ export default function WorkspacesPage() {
       );
     }
 
-    return <PublicLanding t={tLanding} />;
+    return <KillioLanding />;
   }
 
   return (

@@ -10,6 +10,7 @@
     "finalSecondary": "Read the terms"
   },
   "nav": {
+    "pricing": "Pricing",
     "privacy": "Privacy",
     "terms": "Terms",
     "cookies": "Cookies"
@@ -63,6 +64,48 @@
         "title": "Killio actions",
         "description": "Create, update, move, and assign cards from one automation graph."
       }
+    }
+  },
+  "pricing": {
+    "label": "Plans",
+    "title": "Start free, scale with Enterprise",
+    "subtitle": "Only two plans right now: Free and Enterprise. We are not offering a Pro tier yet.",
+    "jumpCta": "See plans",
+    "noProNotice": "No Pro plan right now",
+    "free": {
+      "name": "Free",
+      "badge": "For teams starting",
+      "price": "$0 / month",
+      "description": "For small teams validating workflows and automations.",
+      "limit1": "Up to 100 automation runs per month",
+      "limit2": "Up to 10 active scripts",
+      "limit3": "Core boards, docs, and activity history",
+      "limit4": "Community support",
+      "cta": "Create free workspace"
+    },
+    "enterprise": {
+      "name": "Enterprise",
+      "badge": "Scale",
+      "price": "Custom",
+      "description": "For organizations that need controls, scale, and governance.",
+      "limit1": "Custom automation capacity and SLAs",
+      "limit2": "Advanced governance and workspace policies",
+      "limit3": "SSO and enterprise-grade security controls",
+      "limit4": "Dedicated onboarding and priority support",
+      "cta": "Contact sales"
+    }
+  },
+  "routes": {
+    "title": "Public routes check",
+    "subtitle": "These public routes are active and ready.",
+    "links": {
+      "home": "Home",
+      "login": "Login",
+      "signup": "Signup",
+      "terms": "Terms",
+      "privacy": "Privacy",
+      "cookies": "Cookies",
+      "offline": "Offline"
     }
   },
   "showcase": {
@@ -153,6 +196,7 @@
     "signupCta": "Go to register"
   },
   "final": {
+    "kicker": "Launch with intent",
     "title": "Bring structure to execution before the work gets noisy.",
     "description": "Create a workspace, accept the terms once, and give your team a sharper operating system from day one."
   },

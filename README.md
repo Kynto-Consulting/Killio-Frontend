@@ -102,6 +102,17 @@ Los documents funcionan como una capa de conocimiento viva. Ahí el equipo puede
 Los scripts convierten procesos repetitivos en flujos visibles y mantenibles.
 Son utiles para automatizar desde eventos de GitHub hasta movimientos de cards o generacion de contenido.
 
+### Metrics
+La vista de metrics da una lectura ejecutiva del workspace para admins y owners.
+Permite revisar productividad, riesgo operativo y carga de trabajo con foco en decisiones de PMs y team leads.
+
+Incluye:
+- KPIs de ejecucion (cards creadas/completadas, tasa de cierre, ciclo promedio)
+- salud operativa (overdue, stale, due soon, balance de carga)
+- rendimiento por miembro y por tablero
+- actividad reciente con scroll y filtros avanzados (usuario, fecha, accion, scope, tablero y busqueda)
+- rango temporal configurable (7, 30, 90 dias)
+
 ### Integrations
 Las integraciones conectan Killio con el stack real del equipo.
 Esto permite que los boards y los documentos no sean islas, sino nodos dentro de una operacion mas amplia.
@@ -124,6 +135,7 @@ Este repositorio contiene la aplicacion web completa de Killio, incluyendo:
 - boards y cards
 - editor de documentos por bricks
 - historial de actividad
+- metrics ejecutivas para administradores
 - integraciones
 - workflows/scripts
 - chat y realtime
@@ -183,6 +195,7 @@ Abre http://localhost:3000.
 - `/b` -> boards
 - `/d` -> documents
 - `/history` -> actividad
+- `/metrics` -> metrics del workspace (solo admin/owner)
 - `/teams` -> equipos
 - `/integrations` -> integraciones y workflows
 - `/accept-invite` -> invitaciones

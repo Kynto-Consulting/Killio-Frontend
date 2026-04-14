@@ -25,9 +25,12 @@ import {
   Gauge,
   LayoutGrid,
   Minus,
+  Search,
+  SlidersHorizontal,
   SquareKanban,
   Target,
   Users,
+  X,
   Zap,
 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
@@ -41,6 +44,19 @@ type WindowDays = (typeof WINDOW_OPTIONS)[number];
 
 function formatAction(action: string) {
   return action.replace(/\./g, " ").replace(/_/g, " ");
+}
+
+function normalizeText(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function getActivityBoardId(activity: TeamMetricsResponse["recentActivity"][number]): string | null {
+  if (activity.scope === "board") {
+    return activity.scopeId;
+  }
+
+  const payload = (activity.payload ?? {}) as { boardId?: unknown };
+  return typeof payload.boardId === "string" && payload.boardId ? payload.boardId : null;
 }
 
 function buildSeries(windowDays: WindowDays, series: TeamMetricsResponse["activitySeries"], locale: string) {
@@ -105,6 +121,13 @@ export function WorkspaceMetricsDashboard() {
   const [metrics, setMetrics] = useState<TeamMetricsResponse | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedUserId, setSelectedUserId] = useState<string>("all");
+  const [selectedBoardId, setSelectedBoardId] = useState<string>("all");
+  const [selectedAction, setSelectedAction] = useState<string>("all");
+  const [selectedScope, setSelectedScope] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   useEffect(() => {
     if (!isRoleLoading && activeTeamId && accessToken && role && !isAdmin) {
@@ -147,21 +170,146 @@ export function WorkspaceMetricsDashboard() {
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const activitySeries = useMemo(() => buildSeries(windowDays, metrics?.activitySeries ?? [], locale), [locale, metrics?.activitySeries, windowDays]);
 
+  const boardNameById = useMemo(() => {
+    return new Map((metrics?.boards ?? []).map((board) => [board.id, board.name]));
+  }, [metrics?.boards]);
+
   const memberByUserId = useMemo(() => {
     return new Map((metrics?.members ?? []).map((member) => [member.userId, member]));
   }, [metrics?.members]);
 
+  const userFilterOptions = useMemo(() => {
+    const options = (metrics?.members ?? []).map((member) => ({
+      id: member.userId,
+      name: member.displayName,
+    }));
+
+    const hasSystem = (metrics?.recentActivity ?? []).some((activity) => activity.actorId === "i18n.system");
+    if (hasSystem) {
+      options.push({ id: "i18n.system", name: t("metrics.system.label") });
+    }
+
+    return options;
+  }, [metrics?.members, metrics?.recentActivity, t]);
+
+  const actionFilterOptions = useMemo(() => {
+    return Array.from(new Set((metrics?.recentActivity ?? []).map((activity) => activity.action))).sort();
+  }, [metrics?.recentActivity]);
+
+  const scopeFilterOptions = useMemo(() => {
+    return Array.from(new Set((metrics?.recentActivity ?? []).map((activity) => activity.scope))).sort();
+  }, [metrics?.recentActivity]);
+
+  const normalizedSearch = useMemo(() => normalizeText(searchQuery), [searchQuery]);
+
+  const dateFromKey = dateFrom || null;
+  const dateToKey = dateTo || null;
+
+  const filteredActivitySeries = useMemo(() => {
+    if (!dateFromKey && !dateToKey) {
+      return activitySeries;
+    }
+
+    return activitySeries.filter((point) => {
+      if (dateFromKey && point.date < dateFromKey) {
+        return false;
+      }
+      if (dateToKey && point.date > dateToKey) {
+        return false;
+      }
+      return true;
+    });
+  }, [activitySeries, dateFromKey, dateToKey]);
+
+  const filteredRecentActivity = useMemo(() => {
+    return (metrics?.recentActivity ?? []).filter((activity) => {
+      const activityDateKey = activity.createdAt.slice(0, 10);
+      if (dateFromKey && activityDateKey < dateFromKey) {
+        return false;
+      }
+      if (dateToKey && activityDateKey > dateToKey) {
+        return false;
+      }
+
+      if (selectedUserId !== "all" && activity.actorId !== selectedUserId) {
+        return false;
+      }
+
+      if (selectedAction !== "all" && activity.action !== selectedAction) {
+        return false;
+      }
+
+      if (selectedScope !== "all" && activity.scope !== selectedScope) {
+        return false;
+      }
+
+      const boardId = getActivityBoardId(activity);
+      if (selectedBoardId !== "all" && boardId !== selectedBoardId) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const actorLabel = activity.actorId === "i18n.system"
+        ? t("metrics.system.label")
+        : memberByUserId.get(activity.actorId)?.displayName ?? activity.actorId;
+      const boardLabel = boardId ? boardNameById.get(boardId) ?? "" : "";
+      const haystack = `${actorLabel} ${formatAction(activity.action)} ${boardLabel}`.toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [
+    boardNameById,
+    dateFromKey,
+    dateToKey,
+    memberByUserId,
+    metrics?.recentActivity,
+    normalizedSearch,
+    selectedAction,
+    selectedBoardId,
+    selectedScope,
+    selectedUserId,
+    t,
+  ]);
+
+  const filteredMembers = useMemo(() => {
+    return (metrics?.members ?? []).filter((member) => {
+      if (selectedUserId !== "all" && member.userId !== selectedUserId) {
+        return false;
+      }
+
+      if (!normalizedSearch) {
+        return true;
+      }
+
+      const haystack = `${member.displayName} ${member.primaryEmail} ${member.role}`.toLowerCase();
+      return haystack.includes(normalizedSearch);
+    });
+  }, [metrics?.members, normalizedSearch, selectedUserId]);
+
   const topMembers = useMemo(() => {
-    return [...(metrics?.members ?? [])]
+    return [...filteredMembers]
       .sort((left, right) => right.completedCardsCount - left.completedCardsCount || right.activityCount - left.activityCount)
       .slice(0, 8);
-  }, [metrics?.members]);
+  }, [filteredMembers]);
 
   const boardPortfolio = useMemo(() => {
     return [...(metrics?.boards ?? [])]
+      .filter((board) => {
+        if (selectedBoardId !== "all" && board.id !== selectedBoardId) {
+          return false;
+        }
+
+        if (!normalizedSearch) {
+          return true;
+        }
+
+        return board.name.toLowerCase().includes(normalizedSearch);
+      })
       .sort((left, right) => right.overdueCardsCount - left.overdueCardsCount || right.staleCardsCount - left.staleCardsCount || right.activityCount - left.activityCount)
       .slice(0, 8);
-  }, [metrics?.boards]);
+  }, [metrics?.boards, normalizedSearch, selectedBoardId]);
 
   const trendByMetric = useMemo(() => {
     return new Map((metrics?.trends ?? []).map((trend) => [trend.metric, trend]));
@@ -169,16 +317,24 @@ export function WorkspaceMetricsDashboard() {
 
   const focusMembers = useMemo(() => {
     return topMembers.map((member) => {
-      const completionRate = member.createdCardsCount > 0 ? (member.completedCardsCount / member.createdCardsCount) * 100 : null;
       const executionRate = member.assignmentsCount > 0 ? (member.completedCardsCount / member.assignmentsCount) * 100 : null;
 
       return {
         ...member,
-        completionRate,
         executionRate,
       };
     });
   }, [topMembers]);
+
+  const resetFilters = () => {
+    setSearchQuery("");
+    setSelectedUserId("all");
+    setSelectedBoardId("all");
+    setSelectedAction("all");
+    setSelectedScope("all");
+    setDateFrom("");
+    setDateTo("");
+  };
 
   const summaryCards = metrics
     ? [
@@ -228,13 +384,10 @@ export function WorkspaceMetricsDashboard() {
 
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="rounded-[32px] border border-border/60 bg-card/65 p-5 shadow-[0_30px_120px_rgba(0,0,0,0.28)] backdrop-blur-sm sm:p-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
             <div>
-              <span className="inline-flex rounded-full border border-[#d8ff72]/25 bg-[#d8ff72]/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[#d8ff72]">
-                {t("metrics.title")}
-              </span>
-              <h1 className="mt-4 text-3xl font-semibold tracking-tight sm:text-4xl">{metrics?.teamName ?? t("metrics.title")}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground sm:text-base">{t("metrics.subtitle")}</p>
+              <h1 className="text-3xl font-bold tracking-tight mb-2">{t("metrics.title")}</h1>
+              <p className="text-muted-foreground">{t("metrics.subtitle")}</p>
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
@@ -255,6 +408,114 @@ export function WorkspaceMetricsDashboard() {
               </div>
             </div>
           </div>
+
+          <section className="mt-6 rounded-2xl border border-border/60 bg-background/70 p-4 shadow-sm">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <p className="inline-flex items-center gap-2 text-sm font-semibold text-foreground">
+                <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+                {t("metrics.filters.title")}
+              </p>
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="inline-flex items-center gap-1 rounded-full border border-border/70 px-3 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+                {t("metrics.filters.reset")}
+              </button>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.search")}
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+                  <input
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder={t("metrics.filters.searchPlaceholder")}
+                    className="h-9 w-full rounded-xl border border-border/70 bg-background pl-9 pr-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                  />
+                </div>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.user")}
+                <select
+                  value={selectedUserId}
+                  onChange={(event) => setSelectedUserId(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                >
+                  <option value="all">{t("metrics.filters.allUsers")}</option>
+                  {userFilterOptions.map((option) => (
+                    <option key={option.id} value={option.id}>{option.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.board")}
+                <select
+                  value={selectedBoardId}
+                  onChange={(event) => setSelectedBoardId(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                >
+                  <option value="all">{t("metrics.filters.allBoards")}</option>
+                  {(metrics?.boards ?? []).map((board) => (
+                    <option key={board.id} value={board.id}>{board.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.action")}
+                <select
+                  value={selectedAction}
+                  onChange={(event) => setSelectedAction(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                >
+                  <option value="all">{t("metrics.filters.allActions")}</option>
+                  {actionFilterOptions.map((action) => (
+                    <option key={action} value={action}>{formatAction(action)}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.scope")}
+                <select
+                  value={selectedScope}
+                  onChange={(event) => setSelectedScope(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                >
+                  <option value="all">{t("metrics.filters.allScopes")}</option>
+                  {scopeFilterOptions.map((scope) => (
+                    <option key={scope} value={scope}>{scope}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.dateFrom")}
+                <input
+                  type="date"
+                  value={dateFrom}
+                  onChange={(event) => setDateFrom(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                />
+              </label>
+
+              <label className="flex flex-col gap-1.5 text-xs text-muted-foreground">
+                {t("metrics.filters.dateTo")}
+                <input
+                  type="date"
+                  value={dateTo}
+                  onChange={(event) => setDateTo(event.target.value)}
+                  className="h-9 w-full rounded-xl border border-border/70 bg-background px-3 text-sm text-foreground outline-none transition-colors focus:border-accent"
+                />
+              </label>
+            </div>
+          </section>
 
           {error ? (
             <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive">{error}</div>
@@ -316,7 +577,7 @@ export function WorkspaceMetricsDashboard() {
                   </div>
                   <div className="mt-4 h-80 w-full">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={activitySeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+                      <AreaChart data={filteredActivitySeries} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.45} />
                         <XAxis dataKey="label" stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} />
                         <YAxis stroke="hsl(var(--muted-foreground))" fontSize={12} tickLine={false} axisLine={false} allowDecimals={false} />
@@ -571,12 +832,12 @@ export function WorkspaceMetricsDashboard() {
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
                       <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.recentActivity")}</h2>
-                      <p className="text-sm text-muted-foreground">{numberFormatter.format(metrics.recentActivity.length)} {t("metrics.events")}</p>
+                      <p className="text-sm text-muted-foreground">{numberFormatter.format(filteredRecentActivity.length)} {t("metrics.events")}</p>
                     </div>
                     <Clock3 className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="mt-4 space-y-3">
-                    {metrics.recentActivity.length > 0 ? metrics.recentActivity.map((activity) => {
+                  <div className="mt-4 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
+                    {filteredRecentActivity.length > 0 ? filteredRecentActivity.map((activity) => {
                       const actor = activity.actorId === "i18n.system" ? t("metrics.system.label") : memberByUserId.get(activity.actorId)?.displayName ?? activity.actorId.slice(0, 8);
                       return (
                         <div key={activity.id} className="rounded-2xl border border-border/60 bg-card/70 p-3">
