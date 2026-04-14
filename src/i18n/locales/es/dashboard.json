@@ -5,7 +5,7 @@
     "documents": "Documentos",
     "teams": "Equipos",
     "activityHistory": "Historial de actividad",
-    "statistics": "Estadisticas",
+    "statistics": "Metricas",
     "scripts": "Scripts",
     "recentBoards": "Tableros recientes",
     "recentDocuments": "Documentos recientes",
@@ -55,6 +55,9 @@
       "lastActive": "Ultima actividad"
     },
     "events": "eventos",
+    "errors": {
+      "load": "No se pudieron cargar las metricas del espacio."
+    },
     "empty": {
       "noData": "Aun no hay metricas para esta ventana.",
       "noRecentActivity": "No hay actividad reciente para mostrar.",

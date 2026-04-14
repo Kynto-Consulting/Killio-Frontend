@@ -91,7 +91,7 @@ export function WorkspaceMetricsDashboard() {
       })
       .catch((err: any) => {
         if (!cancelled) {
-          setError(typeof err?.message === "string" ? err.message : "Failed to load workspace metrics.");
+          setError(typeof err?.message === "string" ? err.message : t("metrics.errors.load"));
           setMetrics(null);
         }
       })

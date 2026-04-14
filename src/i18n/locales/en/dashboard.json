@@ -5,7 +5,7 @@
     "documents": "Documents",
     "teams": "Teams",
     "activityHistory": "Activity History",
-    "statistics": "Statistics",
+    "statistics": "Metrics",
     "scripts": "Scripts",
     "recentBoards": "Recent Boards",
     "recentDocuments": "Recent Documents",
@@ -55,6 +55,9 @@
       "lastActive": "Last active"
     },
     "events": "events",
+    "errors": {
+      "load": "Could not load workspace metrics."
+    },
     "empty": {
       "noData": "No metrics yet for this time window.",
       "noRecentActivity": "No recent activity to show.",

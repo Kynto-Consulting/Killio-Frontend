@@ -35,7 +35,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
   const navigationItems = canAccessScripts
-    ? [...navigation, { name: tDashboard("nav.statistics"), href: "/estadisticas", icon: BarChart3 }, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
+    ? [...navigation, { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 }, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
     : navigation;
 
   const [teams, setTeams] = useState<TeamView[]>([]);

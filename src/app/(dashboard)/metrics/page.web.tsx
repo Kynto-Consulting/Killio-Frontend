@@ -2,8 +2,8 @@
 
 import { WorkspaceMetricsDashboard } from "@/components/dashboard/workspace-metrics-dashboard";
 
-export function StatisticsMobilePage() {
+export function MetricsWebPage() {
   return <WorkspaceMetricsDashboard />;
 }
 
-export default StatisticsMobilePage;
+export default MetricsWebPage;
