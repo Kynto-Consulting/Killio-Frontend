@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3 } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -35,7 +35,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
   const navigationItems = canAccessScripts
-    ? [...navigation, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
+    ? [...navigation, { name: tDashboard("nav.statistics"), href: "/estadisticas", icon: BarChart3 }, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
     : navigation;
 
   const [teams, setTeams] = useState<TeamView[]>([]);
@@ -144,7 +144,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
-            {navigation.map((item) => {
+            {navigationItems.map((item) => {
               const isActive = pathname === item.href;
               return (
                 <Link

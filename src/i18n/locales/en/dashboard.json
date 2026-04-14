@@ -5,11 +5,66 @@
     "documents": "Documents",
     "teams": "Teams",
     "activityHistory": "Activity History",
-      "scripts": "Scripts",
+    "statistics": "Statistics",
+    "scripts": "Scripts",
     "recentBoards": "Recent Boards",
     "recentDocuments": "Recent Documents",
     "noBoardsYet": "No boards yet",
     "noDocumentsYet": "No documents yet"
+  },
+  "metrics": {
+    "title": "Workspace Metrics",
+    "subtitle": "Track how the active workspace is moving across members, assignments, boards and automation.",
+    "rangeLabel": "Window",
+    "rangeOptions": {
+      "7": "7 days",
+      "30": "30 days",
+      "90": "90 days"
+    },
+    "summary": {
+      "members": "Members",
+      "boards": "Boards",
+      "cards": "Cards",
+      "assignments": "Assignments",
+      "activity": "Activity",
+      "automation": "Automation"
+    },
+    "sections": {
+      "activityTrend": "Activity trend",
+      "memberLoad": "Member workload",
+      "boardPulse": "Board pulse",
+      "roleBreakdown": "Role breakdown",
+      "automation": "Automation usage",
+      "recentActivity": "Recent activity"
+    },
+    "automation": {
+      "runs": "Runs",
+      "activeScripts": "Active scripts",
+      "limit": "Limit",
+      "remaining": "Remaining"
+    },
+    "table": {
+      "member": "Member",
+      "role": "Role",
+      "assignments": "Assignments",
+      "createdCards": "Created cards",
+      "completedCards": "Completed cards",
+      "activity": "Activity",
+      "board": "Board",
+      "cards": "Cards",
+      "lastActive": "Last active"
+    },
+    "events": "events",
+    "empty": {
+      "noData": "No metrics yet for this time window.",
+      "noRecentActivity": "No recent activity to show.",
+      "noMembers": "No team members found.",
+      "noBoards": "No boards found.",
+      "noAutomation": "No automation usage recorded yet."
+    },
+    "system": {
+      "label": "System"
+    }
   },
   "accountMenu": {
     "account": "Account",

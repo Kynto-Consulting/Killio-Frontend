@@ -5,11 +5,66 @@
     "documents": "Documentos",
     "teams": "Equipos",
     "activityHistory": "Historial de actividad",
-      "scripts": "Scripts",
+    "statistics": "Estadisticas",
+    "scripts": "Scripts",
     "recentBoards": "Tableros recientes",
     "recentDocuments": "Documentos recientes",
     "noBoardsYet": "Aun no hay tableros",
     "noDocumentsYet": "Aun no hay documentos"
+  },
+  "metrics": {
+    "title": "Metricas del espacio",
+    "subtitle": "Sigue como trabaja el espacio activo entre miembros, asignaciones, tableros y automatizaciones.",
+    "rangeLabel": "Ventana",
+    "rangeOptions": {
+      "7": "7 dias",
+      "30": "30 dias",
+      "90": "90 dias"
+    },
+    "summary": {
+      "members": "Miembros",
+      "boards": "Tableros",
+      "cards": "Tarjetas",
+      "assignments": "Asignaciones",
+      "activity": "Actividad",
+      "automation": "Automatizacion"
+    },
+    "sections": {
+      "activityTrend": "Tendencia de actividad",
+      "memberLoad": "Carga por miembro",
+      "boardPulse": "Pulso por tablero",
+      "roleBreakdown": "Distribucion de roles",
+      "automation": "Uso de automatizaciones",
+      "recentActivity": "Actividad reciente"
+    },
+    "automation": {
+      "runs": "Ejecuciones",
+      "activeScripts": "Scripts activos",
+      "limit": "Limite",
+      "remaining": "Restantes"
+    },
+    "table": {
+      "member": "Miembro",
+      "role": "Rol",
+      "assignments": "Asignaciones",
+      "createdCards": "Tarjetas creadas",
+      "completedCards": "Tarjetas completadas",
+      "activity": "Actividad",
+      "board": "Tablero",
+      "cards": "Tarjetas",
+      "lastActive": "Ultima actividad"
+    },
+    "events": "eventos",
+    "empty": {
+      "noData": "Aun no hay metricas para esta ventana.",
+      "noRecentActivity": "No hay actividad reciente para mostrar.",
+      "noMembers": "No se encontraron miembros.",
+      "noBoards": "No se encontraron tableros.",
+      "noAutomation": "Aun no hay uso de automatizaciones registrado."
+    },
+    "system": {
+      "label": "Sistema"
+    }
   },
   "accountMenu": {
     "account": "Cuenta",

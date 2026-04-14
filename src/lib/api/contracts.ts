@@ -97,6 +97,87 @@ export type TeamMemberSummary = {
   joinedAt: string | null;
 };
 
+export type TeamMetricsSummary = {
+  memberCount: number;
+  ownerCount: number;
+  adminCount: number;
+  boardCount: number;
+  cardCount: number;
+  completedCardCount: number;
+  assignmentCount: number;
+  pendingInviteCount: number;
+  scriptCount: number;
+  activeScriptCount: number;
+  monthlyScriptRuns: number;
+  activityCount: number;
+  activityActorCount: number;
+};
+
+export type TeamMetricsRoleBreakdown = {
+  role: TeamRole | string;
+  count: number;
+};
+
+export type TeamMetricsMember = {
+  id: string;
+  userId: string;
+  role: TeamRole | string;
+  status: string;
+  displayName: string;
+  workspaceAlias: string | null;
+  baseDisplayName: string;
+  primaryEmail: string;
+  avatarUrl: string | null;
+  joinedAt: string | null;
+  assignmentsCount: number;
+  createdCardsCount: number;
+  completedCardsCount: number;
+  activityCount: number;
+  lastActiveAt: string | null;
+};
+
+export type TeamMetricsBoard = {
+  id: string;
+  name: string;
+  slug: string;
+  updatedAt: string;
+  cardsCount: number;
+  completedCardsCount: number;
+  assignmentsCount: number;
+  activityCount: number;
+  lastActiveAt: string | null;
+};
+
+export type TeamMetricsActivitySeriesPoint = {
+  date: string;
+  activityCount: number;
+  assignmentsCount: number;
+  completionsCount: number;
+};
+
+export type TeamMetricsAutomation = {
+  scriptCount: number;
+  activeScriptCount: number;
+  monthlyRuns: number;
+  limit: number | null;
+  remaining: number | null;
+};
+
+export type TeamMetricsResponse = {
+  teamId: string;
+  teamName: string;
+  teamSlug: string;
+  windowDays: number;
+  generatedAt: string;
+  summary: TeamMetricsSummary;
+  roleBreakdown: TeamMetricsRoleBreakdown[];
+  members: TeamMetricsMember[];
+  boards: TeamMetricsBoard[];
+  activitySeries: TeamMetricsActivitySeriesPoint[];
+  automation: TeamMetricsAutomation;
+  recentActivity: ActivityLogEntry[];
+};
+
 type BrickBase = {
   id: string;
   position: number;
@@ -781,6 +862,13 @@ export async function listTeamInvites(teamId: string, accessToken: string): Prom
 
 export async function listTeamMembers(teamId: string, accessToken: string): Promise<TeamMemberSummary[]> {
   return request<TeamMemberSummary[]>(`/teams/${teamId}/members`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function listTeamMetrics(teamId: string, accessToken: string, windowDays = 30): Promise<TeamMetricsResponse> {
+  return request<TeamMetricsResponse>(`/teams/${teamId}/metrics?windowDays=${encodeURIComponent(String(windowDays))}`, {
     method: 'GET',
     headers: authHeaders(accessToken),
   });
