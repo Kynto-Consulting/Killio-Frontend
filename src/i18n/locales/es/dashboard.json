@@ -29,13 +29,53 @@
       "activity": "Actividad",
       "automation": "Automatizacion"
     },
+    "cards": {
+      "activeMembers": "Miembros activos",
+      "ofTeam": "del equipo",
+      "completions": "Tarjetas completadas",
+      "prevWindow": "ventana previa",
+      "intake": "Entrada de tarjetas",
+      "assignments": "asignaciones",
+      "completionRate": "Tasa de cierre",
+      "cycle": "ciclo promedio"
+    },
+    "trend": {
+      "new": "nuevo"
+    },
     "sections": {
       "activityTrend": "Tendencia de actividad",
       "memberLoad": "Carga por miembro",
       "boardPulse": "Pulso por tablero",
       "roleBreakdown": "Distribucion de roles",
       "automation": "Uso de automatizaciones",
-      "recentActivity": "Actividad reciente"
+      "recentActivity": "Actividad reciente",
+      "deliveryFlow": "Flujo de entrega",
+      "deliveryFlowHint": "Tarjetas creadas vs completadas y presion de asignaciones en el tiempo.",
+      "executionHealth": "Salud de ejecucion",
+      "executionHealthHint": "Nivel de riesgo actual y consistencia de carga.",
+      "memberDelivery": "Entrega por miembro",
+      "memberDeliveryHint": "Quienes convierten mas trabajo en resultados completados.",
+      "workloadRisk": "Riesgo de carga",
+      "workloadRiskHint": "Miembros con carga concentrada o baja contribucion reciente.",
+      "lowUtilization": "Baja utilizacion",
+      "boardPortfolio": "Portafolio de tableros",
+      "boardPortfolioHint": "Perfil de riesgo y entrega por tablero.",
+      "memberDeepDive": "Analisis por miembro",
+      "memberDeepDiveHint": "Asignaciones, throughput y ratio de ejecucion por miembro."
+    },
+    "legend": {
+      "created": "Creadas",
+      "completed": "Completadas",
+      "assigned": "Asignadas"
+    },
+    "health": {
+      "open": "Tarjetas abiertas",
+      "overdue": "Vencidas",
+      "dueSoon": "Vencen en 7 dias",
+      "stale": "Estancadas +14d",
+      "workloadBalance": "Balance de carga",
+      "workloadBalanceHint": "Un puntaje mayor significa una distribucion mas pareja de asignaciones.",
+      "noRecentLoad": "Sin carga reciente"
     },
     "automation": {
       "runs": "Ejecuciones",
@@ -52,7 +92,8 @@
       "activity": "Actividad",
       "board": "Tablero",
       "cards": "Tarjetas",
-      "lastActive": "Ultima actividad"
+      "lastActive": "Ultima actividad",
+      "executionRate": "Tasa de ejecucion"
     },
     "events": "eventos",
     "errors": {
@@ -63,7 +104,9 @@
       "noRecentActivity": "No hay actividad reciente para mostrar.",
       "noMembers": "No se encontraron miembros.",
       "noBoards": "No se encontraron tableros.",
-      "noAutomation": "Aun no hay uso de automatizaciones registrado."
+      "noAutomation": "Aun no hay uso de automatizaciones registrado.",
+      "noOverloadedMembers": "No se detectaron miembros sobrecargados.",
+      "noUnderutilizedMembers": "No se detectaron miembros subutilizados."
     },
     "system": {
       "label": "Sistema"

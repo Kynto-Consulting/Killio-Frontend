@@ -13,11 +13,27 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { Activity, BarChart3, CalendarDays, ChevronRight, Clock3, LayoutGrid, RotateCcw, SquareKanban, Users, Zap } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Clock3,
+  Gauge,
+  LayoutGrid,
+  Minus,
+  SquareKanban,
+  Target,
+  Users,
+  Zap,
+} from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
-import { listTeamMetrics, type TeamMetricsResponse } from "@/lib/api/contracts";
+import { listTeamMetrics, type TeamMetricsResponse, type TeamMetricsTrend } from "@/lib/api/contracts";
 
 const WINDOW_OPTIONS = [7, 30, 90] as const;
 
@@ -37,6 +53,7 @@ function buildSeries(windowDays: WindowDays, series: TeamMetricsResponse["activi
     activityCount: number;
     assignmentsCount: number;
     completionsCount: number;
+    createdCardsCount: number;
   }> = [];
 
   for (let offset = windowDays - 1; offset >= 0; offset -= 1) {
@@ -50,10 +67,31 @@ function buildSeries(windowDays: WindowDays, series: TeamMetricsResponse["activi
       activityCount: point?.activityCount ?? 0,
       assignmentsCount: point?.assignmentsCount ?? 0,
       completionsCount: point?.completionsCount ?? 0,
+      createdCardsCount: point?.createdCardsCount ?? 0,
     });
   }
 
   return values;
+}
+
+function getTrendTone(metric: TeamMetricsTrend["metric"], trend: TeamMetricsTrend["direction"]): "up" | "down" | "flat" {
+  if (trend === "flat") {
+    return "flat";
+  }
+
+  if (metric === "createdCards") {
+    return trend === "up" ? "down" : "up";
+  }
+
+  return trend;
+}
+
+function formatPercent(value: number | null, locale: string) {
+  if (value === null) {
+    return "-";
+  }
+
+  return `${value.toLocaleString(locale, { maximumFractionDigits: 1 })}%`;
 }
 
 export function WorkspaceMetricsDashboard() {
@@ -114,44 +152,63 @@ export function WorkspaceMetricsDashboard() {
   }, [metrics?.members]);
 
   const topMembers = useMemo(() => {
-    return [...(metrics?.members ?? [])].sort((left, right) => right.assignmentsCount - left.assignmentsCount || right.activityCount - left.activityCount).slice(0, 8);
+    return [...(metrics?.members ?? [])]
+      .sort((left, right) => right.completedCardsCount - left.completedCardsCount || right.activityCount - left.activityCount)
+      .slice(0, 8);
   }, [metrics?.members]);
 
-  const topBoards = useMemo(() => {
-    return [...(metrics?.boards ?? [])].sort((left, right) => right.activityCount - left.activityCount || right.assignmentsCount - left.assignmentsCount).slice(0, 6);
+  const boardPortfolio = useMemo(() => {
+    return [...(metrics?.boards ?? [])]
+      .sort((left, right) => right.overdueCardsCount - left.overdueCardsCount || right.staleCardsCount - left.staleCardsCount || right.activityCount - left.activityCount)
+      .slice(0, 8);
   }, [metrics?.boards]);
+
+  const trendByMetric = useMemo(() => {
+    return new Map((metrics?.trends ?? []).map((trend) => [trend.metric, trend]));
+  }, [metrics?.trends]);
+
+  const focusMembers = useMemo(() => {
+    return topMembers.map((member) => {
+      const completionRate = member.createdCardsCount > 0 ? (member.completedCardsCount / member.createdCardsCount) * 100 : null;
+      const executionRate = member.assignmentsCount > 0 ? (member.completedCardsCount / member.assignmentsCount) * 100 : null;
+
+      return {
+        ...member,
+        completionRate,
+        executionRate,
+      };
+    });
+  }, [topMembers]);
 
   const summaryCards = metrics
     ? [
         {
-          label: t("metrics.summary.members"),
-          value: metrics.summary.memberCount,
+          label: t("metrics.cards.activeMembers"),
+          value: metrics.kpis.activeMemberCount,
+          helper: `${formatPercent(metrics.kpis.collaborationRatePct, locale)} ${t("metrics.cards.ofTeam")}`,
           icon: Users,
+          trend: trendByMetric.get("activity"),
         },
         {
-          label: t("metrics.summary.boards"),
-          value: metrics.summary.boardCount,
-          icon: SquareKanban,
+          label: t("metrics.cards.completions"),
+          value: metrics.windowSummary.completionsCount,
+          helper: `${numberFormatter.format(metrics.previousWindowSummary.completionsCount)} ${t("metrics.cards.prevWindow")}`,
+          icon: CheckCircle2,
+          trend: trendByMetric.get("completions"),
         },
         {
-          label: t("metrics.summary.cards"),
-          value: metrics.summary.cardCount,
+          label: t("metrics.cards.intake"),
+          value: metrics.windowSummary.createdCardsCount,
+          helper: `${numberFormatter.format(metrics.windowSummary.assignmentsCount)} ${t("metrics.cards.assignments")}`,
           icon: LayoutGrid,
+          trend: trendByMetric.get("createdCards"),
         },
         {
-          label: t("metrics.summary.assignments"),
-          value: metrics.summary.assignmentCount,
-          icon: RotateCcw,
-        },
-        {
-          label: t("metrics.summary.activity"),
-          value: metrics.summary.activityCount,
-          icon: Activity,
-        },
-        {
-          label: t("metrics.summary.automation"),
-          value: metrics.automation.monthlyRuns,
-          icon: Zap,
+          label: t("metrics.cards.completionRate"),
+          value: metrics.kpis.completionRatePct === null ? "-" : `${metrics.kpis.completionRatePct}%`,
+          helper: `${metrics.kpis.avgCycleTimeHours === null ? "-" : numberFormatter.format(metrics.kpis.avgCycleTimeHours)}h ${t("metrics.cards.cycle")}`,
+          icon: Target,
+          trend: trendByMetric.get("completions"),
         },
       ]
     : [];
@@ -211,9 +268,18 @@ export function WorkspaceMetricsDashboard() {
             </div>
           ) : metrics ? (
             <>
-              <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {summaryCards.map((card) => {
                   const Icon = card.icon;
+                  const trend = card.trend;
+                  const trendTone = trend ? getTrendTone(trend.metric, trend.direction) : "flat";
+                  const TrendIcon = trendTone === "up" ? ArrowUpRight : trendTone === "down" ? ArrowDownRight : Minus;
+                  const trendClass = trendTone === "up"
+                    ? "text-emerald-400"
+                    : trendTone === "down"
+                      ? "text-red-400"
+                      : "text-muted-foreground";
+
                   return (
                     <article key={card.label} className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                       <div className="flex items-center justify-between gap-3">
@@ -223,11 +289,17 @@ export function WorkspaceMetricsDashboard() {
                           </div>
                           <p className="text-sm font-medium text-muted-foreground">{card.label}</p>
                         </div>
-                        <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">
-                          {windowDays}d
-                        </span>
+                        {trend ? (
+                          <span className={`inline-flex items-center gap-1 text-xs font-medium ${trendClass}`}>
+                            <TrendIcon className="h-3.5 w-3.5" />
+                            {trend.deltaPct === null ? t("metrics.trend.new") : `${trend.deltaPct > 0 ? "+" : ""}${trend.deltaPct}%`}
+                          </span>
+                        ) : (
+                          <span className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{windowDays}d</span>
+                        )}
                       </div>
-                      <p className="mt-4 text-3xl font-semibold tracking-tight">{numberFormatter.format(card.value)}</p>
+                      <p className="mt-4 text-3xl font-semibold tracking-tight">{typeof card.value === "number" ? numberFormatter.format(card.value) : card.value}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">{card.helper}</p>
                     </article>
                   );
                 })}
@@ -237,8 +309,8 @@ export function WorkspaceMetricsDashboard() {
                 <article className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
-                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.activityTrend")}</h2>
-                      <p className="text-sm text-muted-foreground">{t("metrics.subtitle")}</p>
+                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.deliveryFlow")}</h2>
+                      <p className="text-sm text-muted-foreground">{t("metrics.sections.deliveryFlowHint")}</p>
                     </div>
                     <CalendarDays className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -252,71 +324,61 @@ export function WorkspaceMetricsDashboard() {
                           contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: 16 }}
                           labelStyle={{ color: "hsl(var(--foreground))" }}
                         />
-                        <Area type="monotone" dataKey="activityCount" stroke="hsl(var(--accent))" fill="hsl(var(--accent))" fillOpacity={0.2} strokeWidth={2} />
-                        <Area type="monotone" dataKey="assignmentsCount" stroke="#7dd3fc" fill="#7dd3fc" fillOpacity={0.12} strokeWidth={2} />
+                        <Area type="monotone" dataKey="createdCardsCount" stroke="#fb7185" fill="#fb7185" fillOpacity={0.14} strokeWidth={2} />
                         <Area type="monotone" dataKey="completionsCount" stroke="#a3e635" fill="#a3e635" fillOpacity={0.12} strokeWidth={2} />
+                        <Area type="monotone" dataKey="assignmentsCount" stroke="#7dd3fc" fill="#7dd3fc" fillOpacity={0.1} strokeWidth={2} />
                       </AreaChart>
                     </ResponsiveContainer>
+                  </div>
+                  <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#fb7185]" />{t("metrics.legend.created")}</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#a3e635]" />{t("metrics.legend.completed")}</span>
+                    <span className="inline-flex items-center gap-2"><span className="h-2 w-2 rounded-full bg-[#7dd3fc]" />{t("metrics.legend.assigned")}</span>
                   </div>
                 </article>
 
                 <article className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
-                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.roleBreakdown")}</h2>
-                      <p className="text-sm text-muted-foreground">{t("metrics.table.role")}</p>
+                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.executionHealth")}</h2>
+                      <p className="text-sm text-muted-foreground">{t("metrics.sections.executionHealthHint")}</p>
                     </div>
-                    <Users className="h-5 w-5 text-muted-foreground" />
+                    <Gauge className="h-5 w-5 text-muted-foreground" />
                   </div>
-                  <div className="mt-4 space-y-3">
-                    {metrics.roleBreakdown.length > 0 ? (
-                      metrics.roleBreakdown.map((roleItem) => {
-                        const total = metrics.summary.memberCount || 1;
-                        const percent = Math.round((roleItem.count / total) * 100);
-                        return (
-                          <div key={roleItem.role} className="rounded-2xl border border-border/60 bg-card/70 p-3">
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-sm font-medium capitalize">{roleItem.role}</span>
-                              <span className="text-sm text-muted-foreground">{numberFormatter.format(roleItem.count)} · {percent}%</span>
-                            </div>
-                            <div className="mt-2 h-2 rounded-full bg-muted/60">
-                              <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(8, percent)}%` }} />
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
-                        {t("metrics.empty.noMembers")}
-                      </div>
-                    )}
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-2xl border border-border/60 bg-card/70 p-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.health.open")}</p>
+                      <p className="mt-1 text-2xl font-semibold">{numberFormatter.format(metrics.kpis.openCards)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-red-300">{t("metrics.health.overdue")}</p>
+                      <p className="mt-1 text-2xl font-semibold text-red-200">{numberFormatter.format(metrics.kpis.overdueOpenCards)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-amber-300">{t("metrics.health.dueSoon")}</p>
+                      <p className="mt-1 text-2xl font-semibold text-amber-100">{numberFormatter.format(metrics.kpis.dueSoonCards)}</p>
+                    </div>
+                    <div className="rounded-2xl border border-orange-500/30 bg-orange-500/10 p-3">
+                      <p className="text-xs uppercase tracking-[0.14em] text-orange-300">{t("metrics.health.stale")}</p>
+                      <p className="mt-1 text-2xl font-semibold text-orange-100">{numberFormatter.format(metrics.kpis.staleOpenCards)}</p>
+                    </div>
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-border/60 bg-card/70 p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="text-sm font-semibold text-foreground">{t("metrics.sections.automation")}</p>
-                        <p className="text-xs text-muted-foreground">{t("metrics.summary.automation")}</p>
+                        <p className="text-sm font-semibold text-foreground">{t("metrics.health.workloadBalance")}</p>
+                        <p className="text-xs text-muted-foreground">{t("metrics.health.workloadBalanceHint")}</p>
                       </div>
-                      <Zap className="h-5 w-5 text-muted-foreground" />
+                      <Target className="h-5 w-5 text-muted-foreground" />
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.runs")}</p>
-                        <p className="mt-1 text-lg font-semibold">{numberFormatter.format(metrics.automation.monthlyRuns)}</p>
+                    <div className="mt-3">
+                      <div className="h-2 rounded-full bg-muted/60">
+                        <div className="h-2 rounded-full bg-accent" style={{ width: `${Math.max(6, metrics.kpis.workloadBalanceScore)}%` }} />
                       </div>
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.activeScripts")}</p>
-                        <p className="mt-1 text-lg font-semibold">{numberFormatter.format(metrics.automation.activeScriptCount)}</p>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.limit")}</p>
-                        <p className="mt-1 text-lg font-semibold">{metrics.automation.limit === null ? "∞" : numberFormatter.format(metrics.automation.limit)}</p>
-                      </div>
-                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
-                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.remaining")}</p>
-                        <p className="mt-1 text-lg font-semibold">{metrics.automation.remaining === null ? "∞" : numberFormatter.format(metrics.automation.remaining)}</p>
-                      </div>
+                      <p className="mt-2 text-sm text-muted-foreground">
+                        {numberFormatter.format(metrics.kpis.workloadBalanceScore)} / 100
+                      </p>
                     </div>
                   </div>
                 </article>
@@ -326,8 +388,8 @@ export function WorkspaceMetricsDashboard() {
                 <article className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
-                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.memberLoad")}</h2>
-                      <p className="text-sm text-muted-foreground">{t("metrics.table.assignments")}</p>
+                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.memberDelivery")}</h2>
+                      <p className="text-sm text-muted-foreground">{t("metrics.sections.memberDeliveryHint")}</p>
                     </div>
                     <BarChart3 className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -341,7 +403,7 @@ export function WorkspaceMetricsDashboard() {
                           contentStyle={{ backgroundColor: "hsl(var(--card))", borderColor: "hsl(var(--border))", borderRadius: 16 }}
                           labelStyle={{ color: "hsl(var(--foreground))" }}
                         />
-                        <Bar dataKey="assignmentsCount" fill="hsl(var(--accent))" radius={[0, 10, 10, 0]} />
+                        <Bar dataKey="completedCardsCount" fill="hsl(var(--accent))" radius={[0, 10, 10, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
@@ -350,53 +412,112 @@ export function WorkspaceMetricsDashboard() {
                 <article className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
-                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.boardPulse")}</h2>
-                      <p className="text-sm text-muted-foreground">{t("metrics.table.board")}</p>
+                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.workloadRisk")}</h2>
+                      <p className="text-sm text-muted-foreground">{t("metrics.sections.workloadRiskHint")}</p>
                     </div>
-                    <SquareKanban className="h-5 w-5 text-muted-foreground" />
+                    <AlertTriangle className="h-5 w-5 text-muted-foreground" />
                   </div>
                   <div className="mt-4 space-y-3">
-                    {topBoards.length > 0 ? (
-                      topBoards.map((board) => (
-                        <div key={board.id} className="rounded-2xl border border-border/60 bg-card/70 p-3">
+                    {metrics.workloadInsights.overloadedMembers.length > 0 ? (
+                      metrics.workloadInsights.overloadedMembers.map((member) => (
+                        <div key={member.userId} className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-foreground">{board.name}</p>
-                              <p className="text-xs text-muted-foreground">{numberFormatter.format(board.cardsCount)} {t("metrics.table.cards")}</p>
+                              <p className="text-sm font-semibold text-foreground">{member.displayName}</p>
+                              <p className="text-xs text-muted-foreground">{numberFormatter.format(member.assignmentsCount)} {t("metrics.table.assignments")}</p>
                             </div>
                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           </div>
-                          <div className="mt-3 grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                          <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
                             <div className="rounded-xl border border-border/60 bg-background/70 p-2">
-                              <p className="uppercase tracking-[0.12em]">{t("metrics.table.assignments")}</p>
-                              <p className="mt-1 text-sm font-semibold text-foreground">{numberFormatter.format(board.assignmentsCount)}</p>
+                              <p className="uppercase tracking-[0.12em]">{t("metrics.table.completedCards")}</p>
+                              <p className="mt-1 text-sm font-semibold text-foreground">{numberFormatter.format(member.completedCardsCount)}</p>
                             </div>
                             <div className="rounded-xl border border-border/60 bg-background/70 p-2">
                               <p className="uppercase tracking-[0.12em]">{t("metrics.table.activity")}</p>
-                              <p className="mt-1 text-sm font-semibold text-foreground">{numberFormatter.format(board.activityCount)}</p>
-                            </div>
-                            <div className="rounded-xl border border-border/60 bg-background/70 p-2">
-                              <p className="uppercase tracking-[0.12em]">{t("metrics.table.lastActive")}</p>
-                              <p className="mt-1 text-sm font-semibold text-foreground">{board.lastActiveAt ? new Date(board.lastActiveAt).toLocaleDateString(locale, { month: "short", day: "numeric" }) : "—"}</p>
+                              <p className="mt-1 text-sm font-semibold text-foreground">{numberFormatter.format(member.activityCount)}</p>
                             </div>
                           </div>
                         </div>
                       ))
                     ) : (
                       <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
-                        {t("metrics.empty.noBoards")}
+                        {t("metrics.empty.noOverloadedMembers")}
                       </div>
                     )}
                   </div>
+
+                  <div className="mt-4 space-y-2 rounded-2xl border border-border/60 bg-card/70 p-4">
+                    <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.sections.lowUtilization")}</p>
+                    {metrics.workloadInsights.underutilizedMembers.length > 0 ? (
+                      metrics.workloadInsights.underutilizedMembers.map((member) => (
+                        <div key={member.userId} className="flex items-center justify-between gap-2 text-sm">
+                          <span>{member.displayName}</span>
+                          <span className="text-xs text-muted-foreground">{t("metrics.health.noRecentLoad")}</span>
+                        </div>
+                      ))
+                    ) : (
+                      <p className="text-sm text-muted-foreground">{t("metrics.empty.noUnderutilizedMembers")}</p>
+                    )}
+                  </div>
                 </article>
+              </section>
+
+              <section className="mt-6 rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
+                <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.boardPortfolio")}</h2>
+                    <p className="text-sm text-muted-foreground">{t("metrics.sections.boardPortfolioHint")}</p>
+                  </div>
+                  <SquareKanban className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {boardPortfolio.length > 0 ? (
+                    boardPortfolio.map((board) => (
+                      <article key={board.id} className="rounded-2xl border border-border/60 bg-card/70 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <p className="text-sm font-semibold">{board.name}</p>
+                            <p className="text-xs text-muted-foreground">{numberFormatter.format(board.cardsCount)} {t("metrics.table.cards")}</p>
+                          </div>
+                          <span className="rounded-full border border-border/60 px-2 py-1 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+                            {board.completionRatePct === null ? "-" : `${board.completionRatePct}%`}
+                          </span>
+                        </div>
+                        <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
+                          <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                            <p className="text-muted-foreground">{t("metrics.health.open")}</p>
+                            <p className="mt-1 text-sm font-semibold">{numberFormatter.format(board.openCardsCount)}</p>
+                          </div>
+                          <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                            <p className="text-muted-foreground">{t("metrics.health.overdue")}</p>
+                            <p className="mt-1 text-sm font-semibold">{numberFormatter.format(board.overdueCardsCount)}</p>
+                          </div>
+                          <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                            <p className="text-muted-foreground">{t("metrics.health.stale")}</p>
+                            <p className="mt-1 text-sm font-semibold">{numberFormatter.format(board.staleCardsCount)}</p>
+                          </div>
+                          <div className="rounded-xl border border-border/60 bg-background/70 p-2">
+                            <p className="text-muted-foreground">{t("metrics.table.activity")}</p>
+                            <p className="mt-1 text-sm font-semibold">{numberFormatter.format(board.activityCount)}</p>
+                          </div>
+                        </div>
+                      </article>
+                    ))
+                  ) : (
+                    <div className="rounded-2xl border border-dashed border-border/60 bg-card/40 p-6 text-sm text-muted-foreground">
+                      {t("metrics.empty.noBoards")}
+                    </div>
+                  )}
+                </div>
               </section>
 
               <section className="mt-6 grid gap-4 xl:grid-cols-[1.15fr_0.85fr]">
                 <article className="rounded-2xl border border-border/60 bg-background/80 p-4 shadow-sm">
                   <div className="flex items-center justify-between gap-3 border-b border-border/60 pb-3">
                     <div>
-                      <h2 className="text-base font-semibold text-foreground">{t("metrics.table.member")}</h2>
-                      <p className="text-sm text-muted-foreground">{t("metrics.sections.memberLoad")}</p>
+                      <h2 className="text-base font-semibold text-foreground">{t("metrics.sections.memberDeepDive")}</h2>
+                      <p className="text-sm text-muted-foreground">{t("metrics.sections.memberDeepDiveHint")}</p>
                     </div>
                     <Users className="h-5 w-5 text-muted-foreground" />
                   </div>
@@ -410,10 +531,11 @@ export function WorkspaceMetricsDashboard() {
                           <th className="pb-3 pr-4 font-medium">{t("metrics.table.createdCards")}</th>
                           <th className="pb-3 pr-4 font-medium">{t("metrics.table.completedCards")}</th>
                           <th className="pb-3 pr-4 font-medium">{t("metrics.table.activity")}</th>
+                          <th className="pb-3 pr-4 font-medium">{t("metrics.table.executionRate")}</th>
                         </tr>
                       </thead>
                       <tbody>
-                        {topMembers.length > 0 ? topMembers.map((member) => (
+                        {focusMembers.length > 0 ? focusMembers.map((member) => (
                           <tr key={member.id} className="border-b border-border/40 last:border-b-0">
                             <td className="py-3 pr-4">
                               <div className="flex items-center gap-3">
@@ -431,10 +553,11 @@ export function WorkspaceMetricsDashboard() {
                             <td className="py-3 pr-4 font-medium">{numberFormatter.format(member.createdCardsCount)}</td>
                             <td className="py-3 pr-4 font-medium">{numberFormatter.format(member.completedCardsCount)}</td>
                             <td className="py-3 pr-4 font-medium">{numberFormatter.format(member.activityCount)}</td>
+                            <td className="py-3 pr-4 font-medium">{member.executionRate === null ? "-" : `${member.executionRate.toFixed(1)}%`}</td>
                           </tr>
                         )) : (
                           <tr>
-                            <td className="py-4 text-sm text-muted-foreground" colSpan={6}>
+                            <td className="py-4 text-sm text-muted-foreground" colSpan={7}>
                               {t("metrics.empty.noMembers")}
                             </td>
                           </tr>
@@ -471,6 +594,34 @@ export function WorkspaceMetricsDashboard() {
                         {t("metrics.empty.noRecentActivity")}
                       </div>
                     )}
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-border/60 bg-card/70 p-4">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">{t("metrics.sections.automation")}</p>
+                        <p className="text-xs text-muted-foreground">{t("metrics.summary.automation")}</p>
+                      </div>
+                      <Zap className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.runs")}</p>
+                        <p className="mt-1 text-lg font-semibold">{numberFormatter.format(metrics.automation.monthlyRuns)}</p>
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.activeScripts")}</p>
+                        <p className="mt-1 text-lg font-semibold">{numberFormatter.format(metrics.automation.activeScriptCount)}</p>
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.limit")}</p>
+                        <p className="mt-1 text-lg font-semibold">{metrics.automation.limit === null ? "∞" : numberFormatter.format(metrics.automation.limit)}</p>
+                      </div>
+                      <div className="rounded-xl border border-border/60 bg-background/70 p-3">
+                        <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.automation.remaining")}</p>
+                        <p className="mt-1 text-lg font-semibold">{metrics.automation.remaining === null ? "∞" : numberFormatter.format(metrics.automation.remaining)}</p>
+                      </div>
+                    </div>
                   </div>
                 </article>
               </section>

@@ -29,13 +29,53 @@
       "activity": "Activity",
       "automation": "Automation"
     },
+    "cards": {
+      "activeMembers": "Active members",
+      "ofTeam": "of team",
+      "completions": "Completed cards",
+      "prevWindow": "previous window",
+      "intake": "Card intake",
+      "assignments": "assignments",
+      "completionRate": "Completion rate",
+      "cycle": "avg cycle"
+    },
+    "trend": {
+      "new": "new"
+    },
     "sections": {
       "activityTrend": "Activity trend",
       "memberLoad": "Member workload",
       "boardPulse": "Board pulse",
       "roleBreakdown": "Role breakdown",
       "automation": "Automation usage",
-      "recentActivity": "Recent activity"
+      "recentActivity": "Recent activity",
+      "deliveryFlow": "Delivery flow",
+      "deliveryFlowHint": "Created vs completed cards and assignment pressure over time.",
+      "executionHealth": "Execution health",
+      "executionHealthHint": "Current risk levels and workload consistency.",
+      "memberDelivery": "Member delivery",
+      "memberDeliveryHint": "Who is turning the most work into completed outcomes.",
+      "workloadRisk": "Workload risk",
+      "workloadRiskHint": "Members with concentrated load or low recent contribution.",
+      "lowUtilization": "Low utilization",
+      "boardPortfolio": "Board portfolio",
+      "boardPortfolioHint": "Risk and throughput profile by board.",
+      "memberDeepDive": "Member deep dive",
+      "memberDeepDiveHint": "Assignments, throughput and execution ratio by member."
+    },
+    "legend": {
+      "created": "Created",
+      "completed": "Completed",
+      "assigned": "Assigned"
+    },
+    "health": {
+      "open": "Open cards",
+      "overdue": "Overdue",
+      "dueSoon": "Due in 7 days",
+      "stale": "Stale +14d",
+      "workloadBalance": "Workload balance",
+      "workloadBalanceHint": "Higher score means assignments are distributed more evenly.",
+      "noRecentLoad": "No recent workload"
     },
     "automation": {
       "runs": "Runs",
@@ -52,7 +92,8 @@
       "activity": "Activity",
       "board": "Board",
       "cards": "Cards",
-      "lastActive": "Last active"
+      "lastActive": "Last active",
+      "executionRate": "Execution rate"
     },
     "events": "events",
     "errors": {
@@ -63,7 +104,9 @@
       "noRecentActivity": "No recent activity to show.",
       "noMembers": "No team members found.",
       "noBoards": "No boards found.",
-      "noAutomation": "No automation usage recorded yet."
+      "noAutomation": "No automation usage recorded yet.",
+      "noOverloadedMembers": "No overloaded members detected.",
+      "noUnderutilizedMembers": "No underutilized members detected."
     },
     "system": {
       "label": "System"

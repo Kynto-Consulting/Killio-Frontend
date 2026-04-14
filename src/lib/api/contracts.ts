@@ -142,6 +142,12 @@ export type TeamMetricsBoard = {
   slug: string;
   updatedAt: string;
   cardsCount: number;
+  openCardsCount: number;
+  overdueCardsCount: number;
+  staleCardsCount: number;
+  createdCardsWindowCount: number;
+  completedCardsWindowCount: number;
+  completionRatePct: number | null;
   completedCardsCount: number;
   assignmentsCount: number;
   activityCount: number;
@@ -153,6 +159,52 @@ export type TeamMetricsActivitySeriesPoint = {
   activityCount: number;
   assignmentsCount: number;
   completionsCount: number;
+  createdCardsCount: number;
+};
+
+export type TeamMetricsWindowSummary = {
+  activityCount: number;
+  assignmentsCount: number;
+  completionsCount: number;
+  createdCardsCount: number;
+};
+
+export type TeamMetricsTrendMetric = 'activity' | 'assignments' | 'completions' | 'createdCards';
+
+export type TeamMetricsTrend = {
+  metric: TeamMetricsTrendMetric;
+  current: number;
+  previous: number;
+  delta: number;
+  deltaPct: number | null;
+  direction: 'up' | 'down' | 'flat';
+};
+
+export type TeamMetricsKpis = {
+  completionRatePct: number | null;
+  throughputPerActiveMember: number;
+  avgCycleTimeHours: number | null;
+  activeMemberCount: number;
+  collaborationRatePct: number;
+  workloadBalanceScore: number;
+  openCards: number;
+  overdueOpenCards: number;
+  dueSoonCards: number;
+  staleOpenCards: number;
+};
+
+export type TeamMetricsWorkloadMember = {
+  userId: string;
+  displayName: string;
+  avatarUrl: string | null;
+  assignmentsCount: number;
+  activityCount: number;
+  completedCardsCount: number;
+};
+
+export type TeamMetricsWorkloadInsights = {
+  overloadedMembers: TeamMetricsWorkloadMember[];
+  underutilizedMembers: TeamMetricsWorkloadMember[];
 };
 
 export type TeamMetricsAutomation = {
@@ -170,6 +222,11 @@ export type TeamMetricsResponse = {
   windowDays: number;
   generatedAt: string;
   summary: TeamMetricsSummary;
+  windowSummary: TeamMetricsWindowSummary;
+  previousWindowSummary: TeamMetricsWindowSummary;
+  trends: TeamMetricsTrend[];
+  kpis: TeamMetricsKpis;
+  workloadInsights: TeamMetricsWorkloadInsights;
   roleBreakdown: TeamMetricsRoleBreakdown[];
   members: TeamMetricsMember[];
   boards: TeamMetricsBoard[];
