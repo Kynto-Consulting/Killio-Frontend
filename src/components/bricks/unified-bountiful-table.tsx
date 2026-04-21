@@ -41,6 +41,10 @@ export interface BountifulColumn {
     decimals?: number;  // 0-4, undefined = auto
     display?: string;   // "number" | "bar" | "ring"
   };
+  dateFormat?: {
+    format?: "friendly" | "relative" | "short" | "iso";
+    includeTime?: boolean;
+  };
 }
 
 export interface BountifulCell {
@@ -302,6 +306,18 @@ function ColorDot({ color, selected, onClick }: { color: string; selected?: bool
   );
 }
 
+// ─── Normalize column options to ensure every option has an id ───────────────
+
+function normalizeColumnOptions(cols: BountifulColumn[]): BountifulColumn[] {
+  return cols.map(col => ({
+    ...col,
+    options: col.options?.map((o: any, i: number) => ({
+      ...o,
+      id: o.id || `opt-${col.id}-${i}`,
+    })),
+  }));
+}
+
 // ─── Column Header Menu (Notion-style) ──────────────────────────────────────
 
 function ColumnHeaderMenu({
@@ -561,59 +577,92 @@ function ColumnHeaderMenu({
                 </div>
               </div>
             ) : (column.type === "select" || column.type === "multi_select" || column.type === "status") ? (
-              <div>
-                {column.type === "status" && (column.statusGroups || []).length > 0 ? (
-                  <div className="space-y-4">
-                    {(column.statusGroups || []).map((group) => (
-                      <div key={group.name} className="space-y-1.5">
-                        <div className="flex items-center justify-between px-2">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{group.name}</span>
-                          <button onClick={() => addOption(group.name)} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
-                        </div>
-                        <div className="space-y-1 px-1">
-                          {group.optionIds.map(optId => {
-                            const opt = (column.options || []).find(o => o.id === optId || o.name === optId);
-                            if (!opt) return null;
-                            return renderOptionItem(opt);
-                          })}
-                        </div>
+              <div className="flex flex-col h-[420px]">
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
+                  {column.type === "status" && (column.statusGroups || []).length > 0 ? (
+                    <>
+                      {(column.statusGroups || []).map((group) => {
+                        const groupOpts = group.optionIds
+                          .map(optId => (column.options || []).find(o =>
+                            o.id === optId ||
+                            o.name === optId ||
+                            o.name.toLowerCase().trim() === String(optId).toLowerCase().trim()
+                          ))
+                          .filter(Boolean) as { id: string; name: string; color: string; isDefault?: boolean }[];
+                        return (
+                          <div key={group.name} className="space-y-1">
+                            <div className="flex items-center justify-between px-2">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{group.name}</span>
+                              <button onClick={() => addOption(group.name)} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
+                            </div>
+                            <div className="space-y-0.5 px-1">
+                              {groupOpts.length > 0
+                                ? groupOpts.map(opt => renderOptionItem(opt))
+                                : <p className="px-2 py-1 text-[10px] text-muted-foreground/40 italic">{t("bountifulTable.empty" as any)}</p>
+                              }
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {(() => {
+                        const allGroupedRefs = new Set((column.statusGroups || []).flatMap(g => g.optionIds));
+                        const unassigned = (column.options || []).filter(o =>
+                          !allGroupedRefs.has(o.id) && !allGroupedRefs.has(o.name)
+                        );
+                        if (unassigned.length === 0) return null;
+                        return (
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between px-2">
+                              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">—</span>
+                              <button onClick={() => addOption()} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
+                            </div>
+                            <div className="space-y-0.5 px-1">{unassigned.map(opt => renderOptionItem(opt))}</div>
+                          </div>
+                        );
+                      })()}
+                    </>
+                  ) : (
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between px-2 mb-1">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("bountifulTable.options" as any)}</span>
+                        <button onClick={() => addOption()} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
                       </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="flex flex-col h-[400px]">
-                    <div className="p-2 space-y-1 border-b border-border">
-                      <button className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted text-xs transition-colors group">
-                        <div className="flex items-center gap-2 text-muted-foreground">
-                          <ArrowUp className="h-3.5 w-3.5" />
-                          <span>{t("bountifulTable.sort" as any)}</span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-muted-foreground/40 font-medium">{t("bountifulTable.sortManual" as any)}</span>
-                          <ChevronRight className="h-3 w-3 text-muted-foreground/20" />
-                        </div>
-                      </button>
-                    </div>
-                    <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
-                      <div className="space-y-1">
-                        <div className="flex items-center justify-between px-2 mb-1">
-                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("bountifulTable.options" as any)}</span>
-                          <button onClick={() => addOption()} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
-                        </div>
-                        <div className="space-y-0.5 px-1">
-                          {(column.options || []).map(opt => renderOptionItem(opt))}
-                        </div>
+                      <div className="space-y-0.5 px-1">
+                        {(column.options || []).map(opt => renderOptionItem(opt))}
                       </div>
                     </div>
-                    <div className="p-2 border-t border-border">
-                      <button onClick={() => { onAIAutocomplete?.(); onClose(); }}
-                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/10 text-accent text-xs font-medium transition-colors group">
-                        <Sparkles className="h-3.5 w-3.5" />
-                        <span>{t("bountifulTable.generateWithAI" as any)}</span>
-                      </button>
+                  )}
+                </div>
+                <div className="p-2 border-t border-border shrink-0">
+                  <button onClick={() => { onAIAutocomplete?.(); onClose(); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/10 text-accent text-xs font-medium transition-colors group">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    <span>{t("bountifulTable.generateWithAI" as any)}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (column.type === "date" || column.type === "created_time" || column.type === "last_edited_time") ? (
+              <div className="p-3 space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-[11px] font-semibold text-muted-foreground px-1">{t("bountifulTable.dateFormat.title" as any)}</label>
+                  {(["friendly", "relative", "short", "iso"] as const).map(fmt => (
+                    <button key={fmt} onClick={() => onUpdateColumn({ dateFormat: { ...column.dateFormat, format: fmt } })}
+                      className={cn("w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors",
+                        (column.dateFormat?.format || "friendly") === fmt ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted")}>
+                      <span>{t(`bountifulTable.dateFormat.${fmt}` as any)}</span>
+                      {(column.dateFormat?.format || "friendly") === fmt && <span>✓</span>}
+                    </button>
+                  ))}
+                </div>
+                <div className="border-t border-border pt-2">
+                  <button onClick={() => onUpdateColumn({ dateFormat: { ...column.dateFormat, includeTime: !column.dateFormat?.includeTime } })}
+                    className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs hover:bg-muted transition-colors">
+                    <span>{t("bountifulTable.dateFormat.includeTime" as any)}</span>
+                    <div className={cn("w-7 h-4 rounded-full transition-colors relative", column.dateFormat?.includeTime ? "bg-accent" : "bg-muted-foreground/30")}>
+                      <div className={cn("absolute top-0.5 h-3 w-3 rounded-full bg-card transition-transform", column.dateFormat?.includeTime ? "translate-x-3.5" : "translate-x-0.5")} />
                     </div>
-                  </div>
-                )}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="p-4 text-center text-xs text-muted-foreground italic">
@@ -663,7 +712,7 @@ function ColumnHeaderMenu({
                 <button key={String(d)} onClick={() => { onUpdateColumn({ numberFormat: { ...column.numberFormat, decimals: d } }); setTab("editProperty"); }}
                   className={cn("w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-sm transition-colors",
                     column.numberFormat?.decimals === d ? "bg-accent/15 text-accent" : "hover:bg-muted")}>
-                  <span>{d === undefined ? "Automatic" : d}</span>
+                  <span>{d === undefined ? t("bountifulTable.numberFormat.automatic" as any) : d}</span>
                   {column.numberFormat?.decimals === d && <span className="text-xs">✓</span>}
                 </button>
               ))}
@@ -701,7 +750,8 @@ function ColumnHeaderMenu({
             { label: t("bountifulTable.operators.gte" as any), value: "gte" },
             { label: t("bountifulTable.operators.lte" as any), value: "lte" },
             { label: t("bountifulTable.operators.between" as any), value: "between" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" }
+            { label: t("bountifulTable.operators.empty" as any), value: "empty" },
+            { label: t("bountifulTable.operators.not_empty" as any), value: "not_empty" }
           ] : ct === "date" ? [
             { label: t("bountifulTable.operators.equals" as any), value: "equals" },
             { label: t("bountifulTable.operators.date_before" as any), value: "date_before" },
@@ -720,7 +770,8 @@ function ColumnHeaderMenu({
             { label: t("bountifulTable.operators.starts_with" as any), value: "starts_with" },
             { label: t("bountifulTable.operators.ends_with" as any), value: "ends_with" },
             { label: t("bountifulTable.operators.regex" as any), value: "regex" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" }
+            { label: t("bountifulTable.operators.empty" as any), value: "empty" },
+            { label: t("bountifulTable.operators.not_empty" as any), value: "not_empty" }
           ]);
 
           return (
@@ -1627,13 +1678,13 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
 }) => {
   const t = useTranslations("document-detail");
   const { activeTeamId, accessToken } = useSession();
-  const [columns, setColumns] = useState<BountifulColumn[]>(initColumns);
+  const [columns, setColumns] = useState<BountifulColumn[]>(() => normalizeColumnOptions(initColumns));
   const [rows, setRows] = useState<BountifulRow[]>(initRows);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title || "");
   const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
 
-  useEffect(() => { setColumns(initColumns); }, [initColumns]);
+  useEffect(() => { setColumns(normalizeColumnOptions(initColumns)); }, [initColumns]);
   useEffect(() => { setRows(initRows); }, [initRows]);
   const displayedColumns = columns.filter(c => !c.hidden);
 
