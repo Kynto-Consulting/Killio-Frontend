@@ -1654,10 +1654,11 @@ function AIAutocompleteModal({
 
 // ─── Cell Renderer ──────────────────────────────────────────────────────────
 
-function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferencePicker }: {
+function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferencePicker, users = [] }: {
   cell: BountifulCell | null; column: BountifulColumn; row: BountifulRow; readonly?: boolean;
   onCellChange?: (newCell: BountifulCell) => void;
   onOpenReferencePicker?: (state: { rowId: string; colId: string; rect: DOMRect; type: "user" | "doc" | "board" | "card" }) => void;
+  users?: Array<{ id?: string; name?: string; email?: string }>;
 }) {
   const t = useTranslations("document-detail");
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
@@ -1762,6 +1763,17 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return user.name || user.email || "User";
   };
 
+  const resolveUser = (user: { id?: string; name?: string; email?: string }) => {
+    const byId = user.id ? users.find((u) => u?.id && u.id === user.id) : undefined;
+    const byName = !byId && user.name ? users.find((u) => u?.name && u.name === user.name) : undefined;
+    const matched = byId || byName;
+    return {
+      ...user,
+      name: user.name || matched?.name,
+      email: user.email || matched?.email,
+    };
+  };
+
   const toMetaUserRef = (raw?: string) => {
     const value = (raw || "").trim();
     if (!value) return { id: "system", name: "System" };
@@ -1798,12 +1810,12 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
-    const metaUser = toMetaUserRef(val);
+    const metaUser = resolveUser(toMetaUserRef(val));
     return (
       <div className="w-full min-h-[24px] flex items-center">
         <RefPill
           type="user"
-          id={metaUser.id}
+          id={metaUser.id!}
           name={metaUser.name || "System"}
           label={getUserLabel(metaUser)}
         />
@@ -1868,6 +1880,144 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
             }}
             onClose={() => setShowSelect(false)} anchorRect={cellRef.current.getBoundingClientRect()} />
         )}
+      </div>
+    );
+  }
+
+  const relationPickerType: "user" | "doc" | "board" | "card" | null =
+    colType === "people"
+      ? "user"
+      : colType === "board"
+        ? "board"
+        : colType === "card"
+          ? "card"
+          : (colType === "document" || colType === "relation")
+            ? "doc"
+            : null;
+
+  if (relationPickerType) {
+    const openPicker = () => {
+      if (!readonly && cellRef.current) {
+        onOpenReferencePicker?.({
+          rowId: row.id,
+          colId: column.id,
+          type: relationPickerType,
+          rect: cellRef.current.getBoundingClientRect(),
+        });
+      }
+    };
+
+    const clearRelation = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (readonly) return;
+      onCellChange?.(createDefaultCell(colType));
+    };
+
+    if (relationPickerType === "user") {
+      const usersInCell = (cell?.users || []).map(resolveUser);
+      const hasUsers = usersInCell.length > 0;
+      return (
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+          {hasUsers ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              {usersInCell.map((u, i) => (
+                <RefPill
+                  key={i}
+                  type="user"
+                  id={u.id || u.email || String(i)}
+                  name={u.name || u.email || "User"}
+                  label={getUserLabel(u)}
+                />
+              ))}
+              {!readonly && (
+                <button
+                  type="button"
+                  onClick={clearRelation}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Clear people value"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
+        </div>
+      );
+    }
+
+    if (relationPickerType === "doc") {
+      const docsInCell = cell?.documents || [];
+      const hasDocs = docsInCell.length > 0;
+      return (
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+          {hasDocs ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              {docsInCell.map((doc, i) => (
+                <RefPill key={i} type="doc" id={doc.id} name={doc.name || "Page"} label={getDocumentLabel(doc)} />
+              ))}
+              {!readonly && (
+                <button
+                  type="button"
+                  onClick={clearRelation}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Clear relation value"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
+        </div>
+      );
+    }
+
+    if (relationPickerType === "board") {
+      const boardsInCell = cell?.boards || [];
+      const hasBoards = boardsInCell.length > 0;
+      return (
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+          {hasBoards ? (
+            <div className="flex items-center gap-1 flex-wrap">
+              {boardsInCell.map((b, i) => (
+                <RefPill key={i} type="board" id={b.id} name={b.name || "Board"} />
+              ))}
+              {!readonly && (
+                <button
+                  type="button"
+                  onClick={clearRelation}
+                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  aria-label="Clear board value"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
+            </div>
+          ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
+        </div>
+      );
+    }
+
+    const cardsInCell = cell?.cards || [];
+    const hasCards = cardsInCell.length > 0;
+    return (
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+        {hasCards ? (
+          <div className="flex items-center gap-1 flex-wrap">
+            {cardsInCell.map((c, i) => (
+              <RefPill key={i} type="card" id={c.id} name={c.name || "Card"} />
+            ))}
+            {!readonly && (
+              <button
+                type="button"
+                onClick={clearRelation}
+                className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                aria-label="Clear card value"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
       </div>
     );
   }
@@ -2065,7 +2215,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
               type="user"
               id={u.id || u.email || String(i)}
               name={u.name || u.email || "User"}
-              label={getUserLabel(u)}
+              label={getUserLabel(resolveUser(u))}
             />
           ))}</div>
         ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
@@ -2133,19 +2283,19 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   // Magic columns (read-only metadata)
   if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, true)}</div>;
   if (column.type === "created_by") {
-    const metaUser = toMetaUserRef(row._createdBy);
+    const metaUser = resolveUser(toMetaUserRef(row._createdBy));
     return (
       <div className="w-full min-h-[24px] flex items-center">
-        <RefPill type="user" id={metaUser.id} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
       </div>
     );
   }
   if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, true)}</div>;
   if (column.type === "last_edited_by") {
-    const metaUser = toMetaUserRef(row._lastEditedBy);
+    const metaUser = resolveUser(toMetaUserRef(row._lastEditedBy));
     return (
       <div className="w-full min-h-[24px] flex items-center">
-        <RefPill type="user" id={metaUser.id} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
       </div>
     );
   }
@@ -2511,9 +2661,185 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     setDraggedColIdx(null); setDragOverIdx(null);
   };
 
+  // --- Multi-Selection logic ---
+  const [selectedCells, setSelectedCells] = useState<Set<string>>(new Set());
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [selectionStart, setSelectionStart] = useState<{rowIdx: number, colIdx: number} | null>(null);
+
+  const handleCellMouseDown = (e: React.MouseEvent, rowIdx: number, colIdx: number, rowId: string, colId: string) => {
+    if (readonly || e.button !== 0) return;
+    const target = e.target as HTMLElement;
+    if (['INPUT', 'BUTTON', 'A', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.closest('button')) return;
+    
+    setIsSelecting(true);
+    if (e.shiftKey && selectionStart) {
+      const newSelection = new Set(e.ctrlKey || e.metaKey ? selectedCells : []);
+      const minRow = Math.min(selectionStart.rowIdx, rowIdx);
+      const maxRow = Math.max(selectionStart.rowIdx, rowIdx);
+      const minCol = Math.min(selectionStart.colIdx, colIdx);
+      const maxCol = Math.max(selectionStart.colIdx, colIdx);
+      
+      for (let r = minRow; r <= maxRow; r++) {
+        for (let c = minCol; c <= maxCol; c++) {
+          newSelection.add(`${sortedRows[r].id}:${visibleColumns[c].id}`);
+        }
+      }
+      setSelectedCells(newSelection);
+    } else if (e.ctrlKey || e.metaKey) {
+      const newSelection = new Set(selectedCells);
+      const key = `${rowId}:${colId}`;
+      if (newSelection.has(key)) newSelection.delete(key);
+      else newSelection.add(key);
+      setSelectedCells(newSelection);
+      setSelectionStart({rowIdx, colIdx});
+    } else {
+      setSelectedCells(new Set([`${rowId}:${colId}`]));
+      setSelectionStart({rowIdx, colIdx});
+    }
+  };
+
+  const handleCellMouseEnter = (rowIdx: number, colIdx: number) => {
+    if (!isSelecting || readonly || !selectionStart) return;
+    const newSelection = new Set<string>();
+    const minRow = Math.min(selectionStart.rowIdx, rowIdx);
+    const maxRow = Math.max(selectionStart.rowIdx, rowIdx);
+    const minCol = Math.min(selectionStart.colIdx, colIdx);
+    const maxCol = Math.max(selectionStart.colIdx, colIdx);
+    
+    for (let r = minRow; r <= maxRow; r++) {
+      for (let c = minCol; c <= maxCol; c++) {
+        newSelection.add(`${sortedRows[r].id}:${visibleColumns[c].id}`);
+      }
+    }
+    setSelectedCells(newSelection);
+  };
+
+  useEffect(() => {
+    const handleMouseUp = () => setIsSelecting(false);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (readonly || selectedCells.size === 0) return;
+      const target = e.target as HTMLElement;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName) || target.isContentEditable) return;
+
+      if (e.key === "Delete" || e.key === "Backspace") {
+        e.preventDefault();
+        const newRows = [...rows];
+        let hasChanges = false;
+        
+        selectedCells.forEach(key => {
+          const [rowId, colId] = key.split(":");
+          const rIndex = newRows.findIndex(r => r.id === rowId);
+          if (rIndex >= 0) {
+            const colInfo = columns.find(c => c.id === colId);
+            newRows[rIndex] = {
+              ...newRows[rIndex],
+              cells: { ...newRows[rIndex].cells, [colId]: colInfo ? { type: colInfo.type } : null }
+            };
+            hasChanges = true;
+          }
+        });
+        if (hasChanges) {
+          setRows(newRows);
+          emitUpdate(columns, newRows);
+        }
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+        const selectedByRow: Record<string, string[]> = {};
+        selectedCells.forEach(key => {
+          const [rId, cId] = key.split(":");
+          if (!selectedByRow[rId]) selectedByRow[rId] = [];
+          selectedByRow[rId].push(cId);
+        });
+
+        const lines: string[] = [];
+        sortedRows.forEach(r => {
+          const colsForR = selectedByRow[r.id];
+          if (colsForR) {
+            const lineVals: string[] = [];
+            visibleColumns.forEach(c => {
+               if (colsForR.includes(c.id)) {
+                 const cell = r.cells?.[c.id];
+                 let txt = cell ? (cell.text || cell.value || cell.name || "") : "";
+                 if (cell?.users) txt = cell.users.map(u => u.name || u.email).join(', ');
+                 if (cell?.documents) txt = cell.documents.map(d => d.name).join(', ');
+                 if (cell?.boards) txt = cell.boards.map(b => b.name).join(', ');
+                 lineVals.push(txt.toString());
+               }
+            });
+            lines.push(lineVals.join("\t"));
+          }
+        });
+        navigator.clipboard.writeText(lines.join("\n"));
+        e.preventDefault();
+      }
+
+      if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+         navigator.clipboard.readText().then(text => {
+           if (!text) return;
+           if (selectedCells.size !== 1) return;
+           
+           const [startRowId, startColId] = Array.from(selectedCells)[0].split(":");
+           const sRIdx = sortedRows.findIndex(r => r.id === startRowId);
+           const sCIdx = visibleColumns.findIndex(c => c.id === startColId);
+           if (sRIdx < 0 || sCIdx < 0) return;
+
+           const pastedLines = text.split(/\r?\n/).filter(l => l.trim() || l === "");
+           const newRows = [...rows];
+           let hasChanges = false;
+           
+           pastedLines.forEach((line, rOffset) => {
+              const rIdx = sRIdx + rOffset;
+              if (rIdx >= sortedRows.length) return;
+              const tgtRowId = sortedRows[rIdx].id;
+              const actualRowIdx = newRows.findIndex(r => r.id === tgtRowId);
+              if (actualRowIdx < 0) return;
+
+              const vals = line.split("\t");
+              vals.forEach((val, cOffset) => {
+                 const cIdx = sCIdx + cOffset;
+                 if (cIdx >= visibleColumns.length) return;
+                 const col = visibleColumns[cIdx];
+                 
+                 const rowCopy = { ...newRows[actualRowIdx] };
+                 rowCopy.cells = { ...rowCopy.cells };
+                 rowCopy.cells[col.id] = { type: col.type, text: val, value: val };
+                 newRows[actualRowIdx] = rowCopy;
+                 hasChanges = true;
+              });
+           });
+           
+           if (hasChanges) {
+             setRows(newRows);
+             emitUpdate(columns, newRows);
+           }
+         }).catch(console.error);
+         e.preventDefault();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedCells, readonly, rows, columns, visibleColumns, sortedRows, emitUpdate]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.bountiful-table-container') && !target.closest('[role="dialog"]')) {
+        setSelectedCells(new Set());
+      }
+    };
+    window.addEventListener('mousedown', handleClickOutside);
+    return () => window.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
   const content = (
     <div className={cn(
-      "rounded-xl border border-border bg-card/70 shadow-sm overflow-hidden flex flex-col",
+      "bountiful-table-container rounded-xl border border-border bg-card/70 shadow-sm overflow-hidden flex flex-col select-none",
       isFullscreen ? "fixed inset-4 z-[9999] bg-card h-[calc(100vh-2rem)]" : "w-full my-4"
     )}>
       {/* Header */}
@@ -2587,18 +2913,24 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
-            {sortedRows.map(row => (
+            {sortedRows.map((row, rIdx) => (
               <tr key={row.id} className="group/row hover:bg-muted/10 transition-colors">
-                {visibleColumns.map(col => {
+                {visibleColumns.map((col, cIdx) => {
                   const isPinned = !!col.pinned;
                   const left = pinnedOffsets[col.id];
+                  const isSelected = selectedCells.has(`${row.id}:${col.id}`);
                   return (
-                    <td key={col.id} className={cn("px-3 py-1.5 border-r border-border last:border-r-0 relative align-middle bg-card/40",
-                      isPinned && "sticky z-[5] shadow-[2px_0_4px_rgba(0,0,0,0.02)]")}
+                    <td key={col.id} 
+                      onMouseDown={e => handleCellMouseDown(e, rIdx, cIdx, row.id, col.id)}
+                      onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
+                      className={cn("px-3 py-1.5 border-r border-border last:border-r-0 relative align-middle bg-card/40 transition-colors",
+                      isPinned && "sticky z-[5] shadow-[2px_0_4px_rgba(0,0,0,0.02)]",
+                      isSelected && "bg-accent/20 ring-1 ring-inset ring-accent")}
                       style={{ left: isPinned ? left : undefined }}>
                       <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly={readonly}
                         onCellChange={newCell => handleCellChange(row.id, col.id, newCell)}
-                        onOpenReferencePicker={setPickerState} />
+                        onOpenReferencePicker={setPickerState}
+                        users={users} />
                     </td>
                   );
                 })}
