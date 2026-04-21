@@ -192,6 +192,131 @@ function createDefaultCell(colType: string): BountifulCell {
   }
 }
 
+const LEGACY_CELL_TYPE_ALIASES: Record<string, string> = {
+  title: "text",
+  rich_text: "text",
+  email: "text",
+  phone_number: "text",
+  formula: "text",
+  rollup: "text",
+  relation: "document",
+  people: "user",
+};
+
+function normalizeStoredCellType(type?: string) {
+  if (!type) return undefined;
+  return LEGACY_CELL_TYPE_ALIASES[type] || type;
+}
+
+function getCellFamily(type?: string) {
+  switch (normalizeStoredCellType(type)) {
+    case "text":
+      return "text";
+    case "number":
+      return "number";
+    case "select":
+    case "status":
+      return "select";
+    case "multi_select":
+      return "multi_select";
+    case "checkbox":
+      return "checkbox";
+    case "date":
+      return "date";
+    case "url":
+      return "url";
+    case "user":
+      return "user";
+    case "document":
+      return "document";
+    case "board":
+      return "board";
+    case "card":
+      return "card";
+    default:
+      return normalizeStoredCellType(type) || "text";
+  }
+}
+
+function getCanonicalCellTypeForColumn(colType: string) {
+  switch (colType) {
+    case "title":
+    case "rich_text":
+    case "email":
+    case "phone_number":
+    case "formula":
+    case "rollup":
+      return "text";
+    case "select":
+    case "status":
+      return "select";
+    case "multi_select":
+      return "multi_select";
+    case "checkbox":
+      return "checkbox";
+    case "date":
+    case "created_time":
+    case "last_edited_time":
+      return "date";
+    case "url":
+      return "url";
+    case "people":
+    case "created_by":
+    case "last_edited_by":
+      return "user";
+    case "relation":
+    case "document":
+      return "document";
+    case "board":
+      return "board";
+    case "card":
+      return "card";
+    case "number":
+      return "number";
+    default:
+      return "text";
+  }
+}
+
+function coerceCellForColumnType(cell: BountifulCell | null, colType: string): BountifulCell | null {
+  if (!cell) return null;
+
+  const targetType = getCanonicalCellTypeForColumn(colType);
+  const sourceFamily = getCellFamily(cell.type);
+  const targetFamily = getCellFamily(targetType);
+
+  if (sourceFamily !== targetFamily) {
+    return createDefaultCell(colType);
+  }
+
+  switch (targetType) {
+    case "text":
+      return { ...cell, type: "text", text: cell.text ?? cell.value ?? cell.name ?? "" };
+    case "number":
+      return { ...cell, type: "number", number: cell.number };
+    case "select":
+      return { ...cell, type: "select", name: cell.name ?? "", color: cell.color || "default" };
+    case "multi_select":
+      return { ...cell, type: "multi_select", items: (cell.items || []).map(item => ({ ...item })) };
+    case "checkbox":
+      return { ...cell, type: "checkbox", checked: !!cell.checked };
+    case "date":
+      return { ...cell, type: "date", start: cell.start || "", end: cell.end };
+    case "url":
+      return { ...cell, type: "url", url: cell.url ?? cell.text ?? cell.value ?? "" };
+    case "user":
+      return { ...cell, type: "user", users: (cell.users || []).map(user => ({ ...user })) };
+    case "document":
+      return { ...cell, type: "document", documents: (cell.documents || []).map(doc => ({ ...doc })) };
+    case "board":
+      return { ...cell, type: "board", boards: (cell.boards || []).map(board => ({ ...board })) };
+    case "card":
+      return { ...cell, type: "card", cards: (cell.cards || []).map(card => ({ ...card })) };
+    default:
+      return createDefaultCell(colType);
+  }
+}
+
 // ─── Inline Date Picker (portal) ────────────────────────────────────────────
 
 function InlineDatePicker({ anchorRect, value, onSelect, onClose }: {
@@ -445,7 +570,7 @@ function ColumnHeaderMenu({
             </button>
             {sortDir && (
               <button onClick={() => { onSort?.(null); onClose(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group text-destructive/70 hover:text-destructive">
+                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group text-red-500/80 hover:text-red-400">
                 <Trash2 className="h-4 w-4" /><span>{t("bountifulTable.sort.clear" as any)}</span>
               </button>
             )}
@@ -1686,6 +1811,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   const inputRef = useRef<HTMLInputElement>(null);
 
   const colType = column.type;
+  const cellType = normalizeStoredCellType(cell?.type);
 
   // ── Helper: start text editing ──
   const startTextEdit = (initialValue?: string) => {
@@ -1794,7 +1920,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   const commitTextEdit = () => {
     setIsEditing(false);
     if (!onCellChange) return;
-    const ct = cell?.type || "text";
+    const ct = cellType || "text";
     if (ct === "number") {
       const parsed = parseNumberAlias(editText);
       onCellChange({ ...cell, type: "number", number: parsed });
@@ -1917,7 +2043,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       const usersInCell = (cell?.users || []).map(resolveUser);
       const hasUsers = usersInCell.length > 0;
       return (
-        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer pr-6", column.wrap && "py-1")} onClick={openPicker}>
           {hasUsers ? (
             <div className="flex items-center gap-1 flex-wrap">
               {usersInCell.map((u, i) => (
@@ -1933,7 +2059,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
                 <button
                   type="button"
                   onClick={clearRelation}
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-all shadow-sm bg-background border border-border"
                   aria-label="Clear people value"
                 >
                   <X className="h-3 w-3" />
@@ -1949,7 +2075,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       const docsInCell = cell?.documents || [];
       const hasDocs = docsInCell.length > 0;
       return (
-        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer pr-6", column.wrap && "py-1")} onClick={openPicker}>
           {hasDocs ? (
             <div className="flex items-center gap-1 flex-wrap">
               {docsInCell.map((doc, i) => (
@@ -1959,7 +2085,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
                 <button
                   type="button"
                   onClick={clearRelation}
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-all shadow-sm bg-background border border-border"
                   aria-label="Clear relation value"
                 >
                   <X className="h-3 w-3" />
@@ -1975,7 +2101,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       const boardsInCell = cell?.boards || [];
       const hasBoards = boardsInCell.length > 0;
       return (
-        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+        <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer pr-6", column.wrap && "py-1")} onClick={openPicker}>
           {hasBoards ? (
             <div className="flex items-center gap-1 flex-wrap">
               {boardsInCell.map((b, i) => (
@@ -1985,7 +2111,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
                 <button
                   type="button"
                   onClick={clearRelation}
-                  className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-all shadow-sm bg-background border border-border"
                   aria-label="Clear board value"
                 >
                   <X className="h-3 w-3" />
@@ -2000,7 +2126,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     const cardsInCell = cell?.cards || [];
     const hasCards = cardsInCell.length > 0;
     return (
-      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")} onClick={openPicker}>
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer pr-6", column.wrap && "py-1")} onClick={openPicker}>
         {hasCards ? (
           <div className="flex items-center gap-1 flex-wrap">
             {cardsInCell.map((c, i) => (
@@ -2010,7 +2136,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
               <button
                 type="button"
                 onClick={clearRelation}
-                className="inline-flex h-5 w-5 items-center justify-center rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 transition-colors"
+                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/row:opacity-100 inline-flex h-5 w-5 items-center justify-center rounded-md text-destructive/50 hover:text-destructive hover:bg-destructive/10 transition-all shadow-sm bg-background border border-border"
                 aria-label="Clear card value"
               >
                 <X className="h-3 w-3" />
@@ -2089,7 +2215,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   // ══════════════════════════════════════════════════════════════
 
   // Text
-  if (cell.type === "text") {
+  if (cellType === "text") {
     if (isEditing) return (
       <input ref={inputRef} value={editText} onChange={e => setEditText(e.target.value)}
         onBlur={commitTextEdit} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitTextEdit(); if (e.key === "Escape") setIsEditing(false); }}
@@ -2115,7 +2241,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
 
 
   // Checkbox
-  if (cell.type === "checkbox") {
+  if (cellType === "checkbox") {
     const Icon = cell.checked ? CheckSquare : Square;
     return (
       <div className="w-full min-h-[24px] flex items-center cursor-pointer"
@@ -2127,7 +2253,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
 
 
   // URL
-  if (cell.type === "url") {
+  if (cellType === "url") {
     if (isEditing) return (
       <input ref={inputRef} value={editText} onChange={e => setEditText(e.target.value)}
         onBlur={commitTextEdit} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitTextEdit(); if (e.key === "Escape") setIsEditing(false); }}
@@ -2150,7 +2276,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Number
-  if (cell.type === "number") {
+  if (cellType === "number") {
     if (isEditing) return (
       <input ref={inputRef} value={editText} onChange={e => setEditText(e.target.value)}
         onBlur={commitTextEdit} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitTextEdit(); if (e.key === "Escape") setIsEditing(false); }}
@@ -2199,7 +2325,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // User
-  if (cell.type === "user") {
+  if (cellType === "user") {
     const hasUsers = (cell.users || []).length > 0;
     return (
       <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
@@ -2224,7 +2350,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Document (relation)
-  if (cell.type === "document") {
+  if (cellType === "document") {
     const has = (cell.documents || []).length > 0;
     return (
       <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
@@ -2243,7 +2369,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Board
-  if (cell.type === "board") {
+  if (cellType === "board") {
     const has = (cell.boards || []).length > 0;
     return (
       <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
@@ -2262,7 +2388,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Card
-  if (cell.type === "card") {
+  if (cellType === "card") {
     const has = (cell.cards || []).length > 0;
     return (
       <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
@@ -2498,9 +2624,17 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     const existingOptions = (col?.options || []).map((o, i) => ({ ...o, id: (o as any).id || `opt-${i}-${Date.now()}` }));
     const updates: Partial<BountifulColumn> = { type: newType, options: needs ? existingOptions : undefined };
     const nc = columns.map(c => c.id === colId ? { ...c, ...updates } : c);
+    const nr = rows.map(row => ({
+      ...row,
+      cells: {
+        ...row.cells,
+        [colId]: coerceCellForColumnType(row.cells[colId] ?? null, newType),
+      },
+    }));
     setColumns(nc);
+    setRows(nr);
     if (onPatchColumn) { onPatchColumn(colId, updates); }
-    else { emitUpdate(nc, rows); }
+    emitUpdate(nc, nr);
   };
 
   const updateColumnOptions = (colId: string, options: { id: string; name: string; color: string; isDefault?: boolean }[]) => {
@@ -2738,7 +2872,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             const colInfo = columns.find(c => c.id === colId);
             newRows[rIndex] = {
               ...newRows[rIndex],
-              cells: { ...newRows[rIndex].cells, [colId]: colInfo ? { type: colInfo.type } : null }
+              cells: { ...newRows[rIndex].cells, [colId]: null }
             };
             hasChanges = true;
           }
