@@ -48,6 +48,7 @@ interface UnifiedBrickListProps {
   dropContainerToken?: string;
   emptyPlaceholder?: string;
   onAiAction?: (action: string, contextText: string) => void;
+  onPatchCell?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
 }
 
@@ -71,6 +72,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   dropContainerToken,
   emptyPlaceholder,
   onAiAction,
+  onPatchCell,
   isCompact = false
 }) => {
   const tDetail = useTranslations("document-detail");
@@ -174,6 +176,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         onPasteImageInTextBrick={onPasteImageInTextBrick}
         onUploadMediaFiles={onUploadMediaFiles}
         onAiAction={onAiAction}
+        onPatchCell={onPatchCell}
         isCompact={isCompact}
       />
     );

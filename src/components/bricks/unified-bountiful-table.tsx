@@ -94,6 +94,7 @@ interface UnifiedBountifulTableProps {
   rows: BountifulRow[];
   readonly?: boolean;
   onUpdate?: (content: { title?: string; columns: BountifulColumn[]; rows: BountifulRow[] }) => void;
+  onPatchCell?: (rowId: string, colId: string, cell: BountifulCell, rowMeta: { _lastEditedAt: string; _lastEditedBy: string }) => void;
 }
 
 // ─── Color map ──────────────────────────────────────────────────────────────
@@ -2004,10 +2005,11 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
-  id, title, columns: initColumns, rows: initRows, readonly = false, onUpdate,
+  id, title, columns: initColumns, rows: initRows, readonly = false, onUpdate, onPatchCell,
 }) => {
   const t = useTranslations("document-detail");
-  const { activeTeamId, accessToken } = useSession();
+  const { activeTeamId, accessToken, user } = useSession();
+  const currentUserId = user?.id ?? user?.email ?? "unknown";
   const [columns, setColumns] = useState<BountifulColumn[]>(() => normalizeColumnOptions(initColumns));
   const [rows, setRows] = useState<BountifulRow[]>(initRows);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -2071,13 +2073,18 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   const handleCellChange = (rowId: string, colId: string, newCell: BountifulCell) => {
     const now = new Date().toISOString();
     const enriched = { ...newCell, _lastEditedAt: now, _createdAt: newCell._createdAt || now };
+    const rowMeta = { _lastEditedAt: now, _lastEditedBy: currentUserId };
     const nr = rows.map(r => r.id !== rowId ? r : {
       ...r,
-      _lastEditedAt: now,
-      _lastEditedBy: "Me", // TODO: Integrate with real user
+      ...rowMeta,
       cells: { ...r.cells, [colId]: enriched }
     });
-    setRows(nr); emitUpdate(columns, nr);
+    setRows(nr);
+    if (onPatchCell) {
+      onPatchCell(rowId, colId, enriched, rowMeta);
+    } else {
+      emitUpdate(columns, nr);
+    }
   };
 
   const addRow = () => {
@@ -2086,8 +2093,8 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
       id: `row-${Date.now()}`,
       _createdAt: now,
       _lastEditedAt: now,
-      _createdBy: "Me",
-      _lastEditedBy: "Me",
+      _createdBy: currentUserId,
+      _lastEditedBy: currentUserId,
       cells: Object.fromEntries(columns.map(c => [c.id, null]))
     }];
     setRows(nr); emitUpdate(columns, nr);

@@ -175,6 +175,28 @@ export async function deleteDocumentBrick(
   });
 }
 
+export async function patchBrickCell(
+  documentId: string,
+  brickId: string,
+  patch: {
+    kind: 'bountiful_table_cell' | 'table_cell';
+    rowId?: string;
+    rowIndex?: number;
+    colId?: string;
+    colIndex?: number;
+    cell?: Record<string, any>;
+    value?: string;
+    rowMeta?: { _lastEditedAt: string; _lastEditedBy: string };
+  },
+  accessToken: string
+): Promise<{ success: boolean; updatedAt: string }> {
+  return fetchApi(`/documents/${documentId}/bricks/${brickId}/cell`, {
+    method: 'PATCH',
+    body: JSON.stringify(patch),
+    accessToken,
+  });
+}
+
 export async function addDocumentMember(
   documentId: string,
   email: string,

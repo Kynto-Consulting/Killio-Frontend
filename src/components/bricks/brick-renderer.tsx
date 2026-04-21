@@ -3,6 +3,7 @@
 import React from "react";
 import { MoreHorizontal, AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, MessageSquare, MessageSquarePlus, Send, Paperclip, AtSign, ArrowUp, SmilePlus, Check, Copy, Edit, BellOff, Trash } from "lucide-react";
 import { UnifiedTableBrick } from "./unified-table-brick";
+import { UnifiedBountifulTable } from "./unified-bountiful-table";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { UnifiedGraphBrick } from "./unified-graph-brick";
 import { UnifiedChecklistBrick } from "./unified-checklist-brick";
@@ -35,6 +36,7 @@ interface BrickRendererProps {
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   onAiAction?: (action: string, contextText: string) => void;
+  onPatchCell?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
 }
 
@@ -93,6 +95,7 @@ export function UnifiedBrickRenderer({
   onPasteImageInTextBrick,
   onUploadMediaFiles,
   onAiAction,
+  onPatchCell,
   isCompact = false
 }: BrickRendererProps) {
   const t = useTranslations("document-detail");
@@ -164,11 +167,30 @@ export function UnifiedBrickRenderer({
           data={content.rows || [['Header 1', 'Header 2'], ['', '']]}
           onUpdate={(rows) => onUpdate({ ...content, rows })}
           onUpdateTitle={(title) => onUpdate({ ...content, title })}
+          onPatchCell={onPatchCell ? (rowIndex, colIndex, value) =>
+            onPatchCell(brick.id, { kind: 'table_cell', rowIndex, colIndex, value })
+          : undefined}
           readonly={!canEdit}
           documents={documents}
           boards={boards}
           users={users}
           activeBricks={activeBricks}
+        />
+      );
+      break;
+
+    case 'beautiful_table':
+      brickBody = (
+        <UnifiedBountifulTable
+          id={brick.id}
+          title={content.title}
+          columns={(content.columns || []) as any}
+          rows={(content.rows || []) as any}
+          readonly={!canEdit}
+          onUpdate={(c) => onUpdate({ ...content, ...c })}
+          onPatchCell={onPatchCell ? (rowId, colId, cell, rowMeta) =>
+            onPatchCell(brick.id, { kind: 'bountiful_table_cell', rowId, colId, cell, rowMeta })
+          : undefined}
         />
       );
       break;

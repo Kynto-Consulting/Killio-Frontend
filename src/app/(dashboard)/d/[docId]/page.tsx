@@ -6,7 +6,7 @@ import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
 import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
-import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, uploadFile } from "@/lib/api/contracts";
 import Link from "next/link";
@@ -161,6 +161,35 @@ export default function DocumentPage() {
         }).sort((a, b) => a.position - b.position);
         return { ...prev, bricks: newBricks };
       });
+    } else if ((event.type as string) === "brick.cell_patched") {
+      const p = event.payload;
+      if (!p?.id || !p?.cellPatch) return;
+      setDocument((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          bricks: prev.bricks.map((b) => {
+            if (b.id !== p.id) return b;
+            const content = b.content as any;
+            const cp = p.cellPatch as any;
+            if (cp.rowId && cp.colId) {
+              const rows = (content.rows || []).map((r: any) =>
+                r.id !== cp.rowId ? r : { ...r, ...(cp.rowMeta ?? {}), cells: { ...(r.cells || {}), [cp.colId]: cp.cell } }
+              );
+              return { ...b, content: { ...content, rows } };
+            } else if (cp.rowIndex !== undefined && cp.colIndex !== undefined) {
+              const rows = (content.rows || []).map((row: string[], i: number) => {
+                if (i !== cp.rowIndex) return row;
+                const r = [...row];
+                r[cp.colIndex] = cp.value;
+                return r;
+              });
+              return { ...b, content: { ...content, rows } };
+            }
+            return b;
+          }),
+        };
+      });
     }
   });
 
@@ -292,6 +321,15 @@ export default function DocumentPage() {
     } catch (e) {
       console.error(e);
       // Revert or show error
+    }
+  };
+
+  const handlePatchBrickCell = async (brickId: string, patch: Record<string, any>) => {
+    if (!accessToken) return;
+    try {
+      await patchBrickCell(docId, brickId, patch as any, accessToken);
+    } catch (e) {
+      console.error('Cell patch failed, falling back to full update', e);
     }
   };
 
@@ -968,6 +1006,7 @@ export default function DocumentPage() {
               addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
+              onPatchCell={handlePatchBrickCell}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}
               onCrossContainerDrop={handleCrossContainerDrop}

@@ -21,6 +21,7 @@ interface TableBrickProps {
   data: string[][];
   onUpdate: (newData: string[][]) => void;
   onUpdateTitle?: (newTitle: string) => void;
+  onPatchCell?: (rowIndex: number, colIndex: number, value: string) => void;
   readonly?: boolean;
   documents?: any[];
   boards?: any[];
@@ -35,6 +36,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   data,
   onUpdate,
   onUpdateTitle,
+  onPatchCell,
   readonly,
   documents = [],
   boards = [],
@@ -135,9 +137,13 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   const commitEdit = () => {
     if (!editingCell) return;
     const { r, c } = editingCell;
-    const next = normalizedData.map((row) => [...row]);
-    next[r][c] = editingValue;
-    onUpdate(next);
+    if (onPatchCell) {
+      onPatchCell(r, c, editingValue);
+    } else {
+      const next = normalizedData.map((row) => [...row]);
+      next[r][c] = editingValue;
+      onUpdate(next);
+    }
   };
 
   const stopEditing = () => {
