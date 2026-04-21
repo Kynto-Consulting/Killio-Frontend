@@ -303,6 +303,7 @@
     "aiNotAvailable": "Not available for this property type",
     "noOptions": "No editable options for this type",
     "sortManual": "Manual",
+    "setDefault": "Default value",
     "generateWithAI": "Generate with AI",
     "options": "Options",
     "dateFormat": {

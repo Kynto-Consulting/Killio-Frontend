@@ -104,17 +104,17 @@ interface UnifiedBountifulTableProps {
 // ─── Color map ──────────────────────────────────────────────────────────────
 
 const colorThemeMap: Record<string, string> = {
-  default: "bg-muted text-foreground",
-  gray: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
-  brown: "bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-200",
-  orange: "bg-orange-100 text-orange-800 dark:bg-orange-900/50 dark:text-orange-200",
-  yellow: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-200",
-  green: "bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-200",
-  blue: "bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-200",
-  purple: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200",
-  pink: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200",
-  red: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
-  teal: "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200",
+  default: "bg-muted/80 text-foreground",
+  gray: "bg-gray-100 text-gray-800 dark:bg-gray-800/80 dark:text-gray-100",
+  brown: "bg-amber-100 text-amber-900 dark:bg-amber-900/60 dark:text-amber-100",
+  orange: "bg-orange-100 text-orange-900 dark:bg-orange-900/60 dark:text-orange-100",
+  yellow: "bg-yellow-100 text-yellow-900 dark:bg-yellow-900/60 dark:text-yellow-100",
+  green: "bg-green-100 text-green-900 dark:bg-green-900/60 dark:text-green-100",
+  blue: "bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-100",
+  purple: "bg-purple-100 text-purple-900 dark:bg-purple-900/60 dark:text-purple-100",
+  pink: "bg-pink-100 text-pink-900 dark:bg-pink-900/60 dark:text-pink-100",
+  red: "bg-red-100 text-red-900 dark:bg-red-900/60 dark:text-red-100",
+  teal: "bg-teal-100 text-teal-900 dark:bg-teal-900/60 dark:text-teal-100",
 };
 const getPillClass = (c?: string) => colorThemeMap[c || "default"] || colorThemeMap.default;
 const AVAILABLE_COLORS = Object.keys(colorThemeMap);
@@ -1176,7 +1176,7 @@ function EditPropertyFlyout({
             <button onClick={() => updateOption(editingOption.id, { isDefault: !editingOption.isDefault })}
               className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors",
                 editingOption.isDefault ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted text-muted-foreground")}>
-              <span>{editingOption.isDefault ? "✓ " : ""}{t("bountifulTable.sortManual" as any)}</span>
+              <span>{editingOption.isDefault ? "✓ " : ""}{t("bountifulTable.setDefault" as any)}</span>
             </button>
           )}
           <button onClick={() => removeOption(editingOption.id)}
@@ -1394,6 +1394,12 @@ function AIAutocompleteModal({
   const [progress, setProgress] = useState(0);
   const [tempRows, setTempRows] = useState<BountifulRow[]>(JSON.parse(JSON.stringify(rows)));
   const [previewRowIdx, setPreviewRowIdx] = useState(0);
+  const previewCols = useMemo(() => {
+    const first = columns[0];
+    const others = columns.filter(c => c.id !== first.id && c.id !== column.id).slice(0, 2);
+    const set = new Set([first.id, column.id, ...others.map(c => c.id)]);
+    return columns.filter(c => set.has(c.id)).slice(0, 4);
+  }, [columns, column]);
 
   const runBasicAI = async () => {
     if (!activeTeamId || !accessToken) return;
@@ -1580,8 +1586,14 @@ function AIAutocompleteModal({
                     <thead className="bg-muted/30 border-b border-border/40">
                       <tr>
                         <th className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase border-r border-border/40 w-12">{t("bountifulTable.aiModal.rowHeader" as any)}</th>
-                        {columns.slice(0, 3).map(c => (
-                          <th key={c.id} className="px-4 py-3 text-left text-[10px] font-bold text-muted-foreground uppercase border-r border-border/40">{c.name}</th>
+                        {previewCols.map(c => (
+                          <th key={c.id} className={cn("px-4 py-3 text-left text-[10px] font-bold uppercase border-r border-border/40 transition-colors",
+                            c.id === column.id ? "text-accent bg-accent/5 ring-1 ring-inset ring-accent/20" : "text-muted-foreground")}>
+                            <div className="flex items-center gap-2">
+                              {c.id === column.id && <Wand2 className="h-3 w-3" />}
+                              {c.name}
+                            </div>
+                          </th>
                         ))}
                       </tr>
                     </thead>
@@ -1589,13 +1601,13 @@ function AIAutocompleteModal({
                       {tempRows.slice(0, 10).map((r, ridx) => (
                         <tr key={r.id} className={cn("group transition-colors", ridx === previewRowIdx && "bg-accent/5")}>
                           <td className="px-4 py-3 text-[10px] font-mono text-muted-foreground/40 border-r border-border/20">{ridx + 1}</td>
-                          {columns.slice(0, 3).map(c => {
+                          {previewCols.map(c => {
                             const cell = r.cells[c.id];
                             const isTarget = c.id === column.id;
                             return (
                               <td key={c.id} className={cn("px-4 py-3 text-xs border-r border-border/20 transition-all",
-                                isTarget && "bg-accent/[0.02] font-semibold text-accent/90")}>
-                                {cell?.text || cell?.name || cell?.number || <span className="opacity-10">—</span>}
+                                isTarget && "bg-accent/[0.04] font-semibold text-accent shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.1)]")}>
+                                {cell?.text || cell?.name || cell?.number || (isTarget && isProcessing ? <span className="animate-pulse opacity-40">...</span> : <span className="opacity-10">—</span>)}
                                 {isTarget && isProcessing && ridx === previewRowIdx && (
                                   <span className="ml-2 inline-block h-1.5 w-1.5 bg-accent rounded-full animate-ping" />
                                 )}
