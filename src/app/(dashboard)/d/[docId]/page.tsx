@@ -220,6 +220,19 @@ export default function DocumentPage() {
                 return { ...r, cells };
               });
               return { ...b, content: { ...content, columns, rows } };
+            } else if (cp.kind === 'table_add_row') {
+              const rows = content.rows as string[][];
+              const cols = rows[0]?.length || 1;
+              return { ...b, content: { ...content, rows: [...rows, new Array(cols).fill('')] } };
+            } else if (cp.kind === 'table_remove_row' && cp.index !== undefined) {
+              const rows = (content.rows as string[][]).filter((_: any, i: number) => i !== cp.index);
+              return { ...b, content: { ...content, rows } };
+            } else if (cp.kind === 'table_add_col') {
+              const rows = (content.rows as string[][]).map((row: string[]) => [...row, '']);
+              return { ...b, content: { ...content, rows } };
+            } else if (cp.kind === 'table_remove_col' && cp.index !== undefined) {
+              const rows = (content.rows as string[][]).map((row: string[]) => row.filter((_: any, i: number) => i !== cp.index));
+              return { ...b, content: { ...content, rows } };
             }
             return b;
           }),

@@ -172,6 +172,9 @@ export function UnifiedBrickRenderer({
           onPatchCell={onPatchCell ? (rowIndex, colIndex, value) =>
             onPatchCell(brick.id, { kind: 'table_cell', rowIndex, colIndex, value })
           : undefined}
+          onPatchStructure={onPatchCell ? (patch) =>
+            onPatchCell(brick.id, patch)
+          : undefined}
           readonly={!canEdit}
           documents={documents}
           boards={boards}

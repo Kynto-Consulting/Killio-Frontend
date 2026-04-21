@@ -22,6 +22,7 @@ interface TableBrickProps {
   onUpdate: (newData: string[][]) => void;
   onUpdateTitle?: (newTitle: string) => void;
   onPatchCell?: (rowIndex: number, colIndex: number, value: string) => void;
+  onPatchStructure?: (patch: { kind: 'table_add_row' | 'table_remove_row' | 'table_add_col' | 'table_remove_col'; index?: number }) => void;
   readonly?: boolean;
   documents?: any[];
   boards?: any[];
@@ -37,6 +38,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
   onUpdate,
   onUpdateTitle,
   onPatchCell,
+  onPatchStructure,
   readonly,
   documents = [],
   boards = [],
@@ -175,21 +177,25 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
 
   const addRow = () => {
     const cols = normalizedData[0]?.length || 1;
-    onUpdate([...normalizedData, new Array(cols).fill("")]);
+    if (onPatchStructure) { onPatchStructure({ kind: 'table_add_row' }); }
+    else { onUpdate([...normalizedData, new Array(cols).fill("")]); }
   };
 
   const addColumn = () => {
-    onUpdate(normalizedData.map((row) => [...row, ""]));
+    if (onPatchStructure) { onPatchStructure({ kind: 'table_add_col' }); }
+    else { onUpdate(normalizedData.map((row) => [...row, ""])); }
   };
 
   const removeRow = (idx: number) => {
     if (readonly || normalizedData.length <= 1) return;
-    onUpdate(normalizedData.filter((_, i) => i !== idx));
+    if (onPatchStructure) { onPatchStructure({ kind: 'table_remove_row', index: idx }); }
+    else { onUpdate(normalizedData.filter((_, i) => i !== idx)); }
   };
 
   const removeColumn = (idx: number) => {
     if (readonly || (normalizedData[0]?.length || 0) <= 1) return;
-    onUpdate(normalizedData.map((row) => row.filter((_, i) => i !== idx)));
+    if (onPatchStructure) { onPatchStructure({ kind: 'table_remove_col', index: idx }); }
+    else { onUpdate(normalizedData.map((row) => row.filter((_, i) => i !== idx))); }
   };
 
   const coordsToAddress = (r: number, c: number) => {
