@@ -220,6 +220,17 @@ export default function DocumentPage() {
                 return { ...r, cells };
               });
               return { ...b, content: { ...content, columns, rows } };
+            } else if (cp.kind === 'bountiful_table_duplicate_column' && cp.srcColId && cp.newColId) {
+              const srcIdx = (content.columns || []).findIndex((c: any) => c.id === cp.srcColId);
+              if (srcIdx < 0) return b;
+              const src = content.columns[srcIdx];
+              const newCol = { ...src, id: cp.newColId, name: cp.newName || `${src.name} (copy)` };
+              const columns = [...(content.columns || [])];
+              columns.splice(cp.atIndex !== undefined ? cp.atIndex : srcIdx + 1, 0, newCol);
+              const rows = (content.rows || []).map((r: any) => ({
+                ...r, cells: { ...(r.cells || {}), [cp.newColId]: r.cells[cp.srcColId] ? { ...r.cells[cp.srcColId]! } : null }
+              }));
+              return { ...b, content: { ...content, columns, rows } };
             } else if (cp.kind === 'table_add_row') {
               const rows = content.rows as string[][];
               const cols = rows[0]?.length || 1;

@@ -205,6 +205,9 @@ export function UnifiedBrickRenderer({
           onRemoveColumn={onPatchColumn ? (colId) =>
             onPatchColumn(brick.id, { kind: 'bountiful_table_remove_column', colId })
           : undefined}
+          onDuplicateColumn={onPatchColumn ? (srcColId, newColId, newName, atIndex) =>
+            onPatchColumn(brick.id, { kind: 'bountiful_table_duplicate_column', srcColId, newColId, newName, atIndex })
+          : undefined}
         />
       );
       break;

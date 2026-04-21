@@ -98,6 +98,7 @@ interface UnifiedBountifulTableProps {
   onPatchColumn?: (colId: string, updates: Partial<BountifulColumn>) => void;
   onAddColumn?: (column: BountifulColumn, atIndex: number) => void;
   onRemoveColumn?: (colId: string) => void;
+  onDuplicateColumn?: (srcColId: string, newColId: string, newName: string, atIndex: number) => void;
 }
 
 // ─── Color map ──────────────────────────────────────────────────────────────
@@ -366,8 +367,14 @@ function ColumnHeaderMenu({
 
   return createPortal(
     <>
-      <div className="fixed inset-0 z-[300]" onClick={e => { e.stopPropagation(); onClose(); }} />
+      <div className="fixed inset-0 z-[300]" onClick={e => {
+        const related = (e.currentTarget as any).nextElementSibling;
+        if (related?.contains(e.target as Node)) return;
+        e.stopPropagation();
+        onClose();
+      }} />
       <div className="column-header-menu fixed z-[301] w-[260px] rounded-lg border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
+        data-menu-portal="true"
         style={{ top, left }} onClick={e => e.stopPropagation()}>
 
         {tab === "main" && (
@@ -2145,7 +2152,8 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     const nc = [...columns]; nc.splice(srcIdx + 1, 0, nc2);
     const nr = rows.map(r => ({ ...r, cells: { ...r.cells, [nc2.id]: r.cells[colId] ? { ...r.cells[colId]! } : null } }));
     setColumns(nc); setRows(nr);
-    if (onAddColumn) { onAddColumn(nc2, srcIdx + 1); }
+    if (onDuplicateColumn) { onDuplicateColumn(colId, nc2.id, nc2.name, srcIdx + 1); }
+    else if (onAddColumn) { onAddColumn(nc2, srcIdx + 1); }
     else { emitUpdate(nc, nr); }
   };
 
