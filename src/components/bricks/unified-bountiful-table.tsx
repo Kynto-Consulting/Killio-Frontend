@@ -95,6 +95,9 @@ interface UnifiedBountifulTableProps {
   readonly?: boolean;
   onUpdate?: (content: { title?: string; columns: BountifulColumn[]; rows: BountifulRow[] }) => void;
   onPatchCell?: (rowId: string, colId: string, cell: BountifulCell, rowMeta: { _lastEditedAt: string; _lastEditedBy: string }) => void;
+  onPatchColumn?: (colId: string, updates: Partial<BountifulColumn>) => void;
+  onAddColumn?: (column: BountifulColumn, atIndex: number) => void;
+  onRemoveColumn?: (colId: string) => void;
 }
 
 // ─── Color map ──────────────────────────────────────────────────────────────
@@ -761,12 +764,17 @@ function EditPropertyFlyout({
       });
       if (found) { sourceGroupName = g.name; break; }
     }
-    if (!sourceGroupName || sourceGroupName === targetGroupName) { setDragOptId(null); setDragOverGroup(null); return; }
+    // Allow drop even from unassigned (sourceGroupName === null)
+    if (sourceGroupName === targetGroupName) { setDragOptId(null); setDragOverGroup(null); return; }
     const newGroups = statusGroups.map(g => {
-      if (g.name === sourceGroupName) return { ...g, optionIds: g.optionIds.filter(ref => {
-        const resolved = options.find(o => o.id === ref || o.name === ref);
-        return resolved?.id !== dragOptId && ref !== dragOptId;
-      })};
+      // Remove from old group (if assigned)
+      if (sourceGroupName && g.name === sourceGroupName) {
+        return { ...g, optionIds: g.optionIds.filter(ref => {
+          const resolved = options.find(o => o.id === ref || o.name === ref);
+          return resolved?.id !== dragOptId && ref !== dragOptId;
+        })};
+      }
+      // Add to target group
       if (g.name === targetGroupName) return { ...g, optionIds: [...g.optionIds, dragOptId] };
       return g;
     });
@@ -788,15 +796,20 @@ function EditPropertyFlyout({
   };
 
   function renderOptionItem(opt: { id: string; name: string; color: string; isDefault?: boolean }) {
+    const openEdit = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      setEditingOption(opt);
+      setSubTab("editOption");
+    };
     return (
       <div key={opt.id}
         draggable={column.type === "status"}
         onDragStart={e => { e.stopPropagation(); setDragOptId(opt.id); }}
         onDragEnd={() => { setDragOptId(null); setDragOverGroup(null); }}
-        onClick={() => { setEditingOption(opt); setSubTab("editOption"); }}
-        className={cn("flex items-center justify-between px-2 py-1.5 rounded-md group cursor-pointer transition-all select-none",
+        className={cn("flex items-center justify-between px-2 py-1.5 rounded-md group transition-all select-none",
           dragOptId === opt.id ? "opacity-40 bg-muted/30" : "hover:bg-muted/60")}>
-        <div className="flex items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 min-w-0 flex-1 cursor-pointer" onClick={openEdit}>
           <GripVertical className={cn("h-3 w-3 shrink-0 transition-colors",
             column.type === "status" ? "text-muted-foreground/30 group-hover:text-muted-foreground/60 cursor-grab" : "text-muted-foreground/10")} />
           <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-[160px]", getPillClass(opt.color))}>
@@ -804,8 +817,12 @@ function EditPropertyFlyout({
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
-          {opt.isDefault && <span className="text-[8px] font-black text-muted-foreground/30 uppercase">DEF</span>}
-          <Edit3 className="h-3 w-3 text-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-all" />
+          {opt.isDefault && <span className="text-[8px] font-black text-muted-foreground/40 uppercase">DEF</span>}
+          <button
+            onClick={openEdit}
+            className="p-0.5 rounded opacity-0 group-hover:opacity-100 hover:bg-muted text-muted-foreground/60 hover:text-foreground transition-all">
+            <Edit3 className="h-3 w-3" />
+          </button>
         </div>
       </div>
     );
@@ -2005,7 +2022,8 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
-  id, title, columns: initColumns, rows: initRows, readonly = false, onUpdate, onPatchCell,
+  id, title, columns: initColumns, rows: initRows, readonly = false,
+  onUpdate, onPatchCell, onPatchColumn, onAddColumn, onRemoveColumn,
 }) => {
   const t = useTranslations("document-detail");
   const { activeTeamId, accessToken, user } = useSession();
@@ -2102,10 +2120,12 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   const removeRow = (rowId: string) => { const nr = rows.filter(r => r.id !== rowId); setRows(nr); emitUpdate(columns, nr); };
 
   const insertColumn = (atIndex: number) => {
-    const nc2 = { id: `col-${Date.now()}`, name: `${t("bountifulTable.colNewName" as any)} ${columns.length + 1}`, type: "rich_text" };
+    const nc2: BountifulColumn = { id: `col-${Date.now()}`, name: `${t("bountifulTable.colNewName" as any)} ${columns.length + 1}`, type: "rich_text" };
     const nc = [...columns]; nc.splice(atIndex, 0, nc2);
     const nr = rows.map(r => ({ ...r, cells: { ...r.cells, [nc2.id]: null } }));
-    setColumns(nc); setRows(nr); emitUpdate(nc, nr);
+    setColumns(nc); setRows(nr);
+    if (onAddColumn) { onAddColumn(nc2, atIndex); }
+    else { emitUpdate(nc, nr); }
   };
   const addColumn = () => insertColumn(columns.length);
 
@@ -2113,7 +2133,9 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     if (columns.length <= 1) return;
     const nc = columns.filter(c => c.id !== colId);
     const nr = rows.map(r => { const { [colId]: _, ...rest } = r.cells; return { ...r, cells: rest }; });
-    setColumns(nc); setRows(nr); emitUpdate(nc, nr);
+    setColumns(nc); setRows(nr);
+    if (onRemoveColumn) { onRemoveColumn(colId); }
+    else { emitUpdate(nc, nr); }
   };
 
   const duplicateColumn = (colId: string) => {
@@ -2122,24 +2144,34 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     const nc2: BountifulColumn = { ...src, id: `col-${Date.now()}`, name: `${src.name} (copia)` };
     const nc = [...columns]; nc.splice(srcIdx + 1, 0, nc2);
     const nr = rows.map(r => ({ ...r, cells: { ...r.cells, [nc2.id]: r.cells[colId] ? { ...r.cells[colId]! } : null } }));
-    setColumns(nc); setRows(nr); emitUpdate(nc, nr);
+    setColumns(nc); setRows(nr);
+    if (onAddColumn) { onAddColumn(nc2, srcIdx + 1); }
+    else { emitUpdate(nc, nr); }
   };
 
-  const renameColumn = (colId: string, name: string) => { const nc = columns.map(c => c.id === colId ? { ...c, name } : c); setColumns(nc); emitUpdate(nc, rows); };
+  const renameColumn = (colId: string, name: string) => {
+    const nc = columns.map(c => c.id === colId ? { ...c, name } : c);
+    setColumns(nc);
+    if (onPatchColumn) { onPatchColumn(colId, { name }); }
+    else { emitUpdate(nc, rows); }
+  };
 
   const changeColumnType = (colId: string, newType: string) => {
-    const nc = columns.map(c => {
-      if (c.id !== colId) return c;
-      const needs = newType === "select" || newType === "multi_select" || newType === "status";
-      // Ensure options have IDs if they exist
-      const existingOptions = (c.options || []).map((o, i) => ({ ...o, id: (o as any).id || `opt-${i}-${Date.now()}` }));
-      return { ...c, type: newType, options: needs ? existingOptions : undefined };
-    });
-    setColumns(nc); emitUpdate(nc, rows);
+    const needs = newType === "select" || newType === "multi_select" || newType === "status";
+    const col = columns.find(c => c.id === colId);
+    const existingOptions = (col?.options || []).map((o, i) => ({ ...o, id: (o as any).id || `opt-${i}-${Date.now()}` }));
+    const updates: Partial<BountifulColumn> = { type: newType, options: needs ? existingOptions : undefined };
+    const nc = columns.map(c => c.id === colId ? { ...c, ...updates } : c);
+    setColumns(nc);
+    if (onPatchColumn) { onPatchColumn(colId, updates); }
+    else { emitUpdate(nc, rows); }
   };
 
   const updateColumnOptions = (colId: string, options: { id: string; name: string; color: string; isDefault?: boolean }[]) => {
-    const nc = columns.map(c => c.id === colId ? { ...c, options } : c); setColumns(nc); emitUpdate(nc, rows);
+    const nc = columns.map(c => c.id === colId ? { ...c, options } : c);
+    setColumns(nc);
+    if (onPatchColumn) { onPatchColumn(colId, { options }); }
+    else { emitUpdate(nc, rows); }
   };
 
   const commitTitle = () => { if (readonly || !onUpdate) return; emitUpdate(columns, rows, draftTitle); };
@@ -2163,8 +2195,11 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   }, [visibleColumns]);
 
   const toggleVisibility = (colId: string) => {
+    const col = columns.find(c => c.id === colId);
     const nc = columns.map(c => c.id === colId ? { ...c, hidden: !c.hidden } : c);
-    setColumns(nc); emitUpdate(nc, rows);
+    setColumns(nc);
+    if (onPatchColumn) { onPatchColumn(colId, { hidden: !col?.hidden }); }
+    else { emitUpdate(nc, rows); }
   };
   const showAllColumns = () => {
     const nc = columns.map(c => ({ ...c, hidden: false }));
@@ -2424,7 +2459,9 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             onUpdateOptions={opts => updateColumnOptions(headerMenu.colId, opts)}
             onUpdateColumn={updates => {
               const nc = columns.map(c => c.id === headerMenu.colId ? { ...c, ...updates } : c);
-              setColumns(nc); emitUpdate(nc, rows);
+              setColumns(nc);
+              if (onPatchColumn) { onPatchColumn(headerMenu.colId, updates); }
+              else { emitUpdate(nc, rows); }
             }}
             onDelete={() => { removeColumn(headerMenu.colId); setHeaderMenu(null); }}
             onDuplicate={() => duplicateColumn(headerMenu.colId)}

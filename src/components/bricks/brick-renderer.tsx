@@ -37,6 +37,7 @@ interface BrickRendererProps {
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   onAiAction?: (action: string, contextText: string) => void;
   onPatchCell?: (brickId: string, patch: Record<string, any>) => void;
+  onPatchColumn?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
 }
 
@@ -96,6 +97,7 @@ export function UnifiedBrickRenderer({
   onUploadMediaFiles,
   onAiAction,
   onPatchCell,
+  onPatchColumn,
   isCompact = false
 }: BrickRendererProps) {
   const t = useTranslations("document-detail");
@@ -190,6 +192,15 @@ export function UnifiedBrickRenderer({
           onUpdate={(c) => onUpdate({ ...content, ...c })}
           onPatchCell={onPatchCell ? (rowId, colId, cell, rowMeta) =>
             onPatchCell(brick.id, { kind: 'bountiful_table_cell', rowId, colId, cell, rowMeta })
+          : undefined}
+          onPatchColumn={onPatchColumn ? (colId, updates) =>
+            onPatchColumn(brick.id, { kind: 'bountiful_table_column', colId, updates })
+          : undefined}
+          onAddColumn={onPatchColumn ? (column, atIndex) =>
+            onPatchColumn(brick.id, { kind: 'bountiful_table_add_column', column, atIndex })
+          : undefined}
+          onRemoveColumn={onPatchColumn ? (colId) =>
+            onPatchColumn(brick.id, { kind: 'bountiful_table_remove_column', colId })
           : undefined}
         />
       );

@@ -190,6 +190,41 @@ export default function DocumentPage() {
           }),
         };
       });
+    } else if ((event.type as string) === "brick.column_patched") {
+      const p = event.payload;
+      if (!p?.id || !p?.colPatch) return;
+      setDocument((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          bricks: prev.bricks.map((b) => {
+            if (b.id !== p.id) return b;
+            const content = b.content as any;
+            const cp = p.colPatch as any;
+            if (cp.kind === 'bountiful_table_column' && cp.colId) {
+              const columns = (content.columns || []).map((c: any) =>
+                c.id !== cp.colId ? c : { ...c, ...cp.updates }
+              );
+              return { ...b, content: { ...content, columns } };
+            } else if (cp.kind === 'bountiful_table_add_column' && cp.column) {
+              const cols = [...(content.columns || [])];
+              cols.splice(cp.atIndex ?? cols.length, 0, cp.column);
+              const rows = (content.rows || []).map((r: any) => ({
+                ...r, cells: { ...(r.cells || {}), [cp.column.id]: null }
+              }));
+              return { ...b, content: { ...content, columns: cols, rows } };
+            } else if (cp.kind === 'bountiful_table_remove_column' && cp.colId) {
+              const columns = (content.columns || []).filter((c: any) => c.id !== cp.colId);
+              const rows = (content.rows || []).map((r: any) => {
+                const { [cp.colId]: _, ...cells } = r.cells || {};
+                return { ...r, cells };
+              });
+              return { ...b, content: { ...content, columns, rows } };
+            }
+            return b;
+          }),
+        };
+      });
     }
   });
 
@@ -330,6 +365,15 @@ export default function DocumentPage() {
       await patchBrickCell(docId, brickId, patch as any, accessToken);
     } catch (e) {
       console.error('Cell patch failed, falling back to full update', e);
+    }
+  };
+
+  const handlePatchBrickColumn = async (brickId: string, patch: Record<string, any>) => {
+    if (!accessToken) return;
+    try {
+      await patchBrickCell(docId, brickId, patch as any, accessToken);
+    } catch (e) {
+      console.error('Column patch failed', e);
     }
   };
 
@@ -1007,6 +1051,7 @@ export default function DocumentPage() {
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onPatchCell={handlePatchBrickCell}
+              onPatchColumn={handlePatchBrickColumn}
               onDeleteBrick={handleDeleteBrick}
               onReorderBricks={handleReorderBricks}
               onCrossContainerDrop={handleCrossContainerDrop}

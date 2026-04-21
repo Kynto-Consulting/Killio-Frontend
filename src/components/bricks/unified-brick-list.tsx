@@ -49,6 +49,7 @@ interface UnifiedBrickListProps {
   emptyPlaceholder?: string;
   onAiAction?: (action: string, contextText: string) => void;
   onPatchCell?: (brickId: string, patch: Record<string, any>) => void;
+  onPatchColumn?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
 }
 
@@ -73,6 +74,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   emptyPlaceholder,
   onAiAction,
   onPatchCell,
+  onPatchColumn,
   isCompact = false
 }) => {
   const tDetail = useTranslations("document-detail");
@@ -177,6 +179,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         onUploadMediaFiles={onUploadMediaFiles}
         onAiAction={onAiAction}
         onPatchCell={onPatchCell}
+        onPatchColumn={onPatchColumn}
         isCompact={isCompact}
       />
     );

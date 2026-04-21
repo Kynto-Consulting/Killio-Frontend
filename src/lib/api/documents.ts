@@ -179,7 +179,7 @@ export async function patchBrickCell(
   documentId: string,
   brickId: string,
   patch: {
-    kind: 'bountiful_table_cell' | 'table_cell';
+    kind: 'bountiful_table_cell' | 'table_cell' | 'bountiful_table_column' | 'bountiful_table_add_column' | 'bountiful_table_remove_column';
     rowId?: string;
     rowIndex?: number;
     colId?: string;
@@ -187,6 +187,9 @@ export async function patchBrickCell(
     cell?: Record<string, any>;
     value?: string;
     rowMeta?: { _lastEditedAt: string; _lastEditedBy: string };
+    updates?: Record<string, any>;
+    column?: Record<string, any>;
+    atIndex?: number;
   },
   accessToken: string
 ): Promise<{ success: boolean; updatedAt: string }> {
