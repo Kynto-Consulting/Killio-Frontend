@@ -399,23 +399,23 @@
       "document": "Document",
       "board": "Board",
       "card": "Card"
+    },
+    "personFormat": {
+      "title": "Display as",
+      "name": "Full name",
+      "email": "Email address",
+      "alias": "Username / Alias"
+    },
+    "documentFormat": {
+      "title": "Display as",
+      "name": "Name only",
+      "full": "Full path"
+    },
+    "phoneFormat": {
+      "title": "Country format",
+      "country": "Country",
+      "searchPlaceholder": "Search country...",
+      "noCountry": "No format"
     }
-  },
-  "personFormat": {
-    "title": "Display as",
-    "name": "Full name",
-    "email": "Email address",
-    "alias": "Username / Alias"
-  },
-  "documentFormat": {
-    "title": "Display as",
-    "name": "Name only",
-    "full": "Full path"
-  },
-  "phoneFormat": {
-    "title": "Country format",
-    "country": "Country",
-    "searchPlaceholder": "Search country...",
-    "noCountry": "No format"
   }
 }

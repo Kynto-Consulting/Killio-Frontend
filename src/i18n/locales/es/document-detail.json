@@ -399,23 +399,23 @@
       "document": "Documento",
       "board": "Tablero",
       "card": "Tarjeta"
+    },
+    "personFormat": {
+      "title": "Mostrar como",
+      "name": "Nombre completo",
+      "email": "Correo electrónico",
+      "alias": "Usuario / Alias"
+    },
+    "documentFormat": {
+      "title": "Mostrar como",
+      "name": "Solo nombre",
+      "full": "Ruta completa"
+    },
+    "phoneFormat": {
+      "title": "Formato de país",
+      "country": "País",
+      "searchPlaceholder": "Buscar país...",
+      "noCountry": "Sin formato"
     }
-  },
-  "personFormat": {
-    "title": "Mostrar como",
-    "name": "Nombre completo",
-    "email": "Correo electrónico",
-    "alias": "Usuario / Alias"
-  },
-  "documentFormat": {
-    "title": "Mostrar como",
-    "name": "Solo nombre",
-    "full": "Ruta completa"
-  },
-  "phoneFormat": {
-    "title": "Formato de país",
-    "country": "País",
-    "searchPlaceholder": "Buscar país...",
-    "noCountry": "Sin formato"
   }
 }

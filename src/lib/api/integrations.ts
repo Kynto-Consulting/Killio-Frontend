@@ -55,6 +55,49 @@ export interface SlackWebhookManualCredential {
   createdAt: string;
 }
 
+export interface NotionIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: "notion";
+  name: string;
+  workspaceId: string;
+  workspaceName: string;
+  botId: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface TrelloIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: "trello";
+  name: string;
+  workspaceId: string;
+  botId: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface IntegrationConnectUrlResponse {
+  url: string;
+}
+
+export interface NotionPageSearchResult {
+  id: string;
+  title: string;
+  type?: "page" | "database";
+  icon?: string;
+  url?: string;
+  lastEditedTime?: string;
+}
+
+export interface TrelloBoardSearchResult {
+  id: string;
+  title: string;
+  url?: string;
+  lastEditedTime?: string;
+}
+
 async function parseApiError(res: Response, fallbackMessage: string): Promise<never> {
   let message = fallbackMessage;
   try {
@@ -168,6 +211,176 @@ export async function deleteSlackWebhookCredential(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) return parseApiError(res, 'Failed to delete Slack webhook credential');
+}
+
+export async function listNotionCredentials(
+  teamId: string,
+  accessToken: string,
+): Promise<NotionIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch Notion credentials');
+  return res.json();
+}
+
+export async function deleteNotionCredential(
+  teamId: string,
+  credentialId: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete Notion credential');
+}
+
+export async function getNotionConnectUrl(
+  teamId: string,
+  accessToken: string,
+): Promise<IntegrationConnectUrlResponse> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/connect-url`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to get Notion connect URL');
+  return res.json();
+}
+
+export async function searchNotionPages(
+  teamId: string,
+  credentialId: string,
+  query: string,
+  accessToken: string,
+): Promise<NotionPageSearchResult[]> {
+  const encodedQuery = encodeURIComponent(query || '');
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/credentials/${credentialId}/pages?query=${encodedQuery}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to search Notion pages');
+  return res.json();
+}
+
+export async function importNotionPage(
+  teamId: string,
+  credentialId: string,
+  pageId: string,
+  accessToken: string,
+  folderId?: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const body: { pageId: string; folderId?: string } = { pageId };
+  if (folderId) body.folderId = folderId;
+
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/credentials/${credentialId}/import`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to import Notion page');
+  return res.json();
+}
+
+export async function listTrelloCredentials(
+  teamId: string,
+  accessToken: string,
+): Promise<TrelloIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch Trello credentials');
+  return res.json();
+}
+
+export async function deleteTrelloCredential(
+  teamId: string,
+  credentialId: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete Trello credential');
+}
+
+export async function getTrelloConnectUrl(
+  teamId: string,
+  accessToken: string,
+): Promise<IntegrationConnectUrlResponse> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/connect-url`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to get Trello connect URL');
+  return res.json();
+}
+
+export async function searchTrelloBoards(
+  teamId: string,
+  credentialId: string,
+  query: string,
+  accessToken: string,
+): Promise<TrelloBoardSearchResult[]> {
+  const encodedQuery = encodeURIComponent(query || '');
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/credentials/${credentialId}/boards?query=${encodedQuery}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to search Trello boards');
+  return res.json();
+}
+
+export async function importTrelloBoard(
+  teamId: string,
+  credentialId: string,
+  boardId: string,
+  accessToken: string,
+): Promise<{ ok: boolean; message?: string }> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/credentials/${credentialId}/import`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ boardId }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to import Trello board');
+  return res.json();
+}
+
+export async function saveNotionCallback(
+  teamId: string,
+  code: string,
+  accessToken: string,
+): Promise<any> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/notion/callback`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to connect Notion');
+  return res.json();
+}
+
+export async function saveTrelloCallback(
+  teamId: string,
+  code: string,
+  accessToken: string,
+): Promise<any> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/callback`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to connect Trello');
+  return res.json();
 }
 
 export async function saveGithubInstallation(

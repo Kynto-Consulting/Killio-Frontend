@@ -208,6 +208,10 @@ export function UnifiedBrickRenderer({
           onDuplicateColumn={onPatchColumn ? (srcColId, newColId, newName, atIndex) =>
             onPatchColumn(brick.id, { kind: 'bountiful_table_duplicate_column', srcColId, newColId, newName, atIndex })
           : undefined}
+          documents={documents}
+          boards={boards}
+          users={users}
+          activeBricks={activeBricks}
         />
       );
       break;

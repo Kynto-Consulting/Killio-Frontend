@@ -23,6 +23,7 @@ import { fetchApi } from "@/lib/api/client";
 import katex from "katex";
 // @ts-ignore
 import "katex/dist/katex.min.css";
+import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -99,6 +100,11 @@ interface UnifiedBountifulTableProps {
   onAddColumn?: (column: BountifulColumn, atIndex: number) => void;
   onRemoveColumn?: (colId: string) => void;
   onDuplicateColumn?: (srcColId: string, newColId: string, newName: string, atIndex: number) => void;
+  // Context for ReferencePicker
+  documents?: any[];
+  boards?: any[];
+  users?: any[];
+  activeBricks?: any[];
 }
 
 // ─── Color map ──────────────────────────────────────────────────────────────
@@ -1648,9 +1654,10 @@ function AIAutocompleteModal({
 
 // ─── Cell Renderer ──────────────────────────────────────────────────────────
 
-function CellRenderer({ cell, column, row, readonly, onCellChange }: {
+function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferencePicker }: {
   cell: BountifulCell | null; column: BountifulColumn; row: BountifulRow; readonly?: boolean;
   onCellChange?: (newCell: BountifulCell) => void;
+  onOpenReferencePicker?: (state: { rowId: string; colId: string; rect: DOMRect; type: "user" | "doc" | "board" | "card" }) => void;
 }) {
   const t = useTranslations("document-detail");
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
@@ -1737,6 +1744,41 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
     return n.toLocaleString("es-PE", { maximumFractionDigits: decimals });
   };
 
+  const toAlias = (raw?: string) => {
+    const source = (raw || "").trim();
+    if (!source) return "@user";
+    const base = source.includes("@") ? source.split("@")[0] : source;
+    const normalized = base
+      .toLowerCase()
+      .replace(/\s+/g, "_")
+      .replace(/[^a-z0-9._-]/g, "");
+    return `@${normalized || "user"}`;
+  };
+
+  const getUserLabel = (user: { name?: string; email?: string }) => {
+    const fmt = column.personFormat || "name";
+    if (fmt === "email") return user.email || user.name || "User";
+    if (fmt === "alias") return toAlias(user.email || user.name);
+    return user.name || user.email || "User";
+  };
+
+  const toMetaUserRef = (raw?: string) => {
+    const value = (raw || "").trim();
+    if (!value) return { id: "system", name: "System" };
+    if (value.includes("@")) {
+      return { id: value, name: value.split("@")[0] || "User", email: value };
+    }
+    return { id: value, name: value };
+  };
+
+  const getDocumentLabel = (doc: { id: string; name?: string }) => {
+    const base = doc.name || "Page";
+    if ((column.documentFormat || "name") === "full") {
+      return `${base} (${doc.id.slice(0, 8)})`;
+    }
+    return base;
+  };
+
   const commitTextEdit = () => {
     setIsEditing(false);
     if (!onCellChange) return;
@@ -1756,7 +1798,17 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
-    return <span className="text-xs text-muted-foreground/60 italic">{val || "—"}</span>;
+    const metaUser = toMetaUserRef(val);
+    return (
+      <div className="w-full min-h-[24px] flex items-center">
+        <RefPill
+          type="user"
+          id={metaUser.id}
+          name={metaUser.name || "System"}
+          label={getUserLabel(metaUser)}
+        />
+      </div>
+    );
   }
 
   if (colType === "date") {
@@ -1830,6 +1882,35 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
         <div ref={cellRef} className="w-full min-h-[24px] flex items-center cursor-pointer"
           onClick={() => onCellChange?.({ type: "checkbox", checked: true })}>
           <Square className="w-4 h-4 text-muted-foreground/30 hover:text-muted-foreground/60 transition-colors" />
+        </div>
+      );
+    }
+
+    // Relation-like columns should open the reference picker instead of text editing
+    if (colType === "people" || colType === "document" || colType === "relation" || colType === "board" || colType === "card") {
+      const pickerType = colType === "people"
+        ? "user"
+        : colType === "board"
+          ? "board"
+          : colType === "card"
+            ? "card"
+            : "doc";
+      return (
+        <div
+          ref={cellRef}
+          className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
+          onClick={() => {
+            if (!readonly && cellRef.current) {
+              onOpenReferencePicker?.({
+                rowId: row.id,
+                colId: column.id,
+                type: pickerType,
+                rect: cellRef.current.getBoundingClientRect(),
+              });
+            }
+          }}
+        >
+          <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>
         </div>
       );
     }
@@ -1971,12 +2052,23 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
   if (cell.type === "user") {
     const hasUsers = (cell.users || []).length > 0;
     return (
-      <div className={cn("w-full min-h-[24px] flex items-center", column.wrap && "py-1")}>
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
+        onClick={() => {
+          if (!readonly && cellRef.current) {
+            onOpenReferencePicker?.({ rowId: row.id, colId: column.id, type: "user", rect: cellRef.current.getBoundingClientRect() });
+          }
+        }}>
         {hasUsers ? (
           <div className="flex gap-1 flex-wrap">{cell.users!.map((u, i) => (
-            <RefPill key={i} type="user" id={u.id || u.email || String(i)} name={u.name || "User"} label={u.email || u.name} />
+            <RefPill
+              key={i}
+              type="user"
+              id={u.id || u.email || String(i)}
+              name={u.name || u.email || "User"}
+              label={getUserLabel(u)}
+            />
           ))}</div>
-        ) : <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>}
+        ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
       </div>
     );
   }
@@ -1985,12 +2077,17 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
   if (cell.type === "document") {
     const has = (cell.documents || []).length > 0;
     return (
-      <div className={cn("w-full min-h-[24px] flex items-center", column.wrap && "py-1")}>
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
+        onClick={() => {
+          if (!readonly && cellRef.current) {
+            onOpenReferencePicker?.({ rowId: row.id, colId: column.id, type: "doc", rect: cellRef.current.getBoundingClientRect() });
+          }
+        }}>
         {has ? (
           <div className="flex gap-1 flex-wrap">{cell.documents!.map((doc, i) => (
-            <RefPill key={i} type="doc" id={doc.id} name={doc.name || "Page"} />
+            <RefPill key={i} type="doc" id={doc.id} name={doc.name || "Page"} label={getDocumentLabel(doc)} />
           ))}</div>
-        ) : <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>}
+        ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
       </div>
     );
   }
@@ -1999,12 +2096,17 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
   if (cell.type === "board") {
     const has = (cell.boards || []).length > 0;
     return (
-      <div className={cn("w-full min-h-[24px] flex items-center", column.wrap && "py-1")}>
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
+        onClick={() => {
+          if (!readonly && cellRef.current) {
+            onOpenReferencePicker?.({ rowId: row.id, colId: column.id, type: "board", rect: cellRef.current.getBoundingClientRect() });
+          }
+        }}>
         {has ? (
           <div className="flex gap-1 flex-wrap">{cell.boards!.map((b, i) => (
             <RefPill key={i} type="board" id={b.id} name={b.name || "Board"} />
           ))}</div>
-        ) : <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>}
+        ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
       </div>
     );
   }
@@ -2013,21 +2115,40 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
   if (cell.type === "card") {
     const has = (cell.cards || []).length > 0;
     return (
-      <div className={cn("w-full min-h-[24px] flex items-center", column.wrap && "py-1")}>
+      <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
+        onClick={() => {
+          if (!readonly && cellRef.current) {
+            onOpenReferencePicker?.({ rowId: row.id, colId: column.id, type: "card", rect: cellRef.current.getBoundingClientRect() });
+          }
+        }}>
         {has ? (
           <div className="flex gap-1 flex-wrap">{cell.cards!.map((c, i) => (
             <RefPill key={i} type="card" id={c.id} name={c.name || "Card"} />
           ))}</div>
-        ) : <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>}
+        ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
       </div>
     );
   }
 
   // Magic columns (read-only metadata)
   if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, true)}</div>;
-  if (column.type === "created_by") return <div className="text-xs text-muted-foreground/60">{row._createdBy || "System"}</div>;
+  if (column.type === "created_by") {
+    const metaUser = toMetaUserRef(row._createdBy);
+    return (
+      <div className="w-full min-h-[24px] flex items-center">
+        <RefPill type="user" id={metaUser.id} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+      </div>
+    );
+  }
   if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, true)}</div>;
-  if (column.type === "last_edited_by") return <div className="text-xs text-muted-foreground/60">{row._lastEditedBy || "System"}</div>;
+  if (column.type === "last_edited_by") {
+    const metaUser = toMetaUserRef(row._lastEditedBy);
+    return (
+      <div className="w-full min-h-[24px] flex items-center">
+        <RefPill type="user" id={metaUser.id} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+      </div>
+    );
+  }
 
   // Fallback — render with RichText if contains formatting, otherwise plain
   const fallbackText = cell.text || cell.value || (typeof cell === "object" ? JSON.stringify(cell) : String(cell));
@@ -2042,7 +2163,8 @@ function CellRenderer({ cell, column, row, readonly, onCellChange }: {
 
 export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   id, title, columns: initColumns, rows: initRows, readonly = false,
-  onUpdate, onPatchCell, onPatchColumn, onAddColumn, onRemoveColumn,
+  onUpdate, onPatchCell, onPatchColumn, onAddColumn, onRemoveColumn, onDuplicateColumn,
+  documents = [], boards = [], users = [], activeBricks = [],
 }) => {
   const t = useTranslations("document-detail");
   const { activeTeamId, accessToken, user } = useSession();
@@ -2068,6 +2190,13 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   const [showVisibilityManager, setShowVisibilityManager] = useState<{ rect: DOMRect } | null>(null);
   const [showAIModalColId, setShowAIModalColId] = useState<string | null>(null);
   const [aiUsage, setAiUsage] = useState(0);
+
+  const [pickerState, setPickerState] = useState<{
+    rowId: string;
+    colId: string;
+    rect: DOMRect;
+    type: "user" | "doc" | "board" | "card";
+  } | null>(null);
 
   // Fetch real usage when AI modal is about to show
   useEffect(() => {
@@ -2098,6 +2227,43 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
       emitUpdate(cols, rws, ttl);
     }, 300);
   }, [emitUpdate]);
+
+  const handleReferenceSelect = (item: ReferencePickerSelection) => {
+    if (!pickerState) return;
+    const { rowId, colId, type } = pickerState;
+    let newCell: BountifulCell | null = null;
+
+    if (type === "user") {
+      const match = item.token.match(/@\[user:([^:]+):([^\]]+)\]/);
+      const uid = match?.[1] || "";
+      const uname = match?.[2] || item.label;
+      newCell = { type: "user", users: [{ id: uid, name: uname }] };
+    } else if (type === "doc") {
+      // Could be complex token $[docId:...] or simple @[doc:id:name]
+      let docId = "";
+      let docName = item.label;
+      const simpleMatch = item.token.match(/@\[doc:([^:]+):([^\]]+)\]/);
+      if (simpleMatch) {
+        docId = simpleMatch[1];
+        docName = simpleMatch[2];
+      } else {
+        const deepMatch = item.token.match(/\$\[([^:]+):/);
+        if (deepMatch) docId = deepMatch[1];
+      }
+      if (docId) newCell = { type: "document", documents: [{ id: docId, name: docName }] };
+    } else if (type === "board") {
+      const match = item.token.match(/@\[board:([^:]+):([^\]]+)\]/);
+      if (match) newCell = { type: "board", boards: [{ id: match[1], name: match[2] }] };
+    } else if (type === "card") {
+      const match = item.token.match(/@\[card:([^:]+):([^\]]+)\]/);
+      if (match) newCell = { type: "card", cards: [{ id: match[1], name: match[2] }] };
+    }
+
+    if (newCell) {
+      handleCellChange(rowId, colId, newCell);
+    }
+    setPickerState(null);
+  };
 
   const handleFilterChange = (colId: string, operator: string, value: string) => {
     let nf = [...filterConfig].filter(f => f.colId !== colId);
@@ -2431,7 +2597,8 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                       isPinned && "sticky z-[5] shadow-[2px_0_4px_rgba(0,0,0,0.02)]")}
                       style={{ left: isPinned ? left : undefined }}>
                       <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly={readonly}
-                        onCellChange={newCell => handleCellChange(row.id, col.id, newCell)} />
+                        onCellChange={newCell => handleCellChange(row.id, col.id, newCell)}
+                        onOpenReferencePicker={setPickerState} />
                     </td>
                   );
                 })}
@@ -2519,6 +2686,17 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           />
         );
       })()}
+      {pickerState && (
+        <ReferencePicker
+          onSelect={handleReferenceSelect}
+          onClose={() => setPickerState(null)}
+          boards={boards}
+          documents={documents}
+          users={users}
+          activeBricks={activeBricks}
+          allowedTypes={[pickerState.type]}
+        />
+      )}
     </div>
   );
 
