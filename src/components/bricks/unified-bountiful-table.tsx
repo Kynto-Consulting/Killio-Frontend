@@ -45,6 +45,9 @@ export interface BountifulColumn {
     format?: "friendly" | "relative" | "short" | "iso";
     includeTime?: boolean;
   };
+  personFormat?: "name" | "email" | "alias";
+  documentFormat?: "name" | "full";
+  phoneFormat?: { country?: string };
 }
 
 export interface BountifulCell {
@@ -106,6 +109,7 @@ const colorThemeMap: Record<string, string> = {
   purple: "bg-purple-100 text-purple-800 dark:bg-purple-900/50 dark:text-purple-200",
   pink: "bg-pink-100 text-pink-800 dark:bg-pink-900/50 dark:text-pink-200",
   red: "bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-200",
+  teal: "bg-teal-100 text-teal-800 dark:bg-teal-900/50 dark:text-teal-200",
 };
 const getPillClass = (c?: string) => colorThemeMap[c || "default"] || colorThemeMap.default;
 const AVAILABLE_COLORS = Object.keys(colorThemeMap);
@@ -348,7 +352,7 @@ function ColumnHeaderMenu({
 
   useEffect(() => { if (tab === "main") setTimeout(() => nameRef.current?.focus(), 50); }, [tab]);
 
-  const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time"].includes(column.type);
+  const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time", "people", "created_by", "last_edited_by", "document", "phone_number"].includes(column.type);
 
   const top = Math.min(anchorRect.bottom + 4, window.innerHeight - 480);
   const left = Math.min(anchorRect.left, window.innerWidth - 280);
@@ -602,6 +606,87 @@ function ColumnHeaderMenu({
   );
 }
 
+const PHONE_COUNTRIES = [
+  { code: "AR", name: "Argentina", dial: "+54", flag: "🇦🇷" },
+  { code: "AU", name: "Australia", dial: "+61", flag: "🇦🇺" },
+  { code: "AT", name: "Austria", dial: "+43", flag: "🇦🇹" },
+  { code: "BE", name: "Belgium", dial: "+32", flag: "🇧🇪" },
+  { code: "BO", name: "Bolivia", dial: "+591", flag: "🇧🇴" },
+  { code: "BR", name: "Brazil", dial: "+55", flag: "🇧🇷" },
+  { code: "CA", name: "Canada", dial: "+1", flag: "🇨🇦" },
+  { code: "CL", name: "Chile", dial: "+56", flag: "🇨🇱" },
+  { code: "CN", name: "China", dial: "+86", flag: "🇨🇳" },
+  { code: "CO", name: "Colombia", dial: "+57", flag: "🇨🇴" },
+  { code: "CR", name: "Costa Rica", dial: "+506", flag: "🇨🇷" },
+  { code: "HR", name: "Croatia", dial: "+385", flag: "🇭🇷" },
+  { code: "CZ", name: "Czech Republic", dial: "+420", flag: "🇨🇿" },
+  { code: "DK", name: "Denmark", dial: "+45", flag: "🇩🇰" },
+  { code: "DO", name: "Dominican Republic", dial: "+1", flag: "🇩🇴" },
+  { code: "EC", name: "Ecuador", dial: "+593", flag: "🇪🇨" },
+  { code: "EG", name: "Egypt", dial: "+20", flag: "🇪🇬" },
+  { code: "SV", name: "El Salvador", dial: "+503", flag: "🇸🇻" },
+  { code: "FI", name: "Finland", dial: "+358", flag: "🇫🇮" },
+  { code: "FR", name: "France", dial: "+33", flag: "🇫🇷" },
+  { code: "DE", name: "Germany", dial: "+49", flag: "🇩🇪" },
+  { code: "GH", name: "Ghana", dial: "+233", flag: "🇬🇭" },
+  { code: "GR", name: "Greece", dial: "+30", flag: "🇬🇷" },
+  { code: "GT", name: "Guatemala", dial: "+502", flag: "🇬🇹" },
+  { code: "HN", name: "Honduras", dial: "+504", flag: "🇭🇳" },
+  { code: "HK", name: "Hong Kong", dial: "+852", flag: "🇭🇰" },
+  { code: "HU", name: "Hungary", dial: "+36", flag: "🇭🇺" },
+  { code: "IN", name: "India", dial: "+91", flag: "🇮🇳" },
+  { code: "ID", name: "Indonesia", dial: "+62", flag: "🇮🇩" },
+  { code: "IE", name: "Ireland", dial: "+353", flag: "🇮🇪" },
+  { code: "IL", name: "Israel", dial: "+972", flag: "🇮🇱" },
+  { code: "IT", name: "Italy", dial: "+39", flag: "🇮🇹" },
+  { code: "JP", name: "Japan", dial: "+81", flag: "🇯🇵" },
+  { code: "JO", name: "Jordan", dial: "+962", flag: "🇯🇴" },
+  { code: "KE", name: "Kenya", dial: "+254", flag: "🇰🇪" },
+  { code: "KR", name: "South Korea", dial: "+82", flag: "🇰🇷" },
+  { code: "KW", name: "Kuwait", dial: "+965", flag: "🇰🇼" },
+  { code: "LB", name: "Lebanon", dial: "+961", flag: "🇱🇧" },
+  { code: "MY", name: "Malaysia", dial: "+60", flag: "🇲🇾" },
+  { code: "MX", name: "Mexico", dial: "+52", flag: "🇲🇽" },
+  { code: "MA", name: "Morocco", dial: "+212", flag: "🇲🇦" },
+  { code: "NL", name: "Netherlands", dial: "+31", flag: "🇳🇱" },
+  { code: "NZ", name: "New Zealand", dial: "+64", flag: "🇳🇿" },
+  { code: "NI", name: "Nicaragua", dial: "+505", flag: "🇳🇮" },
+  { code: "NG", name: "Nigeria", dial: "+234", flag: "🇳🇬" },
+  { code: "NO", name: "Norway", dial: "+47", flag: "🇳🇴" },
+  { code: "PK", name: "Pakistan", dial: "+92", flag: "🇵🇰" },
+  { code: "PA", name: "Panama", dial: "+507", flag: "🇵🇦" },
+  { code: "PY", name: "Paraguay", dial: "+595", flag: "🇵🇾" },
+  { code: "PE", name: "Peru", dial: "+51", flag: "🇵🇪" },
+  { code: "PH", name: "Philippines", dial: "+63", flag: "🇵🇭" },
+  { code: "PL", name: "Poland", dial: "+48", flag: "🇵🇱" },
+  { code: "PT", name: "Portugal", dial: "+351", flag: "🇵🇹" },
+  { code: "QA", name: "Qatar", dial: "+974", flag: "🇶🇦" },
+  { code: "RO", name: "Romania", dial: "+40", flag: "🇷🇴" },
+  { code: "RU", name: "Russia", dial: "+7", flag: "🇷🇺" },
+  { code: "SA", name: "Saudi Arabia", dial: "+966", flag: "🇸🇦" },
+  { code: "SG", name: "Singapore", dial: "+65", flag: "🇸🇬" },
+  { code: "ZA", name: "South Africa", dial: "+27", flag: "🇿🇦" },
+  { code: "ES", name: "Spain", dial: "+34", flag: "🇪🇸" },
+  { code: "SE", name: "Sweden", dial: "+46", flag: "🇸🇪" },
+  { code: "CH", name: "Switzerland", dial: "+41", flag: "🇨🇭" },
+  { code: "TW", name: "Taiwan", dial: "+886", flag: "🇹🇼" },
+  { code: "TH", name: "Thailand", dial: "+66", flag: "🇹🇭" },
+  { code: "TR", name: "Turkey", dial: "+90", flag: "🇹🇷" },
+  { code: "AE", name: "UAE", dial: "+971", flag: "🇦🇪" },
+  { code: "UA", name: "Ukraine", dial: "+380", flag: "🇺🇦" },
+  { code: "GB", name: "United Kingdom", dial: "+44", flag: "🇬🇧" },
+  { code: "US", name: "United States", dial: "+1", flag: "🇺🇸" },
+  { code: "UY", name: "Uruguay", dial: "+598", flag: "🇺🇾" },
+  { code: "VE", name: "Venezuela", dial: "+58", flag: "🇻🇪" },
+  { code: "VN", name: "Vietnam", dial: "+84", flag: "🇻🇳" },
+];
+
+const SWATCH_COLORS: Record<string, string> = {
+  blue: "bg-blue-500", purple: "bg-purple-500", pink: "bg-pink-500",
+  red: "bg-red-500", orange: "bg-orange-500", yellow: "bg-yellow-400",
+  green: "bg-green-500", teal: "bg-teal-500", gray: "bg-gray-400", brown: "bg-amber-700",
+};
+
 function EditPropertyFlyout({
   column, menuTop, menuLeft, menuWidth, onClose, onUpdateOptions, onUpdateColumn, onAIAutocomplete, onMainClose,
 }: {
@@ -614,32 +699,79 @@ function EditPropertyFlyout({
   onMainClose: () => void;
 }) {
   const t = useTranslations("document-detail");
-  const [subTab, setSubTab] = useState<"main" | "numberFormat" | "decimalPlaces" | "editOption">("main");
+  const [subTab, setSubTab] = useState<"main" | "numberFormat" | "decimalPlaces" | "editOption" | "phoneCountry">("main");
   const [editingOption, setEditingOption] = useState<{ id: string; name: string; color: string; isDefault?: boolean } | null>(null);
   const [currencyFilter, setCurrencyFilter] = useState("");
+  const [phoneSearch, setPhoneSearch] = useState("");
+  const [creatingInGroup, setCreatingInGroup] = useState<string | null>(null);
+  const [newInlineOptName, setNewInlineOptName] = useState("");
+  const [dragOptId, setDragOptId] = useState<string | null>(null);
+  const [dragOverGroup, setDragOverGroup] = useState<string | null>(null);
+  const newOptInputRef = useRef<HTMLInputElement>(null);
 
   const options = column.options || [];
+  const statusGroups = column.statusGroups || [];
   const currencies = ["none", "percent", "usd", "aud", "cad", "sgd", "eur", "gbp", "jpy", "rub", "inr", "krw", "cny", "brl", "pen", "numberWithDecimals"];
   const filteredCurrencies = currencies.filter(c => t(`bountifulTable.numberFormat.${c}` as any).toLowerCase().includes(currencyFilter.toLowerCase()));
+  const filteredCountries = PHONE_COUNTRIES.filter(c =>
+    c.name.toLowerCase().includes(phoneSearch.toLowerCase()) ||
+    c.dial.includes(phoneSearch) ||
+    c.code.toLowerCase().includes(phoneSearch.toLowerCase())
+  );
+  const currentCountry = PHONE_COUNTRIES.find(c => c.code === column.phoneFormat?.country);
 
   const flyWidth = 280;
   const spaceRight = window.innerWidth - (menuLeft + menuWidth) - 8;
   const flyLeft = spaceRight >= flyWidth ? menuLeft + menuWidth - 1 : menuLeft - flyWidth + 1;
   const flyTop = Math.min(menuTop, window.innerHeight - 520);
 
-  const addOption = (groupName?: string) => {
+  useEffect(() => {
+    if (creatingInGroup) setTimeout(() => newOptInputRef.current?.focus(), 50);
+  }, [creatingInGroup]);
+
+  const startCreating = (groupName: string) => {
+    setCreatingInGroup(groupName);
+    setNewInlineOptName("");
+  };
+
+  const commitNewOpt = (groupName: string) => {
+    const name = newInlineOptName.trim();
+    if (!name) { setCreatingInGroup(null); return; }
     const newId = `opt-${Date.now()}`;
-    const newOpt = { id: newId, name: t("bountifulTable.newOption" as any), color: "blue" };
-    const newOptions = [...options, newOpt];
-    onUpdateOptions(newOptions);
-    if (groupName && column.type === "status") {
-      const newGroups = (column.statusGroups || []).map(g =>
+    const newOpt = { id: newId, name, color: "blue" };
+    onUpdateOptions([...options, newOpt]);
+    if (groupName !== "__flat__" && column.type === "status") {
+      const newGroups = statusGroups.map(g =>
         g.name === groupName ? { ...g, optionIds: [...g.optionIds, newId] } : g
       );
       onUpdateColumn({ statusGroups: newGroups });
     }
-    setEditingOption(newOpt);
-    setSubTab("editOption");
+    setNewInlineOptName("");
+    setTimeout(() => newOptInputRef.current?.focus(), 30);
+  };
+
+  const handleDropToGroup = (targetGroupName: string) => {
+    if (!dragOptId) return;
+    let sourceGroupName: string | null = null;
+    for (const g of statusGroups) {
+      const found = g.optionIds.some(ref => {
+        const resolved = options.find(o => o.id === ref || o.name === ref || o.name.toLowerCase().trim() === String(ref).toLowerCase().trim());
+        return resolved?.id === dragOptId || ref === dragOptId;
+      });
+      if (found) { sourceGroupName = g.name; break; }
+    }
+    if (!sourceGroupName || sourceGroupName === targetGroupName) { setDragOptId(null); setDragOverGroup(null); return; }
+    const newGroups = statusGroups.map(g => {
+      if (g.name === sourceGroupName) return { ...g, optionIds: g.optionIds.filter(ref => {
+        const resolved = options.find(o => o.id === ref || o.name === ref);
+        return resolved?.id !== dragOptId && ref !== dragOptId;
+      })};
+      if (g.name === targetGroupName) return { ...g, optionIds: [...g.optionIds, dragOptId] };
+      return g;
+    });
+    onUpdateColumn({ statusGroups: newGroups });
+    setDragOptId(null);
+    setDragOverGroup(null);
   };
 
   const updateOption = (id: string, updates: Partial<{ name: string; color: string; isDefault: boolean }>) => {
@@ -649,26 +781,30 @@ function EditPropertyFlyout({
   };
 
   const removeOption = (id: string) => {
-    const no = options.filter(o => o.id !== id);
-    onUpdateOptions(no);
-    const newGroups = (column.statusGroups || []).map(g => ({ ...g, optionIds: g.optionIds.filter(oid => oid !== id) }));
-    onUpdateColumn({ statusGroups: newGroups });
+    onUpdateOptions(options.filter(o => o.id !== id));
+    onUpdateColumn({ statusGroups: statusGroups.map(g => ({ ...g, optionIds: g.optionIds.filter(oid => oid !== id) })) });
     setSubTab("main");
   };
 
   function renderOptionItem(opt: { id: string; name: string; color: string; isDefault?: boolean }) {
     return (
-      <div key={opt.id} onClick={() => { setEditingOption(opt); setSubTab("editOption"); }}
-        className="flex items-center justify-between px-2 py-1.5 hover:bg-muted/60 rounded-md group cursor-pointer transition-all border border-transparent hover:border-border/50">
-        <div className="flex items-center gap-2">
-          <GripVertical className="h-3 w-3 text-muted-foreground/20 group-hover:text-muted-foreground/50 transition-colors" />
-          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold shadow-sm", getPillClass(opt.color))}>
+      <div key={opt.id}
+        draggable={column.type === "status"}
+        onDragStart={e => { e.stopPropagation(); setDragOptId(opt.id); }}
+        onDragEnd={() => { setDragOptId(null); setDragOverGroup(null); }}
+        onClick={() => { setEditingOption(opt); setSubTab("editOption"); }}
+        className={cn("flex items-center justify-between px-2 py-1.5 rounded-md group cursor-pointer transition-all select-none",
+          dragOptId === opt.id ? "opacity-40 bg-muted/30" : "hover:bg-muted/60")}>
+        <div className="flex items-center gap-2 min-w-0">
+          <GripVertical className={cn("h-3 w-3 shrink-0 transition-colors",
+            column.type === "status" ? "text-muted-foreground/30 group-hover:text-muted-foreground/60 cursor-grab" : "text-muted-foreground/10")} />
+          <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-semibold truncate max-w-[160px]", getPillClass(opt.color))}>
             {opt.name}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {opt.isDefault && <span className="text-[8px] font-black text-muted-foreground/30 uppercase tracking-tighter">DEFAULT</span>}
-          <ChevronRight className="h-3 w-3 text-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-all" />
+        <div className="flex items-center gap-1 shrink-0">
+          {opt.isDefault && <span className="text-[8px] font-black text-muted-foreground/30 uppercase">DEF</span>}
+          <Edit3 className="h-3 w-3 text-muted-foreground/20 opacity-0 group-hover:opacity-100 transition-all" />
         </div>
       </div>
     );
@@ -693,10 +829,11 @@ function EditPropertyFlyout({
         ) : (
           <Settings className="h-3.5 w-3.5 text-muted-foreground/60" />
         )}
-        <span className="text-xs font-bold uppercase tracking-tight text-muted-foreground">
+        <span className="text-xs font-bold uppercase tracking-tight text-muted-foreground truncate">
           {subTab === "numberFormat" ? t("bountifulTable.numberFormat.title" as any)
             : subTab === "decimalPlaces" ? t("bountifulTable.numberFormat.decimals" as any)
             : subTab === "editOption" ? (editingOption?.name || t("bountifulTable.newOption" as any))
+            : subTab === "phoneCountry" ? t("bountifulTable.phoneFormat.title" as any)
             : t("bountifulTable.editProperty" as any)}
         </span>
       </div>
@@ -718,7 +855,7 @@ function EditPropertyFlyout({
                 className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-muted text-sm transition-colors">
                 <span className="text-muted-foreground">{t("bountifulTable.numberFormat.decimals" as any)}</span>
                 <div className="flex items-center gap-1">
-                  <span className="text-[11px] text-muted-foreground/60">{column.numberFormat?.decimals ?? "Default"}</span>
+                  <span className="text-[11px] text-muted-foreground/60">{column.numberFormat?.decimals ?? t("bountifulTable.numberFormat.automatic" as any)}</span>
                   <span className="text-muted-foreground/30">›</span>
                 </div>
               </button>
@@ -755,43 +892,60 @@ function EditPropertyFlyout({
 
       {/* Select / Multi-select / Status type */}
       {subTab === "main" && (column.type === "select" || column.type === "multi_select" || column.type === "status") && (
-        <div className="flex flex-col" style={{ maxHeight: 440 }}>
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-3">
-            {column.type === "status" && (column.statusGroups || []).length > 0 ? (
+        <div className="flex flex-col" style={{ maxHeight: 460 }}>
+          <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+            {column.type === "status" && statusGroups.length > 0 ? (
               <>
-                {(column.statusGroups || []).map((group) => {
+                {statusGroups.map((group) => {
                   const groupOpts = group.optionIds
-                    .map(optId => (column.options || []).find(o =>
+                    .map(optId => options.find(o =>
                       o.id === optId || o.name === optId ||
                       o.name.toLowerCase().trim() === String(optId).toLowerCase().trim()
                     ))
                     .filter(Boolean) as { id: string; name: string; color: string; isDefault?: boolean }[];
+                  const isDragTarget = dragOverGroup === group.name && !!dragOptId;
                   return (
-                    <div key={group.name} className="space-y-1">
-                      <div className="flex items-center justify-between px-2">
+                    <div key={group.name}
+                      onDragOver={e => { e.preventDefault(); setDragOverGroup(group.name); }}
+                      onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverGroup(null); }}
+                      onDrop={() => handleDropToGroup(group.name)}
+                      className={cn("rounded-lg p-1.5 transition-colors border",
+                        isDragTarget ? "bg-accent/10 border-accent/40" : "border-transparent")}>
+                      <div className="flex items-center justify-between px-1 mb-1">
                         <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{group.name}</span>
-                        <button onClick={() => addOption(group.name)} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
+                        <button onClick={() => startCreating(group.name)}
+                          className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors">
+                          <Plus className="h-3 w-3" />
+                        </button>
                       </div>
-                      <div className="space-y-0.5 px-1">
+                      <div className="space-y-0.5">
                         {groupOpts.length > 0
                           ? groupOpts.map(opt => renderOptionItem(opt))
-                          : <p className="px-2 py-1 text-[10px] text-muted-foreground/40 italic">{t("bountifulTable.empty" as any)}</p>
+                          : <p className="px-2 py-1 text-[10px] text-muted-foreground/30 italic">{t("bountifulTable.empty" as any)}</p>
                         }
+                        {creatingInGroup === group.name && (
+                          <div className="flex items-center gap-1.5 px-2 py-1">
+                            <input ref={newOptInputRef} value={newInlineOptName}
+                              onChange={e => setNewInlineOptName(e.target.value)}
+                              onKeyDown={e => { if (e.key === "Enter") commitNewOpt(group.name); if (e.key === "Escape") { e.stopPropagation(); setCreatingInGroup(null); } }}
+                              onBlur={() => { if (!newInlineOptName.trim()) setCreatingInGroup(null); }}
+                              placeholder={t("bountifulTable.newOption" as any)}
+                              className="flex-1 bg-muted/60 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent border border-border/50" />
+                            <button onClick={() => commitNewOpt(group.name)} className="text-accent p-0.5 hover:text-accent/70"><Plus className="h-3 w-3" /></button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
                 })}
                 {(() => {
-                  const allGroupedRefs = new Set((column.statusGroups || []).flatMap(g => g.optionIds));
-                  const unassigned = (column.options || []).filter(o => !allGroupedRefs.has(o.id) && !allGroupedRefs.has(o.name));
+                  const allGroupedRefs = new Set(statusGroups.flatMap(g => g.optionIds));
+                  const unassigned = options.filter(o => !allGroupedRefs.has(o.id) && !allGroupedRefs.has(o.name));
                   if (unassigned.length === 0) return null;
                   return (
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-between px-2">
-                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">—</span>
-                        <button onClick={() => addOption()} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
-                      </div>
-                      <div className="space-y-0.5 px-1">{unassigned.map(opt => renderOptionItem(opt))}</div>
+                    <div className="space-y-0.5 px-1">
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-2">—</span>
+                      {unassigned.map(opt => renderOptionItem(opt))}
                     </div>
                   );
                 })()}
@@ -800,10 +954,24 @@ function EditPropertyFlyout({
               <div className="space-y-1">
                 <div className="flex items-center justify-between px-2 mb-1">
                   <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{t("bountifulTable.options" as any)}</span>
-                  <button onClick={() => addOption()} className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors"><Plus className="h-3 w-3" /></button>
+                  <button onClick={() => startCreating("__flat__")}
+                    className="text-muted-foreground hover:text-foreground p-0.5 rounded hover:bg-muted transition-colors">
+                    <Plus className="h-3 w-3" />
+                  </button>
                 </div>
-                <div className="space-y-0.5 px-1">
-                  {(column.options || []).map(opt => renderOptionItem(opt))}
+                <div className="space-y-0.5">
+                  {options.map(opt => renderOptionItem(opt))}
+                  {creatingInGroup === "__flat__" && (
+                    <div className="flex items-center gap-1.5 px-2 py-1">
+                      <input ref={newOptInputRef} value={newInlineOptName}
+                        onChange={e => setNewInlineOptName(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") commitNewOpt("__flat__"); if (e.key === "Escape") { e.stopPropagation(); setCreatingInGroup(null); } }}
+                        onBlur={() => { if (!newInlineOptName.trim()) setCreatingInGroup(null); }}
+                        placeholder={t("bountifulTable.newOption" as any)}
+                        className="flex-1 bg-muted/60 rounded px-2 py-1 text-xs outline-none focus:ring-1 focus:ring-accent border border-border/50" />
+                      <button onClick={() => commitNewOpt("__flat__")} className="text-accent p-0.5 hover:text-accent/70"><Plus className="h-3 w-3" /></button>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -841,6 +1009,53 @@ function EditPropertyFlyout({
               </div>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* People / Created by / Last edited by */}
+      {subTab === "main" && (column.type === "people" || column.type === "created_by" || column.type === "last_edited_by") && (
+        <div className="p-3 space-y-1.5">
+          <label className="text-[11px] font-semibold text-muted-foreground px-1 block mb-2">{t("bountifulTable.personFormat.title" as any)}</label>
+          {(["name", "email", "alias"] as const).map(fmt => (
+            <button key={fmt} onClick={() => onUpdateColumn({ personFormat: fmt })}
+              className={cn("w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors",
+                (column.personFormat || "name") === fmt ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted")}>
+              <span>{t(`bountifulTable.personFormat.${fmt}` as any)}</span>
+              {(column.personFormat || "name") === fmt && <span>✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Document type */}
+      {subTab === "main" && column.type === "document" && (
+        <div className="p-3 space-y-1.5">
+          <label className="text-[11px] font-semibold text-muted-foreground px-1 block mb-2">{t("bountifulTable.documentFormat.title" as any)}</label>
+          {(["name", "full"] as const).map(fmt => (
+            <button key={fmt} onClick={() => onUpdateColumn({ documentFormat: fmt })}
+              className={cn("w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs transition-colors",
+                (column.documentFormat || "name") === fmt ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted")}>
+              <span>{t(`bountifulTable.documentFormat.${fmt}` as any)}</span>
+              {(column.documentFormat || "name") === fmt && <span>✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Phone number type */}
+      {subTab === "main" && column.type === "phone_number" && (
+        <div className="p-3 space-y-1.5">
+          <label className="text-[11px] font-semibold text-muted-foreground px-1 block mb-2">{t("bountifulTable.phoneFormat.title" as any)}</label>
+          <button onClick={() => setSubTab("phoneCountry")}
+            className="w-full flex items-center justify-between px-3 py-1.5 rounded-md text-xs hover:bg-muted transition-colors">
+            <span className="text-muted-foreground">{t("bountifulTable.phoneFormat.country" as any)}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-muted-foreground/60">
+                {currentCountry ? `${currentCountry.flag} ${currentCountry.name} (${currentCountry.dial})` : t("bountifulTable.phoneFormat.noCountry" as any)}
+              </span>
+              <span className="text-muted-foreground/30">›</span>
+            </div>
+          </button>
         </div>
       )}
 
@@ -884,20 +1099,58 @@ function EditPropertyFlyout({
         </div>
       )}
 
-      {/* Edit option sub-tab */}
+      {/* Phone country sub-tab */}
+      {subTab === "phoneCountry" && (
+        <div className="flex flex-col" style={{ maxHeight: 380 }}>
+          <div className="p-1.5 border-b border-border">
+            <input value={phoneSearch} onChange={e => setPhoneSearch(e.target.value)}
+              placeholder={t("bountifulTable.phoneFormat.searchPlaceholder" as any)}
+              className="w-full bg-transparent border-none outline-none text-xs px-1" autoFocus />
+          </div>
+          <div className="flex-1 overflow-y-auto p-1 py-1.5">
+            <button onClick={() => { onUpdateColumn({ phoneFormat: { country: undefined } }); setSubTab("main"); }}
+              className={cn("w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-colors",
+                !column.phoneFormat?.country ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted")}>
+              <span>{t("bountifulTable.phoneFormat.noCountry" as any)}</span>
+              {!column.phoneFormat?.country && <span>✓</span>}
+            </button>
+            {filteredCountries.map(c => (
+              <button key={c.code} onClick={() => { onUpdateColumn({ phoneFormat: { country: c.code } }); setSubTab("main"); }}
+                className={cn("w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors",
+                  column.phoneFormat?.country === c.code ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted")}>
+                <span className="text-sm">{c.flag}</span>
+                <span className="flex-1 text-left truncate">{c.name}</span>
+                <span className="text-muted-foreground/60 text-[11px] shrink-0">{c.dial}</span>
+                {column.phoneFormat?.country === c.code && <span className="text-accent shrink-0">✓</span>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Edit option sub-tab — vivid swatches */}
       {subTab === "editOption" && editingOption && (
-        <div className="p-2 space-y-3">
+        <div className="p-3 space-y-3">
           <input value={editingOption.name} onChange={e => updateOption(editingOption.id, { name: e.target.value })}
             className="w-full rounded-md border border-input bg-background px-3 py-1.5 text-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent" autoFocus />
-          <div className="grid grid-cols-5 gap-1.5 px-1">
-            {["blue","purple","pink","red","orange","yellow","green","teal","gray","brown"].map(c => (
+          <div className="flex justify-center py-0.5">
+            <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", getPillClass(editingOption.color))}>
+              {editingOption.name || "…"}
+            </span>
+          </div>
+          <div className="grid grid-cols-5 gap-2 px-1">
+            {Object.entries(SWATCH_COLORS).map(([c, cls]) => (
               <button key={c} onClick={() => updateOption(editingOption.id, { color: c })}
-                className={cn("h-6 w-full rounded-md transition-all", getPillClass(c), editingOption.color === c && "ring-2 ring-offset-1 ring-accent")} />
+                className={cn("h-6 w-full rounded-md transition-all", cls,
+                  editingOption.color === c
+                    ? "ring-2 ring-offset-2 ring-foreground/40 scale-110"
+                    : "opacity-75 hover:opacity-100 hover:scale-105")} />
             ))}
           </div>
           {column.type === "select" && (
-            <button onClick={() => updateOption(editingOption.id, { isDefault: true })}
-              className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors", editingOption.isDefault ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted text-muted-foreground")}>
+            <button onClick={() => updateOption(editingOption.id, { isDefault: !editingOption.isDefault })}
+              className={cn("w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs transition-colors",
+                editingOption.isDefault ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted text-muted-foreground")}>
               <span>{editingOption.isDefault ? "✓ " : ""}{t("bountifulTable.sortManual" as any)}</span>
             </button>
           )}
