@@ -2685,7 +2685,8 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     if (value.includes("@")) {
       return { id: value, name: value.split("@")[0] || "User", email: value };
     }
-    return { id: value, name: value };
+    
+    return { id: value, name: users.find((u) => u?.id === value)?.name || value };
   };
 
   const getDocumentLabel = (doc: { id: string; name?: string }) => {
