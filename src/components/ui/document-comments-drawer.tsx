@@ -70,6 +70,38 @@ function getUserTintStyles(seed: string): { bg: string; border: string; text: st
   return palette[hashString(seed || "user") % palette.length];
 }
 
+function formatTimeDivider(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffHours = diffMs / (1000 * 60 * 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffDays === 0) {
+    return "Hoy";
+  } else if (diffDays === 1) {
+    return "Ayer";
+  } else if (diffDays < 7) {
+    return `Hace ${diffDays} días`;
+  } else {
+    return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'long', year: 'numeric' });
+  }
+}
+
+function shouldShowTimeDivider(currentDate: Date, previousDate: Date | null): boolean {
+  if (!previousDate) return true;
+  
+  const diffMs = Math.abs(currentDate.getTime() - previousDate.getTime());
+  const diffHours = diffMs / (1000 * 60 * 60);
+  
+  // Show divider if more than 4 hours apart
+  if (diffHours >= 4) return true;
+  
+  // Show divider if different days
+  const currentDay = currentDate.toDateString();
+  const previousDay = previousDate.toDateString();
+  return currentDay !== previousDay;
+}
+
 export function DocumentCommentsDrawer({
   isOpen,
   onClose,
@@ -131,9 +163,14 @@ export function DocumentCommentsDrawer({
     if (!accessToken || !docId) return;
     try {
       const data = await listDocumentComments(docId, accessToken);
-      setComments(data);
+      // Validate and filter comments with proper structure
+      const validComments = (data || []).filter(c => 
+        c && c.id && c.createdAt && c.payload && typeof c.payload.text === 'string'
+      );
+      setComments(validComments);
     } catch (e) {
       console.error("Failed to fetch comments", e);
+      setComments([]);
     }
   };
 
@@ -171,6 +208,13 @@ export function DocumentCommentsDrawer({
       fetchDocContent();
     }
   }, [isOpen, docId, activeTab]);
+
+  // Refresh comments when switching to comments tab
+  useEffect(() => {
+    if (isOpen && activeTab === 'comments') {
+      fetchComments();
+    }
+  }, [activeTab]);
 
   const groupedActivities = useMemo(() => {
     const windowMs = 3 * 60 * 1000;
@@ -237,10 +281,21 @@ export function DocumentCommentsDrawer({
     if (!commentInput.trim() || isLoading || !accessToken) return;
     setIsLoading(true);
     try {
-      await addDocumentComment(docId, commentInput, accessToken);
+      const newComment = await addDocumentComment(docId, commentInput, accessToken);
       setCommentInput("");
-      fetchComments();
-    } catch (e) { console.error(e); } finally { setIsLoading(false); }
+      
+      // Optimistically add the comment to the list
+      if (newComment && newComment.id) {
+        setComments(prev => [...prev, newComment]);
+      }
+      
+      // Fetch fresh comments to ensure sync
+      await fetchComments();
+    } catch (e) { 
+      console.error("Failed to add comment", e); 
+    } finally { 
+      setIsLoading(false); 
+    }
   }
 
   function buildDocContextSummary(): string {
@@ -428,36 +483,58 @@ export function DocumentCommentsDrawer({
                 <p>No hay comentarios aún.</p>
               </div>
             )}
-              {[...comments].reverse().map((entry) => {
+            {isLoading && comments.length === 0 && (
+              <div className="h-40 flex items-center justify-center">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+              </div>
+            )}
+              {[...comments].reverse().map((entry, idx, arr) => {
               const isMe = entry.actorId === user?.id;
-                const member = members.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+                const member = members.find(m => (m.id === entry.actorId || m.userId === entry.actorId) && entry.actorId);
               const tint = getUserTintStyles(entry.actorId || member?.email || "user");
+              
+              const currentDate = new Date(entry.createdAt);
+              const previousDate = idx > 0 ? new Date(arr[idx - 1].createdAt) : null;
+              const showDivider = shouldShowTimeDivider(currentDate, previousDate);
+              
               return (
-                <div key={entry.id} className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
-                  <div className="h-8 w-8 shrink-0 rounded overflow-hidden border shadow-sm">
-                    <img
-                      src={getUserAvatarUrl(member?.avatarUrl, member?.email || 'user@killio.app', 32)}
-                      className="h-full w-full object-cover bg-muted"
-                    />
-                  </div>
-                  <div className={`max-w-[85%] space-y-1 ${isMe ? 'text-right' : ''}`}>
-                    <div className="text-[9px] uppercase font-bold text-muted-foreground/70 tracking-tighter">
-                      {member?.displayName || 'User'} • {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                <Fragment key={entry.id}>
+                  {showDivider && (
+                    <div className="flex items-center gap-3 py-2">
+                      <div className="flex-1 h-px bg-border/40" />
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 px-2">
+                        {formatTimeDivider(currentDate)}
+                      </span>
+                      <div className="flex-1 h-px bg-border/40" />
                     </div>
-                    <div className={`p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20' :
-                        'bg-muted/50 text-foreground/90 rounded-tl-none border-border/50'
-                      }`} style={isMe ? { backgroundColor: tint.bg, borderColor: tint.border, color: "inherit" } : undefined}>
-                      <RichText
-                        content={entry.payload?.text || ""}
-                        context={{
-                          ...getResolverContext(documents, boards, members),
-                          activeBricks: docBricks,
-                          documentBricksById: { [docId]: docBricks as any }
-                        }}
+                  )}
+                  <div className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
+                    <div className="h-8 w-8 shrink-0 rounded overflow-hidden border shadow-sm">
+                      <img
+                        src={getUserAvatarUrl(member?.avatarUrl, member?.email || 'user@killio.app', 32)}
+                        className="h-full w-full object-cover bg-muted"
+                        alt={member?.displayName || 'User'}
                       />
                     </div>
+                    <div className={`max-w-[85%] space-y-1 ${isMe ? 'text-right' : ''}`}>
+                      <div className="text-[9px] uppercase font-bold text-muted-foreground/70 tracking-tighter">
+                        {member?.displayName || 'User'} • {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                      <div className={`p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20' :
+                          'bg-muted/50 text-foreground/90 rounded-tl-none border-border/50'
+                        }`} style={isMe ? { backgroundColor: tint.bg, borderColor: tint.border, color: "inherit" } : undefined}>
+                        <RichText
+                          content={entry.payload?.text || ""}
+                          context={{
+                            ...getResolverContext(documents, boards, members),
+                            activeBricks: docBricks,
+                            documentBricksById: { [docId]: docBricks as any }
+                          }}
+                        />
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </Fragment>
               );
             })}
           </div>
