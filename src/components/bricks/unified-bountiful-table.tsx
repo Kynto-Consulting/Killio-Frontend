@@ -1890,6 +1890,8 @@ function SortWorkbenchFlyout({
 }) {
   const [query, setQuery] = useState("");
   const [selectedColId, setSelectedColId] = useState<string | null>(sortConfig?.colId || columns[0]?.id || null);
+  const [showDirectionFlyout, setShowDirectionFlyout] = useState(false);
+  const [sortButtonRef, setSortButtonRef] = useState<HTMLButtonElement | null>(null);
   const filteredColumns = useMemo(() => {
     const q = query.trim().toLowerCase();
     return columns.filter(c => !q || c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
@@ -1900,6 +1902,12 @@ function SortWorkbenchFlyout({
   const showOnRight = spaceRight > 360;
   const top = Math.min(anchorRect.bottom + 8, window.innerHeight - 360);
   const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 339;
+
+  const directionAnchorRect = sortButtonRef?.getBoundingClientRect() || anchorRect;
+  const directionSpaceRight = window.innerWidth - directionAnchorRect.right;
+  const directionShowOnRight = directionSpaceRight > 220;
+  const directionTop = Math.min(directionAnchorRect.top - 6, window.innerHeight - 180);
+  const directionLeft = directionShowOnRight ? directionAnchorRect.right - 1 : directionAnchorRect.left - 219;
 
   return createPortal(
     <>
@@ -1940,14 +1948,37 @@ function SortWorkbenchFlyout({
         {selectedColumn && (
           <div className="space-y-2 rounded-md border border-border/60 bg-card p-2">
             <div className="text-sm font-semibold truncate">{selectedColumn.name}</div>
-            <div className="flex gap-1.5">
-              <button onClick={() => onSortChange(selectedColumn.id, "asc")} className={cn("flex-1 rounded-md px-3 py-1.5 text-sm border transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "asc" ? "bg-accent/15 border-accent/40 text-accent" : "border-border hover:bg-muted/40")}>Ascendente</button>
-              <button onClick={() => onSortChange(selectedColumn.id, "desc")} className={cn("flex-1 rounded-md px-3 py-1.5 text-sm border transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "desc" ? "bg-accent/15 border-accent/40 text-accent" : "border-border hover:bg-muted/40")}>Descendente</button>
-            </div>
-            <button onClick={() => onSortChange(null, null)} className="w-full rounded-md px-3 py-1.5 text-sm border border-border hover:bg-destructive/10 hover:text-destructive transition-colors">Quitar orden</button>
+              <button ref={setSortButtonRef} onClick={() => setShowDirectionFlyout(v => !v)} className="w-full rounded-md px-3 py-1.5 text-sm border border-border hover:bg-muted/40 transition-colors flex items-center justify-between">
+                <span>Sort</span>
+                <ChevronRight className="h-3.5 w-3.5 opacity-60" />
+              </button>
           </div>
         )}
       </div>
+        {showDirectionFlyout && sortButtonRef && selectedColumn && (
+          <>
+            <div className="fixed inset-0 z-[303]" onClick={() => setShowDirectionFlyout(false)} />
+            <div
+              className="fixed z-[304] w-[220px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+              style={{ top: directionTop, left: directionLeft }}
+              onMouseLeave={() => setShowDirectionFlyout(false)}
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => { onSortChange(selectedColumn.id, "asc"); setShowDirectionFlyout(false); }} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "asc" ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}>
+                <ArrowUp className="h-4 w-4" />
+                <span>Oldest → Newest</span>
+              </button>
+              <button onClick={() => { onSortChange(selectedColumn.id, "desc"); setShowDirectionFlyout(false); }} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "desc" ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}>
+                <ArrowDown className="h-4 w-4" />
+                <span>Newest → Oldest</span>
+              </button>
+              <button onClick={() => { onSortChange(null, null); setShowDirectionFlyout(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted/60 hover:text-destructive transition-colors">
+                <Trash2 className="h-4 w-4" />
+                <span>Clear sort</span>
+              </button>
+            </div>
+          </>
+        )}
       </div>
     </>,
     document.body
