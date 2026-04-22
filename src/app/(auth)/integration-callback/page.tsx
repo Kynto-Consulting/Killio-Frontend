@@ -20,8 +20,12 @@ export default function IntegrationCallbackPage() {
       return;
     }
 
+    // Trello returns token in hash fragment: #token=ABC123
+    // Notion/others return code as query param: ?code=ABC
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+    const trelloToken = hashParams.get("token");
+
     const code = searchParams.get("code");
-    const stateStr = searchParams.get("state");
     const errorParam = searchParams.get("error");
 
     if (errorParam) {
@@ -29,6 +33,34 @@ export default function IntegrationCallbackPage() {
       return;
     }
 
+    // Determine provider from state (present in both query and hash)
+    const stateStr = searchParams.get("state") ?? hashParams.get("state");
+
+    // If Trello flow: token in hash, state in query
+    if (trelloToken) {
+      if (!stateStr) {
+        setError("Missing state parameter.");
+        return;
+      }
+      let stateObj;
+      try {
+        stateObj = JSON.parse(atob(stateStr));
+      } catch {
+        setError("Invalid state parameter format.");
+        return;
+      }
+      const { teamId } = stateObj;
+      if (!teamId) {
+        setError("Incomplete state information.");
+        return;
+      }
+      saveTrelloCallback(teamId, trelloToken, accessToken)
+        .then(() => { setSuccess(true); setTimeout(() => router.replace("/integrations"), 1500); })
+        .catch((err: any) => setError(err.message || "Failed to finalize Trello integration."));
+      return;
+    }
+
+    // Notion / other OAuth2 flow: code in query params
     if (!code || !stateStr) {
       setError("Missing code or state parameters from OAuth provider.");
       return;
@@ -54,8 +86,6 @@ export default function IntegrationCallbackPage() {
       try {
         if (provider === "notion") {
           await saveNotionCallback(teamId, code, accessToken);
-        } else if (provider === "trello") {
-          await saveTrelloCallback(teamId, code, accessToken);
         } else {
           throw new Error("Unsupported provider callback");
         }
