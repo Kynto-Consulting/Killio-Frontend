@@ -553,10 +553,12 @@ function ColumnHeaderMenu({
   const [showAISubmenu, setShowAISubmenu] = useState(false);
   const [showTypeFlyout, setShowTypeFlyout] = useState(false);
   const [showEditPropFlyout, setShowEditPropFlyout] = useState(false);
+  const [showSortFlyout, setShowSortFlyout] = useState(false);
   const [aiButtonRef, setAIButtonRef] = useState<HTMLButtonElement | null>(null);
   const [typeButtonRef, setTypeButtonRef] = useState<HTMLButtonElement | null>(null);
   const [filterButtonRef, setFilterButtonRef] = useState<HTMLButtonElement | null>(null);
   const [editPropButtonRef, setEditPropButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [sortButtonRef, setSortButtonRef] = useState<HTMLButtonElement | null>(null);
   const [draftName, setDraftName] = useState(column.name);
   const nameRef = useRef<HTMLInputElement>(null);
 
@@ -635,26 +637,20 @@ function ColumnHeaderMenu({
             </button>
 
             <div className="border-t border-border my-1" />
-            <button onClick={() => { onSort?.("asc"); onClose(); }}
-              className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", sortDir === "asc" && "bg-accent/5 text-accent font-medium")}>
-              <ArrowUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground" /><span>
-                {column.type === "number" ? t("bountifulTable.sort.numberAsc" as any) : column.type === "date" ? t("bountifulTable.sort.dateAsc" as any) : t("bountifulTable.sort.asc" as any)}
-              </span>
-              {sortDir === "asc" && <span className="ml-auto text-xs">✓</span>}
+            <button
+              ref={setSortButtonRef}
+              onMouseEnter={() => setShowSortFlyout(true)}
+              onMouseLeave={(e) => {
+                const related = e.relatedTarget as HTMLElement;
+                if (!related?.closest('.sort-flyout')) setShowSortFlyout(false);
+              }}
+              onClick={() => setShowSortFlyout(v => !v)}
+              className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", (showSortFlyout || sortDir) && "bg-muted/60")}>
+              <ArrowUp className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
+              <span>{t("bountifulTable.sort.title" as any)}</span>
+              {sortDir && <span className="ml-auto text-[9px] bg-accent/20 text-accent px-1.5 py-0.5 rounded font-bold uppercase shrink-0">{sortDir === "asc" ? t("bountifulTable.sortBarAsc" as any) : t("bountifulTable.sortBarDesc" as any)}</span>}
+              <span className="ml-auto text-muted-foreground/30">›</span>
             </button>
-            <button onClick={() => { onSort?.("desc"); onClose(); }}
-              className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", sortDir === "desc" && "bg-accent/5 text-accent font-medium")}>
-              <ArrowDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground" /><span>
-                {column.type === "number" ? t("bountifulTable.sort.numberDesc" as any) : column.type === "date" ? t("bountifulTable.sort.dateDesc" as any) : t("bountifulTable.sort.desc" as any)}
-              </span>
-              {sortDir === "desc" && <span className="ml-auto text-xs">✓</span>}
-            </button>
-            {sortDir && (
-              <button onClick={() => { onSort?.(null); onClose(); }}
-                className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group text-red-500/80 hover:text-red-400">
-                <Trash2 className="h-4 w-4" /><span>{t("bountifulTable.sort.clear" as any)}</span>
-              </button>
-            )}
 
             <div className="border-t border-border my-1" />
             <button
@@ -743,6 +739,17 @@ function ColumnHeaderMenu({
             onFilterChange={onFilterChange}
             onMouseEnter={() => setShowFilterFlyout(true)}
             onClose={() => setShowFilterFlyout(false)}
+          />
+        )}
+
+        {showSortFlyout && sortButtonRef && (
+          <SortInlineFlyout
+            anchorRect={sortButtonRef.getBoundingClientRect()}
+            column={column}
+            sortDir={sortDir}
+            onSort={(dir) => { onSort?.(dir); onClose(); }}
+            onMouseEnter={() => setShowSortFlyout(true)}
+            onClose={() => setShowSortFlyout(false)}
           />
         )}
 
@@ -1451,6 +1458,65 @@ function TypeSubmenuFlyout({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function SortInlineFlyout({
+  anchorRect, column, sortDir, onSort, onClose, onMouseEnter,
+}: {
+  anchorRect: DOMRect;
+  column: BountifulColumn;
+  sortDir?: "asc" | "desc" | null;
+  onSort: (dir: "asc" | "desc" | null) => void;
+  onClose: () => void;
+  onMouseEnter: () => void;
+}) {
+  const t = useTranslations("document-detail");
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const showOnRight = spaceRight > 260;
+  const top = Math.min(anchorRect.top - 8, window.innerHeight - 200);
+  const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 259;
+
+  const ascLabel = column.type === "number" ? t("bountifulTable.sort.numberAsc" as any)
+    : column.type === "date" ? t("bountifulTable.sort.dateAsc" as any)
+    : t("bountifulTable.sort.asc" as any);
+  const descLabel = column.type === "number" ? t("bountifulTable.sort.numberDesc" as any)
+    : column.type === "date" ? t("bountifulTable.sort.dateDesc" as any)
+    : t("bountifulTable.sort.desc" as any);
+
+  return (
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onClose}
+      className="sort-flyout fixed z-[302] w-[260px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+      style={{ top, left }}
+    >
+      <div className="px-2 py-1.5 mb-1 border-b border-border/40">
+        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
+          <ArrowUp className="h-3 w-3" />
+          {t("bountifulTable.sort.title" as any)}
+        </span>
+      </div>
+      <button onClick={() => onSort("asc")}
+        className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors", sortDir === "asc" ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted/60")}>
+        <ArrowUp className="h-4 w-4" />
+        <span>{ascLabel}</span>
+        {sortDir === "asc" && <span className="ml-auto text-xs">✓</span>}
+      </button>
+      <button onClick={() => onSort("desc")}
+        className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm transition-colors", sortDir === "desc" ? "bg-accent/15 text-accent font-medium" : "hover:bg-muted/60")}>
+        <ArrowDown className="h-4 w-4" />
+        <span>{descLabel}</span>
+        {sortDir === "desc" && <span className="ml-auto text-xs">✓</span>}
+      </button>
+      {sortDir && (
+        <button onClick={() => onSort(null)}
+          className="w-full flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm text-destructive/70 hover:bg-destructive/10 hover:text-destructive transition-colors">
+          <Trash2 className="h-4 w-4" />
+          <span>{t("bountifulTable.sort.clear" as any)}</span>
+        </button>
+      )}
     </div>
   );
 }
@@ -2242,12 +2308,12 @@ function AIAutocompleteModal({
             <div className="flex-1 overflow-y-auto p-6 space-y-8">
               {/* Mode Toggle */}
               <div className="space-y-3">
-                <label className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">Modo de IA</label>
+                <label className="text-[10px] font-black text-muted-foreground/40 uppercase tracking-widest">{t("bountifulTable.aiModal.modeLabel" as any)}</label>
                 <div className="flex p-1 bg-muted/50 rounded-xl border border-border/40">
                   <button onClick={() => setMode("basic")}
                     className={cn("flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all",
                       mode === "basic" ? "bg-card text-foreground shadow-sm ring-1 ring-border/50" : "text-muted-foreground hover:bg-muted/50")}>
-                    Básico
+                    {t("bountifulTable.aiModal.modeBasic" as any)}
                   </button>
                   <button disabled
                     className={cn("flex-1 py-2 rounded-lg text-[10px] font-bold uppercase transition-all relative opacity-50 cursor-not-allowed",
@@ -2274,7 +2340,7 @@ function AIAutocompleteModal({
                 <button onClick={runBasicAI} disabled={isProcessing || aiUsage >= AI_MONTHLY_LIMIT}
                   className="w-full h-11 bg-accent text-accent-foreground font-black text-[11px] uppercase tracking-wider rounded-xl shadow-lg shadow-accent/20 flex items-center justify-center gap-2 hover:opacity-90 transition-all disabled:opacity-50 relative overflow-hidden group">
                   {aiUsage >= AI_MONTHLY_LIMIT ? (
-                    <span className="text-destructive font-bold">Límite alcanzado</span>
+                    <span className="text-destructive font-bold">{t("bountifulTable.aiModal.limitReached" as any)}</span>
                   ) : (
                     <>
                       {isProcessing ? <RotateCw className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5 transition-transform group-hover:scale-110" />}
@@ -2286,7 +2352,7 @@ function AIAutocompleteModal({
                 {isProcessing && (
                   <div className="space-y-1.5 animate-in fade-in duration-300">
                     <div className="flex justify-between text-[9px] font-bold text-muted-foreground/60 uppercase">
-                      <span>Progreso</span>
+                      <span>{t("bountifulTable.aiModal.progress" as any)}</span>
                       <span>{progress}%</span>
                     </div>
                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
@@ -2355,7 +2421,7 @@ function AIAutocompleteModal({
 
                 {tempRows.length > 10 && (
                   <div className="flex items-center justify-center py-4 text-[10px] text-muted-foreground/40 italic font-medium">
-                    + {tempRows.length - 10} filas adicionales se procesarán
+                    {t("bountifulTable.aiModal.additionalRows" as any, { count: String(tempRows.length - 10) })}
                   </div>
                 )}
               </div>
