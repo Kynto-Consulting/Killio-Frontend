@@ -206,58 +206,136 @@ export function RichText({
 }
 
 function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
-  // Use InlineMath to interpret `$ ... $` syntax, and ignore standard text
-  const segments = text.split(/(`[^`]+`|\$[^$]+\$)/g);
+  const renderLeafMarkdown = (value: string, keyPrefix: string): ReactNode[] => {
+    const segments = value.split(/(`[^`]+`|\$[^$]+\$)/g);
 
-  const renderBoldTags = (t: string, keyPrefix: string) => {
-    const chunks = t.split(/(\*\*[^*]+\*\*)/g);
-    return chunks.map((chunk, index) => {
-      if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
-        return <strong key={`${keyPrefix}-bold-${index}`}>{chunk.slice(2, -2)}</strong>;
+    const renderDecorations = (input: string, decorationPrefix: string): ReactNode[] => {
+      const chunks = input.split(/(\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~)/g);
+      return chunks.map((chunk, index) => {
+        if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
+          return <strong key={`${decorationPrefix}-bold-${index}`}>{chunk.slice(2, -2)}</strong>;
+        }
+        if (chunk.startsWith("__") && chunk.endsWith("__") && chunk.length > 4) {
+          return <u key={`${decorationPrefix}-underline-${index}`}>{chunk.slice(2, -2)}</u>;
+        }
+        if (chunk.startsWith("~~") && chunk.endsWith("~~") && chunk.length > 4) {
+          return <s key={`${decorationPrefix}-strike-${index}`}>{chunk.slice(2, -2)}</s>;
+        }
+
+        const tagChunks = chunk.split(/(tag\.(?:native|custom)\.[a-zA-Z0-9.\-]+)/g);
+        return (
+          <Fragment key={`${decorationPrefix}-text-${index}`}>
+            {tagChunks.map((tc, tcIdx) => {
+              if (tc.startsWith("tag.native.") || tc.startsWith("tag.custom.")) {
+                const matchedTag = availableTags.find((t: any) => t.name === tc || t.slug === tc);
+                const tagObj = matchedTag || { name: tc, slug: tc };
+                return (
+                  <span key={`${decorationPrefix}-tag-${tcIdx}`} className="inline-block align-middle mx-1">
+                    <TagBadge tag={tagObj} />
+                  </span>
+                );
+              }
+              return <Fragment key={`${decorationPrefix}-frag-${tcIdx}`}>{tc}</Fragment>;
+            })}
+          </Fragment>
+        );
+      });
+    };
+
+    return segments.flatMap((seg, index) => {
+      if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 2) {
+        return [
+          <code key={`${keyPrefix}-code-${index}`} className="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">
+            {seg.slice(1, -1)}
+          </code>,
+        ];
       }
-      const tagChunks = chunk.split(/(tag\.(?:native|custom)\.[a-zA-Z0-9.\-]+)/g);
-      return (
-        <Fragment key={`${keyPrefix}-text-${index}`}>
-          {tagChunks.map((tc, tcIdx) => {
-            if (tc.startsWith("tag.native.") || tc.startsWith("tag.custom.")) {
-              const matchedTag = availableTags.find((t: any) => t.name === tc || t.slug === tc);
-              const tagObj = matchedTag || { name: tc, slug: tc };
-              return (
-                <span key={`${keyPrefix}-tag-${tcIdx}`} className="inline-block align-middle mx-1">
-                  <TagBadge tag={tagObj} />
-                </span>
-              );
-            }
-            return <Fragment key={`${keyPrefix}-frag-${tcIdx}`}>{tc}</Fragment>;
-          })}
-        </Fragment>
-      );
+      if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
+        try {
+          return [
+            <span key={`${keyPrefix}-math-${index}`} className="inline-block mx-1">
+              <InlineMath math={seg.slice(1, -1)} />
+            </span>,
+          ];
+        } catch (err) {
+          return [<span key={`${keyPrefix}-math-error-${index}`} className="text-red-500 font-mono text-xs">{seg}</span>];
+        }
+      }
+      return renderDecorations(seg, `${keyPrefix}-seg-${index}`);
     });
   };
 
-  return (
-    <Fragment>
-      {segments.map((seg, i) => {
-        if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 2) {
-          return (
-            <code key={i} className="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">
-              {seg.slice(1, -1)}
-            </code>
-          );
+  const renderWithWrappers = (value: string, keyPrefix: string): ReactNode[] => {
+    const nodes: ReactNode[] = [];
+    let cursor = 0;
+    let partIndex = 0;
+
+    while (cursor < value.length) {
+      const colorStart = value.indexOf('[color:', cursor);
+      const linkStart = value.indexOf('[link:', cursor);
+      let nextStart = -1;
+      let nextKind: 'color' | 'link' | null = null;
+
+      if (colorStart !== -1 && (linkStart === -1 || colorStart < linkStart)) {
+        nextStart = colorStart;
+        nextKind = 'color';
+      } else if (linkStart !== -1) {
+        nextStart = linkStart;
+        nextKind = 'link';
+      }
+
+      if (nextStart === -1) {
+        nodes.push(...renderLeafMarkdown(value.slice(cursor), `${keyPrefix}-plain-${partIndex++}`));
+        break;
+      }
+
+      if (nextStart > cursor) {
+        nodes.push(...renderLeafMarkdown(value.slice(cursor, nextStart), `${keyPrefix}-plain-${partIndex++}`));
+      }
+
+      if (nextKind === 'color') {
+        const openEnd = value.indexOf(']', nextStart);
+        const closeTag = '[/color]';
+        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        if (openEnd === -1 || closeIndex === -1) {
+          nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-color-${partIndex++}`));
+          break;
         }
-        if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
-          try {
-            return (
-              <span key={`math-${i}`} className="inline-block mx-1">
-                <InlineMath math={seg.slice(1, -1)} />
-              </span>
-            );
-          } catch (err) {
-            return <span key={`math-error-${i}`} className="text-red-500 font-mono text-xs">{seg}</span>;
-          }
+
+        const color = value.slice(nextStart + 7, openEnd).trim();
+        const inner = value.slice(openEnd + 1, closeIndex);
+        nodes.push(
+          <span key={`${keyPrefix}-color-${partIndex++}`} data-color={color} style={{ color }}>
+            {renderWithWrappers(inner, `${keyPrefix}-color-inner`) }
+          </span>,
+        );
+        cursor = closeIndex + closeTag.length;
+        continue;
+      }
+
+      if (nextKind === 'link') {
+        const openEnd = value.indexOf(']', nextStart);
+        const closeTag = '[/link]';
+        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        if (openEnd === -1 || closeIndex === -1) {
+          nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-link-${partIndex++}`));
+          break;
         }
-        return <Fragment key={i}>{renderBoldTags(seg, `seg-${i}`)}</Fragment>;
-      })}
-    </Fragment>
-  );
+
+        const href = value.slice(nextStart + 6, openEnd).trim();
+        const inner = value.slice(openEnd + 1, closeIndex);
+        nodes.push(
+          <a key={`${keyPrefix}-link-${partIndex++}`} href={href} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2">
+            {renderWithWrappers(inner, `${keyPrefix}-link-inner`) }
+          </a>,
+        );
+        cursor = closeIndex + closeTag.length;
+        continue;
+      }
+    }
+
+    return nodes;
+  };
+
+  return <Fragment>{renderWithWrappers(text, 'rich-text')}</Fragment>;
 }

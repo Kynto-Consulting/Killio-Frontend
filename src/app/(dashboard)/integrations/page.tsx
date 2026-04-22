@@ -40,6 +40,8 @@ import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
 import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPanel";
 import { WhatsappIntegrationPanel } from "@/components/scripts/WhatsappIntegrationPanel";
 import { SlackWebhookIntegrationPanel } from "@/components/scripts/SlackWebhookIntegrationPanel";
+import { NotionIntegrationPanel } from "@/components/scripts/NotionIntegrationPanel";
+import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPanel";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
@@ -861,6 +863,10 @@ export default function IntegrationsPage() {
               <WhatsappIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
 
               <SlackWebhookIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+
+              <NotionIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+
+              <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
 
               <ComingSoonIntegrationCard
                 title={t("integrations.catalog.metaTitle")}

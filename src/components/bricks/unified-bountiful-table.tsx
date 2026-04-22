@@ -1789,16 +1789,122 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
   const [isEditing, setIsEditing] = useState(false);
 
-  const formatDate = (d: string | undefined, includeTime = false) => {
+  const parseDateInput = (raw: string): Date | null => {
+    const source = raw.trim();
+    if (!source) return null;
+
+    const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(source);
+    if (isIsoDate) {
+      const dateOnly = new Date(`${source}T00:00:00`);
+      return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+    }
+
+    const parsed = new Date(source);
+    if (!Number.isNaN(parsed.getTime())) return parsed;
+
+    const slashDate = source.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+    if (slashDate) {
+      const day = Number(slashDate[1]);
+      const month = Number(slashDate[2]) - 1;
+      const year = Number(slashDate[3]);
+      const hour = Number(slashDate[4] || "0");
+      const minute = Number(slashDate[5] || "0");
+      const local = new Date(year, month, day, hour, minute);
+      if (!Number.isNaN(local.getTime())) return local;
+    }
+
+    const monthMap: Record<string, number> = {
+      jan: 0, ene: 0,
+      feb: 1,
+      mar: 2,
+      apr: 3, abr: 3,
+      may: 4,
+      jun: 5,
+      jul: 6,
+      aug: 7, ago: 7,
+      sep: 8, set: 8,
+      oct: 9,
+      nov: 10,
+      dec: 11, dic: 11,
+    };
+    const textDate = source.toLowerCase().match(/^(\d{1,2})\s+([a-z.]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+    if (textDate) {
+      const day = Number(textDate[1]);
+      const monthKey = textDate[2].replace(/\./g, "");
+      const month = monthMap[monthKey];
+      const year = Number(textDate[3]);
+      const hour = Number(textDate[4] || "0");
+      const minute = Number(textDate[5] || "0");
+      if (month !== undefined) {
+        const local = new Date(year, month, day, hour, minute);
+        if (!Number.isNaN(local.getTime())) return local;
+      }
+    }
+
+    return null;
+  };
+
+  const formatDate = (d: string | undefined, includeTimeOverride?: boolean) => {
     if (!d) return "";
     try {
-      // Ensure local time for date-only strings (YYYY-MM-DD)
-      const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(d);
-      const dateObj = new Date(isIsoDate ? d + "T00:00:00" : d);
-      if (isNaN(dateObj.getTime())) return d;
+      const dateObj = parseDateInput(d);
+      if (!dateObj) return d;
+
+      const hasExplicitTime = /T\d{2}:\d{2}|\s\d{1,2}:\d{2}/.test(d);
+      const includeTime = includeTimeOverride ?? (column.dateFormat?.includeTime ?? false);
+      const showTime = includeTime && hasExplicitTime;
+      const format = column.dateFormat?.format || "friendly";
+
+      if (format === "iso") {
+        const yyyy = String(dateObj.getFullYear());
+        const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+        const dd = String(dateObj.getDate()).padStart(2, "0");
+        const dateIso = `${yyyy}-${mm}-${dd}`;
+        if (!showTime) return dateIso;
+        const hh = String(dateObj.getHours()).padStart(2, "0");
+        const min = String(dateObj.getMinutes()).padStart(2, "0");
+        return `${dateIso} ${hh}:${min}`;
+      }
+
+      if (format === "relative") {
+        const diffMs = dateObj.getTime() - Date.now();
+        const absMs = Math.abs(diffMs);
+        const rtf = new Intl.RelativeTimeFormat("es-PE", { numeric: "auto" });
+
+        let relativeText: string;
+        if (absMs < 3_600_000) {
+          relativeText = rtf.format(Math.round(diffMs / 60_000), "minute");
+        } else if (absMs < 86_400_000) {
+          relativeText = rtf.format(Math.round(diffMs / 3_600_000), "hour");
+        } else if (absMs < 2_592_000_000) {
+          relativeText = rtf.format(Math.round(diffMs / 86_400_000), "day");
+        } else if (absMs < 31_536_000_000) {
+          relativeText = rtf.format(Math.round(diffMs / 2_592_000_000), "month");
+        } else {
+          relativeText = rtf.format(Math.round(diffMs / 31_536_000_000), "year");
+        }
+
+        if (!showTime) return relativeText;
+        const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+        return `${relativeText} · ${timeText}`;
+      }
+
+      if (format === "short") {
+        const shortDate = dateObj.toLocaleDateString("es-PE", {
+          year: "numeric",
+          month: "2-digit",
+          day: "2-digit",
+        });
+        if (!showTime) return shortDate;
+        const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+        return `${shortDate} ${timeText}`;
+      }
+
       return dateObj.toLocaleString("es-PE", {
-        year: "numeric", month: "short", day: "numeric",
-        ...(includeTime ? { hour: "2-digit", minute: "2-digit" } : {})
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        ...(showTime ? { hour: "2-digit", minute: "2-digit" } : {}),
       });
     } catch {
       return d;
@@ -1845,9 +1951,13 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     if (n === undefined || n === null) return "";
     const fmt = column.numberFormat || {};
     const currency = fmt.currency || "none";
-    const decimals = fmt.decimals ?? 2;
+    const decimals = fmt.decimals;
+    const decimalOptions =
+      typeof decimals === "number"
+        ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals }
+        : undefined;
     if (currency === "percent") {
-      return `${n.toLocaleString("es-PE", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}%`;
+      return `${n.toLocaleString("es-PE", decimalOptions)}%`;
     }
     const currencyMap: Record<string, { code: string; symbol: string }> = {
       pen: { code: "PEN", symbol: "S/" },
@@ -1866,9 +1976,9 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     };
     const cur = currencyMap[currency];
     if (cur) {
-      return `${cur.symbol} ${n.toLocaleString("es-PE", { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}`;
+      return `${cur.symbol} ${n.toLocaleString("es-PE", decimalOptions)}`;
     }
-    return n.toLocaleString("es-PE", { maximumFractionDigits: decimals });
+    return n.toLocaleString("es-PE", decimalOptions);
   };
 
   const toAlias = (raw?: string) => {
@@ -1917,6 +2027,25 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return base;
   };
 
+  const formatPhoneDisplay = (raw?: string) => {
+    const value = (raw || "").trim();
+    if (!value) return "";
+
+    const country = PHONE_COUNTRIES.find((c) => c.code === column.phoneFormat?.country);
+    if (!country) return value;
+    if (value.startsWith("+")) return value;
+
+    const digits = value.replace(/[^\d]/g, "");
+    if (!digits) return value;
+
+    const dialDigits = country.dial.replace(/\D/g, "");
+    if (digits.startsWith(dialDigits)) {
+      return `+${digits}`;
+    }
+
+    return `${country.dial} ${digits}`;
+  };
+
   const commitTextEdit = () => {
     setIsEditing(false);
     if (!onCellChange) return;
@@ -1932,7 +2061,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   // ── Magic / Metadata Columns (Read-only) ──
   if (colType === "created_time" || colType === "last_edited_time") {
     const val = colType === "created_time" ? row._createdAt : row._lastEditedAt;
-    return <span className="text-xs text-muted-foreground/60">{formatDate(val, true)}</span>;
+    return <span className="text-xs text-muted-foreground/60">{formatDate(val, column.dateFormat?.includeTime ?? true)}</span>;
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
@@ -2221,16 +2350,18 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
         onBlur={commitTextEdit} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitTextEdit(); if (e.key === "Escape") setIsEditing(false); }}
         className="w-full bg-transparent outline-none text-sm px-0" />
     );
-    const hasContent = !!(cell.text && cell.text.trim());
+    const rawText = cell.text || "";
+    const displayText = colType === "phone_number" ? formatPhoneDisplay(rawText) : rawText;
+    const hasContent = !!(displayText && displayText.trim());
     // Check if text contains LaTeX ($..$ or $$..$$)
-    const hasFormula = hasContent && (cell.text!.includes("$") || cell.text!.includes("\\"));
+    const hasFormula = colType !== "phone_number" && hasContent && (rawText.includes("$") || rawText.includes("\\"));
     return (
-      <div className={cn("w-full min-h-[24px] flex items-center cursor-text", column.wrap && "py-1")} onClick={() => startTextEdit(cell.text || "")}>
+      <div className={cn("w-full min-h-[24px] flex items-center cursor-text", column.wrap && "py-1")} onClick={() => startTextEdit(rawText)}>
         {hasContent ? (
           hasFormula ? (
-            <RichText content={cell.text!} context={{ documents: [], boards: [], activeBricks: [], users: [] }} className="text-sm" />
+            <RichText content={rawText} context={{ documents: [], boards: [], activeBricks: [], users: [] }} className="text-sm" />
           ) : (
-            <span className={cn("text-sm max-w-[280px]", column.wrap ? "whitespace-normal break-words" : "truncate")}>{cell.text}</span>
+            <span className={cn("text-sm max-w-[280px]", column.wrap ? "whitespace-normal break-words" : "truncate")}>{displayText}</span>
           )
         ) : (
           <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>
@@ -2407,7 +2538,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Magic columns (read-only metadata)
-  if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, true)}</div>;
+  if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "created_by") {
     const metaUser = resolveUser(toMetaUserRef(row._createdBy));
     return (
@@ -2416,7 +2547,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       </div>
     );
   }
-  if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, true)}</div>;
+  if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "last_edited_by") {
     const metaUser = resolveUser(toMetaUserRef(row._lastEditedBy));
     return (

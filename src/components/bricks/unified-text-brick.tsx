@@ -213,6 +213,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           const uid = el.getAttribute("data-id");
           const label = el.textContent || "";
           markdown += `@[user:${uid}:${label.replace('@', '')}]`;
+        } else if (tag === "span" && el.hasAttribute("data-color")) {
+          const color = el.getAttribute("data-color") || "default";
+          markdown += `[color:${color}]`;
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "[/color]";
+          return;
+        } else if (tag === "a" && (el.getAttribute("data-link") || el.getAttribute("href"))) {
+          const href = el.getAttribute("data-link") || el.getAttribute("href") || "";
+          markdown += `[link:${href}]`;
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "[/link]";
+          return;
         } else if (el.classList.contains("deep-pill")) {
           const prefix = el.getAttribute("data-prefix") || "#";
           const inner = el.getAttribute("data-inner") || "";
@@ -379,7 +391,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let listBuffer: string[] = [];
     let listType: "ul" | "ol" | null = null;
 
-    const formatInline = (t: string) => {
+    const formatLeafInline = (t: string) => {
       let tFormat = t
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
         const src = normalizeImageUrl(rawUrl);
@@ -392,7 +404,6 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/\*(.*?)\*/g, "<i>$1</i>")
       .replace(/~~(.*?)~~/g, "<s>$1</s>");
 
-      // Replace inline math
       tFormat = tFormat.replace(/\x00MI(\d+)\x00/g, (_, idxStr) => {
         const mInfo = mathBlocks[parseInt(idxStr)];
         if (!mInfo) return "";
@@ -403,6 +414,72 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         }
       });
       return tFormat;
+    };
+
+    const formatInline = (t: string): string => {
+      let result = "";
+      let cursor = 0;
+
+      const emitPlain = (chunk: string) => {
+        if (!chunk) return;
+        result += formatLeafInline(chunk);
+      };
+
+      while (cursor < t.length) {
+        const colorStart = t.indexOf('[color:', cursor);
+        const linkStart = t.indexOf('[link:', cursor);
+        let nextStart = -1;
+        let nextKind: 'color' | 'link' | null = null;
+
+        if (colorStart !== -1 && (linkStart === -1 || colorStart < linkStart)) {
+          nextStart = colorStart;
+          nextKind = 'color';
+        } else if (linkStart !== -1) {
+          nextStart = linkStart;
+          nextKind = 'link';
+        }
+
+        if (nextStart === -1) {
+          emitPlain(t.slice(cursor));
+          break;
+        }
+
+        emitPlain(t.slice(cursor, nextStart));
+
+        if (nextKind === 'color') {
+          const openEnd = t.indexOf(']', nextStart);
+          const closeTag = '[/color]';
+          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          if (openEnd === -1 || closeIndex === -1) {
+            emitPlain(t.slice(nextStart));
+            break;
+          }
+
+          const color = t.slice(nextStart + 7, openEnd).trim();
+          const inner = t.slice(openEnd + 1, closeIndex);
+          result += `<span data-color="${escapeHtmlAttr(color)}" style="color: ${escapeHtmlAttr(color)}">${formatInline(inner)}</span>`;
+          cursor = closeIndex + closeTag.length;
+          continue;
+        }
+
+        if (nextKind === 'link') {
+          const openEnd = t.indexOf(']', nextStart);
+          const closeTag = '[/link]';
+          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          if (openEnd === -1 || closeIndex === -1) {
+            emitPlain(t.slice(nextStart));
+            break;
+          }
+
+          const href = t.slice(nextStart + 6, openEnd).trim();
+          const inner = t.slice(openEnd + 1, closeIndex);
+          result += `<a href="${escapeHtmlAttr(href)}" data-link="${escapeHtmlAttr(href)}" target="_blank" rel="noreferrer" class="underline decoration-dotted underline-offset-2">${formatInline(inner)}</a>`;
+          cursor = closeIndex + closeTag.length;
+          continue;
+        }
+      }
+
+      return result;
     };
 
     const flushList = () => {
