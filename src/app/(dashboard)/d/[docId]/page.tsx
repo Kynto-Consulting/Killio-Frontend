@@ -287,6 +287,7 @@ export default function DocumentPage() {
       const colNameId = 'col-name';
       const colStatusId = 'col-status';
       const now = Date.now();
+      const isonow = new Date(now).toISOString();
       content = {
         title: 'Database',
         columns: [
@@ -309,8 +310,8 @@ export default function DocumentPage() {
               [colNameId]: { type: 'text', text: '' },
               [colStatusId]: { type: 'select', name: '', color: 'default' },
             },
-      _createdAt: now,
-      _lastEditedAt: now,
+      _createdAt: isonow,
+      _lastEditedAt: isonow,
       _createdBy: user?.id ||'',
       _lastEditedBy: user?.id ||'',
           },
