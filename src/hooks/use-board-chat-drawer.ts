@@ -88,7 +88,7 @@ function insertDateDividers(messages: Message[], locale: string = 'es', t: (key:
   if (messages.length === 0) return messages;
   
   const result: Message[] = [];
-  let lastDate: string | null = null;
+  let lastDateKey: string | null = null;
   
   messages.forEach((msg) => {
     if (msg.role === 'system') {
@@ -97,16 +97,18 @@ function insertDateDividers(messages: Message[], locale: string = 'es', t: (key:
     }
     
     const msgDate = msg.timestamp ? new Date(msg.timestamp) : new Date();
-    const dateKey = `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`;
+    // Normalizar a medianoche en hora local para comparación consistente
+    const normalizedDate = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+    const dateKey = normalizedDate.toISOString().split('T')[0]; // YYYY-MM-DD
     
-    if (dateKey !== lastDate) {
+    if (dateKey !== lastDateKey) {
       const dateLabel = getDateLabel(msgDate, locale, t);
       result.push({
-        id: Date.now() + Math.random(),
+        id: -Math.abs(Date.now() * Math.random()), // ID negativo para evitar conflictos
         role: 'system',
         content: dateLabel,
       });
-      lastDate = dateKey;
+      lastDateKey = dateKey;
     }
     
     result.push(msg);
