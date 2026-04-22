@@ -368,7 +368,7 @@ export async function saveNotionCallback(
 
 export async function saveTrelloCallback(
   teamId: string,
-  code: string,
+  token: string,
   accessToken: string,
 ): Promise<any> {
   const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/callback`, {
@@ -377,7 +377,7 @@ export async function saveTrelloCallback(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ token }),
   });
   if (!res.ok) return parseApiError(res, 'Failed to connect Trello');
   return res.json();
