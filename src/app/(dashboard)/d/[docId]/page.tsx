@@ -283,6 +283,35 @@ export default function DocumentPage() {
     if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
     if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true, childrenByContainer: { body: [] } };
     if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
+    if (kind === 'database' || kind === 'beautiful_table' || kind === 'bountiful') {
+      const colNameId = 'col-name';
+      const colStatusId = 'col-status';
+      content = {
+        title: 'Database',
+        columns: [
+          { id: colNameId, name: 'Nombre', type: 'title' },
+          {
+            id: colStatusId,
+            name: 'Estado',
+            type: 'status',
+            options: [
+              { id: 'opt-pendiente', name: 'Pendiente', color: 'yellow' },
+              { id: 'opt-activo', name: 'Activo', color: 'green' },
+              { id: 'opt-cerrado', name: 'Cerrado', color: 'gray' },
+            ],
+          },
+        ],
+        rows: [
+          {
+            id: `row-${Date.now()}`,
+            cells: {
+              [colNameId]: { type: 'text', text: '' },
+              [colStatusId]: { type: 'select', name: '', color: 'default' },
+            },
+          },
+        ],
+      };
+    }
     if (kind === 'image') content = { url: '', mediaType: 'image' };
     if (kind === 'video') content = { url: '', mediaType: 'video' };
     if (kind === 'audio') content = { url: '', mediaType: 'audio' };
@@ -296,6 +325,7 @@ export default function DocumentPage() {
     let finalKind = kind;
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
     if (kind === 'code' || kind === 'math') finalKind = 'text';
+    if (kind === 'database' || kind === 'bountiful' || kind === 'beautiful_table') finalKind = 'beautiful_table';
 
     try {
       const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
@@ -1071,7 +1101,7 @@ export default function DocumentPage() {
                 name: m.displayName || m.email,
                 avatarUrl: m.avatarUrl,
               }))}
-              addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
+              addableKinds={['text', 'table', 'database', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onPatchCell={handlePatchBrickCell}

@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon } from "lucide-react";
+import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon, LayoutGrid } from "lucide-react";
 import { UnifiedBrickRenderer } from "./brick-renderer";
 import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
 
-type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
+type AddableKind = 'text' | 'table' | 'database' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
 
 interface UnifiedBrickListProps {
   bricks: any[];
@@ -262,7 +262,15 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
               <Table className="w-3.5 h-3.5 text-accent" /> Tabla
             </Button>
           )}
-          {enabledKinds.includes('graph') && (
+          {enabledKinds.includes('database') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('database')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <LayoutGrid className="w-3.5 h-3.5 text-accent" /> Base de Datos
+            </Button>
+          )}          {enabledKinds.includes('database') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('database')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <LayoutGrid className="w-3.5 h-3.5 text-accent" /> Base de Datos
+            </Button>
+          )}          {enabledKinds.includes('graph') && (
             <Button variant="ghost" size="sm" onClick={() => onAddBrick('graph')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
               <BarChart2 className="w-3.5 h-3.5 text-accent" /> Gráfico
             </Button>

@@ -5,7 +5,7 @@ import type { DragEndEvent } from "@dnd-kit/core";
 import { type SlashCommand } from "@/components/bricks/slash-commands";
 import type { ReferencePickerSelection } from "@/components/documents/reference-picker";
 
-export type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
+export type AddableKind = 'text' | 'table' | 'database' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math';
 
 export interface UseUnifiedBrickListProps {
   bricks: any[];
