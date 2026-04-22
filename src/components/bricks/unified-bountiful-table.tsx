@@ -128,10 +128,11 @@ const AVAILABLE_COLORS = Object.keys(colorThemeMap);
 // ─── All column types (icons only, labels come from i18n) ───────────────────
 
 const COL_TYPE_VALUES = [
-  "title", "rich_text", "number", "select", "multi_select", "status",
+   "rich_text", "number", "select", "multi_select", "status",
   "date", "people", "checkbox", "url", "email", "phone_number",
-  "formula", "relation", "rollup", "created_time", "created_by",
+  "formula",  "rollup", "created_time", "created_by",
   "last_edited_time", "last_edited_by", "document", "board", "card",
+  //"relation","title",
 ] as const;
 
 const COL_TYPE_ICONS: Record<string, React.ReactNode> = {
