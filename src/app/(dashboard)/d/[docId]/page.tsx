@@ -730,25 +730,41 @@ export default function DocumentPage() {
   }, [accessToken, docId, document, t]);
 
   const handleExport = async () => {
-    if (!accessToken) return;
+    if (!accessToken || !document) return;
     setIsExporting(true);
     try {
-      const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-      const url = `${API_BASE_URL}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}`;
-      const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${accessToken}` }
-      });
-      if (!res.ok) throw new Error("Error en la exportación");
-      
-      const blob = await res.blob();
-      const downloadUrl = window.URL.createObjectURL(blob);
-      const a = window.document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `${document?.title || 'Document'}.${exportFormat}`;
-      window.document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(downloadUrl);
+      if (exportFormat === 'pdf') {
+        // Generar PDF en el cliente
+        const { generatePDF } = await import('@/lib/pdf-export');
+        const blob = await generatePDF(document, exportStyle);
+        
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = window.document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${document.title || 'Document'}.pdf`;
+        window.document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      } else {
+        // DOCX sigue usando el backend
+        const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
+        const url = `${API_BASE_URL}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}`;
+        const res = await fetch(url, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        });
+        if (!res.ok) throw new Error("Error en la exportación");
+        
+        const blob = await res.blob();
+        const downloadUrl = window.URL.createObjectURL(blob);
+        const a = window.document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `${document.title || 'Document'}.docx`;
+        window.document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(downloadUrl);
+      }
       
       toast("Exportación completada", "success");
       setIsExportModalOpen(false);

@@ -14,6 +14,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@fontsource/noto-color-emoji": "^5.2.12",
     "@kyntocg/river": "^0.2.2",
+    "@react-pdf/renderer": "^4.5.1",
     "@serwist/next": "^9.5.7",
     "@types/diff": "^7.0.2",
     "@types/uuid": "^10.0.0",
