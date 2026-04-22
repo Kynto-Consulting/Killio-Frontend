@@ -44,5 +44,6 @@
   "searchFolders": "Buscar carpetas...",
   "noFolder": "Sin carpeta",
   "noFoldersFound": "No se encontraron carpetas",
-  "noFoldersAvailable": "No hay carpetas disponibles"
+  "noFoldersAvailable": "No hay carpetas disponibles",
+  "documentCount": "{{count}} documentos"
 }

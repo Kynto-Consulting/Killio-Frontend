@@ -1593,13 +1593,13 @@ function FilterSubmenuFlyout({
           <p className="text-[10px] text-muted-foreground leading-tight">
             {activeOperator === "regex"
               ? t("bountifulTable.filterRegexHelp" as any)
-              : "Tip: usa comas para listas (ej: Ana, Pedro) y min,max para between."}
+              : t("bountifulTable.filterTip" as any)}
           </p>
         </div>
       ) : (
         <div className="p-3 space-y-3">
           <div className="space-y-1.5">
-            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Filter DSL</span>
+            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterDslLabel" as any)}</span>
             <textarea
               value={dslInput}
               onChange={(e) => {
@@ -1615,15 +1615,13 @@ function FilterSubmenuFlyout({
           </div>
 
           <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight space-y-1">
-            <p>Ejemplos:</p>
-            <p>contains:juan</p>
-            <p>between:10,100</p>
-            <p>is_any_of:Prospecto,Cerrado</p>
-            <p>empty</p>
+            <p>{t("bountifulTable.filterDslExamples" as any)}</p>
           </div>
 
           <p className={cn("text-[10px]", dslSupported ? "text-emerald-500" : "text-amber-500")}>
-            {dslSupported ? `Aplicando: ${dslParsed.operator}${dslParsed.value ? ` (${dslParsed.value})` : ""}` : "Operador no soportado para esta columna."}
+            {dslSupported
+              ? t("bountifulTable.filterDslApplying" as any, { operator: dslParsed.operator, value: dslParsed.value ? ` (${dslParsed.value})` : "" })
+              : t("bountifulTable.filterDslUnsupported" as any)}
           </p>
         </div>
       )}
@@ -1727,25 +1725,25 @@ function FilterWorkbenchFlyout({
         <div className="flex items-center justify-between gap-2">
           <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
             <Filter className="h-3 w-3" />
-            Filtrar
+            {t("bountifulTable.filterTitle" as any)}
           </div>
           <div className="flex items-center gap-1">
             <button onClick={() => setMode("simple")} className={cn("px-2 py-1 rounded text-[10px] font-semibold transition-colors", mode === "simple" ? "bg-accent/15 text-accent" : "text-muted-foreground hover:text-foreground")}>Simple</button>
             <button onClick={() => setMode("dsl")} className={cn("px-2 py-1 rounded text-[10px] font-semibold transition-colors", mode === "dsl" ? "bg-accent/15 text-accent" : "text-muted-foreground hover:text-foreground")}>DSL</button>
-            <button onClick={onClearAll} className="px-2 py-1 rounded text-[10px] font-semibold text-muted-foreground hover:text-destructive transition-colors">Limpiar todo</button>
+            <button onClick={onClearAll} className="px-2 py-1 rounded text-[10px] font-semibold text-muted-foreground hover:text-destructive transition-colors">{t("bountifulTable.filterClearAll" as any)}</button>
           </div>
         </div>
         <input
           value={columnQuery}
           onChange={e => setColumnQuery(e.target.value)}
-          placeholder="Filtrar columnas..."
+          placeholder={t("bountifulTable.filterSearchColumns" as any)}
           className="w-full h-9 rounded-md border border-border bg-muted/20 px-3 text-sm outline-none focus:ring-1 focus:ring-accent"
         />
       </div>
 
       <div className="grid grid-cols-[180px_1fr] gap-2 p-2">
         <div className="max-h-[420px] overflow-y-auto rounded-md border border-border/50 bg-muted/10 p-1">
-          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Columnas</div>
+          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t("bountifulTable.filterColumns" as any)}</div>
           {filteredColumns.map(col => {
             const isActive = selectedColumn?.id === col.id;
             const active = filterConfig.some(f => f.colId === col.id);
@@ -1760,7 +1758,7 @@ function FilterWorkbenchFlyout({
               >
                 <span className="opacity-60">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
                 <span className="min-w-0 flex-1 truncate">{col.name}</span>
-                {active && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">Activa</span>}
+                {active && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">{t("bountifulTable.filterActiveTag" as any)}</span>}
                 <ChevronRight className="h-3.5 w-3.5 opacity-50" />
               </button>
             );
@@ -1775,13 +1773,13 @@ function FilterWorkbenchFlyout({
                   <div className="text-sm font-semibold">{selectedColumn.name}</div>
                   <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">{selectedColumn.type}</div>
                 </div>
-                {activeFilter && <button onClick={() => onRemoveFilter(selectedColumn.id)} className="text-[10px] text-muted-foreground hover:text-destructive">Quitar</button>}
+                {activeFilter && <button onClick={() => onRemoveFilter(selectedColumn.id)} className="text-[10px] text-muted-foreground hover:text-destructive">{t("bountifulTable.filterRemove" as any)}</button>}
               </div>
 
               {mode === "simple" ? (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Condición</span>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterCondition" as any)}</span>
                     <select value={activeOperator} onChange={e => onFilterChange(selectedColumn.id, e.target.value, activeValue)} className="w-full h-9 rounded-md border border-border bg-muted/20 px-2 text-xs outline-none focus:ring-1 focus:ring-accent">
                       {operators.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
@@ -1789,7 +1787,7 @@ function FilterWorkbenchFlyout({
 
                   {needsValue && (
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Valor</span>
+                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterValue" as any)}</span>
                       <div className="relative">
                         <input
                           value={activeValue}
@@ -1806,7 +1804,7 @@ function FilterWorkbenchFlyout({
 
                   {selectedColumn.options?.length ? (
                     <div className="space-y-1.5">
-                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Sugerencias</span>
+                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterSuggestions" as any)}</span>
                       <div className="flex flex-wrap gap-1">
                         {selectedColumn.options.slice(0, 10).map(opt => (
                           <button key={opt.id} onClick={() => onFilterChange(selectedColumn.id, ["select", "status", "multi_select"].includes(selectedColumn.type) ? "is_any_of" : activeOperator, opt.name)} className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">{opt.name}</button>
@@ -1816,18 +1814,18 @@ function FilterWorkbenchFlyout({
                   ) : null}
 
                   <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight">
-                    Tip: puedes abrir este panel para otras columnas y los filtros se apilan.
+                    {t("bountifulTable.filterTip" as any)}
                   </div>
                 </div>
               ) : (
                 <div className="space-y-3">
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">DSL</span>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterDslLabel" as any)}</span>
                     <textarea value={dslInput} onChange={e => commitDsl(e.target.value)} placeholder="contains:juan" className="w-full min-h-[92px] resize-y rounded-md border border-border bg-muted/20 px-2 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-accent" />
                   </div>
 
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Params rápidos</span>
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterDslQuickParams" as any)}</span>
                     <div className="flex flex-wrap gap-1">
                       {operatorParams.map(op => (
                         <button key={op} onClick={() => setDslInput(`${op}:`)} className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">{op}</button>
@@ -1839,20 +1837,20 @@ function FilterWorkbenchFlyout({
                   </div>
 
                   <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight space-y-1">
-                    <p>Ejemplos: contains:juan, between:10,100, is_any_of:Prospecto,Cerrado, empty</p>
+                    <p>{t("bountifulTable.filterDslExamples" as any)}</p>
                   </div>
                 </div>
               )}
             </>
           ) : (
-            <div className="text-sm text-muted-foreground">No hay columnas disponibles.</div>
+            <div className="text-sm text-muted-foreground">{t("bountifulTable.filterNoColumns" as any)}</div>
           )}
         </div>
       </div>
 
       {filterConfig.length > 0 && (
         <div className="border-t border-border/40 px-3 py-2 flex flex-wrap items-center gap-1.5">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mr-1">Activos</span>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mr-1">{t("bountifulTable.filterActiveFilters" as any)}</span>
           {filterConfig.map(f => {
             const col = columns.find(c => c.id === f.colId);
             if (!col) return null;
@@ -1892,6 +1890,7 @@ function SortWorkbenchFlyout({
   const [selectedColId, setSelectedColId] = useState<string | null>(sortConfig?.colId || columns[0]?.id || null);
   const [showDirectionFlyout, setShowDirectionFlyout] = useState(false);
   const [sortButtonRef, setSortButtonRef] = useState<HTMLButtonElement | null>(null);
+  const t = useTranslations("document-detail");
   const filteredColumns = useMemo(() => {
     const q = query.trim().toLowerCase();
     return columns.filter(c => !q || c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
@@ -1922,9 +1921,9 @@ function SortWorkbenchFlyout({
       <div className="px-2 py-1.5 border-b border-border/40 space-y-2">
         <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
           <ArrowUp className="h-3 w-3" />
-          Ordenar
+          {t("bountifulTable.sort.title" as any)}
         </div>
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar columna..." className="w-full h-9 rounded-md border border-border bg-muted/20 px-3 text-sm outline-none focus:ring-1 focus:ring-accent" />
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t("bountifulTable.sort.searchPlaceholder" as any)} className="w-full h-9 rounded-md border border-border bg-muted/20 px-3 text-sm outline-none focus:ring-1 focus:ring-accent" />
       </div>
 
       <div className="p-2 space-y-2">
@@ -1939,7 +1938,7 @@ function SortWorkbenchFlyout({
               >
                 <span className="opacity-60">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
                 <span className="min-w-0 flex-1 truncate">{col.name}</span>
-                {sortConfig?.colId === col.id && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">Activo</span>}
+                {sortConfig?.colId === col.id && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">{t("bountifulTable.sort.active" as any)}</span>}
               </button>
             );
           })}
@@ -1949,7 +1948,7 @@ function SortWorkbenchFlyout({
           <div className="space-y-2 rounded-md border border-border/60 bg-card p-2">
             <div className="text-sm font-semibold truncate">{selectedColumn.name}</div>
               <button ref={setSortButtonRef} onClick={() => setShowDirectionFlyout(v => !v)} className="w-full rounded-md px-3 py-1.5 text-sm border border-border hover:bg-muted/40 transition-colors flex items-center justify-between">
-                <span>Sort</span>
+                <span>{t("bountifulTable.sort.pickDirection" as any)}</span>
                 <ChevronRight className="h-3.5 w-3.5 opacity-60" />
               </button>
           </div>
@@ -1966,15 +1965,15 @@ function SortWorkbenchFlyout({
             >
               <button onClick={() => { onSortChange(selectedColumn.id, "asc"); setShowDirectionFlyout(false); }} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "asc" ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}>
                 <ArrowUp className="h-4 w-4" />
-                <span>Oldest → Newest</span>
+                <span>{t("bountifulTable.sort.oldestNewest" as any)}</span>
               </button>
               <button onClick={() => { onSortChange(selectedColumn.id, "desc"); setShowDirectionFlyout(false); }} className={cn("w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "desc" ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}>
                 <ArrowDown className="h-4 w-4" />
-                <span>Newest → Oldest</span>
+                <span>{t("bountifulTable.sort.newestOldest" as any)}</span>
               </button>
               <button onClick={() => { onSortChange(null, null); setShowDirectionFlyout(false); }} className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-muted-foreground hover:bg-muted/60 hover:text-destructive transition-colors">
                 <Trash2 className="h-4 w-4" />
-                <span>Clear sort</span>
+                <span>{t("bountifulTable.sort.clear" as any)}</span>
               </button>
             </div>
           </>
@@ -3848,7 +3847,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", filterConfig.length > 0 ? "text-accent bg-accent/10" : "text-muted-foreground")}
           >
             <Filter className="h-3 w-3" />
-            Filtrar{filterConfig.length > 0 ? ` (${filterConfig.length})` : ""}
+            {t("bountifulTable.filterTitle" as any)}{filterConfig.length > 0 ? ` (${filterConfig.length})` : ""}
           </button>
           <button
             onClick={(e) => {
@@ -3857,7 +3856,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", sortConfig ? "text-accent bg-accent/10" : "text-muted-foreground")}
           >
             <ArrowUp className="h-3 w-3" />
-            Ordenar
+            {t("bountifulTable.sort.title" as any)}
           </button>
           {!readonly && (
             <>
@@ -3883,7 +3882,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/10 px-3 py-2 text-xs">
           {filterConfig.length > 0 && (
             <>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Filtros</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t("bountifulTable.filterBarLabel" as any)}</span>
               {filterConfig.map(f => {
                 const col = columns.find(c => c.id === f.colId);
                 if (!col) return null;
@@ -3896,25 +3895,25 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                   </button>
                 );
               })}
-              <button onClick={(e) => { setFilterWorkbenchRect(e.currentTarget.getBoundingClientRect()); openFilterWorkbench(); }} className="rounded-full border border-dashed border-border/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/40 transition-colors">+ Añadir filtro</button>
-              <button onClick={clearAllFilters} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">Limpiar</button>
+              <button onClick={(e) => { setFilterWorkbenchRect(e.currentTarget.getBoundingClientRect()); openFilterWorkbench(); }} className="rounded-full border border-dashed border-border/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/40 transition-colors">{t("bountifulTable.filterBarAdd" as any)}</button>
+              <button onClick={clearAllFilters} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">{t("bountifulTable.filterClear" as any)}</button>
             </>
           )}
 
           {sortConfig && (
             <>
               <span className="mx-1 h-4 w-px bg-border/70" />
-              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Orden</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t("bountifulTable.sortBarLabel" as any)}</span>
               {(() => {
                 const sortCol = columns.find(c => c.id === sortConfig.colId);
                 return sortCol ? (
                   <button onClick={(e) => { setSortWorkbenchRect(e.currentTarget.getBoundingClientRect()); openSortWorkbench(); }} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] hover:bg-muted/40 transition-colors">
                     <span className="font-medium text-foreground">{sortCol.name}</span>
-                    <span className="text-muted-foreground">{sortConfig.direction === "asc" ? "Asc" : "Desc"}</span>
+                    <span className="text-muted-foreground">{sortConfig.direction === "asc" ? t("bountifulTable.sortBarAsc" as any) : t("bountifulTable.sortBarDesc" as any)}</span>
                   </button>
                 ) : null;
               })()}
-              <button onClick={() => setSortConfig(null)} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">Quitar orden</button>
+              <button onClick={() => setSortConfig(null)} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">{t("bountifulTable.sortBarRemove" as any)}</button>
             </>
           )}
         </div>

@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { FolderNode } from "@/lib/mock-folders";
 import { FolderIconDisplay, PRESET_ICONS } from "./FolderIconPicker";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface FolderCardProps {
   folder: FolderNode;
@@ -13,6 +14,7 @@ interface FolderCardProps {
 }
 
 export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: FolderCardProps) {
+  const t = useTranslations("documents");
   const isEmojiFallback = folder.icon && !PRESET_ICONS.find(i => i.id === folder.icon);
 
   // Divide el nombre en dos líneas si es muy largo y antepone un punto a la segunda línea
@@ -50,7 +52,7 @@ export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: Fo
         </span>
         {folder.documentCount !== undefined && (
           <span className="text-xs text-muted-foreground truncate">
-            {folder.documentCount} documentos
+            {t("documentCount", { count: folder.documentCount! })}
           </span>
         )}
       </div>

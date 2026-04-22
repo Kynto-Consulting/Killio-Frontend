@@ -44,5 +44,6 @@
   "searchFolders": "Search folders...",
   "noFolder": "No folder",
   "noFoldersFound": "No folders found",
-  "noFoldersAvailable": "No folders available"
+  "noFoldersAvailable": "No folders available",
+  "documentCount": "{{count}} documents"
 }
