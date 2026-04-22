@@ -242,27 +242,31 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       });
     };
 
-    return segments.flatMap((seg, index) => {
-      if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 2) {
-        return [
-          <code key={`${keyPrefix}-code-${index}`} className="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">
-            {seg.slice(1, -1)}
-          </code>,
-        ];
-      }
-      if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
-        try {
-          return [
-            <span key={`${keyPrefix}-math-${index}`} className="inline-block mx-1">
-              <InlineMath math={seg.slice(1, -1)} />
-            </span>,
-          ];
-        } catch (err) {
-          return [<span key={`${keyPrefix}-math-error-${index}`} className="text-red-500 font-mono text-xs">{seg}</span>];
+    return segments
+      .map((seg, index) => {
+        if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 2) {
+          return (
+            <code key={`${keyPrefix}-code-${index}`} className="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">
+              {seg.slice(1, -1)}
+            </code>
+          );
         }
-      }
-      return renderDecorations(seg, `${keyPrefix}-seg-${index}`);
-    });
+        if (seg.startsWith("$") && seg.endsWith("$") && seg.length > 2) {
+          try {
+            return (
+              <span key={`${keyPrefix}-math-${index}`} className="inline-block mx-1">
+                <InlineMath math={seg.slice(1, -1)} />
+              </span>
+            );
+          } catch (err) {
+            return (
+              <span key={`${keyPrefix}-math-error-${index}`} className="text-red-500 font-mono text-xs">{seg}</span>
+            );
+          }
+        }
+        return renderDecorations(seg, `${keyPrefix}-seg-${index}`);
+      })
+      .flat();
   };
 
   const renderWithWrappers = (value: string, keyPrefix: string): ReactNode[] => {
