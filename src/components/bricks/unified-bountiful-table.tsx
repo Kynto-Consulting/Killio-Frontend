@@ -478,10 +478,12 @@ function ColumnHeaderMenu({
 }) {
   const t = useTranslations("document-detail");
   const COLUMN_TYPES = useColumnTypes();
-  const [tab, setTab] = useState<"main" | "type" | "filter">("main");
+  const [tab, setTab] = useState<"main" | "filter">("main");
   const [showAISubmenu, setShowAISubmenu] = useState(false);
+  const [showTypeFlyout, setShowTypeFlyout] = useState(false);
   const [showEditPropFlyout, setShowEditPropFlyout] = useState(false);
   const [aiButtonRef, setAIButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [typeButtonRef, setTypeButtonRef] = useState<HTMLButtonElement | null>(null);
   const [editPropButtonRef, setEditPropButtonRef] = useState<HTMLButtonElement | null>(null);
   const [draftName, setDraftName] = useState(column.name);
   const nameRef = useRef<HTMLInputElement>(null);
@@ -532,8 +534,17 @@ function ColumnHeaderMenu({
                 <span className="ml-auto text-muted-foreground/30">›</span>
               </button>
             )}
-            <button key="type" onClick={() => setTab("type")}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group">
+            <button
+              key="type"
+              ref={setTypeButtonRef}
+              onMouseEnter={() => setShowTypeFlyout(true)}
+              onMouseLeave={(e) => {
+                const related = e.relatedTarget as HTMLElement;
+                if (!related?.closest('.type-flyout')) setShowTypeFlyout(false);
+              }}
+              onClick={() => setShowTypeFlyout(v => !v)}
+              className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", showTypeFlyout && "bg-muted/60")}
+            >
               <RotateCw className="h-4 w-4 text-muted-foreground group-hover:text-foreground" />
               <span>{t("bountifulTable.changeType" as any)}</span>
               <span className="ml-auto text-muted-foreground/30">›</span>
@@ -617,26 +628,6 @@ function ColumnHeaderMenu({
           </div>
         )}
 
-        {tab === "type" && (
-          <div>
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-              <button onClick={() => setTab("main")} className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted">
-                <ArrowLeftToLine className="h-3.5 w-3.5 rotate-90" />
-              </button>
-              <span className="text-xs font-bold uppercase tracking-tight text-muted-foreground">{t("bountifulTable.changeType" as any)}</span>
-            </div>
-            <div className="p-1 max-h-[350px] overflow-y-auto pt-1.5">
-              {COLUMN_TYPES.map(ct => (
-                <button key={ct.value} onClick={() => { onChangeType(ct.value); setTab("main"); }}
-                  className={cn("w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
-                    column.type === ct.value ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}>
-                  {ct.icon}<span className="truncate">{ct.label}</span>
-                  {column.type === ct.value && <span className="ml-auto text-accent text-xs">✓</span>}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
         {tab === "filter" && (() => {
           const ct = column.type;
           const ops = (ct === "number" ? [
@@ -724,6 +715,20 @@ function ColumnHeaderMenu({
               if (mode === "basic") onAIAutocomplete?.();
               setShowAISubmenu(false);
               onClose();
+            }}
+          />
+        )}
+
+        {showTypeFlyout && typeButtonRef && (
+          <TypeSubmenuFlyout
+            anchorRect={typeButtonRef.getBoundingClientRect()}
+            columnType={column.type}
+            columnTypes={COLUMN_TYPES}
+            onMouseEnter={() => setShowTypeFlyout(true)}
+            onClose={() => setShowTypeFlyout(false)}
+            onSelect={(type) => {
+              onChangeType(type);
+              setShowTypeFlyout(false);
             }}
           />
         )}
@@ -1378,6 +1383,61 @@ function AISubmenuFlyout({
           <div className="text-[11px] text-muted-foreground leading-snug">{t("bountifulTable.aiAgentDesc" as any)}</div>
         </div>
       </button>
+    </div>
+  );
+}
+
+function TypeSubmenuFlyout({
+  anchorRect,
+  columnType,
+  columnTypes,
+  onClose,
+  onMouseEnter,
+  onSelect,
+}: {
+  anchorRect: DOMRect;
+  columnType: string;
+  columnTypes: { value: string; label: string; icon: React.ReactNode }[];
+  onClose: () => void;
+  onMouseEnter: () => void;
+  onSelect: (type: string) => void;
+}) {
+  const t = useTranslations("document-detail");
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const showOnRight = spaceRight > 300;
+  const top = Math.min(anchorRect.top - 8, window.innerHeight - 420);
+  const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 279;
+
+  return (
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onClose}
+      className="type-flyout fixed z-[302] w-[280px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+      style={{ top, left }}
+    >
+      <div className="px-2 py-1.5 mb-1 border-b border-border/40">
+        <span className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
+          <RotateCw className="h-3 w-3" />
+          {t("bountifulTable.changeType" as any)}
+        </span>
+      </div>
+
+      <div className="max-h-[330px] overflow-y-auto">
+        {columnTypes.map((ct) => (
+          <button
+            key={ct.value}
+            onClick={() => onSelect(ct.value)}
+            className={cn(
+              "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-sm transition-colors",
+              columnType === ct.value ? "bg-accent/15 text-accent" : "hover:bg-muted/60"
+            )}
+          >
+            {ct.icon}
+            <span className="truncate">{ct.label}</span>
+            {columnType === ct.value && <span className="ml-auto text-accent text-xs">✓</span>}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2764,7 +2824,11 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     }));
     setColumns(nc);
     setRows(nr);
-    if (onPatchColumn) { onPatchColumn(colId, updates); }
+    if (onPatchColumn) {
+      // Cuando existe parche granular, evita onUpdate completo para no re-renderizar todo el documento.
+      onPatchColumn(colId, updates);
+      return;
+    }
     emitUpdate(nc, nr);
   };
 
