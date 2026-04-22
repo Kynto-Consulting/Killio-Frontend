@@ -779,8 +779,9 @@ export function CardDetailModal({
       getBoardMembers(boardId, accessToken).then((res) => {
         setBoardMembers(res.map((m: any) => ({
           id: m.id,
-          name: m.displayName || m.email,
-          email: m.email,
+          name: m.displayName || m.workspaceAlias || m.email || m.primaryEmail,
+          email: m.email || m.primaryEmail,
+          alias: m.workspaceAlias || m.displayName || m.email || m.primaryEmail,
           avatar_url: m.avatarUrl || m.avatar_url,
           initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
         })));
