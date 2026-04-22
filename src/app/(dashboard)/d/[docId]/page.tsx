@@ -286,6 +286,7 @@ export default function DocumentPage() {
     if (kind === 'database' || kind === 'beautiful_table' || kind === 'bountiful') {
       const colNameId = 'col-name';
       const colStatusId = 'col-status';
+      const now = Date.now();
       content = {
         title: 'Database',
         columns: [
@@ -303,11 +304,15 @@ export default function DocumentPage() {
         ],
         rows: [
           {
-            id: `row-${Date.now()}`,
+            id: `row-${now}`,
             cells: {
               [colNameId]: { type: 'text', text: '' },
               [colStatusId]: { type: 'select', name: '', color: 'default' },
             },
+      _createdAt: now,
+      _lastEditedAt: now,
+      _createdBy: user?.id ||'',
+      _lastEditedBy: user?.id ||'',
           },
         ],
       };
