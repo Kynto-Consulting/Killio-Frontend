@@ -1106,6 +1106,7 @@ export default function DocumentPage() {
                 id: m.userId || m.id,
                 name: m.displayName || m.email,
                 avatarUrl: m.avatarUrl,
+                email: m.email,
               }))}
               addableKinds={['text', 'table', 'database', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}

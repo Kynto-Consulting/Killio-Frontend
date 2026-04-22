@@ -857,6 +857,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                           onDeleteBrick={() => { }}
                           onReorderBricks={() => { }}
                           onAddBrick={() => { }}
+                          users={teamMembers}
                         />
                         {card.bricks.length > 2 && <div className="text-[10px] mt-1 italic opacity-60">+{card.bricks.length - 2} bricks más...</div>}
                       </div>
@@ -949,6 +950,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                           onDeleteBrick={() => { }}
                           onReorderBricks={() => { }}
                           onAddBrick={() => { }}
+                          users={teamMembers}
                         />
                       </div>
                     </div>
