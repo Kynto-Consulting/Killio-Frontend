@@ -28,6 +28,91 @@ function extractText(c: any): string {
   return "";
 }
 
+function stringifyTableCell(cell: any): string {
+  if (cell === null || cell === undefined) return "";
+  if (typeof cell === "string") return cell.trim();
+  if (typeof cell === "number" || typeof cell === "boolean") return String(cell);
+  if (Array.isArray(cell)) {
+    return cell.map(stringifyTableCell).filter(Boolean).join(", ");
+  }
+  if (typeof cell !== "object") return String(cell).trim();
+
+  if (typeof cell.markdown === "string" && cell.markdown.trim()) return cell.markdown.trim();
+  if (typeof cell.text === "string" && cell.text.trim()) return cell.text.trim();
+  if (typeof cell.value === "string" && cell.value.trim()) return cell.value.trim();
+  if (typeof cell.name === "string" && cell.name.trim()) return cell.name.trim();
+  if (typeof cell.title === "string" && cell.title.trim()) return cell.title.trim();
+  if (typeof cell.number === "number") return String(cell.number);
+  if (typeof cell.checked === "boolean") return cell.checked ? "true" : "false";
+
+  if (Array.isArray(cell.items) && cell.items.length > 0) {
+    return cell.items.map((item: any) => stringifyTableCell(item?.name || item?.label || item)).filter(Boolean).join(", ");
+  }
+  if (Array.isArray(cell.users) && cell.users.length > 0) {
+    return cell.users.map((user: any) => stringifyTableCell(user?.name || user?.email || user?.id || user)).filter(Boolean).join(", ");
+  }
+  if (Array.isArray(cell.documents) && cell.documents.length > 0) {
+    return cell.documents.map((doc: any) => stringifyTableCell(doc?.name || doc?.title || doc?.id || doc)).filter(Boolean).join(", ");
+  }
+  if (Array.isArray(cell.boards) && cell.boards.length > 0) {
+    return cell.boards.map((board: any) => stringifyTableCell(board?.name || board?.title || board?.id || board)).filter(Boolean).join(", ");
+  }
+  if (Array.isArray(cell.cards) && cell.cards.length > 0) {
+    return cell.cards.map((card: any) => stringifyTableCell(card?.name || card?.title || card?.id || card)).filter(Boolean).join(", ");
+  }
+
+  return extractText(cell) || "";
+}
+
+function formatAdvancedTableBrick(kind: string, c: any): string[] {
+  const lines: string[] = [];
+  const tableTitle = typeof c.title === "string" ? c.title.trim() : "";
+  const columns: any[] = Array.isArray(c.columns) ? c.columns : [];
+  const rows: any[] = Array.isArray(c.rows) ? c.rows : [];
+
+  if (tableTitle) lines.push(`[Tabla: ${tableTitle}]`);
+  lines.push(`[Tabla avanzada${columns.length ? ` · ${columns.length} columnas` : ""}${rows.length ? ` · ${rows.length} filas` : ""}]`);
+
+  if (columns.length > 0) {
+    const headers = columns
+      .slice(0, 12)
+      .map((col: any) => {
+        const name = typeof col?.name === "string" ? col.name.trim() : typeof col?.label === "string" ? col.label.trim() : typeof col?.title === "string" ? col.title.trim() : "";
+        const type = typeof col?.type === "string" ? col.type.trim() : "";
+        return name ? `${name}${type ? `(${type})` : ""}` : type || "col";
+      })
+      .join(" | ");
+    if (headers) lines.push(`| ${headers} |`);
+  }
+
+  const maxRows = Math.min(rows.length, 12);
+  for (let i = 0; i < maxRows; i++) {
+    const row = rows[i];
+    if (!row) continue;
+
+    if (Array.isArray(row)) {
+      const cells = row.slice(0, 12).map((cell: any) => stringifyTableCell(cell)).join(" | ");
+      if (cells.trim()) lines.push(`| ${cells} |`);
+      continue;
+    }
+
+    const rowCells = row?.cells && typeof row.cells === "object" ? row.cells : row;
+    const columnOrder = columns.length > 0
+      ? columns.map((col: any, index: number) => ({ id: String(col?.id ?? index), name: String(col?.name ?? col?.label ?? col?.title ?? `col ${index + 1}`) }))
+      : Object.keys(rowCells || {}).map((key) => ({ id: key, name: key }));
+
+    const cells = columnOrder.slice(0, 12).map(({ id, name }) => {
+      const value = stringifyTableCell(rowCells?.[id]);
+      return `${name}: ${value || "—"}`;
+    });
+
+    if (cells.length > 0) lines.push(`- ${cells.join(" | ")}`);
+  }
+
+  if (rows.length > maxRows) lines.push(`[${rows.length - maxRows} filas más omitidas]`);
+  return lines;
+}
+
 /**
  * Serialize bricks to a text block suitable as AI context.
  * @param bricks - Array of brick objects (DocumentBrick, BoardBrick, or any)
@@ -76,6 +161,13 @@ export function buildBricksContextText(bricks: any[], maxLength = 8000): string 
             .join(" | ");
           if (cells.trim()) lines.push(`| ${cells} |`);
         }
+        break;
+      }
+
+      // ── Advanced / bountiful tables: include columns + row previews ──────
+      case "beautiful_table":
+      case "bountiful_table": {
+        lines.push(...formatAdvancedTableBrick(kind, c));
         break;
       }
 
