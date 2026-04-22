@@ -47,6 +47,8 @@ export function TrelloIntegrationPanel({ teamId, accessToken }: TrelloIntegratio
     setError(null);
     try {
       const result = await getTrelloConnectUrl(teamId, accessToken);
+      // Trello token flow doesn't preserve state — store teamId before redirect
+      localStorage.setItem("trello_pending_teamId", teamId);
       window.location.href = result.url;
     } catch {
       setError(t("integrations.trello.connectStartError") || "Failed to start connection");

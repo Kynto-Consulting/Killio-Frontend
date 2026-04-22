@@ -33,34 +33,22 @@ export default function IntegrationCallbackPage() {
       return;
     }
 
-    // Determine provider from state (present in both query and hash)
-    const stateStr = searchParams.get("state") ?? hashParams.get("state");
-
-    // If Trello flow: token in hash, state in query
+    // Trello flow: token in hash, teamId in localStorage
     if (trelloToken) {
-      if (!stateStr) {
-        setError("Missing state parameter.");
+      const pendingTeamId = localStorage.getItem("trello_pending_teamId");
+      if (!pendingTeamId) {
+        setError("Session expired. Please try connecting Trello again.");
         return;
       }
-      let stateObj;
-      try {
-        stateObj = JSON.parse(atob(stateStr));
-      } catch {
-        setError("Invalid state parameter format.");
-        return;
-      }
-      const { teamId } = stateObj;
-      if (!teamId) {
-        setError("Incomplete state information.");
-        return;
-      }
-      saveTrelloCallback(teamId, trelloToken, accessToken)
+      localStorage.removeItem("trello_pending_teamId");
+      saveTrelloCallback(pendingTeamId, trelloToken, accessToken)
         .then(() => { setSuccess(true); setTimeout(() => router.replace("/integrations"), 1500); })
         .catch((err: any) => setError(err.message || "Failed to finalize Trello integration."));
       return;
     }
 
-    // Notion / other OAuth2 flow: code in query params
+    // Notion / other OAuth2 flow: code + state in query params
+    const stateStr = searchParams.get("state");
     if (!code || !stateStr) {
       setError("Missing code or state parameters from OAuth provider.");
       return;
