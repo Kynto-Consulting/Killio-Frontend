@@ -22,5 +22,9 @@
     "deleted": "Eliminado",
     "changed": "Cambio",
     "activity": "Actividad"
+  },
+  "dates": {
+    "today": "HOY",
+    "yesterday": "AYER"
   }
 }

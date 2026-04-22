@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useSession } from "@/components/providers/session-provider";
+import { useI18n } from "@/components/providers/i18n-provider";
 import {
   getBoard,
   listTeamActivity,
@@ -56,7 +57,63 @@ export type Message = {
   avatarUrl?: string | null;
   email?: string | null;
   loading?: boolean;
+  timestamp?: string;
 };
+
+function getDateLabel(date: Date, locale: string = 'es', t: (key: string) => string): string {
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const isSameDay = (d1: Date, d2: Date) => 
+    d1.getFullYear() === d2.getFullYear() &&
+    d1.getMonth() === d2.getMonth() &&
+    d1.getDate() === d2.getDate();
+  
+  if (isSameDay(date, today)) {
+    return t('dates.today');
+  }
+  if (isSameDay(date, yesterday)) {
+    return t('dates.yesterday');
+  }
+  
+  return date.toLocaleDateString(locale === 'es' ? 'es-ES' : 'en-US', {
+    day: 'numeric',
+    month: 'long',
+    year: date.getFullYear() !== today.getFullYear() ? 'numeric' : undefined
+  });
+}
+
+function insertDateDividers(messages: Message[], locale: string = 'es', t: (key: string) => string): Message[] {
+  if (messages.length === 0) return messages;
+  
+  const result: Message[] = [];
+  let lastDate: string | null = null;
+  
+  messages.forEach((msg) => {
+    if (msg.role === 'system') {
+      result.push(msg);
+      return;
+    }
+    
+    const msgDate = msg.timestamp ? new Date(msg.timestamp) : new Date();
+    const dateKey = `${msgDate.getFullYear()}-${msgDate.getMonth()}-${msgDate.getDate()}`;
+    
+    if (dateKey !== lastDate) {
+      const dateLabel = getDateLabel(msgDate, locale, t);
+      result.push({
+        id: Date.now() + Math.random(),
+        role: 'system',
+        content: dateLabel,
+      });
+      lastDate = dateKey;
+    }
+    
+    result.push(msg);
+  });
+  
+  return result;
+}
 
 export function getResolverContext(teamDocs: DocumentSummary[], teamBoards: any[], teamMembers: any[]): ResolverContext {
   return {
@@ -140,6 +197,16 @@ export function parseAiActions(text: string) {
 
 export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'chat' | 'activity' = 'chat', isOpen: boolean = false) {
   const { accessToken, activeTeamId, user } = useSession();
+  const { locale, messages } = useI18n();
+  const t = (key: string) => {
+    const parts = key.split('.');
+    let current: any = messages.common;
+    for (const part of parts) {
+      if (!current) return key;
+      current = current[part];
+    }
+    return typeof current === 'string' ? current : key;
+  };
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
@@ -147,9 +214,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
   }, [initialTab]);
 
   const [aiMessages, setAiMessages] = useState<Message[]>([]);
-  const [chatMessages, setChatMessages] = useState<Message[]>([
-    { id: 0, role: "system", content: "Team Chat conectado. Bienvenidos." },
-  ]);
+  const [rawChatMessages, setRawChatMessages] = useState<Message[]>([]);
   const [inputVal, setInputVal] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
@@ -174,7 +239,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       const boardActivity = data.filter(a => a.scopeId === boardId || (a.payload as any)?.boardId === boardId);
       setActivities(boardActivity);
 
-      if (chatMessages.length <= 1) {
+      if (rawChatMessages.length === 0) {
         const comments = boardActivity
           .filter(a => a.action === 'board.commented')
           .reverse()
@@ -187,11 +252,12 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
               avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
               avatarUrl: member?.avatarUrl || member?.avatar_url || null,
               email: member?.email || null,
+              timestamp: a.createdAt,
             } as Message;
           });
 
         if (comments.length > 0) {
-          setChatMessages(prev => [prev[0], ...comments]);
+          setRawChatMessages(comments);
         }
       }
     } catch (e) {
@@ -203,7 +269,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     if (isOpen && (activeTab === 'activity' || activeTab === 'chat')) {
       fetchActivity();
     }
-  }, [isOpen, activeTab, boardId, teamMembers]);
+  }, [isOpen, activeTab, boardId, teamMembers, rawChatMessages]);
 
   useEffect(() => {
     if (isOpen && boardId && accessToken && activeTeamId) {
@@ -545,10 +611,13 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
         avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
         avatarUrl: member?.avatarUrl || member?.avatar_url || null,
         email: member?.email || null,
+        timestamp: new Date().toISOString(),
       };
-      setChatMessages(prev => [...prev, msg]);
+      setRawChatMessages(prev => [...prev, msg]);
     }
   }, accessToken);
+
+  const chatMessages = useMemo(() => insertDateDividers(rawChatMessages, locale, t), [rawChatMessages, locale, t]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -647,13 +716,13 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     setIsSendingMessage(true);
 
     if (activeTab === 'chat') {
-      setChatMessages(prev => [...prev, userMsg]);
+      const msgWithTimestamp = { ...userMsg, timestamp: new Date().toISOString() };
+      setRawChatMessages(prev => [...prev, msgWithTimestamp]);
       try {
         const { addBoardComment } = await import("@/lib/api/contracts");
         await addBoardComment(boardId, userMsg.content, accessToken);
       } catch (err) {
         console.error("Failed to send board comment", err);
-        setChatMessages(prev => [...prev, { id: Date.now(), role: 'system', content: '⚠️ Error enviando mensaje.' }]);
       } finally {
         setIsSendingMessage(false);
       }
@@ -703,7 +772,8 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       aiMessages,
       setAiMessages,
       chatMessages,
-      setChatMessages,
+      rawChatMessages,
+      setRawChatMessages,
       inputVal,
       setInputVal,
       isLoading,
