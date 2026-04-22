@@ -10,6 +10,7 @@ import {
   deleteNotionCredential,
   searchNotionPages,
   importNotionPage,
+  subscribeNotionImportProgress,
 } from "@/lib/api/integrations";
 import { CheckCircle, AlertCircle, Loader2, Trash2, ExternalLink, DownloadCloud, Search } from "lucide-react";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -34,6 +35,7 @@ export function NotionIntegrationPanel({ teamId, accessToken }: NotionIntegratio
   const [isSearching, setIsSearching] = useState(false);
   const [importingPageId, setImportingPageId] = useState<string | null>(null);
   const [importSuccess, setImportSuccess] = useState<string | null>(null);
+  const [importProgress, setImportProgress] = useState<{ message: string; percent: number } | null>(null);
 
   useEffect(() => {
     listNotionCredentials(teamId, accessToken)
@@ -89,14 +91,23 @@ export function NotionIntegrationPanel({ teamId, accessToken }: NotionIntegratio
     if (!importingCredId) return;
     setImportingPageId(pageId);
     setImportSuccess(null);
+    setImportProgress({ message: 'Starting import...', percent: 0 });
     try {
-      await importNotionPage(teamId, importingCredId, pageId, accessToken);
-      setImportSuccess(t("integrations.notion.importSuccessMessage") || "Import job has been queued! The document will appear soon.");
+      const { jobId } = await importNotionPage(teamId, importingCredId, pageId, accessToken);
+      await new Promise<void>((resolve, reject) => {
+        const unsub = subscribeNotionImportProgress(teamId, importingCredId!, jobId, accessToken, (ev) => {
+          setImportProgress({ message: ev.message, percent: ev.percent });
+          if (ev.error) { unsub(); reject(new Error(ev.error)); }
+          if (ev.done) { unsub(); resolve(); }
+        });
+      });
+      setImportSuccess(t("integrations.notion.importSuccessMessage") || "Document imported successfully!");
       window.dispatchEvent(new CustomEvent('refresh-documents'));
-    } catch {
-      setError(t("integrations.notion.importError") || "Failed to trigger import.");
+    } catch (err: any) {
+      setError(err.message || t("integrations.notion.importError") || "Failed to import.");
     } finally {
       setImportingPageId(null);
+      setImportProgress(null);
     }
   };
 
@@ -106,19 +117,17 @@ export function NotionIntegrationPanel({ teamId, accessToken }: NotionIntegratio
         <div className="fixed top-20 right-8 z-[100] bg-card border border-border shadow-xl rounded-lg p-4 w-80 flex flex-col gap-3 animate-in fade-in slide-in-from-top-4 duration-300">
           <div className="flex items-center gap-3">
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
-            <div>
+            <div className="flex-1 min-w-0">
               <p className="text-sm font-medium">Importing from Notion...</p>
-              <p className="text-xs text-muted-foreground">Translating workspace blocks, please wait.</p>
+              <p className="text-xs text-muted-foreground truncate">{importProgress?.message ?? 'Starting...'}</p>
             </div>
+            <span className="text-xs font-semibold text-primary tabular-nums">{importProgress?.percent ?? 0}%</span>
           </div>
-          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden relative">
-             <div className="absolute top-0 bottom-0 left-0 w-1/2 bg-primary rounded-full" style={{ animation: 'indeterminate 1.5s infinite ease-in-out' }} />
-             <style>{`
-               @keyframes indeterminate {
-                 0% { transform: translateX(-100%); }
-                 100% { transform: translateX(250%); }
-               }
-             `}</style>
+          <div className="h-1.5 w-full bg-secondary rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${importProgress?.percent ?? 0}%` }}
+            />
           </div>
         </div>
       )}

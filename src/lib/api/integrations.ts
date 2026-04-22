@@ -267,7 +267,7 @@ export async function importNotionPage(
   pageId: string,
   accessToken: string,
   folderId?: string,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<{ ok: boolean; jobId: string }> {
   const body: { pageId: string; folderId?: string } = { pageId };
   if (folderId) body.folderId = folderId;
 
@@ -281,6 +281,42 @@ export async function importNotionPage(
   });
   if (!res.ok) return parseApiError(res, 'Failed to import Notion page');
   return res.json();
+}
+
+export function subscribeNotionImportProgress(
+  teamId: string,
+  credentialId: string,
+  jobId: string,
+  accessToken: string,
+  onEvent: (event: { stage: string; message: string; percent: number; done?: boolean; error?: string }) => void,
+): () => void {
+  const url = `${BASE_URL}/integrations/${teamId}/notion/credentials/${credentialId}/import/progress?jobId=${encodeURIComponent(jobId)}`;
+  const es = new EventSource(`${url}&token=${encodeURIComponent(accessToken)}`);
+  // EventSource doesn't support custom headers — use fetch-based SSE instead
+  es.close();
+
+  const ctrl = new AbortController();
+  fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: ctrl.signal,
+  }).then(async (res) => {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.replace(/^data: /, '').trim();
+        if (!line) continue;
+        try { onEvent(JSON.parse(line)); } catch { /* ignore */ }
+      }
+    }
+  }).catch(() => {});
+  return () => ctrl.abort();
 }
 
 export async function listTrelloCredentials(
@@ -336,7 +372,7 @@ export async function importTrelloBoard(
   credentialId: string,
   boardId: string,
   accessToken: string,
-): Promise<{ ok: boolean; message?: string }> {
+): Promise<{ ok: boolean; jobId: string }> {
   const res = await fetch(`${BASE_URL}/integrations/${teamId}/trello/credentials/${credentialId}/import`, {
     method: 'POST',
     headers: {
@@ -347,6 +383,38 @@ export async function importTrelloBoard(
   });
   if (!res.ok) return parseApiError(res, 'Failed to import Trello board');
   return res.json();
+}
+
+export function subscribeTrelloImportProgress(
+  teamId: string,
+  credentialId: string,
+  jobId: string,
+  accessToken: string,
+  onEvent: (event: { stage: string; message: string; percent: number; done?: boolean; error?: string }) => void,
+): () => void {
+  const url = `${BASE_URL}/integrations/${teamId}/trello/credentials/${credentialId}/import/progress?jobId=${encodeURIComponent(jobId)}`;
+  const ctrl = new AbortController();
+  fetch(url, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal: ctrl.signal,
+  }).then(async (res) => {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.replace(/^data: /, '').trim();
+        if (!line) continue;
+        try { onEvent(JSON.parse(line)); } catch { /* ignore */ }
+      }
+    }
+  }).catch(() => {});
+  return () => ctrl.abort();
 }
 
 export async function saveNotionCallback(
