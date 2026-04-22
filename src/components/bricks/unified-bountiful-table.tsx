@@ -1631,6 +1631,329 @@ function FilterSubmenuFlyout({
   );
 }
 
+function FilterWorkbenchFlyout({
+  anchorRect,
+  columns,
+  filterConfig,
+  initialColId,
+  onMouseEnter,
+  onClose,
+  onFilterChange,
+  onRemoveFilter,
+  onClearAll,
+}: {
+  anchorRect: DOMRect;
+  columns: BountifulColumn[];
+  filterConfig: { colId: string; value: string; operator: string }[];
+  initialColId: string | null;
+  onMouseEnter: () => void;
+  onClose: () => void;
+  onFilterChange: (colId: string, operator: string, value: string) => void;
+  onRemoveFilter: (colId: string) => void;
+  onClearAll: () => void;
+}) {
+  const t = useTranslations("document-detail");
+  const [mode, setMode] = useState<"simple" | "dsl">("simple");
+  const [columnQuery, setColumnQuery] = useState("");
+  const [selectedColId, setSelectedColId] = useState<string | null>(initialColId || columns[0]?.id || null);
+  const [dslInput, setDslInput] = useState("");
+
+  const selectedColumn = useMemo(() => columns.find(c => c.id === selectedColId) || columns[0] || null, [columns, selectedColId]);
+  const activeFilter = useMemo(() => filterConfig.find(f => f.colId === selectedColumn?.id) || null, [filterConfig, selectedColumn?.id]);
+  const operators = useMemo(() => selectedColumn ? getFilterOperatorsForType(selectedColumn.type, t) : [], [selectedColumn, t]);
+  const fallbackOperator = operators[0]?.value || "contains";
+  const activeOperator = activeFilter && operators.some(o => o.value === activeFilter.operator) ? activeFilter.operator : fallbackOperator;
+  const activeValue = activeFilter?.value || "";
+  const needsValue = !["empty", "not_empty", "date_today", "date_this_week", "is_true", "is_false"].includes(activeOperator);
+
+  useEffect(() => {
+    if (selectedColId && !columns.some(c => c.id === selectedColId)) {
+      setSelectedColId(columns[0]?.id || null);
+    }
+  }, [columns, selectedColId]);
+
+  useEffect(() => {
+    if (!selectedColumn) return;
+    const seed = activeFilter ? `${activeFilter.operator}${activeFilter.value ? `:${activeFilter.value}` : ""}` : `${fallbackOperator}${activeValue ? `:${activeValue}` : ""}`;
+    setDslInput(seed);
+  }, [selectedColumn?.id, activeFilter?.operator, activeFilter?.value, fallbackOperator, activeValue]);
+
+  const filteredColumns = useMemo(() => {
+    const q = columnQuery.trim().toLowerCase();
+    return columns.filter(c => !q || c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
+  }, [columns, columnQuery]);
+
+  const commitDsl = (next: string) => {
+    if (!selectedColumn) return;
+    const parsed = parseFilterDsl(next, activeOperator);
+    const supported = operators.some(o => o.value === parsed.operator);
+    setDslInput(next);
+    if (supported) {
+      onFilterChange(selectedColumn.id, parsed.operator, parsed.value);
+    }
+  };
+
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const showOnRight = spaceRight > 520;
+  const top = Math.min(anchorRect.bottom + 8, window.innerHeight - 560);
+  const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 519;
+
+  const operatorParams = selectedColumn ? [
+    ...(selectedColumn.type === "number" ? ["gt", "lt", "gte", "lte", "between"] : []),
+    ...(["date", "created_time", "last_edited_time"].includes(selectedColumn.type) ? ["date_before", "date_after", "date_today", "date_this_week", "between"] : []),
+    ...(selectedColumn.type === "checkbox" ? ["is_true", "is_false"] : []),
+    ...(selectedColumn.options?.length ? ["is_any_of", "is_none_of"] : []),
+    ...(["select", "multi_select", "status", "people", "created_by", "last_edited_by", "relation", "document", "board", "card"].includes(selectedColumn.type) ? ["equals", "contains", "is_any_of", "is_none_of"] : []),
+  ] : [];
+
+  const paramChips = selectedColumn ? [
+    ...(selectedColumn.type === "date" || selectedColumn.type === "created_time" || selectedColumn.type === "last_edited_time" ? ["today", "this_week", "2026-04-22"] : []),
+    ...(selectedColumn.options?.slice(0, 8).map(o => o.name) || []),
+    ...(selectedColumn.type === "checkbox" ? ["true", "false"] : []),
+    ...(selectedColumn.type === "number" ? ["0", "10", "100"] : []),
+  ] : [];
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[301]" onClick={onClose} />
+      <div
+        className="filter-flyout fixed z-[302] w-[520px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+        style={{ top, left }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onClose}
+        onClick={e => e.stopPropagation()}
+      >
+      <div className="px-2 py-1.5 border-b border-border/40 space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
+            <Filter className="h-3 w-3" />
+            Filtrar
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setMode("simple")} className={cn("px-2 py-1 rounded text-[10px] font-semibold transition-colors", mode === "simple" ? "bg-accent/15 text-accent" : "text-muted-foreground hover:text-foreground")}>Simple</button>
+            <button onClick={() => setMode("dsl")} className={cn("px-2 py-1 rounded text-[10px] font-semibold transition-colors", mode === "dsl" ? "bg-accent/15 text-accent" : "text-muted-foreground hover:text-foreground")}>DSL</button>
+            <button onClick={onClearAll} className="px-2 py-1 rounded text-[10px] font-semibold text-muted-foreground hover:text-destructive transition-colors">Limpiar todo</button>
+          </div>
+        </div>
+        <input
+          value={columnQuery}
+          onChange={e => setColumnQuery(e.target.value)}
+          placeholder="Filtrar columnas..."
+          className="w-full h-9 rounded-md border border-border bg-muted/20 px-3 text-sm outline-none focus:ring-1 focus:ring-accent"
+        />
+      </div>
+
+      <div className="grid grid-cols-[180px_1fr] gap-2 p-2">
+        <div className="max-h-[420px] overflow-y-auto rounded-md border border-border/50 bg-muted/10 p-1">
+          <div className="px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Columnas</div>
+          {filteredColumns.map(col => {
+            const isActive = selectedColumn?.id === col.id;
+            const active = filterConfig.some(f => f.colId === col.id);
+            return (
+              <button
+                key={col.id}
+                onClick={() => setSelectedColId(col.id)}
+                className={cn(
+                  "w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors",
+                  isActive ? "bg-accent/15 text-accent" : "hover:bg-muted/60",
+                )}
+              >
+                <span className="opacity-60">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
+                <span className="min-w-0 flex-1 truncate">{col.name}</span>
+                {active && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">Activa</span>}
+                <ChevronRight className="h-3.5 w-3.5 opacity-50" />
+              </button>
+            );
+          })}
+        </div>
+
+        <div className="max-h-[420px] overflow-y-auto rounded-md border border-border/50 bg-card p-3 space-y-3">
+          {selectedColumn ? (
+            <>
+              <div className="flex items-start justify-between gap-2">
+                <div>
+                  <div className="text-sm font-semibold">{selectedColumn.name}</div>
+                  <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60">{selectedColumn.type}</div>
+                </div>
+                {activeFilter && <button onClick={() => onRemoveFilter(selectedColumn.id)} className="text-[10px] text-muted-foreground hover:text-destructive">Quitar</button>}
+              </div>
+
+              {mode === "simple" ? (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Condición</span>
+                    <select value={activeOperator} onChange={e => onFilterChange(selectedColumn.id, e.target.value, activeValue)} className="w-full h-9 rounded-md border border-border bg-muted/20 px-2 text-xs outline-none focus:ring-1 focus:ring-accent">
+                      {operators.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  </div>
+
+                  {needsValue && (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Valor</span>
+                      <div className="relative">
+                        <input
+                          value={activeValue}
+                          onChange={e => onFilterChange(selectedColumn.id, activeOperator, e.target.value)}
+                          placeholder={activeOperator === "regex" ? "/pattern/flags" : activeOperator === "between" ? "min,max" : t("bountifulTable.filterPlaceholder" as any)}
+                          type={["date", "created_time", "last_edited_time"].includes(selectedColumn.type) && !["between"].includes(activeOperator) ? "date" : "text"}
+                          className="w-full h-9 rounded-md border border-border bg-muted/20 pl-8 pr-8 text-sm outline-none focus:ring-1 focus:ring-accent"
+                        />
+                        <Filter className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/40" />
+                        {activeValue.length > 0 && <button onClick={() => onFilterChange(selectedColumn.id, activeOperator, "")} className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"><X className="h-3.5 w-3.5" /></button>}
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedColumn.options?.length ? (
+                    <div className="space-y-1.5">
+                      <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Sugerencias</span>
+                      <div className="flex flex-wrap gap-1">
+                        {selectedColumn.options.slice(0, 10).map(opt => (
+                          <button key={opt.id} onClick={() => onFilterChange(selectedColumn.id, ["select", "status", "multi_select"].includes(selectedColumn.type) ? "is_any_of" : activeOperator, opt.name)} className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">{opt.name}</button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight">
+                    Tip: puedes abrir este panel para otras columnas y los filtros se apilan.
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">DSL</span>
+                    <textarea value={dslInput} onChange={e => commitDsl(e.target.value)} placeholder="contains:juan" className="w-full min-h-[92px] resize-y rounded-md border border-border bg-muted/20 px-2 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-accent" />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Params rápidos</span>
+                    <div className="flex flex-wrap gap-1">
+                      {operatorParams.map(op => (
+                        <button key={op} onClick={() => setDslInput(`${op}:`)} className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">{op}</button>
+                      ))}
+                      {paramChips.map(param => (
+                        <button key={param} onClick={() => setDslInput(prev => `${prev}${prev.endsWith(":") ? "" : ":"}${param}`)} className="rounded-full border border-border/60 px-2 py-0.5 text-[11px] text-muted-foreground hover:bg-muted/40 hover:text-foreground transition-colors">{param}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight space-y-1">
+                    <p>Ejemplos: contains:juan, between:10,100, is_any_of:Prospecto,Cerrado, empty</p>
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-sm text-muted-foreground">No hay columnas disponibles.</div>
+          )}
+        </div>
+      </div>
+
+      {filterConfig.length > 0 && (
+        <div className="border-t border-border/40 px-3 py-2 flex flex-wrap items-center gap-1.5">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 mr-1">Activos</span>
+          {filterConfig.map(f => {
+            const col = columns.find(c => c.id === f.colId);
+            if (!col) return null;
+            return (
+              <button key={f.colId} onClick={() => setSelectedColId(f.colId)} className="group inline-flex items-center gap-1 rounded-full border border-border/60 bg-muted/20 px-2 py-1 text-[11px] text-foreground hover:bg-muted/40 transition-colors">
+                <span className="max-w-[120px] truncate font-medium">{col.name}</span>
+                <span className="text-muted-foreground">{getFilterOperatorLabel(t, f.operator)}</span>
+                {f.value && <span className="text-muted-foreground/70 max-w-[120px] truncate">{f.value}</span>}
+                <span onClick={(e) => { e.stopPropagation(); onRemoveFilter(f.colId); }} className="ml-1 rounded-full px-1 text-muted-foreground hover:text-destructive">×</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+      </div>
+    </>,
+    document.body
+  );
+}
+
+function SortWorkbenchFlyout({
+  anchorRect,
+  columns,
+  sortConfig,
+  onMouseEnter,
+  onClose,
+  onSortChange,
+}: {
+  anchorRect: DOMRect;
+  columns: BountifulColumn[];
+  sortConfig: { colId: string; direction: "asc" | "desc" } | null;
+  onMouseEnter: () => void;
+  onClose: () => void;
+  onSortChange: (colId: string | null, direction: "asc" | "desc" | null) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [selectedColId, setSelectedColId] = useState<string | null>(sortConfig?.colId || columns[0]?.id || null);
+  const filteredColumns = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return columns.filter(c => !q || c.name.toLowerCase().includes(q) || c.type.toLowerCase().includes(q));
+  }, [columns, query]);
+
+  const selectedColumn = columns.find(c => c.id === selectedColId) || null;
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const showOnRight = spaceRight > 360;
+  const top = Math.min(anchorRect.bottom + 8, window.innerHeight - 360);
+  const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 339;
+
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[301]" onClick={onClose} />
+      <div
+        className="fixed z-[302] w-[340px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+        style={{ top, left }}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onClose}
+        onClick={e => e.stopPropagation()}
+      >
+      <div className="px-2 py-1.5 border-b border-border/40 space-y-2">
+        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
+          <ArrowUp className="h-3 w-3" />
+          Ordenar
+        </div>
+        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="Buscar columna..." className="w-full h-9 rounded-md border border-border bg-muted/20 px-3 text-sm outline-none focus:ring-1 focus:ring-accent" />
+      </div>
+
+      <div className="p-2 space-y-2">
+        <div className="max-h-[220px] overflow-y-auto rounded-md border border-border/50 bg-muted/10 p-1">
+          {filteredColumns.map(col => {
+            const active = selectedColId === col.id;
+            return (
+              <button
+                key={col.id}
+                onClick={() => setSelectedColId(col.id)}
+                className={cn("w-full flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm transition-colors", active ? "bg-accent/15 text-accent" : "hover:bg-muted/60")}
+              >
+                <span className="opacity-60">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
+                <span className="min-w-0 flex-1 truncate">{col.name}</span>
+                {sortConfig?.colId === col.id && <span className="text-[10px] rounded bg-accent/15 px-1.5 py-0.5 text-accent">Activo</span>}
+              </button>
+            );
+          })}
+        </div>
+
+        {selectedColumn && (
+          <div className="space-y-2 rounded-md border border-border/60 bg-card p-2">
+            <div className="text-sm font-semibold truncate">{selectedColumn.name}</div>
+            <div className="flex gap-1.5">
+              <button onClick={() => onSortChange(selectedColumn.id, "asc")} className={cn("flex-1 rounded-md px-3 py-1.5 text-sm border transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "asc" ? "bg-accent/15 border-accent/40 text-accent" : "border-border hover:bg-muted/40")}>Ascendente</button>
+              <button onClick={() => onSortChange(selectedColumn.id, "desc")} className={cn("flex-1 rounded-md px-3 py-1.5 text-sm border transition-colors", sortConfig?.colId === selectedColumn.id && sortConfig.direction === "desc" ? "bg-accent/15 border-accent/40 text-accent" : "border-border hover:bg-muted/40")}>Descendente</button>
+            </div>
+            <button onClick={() => onSortChange(null, null)} className="w-full rounded-md px-3 py-1.5 text-sm border border-border hover:bg-destructive/10 hover:text-destructive transition-colors">Quitar orden</button>
+          </div>
+        )}
+      </div>
+      </div>
+    </>,
+    document.body
+  );
+}
+
 // ─── Select Dropdown ────────────────────────────────────────────────────────
 
 function SelectDropdown({ options, value, multi, onSelect, onClose, anchorRect }: {
@@ -2843,6 +3166,11 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   const displayedColumns = columns.filter(c => !c.hidden);
 
   const [headerMenu, setHeaderMenu] = useState<{ colId: string; rect: DOMRect } | null>(null);
+  const [showFilterWorkbench, setShowFilterWorkbench] = useState(false);
+  const [filterWorkbenchRect, setFilterWorkbenchRect] = useState<DOMRect | null>(null);
+  const [filterWorkbenchColId, setFilterWorkbenchColId] = useState<string | null>(null);
+  const [showSortWorkbench, setShowSortWorkbench] = useState(false);
+  const [sortWorkbenchRect, setSortWorkbenchRect] = useState<DOMRect | null>(null);
   const [showVisibilityManager, setShowVisibilityManager] = useState<{ rect: DOMRect } | null>(null);
   const [showAIModalColId, setShowAIModalColId] = useState<string | null>(null);
   const [aiUsage, setAiUsage] = useState(0);
@@ -2927,6 +3255,26 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
       nf.push({ colId, operator, value });
     }
     setFilterConfig(nf);
+  };
+
+  const removeFilter = (colId: string) => {
+    setFilterConfig(prev => prev.filter(f => f.colId !== colId));
+  };
+
+  const clearAllFilters = () => setFilterConfig([]);
+
+  const openFilterWorkbench = (colId?: string, rect?: DOMRect | null) => {
+    const fallbackColId = colId || filterConfig[0]?.colId || displayedColumns[0]?.id || columns[0]?.id || null;
+    setFilterWorkbenchColId(fallbackColId);
+    if (rect !== undefined) setFilterWorkbenchRect(rect);
+    setShowFilterWorkbench(true);
+    setShowSortWorkbench(false);
+  };
+
+  const openSortWorkbench = (rect?: DOMRect | null) => {
+    if (rect !== undefined) setSortWorkbenchRect(rect);
+    setShowSortWorkbench(true);
+    setShowFilterWorkbench(false);
   };
 
   const handleCellChange = (rowId: string, colId: string, newCell: BountifulCell) => {
@@ -3462,6 +3810,24 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           )}
         </div>
         <div className="flex items-center gap-1">
+          <button
+            onClick={(e) => {
+              openFilterWorkbench(undefined, e.currentTarget.getBoundingClientRect());
+            }}
+            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", filterConfig.length > 0 ? "text-accent bg-accent/10" : "text-muted-foreground")}
+          >
+            <Filter className="h-3 w-3" />
+            Filtrar{filterConfig.length > 0 ? ` (${filterConfig.length})` : ""}
+          </button>
+          <button
+            onClick={(e) => {
+              openSortWorkbench(e.currentTarget.getBoundingClientRect());
+            }}
+            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", sortConfig ? "text-accent bg-accent/10" : "text-muted-foreground")}
+          >
+            <ArrowUp className="h-3 w-3" />
+            Ordenar
+          </button>
           {!readonly && (
             <>
               <button onClick={addColumn} className="h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center text-muted-foreground">
@@ -3481,6 +3847,47 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           </button>
         </div>
       </div>
+
+      {(filterConfig.length > 0 || sortConfig) && (
+        <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/10 px-3 py-2 text-xs">
+          {filterConfig.length > 0 && (
+            <>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Filtros</span>
+              {filterConfig.map(f => {
+                const col = columns.find(c => c.id === f.colId);
+                if (!col) return null;
+                return (
+                  <button key={f.colId} onClick={() => openFilterWorkbench(f.colId, filterWorkbenchRect || undefined)} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] hover:bg-muted/40 transition-colors">
+                    <span className="font-medium text-foreground">{col.name}</span>
+                    <span className="text-muted-foreground">{getFilterOperatorLabel(t, f.operator)}</span>
+                    {f.value && <span className="max-w-[120px] truncate text-muted-foreground/70">{f.value}</span>}
+                    <span onClick={(e) => { e.stopPropagation(); removeFilter(f.colId); }} className="ml-1 rounded-full px-1 text-muted-foreground hover:text-destructive">×</span>
+                  </button>
+                );
+              })}
+              <button onClick={(e) => { setFilterWorkbenchRect(e.currentTarget.getBoundingClientRect()); openFilterWorkbench(); }} className="rounded-full border border-dashed border-border/60 px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted/40 transition-colors">+ Añadir filtro</button>
+              <button onClick={clearAllFilters} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">Limpiar</button>
+            </>
+          )}
+
+          {sortConfig && (
+            <>
+              <span className="mx-1 h-4 w-px bg-border/70" />
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">Orden</span>
+              {(() => {
+                const sortCol = columns.find(c => c.id === sortConfig.colId);
+                return sortCol ? (
+                  <button onClick={(e) => { setSortWorkbenchRect(e.currentTarget.getBoundingClientRect()); openSortWorkbench(); }} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] hover:bg-muted/40 transition-colors">
+                    <span className="font-medium text-foreground">{sortCol.name}</span>
+                    <span className="text-muted-foreground">{sortConfig.direction === "asc" ? "Asc" : "Desc"}</span>
+                  </button>
+                ) : null;
+              })()}
+              <button onClick={() => setSortConfig(null)} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">Quitar orden</button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Table */}
       <div className="overflow-auto flex-1 custom-scrollbar">
@@ -3595,6 +4002,35 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           />
         );
       })()}
+
+      {showFilterWorkbench && filterWorkbenchRect && (
+        <FilterWorkbenchFlyout
+          anchorRect={filterWorkbenchRect}
+          columns={columns}
+          filterConfig={filterConfig}
+          initialColId={filterWorkbenchColId}
+          onMouseEnter={() => setShowFilterWorkbench(true)}
+          onClose={() => setShowFilterWorkbench(false)}
+          onFilterChange={handleFilterChange}
+          onRemoveFilter={removeFilter}
+          onClearAll={clearAllFilters}
+        />
+      )}
+
+      {showSortWorkbench && sortWorkbenchRect && (
+        <SortWorkbenchFlyout
+          anchorRect={sortWorkbenchRect}
+          columns={columns}
+          sortConfig={sortConfig}
+          onMouseEnter={() => setShowSortWorkbench(true)}
+          onClose={() => setShowSortWorkbench(false)}
+          onSortChange={(colId, direction) => {
+            if (!colId || !direction) setSortConfig(null);
+            else setSortConfig({ colId, direction });
+          }}
+        />
+      )}
+
       {/* Visibility Manager */}
       {showVisibilityManager && (
         <VisibilityManager columns={columns}
