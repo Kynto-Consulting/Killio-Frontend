@@ -736,7 +736,7 @@ export default function DocumentPage() {
       if (exportFormat === 'pdf') {
         // Generar PDF en el cliente
         const { generatePDF } = await import('@/lib/pdf-export');
-        const blob = await generatePDF(document, exportStyle);
+        const blob = await generatePDF(document, exportStyle, exportSize);
         
         const downloadUrl = window.URL.createObjectURL(blob);
         const a = window.document.createElement('a');
