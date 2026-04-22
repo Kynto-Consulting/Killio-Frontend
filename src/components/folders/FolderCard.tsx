@@ -15,6 +15,14 @@ interface FolderCardProps {
 export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: FolderCardProps) {
   const isEmojiFallback = folder.icon && !PRESET_ICONS.find(i => i.id === folder.icon);
 
+  // Divide el nombre en dos líneas si es muy largo y antepone un punto a la segunda línea
+  let firstLine = folder.name;
+  let secondLine = "";
+  if (folder.name.length > 18) {
+    firstLine = folder.name.slice(0, 18);
+    secondLine = "." + folder.name.slice(18);
+  }
+
   return (
     <div 
       onClick={onClick}
@@ -36,7 +44,10 @@ export function FolderCard({ folder, isActive, onClick, onDrop, onDragOver }: Fo
         />
       </div>
       <div className="flex flex-col overflow-hidden">
-        <span className="text-sm font-medium truncate" style={{ color: folder.color || undefined }}>{folder.name}</span>
+        <span className="text-sm font-medium break-words leading-tight" style={{ color: folder.color || undefined }}>
+          {firstLine}
+          {secondLine && <><br />{secondLine}</>}
+        </span>
         {folder.documentCount !== undefined && (
           <span className="text-xs text-muted-foreground truncate">
             {folder.documentCount} documentos

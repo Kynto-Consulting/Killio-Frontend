@@ -390,7 +390,20 @@ function DocumentsPageContent() {
                           <div className="h-10 w-10 rounded-lg bg-accent/10 flex items-center justify-center mr-3 group-hover:bg-accent/20 transition-colors">
                             <FileText className="h-5 w-5 text-accent" />
                           </div>
-                          <h3 className="text-lg font-semibold group-hover:text-accent transition-colors truncate max-w-[180px]">{doc.title}</h3>
+                          {(() => {
+                            let firstLine = doc.title;
+                            let secondLine = "";
+                            if (doc.title.length > 22) {
+                              firstLine = doc.title.slice(0, 22);
+                              secondLine = "." + doc.title.slice(22);
+                            }
+                            return (
+                              <h3 className="text-lg font-semibold group-hover:text-accent transition-colors break-words leading-tight max-w-[180px]">
+                                {firstLine}
+                                {secondLine && <><br />{secondLine}</>}
+                              </h3>
+                            );
+                          })()}
                         </div>
                       </div>
                       
