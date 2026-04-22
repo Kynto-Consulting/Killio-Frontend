@@ -458,6 +458,77 @@ function normalizeColumnOptions(cols: BountifulColumn[]): BountifulColumn[] {
   }));
 }
 
+const FILTER_OPERATOR_FALLBACK_LABELS: Record<string, string> = {
+  contains: "Contains",
+  not_contains: "Does not contain",
+  equals: "Is equal",
+  not_equals: "Is not equal",
+  starts_with: "Starts with",
+  ends_with: "Ends with",
+  regex: "Regex",
+  gt: "Greater than",
+  lt: "Less than",
+  gte: "Greater or equal",
+  lte: "Less or equal",
+  between: "Between",
+  date_before: "Before",
+  date_after: "After",
+  date_today: "Today",
+  date_this_week: "This week",
+  is_any_of: "Any of",
+  is_none_of: "None of",
+  is_true: "Is true",
+  is_false: "Is false",
+  empty: "Is empty",
+  not_empty: "Is not empty",
+};
+
+function getFilterOperatorLabel(t: ReturnType<typeof useTranslations>, op: string): string {
+  const key = `bountifulTable.operators.${op}`;
+  const translated = t(key as any);
+  if (translated && translated !== key) return translated;
+  return FILTER_OPERATOR_FALLBACK_LABELS[op] || op;
+}
+
+function getFilterOperatorsForType(columnType: string, t: ReturnType<typeof useTranslations>) {
+  const textOps = ["contains", "equals", "not_contains", "starts_with", "ends_with", "regex", "empty", "not_empty"];
+  const numberOps = ["equals", "not_equals", "gt", "lt", "gte", "lte", "between", "empty", "not_empty"];
+  const dateOps = ["equals", "date_before", "date_after", "date_today", "date_this_week", "between", "empty", "not_empty"];
+  const choiceOps = ["is_any_of", "is_none_of", "equals", "contains", "empty", "not_empty"];
+  const boolOps = ["is_true", "is_false", "empty", "not_empty"];
+
+  let operators = textOps;
+  if (columnType === "number") operators = numberOps;
+  else if (["date", "created_time", "last_edited_time"].includes(columnType)) operators = dateOps;
+  else if (["select", "status", "multi_select"].includes(columnType)) operators = choiceOps;
+  else if (columnType === "checkbox") operators = boolOps;
+  else if (["people", "created_by", "last_edited_by", "relation", "document", "board", "card"].includes(columnType)) operators = choiceOps;
+
+  return operators.map((value) => ({ value, label: getFilterOperatorLabel(t, value) }));
+}
+
+function parseFilterDsl(input: string, fallbackOperator: string) {
+  const raw = input.trim();
+  if (!raw) return { operator: fallbackOperator, value: "", valid: true };
+
+  const direct = raw.match(/^([a-z_]+)\s*:\s*([\s\S]*)$/i);
+  if (direct) {
+    return { operator: direct[1].toLowerCase(), value: direct[2].trim(), valid: true };
+  }
+
+  const fnLike = raw.match(/^([a-z_]+)\((.*)\)$/i);
+  if (fnLike) {
+    return { operator: fnLike[1].toLowerCase(), value: fnLike[2].trim(), valid: true };
+  }
+
+  const unaryOps = ["empty", "not_empty", "date_today", "date_this_week", "is_true", "is_false"];
+  if (unaryOps.includes(raw.toLowerCase())) {
+    return { operator: raw.toLowerCase(), value: "", valid: true };
+  }
+
+  return { operator: fallbackOperator, value: raw, valid: true };
+}
+
 // ─── Column Header Menu (Notion-style) ──────────────────────────────────────
 
 function ColumnHeaderMenu({
@@ -478,17 +549,18 @@ function ColumnHeaderMenu({
 }) {
   const t = useTranslations("document-detail");
   const COLUMN_TYPES = useColumnTypes();
-  const [tab, setTab] = useState<"main" | "filter">("main");
+  const [showFilterFlyout, setShowFilterFlyout] = useState(false);
   const [showAISubmenu, setShowAISubmenu] = useState(false);
   const [showTypeFlyout, setShowTypeFlyout] = useState(false);
   const [showEditPropFlyout, setShowEditPropFlyout] = useState(false);
   const [aiButtonRef, setAIButtonRef] = useState<HTMLButtonElement | null>(null);
   const [typeButtonRef, setTypeButtonRef] = useState<HTMLButtonElement | null>(null);
+  const [filterButtonRef, setFilterButtonRef] = useState<HTMLButtonElement | null>(null);
   const [editPropButtonRef, setEditPropButtonRef] = useState<HTMLButtonElement | null>(null);
   const [draftName, setDraftName] = useState(column.name);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (tab === "main") setTimeout(() => nameRef.current?.focus(), 50); }, [tab]);
+  useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50); }, []);
 
   const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time", "people", "created_by", "last_edited_by", "document", "phone_number"].includes(column.type);
 
@@ -509,8 +581,6 @@ function ColumnHeaderMenu({
       <div className="column-header-menu fixed z-[301] w-[260px] rounded-lg border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         data-menu-portal="true"
         style={{ top, left }} onClick={e => e.stopPropagation()}>
-
-        {tab === "main" && (
           <div className="space-y-0.5">
             <div className="flex items-center gap-2 p-1.5 px-3 pt-2">
               <span className="text-muted-foreground shrink-0">{currentTypeIcon || <FileText className="h-4 w-4" />}</span>
@@ -587,9 +657,18 @@ function ColumnHeaderMenu({
             )}
 
             <div className="border-t border-border my-1" />
-            <button onClick={() => setTab("filter")}
-              className="w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group">
+            <button
+              ref={setFilterButtonRef}
+              onMouseEnter={() => setShowFilterFlyout(true)}
+              onMouseLeave={(e) => {
+                const related = e.relatedTarget as HTMLElement;
+                if (!related?.closest('.filter-flyout')) setShowFilterFlyout(false);
+              }}
+              onClick={() => setShowFilterFlyout(v => !v)}
+              className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", showFilterFlyout && "bg-muted/60")}
+            >
               <Filter className="h-4 w-4 text-muted-foreground group-hover:text-foreground" /><span>{t("bountifulTable.filter" as any)}</span>
+              <span className="ml-auto text-muted-foreground/30">›</span>
             </button>
             <button key="pin" onClick={() => { onUpdateColumn({ pinned: !column.pinned }); onClose(); }}
               className={cn("w-full flex items-center gap-2.5 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors group", column.pinned && "bg-accent/5 text-accent font-medium")}>
@@ -626,84 +705,6 @@ function ColumnHeaderMenu({
               <Trash2 className="h-4 w-4" /><span>{t("bountifulTable.deleteProperty" as any)}</span>
             </button>
           </div>
-        )}
-
-        {tab === "filter" && (() => {
-          const ct = column.type;
-          const ops = (ct === "number" ? [
-            { label: t("bountifulTable.operators.equals" as any), value: "equals" },
-            { label: t("bountifulTable.operators.not_equals" as any), value: "not_equals" },
-            { label: t("bountifulTable.operators.gt" as any), value: "gt" },
-            { label: t("bountifulTable.operators.lt" as any), value: "lt" },
-            { label: t("bountifulTable.operators.gte" as any), value: "gte" },
-            { label: t("bountifulTable.operators.lte" as any), value: "lte" },
-            { label: t("bountifulTable.operators.between" as any), value: "between" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" },
-            { label: t("bountifulTable.operators.not_empty" as any), value: "not_empty" }
-          ] : ct === "date" ? [
-            { label: t("bountifulTable.operators.equals" as any), value: "equals" },
-            { label: t("bountifulTable.operators.date_before" as any), value: "date_before" },
-            { label: t("bountifulTable.operators.date_after" as any), value: "date_after" },
-            { label: t("bountifulTable.operators.date_today" as any), value: "date_today" },
-            { label: t("bountifulTable.operators.date_this_week" as any), value: "date_this_week" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" }
-          ] : (ct === "select" || ct === "multi_select" || ct === "status") ? [
-            { label: t("bountifulTable.operators.is_any_of" as any), value: "is_any_of" },
-            { label: t("bountifulTable.operators.is_none_of" as any), value: "is_none_of" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" }
-          ] : [
-            { label: t("bountifulTable.operators.contains" as any), value: "contains" },
-            { label: t("bountifulTable.operators.equals" as any), value: "equals" },
-            { label: t("bountifulTable.operators.not_contains" as any), value: "not_contains" },
-            { label: t("bountifulTable.operators.starts_with" as any), value: "starts_with" },
-            { label: t("bountifulTable.operators.ends_with" as any), value: "ends_with" },
-            { label: t("bountifulTable.operators.regex" as any), value: "regex" },
-            { label: t("bountifulTable.operators.empty" as any), value: "empty" },
-            { label: t("bountifulTable.operators.not_empty" as any), value: "not_empty" }
-          ]);
-
-          return (
-            <div className="flex flex-col">
-              <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-                <button onClick={() => setTab("main")} className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted">
-                  <ArrowLeftToLine className="h-3.5 w-3.5 rotate-90" />
-                </button>
-                <span className="text-xs font-bold uppercase tracking-tight text-muted-foreground">{t("bountifulTable.filterBy" as any, { name: column.name })}</span>
-              </div>
-              <div className="p-3 space-y-3">
-                <div className="space-y-1.5">
-                  <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterCondition" as any)}</span>
-                  <select value={filterOperator || (ct === "number" ? "gt" : "contains")}
-                    onChange={e => onFilterChange?.(e.target.value, filterValue || "")}
-                    className="w-full h-8 bg-muted/40 rounded border border-border px-2 text-xs outline-none focus:ring-1 focus:ring-accent">
-                    {ops.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </select>
-                </div>
-
-                {!["empty", "date_today", "date_this_week"].includes(filterOperator || "") && (
-                  <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterValue" as any)}</span>
-                    <div className="relative">
-                      <input value={filterValue || ""} onChange={e => onFilterChange?.(filterOperator || (ct === "number" ? "gt" : "contains"), e.target.value)}
-                        placeholder={filterOperator === "regex" ? "/pattern/flags" : t("bountifulTable.filterPlaceholder" as any)}
-                        className="w-full h-8 bg-muted/40 rounded border border-border pl-8 pr-2 text-xs outline-none focus:ring-1 focus:ring-accent transition-all" autoFocus />
-                      <Filter className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground/40" />
-                      {(filterValue || "").length > 0 && (
-                        <button onClick={() => onFilterChange?.(filterOperator || "contains", "")} className="absolute right-2.5 top-2 text-muted-foreground hover:text-foreground">
-                          <X className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                <p className="text-[9px] text-muted-foreground italic leading-tight">
-                  {filterOperator === "regex" ? t("bountifulTable.filterRegexHelp" as any) : t("bountifulTable.filterHelp" as any)}
-                </p>
-              </div>
-            </div>
-          );
-        })()}
 
         {/* Flyout Submenu for AI */}
         {showAISubmenu && aiButtonRef && (
@@ -730,6 +731,18 @@ function ColumnHeaderMenu({
               onChangeType(type);
               setShowTypeFlyout(false);
             }}
+          />
+        )}
+
+        {showFilterFlyout && filterButtonRef && (
+          <FilterSubmenuFlyout
+            anchorRect={filterButtonRef.getBoundingClientRect()}
+            column={column}
+            filterOperator={filterOperator}
+            filterValue={filterValue}
+            onFilterChange={onFilterChange}
+            onMouseEnter={() => setShowFilterFlyout(true)}
+            onClose={() => setShowFilterFlyout(false)}
           />
         )}
 
@@ -1438,6 +1451,182 @@ function TypeSubmenuFlyout({
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function FilterSubmenuFlyout({
+  anchorRect,
+  column,
+  filterOperator,
+  filterValue,
+  onFilterChange,
+  onClose,
+  onMouseEnter,
+}: {
+  anchorRect: DOMRect;
+  column: BountifulColumn;
+  filterOperator?: string;
+  filterValue?: string;
+  onFilterChange?: (operator: string, val: string) => void;
+  onClose: () => void;
+  onMouseEnter: () => void;
+}) {
+  const t = useTranslations("document-detail");
+  const [mode, setMode] = useState<"simple" | "dsl">("simple");
+  const operators = useMemo(() => getFilterOperatorsForType(column.type, t), [column.type, t]);
+  const fallbackOperator = operators[0]?.value || "contains";
+  const activeOperator = operators.some(o => o.value === filterOperator) ? (filterOperator as string) : fallbackOperator;
+  const currentValue = filterValue || "";
+  const noValueOps = ["empty", "not_empty", "date_today", "date_this_week", "is_true", "is_false"];
+  const needsValue = !noValueOps.includes(activeOperator);
+
+  const [dslInput, setDslInput] = useState(
+    activeOperator + (currentValue ? `:${currentValue}` : "")
+  );
+
+  useEffect(() => {
+    setDslInput(activeOperator + ((filterValue || "") ? `:${filterValue}` : ""));
+  }, [activeOperator, filterValue]);
+
+  const dslParsed = parseFilterDsl(dslInput, activeOperator);
+  const dslSupported = operators.some(o => o.value === dslParsed.operator);
+
+  const optionNames = (column.options || []).map(o => o.name);
+  const selectedOptions = currentValue.split(",").map(v => v.trim()).filter(Boolean);
+
+  const toggleOption = (name: string) => {
+    const has = selectedOptions.some(v => v.toLowerCase() === name.toLowerCase());
+    const next = has
+      ? selectedOptions.filter(v => v.toLowerCase() !== name.toLowerCase())
+      : [...selectedOptions, name];
+    onFilterChange?.(activeOperator, next.join(", "));
+  };
+
+  const spaceRight = window.innerWidth - anchorRect.right;
+  const showOnRight = spaceRight > 360;
+  const top = Math.min(anchorRect.top - 8, window.innerHeight - 460);
+  const left = showOnRight ? anchorRect.right - 1 : anchorRect.left - 339;
+
+  return (
+    <div
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onClose}
+      className="filter-flyout fixed z-[302] w-[340px] rounded-lg border border-border bg-card shadow-2xl p-1 animate-in fade-in zoom-in-95 slide-in-from-left-1 duration-150"
+      style={{ top, left }}
+    >
+      <div className="px-2 py-1.5 border-b border-border/40">
+        <div className="text-[10px] font-bold text-muted-foreground/60 uppercase tracking-wider flex items-center gap-2">
+          <Filter className="h-3 w-3" />
+          {t("bountifulTable.filterBy" as any, { name: column.name })}
+        </div>
+        <div className="mt-2 grid grid-cols-2 gap-1 rounded-md bg-muted/30 p-1">
+          <button
+            onClick={() => setMode("simple")}
+            className={cn("rounded px-2 py-1 text-xs font-medium transition-colors", mode === "simple" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            Simple
+          </button>
+          <button
+            onClick={() => setMode("dsl")}
+            className={cn("rounded px-2 py-1 text-xs font-medium transition-colors", mode === "dsl" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            DSL
+          </button>
+        </div>
+      </div>
+
+      {mode === "simple" ? (
+        <div className="p-3 space-y-3">
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterCondition" as any)}</span>
+            <select
+              value={activeOperator}
+              onChange={(e) => onFilterChange?.(e.target.value, currentValue)}
+              className="w-full h-9 bg-muted/30 rounded-md border border-border px-2 text-xs outline-none focus:ring-1 focus:ring-accent"
+            >
+              {operators.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+
+          {needsValue && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">{t("bountifulTable.filterValue" as any)}</span>
+              <div className="relative">
+                <input
+                  value={currentValue}
+                  onChange={e => onFilterChange?.(activeOperator, e.target.value)}
+                  placeholder={activeOperator === "regex" ? "/pattern/flags" : activeOperator === "between" ? "min,max" : t("bountifulTable.filterPlaceholder" as any)}
+                  type={["date", "created_time", "last_edited_time"].includes(column.type) && activeOperator !== "between" ? "date" : "text"}
+                  className="w-full h-9 bg-muted/30 rounded-md border border-border pl-8 pr-8 text-xs outline-none focus:ring-1 focus:ring-accent transition-all"
+                />
+                <Filter className="absolute left-2.5 top-2.5 h-3.5 w-3.5 text-muted-foreground/40" />
+                {currentValue.length > 0 && (
+                  <button onClick={() => onFilterChange?.(activeOperator, "")} className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground">
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {optionNames.length > 0 && ["is_any_of", "is_none_of", "equals", "contains"].includes(activeOperator) && (
+            <div className="space-y-1.5">
+              <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Suggestions</span>
+              <div className="flex flex-wrap gap-1">
+                {optionNames.slice(0, 16).map((name) => {
+                  const active = selectedOptions.some(v => v.toLowerCase() === name.toLowerCase());
+                  return (
+                    <button
+                      key={name}
+                      onClick={() => toggleOption(name)}
+                      className={cn("px-2 py-0.5 rounded-full text-[11px] border transition-colors", active ? "bg-accent/15 text-accent border-accent/40" : "border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/40")}
+                    >
+                      {name}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          <p className="text-[10px] text-muted-foreground leading-tight">
+            {activeOperator === "regex"
+              ? t("bountifulTable.filterRegexHelp" as any)
+              : "Tip: usa comas para listas (ej: Ana, Pedro) y min,max para between."}
+          </p>
+        </div>
+      ) : (
+        <div className="p-3 space-y-3">
+          <div className="space-y-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground/60 uppercase">Filter DSL</span>
+            <textarea
+              value={dslInput}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDslInput(next);
+                const parsed = parseFilterDsl(next, activeOperator);
+                const supported = operators.some(o => o.value === parsed.operator);
+                if (supported) onFilterChange?.(parsed.operator, parsed.value);
+              }}
+              placeholder="contains:juan"
+              className="w-full min-h-[72px] resize-y bg-muted/30 rounded-md border border-border px-2 py-1.5 text-xs font-mono outline-none focus:ring-1 focus:ring-accent"
+            />
+          </div>
+
+          <div className="rounded-md border border-border/60 bg-muted/20 p-2 text-[10px] text-muted-foreground leading-tight space-y-1">
+            <p>Ejemplos:</p>
+            <p>contains:juan</p>
+            <p>between:10,100</p>
+            <p>is_any_of:Prospecto,Cerrado</p>
+            <p>empty</p>
+          </div>
+
+          <p className={cn("text-[10px]", dslSupported ? "text-emerald-500" : "text-amber-500")}>
+            {dslSupported ? `Aplicando: ${dslParsed.operator}${dslParsed.value ? ` (${dslParsed.value})` : ""}` : "Operador no soportado para esta columna."}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -2887,65 +3076,153 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     if (filterConfig.length > 0) {
       result = result.filter(row => {
         return filterConfig.every(f => {
-          const cell = row.cells[f.colId];
+          const cell = row.cells[f.colId] ?? null;
           const col = columns.find(c => c.id === f.colId);
           if (!col) return true;
 
-          // Normalize values for comparison
-          const cellText = (cell?.text || cell?.name || cell?.value || "").toLowerCase();
-          const cellNum = cell?.number;
-          const cellDate = cell?.start ? new Date(cell.start) : null;
-          const cellItems = (cell?.items || []).map(i => i.name.toLowerCase());
+          const op = (f.operator || "contains").toLowerCase();
+          const rawTarget = (f.value || "").trim();
+          const target = rawTarget.toLowerCase();
 
-          const target = f.value.toLowerCase();
-          const op = f.operator;
+          const systemText =
+            col.type === "created_by" ? (row._createdBy || "") :
+            col.type === "last_edited_by" ? (row._lastEditedBy || "") :
+            "";
 
-          // Common empty check
-          if (op === "empty") return !cell || (!cellText && cellNum === undefined && !cellDate && cellItems.length === 0 && !cell.checked);
-          if (op === "not_empty") return cell && (cellText || cellNum !== undefined || cellDate || cellItems.length > 0 || cell.checked);
+          const textParts = [
+            cell?.text,
+            cell?.name,
+            cell?.value,
+            systemText,
+            ...(cell?.items || []).map(i => i.name),
+            ...(cell?.users || []).map(u => u.name || u.email || u.id),
+            ...(cell?.documents || []).map(d => d.name || d.id),
+            ...(cell?.boards || []).map(b => b.name || b.id),
+            ...(cell?.cards || []).map(c => c.name || c.id),
+          ].filter((v): v is string => typeof v === "string" && v.trim().length > 0);
 
-          // Text / Regex logic
-          if (op === "contains") return cellText.includes(target);
-          if (op === "not_contains") return !cellText.includes(target);
-          if (op === "equals") return cellText === target;
-          if (op === "starts_with") return cellText.startsWith(target);
-          if (op === "ends_with") return cellText.endsWith(target);
+          const normalizedParts = textParts.map(v => v.toLowerCase());
+          const haystack = normalizedParts.join(" ");
+
+          const parsedNumFromText = cell?.text && !Number.isNaN(Number(cell.text)) ? Number(cell.text) : undefined;
+          const cellNum = typeof cell?.number === "number" ? cell.number : parsedNumFromText;
+
+          const dateSource =
+            cell?.start ||
+            (col.type === "created_time" ? row._createdAt : undefined) ||
+            (col.type === "last_edited_time" ? row._lastEditedAt : undefined);
+          const cellDate = dateSource ? new Date(dateSource) : null;
+          const cellDateMs = cellDate && !Number.isNaN(cellDate.getTime()) ? cellDate.getTime() : null;
+
+          const boolVal = typeof cell?.checked === "boolean" ? cell.checked : undefined;
+
+          const isEmpty = (() => {
+            if (["checkbox"].includes(col.type)) return boolVal === undefined;
+            if (["number"].includes(col.type)) return cellNum === undefined || Number.isNaN(cellNum);
+            if (["date", "created_time", "last_edited_time"].includes(col.type)) return !cellDateMs;
+            if (["multi_select"].includes(col.type)) return (cell?.items || []).length === 0;
+            if (["people", "created_by", "last_edited_by"].includes(col.type)) {
+              return ((cell?.users || []).length === 0) && !systemText;
+            }
+            if (["relation", "document"].includes(col.type)) return (cell?.documents || []).length === 0;
+            if (["board"].includes(col.type)) return (cell?.boards || []).length === 0;
+            if (["card"].includes(col.type)) return (cell?.cards || []).length === 0;
+            return haystack.length === 0;
+          })();
+
+          if (op === "empty") return isEmpty;
+          if (op === "not_empty") return !isEmpty;
+          if (op === "is_true") return boolVal === true;
+          if (op === "is_false") return boolVal === false;
+
           if (op === "regex") {
             try {
-              const parts = f.value.match(/\/(.*)\/(.*)/);
-              const re = parts ? new RegExp(parts[1], parts[2]) : new RegExp(f.value);
-              return re.test(cellText);
-            } catch { return true; }
+              const parts = rawTarget.match(/\/(.*)\/(.*)/);
+              const re = parts ? new RegExp(parts[1], parts[2]) : new RegExp(rawTarget, "i");
+              return re.test(haystack);
+            } catch {
+              return true;
+            }
           }
 
-          // Number logic
-          if (cellNum !== undefined) {
-            const tNum = parseFloat(f.value);
+          if (["gt", "lt", "gte", "lte", "between"].includes(op)) {
+            if (cellNum === undefined || Number.isNaN(cellNum)) return false;
+            if (op === "between") {
+              const [min, max] = rawTarget.split(/[,-\s]+/).map(v => Number(v.trim())).filter(v => !Number.isNaN(v));
+              if (min === undefined || max === undefined) return false;
+              return cellNum >= min && cellNum <= max;
+            }
+            const tNum = Number(rawTarget);
+            if (Number.isNaN(tNum)) return false;
             if (op === "gt") return cellNum > tNum;
             if (op === "lt") return cellNum < tNum;
             if (op === "gte") return cellNum >= tNum;
             if (op === "lte") return cellNum <= tNum;
-            if (op === "between") {
-              const [min, max] = f.value.split(/[,-\s]+/).map(parseFloat);
-              return cellNum >= min && cellNum <= max;
-            }
           }
 
-          // Date logic
-          if (cellDate) {
-            const today = new Date(); today.setHours(0, 0, 0, 0);
-            if (op === "date_today") return cellDate.toDateString() === today.toDateString();
-            if (op === "date_before") return cellDate < new Date(f.value);
-            if (op === "date_after") return cellDate > new Date(f.value);
+          if (["date_before", "date_after", "date_today", "date_this_week"].includes(op) || (["date", "created_time", "last_edited_time"].includes(col.type) && op === "between")) {
+            if (!cellDateMs) return false;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (op === "date_today") {
+              const cd = new Date(cellDateMs);
+              cd.setHours(0, 0, 0, 0);
+              return cd.getTime() === today.getTime();
+            }
             if (op === "date_this_week") {
-              const lastWeek = new Date(); lastWeek.setDate(today.getDate() - 7);
-              return cellDate >= lastWeek && cellDate <= today;
+              const weekStart = new Date(today);
+              weekStart.setDate(today.getDate() - 7);
+              return cellDateMs >= weekStart.getTime() && cellDateMs <= Date.now();
+            }
+            if (op === "date_before") {
+              const targetDate = new Date(rawTarget);
+              if (Number.isNaN(targetDate.getTime())) return false;
+              return cellDateMs < targetDate.getTime();
+            }
+            if (op === "date_after") {
+              const targetDate = new Date(rawTarget);
+              if (Number.isNaN(targetDate.getTime())) return false;
+              return cellDateMs > targetDate.getTime();
+            }
+            if (op === "between") {
+              const [fromRaw, toRaw] = rawTarget.split(/[,-\s]+/).filter(Boolean);
+              const from = fromRaw ? new Date(fromRaw).getTime() : NaN;
+              const to = toRaw ? new Date(toRaw).getTime() : NaN;
+              if (Number.isNaN(from) || Number.isNaN(to)) return false;
+              return cellDateMs >= from && cellDateMs <= to;
             }
           }
 
-          // Select logic
-          if (op === "is_any_of") return target.split(",").some(t => cellText.includes(t.trim()) || cellItems.includes(t.trim()));
-          if (op === "is_none_of") return !target.split(",").some(t => cellText.includes(t.trim()) || cellItems.includes(t.trim()));
+          if (["is_any_of", "is_none_of"].includes(op)) {
+            const values = rawTarget.split(/[\n,|]+/).map(v => v.trim().toLowerCase()).filter(Boolean);
+            if (values.length === 0) return true;
+            const hit = values.some(v => normalizedParts.some(part => part.includes(v)));
+            return op === "is_any_of" ? hit : !hit;
+          }
+
+          if (op === "equals") {
+            if (cellNum !== undefined && !Number.isNaN(Number(rawTarget))) return cellNum === Number(rawTarget);
+            if (cellDateMs && !Number.isNaN(new Date(rawTarget).getTime())) {
+              const targetDate = new Date(rawTarget);
+              return new Date(cellDateMs).toDateString() === targetDate.toDateString();
+            }
+            return normalizedParts.some(v => v === target) || haystack === target;
+          }
+
+          if (op === "not_equals") {
+            if (cellNum !== undefined && !Number.isNaN(Number(rawTarget))) return cellNum !== Number(rawTarget);
+            if (cellDateMs && !Number.isNaN(new Date(rawTarget).getTime())) {
+              const targetDate = new Date(rawTarget);
+              return new Date(cellDateMs).toDateString() !== targetDate.toDateString();
+            }
+            return !(normalizedParts.some(v => v === target) || haystack === target);
+          }
+
+          if (op === "contains") return haystack.includes(target);
+          if (op === "not_contains") return !haystack.includes(target);
+          if (op === "starts_with") return normalizedParts.some(v => v.startsWith(target));
+          if (op === "ends_with") return normalizedParts.some(v => v.endsWith(target));
 
           return true;
         });
