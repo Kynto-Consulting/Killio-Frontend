@@ -2669,17 +2669,6 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return user.name || user.email || "User";
   };
 
-  const resolveUser = (user?: WorkspaceMemberLike) => {
-    if(!user)return user!;
-    const byId = user.id ? users.find((u) => u?.id && u.id === user.id) : undefined;
-    const byName = !byId && user.name ? users.find((u) => u?.name && u.name === user.name) : undefined;
-    const matched = byId || byName;
-    return {
-      ...user,
-      name: user.name || matched?.name,
-      email: user.email || matched?.email,
-    };
-  };
 
   const toMetaUserRef = (raw?: string) => {
     const value = (raw || "").trim();
@@ -2737,14 +2726,14 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
-    const metaUser = resolveUser(toMetaUserRef(val));
+    const metaUser = toMetaUserRef(val);
     return (
       <div className="w-full min-h-[24px] flex items-center">
         <RefPill
           type="user"
-          id={metaUser.id!}
-          name={metaUser.name || "System"}
-          label={getUserLabel(metaUser)}
+          id={metaUser!.id!}
+          name={metaUser!.name || "System"}
+          label={getUserLabel(metaUser!)}
         />
       </div>
     );
@@ -2841,7 +2830,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     };
 
     if (relationPickerType === "user") {
-      const usersInCell = (cell?.users || []).map(resolveUser);
+      const usersInCell = (cell?.users || []).map((u) => toMetaUserRef(u.id || u.email || "")!);
       const hasUsers = usersInCell.length > 0;
       return (
         <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer pr-6", column.wrap && "py-1")} onClick={openPicker}>
@@ -3144,7 +3133,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
               type="user"
               id={u.id || u.email || String(i)}
               name={u.name || u.email || "User"}
-              label={getUserLabel(resolveUser(u))}
+              label={getUserLabel(u)}
             />
           ))}</div>
         ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
@@ -3212,7 +3201,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   // Magic columns (read-only metadata)
   if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "created_by") {
-    const metaUser = resolveUser(toMetaUserRef(row._createdBy));
+    const metaUser = toMetaUserRef(row._createdBy)!;
     return (
       <div className="w-full min-h-[24px] flex items-center">
         <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
@@ -3221,7 +3210,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
   if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "last_edited_by") {
-    const metaUser = resolveUser(toMetaUserRef(row._lastEditedBy));
+    const metaUser = toMetaUserRef(row._lastEditedBy)!;
     return (
       <div className="w-full min-h-[24px] flex items-center">
         <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
