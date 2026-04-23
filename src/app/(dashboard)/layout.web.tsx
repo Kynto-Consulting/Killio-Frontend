@@ -231,12 +231,12 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
               <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                 <img 
                   src={getUserAvatarUrl(undefined, user?.email, 32)} 
-                  alt={user?.displayName || user?.username || tCommon("account.fallbackUser")} 
+                  alt={ user?.username || user?.displayName || tCommon("account.fallbackUser")} 
                   className="h-full w-full object-cover"
                 />
               </div>
               <div className="flex flex-col items-start overflow-hidden">
-                <span className="text-sm font-medium w-full text-left truncate">{user?.displayName || user?.username || "Loading..."}</span>
+                <span className="text-sm font-medium w-full text-left truncate">{user?.username ||user?.displayName ||  "Loading..."}</span>
                 <span className="text-xs text-muted-foreground w-full text-left truncate">
                   {user?.email || tCommon("account.fallbackAccount")}
                 </span>
