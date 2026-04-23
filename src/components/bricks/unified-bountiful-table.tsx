@@ -2677,7 +2677,10 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       return users.find((u) => u?.primaryEmail === value)
     }
     
-    return users.find((u) => u?.id === value);
+    const pos =  users.find((u) => u?.id === value);
+    if (pos) return pos;
+
+    return users.find((u) => u?.name === value) || { id: value, name: value };
   };
 
   const getDocumentLabel = (doc: { id: string; name?: string }) => {
