@@ -63,8 +63,8 @@ export function usePermissions(
 
       // board_memberships query returns u.id as `id` → direct userId match
       const boardMember = boardMembers.find((m) => m.id === userId);
-      // team_memberships uses the member.userId field from TeamMemberSummary
-      const teamMember = teamMembers.find((m) => m.userId === userId);
+      // team_memberships now returns user id in member.id
+      const teamMember = teamMembers.find((m) => m.id === userId);
 
       const effective = getEffectiveBoardRole(
         boardMember?.role ?? null,

@@ -164,6 +164,7 @@ export function RichText({
                     type={part.mentionType}
                     id={part.id}
                     name={part.name}
+                    workspaceUsers={context.users}
                     onClick={mentionClick}
                   />
                 );

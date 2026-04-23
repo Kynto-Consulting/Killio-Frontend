@@ -955,8 +955,8 @@ export default function DocumentPage() {
             {t("header.share")}
           </Button>
 
-          <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.displayName}>
-            {user?.displayName?.charAt(0).toUpperCase()}
+          <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "Usuario"}>
+            {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
           </div>
         </div>
       </header>

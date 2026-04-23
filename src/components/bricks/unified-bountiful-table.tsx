@@ -24,7 +24,7 @@ import katex from "katex";
 // @ts-ignore
 import "katex/dist/katex.min.css";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
-import { WorkspaceMember, WorkspaceMemberLike } from "@/lib/workspace-members";
+import { getWorkspaceMemberLabel, WorkspaceMemberLike } from "@/lib/workspace-members";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -2651,36 +2651,25 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return n.toLocaleString("es-PE", decimalOptions);
   };
 
-  const toAlias = (raw?: string) => {
-    const source = (raw || "").trim();
-    if (!source) return "@user";
-    const base = source.includes("@") ? source.split("@")[0] : source;
-    const normalized = base
-      .toLowerCase()
-      .replace(/\s+/g, "_")
-      .replace(/[^a-z0-9._-]/g, "");
-    return `@${normalized || "user"}`;
-  };
 
   const getUserLabel = (user: WorkspaceMemberLike) => {
     const fmt = column.personFormat || "name";
-    if (fmt === "email") return user.email || user.name || "User";
-    if (fmt === "alias") return user.displayName ? toAlias(user.displayName) : (user.email ? toAlias(user.email) : "User");
-    return user.name || user.email || "User";
+    if (fmt === "email") return user.email || user.primaryEmail || user.name || "User";
+    return getWorkspaceMemberLabel(user, "User");
   };
 
 
   const toMetaUserRef = (raw?: string) => {
     const value = (raw || "").trim();
-    if (!value) return { id: "system", name: "System" };
+    if (!value) return { id: "system", displayName: "System" };
     if (value.includes("@")) {
-      return users.find((u) => u?.primaryEmail === value)
+      return users.find((u) => u?.primaryEmail === value || u?.email === value)
     }
     
-    const pos =  users.find((u) => u?.id === value);
+    const pos =  users.find((u) => u?.id === value || u?.userId === value);
     if (pos) return pos;
 
-    return users.find((u) => u?.name === value) || { id: value, name: value };
+    return users.find((u) => getWorkspaceMemberLabel(u, "") === value) || { id: value, name: value };
   };
 
   const getDocumentLabel = (doc: { id: string; name?: string }) => {
@@ -2729,7 +2718,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
-    const metaUser = toMetaUserRef(val);
+    const metaUser = toMetaUserRef(val);;
     return (
       <div className="w-full min-h-[24px] flex items-center">
         <RefPill
@@ -2737,6 +2726,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
           id={metaUser!.id!}
           name={metaUser!.name || "System"}
           label={getUserLabel(metaUser!)}
+          workspaceUsers={users}
         />
       </div>
     );
@@ -2846,6 +2836,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
                   id={u.id || u.email || String(i)}
                   name={u.name || u.email || "User"}
                   label={getUserLabel(u)}
+                  workspaceUsers={users}
                 />
               ))}
               {!readonly && (
@@ -3137,6 +3128,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
               id={u.id || u.email || String(i)}
               name={u.name || u.email || "User"}
               label={getUserLabel(u)}
+              workspaceUsers={users}
             />
           ))}</div>
         ) : <span className="text-muted-foreground/30 text-xs hover:text-muted-foreground/50 transition-colors uppercase">{emptyLabel}</span>}
@@ -3207,16 +3199,17 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     const metaUser = toMetaUserRef(row._createdBy)!;
     return (
       <div className="w-full min-h-[24px] flex items-center">
-        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} workspaceUsers={users} />
       </div>
     );
   }
   if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "last_edited_by") {
     const metaUser = toMetaUserRef(row._lastEditedBy)!;
+    
     return (
       <div className="w-full min-h-[24px] flex items-center">
-        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} />
+        <RefPill type="user" id={metaUser.id!} name={metaUser.name || "System"} label={getUserLabel(metaUser)} workspaceUsers={users} />
       </div>
     );
   }
@@ -3239,7 +3232,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
 }) => {
   const t = useTranslations("document-detail");
   const { activeTeamId, accessToken, user } = useSession();
-  const currentUserId = user?.id ?? user?.email ?? "unknown";
+  const currentUserId = user?.id ?? user?.name ?? "unknown";
   const [columns, setColumns] = useState<BountifulColumn[]>(() => normalizeColumnOptions(initColumns));
   const [rows, setRows] = useState<BountifulRow[]>(initRows);
   const [isFullscreen, setIsFullscreen] = useState(false);

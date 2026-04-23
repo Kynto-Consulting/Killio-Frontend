@@ -42,7 +42,7 @@ export default function TeamsPage() {
   const [editingAliasMemberId, setEditingAliasMemberId] = useState<string | null>(null);
   const [aliasDraft, setAliasDraft] = useState("");
 
-  const myMembership = useMemo(() => members.find((member) => member.userId === user?.id), [members, user?.id]);
+  const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
 
   const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole);
@@ -215,7 +215,7 @@ export default function TeamsPage() {
     listTeamMembers(activeTeamId, accessToken)
       .then((nextMembers) => {
         setMembers(nextMembers);
-        const me = nextMembers.find((m) => m.userId === user?.id);
+        const me = nextMembers.find((m) => m.id === user?.id);
         const role = me?.role ?? "guest";
         if (["owner", "admin", "member"].includes(role)) {
           listTeamInvites(activeTeamId, accessToken)
@@ -374,34 +374,34 @@ export default function TeamsPage() {
             <div className="p-8 text-center text-muted-foreground flex justify-center">{t("loadingMembers")}</div>
           ) : (
             members.map((member) => {
-              const isMe = member.userId === user?.id;
+              const isMe = member.id === user?.id;
               const canEditAlias = canManageMembers || isMe;
-              const isAliasEditing = editingAliasMemberId === member.id;
+              const isAliasEditing = editingAliasMemberId === member.membershipId;
 
               return (
-                <div key={member.id} className="flex items-center justify-between p-4 bg-card hover:bg-accent/5 transition-colors relative">
+                <div key={member.membershipId} className="flex items-center justify-between p-4 bg-card hover:bg-accent/5 transition-colors relative">
                   <div className="flex items-center gap-4">
                     <img
                       src={getUserAvatarUrl(member.avatarUrl, member.primaryEmail, 40)}
-                      alt={member.displayName}
+                      alt={member.alias || member.name}
                       className="h-10 w-10 rounded-full border border-border object-cover shadow-sm"
                     />
                     <div>
                       <div className="flex items-center gap-2">
                         <p className="font-medium leading-none text-foreground">
-                          {member.displayName}
+                          {member.alias || member.name}
                           {isMe && <span className="ml-1 text-muted-foreground font-normal">({t("you")})</span>}
                         </p>
-                        {member.workspaceAlias ? (
+                        {member.alias ? (
                           <span className="rounded bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-accent-foreground">
                             {t("aliasBadge")}
                           </span>
                         ) : null}
                         {member.status === "active" && <span className="h-2 w-2 rounded-full bg-emerald-500 ring-2 ring-background"></span>}
                       </div>
-                      {member.workspaceAlias ? (
+                      {member.alias ? (
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {t("baseNameLabel")} {member.baseDisplayName}
+                          {t("baseNameLabel")} {member.name}
                         </p>
                       ) : null}
                       <p className="text-sm text-muted-foreground mt-1">{member.primaryEmail}</p>
@@ -418,7 +418,7 @@ export default function TeamsPage() {
                       {canManageMembers || isMe ? (
                         <button
                           onClick={() => {
-                            const nextOpen = activeMemberMenu === member.id ? null : member.id;
+                            const nextOpen = activeMemberMenu === member.membershipId ? null : member.membershipId;
                             setActiveMemberMenu(nextOpen);
                             if (!nextOpen) {
                               setEditingAliasMemberId(null);
@@ -431,7 +431,7 @@ export default function TeamsPage() {
                         </button>
                       ) : null}
 
-                      {activeMemberMenu === member.id && (canManageMembers || isMe) && (
+                      {activeMemberMenu === member.membershipId && (canManageMembers || isMe) && (
                         <>
                           <div
                             className="fixed inset-0 z-40"
@@ -455,8 +455,8 @@ export default function TeamsPage() {
                                     />
                                     <div className="flex items-center gap-1">
                                       <button
-                                        onClick={() => handleUpdateMemberAlias(member.id, aliasDraft.trim() ? aliasDraft : null)}
-                                        disabled={isMutatingMember === member.id}
+                                        onClick={() => handleUpdateMemberAlias(member.membershipId, aliasDraft.trim() ? aliasDraft : null)}
+                                        disabled={isMutatingMember === member.membershipId}
                                         className="rounded bg-primary px-2 py-1 text-xs font-medium text-primary-foreground disabled:opacity-50"
                                       >
                                         {t("saveAlias")}
@@ -476,17 +476,17 @@ export default function TeamsPage() {
                                   <div className="px-3 pb-2 space-y-1">
                                     <button
                                       onClick={() => {
-                                        setEditingAliasMemberId(member.id);
-                                        setAliasDraft(member.workspaceAlias || "");
+                                        setEditingAliasMemberId(member.membershipId);
+                                        setAliasDraft(member.alias || "");
                                       }}
                                       className="w-full text-left rounded px-2 py-1.5 hover:bg-accent/10"
                                     >
                                       {t("editAlias")}
                                     </button>
-                                    {member.workspaceAlias ? (
+                                    {member.alias ? (
                                       <button
-                                        onClick={() => handleUpdateMemberAlias(member.id, null)}
-                                        disabled={isMutatingMember === member.id}
+                                        onClick={() => handleUpdateMemberAlias(member.membershipId, null)}
+                                        disabled={isMutatingMember === member.membershipId}
                                         className="w-full text-left rounded px-2 py-1.5 text-muted-foreground hover:bg-accent/10 disabled:opacity-50"
                                       >
                                         {t("clearAlias")}
@@ -504,8 +504,8 @@ export default function TeamsPage() {
                                 {(["admin", "member", "guest"] as const).map((nextRole) => (
                                   <button
                                     key={nextRole}
-                                    onClick={() => handleChangeMemberRole(member.id, nextRole)}
-                                    disabled={member.role === nextRole || isMutatingMember === member.id}
+                                    onClick={() => handleChangeMemberRole(member.membershipId, nextRole)}
+                                    disabled={member.role === nextRole || isMutatingMember === member.membershipId}
                                     className="w-full text-left px-3 py-1.5 hover:bg-accent/10 outline-none transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed"
                                   >
                                     {nextRole}
@@ -517,8 +517,8 @@ export default function TeamsPage() {
 
                             {(canManageMembers && !isMe && member.role !== "owner") || (isMe && member.role !== "owner") ? (
                               <button
-                                onClick={() => handleRemoveMember(member.id, isMe)}
-                                disabled={isMutatingMember === member.id}
+                                onClick={() => handleRemoveMember(member.membershipId, isMe)}
+                                disabled={isMutatingMember === member.membershipId}
                                 className="w-full text-left px-3 py-2 hover:bg-red-500/10 text-red-500 outline-none transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               >
                                 {isMe ? t("leaveTeam") : t("removeMember")}

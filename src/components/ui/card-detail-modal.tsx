@@ -125,7 +125,7 @@ export function CardDetailModal({
   const [localTags, setLocalTags] = useState<any[]>(card?.tags || []);
   const normalizeAssignee = useCallback((raw: any) => ({
     id: raw?.id,
-    name: raw?.name || raw?.displayName || raw?.email || 'Unknown user',
+    name: raw?.name || raw?.email || 'Unknown user',
     email: raw?.email || '',
     avatar_url: raw?.avatar_url || raw?.avatarUrl || null,
   }), []);
@@ -588,7 +588,7 @@ export function CardDetailModal({
 
   const summarizeCardForAi = (cardData: any, listLabel?: string) => {
     const tags = (cardData?.tags || []).map((tag: any) => tag?.name).filter(Boolean).join(', ') || 'none';
-    const assignees = (cardData?.assignees || []).map((member: any) => member?.name || member?.displayName || member?.email).filter(Boolean).join(', ') || 'none';
+    const assignees = (cardData?.assignees || []).map((member: any) => member?.name || member?.email).filter(Boolean).join(', ') || 'none';
     const bricks = Array.isArray(cardData?.blocks) ? cardData.blocks : [];
     const brickDetails = bricks.slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(' || ') || 'none';
     return [
@@ -781,11 +781,11 @@ export function CardDetailModal({
         const normalized = normalizeWorkspaceMembers(res as any[]);
         setBoardMembers(normalized.map((member) => ({
           ...member,
-          name: member.displayName,
           email: member.primaryEmail || "",
-          alias: member.workspaceAlias || member.displayName,
+          name: member.name,
+          alias: member.alias,
           avatar_url: member.avatarUrl,
-          initials: member.displayName.substring(0, 2).toUpperCase(),
+          initials: (member.name || member.primaryEmail || "??").substring(0, 2).toUpperCase(),
         })));
       }).catch(console.error);
     }
@@ -1723,10 +1723,10 @@ export function CardDetailModal({
     const boardMember = boardMembers.find((member) => member.id === user.id || member.userId === user.id);
     const currentUserAsAssignee = boardMember || {
       id: user.id,
-      name: user.displayName || user.email,
-      email: user.email,
+      name: user.name,
+      email: "",
       avatar_url: null,
-      initials: (user.displayName || user.email || '??').substring(0, 2).toUpperCase(),
+      initials: (user.name || '??').substring(0, 2).toUpperCase(),
     };
     await toggleAssignee(currentUserAsAssignee);
   };
@@ -2131,7 +2131,7 @@ export function CardDetailModal({
         if (part.type === 'mention') {
           const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
           return (
-            <RefPill key={i} type={mentionType} id={part.id} name={part.name} />
+            <RefPill key={i} type={mentionType} id={part.id} name={part.name} workspaceUsers={boardMembers} />
           );
         }
 
@@ -2561,7 +2561,7 @@ export function CardDetailModal({
 
                     {aiMessages.map((msg, i) => {
                       const { cleanText, actions } = parseAiActions(msg.content);
-                      const userTint = getUserTintStyles(user?.id || user?.email || "user");
+                      const userTint = getUserTintStyles(user?.id || user?.name || "user");
 
                       return (
                         <div key={i} className="space-y-3">
@@ -2570,7 +2570,7 @@ export function CardDetailModal({
                               ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
                               : 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
                               }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}>
-                              {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : (user?.displayName?.[0] || 'U')}
+                              {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : (user?.name?.[0] || 'U')}
                             </div>
                             <div className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
                               ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'

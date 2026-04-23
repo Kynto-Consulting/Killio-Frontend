@@ -7,7 +7,7 @@ import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles, parseAiActions } from "@/hooks/use-board-chat-drawer";
-import { toReferenceUsers } from "@/lib/workspace-members";
+import { getWorkspaceMemberLabel, toReferenceUsers } from "@/lib/workspace-members";
 
 export interface BoardChatDrawerProps {
   isOpen: boolean;
@@ -305,7 +305,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
 
                     <div className="space-y-1">
                       <p className="text-xs text-foreground/80 leading-relaxed">
-                        <span className="font-bold text-foreground">{member?.displayName || 'Alguien'}</span>
+                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, 'Alguien')}</span>
                         <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
                       </p>
 

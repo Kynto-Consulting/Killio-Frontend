@@ -2,24 +2,33 @@ import type { AuthResponse, BoardMemberSummary, TeamMemberSummary } from "@/lib/
 
 type NullableString = string | null | undefined;
 
+export type SessionUser = AuthResponse["user"] & {
+  email?: string | null;
+  primaryEmail?: string | null;
+  displayName?: string | null;
+  username?: string | null;
+  avatarUrl?: string | null;
+  avatar_url?: string | null;
+};
+
 export type WorkspaceMemberLike = Partial<TeamMemberSummary> &
   Partial<BoardMemberSummary> & {
+    displayName?: NullableString;
+    workspaceAlias?: NullableString;
+    baseDisplayName?: NullableString;
     name?: NullableString;
+    alias?: NullableString;
     email?: NullableString;
     primaryEmail?: NullableString;
     avatar_url?: NullableString;
-    username?: NullableString;
   };
 
 export type WorkspaceMember = {
   id: string;
-  userId: string;
-  displayName: string;
-  workspaceAlias: string | null;
-  baseDisplayName: string | null;
+  name: string;
+  alias: string | null;
   primaryEmail: string | null;
   avatarUrl: string | null;
-  username: string | null;
   role: string | null;
   status: string | null;
 };
@@ -30,8 +39,6 @@ export type ReferenceUser = {
   avatarUrl?: string | null;
   email?: string | null;
 };
-
-const USERNAME_PATTERN = /^[a-z0-9._-]{2,}$/i;
 
 function asCleanString(value: unknown): string | null {
   if (typeof value !== "string") {
@@ -63,24 +70,26 @@ function pickFirst(...values: unknown[]): string | null {
 }
 
 export function normalizeWorkspaceMember(input: WorkspaceMemberLike): WorkspaceMember {
-  const id = pickFirst(input.userId, input.id, input.primaryEmail, input.email, "unknown") as string;
-  const userId = pickFirst(input.userId, input.id, id) as string;
+  const id = pickFirst(input.id, input.userId, input.primaryEmail, input.email, "unknown") as string;
   const primaryEmail = pickFirst(input.primaryEmail, input.email);
-  const workspaceAlias = pickFirst(input.workspaceAlias);
-  const baseDisplayName = pickFirst(input.baseDisplayName, input.name, deriveNameFromEmail(primaryEmail));
-  const displayName =
-    pickFirst(input.displayName, workspaceAlias, input.name, baseDisplayName, deriveNameFromEmail(primaryEmail), userId) ||
+  const alias = pickFirst(input.alias, input.workspaceAlias);
+  const name =
+    pickFirst(
+      input.name,
+      input.displayName,
+      alias,
+      input.baseDisplayName,
+      deriveNameFromEmail(primaryEmail),
+      id,
+    ) ||
     "User";
 
   return {
     id,
-    userId,
-    displayName,
-    workspaceAlias,
-    baseDisplayName,
+    name,
+    alias,
     primaryEmail,
     avatarUrl: pickFirst(input.avatarUrl, input.avatar_url),
-    username: pickFirst(input.username),
     role: pickFirst(input.role),
     status: pickFirst(input.status),
   };
@@ -92,8 +101,8 @@ export function normalizeWorkspaceMembers(inputs: WorkspaceMemberLike[] = []): W
 
 export function toReferenceUsers(inputs: WorkspaceMemberLike[] = []): ReferenceUser[] {
   return normalizeWorkspaceMembers(inputs).map((member) => ({
-    id: member.userId || member.id,
-    name: member.displayName,
+    id: member.id,
+    name: member.name,
     avatarUrl: member.avatarUrl,
     email: member.primaryEmail,
   }));
@@ -103,38 +112,34 @@ export function getWorkspaceMemberLabel(member: WorkspaceMemberLike | null | und
   if (!member) {
     return fallback;
   }
-  return normalizeWorkspaceMember(member).displayName || fallback;
+  const normalized = normalizeWorkspaceMember(member);
+  return normalized.alias || normalized.name || fallback;
 }
 
-export function normalizeSessionUser(input: unknown): AuthResponse["user"] | null {
+export function normalizeSessionUser(input: unknown): SessionUser | null {
   if (!input || typeof input !== "object") {
     return null;
   }
 
   const raw = input as Record<string, unknown>;
   const id = pickFirst(raw.id, raw.sub);
-  const email = pickFirst(raw.email);
+  const name = pickFirst(raw.name, raw.displayName);
+  const alias = pickFirst(raw.alias, raw.workspaceAlias);
+  const email = pickFirst(raw.email, raw.primaryEmail);
 
-  let username = pickFirst(raw.username, raw.preferred_username, deriveNameFromEmail(email));
-  let displayName = pickFirst(raw.displayName, raw.name, username, deriveNameFromEmail(email));
-
-  if (!id || !email || !username || !displayName) {
+  if (!id || !name) {
     return null;
-  }
-
-  const usernameLooksLikeDisplay = /\s/.test(username);
-  const displayLooksLikeUsername = USERNAME_PATTERN.test(displayName) && !/\s/.test(displayName);
-
-  if (usernameLooksLikeDisplay && displayLooksLikeUsername) {
-    const tmp = username;
-    username = displayName;
-    displayName = tmp;
   }
 
   return {
     id,
+    name,
+    alias,
     email,
-    username,
-    displayName,
+    primaryEmail: email,
+    displayName: alias || name,
+    username: alias || name,
+    avatarUrl: pickFirst(raw.avatarUrl),
+    avatar_url: pickFirst(raw.avatar_url),
   };
 }

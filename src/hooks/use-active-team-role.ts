@@ -24,7 +24,7 @@ export function useActiveTeamRole(
     listTeamMembers(activeTeamId, accessToken)
       .then((members) => {
         if (cancelled) return;
-        const membership = members.find((member) => member.userId === userId);
+        const membership = members.find((member) => member.id === userId);
         setRole(membership?.role ?? null);
       })
       .catch(() => {

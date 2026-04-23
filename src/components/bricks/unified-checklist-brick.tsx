@@ -27,7 +27,7 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, 
       if (part.type === 'mention') {
         const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
         return (
-          <RefPill key={i} type={mentionType} id={part.id} name={part.name} />
+          <RefPill key={i} type={mentionType} id={part.id} name={part.name} workspaceUsers={users} />
         );
       }
 

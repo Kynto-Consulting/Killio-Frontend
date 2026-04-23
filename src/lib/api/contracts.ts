@@ -79,22 +79,26 @@ export type RemoveTeamMemberResult = {
 
 export type UpdateTeamMemberAliasResult = {
   membershipId: string;
-  userId: string;
-  workspaceAlias: string | null;
+  id: string;
+  alias: string | null;
   updated: true;
 };
 
 export type TeamMemberSummary = {
+  membershipId: string;
   id: string;
-  userId: string;
+  userId?: string;
   role: TeamRole;
   status: string;
-  displayName: string;
-  workspaceAlias: string | null;
-  baseDisplayName: string;
+  name: string;
+  alias: string | null;
   primaryEmail: string;
   avatarUrl: string | null;
   joinedAt: string | null;
+  displayName?: string | null;
+  workspaceAlias?: string | null;
+  baseDisplayName?: string | null;
+  email?: string | null;
 };
 
 export type TeamMetricsSummary = {
@@ -119,13 +123,13 @@ export type TeamMetricsRoleBreakdown = {
 };
 
 export type TeamMetricsMember = {
+  membershipId: string;
   id: string;
-  userId: string;
+  userId?: string;
   role: TeamRole | string;
   status: string;
-  displayName: string;
-  workspaceAlias: string | null;
-  baseDisplayName: string;
+  name: string;
+  alias: string | null;
   primaryEmail: string;
   avatarUrl: string | null;
   joinedAt: string | null;
@@ -134,6 +138,7 @@ export type TeamMetricsMember = {
   completedCardsCount: number;
   activityCount: number;
   lastActiveAt: string | null;
+  displayName?: string | null;
 };
 
 export type TeamMetricsBoard = {
@@ -194,12 +199,14 @@ export type TeamMetricsKpis = {
 };
 
 export type TeamMetricsWorkloadMember = {
-  userId: string;
-  displayName: string;
+  id: string;
+  userId?: string;
+  name: string;
   avatarUrl: string | null;
   assignmentsCount: number;
   activityCount: number;
   completedCardsCount: number;
+  displayName?: string | null;
 };
 
 export type TeamMetricsWorkloadInsights = {
@@ -469,9 +476,8 @@ export type DeleteCardBrickResult = {
 export type AuthResponse = {
   user: {
     id: string;
-    username: string;
-    email: string;
-    displayName: string;
+    name: string;
+    alias: string | null;
   };
   session: {
     id: string;
@@ -483,14 +489,13 @@ export type AuthResponse = {
 };
 
 type RegisterPayload = {
-  username: string;
+  name: string;
   email: string;
   password: string;
-  displayName: string;
 };
 
 type LoginPayload = {
-  identifier: string;
+  email: string;
   password: string;
 };
 
@@ -1110,12 +1115,14 @@ export async function removeCardAssignee(cardId: string, assigneeId: string, acc
 
 export interface BoardMemberSummary {
   id: string;
-  email: string;
-  displayName: string | null;
-  workspaceAlias: string | null;
-  baseDisplayName: string | null;
+  email: string | null;
+  name: string | null;
+  alias: string | null;
   role: string;
   avatarUrl: string | null;
+  displayName?: string | null;
+  workspaceAlias?: string | null;
+  baseDisplayName?: string | null;
 }
 
 export async function updateBoardVisibility(

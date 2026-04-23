@@ -99,9 +99,14 @@ export const killioArgs = {
         const query = normalize(partial);
 
         for (const member of ctx.boardMembers) {
-          const displayName = normalize(member.displayName || member.email);
+          const rawName =
+            member.alias ||
+            member.name ||
+            member.displayName ||
+            member.email ||
+            member.id;
+          const displayName = normalize(rawName);
           if (!query || displayName.includes(query) || displayName.startsWith(query)) {
-            const rawName = member.displayName || member.email;
             matches.push(rawName.includes(" ") ? `"${rawName}"` : rawName);
           }
         }

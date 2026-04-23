@@ -5,6 +5,7 @@ import { Portal } from "./portal";
 import { type ActivityLogEntry } from "@/lib/api/contracts";
 import { RichText } from "./rich-text";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { getWorkspaceMemberLabel } from "@/lib/workspace-members";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type Props = {
@@ -59,7 +60,7 @@ export function ActivityLogModal({
               const theme = getActionTheme(a.action);
               const Icon = theme.icon;
               const member = teamMembers.find((m) => m.id === a.actorId || m.userId === a.actorId);
-              const actorLabel = a.actorId === 'i18n.system' ? t('system') : member?.displayName || t('someone');
+              const actorLabel = a.actorId === 'i18n.system' ? t('system') : getWorkspaceMemberLabel(member, t('someone'));
               const changes = (a.payload as any)?.changes || {};
               const changedFields = Object.keys(changes)
                 .map((k) => fieldLabels[k] || k)

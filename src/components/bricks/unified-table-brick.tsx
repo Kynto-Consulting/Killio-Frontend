@@ -291,7 +291,7 @@ export const UnifiedTableBrick: React.FC<TableBrickProps> = ({
       if (part.type === "mention") {
         const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
         return (
-          <RefPill key={index} type={mentionType} id={part.id} name={part.name} />
+          <RefPill key={index} type={mentionType} id={part.id} name={part.name} workspaceUsers={users} />
         );
       }
       if (part.type === "deep") {

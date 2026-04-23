@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "next build --turbo",
     "start": "next start",
     "test:template-format": "node scripts/template-formatting-smoke-active.js"
   },

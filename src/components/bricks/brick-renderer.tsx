@@ -122,7 +122,7 @@ export function UnifiedBrickRenderer({
       text,
       createdAt: new Date().toISOString(),
       userId: user?.id ?? null,
-      userName: user?.displayName || user?.username || "Anon",
+      userName: user?.alias || user?.name || "Anon",
       resolved: false,
     };
 

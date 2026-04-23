@@ -50,6 +50,14 @@ function normalizeText(value: string) {
   return value.trim().toLowerCase();
 }
 
+function getMemberDisplayName(member: { name: string; alias: string | null; displayName?: string | null } | null | undefined) {
+  if (!member) {
+    return "User";
+  }
+
+  return member.alias || member.displayName || member.name || "User";
+}
+
 function getActivityBoardId(activity: TeamMetricsResponse["recentActivity"][number]): string | null {
   if (activity.scope === "board") {
     return activity.scopeId;
@@ -175,13 +183,13 @@ export function WorkspaceMetricsDashboard() {
   }, [metrics?.boards]);
 
   const memberByUserId = useMemo(() => {
-    return new Map((metrics?.members ?? []).map((member) => [member.userId, member]));
+    return new Map((metrics?.members ?? []).map((member) => [member.id, member]));
   }, [metrics?.members]);
 
   const userFilterOptions = useMemo(() => {
     const options = (metrics?.members ?? []).map((member) => ({
-      id: member.userId,
-      name: member.displayName,
+      id: member.id,
+      name: getMemberDisplayName(member),
     }));
 
     const hasSystem = (metrics?.recentActivity ?? []).some((activity) => activity.actorId === "i18n.system");
@@ -254,7 +262,7 @@ export function WorkspaceMetricsDashboard() {
 
       const actorLabel = activity.actorId === "i18n.system"
         ? t("metrics.system.label")
-        : memberByUserId.get(activity.actorId)?.displayName ?? activity.actorId;
+        : getMemberDisplayName(memberByUserId.get(activity.actorId) ?? null) || activity.actorId;
       const boardLabel = boardId ? boardNameById.get(boardId) ?? "" : "";
       const haystack = `${actorLabel} ${formatAction(activity.action)} ${boardLabel}`.toLowerCase();
       return haystack.includes(normalizedSearch);
@@ -275,7 +283,7 @@ export function WorkspaceMetricsDashboard() {
 
   const filteredMembers = useMemo(() => {
     return (metrics?.members ?? []).filter((member) => {
-      if (selectedUserId !== "all" && member.userId !== selectedUserId) {
+      if (selectedUserId !== "all" && member.id !== selectedUserId) {
         return false;
       }
 
@@ -283,7 +291,7 @@ export function WorkspaceMetricsDashboard() {
         return true;
       }
 
-      const haystack = `${member.displayName} ${member.primaryEmail} ${member.role}`.toLowerCase();
+      const haystack = `${getMemberDisplayName(member)} ${member.primaryEmail} ${member.role}`.toLowerCase();
       return haystack.includes(normalizedSearch);
     });
   }, [metrics?.members, normalizedSearch, selectedUserId]);
@@ -291,6 +299,10 @@ export function WorkspaceMetricsDashboard() {
   const topMembers = useMemo(() => {
     return [...filteredMembers]
       .sort((left, right) => right.completedCardsCount - left.completedCardsCount || right.activityCount - left.activityCount)
+      .map((member) => ({
+        ...member,
+        displayName: getMemberDisplayName(member),
+      }))
       .slice(0, 8);
   }, [filteredMembers]);
 
@@ -681,10 +693,10 @@ export function WorkspaceMetricsDashboard() {
                   <div className="mt-4 space-y-3">
                     {metrics.workloadInsights.overloadedMembers.length > 0 ? (
                       metrics.workloadInsights.overloadedMembers.map((member) => (
-                        <div key={member.userId} className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3">
+                        <div key={member.id} className="rounded-2xl border border-red-500/30 bg-red-500/10 p-3">
                           <div className="flex items-start justify-between gap-3">
                             <div>
-                              <p className="text-sm font-semibold text-foreground">{member.displayName}</p>
+                              <p className="text-sm font-semibold text-foreground">{member.name}</p>
                               <p className="text-xs text-muted-foreground">{numberFormatter.format(member.assignmentsCount)} {t("metrics.table.assignments")}</p>
                             </div>
                             <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -712,8 +724,8 @@ export function WorkspaceMetricsDashboard() {
                     <p className="text-xs uppercase tracking-[0.14em] text-muted-foreground">{t("metrics.sections.lowUtilization")}</p>
                     {metrics.workloadInsights.underutilizedMembers.length > 0 ? (
                       metrics.workloadInsights.underutilizedMembers.map((member) => (
-                        <div key={member.userId} className="flex items-center justify-between gap-2 text-sm">
-                          <span>{member.displayName}</span>
+                        <div key={member.id} className="flex items-center justify-between gap-2 text-sm">
+                          <span>{member.name}</span>
                           <span className="text-xs text-muted-foreground">{t("metrics.health.noRecentLoad")}</span>
                         </div>
                       ))
@@ -838,7 +850,7 @@ export function WorkspaceMetricsDashboard() {
                   </div>
                   <div className="mt-4 max-h-[32rem] space-y-3 overflow-y-auto pr-1">
                     {filteredRecentActivity.length > 0 ? filteredRecentActivity.map((activity) => {
-                      const actor = activity.actorId === "i18n.system" ? t("metrics.system.label") : memberByUserId.get(activity.actorId)?.displayName ?? activity.actorId.slice(0, 8);
+                      const actor = activity.actorId === "i18n.system" ? t("metrics.system.label") : getMemberDisplayName(memberByUserId.get(activity.actorId) ?? null) || activity.actorId.slice(0, 8);
                       return (
                         <div key={activity.id} className="rounded-2xl border border-border/60 bg-card/70 p-3">
                           <div className="flex items-start justify-between gap-3">

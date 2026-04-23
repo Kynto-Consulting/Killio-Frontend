@@ -63,7 +63,6 @@ export function Workbench() {
     kind: 'idle',
     message: 'Checking backend connectivity…',
   });
-  const [username, setUsername] = useState('');
   const [identifier, setIdentifier] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -283,8 +282,8 @@ export function Workbench() {
     startTransition(() => {
       const operation =
         mode === 'register'
-          ? register({ username, email, password, displayName })
-          : login({ identifier, password });
+          ? register({ name: displayName, email, password })
+          : login({ email: identifier, password });
 
       operation
         .then((result) => {
@@ -433,20 +432,13 @@ export function Workbench() {
           <form className={styles.form} onSubmit={handleSubmit}>
             {mode === 'register' ? (
               <label className={styles.field}>
-                <span>Username</span>
-                <input value={username} onChange={(event) => setUsername(event.target.value)} required />
-              </label>
-            ) : null}
-
-            {mode === 'register' ? (
-              <label className={styles.field}>
-                <span>Display name</span>
+                <span>Name</span>
                 <input value={displayName} onChange={(event) => setDisplayName(event.target.value)} required />
               </label>
             ) : null}
 
             <label className={styles.field}>
-              <span>{mode === 'register' ? 'Email' : 'User or email'}</span>
+              <span>Email</span>
               <input
                 value={mode === 'register' ? email : identifier}
                 onChange={(event) => (mode === 'register' ? setEmail(event.target.value) : setIdentifier(event.target.value))}
@@ -476,9 +468,9 @@ export function Workbench() {
           {session ? (
             <div className={styles.sessionCard}>
               <div className={styles.panelEyebrow}>Session</div>
-              <strong>{session.user.displayName}</strong>
-              <div className={styles.muted}>@{session.user.username}</div>
-              <div className={styles.muted}>{session.user.email}</div>
+              <strong>{session.user.alias || session.user.name}</strong>
+              <div className={styles.muted}>@{session.user.alias || session.user.name}</div>
+              <div className={styles.muted}>User ID: {session.user.id}</div>
               <div className={styles.muted}>Session expires {new Date(session.session.expiresAt).toLocaleString()}</div>
               <button className={styles.secondaryButton} onClick={handleLogout} type="button">
                 Sign out

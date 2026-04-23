@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthResponse, refresh } from "@/lib/api/contracts";
-import { normalizeSessionUser } from "@/lib/workspace-members";
+import { normalizeSessionUser, type SessionUser } from "@/lib/workspace-members";
 
 const LAST_TEAM_BY_USER_STORAGE_KEY = "killio_last_team_by_user";
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -59,14 +59,14 @@ async function validateAccessToken(token: string): Promise<boolean> {
 }
 
 export interface SessionAccount {
-  user: AuthResponse["user"];
+  user: SessionUser;
   accessToken: string;
   refreshToken: string | null;
   activeTeamId: string | null;
 }
 
 export type SessionContextType = {
-  user: AuthResponse["user"] | null;
+  user: SessionUser | null;
   activeTeamId: string | null;
   accessToken: string | null;
   accounts: SessionAccount[];
@@ -80,7 +80,7 @@ export type SessionContextType = {
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<AuthResponse["user"] | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [activeTeamId, setActiveTeamId] = useState<string | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [accounts, setAccounts] = useState<SessionAccount[]>([]);

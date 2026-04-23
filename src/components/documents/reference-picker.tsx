@@ -263,12 +263,12 @@ export function ReferencePicker({
         search: `doc document ${d.title} ${d.id}`.toLowerCase(),
       })),
       ...users.map((u) => ({
-        token: `@[user:${u.id}:${u.name}]`,
-        label: u.name!,
+        token: `@[user:${u.id}:${u.alias || u.name || u.email}]`,
+        label: u.alias || u.name || u.email || "User",
         category: "mention" as const,
         mentionType: "user" as const,
         avatarUrl: u.avatarUrl!,
-        search: `user ${u.name} ${u.id}`.toLowerCase(),
+        search: `user ${u.alias || u.name} ${u.id}`.toLowerCase(),
       })),
         ...(cards || []).map((c) => ({
           token: `@[card:${c.id}:${c.title}]`,
