@@ -2,6 +2,7 @@ import { DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { Folder } from "@/lib/api/folders";
 import { sheetEngine } from "@/lib/sheetEngine";
+import { WorkspaceMemberLike } from "./workspace-members";
 
 type ResolverBrick = {
   id: string;
@@ -17,7 +18,7 @@ export interface ResolverContext {
   activeBricks?: ResolverBrick[]; // Bricks available in current scope for local resolution
   documentBricksById?: Record<string, ResolverBrick[]>;
   cardBricksById?: Record<string, ResolverBrick[]>;
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
 }
 
 export class ReferenceResolver {
@@ -439,7 +440,7 @@ export class ReferenceResolver {
 
     if (type === 'user' && context.users) {
       const user = context.users.find(u => u.id === id);
-      return { label: user ? user.name : (extra[0] || 'Unknown User') };
+      return { label: user ? user.name! : (extra[0] || 'Unknown User') };
     }
 
     return { label: extra[0] || id };

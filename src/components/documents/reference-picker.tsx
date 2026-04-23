@@ -15,6 +15,7 @@ import {
 import { BoardSummary } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type MentionType = "board" | "doc" | "card" | "user" | "folder";
 
@@ -44,7 +45,7 @@ interface ReferencePickerProps {
   boards: BoardSummary[];
   documents: DocumentSummary[];
   folders?: any[];
-  users: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users: WorkspaceMemberLike[];
   cards?: Array<{ id: string; title: string }>;
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
@@ -263,10 +264,10 @@ export function ReferencePicker({
       })),
       ...users.map((u) => ({
         token: `@[user:${u.id}:${u.name}]`,
-        label: u.name,
+        label: u.name!,
         category: "mention" as const,
         mentionType: "user" as const,
-        avatarUrl: u.avatarUrl,
+        avatarUrl: u.avatarUrl!,
         search: `user ${u.name} ${u.id}`.toLowerCase(),
       })),
         ...(cards || []).map((c) => ({

@@ -27,6 +27,7 @@ import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
+import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } from "@/lib/workspace-members";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -683,7 +684,7 @@ export function CardDetailModal({
           .slice(0, 25)
             .map((entry) => {
               const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-              const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || "User";
+              const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
               return `- [${entry.createdAt}] ${actorName} in ${boardCard.title}: ${String((entry.payload as any)?.text || '')}`;
             });
         }).slice(0, 220);
@@ -692,7 +693,7 @@ export function CardDetailModal({
           .slice(0, 260)
           .map((entry) => {
               const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-              const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || "User";
+              const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
               return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId})`;
           });
 
@@ -777,13 +778,14 @@ export function CardDetailModal({
       }).catch(console.error);
 
       getBoardMembers(boardId, accessToken).then((res) => {
-        setBoardMembers(res.map((m: any) => ({
-          id: m.id,
-          name: m.displayName || m.workspaceAlias || m.email || m.primaryEmail,
-          email: m.email || m.primaryEmail,
-          alias: m.workspaceAlias || m.displayName || m.email || m.primaryEmail,
-          avatar_url: m.avatarUrl || m.avatar_url,
-          initials: (m.displayName || m.email || '??').substring(0, 2).toUpperCase()
+        const normalized = normalizeWorkspaceMembers(res as any[]);
+        setBoardMembers(normalized.map((member) => ({
+          ...member,
+          name: member.displayName,
+          email: member.primaryEmail || "",
+          alias: member.workspaceAlias || member.displayName,
+          avatar_url: member.avatarUrl,
+          initials: member.displayName.substring(0, 2).toUpperCase(),
         })));
       }).catch(console.error);
     }
@@ -2833,11 +2835,7 @@ export function CardDetailModal({
                   disabled={activeTab !== 'copilot' && !canComment}
                   documents={contextDocs as any}
                   boards={teamBoards as any}
-                  users={boardMembers.map((m: any) => ({
-                    id: m.id || m.userId,
-                    name: m.displayName || m.name || m.email || m.username || "User",
-                    avatarUrl: m.avatarUrl || m.avatar_url || null,
-                  }))}
+                  users={boardMembers}
                   activeBricks={localBlocks as any}
                   className="w-full"
                   inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}

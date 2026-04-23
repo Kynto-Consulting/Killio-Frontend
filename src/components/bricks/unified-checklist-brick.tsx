@@ -5,6 +5,7 @@ import { CheckSquare, Square, Plus, Trash2, GripVertical } from "lucide-react";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { ReferenceTokenInput } from "../ui/reference-token-input";
 import { RefPill } from "../ui/ref-pill";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface ChecklistBrickProps {
   id: string;
@@ -13,7 +14,7 @@ interface ChecklistBrickProps {
   readonly?: boolean;
   documents?: any[];
   boards?: any[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
 }
 
 export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {

@@ -25,6 +25,7 @@ import { cn } from "@/lib/utils";
 import { getSlashCommands, type SlashCommand } from "./slash-commands";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math' | 'database';
 
@@ -39,7 +40,7 @@ interface UnifiedBrickListProps {
   documents?: any[];
   boards?: any[];
   folders?: any[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
   addableKinds?: AddableKind[];
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;

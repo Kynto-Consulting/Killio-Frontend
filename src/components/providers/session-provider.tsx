@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthResponse, refresh } from "@/lib/api/contracts";
+import { normalizeSessionUser } from "@/lib/workspace-members";
 
 const LAST_TEAM_BY_USER_STORAGE_KEY = "killio_last_team_by_user";
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -105,14 +106,31 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const storedAccountsRaw = localStorage.getItem("killio_accounts");
         let loadedAccounts: SessionAccount[] = [];
         if (storedAccountsRaw) {
-          loadedAccounts = JSON.parse(storedAccountsRaw);
+          const parsed = JSON.parse(storedAccountsRaw) as unknown;
+          if (Array.isArray(parsed)) {
+            loadedAccounts = parsed
+              .map((acc) => {
+                if (!acc || typeof acc !== "object") return null;
+                const record = acc as Record<string, unknown>;
+                const normalizedUser = normalizeSessionUser(record.user);
+                const accessToken = typeof record.accessToken === "string" ? record.accessToken : null;
+                if (!normalizedUser || !accessToken) return null;
+                return {
+                  user: normalizedUser,
+                  accessToken,
+                  refreshToken: typeof record.refreshToken === "string" ? record.refreshToken : null,
+                  activeTeamId: typeof record.activeTeamId === "string" ? record.activeTeamId : null,
+                } satisfies SessionAccount;
+              })
+              .filter(Boolean) as SessionAccount[];
+          }
           if (!cancelled) {
             setAccounts(loadedAccounts);
           }
         }
 
         const storedUser = localStorage.getItem("killio_user");
-        const parsedUser = storedUser ? (JSON.parse(storedUser) as AuthResponse["user"]) : null;
+        const parsedUser = storedUser ? normalizeSessionUser(JSON.parse(storedUser)) : null;
         const storedTeam = localStorage.getItem("killio_active_team");
         const refreshToken = localStorage.getItem("killio_refresh");
         const cookieToken = readTokenFromCookie();
@@ -162,26 +180,30 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         try {
           const rotated = await refresh(refreshToken);
+          const normalizedRotatedUser = normalizeSessionUser(rotated.user);
+          if (!normalizedRotatedUser) {
+            throw new Error("Rotated session user payload is invalid");
+          }
           writeTokenCookie(rotated.accessToken, rotated.expiresInSeconds);
           localStorage.setItem("killio_refresh", rotated.refreshToken);
-          localStorage.setItem("killio_user", JSON.stringify(rotated.user));
+          localStorage.setItem("killio_user", JSON.stringify(normalizedRotatedUser));
 
           const map = readLastTeamByUser();
-          const restoredTeamId = storedTeam ?? map[rotated.user.id] ?? null;
+          const restoredTeamId = storedTeam ?? map[normalizedRotatedUser.id] ?? null;
           if (restoredTeamId) {
             localStorage.setItem("killio_active_team", restoredTeamId);
           }
 
           if (!cancelled) {
-            setUser(rotated.user);
+            setUser(normalizedRotatedUser);
             setAccessToken(rotated.accessToken);
             setActiveTeamId(restoredTeamId);
             setAccounts((prev) => {
-              const existing = prev.filter((acc) => acc.user.id !== rotated.user.id);
+              const existing = prev.filter((acc) => acc.user.id !== normalizedRotatedUser.id);
               const updated = [
                 ...existing,
                 {
-                  user: rotated.user,
+                  user: normalizedRotatedUser,
                   accessToken: rotated.accessToken,
                   refreshToken: rotated.refreshToken,
                   activeTeamId: restoredTeamId,
@@ -254,11 +276,14 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   };
 
   const login = (userData: AuthResponse["user"], token: string, refreshToken?: string) => {
-    setUser(userData);
+    const normalizedUser = normalizeSessionUser(userData);
+    if (!normalizedUser) return;
+
+    setUser(normalizedUser);
     setAccessToken(token);
-    const existingAccount = accounts.find((account) => account.user.id === userData.id);
+    const existingAccount = accounts.find((account) => account.user.id === normalizedUser.id);
     const map = readLastTeamByUser();
-    const restoredTeamId = existingAccount?.activeTeamId ?? map[userData.id] ?? null;
+    const restoredTeamId = existingAccount?.activeTeamId ?? map[normalizedUser.id] ?? null;
     setActiveTeamId(restoredTeamId);
 
     if (restoredTeamId) {
@@ -269,9 +294,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     
     // Update accounts list
     setAccounts(prev => {
-      const existing = prev.filter(a => a.user.id !== userData.id);
+      const existing = prev.filter(a => a.user.id !== normalizedUser.id);
       const newAccs = [...existing, {
-        user: userData,
+        user: normalizedUser,
         accessToken: token,
         refreshToken: refreshToken || null,
         activeTeamId: restoredTeamId
@@ -284,14 +309,16 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const switchAccount = (userId: string) => {
     const target = accounts.find(a => a.user.id === userId);
     if (!target) return;
+    const normalizedUser = normalizeSessionUser(target.user);
+    if (!normalizedUser) return;
     
-    setUser(target.user);
+    setUser(normalizedUser);
     setAccessToken(target.accessToken);
     setActiveTeamId(target.activeTeamId);
     
     // Update browser artifacts
     document.cookie = `killio_token=${target.accessToken}; path=/; max-age=604800`;
-    localStorage.setItem("killio_user", JSON.stringify(target.user));
+    localStorage.setItem("killio_user", JSON.stringify(normalizedUser));
     if (target.refreshToken) localStorage.setItem("killio_refresh", target.refreshToken);
     else localStorage.removeItem("killio_refresh");
     

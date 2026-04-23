@@ -7,8 +7,8 @@ import { useSession } from "@/components/providers/session-provider";
 import { DocumentBrick, getDocument } from "@/lib/api/documents";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
-type PickerUser = { id: string; name: string; avatarUrl?: string | null };
 type PickerCard = { id: string; title: string };
 
 type MentionPart = {
@@ -37,7 +37,7 @@ interface ReferenceTokenInputProps {
   documents?: any[];
   boards?: any[];
   folders?: any[];
-  users?: PickerUser[];
+  users?: WorkspaceMemberLike[];
   cards?: PickerCard[];
   activeBricks?: any[];
   onSubmit?: () => void;

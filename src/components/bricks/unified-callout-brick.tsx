@@ -5,6 +5,7 @@ import { Lightbulb } from "lucide-react";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface CalloutBrickProps {
   id: string;
@@ -15,7 +16,7 @@ interface CalloutBrickProps {
   documents: DocumentSummary[];
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
 }
 
 export const UnifiedCalloutBrick: React.FC<CalloutBrickProps> = (props) => {

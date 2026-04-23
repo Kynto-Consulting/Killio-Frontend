@@ -220,7 +220,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
               <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                 <img 
                   src={getUserAvatarUrl(undefined, user?.email, 32)} 
-                  alt={user?.username || user?.displayName || tCommon("account.fallbackUser")} 
+                  alt={user?.displayName || user?.username || tCommon("account.fallbackUser")} 
                   className="h-full w-full object-cover"
                 />
               </div>

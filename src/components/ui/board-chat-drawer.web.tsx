@@ -7,6 +7,7 @@ import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles, parseAiActions } from "@/hooks/use-board-chat-drawer";
+import { toReferenceUsers } from "@/lib/workspace-members";
 
 export interface BoardChatDrawerProps {
   isOpen: boolean;
@@ -338,11 +339,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
               placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Pregunta o menciona con @..."}
               documents={teamDocs}
               boards={teamBoardsForMentions}
-              users={teamMembers.map((m: any) => ({
-                id: m.id || m.userId,
-                name: m.displayName || m.name || m.email || m.username || "User",
-                avatarUrl: m.avatarUrl || m.avatar_url || null,
-              }))}
+              users={teamMembers}
               cards={boardCardsForMentions}
               onSubmit={() => {
                 void sendMessage();

@@ -12,6 +12,7 @@ import { Portal } from "../ui/portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentBrick } from "@/lib/api/documents";
 import { RefPill } from "../ui/ref-pill";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type FunctionMeta = { name: string; description: string; parameters: string[] };
 
@@ -27,7 +28,7 @@ interface TableBrickProps {
   documents?: any[];
   boards?: any[];
   folders?: any[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
   activeBricks?: DocumentBrick[];
 }
 

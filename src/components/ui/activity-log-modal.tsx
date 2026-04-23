@@ -5,19 +5,20 @@ import { Portal } from "./portal";
 import { type ActivityLogEntry } from "@/lib/api/contracts";
 import { RichText } from "./rich-text";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import type { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   activities: ActivityLogEntry[];
-  teamMembers: any[];
+  teamMembers: WorkspaceMemberLike[];
   teamDocs: any[];
   allAvailableTags: any[];
   getActionTheme: (action: string) => { icon: any; badge: string; badgeClass: string };
   prettifyAction: (action: string) => string;
   fieldLabels: Record<string, string>;
-  getResolverContext: (docs: any[], boards: any[], members: any[]) => any;
+  getResolverContext: (docs: any[], boards: any[], members: WorkspaceMemberLike[]) => any;
 };
 
 export function ActivityLogModal({

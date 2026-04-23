@@ -13,6 +13,7 @@ import { useMemo } from "react";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { buildDocumentContextSummary } from "@/lib/brick-context";
+import { getWorkspaceMemberLabel, normalizeWorkspaceMember, toReferenceUsers, type WorkspaceMemberLike } from "@/lib/workspace-members";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -40,15 +41,11 @@ function prettifyAction(action: string): string {
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { Fragment, useState, useEffect, useRef, type ReactNode } from "react";
 
-function getResolverContext(documents: DocumentSummary[], boards: any[], members: any[]): ResolverContext {
+function getResolverContext(documents: DocumentSummary[], boards: any[], members: WorkspaceMemberLike[]): ResolverContext {
   return {
     documents: documents || [],
     boards: boards || [],
-    users: (members || []).map((m) => ({
-      id: m.userId || m.id,
-      name: m.displayName || m.name,
-      avatarUrl: m.avatarUrl,
-    }))
+    users: members || [],
   };
 }
 
@@ -120,7 +117,7 @@ export function DocumentCommentsDrawer({
   documents?: DocumentSummary[];
   boards?: any[];
   folders?: any[];
-  members?: any[];
+  members?: WorkspaceMemberLike[];
   initialTab?: 'copilot' | 'comments' | 'activity';
   contextSummary?: string;
   initialAiInput?: string;
@@ -322,11 +319,7 @@ export function DocumentCommentsDrawer({
           boards,
           activeBricks: docBricks,
           documentBricksById: { [docId]: docBricks as any },
-          users: (members || []).map((m: any) => ({
-            id: m.userId || m.id,
-            name: m.displayName || m.name,
-            avatarUrl: m.avatarUrl,
-          }))
+          users: members || []
         }),
         contextSummary: buildDocContextSummary()
       }, accessToken);
@@ -491,6 +484,7 @@ export function DocumentCommentsDrawer({
               {[...comments].reverse().map((entry, idx, arr) => {
               const isMe = entry.actorId === user?.id;
                 const member = members.find(m => (m.id === entry.actorId || m.userId === entry.actorId) && entry.actorId);
+              const normalizedMember = member ? normalizeWorkspaceMember(member) : null;
               const tint = getUserTintStyles(entry.actorId || member?.email || "user");
               
               const currentDate = new Date(entry.createdAt);
@@ -511,14 +505,14 @@ export function DocumentCommentsDrawer({
                   <div className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                     <div className="h-8 w-8 shrink-0 rounded overflow-hidden border shadow-sm">
                       <img
-                        src={getUserAvatarUrl(member?.avatarUrl, member?.email || 'user@killio.app', 32)}
+                        src={getUserAvatarUrl(normalizedMember?.avatarUrl, normalizedMember?.primaryEmail || 'user@killio.app', 32)}
                         className="h-full w-full object-cover bg-muted"
-                        alt={member?.displayName || 'User'}
+                        alt={getWorkspaceMemberLabel(member, 'User')}
                       />
                     </div>
                     <div className={`max-w-[85%] space-y-1 ${isMe ? 'text-right' : ''}`}>
                       <div className="text-[9px] uppercase font-bold text-muted-foreground/70 tracking-tighter">
-                        {member?.displayName || 'User'} • {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        {getWorkspaceMemberLabel(member, 'User')} • {new Date(entry.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </div>
                       <div className={`p-3 text-sm leading-relaxed rounded-xl shadow-sm border ${isMe ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20' :
                           'bg-muted/50 text-foreground/90 rounded-tl-none border-border/50'
@@ -609,7 +603,7 @@ export function DocumentCommentsDrawer({
 
                     <div className="space-y-1">
                       <p className="text-xs text-foreground/80 leading-relaxed">
-                        <span className="font-bold text-foreground">{member?.displayName || 'Alguien'}</span>
+                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, 'Alguien')}</span>
                         <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
                       </p>
 
@@ -647,11 +641,7 @@ export function DocumentCommentsDrawer({
               documents={documents}
               boards={boards}
               folders={folders}
-              users={members.map((m: any) => ({
-                id: m.userId || m.id,
-                name: m.displayName || m.name,
-                avatarUrl: m.avatarUrl,
-              }))}
+              users={members}
               activeBricks={docBricks as any[]}
               onSubmit={() => {
                 if (activeTab === 'copilot') {

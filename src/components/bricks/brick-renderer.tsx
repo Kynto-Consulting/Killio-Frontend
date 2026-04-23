@@ -19,6 +19,7 @@ import { BoardSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface BrickRendererProps {
   brick: DocumentBrick;
@@ -32,7 +33,7 @@ interface BrickRendererProps {
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   onAiAction?: (action: string, contextText: string) => void;

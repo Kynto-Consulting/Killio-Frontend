@@ -24,6 +24,7 @@ import katex from "katex";
 // @ts-ignore
 import "katex/dist/katex.min.css";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
+import { WorkspaceMember, WorkspaceMemberLike } from "@/lib/workspace-members";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -103,7 +104,7 @@ interface UnifiedBountifulTableProps {
   // Context for ReferencePicker
   documents?: any[];
   boards?: any[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
   activeBricks?: any[];
 }
 
@@ -2452,7 +2453,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   cell: BountifulCell | null; column: BountifulColumn; row: BountifulRow; readonly?: boolean;
   onCellChange?: (newCell: BountifulCell) => void;
   onOpenReferencePicker?: (state: { rowId: string; colId: string; rect: DOMRect; type: "user" | "doc" | "board" | "card" }) => void;
-  users?: Array<{ id?: string; name?: string; email?: string }>;
+  users?: WorkspaceMemberLike[];
 }) {
   const t = useTranslations("document-detail");
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
@@ -2661,14 +2662,14 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return `@${normalized || "user"}`;
   };
 
-  const getUserLabel = (user: { name?: string; email?: string }) => {
+  const getUserLabel = (user: { name?: string | null; email?: string | null }) => {
     const fmt = column.personFormat || "name";
     if (fmt === "email") return user.email || user.name || "User";
-    if (fmt === "alias") return toAlias(user.email || user.name);
+    if (fmt === "alias") return toAlias(user.email! || user.name!);
     return user.name || user.email || "User";
   };
 
-  const resolveUser = (user: { id?: string; name?: string; email?: string }) => {
+  const resolveUser = (user: { id?: string; name?: string | null; email?: string | null }) => {
     const byId = user.id ? users.find((u) => u?.id && u.id === user.id) : undefined;
     const byName = !byId && user.name ? users.find((u) => u?.name && u.name === user.name) : undefined;
     const matched = byId || byName;

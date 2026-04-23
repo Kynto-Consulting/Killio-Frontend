@@ -8,7 +8,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
-import { listTeamBoards, BoardSummary, listTeamMembers, uploadFile } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, listTeamMembers, TeamMemberSummary, uploadFile } from "@/lib/api/contracts";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
+import { toReferenceUsers } from "@/lib/workspace-members";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -35,7 +36,7 @@ export default function DocumentPage() {
   const [folders, setFolders] = useState<Folder[]>([]);
   const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
   const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
@@ -1102,12 +1103,7 @@ export default function DocumentPage() {
               canEdit={canEdit}
               documents={teamDocs}
               boards={teamBoards}
-              users={teamMembers.map((m) => ({
-                id: m.userId || m.id,
-                name: m.displayName || m.email,
-                avatarUrl: m.avatarUrl,
-                email: m.email || m.primaryEmail,
-              }))}
+              users={teamMembers}
               addableKinds={['text', 'table', 'database', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}

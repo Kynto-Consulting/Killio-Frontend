@@ -7,6 +7,7 @@ import { UnifiedBrickList } from "./unified-brick-list";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { resolveNestedBricks } from "@/lib/bricks/nesting";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface ColumnsBrickProps {
   id: string;
@@ -17,7 +18,7 @@ interface ColumnsBrickProps {
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
   onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => void;
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;

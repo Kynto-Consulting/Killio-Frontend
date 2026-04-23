@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { UnifiedBrickList } from "./unified-brick-list";
 import { resolveNestedBricks } from "@/lib/bricks/nesting";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface TabsBrickProps {
   id: string;
@@ -20,7 +21,7 @@ interface TabsBrickProps {
   onReorderBricks?: (ids: string[]) => void;
   documents?: any[];
   boards?: any[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
 }
 
 export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ 

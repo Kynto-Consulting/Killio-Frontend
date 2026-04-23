@@ -9,6 +9,7 @@ import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "../ui/reference-token-input";
 import { resolveNestedBricks } from "@/lib/bricks/nesting";
+import { WorkspaceMember, WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface AccordionBrickProps {
   id: string;
@@ -21,7 +22,7 @@ interface AccordionBrickProps {
   documents: DocumentSummary[];
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
-  users?: any[];
+  users?: WorkspaceMemberLike[];
   onAddBrick?: (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => void;
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;

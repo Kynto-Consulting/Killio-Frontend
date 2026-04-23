@@ -4,6 +4,7 @@ import React from "react";
 import { UnifiedTextBrick } from "./unified-text-brick";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface QuoteBrickProps {
   id: string;
@@ -14,7 +15,7 @@ interface QuoteBrickProps {
   documents: DocumentSummary[];
   boards: BoardSummary[];
   activeBricks: DocumentBrick[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
 }
 
 export const UnifiedQuoteBrick: React.FC<QuoteBrickProps> = (props) => {

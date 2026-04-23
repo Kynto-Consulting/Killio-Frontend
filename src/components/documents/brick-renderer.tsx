@@ -7,6 +7,7 @@ import { BoardSummary } from "@/lib/api/contracts";
 import { CheckSquare, Table as TableIcon, ChevronDown, ChevronRight, BarChart2, Trash2, Plus, LayoutDashboard, FileText, CreditCard } from "lucide-react";
 import { ReferencePicker } from "./reference-picker";
 import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer } from 'recharts';
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface BrickRendererProps {
   brick: DocumentBrick;
@@ -15,7 +16,7 @@ interface BrickRendererProps {
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   folders?: any[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
 }
 
 export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards = [], folders = [], users = [] }: BrickRendererProps) {

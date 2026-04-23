@@ -11,6 +11,7 @@ import {
   type BoardView,
   type ActivityLogEntry,
   listTeamMembers,
+  type TeamMemberSummary,
   updateCard,
   updateList,
   getCardActivity,
@@ -26,6 +27,7 @@ import {
   resolveReportDateRange,
   toDocumentMentionToken,
 } from "@/lib/ai-report";
+import { getWorkspaceMemberLabel, normalizeWorkspaceMember, toReferenceUsers, type WorkspaceMemberLike } from "@/lib/workspace-members";
 
 export const fieldLabels: Record<string, string> = {
   title: "título",
@@ -117,15 +119,11 @@ function insertDateDividers(messages: Message[], locale: string = 'es', t: (key:
   return result;
 }
 
-export function getResolverContext(teamDocs: DocumentSummary[], teamBoards: any[], teamMembers: any[]): ResolverContext {
+export function getResolverContext(teamDocs: DocumentSummary[], teamBoards: any[], teamMembers: WorkspaceMemberLike[]): ResolverContext {
   return {
     documents: teamDocs,
     boards: teamBoards,
-    users: (teamMembers || []).map((m) => ({
-      id: m.userId || m.id,
-      name: m.displayName || m.name,
-      avatarUrl: m.avatarUrl,
-    }))
+    users: teamMembers || [],
   };
 }
 
@@ -224,7 +222,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
   const [realtimeEvents, setRealtimeEvents] = useState<string[]>([]);
   const [allAvailableTags, setAllAvailableTags] = useState<any[]>([]);
   const [teamDocs, setTeamDocs] = useState<DocumentSummary[]>([]);
-  const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberSummary[]>([]);
   const [teamBoardsForMentions, setTeamBoardsForMentions] = useState<any[]>([]);
   const [boardCardsForMentions, setBoardCardsForMentions] = useState<Array<{ id: string; title: string }>>([]);
   const [reportFromDate, setReportFromDate] = useState("");
@@ -247,13 +245,14 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
           .reverse()
           .map(a => {
             const member = teamMembers.find(m => m.id === a.actorId || m.userId === a.actorId);
+            const normalizedMember = member ? normalizeWorkspaceMember(member) : null;
             return {
               id: a.id as any,
               role: a.actorId === user?.id ? 'user' : 'bot',
               content: (a.payload as any)?.text || "",
-              avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
-              avatarUrl: member?.avatarUrl || member?.avatar_url || null,
-              email: member?.email || null,
+              avatar: normalizedMember?.displayName?.[0] || '?',
+              avatarUrl: normalizedMember?.avatarUrl || null,
+              email: normalizedMember?.primaryEmail || null,
               timestamp: a.createdAt,
             } as Message;
           });
@@ -410,7 +409,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
 
     const activityLines = activity.slice(0, 40).map((entry) => {
       const actor = teamMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-      const actorName = actor?.displayName || actor?.name || actor?.email || entry.actorId || 'User';
+      const actorName = getWorkspaceMemberLabel(actor, entry.actorId || 'User');
       const payload = entry.payload && typeof entry.payload === "object" ? JSON.stringify(entry.payload).slice(0, 280) : "{}";
       return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId}) payload=${payload}`;
     });
@@ -504,7 +503,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
           .slice(0, 20)
             .map((log) => {
               const actor = teamMembers.find((m) => m.id === log.actorId || m.userId === log.actorId);
-              const actorName = actor?.displayName || actor?.name || actor?.email || "Alguien";
+              const actorName = getWorkspaceMemberLabel(actor, "Alguien");
               return `- [${log.createdAt}] ${actorName} in ${card.title}: ${String((log.payload as any)?.text || "")}`;
             });
         }).slice(0, 200);
@@ -513,7 +512,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
           .slice(0, 250)
           .map((log) => {
              const actor = teamMembers.find((m) => m.id === log.actorId || m.userId === log.actorId);
-             const actorName = actor?.displayName || actor?.name || actor?.email || "Alguien";
+             const actorName = getWorkspaceMemberLabel(actor, "Alguien");
              return `- [${log.createdAt}] ${actorName} did ${log.action} (${log.scope}:${log.scopeId})`;
           });
       const dateRangeLabel = formatDateRangeLabel(effectiveRange);
@@ -606,13 +605,14 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       if (userId === user?.id) return;
 
       const member = teamMembers.find(m => m.id === userId || m.userId === userId);
+      const normalizedMember = member ? normalizeWorkspaceMember(member) : null;
       const msg: Message = {
         id: Date.now(),
         role: "bot",
         content: text,
-        avatar: member?.displayName?.[0] || member?.name?.[0] || '?',
-        avatarUrl: member?.avatarUrl || member?.avatar_url || null,
-        email: member?.email || null,
+        avatar: normalizedMember?.displayName?.[0] || '?',
+        avatarUrl: normalizedMember?.avatarUrl || null,
+        email: normalizedMember?.primaryEmail || null,
         timestamp: new Date().toISOString(),
       };
       setRawChatMessages(prev => [...prev, msg]);

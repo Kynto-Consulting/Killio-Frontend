@@ -17,6 +17,7 @@ import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inli
 import katex from "katex";
 // @ts-ignore
 import "katex/dist/katex.min.css";
+import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface TextBrickProps {
   id: string;
@@ -28,7 +29,7 @@ interface TextBrickProps {
   boards: BoardSummary[];
   folders?: any[];
   activeBricks: DocumentBrick[];
-  users?: Array<{ id: string; name: string; avatarUrl?: string | null }>;
+  users?: WorkspaceMemberLike[];
   onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onAiAction?: (action: string, contextText: string) => void;
 }
