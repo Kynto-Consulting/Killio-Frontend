@@ -2662,14 +2662,15 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     return `@${normalized || "user"}`;
   };
 
-  const getUserLabel = (user: { name?: string | null; email?: string | null }) => {
+  const getUserLabel = (user: WorkspaceMemberLike) => {
     const fmt = column.personFormat || "name";
     if (fmt === "email") return user.email || user.name || "User";
-    if (fmt === "alias") return toAlias(user.email! || user.name!);
+    if (fmt === "alias") return user.displayName ? toAlias(user.displayName) : (user.email ? toAlias(user.email) : "User");
     return user.name || user.email || "User";
   };
 
-  const resolveUser = (user: { id?: string; name?: string | null; email?: string | null }) => {
+  const resolveUser = (user?: WorkspaceMemberLike) => {
+    if(!user)return user!;
     const byId = user.id ? users.find((u) => u?.id && u.id === user.id) : undefined;
     const byName = !byId && user.name ? users.find((u) => u?.name && u.name === user.name) : undefined;
     const matched = byId || byName;
@@ -2684,10 +2685,10 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
     const value = (raw || "").trim();
     if (!value) return { id: "system", name: "System" };
     if (value.includes("@")) {
-      return { id: value, name: value.split("@")[0] || "User", email: value };
+      return users.find((u) => u?.primaryEmail === value)
     }
     
-    return { id: value, name: users.find((u) => u?.id === value)?.name || value };
+    return users.find((u) => u?.id === value);
   };
 
   const getDocumentLabel = (doc: { id: string; name?: string }) => {
