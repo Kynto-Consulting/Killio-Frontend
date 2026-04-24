@@ -251,8 +251,9 @@ export default function DocumentPage() {
   });
 
   const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
+    console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
     if (!accessToken || !document) return;
-
+    
     const parentBrick = parentProps ? document.bricks.find((b) => b.id === parentProps.parentId) : null;
     const contextBricks = parentProps && parentBrick
       ? (resolveNestedBricks(parentBrick.content, parentProps.containerId, document.bricks as any[]) as DocumentBrick[])
@@ -332,23 +333,16 @@ export default function DocumentPage() {
         webhookUrl: '',
         submitLabel: 'Enviar',
         successMessage: 'Enviado correctamente.',
-        fields: [
-          {
-            id: 'field-1',
-            label: 'Nombre',
-            type: 'text',
-            placeholder: 'Escribe tu nombre',
-            required: true,
-          },
-        ],
+        pages: [{ id: 'page-1', label: 'Paso 1' }],
+        childrenByContainer: { 'page-1': [] },
       };
     }
-
+  }
     let finalKind = kind;
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
     if (kind === 'code' || kind === 'math') finalKind = 'text';
     if (kind === 'database' || kind === 'bountiful' || kind === 'beautiful_table') finalKind = 'beautiful_table';
-
+    
     try {
       const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
       // Wait for WS OR optimistic update:
@@ -380,10 +374,28 @@ export default function DocumentPage() {
         }
       }
       
-      // If we just created a tabs, accordion, or columns container, scaffold an initial text brick inside it
-      if (['tabs', 'accordion', 'columns'].includes(kind)) {
-        const defaultContainerId = kind === 'tabs' ? '1' : kind === 'columns' ? '1' : 'body';
-        const textContent = { text: '' };
+      // If we just created a container block, scaffold initial inner content.
+      if (['tabs', 'accordion', 'columns', 'form'].includes(kind)) {
+        const defaultContainerId = kind === 'tabs'
+          ? '1'
+          : kind === 'columns'
+            ? '1'
+            : kind === 'form'
+              ? 'page-1'
+              : 'body';
+        const textContent = kind === 'form'
+          ? {
+              text: '',
+              markdown: '',
+              formField: {
+                fieldId: 'field_nombre',
+                type: 'text',
+                placeholder: 'Escribe tu nombre',
+                required: true,
+                options: [],
+              },
+            }
+          : { text: '' };
         const innerBrick = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent }, accessToken);
         
         // For columns, scaffold a second one immediately
@@ -1097,6 +1109,6 @@ export default function DocumentPage() {
       />
     </div>
   );
-}
+
 
 }

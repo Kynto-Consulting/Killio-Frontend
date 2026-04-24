@@ -52,6 +52,7 @@ interface UnifiedBrickListProps {
   onPatchCell?: (brickId: string, patch: Record<string, any>) => void;
   onPatchColumn?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
+  showDragOverlay?: boolean;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -76,7 +77,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onAiAction,
   onPatchCell,
   onPatchColumn,
-  isCompact = false
+  isCompact = false,
+  showDragOverlay = true
 }) => {
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -125,34 +127,41 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   const handleDragEnd = (event: DragEndEvent) => {
     setActiveId(null);
     const { active, over } = event;
-    if (over && active.id !== over.id) {
-      const oldIndex = bricks.findIndex((b) => b.id === active.id);
-      const newIndex = bricks.findIndex((b) => b.id === over.id);
-      
-      // If either isn't found in current scope, it's a cross-container drop
-      if (oldIndex === -1 || newIndex === -1) {
-        if (onCrossContainerDrop) {
-           onCrossContainerDrop(active.id as string, dropContainerToken || (over.id as string));
-        }
-        return;
-      }
-      
-      const newOrder = [...bricks];
-      const [moved] = newOrder.splice(oldIndex, 1);
-      newOrder.splice(newIndex, 0, moved);
-      
-      onReorderBricks(newOrder.map(b => b.id));
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = bricks.findIndex((b) => b.id === active.id);
+    if (oldIndex === -1) {
+      // This drag belongs to a nested/parent list, ignore in this scope.
+      return;
     }
+
+    const newIndex = bricks.findIndex((b) => b.id === over.id);
+    if (newIndex === -1) {
+      if (onCrossContainerDrop) {
+        onCrossContainerDrop(active.id as string, dropContainerToken || (over.id as string));
+      }
+      return;
+    }
+
+    const newOrder = [...bricks];
+    const [moved] = newOrder.splice(oldIndex, 1);
+    newOrder.splice(newIndex, 0, moved);
+
+    onReorderBricks(newOrder.map((b) => b.id));
   };
 
   const sortedBricks = [...bricks].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   const renderBrick = (brick: any) => {
+    if (!brick) {
+      return null;
+    }
+
     // Normalize mapping for Cards (BoardBrick) vs Documents (DocumentBrick)
     const normalized = {
       ...brick,
       content: {
-        text: brick.markdown! || brick.content?.text || "",
+        text: brick.markdown || brick.content?.text || "",
         rows: brick.rows || brick.content?.rows || [],
         items: brick.tasks || brick.items || brick.content?.items || [],
         title: brick.title || brick.content?.title || "",
@@ -234,17 +243,22 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
-          onDragStart={(e) => setActiveId(e.active.id as string)}
+          onDragStart={(e) => {
+            const isOwnedByThisList = bricks.some((b) => b.id === e.active.id);
+            setActiveId(isOwnedByThisList ? (e.active.id as string) : null);
+          }}
           onDragEnd={handleDragEnd}
         >
           {listContent}
-          <DragOverlay>
-            {activeId ? (
-               <div className="opacity-80 scale-[1.02] shadow-xl bg-background border border-border rounded-lg p-2">
-                  {renderBrick(bricks.find(b => b.id === activeId))}
-               </div>
-            ) : null}
-          </DragOverlay>
+          {showDragOverlay && (
+            <DragOverlay>
+              {activeId ? (
+                 <div className="opacity-80 scale-[1.02] shadow-xl bg-background border border-border rounded-lg p-2">
+                    {renderBrick(bricks.find(b => b.id === activeId))}
+                 </div>
+              ) : null}
+            </DragOverlay>
+          )}
         </DndContext>
       )}
 

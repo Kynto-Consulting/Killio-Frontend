@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { FileText, Loader2, Lock, Sparkles } from "lucide-react";
-import { getPublicDocument, type DocumentView } from "@/lib/api/documents";
-import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
+import { ArrowLeft, FileText, Loader2, Lock, LogIn, UserPlus } from "lucide-react";
+import { getPublicDocument, type DocumentBrick, type DocumentView } from "@/lib/api/documents";
+import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
+import { getTopLevelBrickIds } from "@/lib/bricks/nesting";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function PublicDocumentPage() {
@@ -38,9 +39,17 @@ export default function PublicDocumentPage() {
     };
   }, [docId, t]);
 
+  const topLevelBricks = useMemo(() => {
+    if (!document) return [];
+    const topLevelIds = getTopLevelBrickIds(document.bricks);
+    return document.bricks
+      .filter((brick) => topLevelIds.has(brick.id))
+      .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  }, [document]);
+
   if (isLoading) {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,1))] text-foreground flex items-center justify-center p-6">
+      <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-3 shadow-sm">
           <Loader2 className="h-4 w-4 animate-spin text-accent" />
           <span className="text-sm text-muted-foreground">Cargando documento público</span>
@@ -51,8 +60,8 @@ export default function PublicDocumentPage() {
 
   if (error || !document || document.visibility !== "public_link") {
     return (
-      <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,1))] text-foreground p-6 md:p-10">
-        <div className="mx-auto max-w-3xl rounded-3xl border border-border bg-card/95 p-6 shadow-xl backdrop-blur">
+      <main className="min-h-screen bg-background text-foreground p-6 md:p-10">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Lock className="h-4 w-4" />
             <span className="text-xs font-semibold uppercase tracking-[0.2em]">Documento público</span>
@@ -60,8 +69,13 @@ export default function PublicDocumentPage() {
           <h1 className="mt-3 text-3xl font-semibold tracking-tight">Documento no disponible</h1>
           <p className="mt-2 text-muted-foreground">Este documento no es público o el enlace no es válido.</p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/login" className="inline-flex items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
+            <Link href="/login" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+              <LogIn className="h-4 w-4" />
               Iniciar sesión
+            </Link>
+            <Link href="/signup" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-accent/10">
+              <UserPlus className="h-4 w-4" />
+              Crear cuenta
             </Link>
             <Link href="/" className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium">
               Ir al inicio
@@ -73,43 +87,62 @@ export default function PublicDocumentPage() {
   }
 
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_rgba(59,130,246,0.14),_transparent_28%),linear-gradient(180deg,_rgba(255,255,255,0.98),_rgba(248,250,252,1))] text-foreground px-4 py-6 md:px-8 md:py-10">
-      <div className="mx-auto max-w-5xl space-y-6">
-        <header className="rounded-3xl border border-border bg-card/95 p-6 shadow-xl backdrop-blur">
-          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold uppercase tracking-[0.2em] text-muted-foreground">
-            <Sparkles className="h-4 w-4 text-accent" />
-            <span>Documento público</span>
+    <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-card/70 px-4 backdrop-blur-md shadow-sm">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href="/" className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          </Link>
+          <div className="h-4 w-px bg-border/80 mx-1" />
+          <div className="flex items-center gap-1.5 text-foreground bg-accent/5 px-2 py-1 rounded-md min-w-0">
+            <FileText className="h-4 w-4 text-accent shrink-0" />
+            <h1 className="font-semibold tracking-tight truncate max-w-[40vw] sm:max-w-[320px]">{document.title}</h1>
           </div>
-          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-            <div className="space-y-2">
-              <h1 className="text-3xl font-semibold tracking-tight md:text-4xl">{document.title}</h1>
-              <p className="max-w-2xl text-sm text-muted-foreground">
-                Este enlace permite ver el documento sin iniciar sesión.
-              </p>
-            </div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-3 py-1.5 text-xs font-medium text-muted-foreground">
-              <Lock className="h-3.5 w-3.5" />
-              Solo lectura
-            </div>
+          <span className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+            <Lock className="h-3 w-3" />
+            Solo lectura
+          </span>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Link href="/signup" className="hidden sm:inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-accent/10">
+            <UserPlus className="h-3.5 w-3.5" />
+            Crear cuenta
+          </Link>
+          <Link href="/login" className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
+            <LogIn className="h-3.5 w-3.5" />
+            Iniciar sesión
+          </Link>
+        </div>
+      </header>
+
+      <main className="flex-1 overflow-y-auto w-full flex justify-center py-10 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-4xl w-full">
+          <div className="mb-8 border-b border-border/50 pb-5">
+            <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">{document.title}</h2>
+            <p className="mt-3 text-sm text-muted-foreground">Este documento se comparte por enlace y solo permite lectura.</p>
           </div>
-        </header>
 
-        <section className="rounded-3xl border border-border bg-card/95 p-4 shadow-xl backdrop-blur md:p-6">
-          <UnifiedBrickList
-            bricks={document.bricks}
-            canEdit={false}
-            onUpdateBrick={() => undefined}
-            onDeleteBrick={() => undefined}
-            onReorderBricks={() => undefined}
-            onAddBrick={() => undefined}
-            addableKinds={[]}
-          />
-        </section>
-
-        <footer className="pb-4 text-center text-xs text-muted-foreground">
-          Creado en Killio · enlace público de solo lectura
-        </footer>
-      </div>
-    </main>
+          <div className="pb-32 space-y-2">
+            {topLevelBricks.length === 0 ? (
+              <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
+                Este documento no tiene contenido todavía.
+              </div>
+            ) : (
+              topLevelBricks.map((brick: DocumentBrick) => (
+                <UnifiedBrickRenderer
+                  key={brick.id}
+                  brick={brick}
+                  canEdit={false}
+                  onUpdate={() => undefined}
+                  activeBricks={document.bricks}
+                  isCompact
+                />
+              ))
+            )}
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

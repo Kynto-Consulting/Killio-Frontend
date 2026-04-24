@@ -11,6 +11,7 @@ import { UnifiedAccordionBrick } from "./unified-accordion-brick";
 import { UnifiedQuoteBrick } from "./unified-quote-brick";
 import { UnifiedDividerBrick } from "./unified-divider-brick";
 import { UnifiedFormBrick } from './unified-form-brick';
+import { UnifiedFormFieldBrick, normalizeFormFieldConfig, useFormFieldRuntime } from "./unified-form-field-brick.web";
 import { UnifiedCalloutBrick } from "./unified-callout-brick";
 import { UnifiedTabsBrick } from "./unified-tabs-brick";
 import { UnifiedColumnsBrick } from "./unified-columns-brick";
@@ -105,6 +106,7 @@ export function UnifiedBrickRenderer({
   const t = useTranslations("document-detail");
   const { user } = useSession();
   const { kind, content } = brick;
+  const formFieldRuntime = useFormFieldRuntime();
   const [isCommentsOpen, setIsCommentsOpen] = React.useState(false);
   const [newComment, setNewComment] = React.useState("");
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
@@ -138,7 +140,31 @@ export function UnifiedBrickRenderer({
   let brickBody: React.ReactNode;
 
   switch (kind) {
-    case 'text':
+    case 'text': {
+      const formFieldConfig = normalizeFormFieldConfig(content?.formField);
+      if (formFieldConfig) {
+        brickBody = (
+          <UnifiedFormFieldBrick
+            id={brick.id}
+            config={formFieldConfig}
+            readonly={!canEdit}
+            onUpdate={(nextConfig) => {
+              onUpdate({
+                ...content,
+                kind: 'text',
+                displayStyle: content.displayStyle || 'paragraph',
+                markdown: content.markdown || content.text || "",
+                formField: nextConfig,
+              });
+            }}
+            runtimeValue={formFieldRuntime?.values?.[brick.id]}
+            onRuntimeValueChange={formFieldRuntime ? (value) => formFieldRuntime.setValue(brick.id, value) : undefined}
+            interactive={Boolean(formFieldRuntime?.interactive)}
+          />
+        );
+        break;
+      }
+
       brickBody = (
         <UnifiedTextBrick
           id={brick.id}
@@ -162,6 +188,7 @@ export function UnifiedBrickRenderer({
         />
       );
       break;
+    }
 
     case 'table':
       brickBody = (
@@ -375,6 +402,15 @@ export function UnifiedBrickRenderer({
           content={content as any}
           canEdit={canEdit}
           onUpdate={(nextContent) => onUpdate({ ...content, kind: 'form', ...nextContent })}
+          activeBricks={activeBricks}
+          onAddBrick={onAddBrick}
+          onDeleteBrick={onDeleteBrick}
+          onUpdateBrick={onUpdateBrick}
+          onReorderBricks={onReorderBricks}
+          onCrossContainerDrop={onCrossContainerDrop}
+          documents={documents}
+          boards={boards}
+          users={users}
         />
       );
       break;

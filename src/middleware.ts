@@ -13,7 +13,7 @@ import { NextRequest, NextResponse } from 'next/server';
  */
 
 const PUBLIC_EXACT_PATHS = ['/', '/login', '/signup', '/accept-invite', '/privacy', '/terms', '/cookies'];
-const PUBLIC_PREFIX_PATHS = ['/api', '/public-board'];
+const PUBLIC_PREFIX_PATHS = ['/api', '/public-board', '/public-document'];
 
 function isPublic(pathname: string) {
   return PUBLIC_EXACT_PATHS.includes(pathname) || PUBLIC_PREFIX_PATHS.some((p) => pathname.startsWith(p));
