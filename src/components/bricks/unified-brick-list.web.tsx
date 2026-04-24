@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon, LayoutGrid } from "lucide-react";
+import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon, LayoutGrid, FileText } from "lucide-react";
 import { UnifiedBrickRenderer } from "./brick-renderer";
 import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   const [pickerState, setPickerState] = useState<{ isOpen: boolean; filter: string[]; triggerBrickId: string } | null>(null);
   const enabledKinds = addableKinds && addableKinds.length > 0
     ? addableKinds
-    : ['text', 'table', 'graph', 'checklist', 'accordion'];
+    : ['text', 'table', 'graph', 'checklist', 'accordion', 'form'];
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -274,6 +274,11 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
           )}          {enabledKinds.includes('graph') && (
             <Button variant="ghost" size="sm" onClick={() => onAddBrick('graph')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
               <BarChart2 className="w-3.5 h-3.5 text-accent" /> Gráfico
+            </Button>
+          )}
+          {enabledKinds.includes('form') && (
+            <Button variant="ghost" size="sm" onClick={() => onAddBrick('form')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
+              <FileText className="w-3.5 h-3.5 text-accent" /> Formulario
             </Button>
           )}
           {enabledKinds.includes('checklist') && (

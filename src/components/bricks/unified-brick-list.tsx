@@ -16,7 +16,7 @@ import {
   verticalListSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon, LayoutGrid } from "lucide-react";
+import { Type, Table, BarChart2, CheckSquare, ChevronDown, Image as ImageIcon, LayoutGrid, FileText } from "lucide-react";
 import { UnifiedBrickRenderer } from "./brick-renderer";
 import { SortableBrick } from "./sortable-brick";
 import { Button } from "@/components/ui/button";
