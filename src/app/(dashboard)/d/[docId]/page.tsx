@@ -13,7 +13,6 @@ import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
 import { useDocumentPresence } from "@/hooks/useDocumentPresence";
-import { addDocumentMember } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { updateDocumentTitle } from "@/lib/api/documents";
 import { Button } from "@/components/ui/button";
@@ -25,6 +24,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 import { toReferenceUsers } from "@/lib/workspace-members";
+import { DocumentShareModal } from "@/components/ui/document-share-modal";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -40,9 +40,6 @@ export default function DocumentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
-  const [shareEmail, setShareEmail] = useState("");
-  const [shareRole, setShareRole] = useState<any>("editor");
-  const [isSharing, setIsSharing] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -327,7 +324,25 @@ export default function DocumentPage() {
     if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
     if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
     if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }], childrenByContainer: { '1': [] } };
-    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }], childrenByContainer: { '1': [], '2': [] } }; }
+    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }], childrenByContainer: { '1': [], '2': [] } };
+    if (kind === 'form' && !initialContent) {
+      content = {
+        title: 'Formulario',
+        description: '',
+        webhookUrl: '',
+        submitLabel: 'Enviar',
+        successMessage: 'Enviado correctamente.',
+        fields: [
+          {
+            id: 'field-1',
+            label: 'Nombre',
+            type: 'text',
+            placeholder: 'Escribe tu nombre',
+            required: true,
+          },
+        ],
+      };
+    }
 
     let finalKind = kind;
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
@@ -811,21 +826,6 @@ export default function DocumentPage() {
     }
   };
 
-  const handleShare = async () => {
-    if (!accessToken || !shareEmail.trim()) return;
-    setIsSharing(true);
-    try {
-      await addDocumentMember(docId, shareEmail, shareRole, accessToken);
-      toast(t("shareSuccess", { email: shareEmail }));
-      setShareEmail("");
-      setIsShareModalOpen(false);
-    } catch (e: any) {
-      toast(e.message || t("shareError"), "error");
-    } finally {
-      setIsSharing(false);
-    }
-  };
-
   if (isLoading) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -848,6 +848,7 @@ export default function DocumentPage() {
   }
 
   const canEdit = document.role === 'owner' || document.role === 'editor';
+  const canManageDocument = document.role === 'owner';
 
   // Build breadcrumb path
   const getBreadcrumbs = () => {
@@ -950,10 +951,12 @@ export default function DocumentPage() {
             Descargar
           </Button>
 
-          <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
-            <Share2 className="h-3.5 w-3.5" />
-            {t("header.share")}
-          </Button>
+          {canManageDocument && (
+            <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
+              <Share2 className="h-3.5 w-3.5" />
+              {t("header.share")}
+            </Button>
+          )}
 
           <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "Usuario"}>
             {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
@@ -1012,55 +1015,14 @@ export default function DocumentPage() {
         </div>
       )}
 
-      {/* Share Modal Backdrop */}
-      {isShareModalOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setIsShareModalOpen(false)}>
-          <div className="bg-card w-full max-w-md border border-border shadow-2xl rounded-xl overflow-hidden p-6 animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-bold flex items-center gap-2">
-                <Users className="h-5 w-5 text-accent" />
-                {t("shareModal.title")}
-              </h2>
-              <button onClick={() => setIsShareModalOpen(false)} className="text-muted-foreground hover:text-foreground">
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("shareModal.userEmail")}</label>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder={t("shareModal.emailPlaceholder")}
-                    value={shareEmail}
-                    onChange={(e: any) => setShareEmail(e.target.value)}
-                    className="flex-1"
-                  />
-                  <select
-                    value={shareRole}
-                    onChange={e => setShareRole(e.target.value)}
-                    className="bg-muted border border-border rounded-md px-2 text-xs outline-none focus:ring-1 focus:ring-accent"
-                  >
-                    <option value="viewer">{t("shareModal.viewer")}</option>
-                    <option value="editor">{t("shareModal.editor")}</option>
-                  </select>
-                </div>
-              </div>
-              <Button
-                onClick={handleShare}
-                disabled={isSharing || !shareEmail.trim()}
-                className="w-full bg-accent hover:bg-accent/90 text-accent-foreground"
-              >
-                {isSharing ? <Loader2 className="h-4 w-4 animate-spin" /> : t("shareModal.invite")}
-              </Button>
-            </div>
-
-            <p className="mt-6 text-[11px] text-muted-foreground leading-relaxed italic border-t border-border pt-4">
-              {t("shareModal.teamNote")}
-            </p>
-          </div>
-        </div>
-      )}
+      <DocumentShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        documentId={docId}
+        documentName={document.title}
+        initialVisibility={document.visibility}
+        accessToken={accessToken!}
+      />
 
       {/* Editor Content Area */}
       <main className="flex-1 overflow-y-auto w-full flex justify-center py-10 px-4 sm:px-6 lg:px-8">
@@ -1104,7 +1066,7 @@ export default function DocumentPage() {
               documents={teamDocs}
               boards={teamBoards}
               users={teamMembers}
-              addableKinds={['text', 'table', 'database', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math']}
+              addableKinds={['text', 'table', 'database', 'graph', 'checklist', 'accordion', 'tabs', 'columns', 'image', 'video', 'audio', 'file', 'code', 'bookmark', 'math', 'form']}
               onAddBrick={handleAddBrick}
               onUpdateBrick={handleUpdateBrick}
               onPatchCell={handlePatchBrickCell}

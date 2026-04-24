@@ -6,6 +6,7 @@ export type DocumentSummary = {
   id: string;
   title: string;
   teamId: string;
+  visibility: 'private' | 'team' | 'public_link';
   folderId?: string;
   createdByUserId: string;
   createdAt: string;
@@ -62,6 +63,15 @@ export type DocumentView = DocumentSummary & {
   bricks: DocumentBrick[];
 };
 
+export type DocumentMemberSummary = {
+  id: string;
+  email: string;
+  name: string | null;
+  alias: string | null;
+  role: DocumentMembershipRole;
+  avatarUrl: string | null;
+};
+
 export async function listDocuments(teamId: string, accessToken: string, folderId?: string): Promise<DocumentSummary[]> {
   const url = folderId ? `/documents?teamId=${teamId}&folderId=${folderId}` : `/documents?teamId=${teamId}`;
   return fetchApi(url, { accessToken });
@@ -80,6 +90,10 @@ export async function createDocument(
 
 export async function getDocument(documentId: string, accessToken: string): Promise<DocumentView> {
   return fetchApi(`/documents/${documentId}`, { accessToken });
+}
+
+export async function getPublicDocument(documentId: string): Promise<DocumentView> {
+  return fetchApi(`/public-documents/${documentId}`);
 }
 
 export async function getDocumentExportUrl(documentId: string, format: 'pdf' | 'docx', style: 'carta' | 'harvard', paperSize: 'letter' | 'A4', accessToken: string): Promise<string> {
@@ -124,6 +138,18 @@ export async function updateDocument(
     method: 'PUT',
     accessToken,
     body: JSON.stringify(updates),
+  });
+}
+
+export async function updateDocumentVisibility(
+  documentId: string,
+  visibility: 'private' | 'team' | 'public_link',
+  accessToken: string,
+): Promise<void> {
+  return fetchApi(`/documents/${documentId}/visibility`, {
+    method: 'PATCH',
+    body: JSON.stringify({ visibility }),
+    accessToken,
   });
 }
 
@@ -210,6 +236,17 @@ export async function addDocumentMember(
   return fetchApi(`/documents/${documentId}/members`, {
     method: 'POST',
     body: JSON.stringify({ email, role }),
+    accessToken,
+  });
+}
+
+export async function getDocumentMembers(documentId: string, accessToken: string): Promise<DocumentMemberSummary[]> {
+  return fetchApi(`/documents/${documentId}/members`, { accessToken });
+}
+
+export async function removeDocumentMember(documentId: string, memberId: string, accessToken: string): Promise<void> {
+  return fetchApi(`/documents/${documentId}/members/${memberId}`, {
+    method: 'DELETE',
     accessToken,
   });
 }

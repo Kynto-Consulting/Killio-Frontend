@@ -10,6 +10,7 @@ import { UnifiedChecklistBrick } from "./unified-checklist-brick";
 import { UnifiedAccordionBrick } from "./unified-accordion-brick";
 import { UnifiedQuoteBrick } from "./unified-quote-brick";
 import { UnifiedDividerBrick } from "./unified-divider-brick";
+import { UnifiedFormBrick } from './unified-form-brick';
 import { UnifiedCalloutBrick } from "./unified-callout-brick";
 import { UnifiedTabsBrick } from "./unified-tabs-brick";
 import { UnifiedColumnsBrick } from "./unified-columns-brick";
@@ -363,6 +364,17 @@ export function UnifiedBrickRenderer({
           documents={documents}
           boards={boards}
           users={users}
+        />
+      );
+      break;
+
+    case 'form':
+      brickBody = (
+        <UnifiedFormBrick
+          id={brick.id}
+          content={content as any}
+          canEdit={canEdit}
+          onUpdate={(nextContent) => onUpdate({ ...content, kind: 'form', ...nextContent })}
         />
       );
       break;
