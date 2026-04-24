@@ -23,7 +23,11 @@ interface ColumnsBrickProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
-  onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  onCrossContainerDrop?: (
+    activeId: string,
+    overId: string,
+    options?: { intent?: "move" | "merge-text"; sourceContainerToken?: string; targetContainerToken?: string },
+  ) => void;
 }
 
 export const UnifiedColumnsBrick: React.FC<ColumnsBrickProps> = ({ 

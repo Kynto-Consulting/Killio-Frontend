@@ -342,14 +342,99 @@ export default function DocumentPage() {
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
     if (kind === 'code' || kind === 'math') finalKind = 'text';
     if (kind === 'database' || kind === 'bountiful' || kind === 'beautiful_table') finalKind = 'beautiful_table';
+
+    const replaceChildRefId = (rawContent: Record<string, any> | undefined, fromId: string, toId: string): Record<string, any> => {
+      if (!rawContent || typeof rawContent !== 'object') return {};
+      const map = rawContent.childrenByContainer as Record<string, string[]> | undefined;
+      if (!map || typeof map !== 'object') return rawContent;
+
+      const nextMap: Record<string, string[]> = {};
+      for (const [containerId, ids] of Object.entries(map)) {
+        if (!Array.isArray(ids)) {
+          nextMap[containerId] = [];
+          continue;
+        }
+        const seen = new Set<string>();
+        const replaced = ids
+          .map((id) => (id === fromId ? toId : id))
+          .filter((id) => {
+            if (seen.has(id)) return false;
+            seen.add(id);
+            return true;
+          });
+        nextMap[containerId] = replaced;
+      }
+
+      return {
+        ...rawContent,
+        childrenByContainer: nextMap,
+      };
+    };
+
+    const shouldOptimisticTextCreate = finalKind === 'text';
+    const optimisticId = shouldOptimisticTextCreate
+      ? `tmp-text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      : null;
+
+    if (optimisticId) {
+      const nowIso = new Date().toISOString();
+      const optimisticBrick: DocumentBrick = {
+        id: optimisticId,
+        documentId: docId,
+        kind: finalKind,
+        position,
+        content,
+        createdByUserId: user?.id || document.createdByUserId,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+
+      setDocument((prev) => {
+        if (!prev) return prev;
+
+        let nextBricks = prev.bricks;
+        if (!nextBricks.some((b) => b.id === optimisticId)) {
+          nextBricks = [...nextBricks, optimisticBrick].sort((a, b) => a.position - b.position);
+        }
+
+        if (parentProps) {
+          const parent = nextBricks.find((b) => b.id === parentProps.parentId);
+          if (!parent) {
+            return { ...prev, bricks: nextBricks };
+          }
+
+          const siblings = resolveNestedBricks(parent.content, parentProps.containerId, nextBricks as any[]) as DocumentBrick[];
+          const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
+          const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
+          const nextParentContent = insertChildId(parent.content || {}, parentProps.containerId, optimisticId, insertIndex);
+          nextBricks = nextBricks.map((b) => (b.id === parent.id ? { ...b, content: nextParentContent } : b));
+        }
+
+        return { ...prev, bricks: nextBricks };
+      });
+    }
     
     try {
       const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
       // Wait for WS OR optimistic update:
       setDocument((prev) => {
         if (!prev) return prev;
-        if (prev.bricks.some((b) => b.id === newBrick.id)) return prev;
-        return { ...prev, bricks: [...prev.bricks, newBrick].sort((a, b) => a.position - b.position) };
+        let nextBricks = prev.bricks;
+
+        if (optimisticId && nextBricks.some((b) => b.id === optimisticId)) {
+          nextBricks = nextBricks.map((b) => {
+            if (b.id === optimisticId) {
+              return newBrick;
+            }
+
+            const nextContent = replaceChildRefId(b.content, optimisticId, newBrick.id);
+            return nextContent !== b.content ? { ...b, content: nextContent } : b;
+          });
+        } else if (!nextBricks.some((b) => b.id === newBrick.id)) {
+          nextBricks = [...nextBricks, newBrick].sort((a, b) => a.position - b.position);
+        }
+
+        return { ...prev, bricks: nextBricks };
       });
 
       if (parentProps && parentBrick) {
@@ -482,18 +567,46 @@ export default function DocumentPage() {
   const handleDeleteBrick = async (brickId: string) => {
     if (!accessToken || !document) return;
 
+    const byId = new Map(document.bricks.map((brick) => [brick.id, brick]));
+    const idsToDelete = new Set<string>();
+    const queue: string[] = [brickId];
+
+    while (queue.length > 0) {
+      const currentId = queue.shift()!;
+      if (idsToDelete.has(currentId)) continue;
+      idsToDelete.add(currentId);
+
+      const currentBrick = byId.get(currentId);
+      const childrenByContainer = currentBrick?.content?.childrenByContainer as Record<string, string[]> | undefined;
+      if (!childrenByContainer) continue;
+
+      for (const ids of Object.values(childrenByContainer)) {
+        if (!Array.isArray(ids)) continue;
+        for (const childId of ids) {
+          if (!idsToDelete.has(childId)) queue.push(childId);
+        }
+      }
+    }
+
+    const idsList = Array.from(idsToDelete);
+
     setDocument((prev) => {
       if (!prev) return prev;
       return {
         ...prev,
-        bricks: prev.bricks.filter((b) => b.id !== brickId),
+        bricks: prev.bricks.filter((b) => !idsToDelete.has(b.id)),
       };
     });
 
     try {
-      await deleteDocumentBrick(docId, brickId, accessToken);
+      // Delete descendants first, then the root brick.
+      const descendantsFirst = idsList.sort((a, b) => (a === brickId ? 1 : b === brickId ? -1 : 0));
+      for (const id of descendantsFirst) {
+        await deleteDocumentBrick(docId, id, accessToken);
+      }
     } catch (e) {
       console.error(e);
+      fetchDoc();
     }
   };
 
@@ -520,13 +633,41 @@ export default function DocumentPage() {
     }
   };
 
-  const handleCrossContainerDrop = async (activeId: string, overId: string) => {
+  const handleCrossContainerDrop = async (
+    activeId: string,
+    overId: string,
+    options?: { intent?: "move" | "merge-text"; sourceContainerToken?: string; targetContainerToken?: string },
+  ) => {
     if (!accessToken || !document) return;
     const activeBrick = document.bricks.find(b => b.id === activeId);
     if (!activeBrick) return;
 
     const overBrick = document.bricks.find((b) => b.id === overId);
-    const sourceRef = document.bricks
+
+    const readTextMarkdown = (brick: DocumentBrick) => {
+      const raw = brick.content?.markdown ?? brick.content?.text ?? "";
+      return typeof raw === "string" ? raw : String(raw ?? "");
+    };
+
+    const joinTextWithLineBreak = (first: string, second: string) => {
+      if (first.length > 0 && second.length > 0) return `${first}\n${second}`;
+      return `${first}${second}`;
+    };
+
+    const parseContainerToken = (token?: string | null): { parentId: string; containerId: string } | null => {
+      if (!token || typeof token !== "string") return null;
+      const separatorIndex = token.indexOf(":");
+      if (separatorIndex <= 0 || separatorIndex >= token.length - 1) return null;
+      return {
+        parentId: token.slice(0, separatorIndex),
+        containerId: token.slice(separatorIndex + 1),
+      };
+    };
+
+    const sourceRefFromToken = parseContainerToken(options?.sourceContainerToken);
+    const targetRefFromToken = parseContainerToken(options?.targetContainerToken);
+
+    const sourceRef = sourceRefFromToken || document.bricks
       .map((parent) => {
         const map = parent.content?.childrenByContainer as Record<string, string[]> | undefined;
         if (!map) return null;
@@ -537,11 +678,12 @@ export default function DocumentPage() {
       })
       .find(Boolean) as { parentId: string; containerId: string } | undefined;
 
-    let targetRef: { parentId: string; containerId: string } | null = null;
-    if (overId.includes(":")) {
+    let targetRef: { parentId: string; containerId: string } | null = targetRefFromToken;
+    if (!targetRef && overId.includes(":")) {
       const [parentId, containerId] = overId.split(":");
       if (parentId && containerId) targetRef = { parentId, containerId };
-    } else if (overBrick) {
+    }
+    if (!targetRef && overBrick) {
       const nestedOver = document.bricks
         .map((parent) => {
           const map = parent.content?.childrenByContainer as Record<string, string[]> | undefined;
@@ -555,31 +697,261 @@ export default function DocumentPage() {
       if (nestedOver) targetRef = nestedOver;
     }
 
+    const isSameContainer =
+      !!sourceRef &&
+      !!targetRef &&
+      sourceRef.parentId === targetRef.parentId &&
+      sourceRef.containerId === targetRef.containerId;
+
+    const topLevelIds = getTopLevelBrickIds(document.bricks);
+    const isTopLevelToTopLevel =
+      !sourceRef &&
+      !targetRef &&
+      !!overBrick &&
+      topLevelIds.has(activeId) &&
+      topLevelIds.has(overBrick.id);
+
+    // When a nested brick is dragged but targetRef can't be resolved, handle two sub-cases:
+    //   A) over = the source container itself → treat as "move to end of same container"
+    //   B) over = a top-level brick → extract from container into the top-level list
+    if (sourceRef && !targetRef) {
+      if (!overBrick) return;
+
+      // Case A: dropped onto the source container itself
+      if (overBrick.id === sourceRef.parentId) {
+        const caseAParent = document.bricks.find((b) => b.id === sourceRef.parentId);
+        if (!caseAParent) return;
+        const caseAIds = getContainerChildIds(caseAParent.content, sourceRef.containerId);
+        const caseAOldIdx = caseAIds.indexOf(activeId);
+        if (caseAOldIdx === -1) return;
+        // Move to end (skip if already last)
+        if (caseAOldIdx === caseAIds.length - 1) return;
+        const caseANext = [...caseAIds.filter((id) => id !== activeId), activeId];
+        const caseAContent = setContainerChildIds(caseAParent.content, sourceRef.containerId, caseANext);
+        setDocument((prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            bricks: prev.bricks.map((b) => b.id === caseAParent.id ? { ...b, content: caseAContent } : b),
+          };
+        });
+        try {
+          await updateDocumentBrick(docId, caseAParent.id, caseAContent, accessToken);
+        } catch {
+          toast(t("brickError") || "Error moving brick", "error");
+          fetchDoc();
+        }
+        return;
+      }
+
+      // Case B: dropped on a top-level brick → extract from container to top-level
+      const isFieldBrick = activeBrick.kind === "text" && Boolean(activeBrick.content?.formField);
+      if (isFieldBrick) return; // form field bricks must stay inside forms
+
+      const topLevelBrickIds = getTopLevelBrickIds(document.bricks);
+      if (!topLevelBrickIds.has(overBrick.id)) return; // overBrick is in another unknown container
+
+      const caseBParent = document.bricks.find((b) => b.id === sourceRef.parentId);
+      if (!caseBParent) return;
+      const caseBSourceIds = getContainerChildIds(caseBParent.content, sourceRef.containerId).filter((id) => id !== activeId);
+      const caseBSourceContent = setContainerChildIds(caseBParent.content, sourceRef.containerId, caseBSourceIds);
+
+      // Compute new top-level position near overBrick
+      const topSorted = document.bricks
+        .filter((b) => topLevelBrickIds.has(b.id))
+        .sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+      const overTopIdx = topSorted.findIndex((b) => b.id === overBrick.id);
+      let caseBPosition: number;
+      if (overTopIdx < 0) {
+        caseBPosition = (topSorted[topSorted.length - 1]?.position ?? 0) + 1000;
+      } else if (overTopIdx === topSorted.length - 1) {
+        caseBPosition = (topSorted[overTopIdx].position ?? 0) + 1000;
+      } else {
+        caseBPosition = ((topSorted[overTopIdx].position ?? 0) + (topSorted[overTopIdx + 1].position ?? 0)) / 2;
+      }
+
+      setDocument((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          bricks: prev.bricks.map((b) => {
+            if (b.id === caseBParent.id) return { ...b, content: caseBSourceContent };
+            if (b.id === activeId) return { ...b, position: caseBPosition };
+            return b;
+          }),
+        };
+      });
+      try {
+        await updateDocumentBrick(docId, caseBParent.id, caseBSourceContent, accessToken);
+        await reorderDocumentBricks(docId, [{ id: activeId, position: caseBPosition }], accessToken);
+      } catch {
+        toast(t("brickError") || "Error moving brick", "error");
+        fetchDoc();
+      }
+      return;
+    }
+
+    const isFormFieldBrick = activeBrick.kind === "text" && Boolean(activeBrick.content?.formField);
+    if (isFormFieldBrick) {
+      if (!targetRef) return;
+      const targetParent = document.bricks.find((b) => b.id === targetRef.parentId);
+      if (!targetParent || targetParent.kind !== "form") {
+        return;
+      }
+    }
+
+    if (
+      options?.intent === "merge-text" &&
+      overBrick &&
+      activeBrick.id !== overBrick.id &&
+      activeBrick.kind === "text" &&
+      overBrick.kind === "text" &&
+      (isSameContainer || isTopLevelToTopLevel)
+    ) {
+      const sourceText = readTextMarkdown(activeBrick);
+      const targetText = readTextMarkdown(overBrick);
+
+      // Detect relative direction: if source was above target, keep source first.
+      let sourceGoesFirst = false;
+
+      if (isSameContainer && sourceRef) {
+        const sourceParent = document.bricks.find((brick) => brick.id === sourceRef.parentId);
+        if (sourceParent) {
+          const ids = getContainerChildIds(sourceParent.content, sourceRef.containerId);
+          const sourceIndex = ids.indexOf(activeId);
+          const targetIndex = ids.indexOf(overBrick.id);
+          if (sourceIndex >= 0 && targetIndex >= 0) {
+            sourceGoesFirst = sourceIndex < targetIndex;
+          }
+        }
+      } else {
+        const topLevelIds = document.bricks
+          .filter((brick) => getTopLevelBrickIds(document.bricks).has(brick.id))
+          .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
+          .map((brick) => brick.id);
+        const sourceIndex = topLevelIds.indexOf(activeId);
+        const targetIndex = topLevelIds.indexOf(overBrick.id);
+        if (sourceIndex >= 0 && targetIndex >= 0) {
+          sourceGoesFirst = sourceIndex < targetIndex;
+        }
+      }
+
+      const mergedMarkdown = sourceGoesFirst
+        ? joinTextWithLineBreak(sourceText, targetText)
+        : joinTextWithLineBreak(targetText, sourceText);
+
+      const mergedContent = {
+        ...(overBrick.content || {}),
+        kind: "text",
+        displayStyle: overBrick.content?.displayStyle || "paragraph",
+        markdown: mergedMarkdown,
+        text: mergedMarkdown,
+      };
+
+      const parentContentUpdates: Array<{ parentId: string; content: Record<string, any> }> = [];
+      for (const parent of document.bricks) {
+        const map = parent.content?.childrenByContainer as Record<string, string[]> | undefined;
+        if (!map) continue;
+
+        let nextContent = parent.content;
+        let changed = false;
+        for (const [containerId, ids] of Object.entries(map)) {
+          if (!Array.isArray(ids) || !ids.includes(activeId)) continue;
+          nextContent = setContainerChildIds(nextContent, containerId, ids.filter((id) => id !== activeId));
+          changed = true;
+        }
+
+        if (changed) {
+          parentContentUpdates.push({ parentId: parent.id, content: nextContent });
+        }
+      }
+
+      setDocument((prev) => {
+        if (!prev) return prev;
+        const parentUpdatesById = new Map(parentContentUpdates.map((update) => [update.parentId, update.content]));
+
+        return {
+          ...prev,
+          bricks: prev.bricks
+            .filter((brick) => brick.id !== activeId)
+            .map((brick) => {
+              const parentContent = parentUpdatesById.get(brick.id);
+              if (brick.id === overBrick.id) {
+                return {
+                  ...brick,
+                  content: {
+                    ...(parentContent || brick.content || {}),
+                    ...mergedContent,
+                  },
+                };
+              }
+
+              return parentContent ? { ...brick, content: parentContent } : brick;
+            }),
+        };
+      });
+
+      try {
+        await updateDocumentBrick(docId, overBrick.id, mergedContent, accessToken);
+        for (const update of parentContentUpdates) {
+          await updateDocumentBrick(docId, update.parentId, update.content, accessToken);
+        }
+        await deleteDocumentBrick(docId, activeId, accessToken);
+      } catch (e) {
+        toast(t("brickError") || "Error moving brick", "error");
+        fetchDoc();
+      }
+
+      return;
+    }
+
     if (!sourceRef && !targetRef) return;
 
     const updates: Array<{ parentId: string; content: Record<string, any> }> = [];
     const nextById = new Map(document.bricks.map((b) => [b.id, b]));
 
-    if (sourceRef) {
-      const sourceParent = nextById.get(sourceRef.parentId);
-      if (sourceParent) {
-        const sourceIds = getContainerChildIds(sourceParent.content, sourceRef.containerId).filter((id) => id !== activeId);
-        const nextContent = setContainerChildIds(sourceParent.content, sourceRef.containerId, sourceIds);
-        updates.push({ parentId: sourceParent.id, content: nextContent });
-        nextById.set(sourceParent.id, { ...sourceParent, content: nextContent });
-      }
-    }
+    if (isSameContainer && sourceRef) {
+      const parent = nextById.get(sourceRef.parentId);
+      if (!parent) return;
 
-    if (targetRef) {
-      const targetParent = nextById.get(targetRef.parentId);
-      if (targetParent) {
-        const targetIds = getContainerChildIds(targetParent.content, targetRef.containerId).filter((id) => id !== activeId);
-        const insertAt = overBrick ? Math.max(0, targetIds.indexOf(overBrick.id) + 1) : targetIds.length;
-        targetIds.splice(insertAt, 0, activeId);
-        const nextContent = setContainerChildIds(targetParent.content, targetRef.containerId, targetIds);
-        const existing = updates.find((u) => u.parentId === targetParent.id);
-        if (existing) existing.content = nextContent;
-        else updates.push({ parentId: targetParent.id, content: nextContent });
+      const currentIds = getContainerChildIds(parent.content, sourceRef.containerId);
+      const oldIndex = currentIds.indexOf(activeId);
+      if (oldIndex === -1) return;
+
+      let newIndex = overBrick ? currentIds.indexOf(overBrick.id) : currentIds.length - 1;
+      if (newIndex < 0) newIndex = currentIds.length - 1;
+      if (newIndex === oldIndex) return;
+
+      const nextIds = [...currentIds];
+      const [movedId] = nextIds.splice(oldIndex, 1);
+      nextIds.splice(newIndex, 0, movedId);
+
+      const nextContent = setContainerChildIds(parent.content, sourceRef.containerId, nextIds);
+      updates.push({ parentId: parent.id, content: nextContent });
+      nextById.set(parent.id, { ...parent, content: nextContent });
+    } else {
+      if (sourceRef) {
+        const sourceParent = nextById.get(sourceRef.parentId);
+        if (sourceParent) {
+          const sourceIds = getContainerChildIds(sourceParent.content, sourceRef.containerId).filter((id) => id !== activeId);
+          const nextContent = setContainerChildIds(sourceParent.content, sourceRef.containerId, sourceIds);
+          updates.push({ parentId: sourceParent.id, content: nextContent });
+          nextById.set(sourceParent.id, { ...sourceParent, content: nextContent });
+        }
+      }
+
+      if (targetRef) {
+        const targetParent = nextById.get(targetRef.parentId);
+        if (targetParent) {
+          const targetIds = getContainerChildIds(targetParent.content, targetRef.containerId).filter((id) => id !== activeId);
+          const overIndex = overBrick ? targetIds.indexOf(overBrick.id) : -1;
+          const insertAt = overIndex >= 0 ? overIndex : targetIds.length;
+          targetIds.splice(insertAt, 0, activeId);
+          const nextContent = setContainerChildIds(targetParent.content, targetRef.containerId, targetIds);
+          const existing = updates.find((u) => u.parentId === targetParent.id);
+          if (existing) existing.content = nextContent;
+          else updates.push({ parentId: targetParent.id, content: nextContent });
+        }
       }
     }
 

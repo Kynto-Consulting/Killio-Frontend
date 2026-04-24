@@ -54,7 +54,11 @@ interface UnifiedFormBrickProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
-  onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  onCrossContainerDrop?: (
+    activeId: string,
+    overId: string,
+    options?: { intent?: "move" | "merge-text"; sourceContainerToken?: string; targetContainerToken?: string },
+  ) => void;
   documents?: any[];
   boards?: any[];
   users?: WorkspaceMemberLike[];
@@ -671,7 +675,7 @@ export function UnifiedFormBrick({
             </div>
 
             <UnifiedBrickList
-              hasExternalDndContext={false}
+              hasExternalDndContext={true}
               showDragOverlay={false}
               dropContainerToken={`${id}:${activePage}`}
               bricks={activePageBricks}

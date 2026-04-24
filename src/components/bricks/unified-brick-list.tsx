@@ -29,6 +29,12 @@ import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 type AddableKind = 'text' | 'table' | 'graph' | 'checklist' | 'accordion' | 'tabs' | 'columns' | 'image' | 'video' | 'audio' | 'file' | 'code' | 'bookmark' | 'math' | 'database' | 'form';
 
+type CrossContainerDropOptions = {
+  intent?: "move" | "merge-text";
+  sourceContainerToken?: string;
+  targetContainerToken?: string;
+};
+
 interface UnifiedBrickListProps {
   bricks: any[];
   activeBricks?: any[];
@@ -45,7 +51,7 @@ interface UnifiedBrickListProps {
   onPasteImageInTextBrick?: (payload: { brickId: string; file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onUploadMediaFiles?: (payload: { brickId: string; files: File[] }) => Promise<void> | void;
   hasExternalDndContext?: boolean;
-  onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  onCrossContainerDrop?: (activeId: string, overId: string, options?: CrossContainerDropOptions) => void;
   dropContainerToken?: string;
   emptyPlaceholder?: string;
   onAiAction?: (action: string, contextText: string) => void;
@@ -129,16 +135,67 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
+    const allBricks = (activeBricks && activeBricks.length > 0 ? activeBricks : bricks) as any[];
+    const activeBrick = allBricks.find((b) => b?.id === active.id);
+    const overBrick = allBricks.find((b) => b?.id === over.id);
+
+    const sourceContainerToken = ((active as any)?.data?.current?.containerToken as string | undefined) || dropContainerToken;
+    const targetContainerToken = ((over as any)?.data?.current?.containerToken as string | undefined) ||
+      (typeof over.id === "string" && over.id.includes(":") ? String(over.id) : undefined);
+
+    const activeRect = ((active as any)?.rect?.current?.translated || (active as any)?.rect?.current?.initial) as
+      | { left: number; right: number; top: number; bottom: number; width: number; height: number }
+      | undefined;
+    const overRect = ((over as any)?.rect) as
+      | { left: number; right: number; top: number; bottom: number; width: number; height: number }
+      | undefined;
+
+    let overlapRatio = 0;
+    if (activeRect && overRect) {
+      const overlapWidth = Math.max(0, Math.min(activeRect.right, overRect.right) - Math.max(activeRect.left, overRect.left));
+      const overlapHeight = Math.max(0, Math.min(activeRect.bottom, overRect.bottom) - Math.max(activeRect.top, overRect.top));
+      const overlapArea = overlapWidth * overlapHeight;
+      const activeArea = Math.max(1, activeRect.width * activeRect.height);
+      overlapRatio = overlapArea / activeArea;
+    }
+
+    const shouldMergeText =
+      typeof onCrossContainerDrop === "function" &&
+      activeBrick?.kind === "text" &&
+      overBrick?.kind === "text" &&
+      !activeBrick?.content?.formField &&
+      !overBrick?.content?.formField &&
+      overlapRatio >= 0.8;
+
+    if (shouldMergeText) {
+      onCrossContainerDrop(active.id as string, over.id as string, {
+        intent: "merge-text",
+        sourceContainerToken,
+        targetContainerToken,
+      });
+      return;
+    }
+
     const oldIndex = bricks.findIndex((b) => b.id === active.id);
     if (oldIndex === -1) {
-      // This drag belongs to a nested/parent list, ignore in this scope.
+      if (onCrossContainerDrop) {
+        onCrossContainerDrop(active.id as string, String(over.id), {
+          intent: "move",
+          sourceContainerToken,
+          targetContainerToken,
+        });
+      }
       return;
     }
 
     const newIndex = bricks.findIndex((b) => b.id === over.id);
     if (newIndex === -1) {
       if (onCrossContainerDrop) {
-        onCrossContainerDrop(active.id as string, dropContainerToken || (over.id as string));
+        onCrossContainerDrop(active.id as string, (over.id as string), {
+          intent: "move",
+          sourceContainerToken,
+          targetContainerToken: targetContainerToken || dropContainerToken,
+        });
       }
       return;
     }
@@ -150,7 +207,9 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     onReorderBricks(newOrder.map((b) => b.id));
   };
 
-  const sortedBricks = [...bricks].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
+  const sortedBricks = hasExternalDndContext
+    ? [...bricks]
+    : [...bricks].sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
 
   const renderBrick = (brick: any) => {
     if (!brick) {
@@ -198,11 +257,12 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   const listContent = (
     <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
       {sortedBricks.length > 0 && (
-<div className="space-y-2 min-h-[50px]">
+<div className="space-y-2 min-h-[50px]" data-drop-container-token={dropContainerToken ?? undefined}>
         {sortedBricks.map(brick => (
           <SortableBrick 
             key={brick.id} 
             id={brick.id} 
+            containerToken={dropContainerToken}
             readonly={!canEdit} 
             isCompact={isCompact}
             onDelete={() => onDeleteBrick(brick.id)} 

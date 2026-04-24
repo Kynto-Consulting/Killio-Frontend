@@ -31,7 +31,11 @@ interface BrickRendererProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
-  onCrossContainerDrop?: (activeId: string, overId: string) => void;
+  onCrossContainerDrop?: (
+    activeId: string,
+    overId: string,
+    options?: { intent?: "move" | "merge-text"; sourceContainerToken?: string; targetContainerToken?: string },
+  ) => void;
   documents?: DocumentSummary[];
   boards?: BoardSummary[];
   activeBricks?: DocumentBrick[];
@@ -169,7 +173,7 @@ export function UnifiedBrickRenderer({
         <UnifiedTextBrick
           id={brick.id}
           text={content.text || content.markdown || ""}
-            onAddBrick={(kind, aId, parentProps, initialContent) => onAddBrick?.(kind, brick.id, parentProps, initialContent)}
+            onAddBrick={(kind, aId, parentProps, initialContent) => onAddBrick?.(kind, aId ?? brick.id, parentProps, initialContent)}
           onUpdate={(text: any) => {
             // Pass only the fields that matter for text brick
             onUpdate({
@@ -367,6 +371,7 @@ export function UnifiedBrickRenderer({
           onDeleteBrick={onDeleteBrick}
           onUpdateBrick={onUpdateBrick}
           onReorderBricks={onReorderBricks}
+          onCrossContainerDrop={onCrossContainerDrop}
           documents={documents}
           boards={boards}
           users={users}

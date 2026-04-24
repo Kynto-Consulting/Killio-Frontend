@@ -35,8 +35,16 @@ interface TextBrickProps {
 }
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
+const TEXT_SPLIT_DRAG_MIME = "application/x-killio-text-split";
 
 type MathMode = "block" | "inline";
+
+type DragSelectionPayload = {
+  startOffset: number;
+  endOffset: number;
+  selectedMarkdown: string;
+  sourceMarkdown: string;
+};
 
 const extractSingleBlockMath = (markdown: string): string | null => {
   const match = markdown.match(/^\s*\$\$\s*\n?([\s\S]*?)\n?\s*\$\$\s*$/);
@@ -92,6 +100,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const contentRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
+  const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
   const router = useRouter();
   const tDetail = useTranslations("document-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -321,6 +330,93 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     walk(root);
     return total;
+  };
+
+  const getMarkdownOffsetAtPosition = (
+    root: HTMLElement | null,
+    anchorNode: Node,
+    anchorOffset: number,
+  ): number | null => {
+    if (!root) return null;
+
+    let total = 0;
+    let found = false;
+
+    const walk = (node: Node) => {
+      if (found) return;
+
+      if (node === anchorNode) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          total += anchorOffset;
+        } else {
+          const children = Array.from(node.childNodes);
+          for (let i = 0; i < Math.min(anchorOffset, children.length); i += 1) {
+            total += getMarkdownLengthOfNode(children[i]);
+          }
+        }
+        found = true;
+        return;
+      }
+
+      if (node.nodeType === Node.TEXT_NODE) {
+        total += (node.textContent || "").replace(/\u200b/g, "").length;
+        return;
+      }
+
+      if (node.nodeType !== Node.ELEMENT_NODE) {
+        return;
+      }
+
+      const el = node as HTMLElement;
+      const token = el.getAttribute("data-token");
+      if (token) {
+        total += token.length;
+        return;
+      }
+
+      if (el.tagName === "BR") {
+        total += 1;
+        return;
+      }
+
+      for (const child of Array.from(el.childNodes)) {
+        walk(child);
+        if (found) return;
+      }
+    };
+
+    walk(root);
+    return found ? total : null;
+  };
+
+  const getSelectedMarkdownRange = (): DragSelectionPayload | null => {
+    if (!contentRef.current || typeof window === "undefined") return null;
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+
+    const range = selection.getRangeAt(0);
+    const root = contentRef.current;
+
+    if (!root.contains(range.commonAncestorContainer)) return null;
+
+    const startRaw = getMarkdownOffsetAtPosition(root, range.startContainer, range.startOffset);
+    const endRaw = getMarkdownOffsetAtPosition(root, range.endContainer, range.endOffset);
+    if (startRaw == null || endRaw == null) return null;
+
+    const sourceMarkdown = revertToMarkdown(root.innerHTML || "");
+    const startOffset = Math.max(0, Math.min(startRaw, endRaw));
+    const endOffset = Math.max(0, Math.max(startRaw, endRaw));
+    if (endOffset <= startOffset) return null;
+
+    const selectedMarkdown = sourceMarkdown.slice(startOffset, endOffset);
+    if (!selectedMarkdown) return null;
+
+    return {
+      startOffset,
+      endOffset,
+      selectedMarkdown,
+      sourceMarkdown,
+    };
   };
 
   const renderReferencePart = (part: any): string => {
@@ -1182,6 +1278,88 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       });
   };
 
+  const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    if (readonly) return;
+    const payload = getSelectedMarkdownRange();
+    if (!payload) {
+      dragSelectionRef.current = null;
+      return;
+    }
+
+    dragSelectionRef.current = payload;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData(TEXT_SPLIT_DRAG_MIME, JSON.stringify({
+      brickId: id,
+      startOffset: payload.startOffset,
+      endOffset: payload.endOffset,
+    }));
+    e.dataTransfer.setData("text/plain", payload.selectedMarkdown);
+  };
+
+  const isEditableDropTarget = (target: Element | null): boolean => {
+    if (!target) return false;
+
+    const editableHost = target.closest(
+      'input, textarea, [contenteditable=""], [contenteditable="true"], [contenteditable]:not([contenteditable="false"])',
+    );
+
+    return Boolean(editableHost);
+  };
+
+  const handleDragEnd = (e: React.DragEvent<HTMLDivElement>) => {
+    if (readonly) return;
+    const payload = dragSelectionRef.current;
+    dragSelectionRef.current = null;
+    if (!payload || !onAddBrick) return;
+
+    if (typeof document === "undefined") return;
+    const dropTarget = document.elementFromPoint(e.clientX, e.clientY);
+    if (!dropTarget) return;
+
+    // If dropped back inside the same text brick, keep original content unchanged.
+    if (contentRef.current?.contains(dropTarget)) return;
+
+    // If dropped over an editable surface (input/textarea/contenteditable),
+    // let native text drop behavior happen and avoid creating a new brick.
+    if (isEditableDropTarget(dropTarget)) return;
+
+    const from = Math.max(0, Math.min(payload.startOffset, payload.sourceMarkdown.length));
+    const to = Math.max(from, Math.min(payload.endOffset, payload.sourceMarkdown.length));
+    if (to <= from) return;
+
+    const sourceBefore = payload.sourceMarkdown.slice(0, from);
+    const sourceAfter = payload.sourceMarkdown.slice(to);
+    const nextSourceMarkdown = `${sourceBefore}${sourceAfter}`;
+    const extractedMarkdown = payload.selectedMarkdown;
+
+    const dropBrickElement = dropTarget.closest("[data-brick-id]") as HTMLElement | null;
+    const dropAfterBrickId = dropBrickElement?.getAttribute("data-brick-id") || undefined;
+
+    const dropContainerElement = dropTarget.closest("[data-drop-container-token]") as HTMLElement | null;
+    const dropToken = dropContainerElement?.getAttribute("data-drop-container-token") || "";
+    let parentProps: { parentId: string; containerId: string } | undefined;
+    const separatorIndex = dropToken.indexOf(":");
+    if (separatorIndex > 0 && separatorIndex < dropToken.length - 1) {
+      parentProps = {
+        parentId: dropToken.slice(0, separatorIndex),
+        containerId: dropToken.slice(separatorIndex + 1),
+      };
+    }
+
+    onUpdate(nextSourceMarkdown);
+    onAddBrick("text", dropAfterBrickId, parentProps, {
+      text: extractedMarkdown,
+      markdown: extractedMarkdown,
+      displayStyle: "paragraph",
+    });
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    const hasInternalSplitPayload = Array.from(e.dataTransfer.types).includes(TEXT_SPLIT_DRAG_MIME);
+    if (!hasInternalSplitPayload) return;
+    e.preventDefault();
+  };
+
   return (
     <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
       {readonly ? (
@@ -1204,6 +1382,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           onKeyUp={handleKeyUp}
           onMouseUp={handleMouseUp}
           onPaste={handlePaste}
+           onDragStart={handleDragStart}
+           onDragEnd={handleDragEnd}
+           onDrop={handleDrop}
           onInput={() => {
              const text = contentRef.current?.textContent || "";
              if (text.length === 0) {

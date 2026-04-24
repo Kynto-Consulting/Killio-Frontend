@@ -19,13 +19,18 @@ interface TabsBrickProps {
   onDeleteBrick?: (id: string) => void;
   onUpdateBrick?: (id: string, content: any) => void;
   onReorderBricks?: (ids: string[]) => void;
+  onCrossContainerDrop?: (
+    activeId: string,
+    overId: string,
+    options?: { intent?: "move" | "merge-text"; sourceContainerToken?: string; targetContainerToken?: string },
+  ) => void;
   documents?: any[];
   boards?: any[];
   users?: WorkspaceMemberLike[];
 }
 
 export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({ 
-  id, tabs = [], childrenByContainer, onUpdate, readonly, activeBricks = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, documents, boards, users 
+  id, tabs = [], childrenByContainer, onUpdate, readonly, activeBricks = [], onAddBrick, onDeleteBrick, onUpdateBrick, onReorderBricks, onCrossContainerDrop, documents, boards, users 
 }) => {
   const t = useTranslations("document-detail");
   const safeTabs = tabs.length > 0 ? tabs : [{ id: "1", label: t("bricks.tabs.defaultTab1"), content: "" }];
@@ -114,6 +119,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
             onDeleteBrick={(bId) => onDeleteBrick?.(bId)}
             onReorderBricks={(ids) => onReorderBricks?.(ids)}
               onAddBrick={(k, aId, parentProps, initialContent) => onAddBrick?.(k, aId, parentProps || { parentId: id, containerId: activeTab }, initialContent)}
+              onCrossContainerDrop={onCrossContainerDrop}
             documents={documents}
             boards={boards}
             users={users}

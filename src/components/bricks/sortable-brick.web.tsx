@@ -12,9 +12,10 @@ export interface SortableBrickProps {
   onDelete?: () => void;
   onAddBelow?: (rect: DOMRect) => void;
   isCompact?: boolean;
+  containerToken?: string;
 }
 
-export function SortableBrickWeb({ id, children, readonly, onDelete, onAddBelow, isCompact }: SortableBrickProps) {
+export function SortableBrickWeb({ id, children, readonly, onDelete, onAddBelow, isCompact, containerToken }: SortableBrickProps) {
   const {
     attributes,
     listeners,
@@ -22,7 +23,7 @@ export function SortableBrickWeb({ id, children, readonly, onDelete, onAddBelow,
     transform,
     transition,
     isDragging,
-  } = useSortable({ id });
+  } = useSortable({ id, data: { containerToken } });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -46,6 +47,7 @@ export function SortableBrickWeb({ id, children, readonly, onDelete, onAddBelow,
   return (
     <div
       ref={setNodeRef}
+      data-brick-id={id}
       style={style}
       onMouseDown={handleMouseDown}
       className={`group relative flex items-start gap-1 rounded-lg p-1.5 transition-colors ${
