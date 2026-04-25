@@ -1,7 +1,8 @@
 ﻿"use client";
 import { useActionTheme } from "@/hooks/use-action-theme";
+import { useState } from "react";
 
-import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
+import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, CheckCheck, FileText } from "lucide-react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
@@ -30,6 +31,31 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
     },
     actions: { sendMessage, handleAiAction }
   } = useBoardChatDrawer(boardId, initialTab, isOpen);
+  const [applyingAllMessageId, setApplyingAllMessageId] = useState<number | null>(null);
+
+  const applyAllActions = async (messageId: number, actions: any[]) => {
+    if (actions.length === 0 || applyingAllMessageId !== null) return;
+
+    setApplyingAllMessageId(messageId);
+    let appliedCount = 0;
+
+    for (const action of actions) {
+      const success = await handleAiAction(action, { silent: true });
+      if (success) appliedCount += 1;
+    }
+
+    setAiMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "bot",
+        content: appliedCount > 0
+          ? `Apliqué ${appliedCount} de ${actions.length} cambios sugeridos.`
+          : "No pude aplicar los cambios sugeridos.",
+      },
+    ]);
+    setApplyingAllMessageId(null);
+  };
 
   if (!isOpen) return null;
 
@@ -144,17 +170,37 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                         </div>
                         
                         <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
+                          <span className="text-sm font-bold text-emerald-800">{String(action.action || action.type || "").replace(/_/g, " ")}</span>
                         </div>
 
                         <button
                           onClick={() => handleAiAction(action)}
-                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                         >
-                          Confirmar y Ejecutar
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Aplicar mejora
                         </button>
                       </div>
                     ))}
+
+                    {actions.length > 1 && (
+                      <div className="ml-11 mr-4 mt-1">
+                        <button
+                          onClick={() => {
+                            void applyAllActions(msg.id, actions);
+                          }}
+                          disabled={applyingAllMessageId === msg.id}
+                          className="w-full py-2 px-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 text-emerald-700 text-xs font-bold hover:bg-emerald-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 flex-wrap"
+                        >
+                          {applyingAllMessageId === msg.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCheck className="h-3.5 w-3.5" />
+                          )}
+                          <span>Aplicar todos los cambios</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

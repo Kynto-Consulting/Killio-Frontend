@@ -32,7 +32,12 @@ import {
   listGithubInstallationRepositories,
   listGithubInstallations,
 } from "@/lib/api/integrations";
-import { BoardSummary, ListView, getBoard, listTeamBoards } from "@/lib/api/contracts";
+import {
+  BoardSummary,
+  ListView,
+  getBoard,
+  listTeamBoards,
+} from "@/lib/api/contracts";
 import { ScriptList } from "@/components/scripts/ScriptList";
 import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
 import { KillioTable } from "../../../components/scripts/KillioTable";
@@ -45,7 +50,7 @@ import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPa
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
-import { Zap, Loader2, BarChart3, Mail, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2 } from "lucide-react";
+import { Zap, Loader2, BarChart3, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
 
 type Tab = "integrations" | "scripts" | "table";
 type ScriptSubView = "canvas" | "runs";
@@ -766,8 +771,6 @@ export default function IntegrationsPage() {
       year: "numeric",
     })
     : null;
-  const billingSubject = encodeURIComponent(t("usage.billingSubject"));
-  const billingBody = encodeURIComponent(t("usage.billingBody"));
 
   const tabsPortalContent = (
     <div className="space-y-1 py-1">
@@ -805,13 +808,14 @@ export default function IntegrationsPage() {
           </span>
           <span className="hidden xl:inline truncate">{t("usage.title", { plan: usage.planTier })}</span>
           {usageResetDate && <span className="hidden 2xl:inline">{t("usage.reset", { date: usageResetDate })}</span>}
-          <a
-            href={`mailto:${usage.billingEmail}?subject=${billingSubject}&body=${billingBody}`}
+          <button
+            type="button"
+            onClick={() => router.push("/pricing")}
             className="hidden items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground hover:bg-accent/10 xl:inline-flex"
           >
-            <Mail className="h-3.5 w-3.5" />
-            {t("usage.billing")}
-          </a>
+            <CreditCard className="h-3.5 w-3.5" />
+            Upgrade
+          </button>
         </>
       ) : (
         <span>{t("usage.error")}</span>

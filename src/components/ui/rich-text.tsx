@@ -16,6 +16,35 @@ interface RichTextProps {
   onSuggestionApply?: () => void;
 }
 
+function findContextBrick(context: ResolverContext, brickId?: string) {
+  if (!brickId) return undefined;
+
+  const activeMatch = Array.isArray(context.activeBricks)
+    ? context.activeBricks.find((brick: any) => String(brick?.id || "") === brickId)
+    : undefined;
+  if (activeMatch) return activeMatch;
+
+  const docsById = context.documentBricksById && typeof context.documentBricksById === "object"
+    ? Object.values(context.documentBricksById)
+    : [];
+  for (const brickList of docsById) {
+    if (!Array.isArray(brickList)) continue;
+    const match = brickList.find((brick: any) => String(brick?.id || "") === brickId);
+    if (match) return match;
+  }
+
+  const cardsById = context.cardBricksById && typeof context.cardBricksById === "object"
+    ? Object.values(context.cardBricksById)
+    : [];
+  for (const brickList of cardsById) {
+    if (!Array.isArray(brickList)) continue;
+    const match = brickList.find((brick: any) => String(brick?.id || "") === brickId);
+    if (match) return match;
+  }
+
+  return undefined;
+}
+
 /**
  * Enhanced unified component to render text with:
  * 1. Platform references (@, #, $)
@@ -31,6 +60,12 @@ export function RichText({
   onSuggestionApply 
 }: RichTextProps) {
   if (!content) return null;
+
+  const fallbackDocId = React.useMemo(() => {
+    const map = (context as any)?.documentBricksById as Record<string, unknown> | undefined;
+    const ids = map ? Object.keys(map) : [];
+    return ids.length === 1 ? ids[0] : undefined;
+  }, [context]);
 
   const stripWrappedBold = (value: string): string => {
     const trimmed = value.trim();
@@ -79,12 +114,29 @@ export function RichText({
             const [, type, jsonContent] = match;
             try {
               const data = JSON.parse(jsonContent);
+              const suggestionType = String(type || "").trim().toUpperCase();
+              const suggestionPayload = data?.payload ?? data?.content ?? data;
+              const suggestionId =
+                data?.id
+                ?? data?.brickId
+                ?? data?.payload?.id
+                ?? data?.payload?.brickId
+                ?? data?.content?.id
+                ?? data?.content?.brickId;
+              const suggestionDocId =
+                data?.docId
+                ?? data?.payload?.docId
+                ?? data?.content?.docId
+                ?? fallbackDocId;
+              const currentBrick = findContextBrick(context, suggestionId);
               return (
                 <AiSuggestion
                   key={partIdx}
-                  type={type as any}
-                  id={data.id}
-                  payload={data.payload}
+                  type={suggestionType as any}
+                  id={suggestionId}
+                  docId={suggestionDocId}
+                  currentBrick={currentBrick}
+                  payload={suggestionPayload}
                   explanation={data.explanation}
                   onApply={() => onSuggestionApply?.()}
                   onReject={() => {}}
@@ -100,7 +152,8 @@ export function RichText({
               content={part} 
               context={context} 
               availableTags={availableTags} 
-              onReferenceClick={onReferenceClick} 
+              onReferenceClick={onReferenceClick}
+              onSuggestionApply={onSuggestionApply}
             />
           );
         })}
@@ -146,7 +199,6 @@ export function RichText({
     <div className={className}>
       {lines.map((line, lineIdx) => {
         const parts = ReferenceResolver.renderRich(line, context);
-        
         return (
           <Fragment key={lineIdx}>
             {parts.map((part, partIdx) => {

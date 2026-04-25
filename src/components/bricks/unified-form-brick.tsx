@@ -78,6 +78,41 @@ const isRequiredFieldMissing = (type: FormFieldType, required: boolean | undefin
   return typeof value !== "string" || value.trim().length === 0;
 };
 
+const normalizeConditionText = (value: string | boolean | undefined): string => {
+  if (typeof value === "boolean") return value ? "true" : "false";
+  if (typeof value === "string") return value.trim().toLowerCase();
+  return "";
+};
+
+const evaluateFieldCondition = (
+  condition: {
+    enabled?: boolean;
+    sourceFieldId?: string;
+    operator?: string;
+    value?: string;
+  } | undefined,
+  sourceValue: string | boolean | undefined,
+): boolean => {
+  if (!condition?.enabled) return true;
+  const sourceFieldId = String(condition.sourceFieldId || "").trim();
+  if (sourceFieldId.length === 0) return true;
+
+  const operator = String(condition.operator || "equals");
+  const current = normalizeConditionText(sourceValue);
+  const expected = normalizeConditionText(condition.value || "");
+
+  if (operator === "equals") return current === expected;
+  if (operator === "not_equals") return current !== expected;
+  if (operator === "contains") return current.includes(expected);
+  if (operator === "not_contains") return !current.includes(expected);
+  if (operator === "is_empty") return current.length === 0;
+  if (operator === "is_not_empty") return current.length > 0;
+  if (operator === "is_true") return current === "true" || current === "1" || current === "si" || current === "yes";
+  if (operator === "is_false") return current === "false" || current === "0" || current === "no";
+
+  return true;
+};
+
 export function UnifiedFormBrick({
   id,
   content,
@@ -132,8 +167,6 @@ export function UnifiedFormBrick({
     return map;
   }, [safePages, childrenByContainer, activeBricks]);
 
-  const activePageBricks = pageBricksById[activePage] || [];
-
   const pseudoFieldEntries = useMemo(() => {
     const entries: Array<{ brickId: string; pageId: string; config: ReturnType<typeof createDefaultFormFieldConfig> }> = [];
     for (const page of safePages) {
@@ -147,9 +180,58 @@ export function UnifiedFormBrick({
     return entries;
   }, [safePages, pageBricksById]);
 
+  const fieldIdToBrickId = useMemo(() => {
+    const mapping: Record<string, string> = {};
+    for (const entry of pseudoFieldEntries) {
+      const fieldId = entry.config.fieldId;
+      if (!fieldId || mapping[fieldId]) continue;
+      mapping[fieldId] = entry.brickId;
+    }
+    return mapping;
+  }, [pseudoFieldEntries]);
+
+  const visiblePseudoFieldEntries = useMemo(() => {
+    return pseudoFieldEntries.filter((entry) => {
+      const condition = entry.config.condition;
+      if (!condition?.enabled) return true;
+
+      const sourceBrickId = fieldIdToBrickId[condition.sourceFieldId];
+      const sourceValue = sourceBrickId ? values[sourceBrickId] : undefined;
+      return evaluateFieldCondition(condition, sourceValue);
+    });
+  }, [pseudoFieldEntries, fieldIdToBrickId, values]);
+
+  const visiblePseudoFieldIds = useMemo(() => {
+    return new Set(visiblePseudoFieldEntries.map((entry) => entry.brickId));
+  }, [visiblePseudoFieldEntries]);
+
   const hasPseudoFields = pseudoFieldEntries.length > 0;
   const legacyFields = Array.isArray(content.fields) ? content.fields : [];
   const hasLegacyFields = !hasPseudoFields && legacyFields.length > 0;
+
+  const viewerPageBricksById = useMemo(() => {
+    const map: Record<string, any[]> = {};
+    for (const page of safePages) {
+      const pageBricks = pageBricksById[page.id] || [];
+      map[page.id] = pageBricks.filter((brick) => {
+        const config = normalizeFormFieldConfig(brick?.content?.formField);
+        if (!config) return true;
+        return visiblePseudoFieldIds.has(brick.id);
+      });
+    }
+    return map;
+  }, [safePages, pageBricksById, visiblePseudoFieldIds]);
+
+  const navigablePages = useMemo(() => {
+    if (canEdit || !hasPseudoFields) return safePages;
+    const filtered = safePages.filter((page) => {
+      const bricks = viewerPageBricksById[page.id] || [];
+      return bricks.length > 0;
+    });
+    return filtered.length > 0 ? filtered : [safePages[0]];
+  }, [canEdit, hasPseudoFields, safePages, viewerPageBricksById]);
+
+  const activePageBricks = (canEdit ? pageBricksById[activePage] : viewerPageBricksById[activePage]) || [];
 
   const webhookBase = useMemo(
     () =>
@@ -176,9 +258,9 @@ export function UnifiedFormBrick({
   const isConfigured = endpoint.length > 0 && (hasPseudoFields || hasLegacyFields);
 
   useEffect(() => {
-    if (safePages.some((page) => page.id === activePage)) return;
-    setActivePage(safePages[0]?.id || DEFAULT_PAGE_ID);
-  }, [safePages, activePage]);
+    if (navigablePages.some((page) => page.id === activePage)) return;
+    setActivePage(navigablePages[0]?.id || DEFAULT_PAGE_ID);
+  }, [navigablePages, activePage]);
 
   const updateContent = (patch: Partial<FormBrickContent>) => {
     onUpdate({ ...content, ...patch });
@@ -332,13 +414,13 @@ export function UnifiedFormBrick({
     setValues((current) => ({ ...current, [brickId]: value }));
   };
 
-  const activePageIndex = safePages.findIndex((page) => page.id === activePage);
-  const isLastPage = activePageIndex >= safePages.length - 1;
+  const activePageIndex = navigablePages.findIndex((page) => page.id === activePage);
+  const isLastPage = activePageIndex >= navigablePages.length - 1;
 
   const goToNextPage = () => {
     if (activePageIndex < 0 || isLastPage) return;
 
-    const currentRequiredMissing = pseudoFieldEntries.find((entry) => {
+    const currentRequiredMissing = visiblePseudoFieldEntries.find((entry) => {
       return entry.pageId === activePage && isRequiredFieldMissing(entry.config.type, entry.config.required, values[entry.brickId]);
     });
 
@@ -347,7 +429,7 @@ export function UnifiedFormBrick({
       return;
     }
 
-    setActivePage(safePages[activePageIndex + 1].id);
+    setActivePage(navigablePages[activePageIndex + 1].id);
   };
 
   const goToPreviousPage = () => {
@@ -357,13 +439,19 @@ export function UnifiedFormBrick({
 
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
+
+    if (hasPseudoFields && !isLastPage) {
+      goToNextPage();
+      return;
+    }
+
     if (!isConfigured) {
       toast(t("form.missingEndpoint") || "Configura la URL del webhook antes de enviar.", "error");
       return;
     }
 
     if (hasPseudoFields) {
-      const missingEntry = pseudoFieldEntries.find((entry) => {
+      const missingEntry = visiblePseudoFieldEntries.find((entry) => {
         return isRequiredFieldMissing(entry.config.type, entry.config.required, values[entry.brickId]);
       });
 
@@ -389,7 +477,7 @@ export function UnifiedFormBrick({
     setSubmitState("idle");
     try {
       const normalizedValues = hasPseudoFields
-        ? pseudoFieldEntries.reduce<Record<string, string | boolean>>((acc, entry) => {
+        ? visiblePseudoFieldEntries.reduce<Record<string, string | boolean>>((acc, entry) => {
             const value = values[entry.brickId];
             if (typeof value === "undefined") return acc;
             const key = entry.config.fieldId || entry.brickId;
@@ -410,7 +498,7 @@ export function UnifiedFormBrick({
         submittedAt: new Date().toISOString(),
         values: normalizedValues,
         fields: hasPseudoFields
-          ? pseudoFieldEntries.map((entry) => ({
+          ? visiblePseudoFieldEntries.map((entry) => ({
               brickId: entry.brickId,
               pageId: entry.pageId,
               ...entry.config,
@@ -773,9 +861,9 @@ export function UnifiedFormBrick({
         }}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>
-          {safePages.length > 1 && (
+          {navigablePages.length > 1 && (
             <div className="flex flex-wrap gap-2">
-              {safePages.map((page, index) => (
+              {navigablePages.map((page, index) => (
                 <button
                   key={page.id}
                   type="button"

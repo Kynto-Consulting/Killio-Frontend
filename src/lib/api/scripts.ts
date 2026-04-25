@@ -38,6 +38,8 @@ export type NodeKind =
   | 'killio.action.document.create'
   | 'killio.table.read'
   | 'killio.table.write'
+  | 'killio.database.action'
+  | 'killio.database.list'
   | 'core.logic.if_else'
   | 'core.logic.loop'
   | 'core.action.delay'
@@ -137,7 +139,7 @@ export interface SharedKillioTableRow {
 }
 
 export interface ScriptMonthlyUsage {
-  planTier: 'free' | 'pro' | 'enterprise';
+  planTier: 'free' | 'pro' | 'max' | 'enterprise';
   executed: number;
   limit: number | null;
   remaining: number | null;

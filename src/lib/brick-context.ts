@@ -64,23 +64,82 @@ function stringifyTableCell(cell: any): string {
   return extractText(cell) || "";
 }
 
+function summarizeAdvancedColumn(col: any, index: number): string {
+  const colId = String(col?.id ?? `c${index + 1}`);
+  const colName = String(col?.name || col?.label || col?.title || colId).trim();
+  const colType = String(col?.type || "text").trim();
+  const optionSummary = Array.isArray(col?.options) && col.options.length > 0
+    ? ` options=${col.options.slice(0, 6).map((opt: any) => String(opt?.name || opt?.id || "").trim()).filter(Boolean).join(", ")}`
+    : "";
+  return `${colName}[${colId}]{${colType}}${optionSummary}`;
+}
+
+function stringifyAdvancedTableCell(cell: any, columnType?: string): string {
+  if (cell === null || cell === undefined) return "empty";
+  if (typeof cell === "string" || typeof cell === "number" || typeof cell === "boolean") {
+    return `${columnType ? `${columnType}:` : ""}${String(cell)}`;
+  }
+  if (Array.isArray(cell)) {
+    return `${columnType ? `${columnType}:` : ""}${cell.map((item) => stringifyTableCell(item)).filter(Boolean).join(", ")}`;
+  }
+  if (typeof cell !== "object") return `${columnType ? `${columnType}:` : ""}${String(cell)}`;
+
+  const cellType = String(cell.type || columnType || "text").trim();
+  if (cellType === "number") {
+    return `number:${typeof cell.number === "number" ? cell.number : stringifyTableCell(cell) || "empty"}`;
+  }
+  if (cellType === "checkbox") {
+    return `checkbox:${cell.checked ? "true" : "false"}`;
+  }
+  if (cellType === "select") {
+    const name = String(cell.name || cell.text || "").trim() || "empty";
+    const color = String(cell.color || "default").trim();
+    return `select:${name}${color ? `(${color})` : ""}`;
+  }
+  if (cellType === "multi_select") {
+    const items = Array.isArray(cell.items) ? cell.items.map((item: any) => String(item?.name || item?.label || item || "").trim()).filter(Boolean) : [];
+    return `multi_select:${items.join(", ") || "empty"}`;
+  }
+  if (cellType === "date") {
+    const start = String(cell.start || "").trim();
+    const end = String(cell.end || "").trim();
+    return `date:${start || "empty"}${end ? ` -> ${end}` : ""}`;
+  }
+  if (cellType === "user") {
+    const users = Array.isArray(cell.users) ? cell.users.map((user: any) => String(user?.name || user?.email || user?.id || "").trim()).filter(Boolean) : [];
+    return `user:${users.join(", ") || "empty"}`;
+  }
+  if (cellType === "document") {
+    const docs = Array.isArray(cell.documents) ? cell.documents.map((doc: any) => String(doc?.name || doc?.title || doc?.id || "").trim()).filter(Boolean) : [];
+    return `document:${docs.join(", ") || "empty"}`;
+  }
+  if (cellType === "board") {
+    const boards = Array.isArray(cell.boards) ? cell.boards.map((board: any) => String(board?.name || board?.title || board?.id || "").trim()).filter(Boolean) : [];
+    return `board:${boards.join(", ") || "empty"}`;
+  }
+  if (cellType === "card") {
+    const cards = Array.isArray(cell.cards) ? cell.cards.map((card: any) => String(card?.name || card?.title || card?.id || "").trim()).filter(Boolean) : [];
+    return `card:${cards.join(", ") || "empty"}`;
+  }
+
+  return `${cellType}:${stringifyTableCell(cell) || "empty"}`;
+}
+
 function formatAdvancedTableBrick(kind: string, c: any): string[] {
   const lines: string[] = [];
   const tableTitle = typeof c.title === "string" ? c.title.trim() : "";
   const columns: any[] = Array.isArray(c.columns) ? c.columns : [];
   const rows: any[] = Array.isArray(c.rows) ? c.rows : [];
+  const isDatabase = kind === "database";
 
-  if (tableTitle) lines.push(`[Tabla: ${tableTitle}]`);
-  lines.push(`[Tabla avanzada${columns.length ? ` · ${columns.length} columnas` : ""}${rows.length ? ` · ${rows.length} filas` : ""}]`);
+  if (tableTitle) lines.push(`[${isDatabase ? "Database" : "Tabla avanzada"}: ${tableTitle}]`);
+  lines.push(`[${isDatabase ? "Database" : "Tabla avanzada"}${columns.length ? ` · ${columns.length} columnas` : ""}${rows.length ? ` · ${rows.length} filas` : ""}]`);
+  lines.push(`[Regla IA: si propones cambios para esta estructura, usa rowId y colId exactos, respeta el tipo de columna y conserva la forma de la celda. No conviertas columnas tipadas a texto plano si son number/select/status/date/checkbox/user/document/board/card/multi_select.]`);
 
   if (columns.length > 0) {
     const headers = columns
       .slice(0, 12)
-      .map((col: any) => {
-        const name = typeof col?.name === "string" ? col.name.trim() : typeof col?.label === "string" ? col.label.trim() : typeof col?.title === "string" ? col.title.trim() : "";
-        const type = typeof col?.type === "string" ? col.type.trim() : "";
-        return name ? `${name}${type ? `(${type})` : ""}` : type || "col";
-      })
+      .map((col: any, index: number) => summarizeAdvancedColumn(col, index))
       .join(" | ");
     if (headers) lines.push(`| ${headers} |`);
   }
@@ -98,15 +157,16 @@ function formatAdvancedTableBrick(kind: string, c: any): string[] {
 
     const rowCells = row?.cells && typeof row.cells === "object" ? row.cells : row;
     const columnOrder = columns.length > 0
-      ? columns.map((col: any, index: number) => ({ id: String(col?.id ?? index), name: String(col?.name ?? col?.label ?? col?.title ?? `col ${index + 1}`) }))
-      : Object.keys(rowCells || {}).map((key) => ({ id: key, name: key }));
+      ? columns.map((col: any, index: number) => ({ id: String(col?.id ?? index), name: String(col?.name ?? col?.label ?? col?.title ?? `col ${index + 1}`), type: String(col?.type || "text") }))
+      : Object.keys(rowCells || {}).map((key) => ({ id: key, name: key, type: "text" }));
 
-    const cells = columnOrder.slice(0, 12).map(({ id, name }) => {
-      const value = stringifyTableCell(rowCells?.[id]);
-      return `${name}: ${value || "—"}`;
+    const cells = columnOrder.slice(0, 12).map(({ id, name, type }) => {
+      const value = stringifyAdvancedTableCell(rowCells?.[id], type);
+      return `${name}[${id}]{${type}}: ${value || "empty"}`;
     });
 
-    if (cells.length > 0) lines.push(`- ${cells.join(" | ")}`);
+    const rowId = String(row?.id || `row_${i + 1}`);
+    if (cells.length > 0) lines.push(`- rowId=${rowId} | ${cells.join(" | ")}`);
   }
 
   if (rows.length > maxRows) lines.push(`[${rows.length - maxRows} filas más omitidas]`);
@@ -165,6 +225,7 @@ export function buildBricksContextText(bricks: any[], maxLength = 8000): string 
       }
 
       // ── Advanced / bountiful tables: include columns + row previews ──────
+      case "database":
       case "beautiful_table":
       case "bountiful_table": {
         lines.push(...formatAdvancedTableBrick(kind, c));
@@ -274,10 +335,74 @@ export function buildDocumentContextSummary(
   prefixSummary = "",
   maxLength = 8000
 ): string {
-  const body = buildBricksContextText(bricks, maxLength - 60);
-  if (!body) return prefixSummary || "";
+  const inventory = buildDocumentBrickInventory(bricks, Math.min(2600, Math.max(900, Math.floor(maxLength * 0.32))));
+  const bodyBudget = Math.max(1200, maxLength - inventory.length - 180);
+  const body = buildBricksContextText(bricks, bodyBudget);
+  if (!body && !inventory) return prefixSummary || "";
   const parts: string[] = [];
   if (prefixSummary) parts.push(prefixSummary, "");
+  if (inventory) {
+    parts.push("=== BRICKS DISPONIBLES (usar IDs exactos, no inventar) ===", inventory, "=== FIN BRICKS DISPONIBLES ===", "");
+  }
   parts.push("=== CONTENIDO DEL DOCUMENTO ===", body, "=== FIN DEL DOCUMENTO ===");
   return parts.join("\n").slice(0, maxLength);
+}
+
+function buildDocumentBrickInventory(bricks: any[], maxLength: number): string {
+  if (!Array.isArray(bricks) || bricks.length === 0) return "";
+
+  const lines: string[] = [];
+  const capped = bricks.slice(0, 80);
+
+  for (let index = 0; index < capped.length; index += 1) {
+    const brick = capped[index] || {};
+    const brickId = String(brick.id || "").trim();
+    const kind = String(brick.kind || "unknown").trim().toLowerCase();
+    const content = brick.content || {};
+    if (!brickId) continue;
+
+    const base = `${index + 1}. id=${brickId} kind=${kind}`;
+
+    if (kind === "table") {
+      const rows = Array.isArray(content.rows) ? content.rows : [];
+      const cols = rows[0] && Array.isArray(rows[0]) ? rows[0].length : 0;
+      lines.push(`${base} rows=${rows.length} cols=${cols}`);
+      continue;
+    }
+
+    if (kind === "database" || kind === "beautiful_table" || kind === "bountiful_table") {
+      const columns = Array.isArray(content.columns) ? content.columns : [];
+      const rows = Array.isArray(content.rows) ? content.rows : [];
+      const columnSummary = columns
+        .slice(0, 8)
+        .map((col: any, colIdx: number) => {
+          const colId = String(col?.id ?? `c${colIdx + 1}`);
+          const colName = String(col?.name || col?.label || col?.title || colId);
+          const colType = String(col?.type || "text");
+          return `${colName}[${colId}]{${colType}}`;
+        })
+        .join(", ");
+      const rowSummary = rows
+        .slice(0, 8)
+        .map((row: any, rowIdx: number) => String(row?.id || `row_${rowIdx + 1}`))
+        .join(", ");
+      lines.push(`${base} rows=${rows.length} columns=${columns.length}${columnSummary ? ` (${columnSummary})` : ""}${rowSummary ? ` rowIds=${rowSummary}` : ""}`);
+      continue;
+    }
+
+    if (kind === "checklist") {
+      const items = Array.isArray(content.items) ? content.items : (Array.isArray(content.tasks) ? content.tasks : []);
+      lines.push(`${base} items=${items.length}`);
+      continue;
+    }
+
+    const preview = extractText(content).replace(/\s+/g, " ").trim();
+    lines.push(preview ? `${base} preview="${preview.slice(0, 140)}"` : base);
+  }
+
+  if (bricks.length > capped.length) {
+    lines.push(`... ${bricks.length - capped.length} bricks mas omitidos`);
+  }
+
+  return lines.join("\n").slice(0, maxLength);
 }

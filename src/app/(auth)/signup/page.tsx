@@ -61,13 +61,19 @@ function SignupPageContent() {
 
     setIsLoading(true);
     try {
+      const normalizedDisplayName = form.displayName.trim();
+      const normalizedUsername = form.username.trim().toLowerCase();
+      const normalizedEmail = form.email.trim().toLowerCase();
+
       const res = await fetch(`${API}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          displayName: form.displayName.trim(),
-          username: form.username.trim().toLowerCase(),
-          email: form.email.trim().toLowerCase(),
+          // Keep compatibility while backend transitions from displayName/username to name.
+          name: normalizedDisplayName,
+          displayName: normalizedDisplayName,
+          username: normalizedUsername,
+          email: normalizedEmail,
           password: form.password,
           acceptedTerms: form.acceptedTerms,
           allowCommunications: form.allowCommunications,

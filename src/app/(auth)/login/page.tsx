@@ -37,10 +37,17 @@ function LoginPageContent() {
     setIsLoading(true);
 
     try {
+      const normalizedIdentifier = identifier.trim();
       const res = await fetch(`${API}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier, password, rememberMe }),
+        // Send both keys to keep compatibility with backend versions expecting either field.
+        body: JSON.stringify({
+          identifier: normalizedIdentifier,
+          email: normalizedIdentifier,
+          password,
+          rememberMe,
+        }),
       });
 
       if (!res.ok) {

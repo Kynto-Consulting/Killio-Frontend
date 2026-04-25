@@ -2,6 +2,7 @@
   "nav": {
     "workspaces": "Workspaces",
     "boards": "Boards",
+    "meshs": "Meshs",
     "documents": "Documents",
     "teams": "Teams",
     "activityHistory": "Activity History",
@@ -9,8 +10,10 @@
     "scripts": "Scripts",
     "recentBoards": "Recent Boards",
     "recentDocuments": "Recent Documents",
+    "viewAll": "View all",
     "noBoardsYet": "No boards yet",
-    "noDocumentsYet": "No documents yet"
+    "noDocumentsYet": "No documents yet",
+    "nomeshsYet": "No Meshs yet"
   },
   "metrics": {
     "title": "Workspace Metrics",
@@ -141,6 +144,7 @@
   "teamSwitcher": {
     "selectWorkspace": "Select Workspace",
     "yourWorkspaces": "Your Workspaces",
-    "createWorkspace": "Create Workspace"
+    "createWorkspace": "Create Workspace",
+    "upgrade": "Upgrade"
   }
 }

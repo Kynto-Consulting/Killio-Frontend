@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Bell, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -23,6 +23,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   const navigation = [
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
@@ -47,9 +48,21 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
+  const [isBoardsOpen, setIsBoardsOpen] = useState(() => isPathActive("/b"));
+  const [ismeshsOpen, setIsmeshsOpen] = useState(false);
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => isPathActive("/d"));
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
+
+  useEffect(() => {
+    if (isPathActive("/b")) {
+      setIsBoardsOpen(true);
+    }
+    if (isPathActive("/d")) {
+      setIsDocumentsOpen(true);
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -113,6 +126,111 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;
   }
 
+  const recentBoardLinks = boards.slice(0, 3).map((board) => ({
+    id: board.id,
+    label: board.name,
+    href: `/b/${board.id}`,
+  }));
+
+  const recentDocumentLinks = recentDocuments.slice(0, 3).map((document) => ({
+    id: document.id,
+    label: document.title,
+    href: `/d/${document.id}`,
+  }));
+
+  const renderExpandableItem = ({
+    key,
+    href,
+    name,
+    icon: Icon,
+    isOpen,
+    onToggle,
+    isActive,
+    items,
+    isLoading,
+    emptyLabel,
+  }: {
+    key: string;
+    href?: string;
+    name: string;
+    icon: typeof Layout;
+    isOpen: boolean;
+    onToggle: () => void;
+    isActive: boolean;
+    items: { id: string; label: string; href: string }[];
+    isLoading: boolean;
+    emptyLabel: string;
+  }) => {
+    const itemClassName = isActive
+      ? "bg-accent/10 text-foreground"
+      : "text-muted-foreground hover:bg-accent/10 hover:text-foreground";
+
+    return (
+      <div key={key} className="flex flex-col">
+        <div className={`group flex items-center rounded-md transition-colors ${itemClassName}`}>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
+            className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+          </button>
+
+          {href ? (
+            <Link href={href} className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-sm font-medium">
+              <Icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
+              <span className="truncate">{name}</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-left text-sm font-medium"
+            >
+              <Icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
+              <span className="truncate">{name}</span>
+            </button>
+          )}
+        </div>
+
+        {isOpen && (
+          <div className="ml-5 mt-1 border-l border-border/70 pl-4">
+            <div className="space-y-1 py-1">
+              {isLoading ? (
+                <div className="flex justify-center p-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : items.length > 0 ? (
+                items.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    className="group flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground/75 transition-all hover:bg-accent/10 hover:text-foreground"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-border transition-colors group-hover:bg-accent" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="px-3 py-1.5 text-sm text-muted-foreground">{emptyLabel}</div>
+              )}
+
+              {href ? (
+                <Link
+                  href={href}
+                  className="flex items-center rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                >
+                  {tDashboard("nav.viewAll")}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
@@ -145,7 +263,54 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
             {navigationItems.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = isPathActive(item.href);
+
+              if (item.href === "/b") {
+                return (
+                  <div key={item.name} className="space-y-1">
+                    {renderExpandableItem({
+                      key: item.href,
+                      href: item.href,
+                      name: item.name,
+                      icon: item.icon,
+                      isOpen: isBoardsOpen,
+                      onToggle: () => setIsBoardsOpen((current) => !current),
+                      isActive,
+                      items: recentBoardLinks,
+                      isLoading: isFetchingBoards,
+                      emptyLabel: tDashboard("nav.noBoardsYet"),
+                    })}
+
+                    {renderExpandableItem({
+                      key: "mesh-boards",
+                      name: tDashboard("nav.meshs"),
+                      icon: GitBranch,
+                      isOpen: ismeshsOpen,
+                      onToggle: () => setIsmeshsOpen((current) => !current),
+                      isActive: false,
+                      items: [],
+                      isLoading: false,
+                      emptyLabel: tDashboard("nav.nomeshsYet"),
+                    })}
+                  </div>
+                );
+              }
+
+              if (item.href === "/d") {
+                return renderExpandableItem({
+                  key: item.href,
+                  href: item.href,
+                  name: item.name,
+                  icon: item.icon,
+                  isOpen: isDocumentsOpen,
+                  onToggle: () => setIsDocumentsOpen((current) => !current),
+                  isActive,
+                  items: recentDocumentLinks,
+                  isLoading: isFetchingDocs,
+                  emptyLabel: tDashboard("nav.noDocumentsYet"),
+                });
+              }
+
               return (
                 <Link
                   key={item.name}
@@ -161,54 +326,6 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
               );
             })}
           </nav>
-
-          <div className="mt-8 px-5">
-            <h3 className="text-xs font-semibold tracking-wider text-muted-foreground/60 uppercase">
-              {tDashboard("nav.recentBoards")}
-            </h3>
-            <div className="mt-3 space-y-1">
-              {isFetchingBoards ? (
-                <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              ) : boards.length > 0 ? (
-                boards.slice(0, 5).map((board) => (
-                  <Link
-                    key={board.id}
-                    href={`/b/${board.id}`}
-                    className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-foreground/70 hover:bg-accent/10 hover:text-accent font-medium transition-all"
-                  >
-                    <span className="truncate">{board.name}</span>
-                  </Link>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground px-3 py-1">{tDashboard("nav.noBoardsYet")}</div>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 px-5">
-            <h3 className="text-xs font-semibold tracking-wider text-muted-foreground/60 uppercase">
-              {tDashboard("nav.recentDocuments")}
-            </h3>
-            <div className="mt-3 space-y-1">
-              {isFetchingDocs ? (
-                <div className="flex justify-center p-2"><Loader2 className="h-4 w-4 animate-spin text-muted-foreground" /></div>
-              ) : recentDocuments.length > 0 ? (
-                recentDocuments.slice(0, 5).map((doc) => (
-                  <Link
-                    key={doc.id}
-                    href={`/d/${doc.id}`}
-                    className="group flex items-center justify-between rounded-md py-1.5 px-3 text-sm text-foreground/70 hover:bg-accent/10 hover:text-accent font-medium transition-all"
-                  >
-                    <div className="flex items-center space-x-2 truncate">
-                      <span className="truncate">{doc.title}</span>
-                    </div>
-                  </Link>
-                ))
-              ) : (
-                <div className="text-sm text-muted-foreground px-3 py-1">{tDashboard("nav.noDocumentsYet")}</div>
-              )}
-            </div>
-          </div>
         </div>
 
         <div className="border-t border-border p-4 relative">
@@ -282,8 +399,13 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
               activeTeamId={activeTeamId}
               setActiveTeamId={setActiveTeamId}
               navigation={navigationItems}
+              boards={boards}
+              recentDocuments={recentDocuments}
+              isFetchingBoards={isFetchingBoards}
+              isFetchingDocuments={isFetchingDocs}
               user={user}
               logout={logout}
+              onCreateWorkspace={() => setIsCreateWorkspaceModalOpen(true)}
             />
             <div id="navbar-usage-slot" className="ml-2 flex items-center min-w-0 overflow-hidden"></div>
           </div>

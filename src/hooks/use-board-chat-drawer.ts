@@ -7,7 +7,9 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import {
   getBoard,
   listTeamActivity,
-  chatWithAiScope,
+  streamAiChat,
+  getTeamAiUsage,
+  type TeamAiUsage,
   type BoardView,
   type ActivityLogEntry,
   listTeamMembers,
@@ -230,7 +232,41 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
   const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
+  const [aiUsage, setAiUsage] = useState<TeamAiUsage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const activeAiStreamAbortRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    return () => {
+      activeAiStreamAbortRef.current?.();
+      activeAiStreamAbortRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) return;
+    activeAiStreamAbortRef.current?.();
+    activeAiStreamAbortRef.current = null;
+    setAiMessages([]);
+    setInputVal("");
+    setIsLoading(false);
+    setIsSendingMessage(false);
+  }, [isOpen]);
+
+  const refreshAiUsage = async () => {
+    if (!activeTeamId || !accessToken) return;
+    try {
+      const usage = await getTeamAiUsage(activeTeamId, accessToken);
+      setAiUsage(usage);
+    } catch {
+      // best effort
+    }
+  };
+
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'copilot') return;
+    void refreshAiUsage();
+  }, [isOpen, activeTab, activeTeamId, accessToken]);
 
   const fetchActivity = async () => {
     if (!accessToken || !activeTeamId || !boardId || teamMembers.length === 0) return;
@@ -625,8 +661,8 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [aiMessages, chatMessages]);
 
-  const handleAiAction = async (actionData: any) => {
-    if (!boardId || !accessToken) return;
+  const handleAiAction = async (actionData: any, options?: { silent?: boolean }) => {
+    if (!boardId || !accessToken) return false;
 
     const action = String(actionData?.action || actionData?.type || '').toUpperCase();
     const payload = (actionData?.payload && typeof actionData.payload === 'object') ? actionData.payload : actionData;
@@ -692,12 +728,16 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       }
 
       window.dispatchEvent(new Event('board:refresh'));
-      if (action !== 'REPORT_GENERATE') {
+      if (!options?.silent && action !== 'REPORT_GENERATE') {
         setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `He ejecutado la acción: ${action}.` }]);
       }
+      return true;
     } catch (err) {
       console.error("Failed to execute AI action", err);
-      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
+      if (!options?.silent) {
+        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
+      }
+      return false;
     }
   };
 
@@ -732,6 +772,13 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     }
 
     const loadingMsg: Message = { id: Date.now() + 1, role: "bot", content: "", loading: true };
+    const historyForAi = aiMessages
+      .filter((m) => !m.loading && (m.role === "user" || m.role === "bot") && typeof m.content === "string" && m.content.trim().length > 0)
+      .slice(-16)
+      .map((m) => ({
+        role: m.role === "bot" ? "assistant" as const : "user" as const,
+        content: m.content.trim(),
+      }));
     setAiMessages((prev) => [...prev, userMsg, loadingMsg]);
     setIsLoading(true);
 
@@ -746,22 +793,50 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
         ? buildBoardContextSummary(boardData, scopedActivity, realtimeEvents)
         : "No board context could be loaded.";
 
-      const data = await chatWithAiScope(
+      // Start streaming — replace the loading placeholder with incremental content
+      const streamingId = Date.now() + 2;
+      let accumulated = '';
+      activeAiStreamAbortRef.current?.();
+      activeAiStreamAbortRef.current = streamAiChat(
         {
           scope: "board",
           scopeId: boardId,
           message: buildAiMessageWithReferenceContext(messageToSend, getResolverContext(teamDocs, teamBoardsForMentions, teamMembers)),
           contextSummary,
+          history: historyForAi,
         },
         accessToken,
+        (event) => {
+          if (event.type === 'delta') {
+            accumulated += event.text;
+            setAiMessages((prev) => prev.map((m) =>
+              m.id === streamingId ? { ...m, loading: false, content: accumulated } : m
+            ));
+          } else if (event.type === 'done') {
+            const finalText = event.text || accumulated || 'Lo siento, no pude procesar eso.';
+            setAiMessages((prev) => prev.map((m) =>
+              m.id === streamingId ? { ...m, loading: false, content: finalText } : m
+            ));
+            activeAiStreamAbortRef.current = null;
+            void refreshAiUsage();
+            setIsLoading(false);
+            setIsSendingMessage(false);
+          } else if (event.type === 'error') {
+            const errMsg: Message = { id: streamingId, role: "bot", content: "⚠️ AI no disponible ahora." };
+            setAiMessages((prev) => prev.map((m) => m.id === streamingId ? errMsg : m));
+            activeAiStreamAbortRef.current = null;
+            setIsLoading(false);
+            setIsSendingMessage(false);
+          }
+        },
       );
 
-      const botMsg: Message = { id: Date.now() + 2, role: "bot", content: data.text ?? "Lo siento, no pude procesar eso." };
-      setAiMessages((prev) => [...prev.filter((m) => !m.loading), botMsg]);
+      // Add an initial loading placeholder with the streaming id
+      setAiMessages((prev) => prev.map((m) => m.loading ? { ...m, id: streamingId } : m));
     } catch {
       const errMsg: Message = { id: Date.now() + 2, role: "bot", content: "⚠️ AI no disponible ahora." };
       setAiMessages((prev) => [...prev.filter((m) => !m.loading), errMsg]);
-    } finally {
+      activeAiStreamAbortRef.current = null;
       setIsLoading(false);
       setIsSendingMessage(false);
     }
@@ -793,6 +868,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       setIsActivityModalOpen,
       bottomRef,
       groupedActivities,
+      aiUsage,
       user
     },
     actions: {

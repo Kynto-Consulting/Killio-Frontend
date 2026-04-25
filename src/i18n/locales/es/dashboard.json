@@ -2,6 +2,7 @@
   "nav": {
     "workspaces": "Espacios",
     "boards": "Tableros",
+    "meshs": "Meshs",
     "documents": "Documentos",
     "teams": "Equipos",
     "activityHistory": "Historial de actividad",
@@ -9,8 +10,10 @@
     "scripts": "Scripts",
     "recentBoards": "Tableros recientes",
     "recentDocuments": "Documentos recientes",
+    "viewAll": "Ver todos",
     "noBoardsYet": "Aun no hay tableros",
-    "noDocumentsYet": "Aun no hay documentos"
+    "noDocumentsYet": "Aun no hay documentos",
+    "nomeshsYet": "Aun no hay Meshs"
   },
   "metrics": {
     "title": "Metricas del espacio",
@@ -141,6 +144,7 @@
   "teamSwitcher": {
     "selectWorkspace": "Seleccionar espacio",
     "yourWorkspaces": "Tus espacios",
-    "createWorkspace": "Crear espacio"
+    "createWorkspace": "Crear espacio",
+    "upgrade": "Upgrade"
   }
 }

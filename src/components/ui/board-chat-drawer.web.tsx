@@ -1,7 +1,8 @@
 ﻿"use client";
 import { useActionTheme } from "@/hooks/use-action-theme";
+import { useEffect, useState } from "react";
 
-import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
+import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, CheckCheck, FileText } from "lucide-react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
@@ -26,16 +27,82 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
       activeTab, setActiveTab, aiMessages, setAiMessages, chatMessages, inputVal, setInputVal,
       isLoading, isSendingMessage, allAvailableTags, teamDocs, teamMembers, teamBoardsForMentions,
       boardCardsForMentions, isGeneratingReport, selectedActivityGroup, setSelectedActivityGroup,
-      isActivityModalOpen, setIsActivityModalOpen, bottomRef, groupedActivities, user
+      isActivityModalOpen, setIsActivityModalOpen, bottomRef, groupedActivities, aiUsage, user
     },
     actions: { sendMessage, handleAiAction }
   } = useBoardChatDrawer(boardId, initialTab, isOpen);
+
+  const [drawerWidth, setDrawerWidth] = useState(384);
+  const [isResizingDrawer, setIsResizingDrawer] = useState(false);
+  const [applyingAllMessageId, setApplyingAllMessageId] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!isResizingDrawer) return;
+
+    const onMouseMove = (event: MouseEvent) => {
+      const viewportWidth = window.innerWidth || 1280;
+      const maxWidth = Math.max(420, Math.floor(viewportWidth * 0.9));
+      const nextWidth = Math.min(maxWidth, Math.max(320, viewportWidth - event.clientX));
+      setDrawerWidth(nextWidth);
+    };
+
+    const onMouseUp = () => setIsResizingDrawer(false);
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizingDrawer]);
+
+  const applyAllActions = async (messageId: number, actions: any[]) => {
+    if (actions.length === 0 || applyingAllMessageId !== null) return;
+
+    setApplyingAllMessageId(messageId);
+    let appliedCount = 0;
+
+    for (const action of actions) {
+      const success = await handleAiAction(action, { silent: true });
+      if (success) appliedCount += 1;
+    }
+
+    setAiMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "bot",
+        content: appliedCount > 0
+          ? `Apliqué ${appliedCount} de ${actions.length} cambios sugeridos.`
+          : "No pude aplicar los cambios sugeridos.",
+      },
+    ]);
+    setApplyingAllMessageId(null);
+  };
 
   if (!isOpen) return null;
 
 
   return (
-    <div className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 transform transition-transform animate-in slide-in-from-right duration-300">
+    <div
+      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 transform transition-transform animate-in slide-in-from-right duration-300"
+      style={{ width: drawerWidth }}
+    >
+      <div
+        className="absolute left-0 top-0 hidden h-full w-2 -translate-x-1/2 cursor-col-resize md:block"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          setIsResizingDrawer(true);
+        }}
+        title="Arrastra para agrandar o reducir"
+      >
+        <div className={`mx-auto mt-20 h-14 w-1 rounded-full transition-colors ${isResizingDrawer ? 'bg-amber-500/70' : 'bg-border/70 hover:bg-amber-500/50'}`} />
+      </div>
 
       {/* Header with Tabs */}
       <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
@@ -65,6 +132,30 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
             </button>
           ))}
         </div>
+
+        {activeTab === 'copilot' && aiUsage && (
+          <div className="px-3 pb-2">
+            <div className="text-[10px] text-muted-foreground font-semibold">
+              IA mensual: {aiUsage.creditsUsed.toFixed(2)} / {aiUsage.limit.toFixed(2)} creditos
+            </div>
+            <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all"
+                style={{ width: `${Math.min(100, (aiUsage.creditsUsed / Math.max(aiUsage.limit, 0.0001)) * 100)}%` }}
+              />
+            </div>
+            {typeof aiUsage.myCreditsUsed === 'number' && (
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                Tu consumo asignado: {aiUsage.myCreditsUsed.toFixed(2)} creditos ({(aiUsage.mySharePct ?? 0).toFixed(1)}%)
+              </div>
+            )}
+            {Array.isArray(aiUsage.memberAllocations) && aiUsage.memberAllocations.length > 0 && (
+              <div className="mt-1 text-[10px] text-muted-foreground/90 truncate">
+                Team shared (paga {aiUsage.billingOwnerName || 'owner'}): {aiUsage.memberAllocations.slice(0, 3).map((entry) => `${entry.isCurrentUser ? 'Tu' : entry.name}: ${entry.creditsUsed.toFixed(2)} cr`).join(' · ')}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
@@ -134,17 +225,37 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
                         </div>
                         
                         <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
+                          <span className="text-sm font-bold text-emerald-800">{String(action.action || action.type || "").replace(/_/g, " ")}</span>
                         </div>
 
                         <button
                           onClick={() => handleAiAction(action)}
-                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                         >
-                          Confirmar y Ejecutar
+                          <CheckCircle2 className="h-3.5 w-3.5" />
+                          Aplicar mejora
                         </button>
                       </div>
                     ))}
+
+                    {actions.length > 1 && (
+                      <div className="ml-11 mr-4 mt-1">
+                        <button
+                          onClick={() => {
+                            void applyAllActions(msg.id, actions);
+                          }}
+                          disabled={applyingAllMessageId === msg.id}
+                          className="w-full py-2 px-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 text-emerald-700 text-xs font-bold hover:bg-emerald-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 flex-wrap"
+                        >
+                          {applyingAllMessageId === msg.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <CheckCheck className="h-3.5 w-3.5" />
+                          )}
+                          <span>Aplicar todos los cambios</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

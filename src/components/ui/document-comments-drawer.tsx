@@ -1,8 +1,8 @@
 "use client";
 import { useActionTheme } from "@/hooks/use-action-theme";
 
-import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, FileText } from "lucide-react";
-import { chatWithAiScope, listTeamActivity, getDocumentActivity, type ActivityLogEntry } from "@/lib/api/contracts";
+import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, CheckCheck, FileText } from "lucide-react";
+import { streamAiChat, listTeamActivity, getDocumentActivity, getTeamAiUsage, type TeamAiUsage, type ActivityLogEntry } from "@/lib/api/contracts";
 import { useSession } from "../providers/session-provider";
 import { listDocumentComments, addDocumentComment, DocumentSummary, updateDocumentTitle, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, getDocument } from "@/lib/api/documents";
 import { BrickDiff } from "../bricks/brick-diff";
@@ -143,7 +143,63 @@ export function DocumentCommentsDrawer({
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
 
   const [isLoading, setIsLoading] = useState(false);
+  const [aiUsage, setAiUsage] = useState<TeamAiUsage | null>(null);
+  const [drawerWidth, setDrawerWidth] = useState(384);
+  const [isResizingDrawer, setIsResizingDrawer] = useState(false);
+  const [applyingAllMessageId, setApplyingAllMessageId] = useState<number | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const activeAiStreamAbortRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!isResizingDrawer) return;
+
+    const onMouseMove = (event: MouseEvent) => {
+      const viewportWidth = window.innerWidth || 1280;
+      const maxWidth = Math.max(420, Math.floor(viewportWidth * 0.9));
+      const nextWidth = Math.min(maxWidth, Math.max(320, viewportWidth - event.clientX));
+      setDrawerWidth(nextWidth);
+    };
+
+    const onMouseUp = () => setIsResizingDrawer(false);
+
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isResizingDrawer]);
+
+  useEffect(() => {
+    return () => {
+      activeAiStreamAbortRef.current?.();
+      activeAiStreamAbortRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) return;
+    activeAiStreamAbortRef.current?.();
+    activeAiStreamAbortRef.current = null;
+    setAiMessages([]);
+    setAiInput("");
+    setIsLoading(false);
+  }, [isOpen]);
+
+  const refreshAiUsage = async () => {
+    if (!activeTeamId || !accessToken) return;
+    try {
+      const usage = await getTeamAiUsage(activeTeamId, accessToken);
+      setAiUsage(usage);
+    } catch {
+      // best effort
+    }
+  };
 
   useEffect(() => {
     setActiveTab(initialTab);
@@ -202,6 +258,7 @@ export function DocumentCommentsDrawer({
     if (isOpen) {
       if (activeTab === 'comments') fetchComments();
       if (activeTab === 'activity') fetchActivity();
+      if (activeTab === 'copilot') void refreshAiUsage();
       fetchDocContent();
     }
   }, [isOpen, docId, activeTab]);
@@ -233,42 +290,133 @@ export function DocumentCommentsDrawer({
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [comments, aiMessages, activeTab]);
 
-  const handleAiAction = async (actionData: any) => {
-    if (!docId || !accessToken) return;
-    const { action, payload, id: entityId, brickId } = actionData;
+  const handleAiAction = async (actionData: any, options?: { silent?: boolean }) => {
+    if (!docId || !accessToken) return false;
+
+    const action = String(actionData?.action || actionData?.type || "").toUpperCase();
+    const payload = (actionData?.payload && typeof actionData.payload === "object") ? actionData.payload : actionData;
+    const entityId = String(actionData?.id || payload?.id || payload?.entityId || "").trim();
+    const actionBrickId = String(actionData?.brickId || payload?.brickId || entityId || "").trim();
+
     try {
-      if (action === 'DOC_RENAME') {
-        await updateDocumentTitle(docId, payload.title, accessToken);
-      } else if (action === 'DOC_BRICK_INSERT') {
-        await createDocumentBrick(docId, { kind: payload.kind, content: payload.content, position: payload.position || 0 }, accessToken);
-      } else if (action === 'DOC_BRICK_REPLACE') {
-        await updateDocumentBrick(docId, brickId || payload.brickId, payload.content, accessToken);
-      } else if (action === 'DOC_BRICK_APPEND') {
-        await createDocumentBrick(docId, { kind: payload.kind, content: payload.content, position: 999999 }, accessToken);
+      if (action === "DOC_RENAME") {
+        const title = String(payload?.title || payload?.name || "").trim();
+        if (!title) throw new Error("DOC_RENAME requiere title");
+        await updateDocumentTitle(docId, title, accessToken);
+      } else if (action === "DOC_BRICK_INSERT") {
+        const kind = String(payload?.kind || "text").trim();
+        const content = payload?.content;
+        const position = Number.isFinite(Number(payload?.position)) ? Number(payload.position) : 0;
+        if (content === undefined) throw new Error("DOC_BRICK_INSERT requiere content");
+        await createDocumentBrick(docId, { kind, content, position }, accessToken);
+      } else if (action === "DOC_BRICK_REPLACE") {
+        const replacementContent = payload?.content;
+        if (!actionBrickId) throw new Error("DOC_BRICK_REPLACE requiere brickId");
+        if (replacementContent === undefined) throw new Error("DOC_BRICK_REPLACE requiere content");
+        await updateDocumentBrick(docId, actionBrickId, replacementContent, accessToken);
+      } else if (action === "DOC_BRICK_APPEND") {
+        const kind = String(payload?.kind || "text").trim();
+        const content = payload?.content;
+        const position = Number.isFinite(Number(payload?.position)) ? Number(payload.position) : 999999;
+        if (content === undefined) throw new Error("DOC_BRICK_APPEND requiere content");
+        await createDocumentBrick(docId, { kind, content, position }, accessToken);
+      } else if (action === "DOC_BRICK_DELETE") {
+        if (!actionBrickId) throw new Error("DOC_BRICK_DELETE requiere brickId");
+        await deleteDocumentBrick(docId, actionBrickId, accessToken);
+      } else {
+        throw new Error(`Accion no soportada: ${action || "UNKNOWN"}`);
       }
-      window.dispatchEvent(new Event('document:refresh'));
-      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `He ejecutado la acción: ${action}.` }]);
+
+      window.dispatchEvent(new Event("document:refresh"));
+      await fetchDocContent();
+      if (!options?.silent) {
+        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: `He ejecutado la acción: ${action}.` }]);
+      }
+      return true;
     } catch (err) {
       console.error("Failed to execute AI action", err);
-      setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action}. Verifica los permisos.` }]);
+      if (!options?.silent) {
+        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: `No pude ejecutar la acción ${action || "UNKNOWN"}. Verifica los datos o permisos.` }]);
+      }
+      return false;
     }
   };
 
   const parseAiActions = (text: string) => {
     const actions: any[] = [];
-    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
-    let match;
     let cleanText = text;
-    while ((match = regex.exec(text)) !== null) {
+
+    const processMatch = (declaredType: string, jsonStr: string, fullMatch: string) => {
       try {
-        const payload = JSON.parse(match[2]);
-        actions.push({ type: match[1], ...payload });
-        cleanText = cleanText.replace(match[0], '');
+        const raw = JSON.parse(jsonStr);
+        const action = String(raw?.action || raw?.type || declaredType).trim().toUpperCase();
+        const explanation = String(raw?.explanation || "").trim();
+        const id = String(raw?.id || raw?.entityId || raw?.brickId || "").trim();
+
+        let payload = raw?.payload;
+        if (!payload || typeof payload !== "object") {
+          payload = { ...raw };
+          delete payload.action;
+          delete payload.type;
+          delete payload.id;
+          delete payload.entityId;
+          delete payload.explanation;
+        }
+
+        actions.push({
+          type: String(declaredType || "").trim().toUpperCase(),
+          action,
+          id,
+          payload,
+          explanation,
+        });
+
+        cleanText = cleanText.replace(fullMatch, "");
+        if (explanation && !cleanText.includes(explanation)) {
+          cleanText = `${cleanText.trim()}\n\n${explanation}`.trim();
+        }
       } catch (e) {
         console.error("Failed to parse AI action JSON", e);
       }
+    };
+
+    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      processMatch(match[1], match[2], match[0]);
     }
+
+    const fallbackRegex = /\[([A-Z_]+)\]\s*(\{[\s\S]*?\})\s*\[\/\1\]/g;
+    while ((match = fallbackRegex.exec(text)) !== null) {
+      if (match[1] === "ACTION") continue;
+      processMatch(match[1], match[2], match[0]);
+    }
+
     return { cleanText: cleanText.trim(), actions };
+  };
+
+  const applyAllActions = async (messageId: number, actions: any[]) => {
+    if (actions.length === 0 || applyingAllMessageId !== null) return;
+
+    setApplyingAllMessageId(messageId);
+    let appliedCount = 0;
+
+    for (const action of actions) {
+      const success = await handleAiAction(action, { silent: true });
+      if (success) appliedCount += 1;
+    }
+
+    setAiMessages((prev) => [
+      ...prev,
+      {
+        id: Date.now(),
+        role: "bot",
+        content: appliedCount > 0
+          ? `Apliqué ${appliedCount} de ${actions.length} cambios sugeridos.`
+          : "No pude aplicar los cambios sugeridos.",
+      },
+    ]);
+    setApplyingAllMessageId(null);
   };
 
   if (!isOpen) return null;
@@ -306,31 +454,83 @@ export function DocumentCommentsDrawer({
 
     const userMsg = { id: Date.now(), role: "user", content: messageToSend };
     const loadingMsg = { id: Date.now() + 1, role: "bot", content: "", loading: true };
+    const historyForAi = aiMessages
+      .filter((m) => !m.loading && (m.role === "user" || m.role === "bot") && typeof m.content === "string" && m.content.trim().length > 0)
+      .slice(-16)
+      .map((m) => ({
+        role: m.role === "bot" ? "assistant" as const : "user" as const,
+        content: m.content.trim(),
+      }));
     setAiMessages(prev => [...prev, userMsg, loadingMsg]);
     setAiInput("");
     setIsLoading(true);
 
     try {
-      const data = await chatWithAiScope({
-        scope: "document",
-        scopeId: docId,
-        message: buildAiMessageWithReferenceContext(messageToSend, {
-          documents,
-          boards,
-          activeBricks: docBricks,
-          documentBricksById: { [docId]: docBricks as any },
-          users: members || []
-        }),
-        contextSummary: buildDocContextSummary()
-      }, accessToken);
-      setAiMessages(prev => [...prev.filter(m => !m.loading), { id: Date.now(), role: "bot", content: data.text }]);
+      const streamingId = Date.now() + 1;
+      let accumulated = '';
+      activeAiStreamAbortRef.current?.();
+      activeAiStreamAbortRef.current = streamAiChat(
+        {
+          scope: "document",
+          scopeId: docId,
+          message: buildAiMessageWithReferenceContext(messageToSend, {
+            documents,
+            boards,
+            activeBricks: docBricks,
+            documentBricksById: { [docId]: docBricks as any },
+            users: members || []
+          }),
+          contextSummary: buildDocContextSummary(),
+          history: historyForAi,
+        },
+        accessToken,
+        (event) => {
+          if (event.type === 'delta') {
+            accumulated += event.text;
+            setAiMessages(prev => prev.map(m =>
+              m.id === streamingId ? { ...m, loading: false, content: accumulated } : m
+            ));
+          } else if (event.type === 'done') {
+            const finalText = event.text || accumulated || 'Lo siento, hubo un error con la IA.';
+            setAiMessages(prev => prev.map(m =>
+              m.id === streamingId ? { ...m, loading: false, content: finalText } : m
+            ));
+            activeAiStreamAbortRef.current = null;
+            void refreshAiUsage();
+            setIsLoading(false);
+          } else if (event.type === 'error') {
+            setAiMessages(prev => prev.map(m =>
+              m.id === streamingId ? { ...m, loading: false, content: 'Lo siento, hubo un error con la IA.' } : m
+            ));
+            activeAiStreamAbortRef.current = null;
+            setIsLoading(false);
+          }
+        },
+      );
+      // Assign the streaming id to the loading placeholder
+      setAiMessages(prev => prev.map(m => m.loading ? { ...m, id: streamingId } : m));
     } catch (e) {
       setAiMessages(prev => [...prev.filter(m => !m.loading), { id: Date.now(), role: "bot", content: "Lo siento, hubo un error con la IA." }]);
-    } finally { setIsLoading(false); }
+      activeAiStreamAbortRef.current = null;
+      setIsLoading(false);
+    }
   }
 
   return (
-    <div className="absolute top-0 right-0 bottom-0 w-80 md:w-96 bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 animate-in slide-in-from-right duration-300">
+    <div
+      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 shadow-2xl flex flex-col z-40 animate-in slide-in-from-right duration-300"
+      style={{ width: drawerWidth }}
+    >
+      <div
+        className="absolute left-0 top-0 hidden h-full w-2 -translate-x-1/2 cursor-col-resize md:block"
+        onMouseDown={(event) => {
+          event.preventDefault();
+          setIsResizingDrawer(true);
+        }}
+        title="Arrastra para agrandar o reducir"
+      >
+        <div className={`mx-auto mt-20 h-14 w-1 rounded-full transition-colors ${isResizingDrawer ? 'bg-amber-500/70' : 'bg-border/70 hover:bg-amber-500/50'}`} />
+      </div>
 
       {/* Header with Tabs */}
       <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
@@ -360,6 +560,30 @@ export function DocumentCommentsDrawer({
             </button>
           ))}
         </div>
+
+        {activeTab === 'copilot' && aiUsage && (
+          <div className="px-3 pb-2">
+            <div className="text-[10px] text-muted-foreground font-semibold">
+              IA mensual: {aiUsage.creditsUsed.toFixed(2)} / {aiUsage.limit.toFixed(2)} creditos
+            </div>
+            <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-full bg-amber-500 transition-all"
+                style={{ width: `${Math.min(100, (aiUsage.creditsUsed / Math.max(aiUsage.limit, 0.0001)) * 100)}%` }}
+              />
+            </div>
+            {typeof aiUsage.myCreditsUsed === 'number' && (
+              <div className="mt-1 text-[10px] text-muted-foreground">
+                Tu consumo asignado: {aiUsage.myCreditsUsed.toFixed(2)} creditos ({(aiUsage.mySharePct ?? 0).toFixed(1)}%)
+              </div>
+            )}
+            {Array.isArray(aiUsage.memberAllocations) && aiUsage.memberAllocations.length > 0 && (
+              <div className="mt-1 text-[10px] text-muted-foreground/90 truncate">
+                Team shared (paga {aiUsage.billingOwnerName || 'owner'}): {aiUsage.memberAllocations.slice(0, 3).map((entry) => `${entry.isCurrentUser ? 'Tu' : entry.name}: ${entry.creditsUsed.toFixed(2)} cr`).join(' · ')}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
@@ -403,12 +627,18 @@ export function DocumentCommentsDrawer({
                             activeBricks: docBricks,
                             documentBricksById: { [docId]: docBricks as any }
                           }}
+                          onSuggestionApply={() => {
+                            window.dispatchEvent(new Event('document:refresh'));
+                            void fetchDocContent();
+                          }}
                         />
                       )}
                     </div>
                 </div>
 
-                  {actions.map((action, actionIdx) => (
+                  {actions.map((action, actionIdx) => {
+                    const actionKind = String(action.action || action.type || '').toUpperCase();
+                    return (
                     <div key={actionIdx} className="ml-11 mr-4 p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/5 space-y-2 animate-in fade-in slide-in-from-left-2 duration-300">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
@@ -418,26 +648,47 @@ export function DocumentCommentsDrawer({
                       </div>
                       <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el documento"}</p>
                       <div className="bg-background/20 rounded border border-emerald-500/10 p-2 overflow-hidden shadow-inner">
-                        {action.type === 'DOC_BRICK_REPLACE' ? (
+                        {actionKind === 'DOC_BRICK_REPLACE' ? (
                           <BrickDiff
-                            kind={action.kind || 'text'}
+                            kind={action.payload?.kind || action.kind || 'text'}
                             oldContent={docBricks.find(b => b.id === (action.brickId || action.payload?.brickId))}
-                            newContent={action.content || action.payload?.content}
+                            newContent={action.payload?.content || action.content}
                           />
                         ) : (
                           <div className="text-[10px] font-mono whitespace-pre-wrap text-emerald-800/70 max-h-32 overflow-y-auto">
-                            {action.type}: {JSON.stringify(action, null, 2)}
+                            {actionKind}: {JSON.stringify(action, null, 2)}
                           </div>
                         )}
                       </div>
                       <button
                         onClick={() => handleAiAction(action)}
-                        className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                        className="w-full py-1.5 px-3 rounded-md bg-emerald-500 text-white text-[10px] font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                       >
-                        Confirmar y Ejecutar
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Aplicar mejora
                       </button>
                     </div>
-                  ))}
+                    );
+                  })}
+
+                  {actions.length > 1 && (
+                    <div className="ml-11 mr-4">
+                      <button
+                        onClick={() => {
+                          void applyAllActions(msg.id, actions);
+                        }}
+                        disabled={applyingAllMessageId === msg.id}
+                        className="w-full py-1.5 px-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 text-emerald-700 text-[10px] font-bold hover:bg-emerald-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 flex-wrap"
+                      >
+                        {applyingAllMessageId === msg.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <CheckCheck className="h-3.5 w-3.5" />
+                        )}
+                        <span>Aplicar todos los cambios</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}

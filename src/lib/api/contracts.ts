@@ -796,6 +796,7 @@ export async function chatWithAiScope(
     scopeId: string;
     message: string;
     contextSummary?: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
   },
   accessToken?: string,
 ): Promise<{ text: string; citations?: string[] }> {
@@ -806,7 +807,241 @@ export async function chatWithAiScope(
       scopeId: body.scopeId,
       message: body.message,
       contextSummary: body.contextSummary,
+      history: body.history,
     }),
+  });
+}
+
+export type AiStreamEvent =
+  | { type: 'delta'; text: string }
+  | { type: 'done'; text: string }
+  | { type: 'error'; message: string };
+
+export interface TeamAiUsageAllocation {
+  userId: string;
+  name: string;
+  role: string;
+  creditsUsed: number;
+  tokensUsed: number;
+  sharePct: number;
+  isCurrentUser: boolean;
+}
+
+export interface TeamAiUsage {
+  teamId: string;
+  periodStart: string;
+  creditsUsed: number;
+  tokensUsed: number;
+  limit: number;
+  remaining: number;
+  myCreditsUsed?: number;
+  myTokensUsed?: number;
+  mySharePct?: number;
+  memberAllocations?: TeamAiUsageAllocation[];
+  billingOwnerUserId?: string;
+  billingOwnerName?: string;
+  isBillingOwner?: boolean;
+}
+
+export interface TeamRagStatus {
+  teamId: string;
+  planTier: 'free' | 'pro' | 'max' | 'enterprise';
+  periodDate: string;
+  sourceCounts: {
+    documents: number;
+    cards: number;
+    boards: number;
+  };
+  policy: {
+    dailyBaseSync: number;
+    dailyExtraSync: number;
+    extraThresholdPct: number | null;
+  };
+  usage: {
+    baseUsed: number;
+    baseRemaining: number;
+    extraUsed: number;
+    extraRemaining: number;
+    lastRunAt: string | null;
+  };
+  vectorIndex: {
+    indexedEntities: number;
+    indexedChunks: number;
+    coveragePct: number;
+    lastRunAt: string | null;
+    lastRunStatus: 'indexed' | 'skipped' | 'error' | null;
+    lastRunReason: string | null;
+    embeddingProvider: string | null;
+    embeddingModel: string | null;
+  };
+  lastRun: {
+    runType: 'base' | 'extra' | 'skipped';
+    changedEntities: number;
+    removedEntities: number;
+    totalEntities: number;
+    changeRatioPct: number;
+    thresholdPct: number | null;
+    createdAt: string;
+  } | null;
+}
+
+export interface TeamRagSyncResult {
+  teamId: string;
+  planTier: 'free' | 'pro' | 'max' | 'enterprise';
+  runType: 'base' | 'extra' | 'skipped';
+  reason: string;
+  changedEntities: number;
+  removedEntities: number;
+  totalEntities: number;
+  comparedEntities: number;
+  changeRatioPct: number;
+  thresholdPct: number | null;
+  policy: {
+    dailyBaseSync: number;
+    dailyExtraSync: number;
+    extraThresholdPct: number | null;
+  };
+  usage: {
+    baseUsed: number;
+    baseRemaining: number;
+    extraUsed: number;
+    extraRemaining: number;
+  };
+  vectorIndexRun: {
+    status: 'indexed' | 'skipped' | 'error';
+    reason: string;
+    changedEntities: number;
+    removedEntities: number;
+    totalEntities: number;
+    indexedChunks: number;
+    createdAt: string;
+  } | null;
+}
+
+export interface TeamRagRunHistoryItem {
+  id: string;
+  runType: 'base' | 'extra' | 'skipped';
+  triggerSource: 'manual' | 'api' | 'system';
+  triggeredByUserId: string | null;
+  changedEntities: number;
+  removedEntities: number;
+  totalEntities: number;
+  changeRatioPct: number;
+  thresholdPct: number | null;
+  reason: string;
+  createdAt: string;
+}
+
+/**
+ * Streams an AI chat response using SSE.
+ * Returns a cancel function.
+ */
+export function streamAiChat(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list' | 'document';
+    scopeId: string;
+    message: string;
+    contextSummary?: string;
+    history?: Array<{ role: 'user' | 'assistant'; content: string }>;
+  },
+  accessToken: string,
+  onEvent: (event: AiStreamEvent) => void,
+): () => void {
+  const ctrl = new AbortController();
+  const url = `${API_BASE_URL}/ai/scope/${body.scope}/chat/stream`;
+  let accumulated = '';
+  let terminalEventReceived = false;
+
+  fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({
+      scopeId: body.scopeId,
+      message: body.message,
+      contextSummary: body.contextSummary,
+      history: body.history,
+    }),
+    signal: ctrl.signal,
+  }).then(async (res) => {
+    if (!res.ok || !res.body) {
+      terminalEventReceived = true;
+      onEvent({ type: 'error', message: `AI stream failed (${res.status})` });
+      return;
+    }
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const parts = buf.split('\n\n');
+      buf = parts.pop() ?? '';
+      for (const part of parts) {
+        const line = part.replace(/^data: /, '').trim();
+        if (!line) continue;
+        try {
+          const event = JSON.parse(line) as AiStreamEvent;
+          if (event.type === 'delta') accumulated += event.text;
+          if (event.type === 'done' || event.type === 'error') terminalEventReceived = true;
+          onEvent(event);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+
+    if (!terminalEventReceived) {
+      terminalEventReceived = true;
+      onEvent({ type: 'done', text: accumulated });
+    }
+  }).catch((err) => {
+    if (err?.name !== 'AbortError') {
+      terminalEventReceived = true;
+      onEvent({ type: 'error', message: String(err?.message ?? 'Stream error') });
+    }
+  });
+
+  return () => ctrl.abort();
+}
+
+export async function getTeamAiUsage(teamId: string, accessToken: string): Promise<TeamAiUsage> {
+  return request<TeamAiUsage>(`/ai/team/${teamId}/usage`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function getTeamRagStatus(teamId: string, accessToken: string): Promise<TeamRagStatus> {
+  return request<TeamRagStatus>(`/ai/team/${teamId}/rag/status`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function runTeamRagSync(
+  teamId: string,
+  accessToken: string,
+  triggerSource: 'manual' | 'api' | 'system' = 'manual',
+): Promise<TeamRagSyncResult> {
+  return request<TeamRagSyncResult>(`/ai/team/${teamId}/rag/sync`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ triggerSource }),
+  });
+}
+
+export async function listTeamRagRuns(
+  teamId: string,
+  accessToken: string,
+  limit = 20,
+): Promise<TeamRagRunHistoryItem[]> {
+  return request<TeamRagRunHistoryItem[]>(`/ai/team/${teamId}/rag/runs?limit=${encodeURIComponent(String(limit))}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
   });
 }
 

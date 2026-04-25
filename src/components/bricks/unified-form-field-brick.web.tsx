@@ -15,12 +15,30 @@ export type FormFieldType =
   | "radio"
   | "select";
 
+export type FormFieldConditionOperator =
+  | "equals"
+  | "not_equals"
+  | "contains"
+  | "not_contains"
+  | "is_empty"
+  | "is_not_empty"
+  | "is_true"
+  | "is_false";
+
+export type FormFieldCondition = {
+  enabled: boolean;
+  sourceFieldId: string;
+  operator: FormFieldConditionOperator;
+  value?: string;
+};
+
 export type FormFieldConfig = {
   fieldId: string;
   type: FormFieldType;
   placeholder?: string;
   required?: boolean;
   options?: string[];
+  condition?: FormFieldCondition;
 };
 
 type FormFieldRuntimeContextValue = {
@@ -83,14 +101,54 @@ export function normalizeFormFieldConfig(raw: unknown): FormFieldConfig | null {
     ? input.options.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
     : [];
 
+  const allowedConditionOperators: FormFieldConditionOperator[] = [
+    "equals",
+    "not_equals",
+    "contains",
+    "not_contains",
+    "is_empty",
+    "is_not_empty",
+    "is_true",
+    "is_false",
+  ];
+
+  let condition: FormFieldCondition | undefined;
+  if (input.condition && typeof input.condition === "object") {
+    const rawCondition = input.condition as Record<string, unknown>;
+    const sourceFieldId = typeof rawCondition.sourceFieldId === "string" ? slugifyFieldId(rawCondition.sourceFieldId) : "";
+    const operator =
+      typeof rawCondition.operator === "string" && allowedConditionOperators.includes(rawCondition.operator as FormFieldConditionOperator)
+        ? (rawCondition.operator as FormFieldConditionOperator)
+        : "equals";
+
+    if (sourceFieldId.length > 0) {
+      condition = {
+        enabled: Boolean(rawCondition.enabled),
+        sourceFieldId,
+        operator,
+        value: typeof rawCondition.value === "string" ? rawCondition.value : "",
+      };
+    }
+  }
+
   return {
     fieldId: slugifyFieldId(rawFieldId),
     type: safeType,
     placeholder,
     required,
     options,
+    condition,
   };
 }
+
+const operatorNeedsValue = (operator: FormFieldConditionOperator): boolean => {
+  return (
+    operator === "equals" ||
+    operator === "not_equals" ||
+    operator === "contains" ||
+    operator === "not_contains"
+  );
+};
 
 interface UnifiedFormFieldBrickProps {
   id: string;
@@ -187,17 +245,105 @@ export function UnifiedFormFieldBrick({
             className="h-9 bg-background"
           />
         )}
+
+        <div className="rounded-md border border-border/70 bg-background p-3 space-y-2">
+          <label className="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+            <input
+              type="checkbox"
+              checked={Boolean(config.condition?.enabled)}
+              onChange={(event) =>
+                onUpdate({
+                  ...config,
+                  condition: {
+                    enabled: event.target.checked,
+                    sourceFieldId: config.condition?.sourceFieldId || "",
+                    operator: config.condition?.operator || "equals",
+                    value: config.condition?.value || "",
+                  },
+                })
+              }
+              className="rounded border-input text-accent focus:ring-accent"
+            />
+            Mostrar este campo solo si se cumple una condicion
+          </label>
+
+          {config.condition?.enabled ? (
+            <div className="grid gap-2 md:grid-cols-3">
+              <Input
+                value={config.condition?.sourceFieldId || ""}
+                onChange={(event) =>
+                  onUpdate({
+                    ...config,
+                    condition: {
+                      enabled: true,
+                      sourceFieldId: slugifyFieldId(event.target.value),
+                      operator: config.condition?.operator || "equals",
+                      value: config.condition?.value || "",
+                    },
+                  })
+                }
+                placeholder="field_id origen"
+                className="h-9 font-mono"
+              />
+
+              <select
+                value={config.condition?.operator || "equals"}
+                onChange={(event) =>
+                  onUpdate({
+                    ...config,
+                    condition: {
+                      enabled: true,
+                      sourceFieldId: config.condition?.sourceFieldId || "",
+                      operator: event.target.value as FormFieldConditionOperator,
+                      value: config.condition?.value || "",
+                    },
+                  })
+                }
+                className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none"
+              >
+                <option value="equals">igual a</option>
+                <option value="not_equals">distinto de</option>
+                <option value="contains">contiene</option>
+                <option value="not_contains">no contiene</option>
+                <option value="is_empty">esta vacio</option>
+                <option value="is_not_empty">no esta vacio</option>
+                <option value="is_true">es verdadero</option>
+                <option value="is_false">es falso</option>
+              </select>
+
+              {operatorNeedsValue(config.condition?.operator || "equals") ? (
+                <Input
+                  value={config.condition?.value || ""}
+                  onChange={(event) =>
+                    onUpdate({
+                      ...config,
+                      condition: {
+                        enabled: true,
+                        sourceFieldId: config.condition?.sourceFieldId || "",
+                        operator: config.condition?.operator || "equals",
+                        value: event.target.value,
+                      },
+                    })
+                  }
+                  placeholder="Valor esperado"
+                  className="h-9"
+                />
+              ) : (
+                <div className="h-9 rounded-md border border-dashed border-border/60 px-3 text-xs text-muted-foreground flex items-center">
+                  Este operador no requiere valor
+                </div>
+              )}
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   const value = runtimeValue;
-  const fieldIdBadge = <span className="text-[10px] font-mono uppercase tracking-wider text-muted-foreground">{config.fieldId}</span>;
-
   if (!interactive || !onRuntimeValueChange) {
     return (
       <div className="rounded-md border border-dashed border-border/70 bg-muted/10 p-3 space-y-1">
-        {fieldIdBadge}
         <p className="text-xs text-muted-foreground">Field Brick ({config.type})</p>
       </div>
     );
@@ -206,7 +352,6 @@ export function UnifiedFormFieldBrick({
   if (config.type === "textarea") {
     return (
       <div className="block space-y-1.5">
-        {fieldIdBadge}
         <textarea
           id={id}
           className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
@@ -222,7 +367,6 @@ export function UnifiedFormFieldBrick({
   if (config.type === "select") {
     return (
       <div className="block space-y-1.5">
-        {fieldIdBadge}
         <select
           id={id}
           className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30"
@@ -246,7 +390,6 @@ export function UnifiedFormFieldBrick({
   if (config.type === "radio") {
     return (
       <div className="block space-y-1.5">
-        {fieldIdBadge}
         <div className="space-y-2 mt-1">
           {(config.options || []).map((option, index) => (
             <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
@@ -281,11 +424,9 @@ export function UnifiedFormFieldBrick({
         <span className="leading-tight font-mono text-xs text-muted-foreground">{config.fieldId}</span>
       </label>
     );
-  }
-
+  } 
   return (
     <div className="block space-y-1.5">
-      {fieldIdBadge}
       <Input
         id={id}
         type={config.type}

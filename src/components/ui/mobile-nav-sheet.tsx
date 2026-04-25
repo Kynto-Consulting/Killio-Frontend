@@ -1,14 +1,15 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu, Search, Home, Layout, FileText, Users, History,
-  Settings, LogOut, Check, Plus, ChevronsUpDown, UserCircle, ArrowRightLeft
+  Settings, LogOut, Check, Plus, ChevronsUpDown, UserCircle, ArrowRightLeft, Sparkles, Loader2, ChevronRight, GitBranch
 } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
-import { TeamView } from "@/lib/api/contracts";
+import { BoardSummary, TeamView } from "@/lib/api/contracts";
+import { DocumentSummary } from "@/lib/api/documents";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
@@ -17,8 +18,13 @@ export function MobileNavSheet({
   activeTeamId,
   setActiveTeamId,
   navigation,
+  boards,
+  recentDocuments,
+  isFetchingBoards = false,
+  isFetchingDocuments = false,
   user,
   logout,
+  onCreateWorkspace,
   boardName,
   documentName
 }: {
@@ -26,20 +32,139 @@ export function MobileNavSheet({
   activeTeamId: string | null;
   setActiveTeamId: (id: string) => void;
   navigation: { name: string; href: string; icon: any }[];
+  boards: BoardSummary[];
+  recentDocuments: DocumentSummary[];
+  isFetchingBoards?: boolean;
+  isFetchingDocuments?: boolean;
   user: any;
   logout: () => void;
+  onCreateWorkspace?: () => void;
   boardName?: string;
   documentName?: string;
 }) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isBoardsOpen, setIsBoardsOpen] = useState(() => pathname.startsWith("/b"));
+  const [ismeshsOpen, setIsmeshsOpen] = useState(false);
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => pathname.startsWith("/d"));
   const pathname = usePathname();
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
   
   const activeTeam = teams.find(t => t.id === activeTeamId);
+  const recentBoardLinks = boards.slice(0, 3).map((board) => ({ id: board.id, label: board.name, href: `/b/${board.id}` }));
+  const recentDocumentLinks = recentDocuments.slice(0, 3).map((document) => ({ id: document.id, label: document.title, href: `/d/${document.id}` }));
   
   const currentNav = navigation.find(n => pathname === n.href || (n.href !== '/' && pathname.startsWith(n.href)));
   const pageLabel = boardName || documentName || currentNav?.name || tDashboard("nav.workspaces");
+
+  useEffect(() => {
+    if (pathname.startsWith("/b")) {
+      setIsBoardsOpen(true);
+    }
+    if (pathname.startsWith("/d")) {
+      setIsDocumentsOpen(true);
+    }
+  }, [pathname]);
+
+  const renderExpandableItem = ({
+    key,
+    href,
+    name,
+    icon: Icon,
+    isOpen,
+    onToggle,
+    isActive,
+    items,
+    isLoading,
+    emptyLabel,
+  }: {
+    key: string;
+    href?: string;
+    name: string;
+    icon: typeof Layout;
+    isOpen: boolean;
+    onToggle: () => void;
+    isActive: boolean;
+    items: { id: string; label: string; href: string }[];
+    isLoading: boolean;
+    emptyLabel: string;
+  }) => {
+    const itemClassName = isActive
+      ? "bg-accent/10 text-accent font-semibold"
+      : "text-foreground/80 hover:bg-accent/5 hover:text-foreground";
+
+    return (
+      <div key={key} className="flex flex-col">
+        <div className={`group flex items-center rounded-md transition-colors ${itemClassName}`}>
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
+            className="ml-1 flex h-9 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+          </button>
+
+          {href ? (
+            <Link
+              href={href}
+              onClick={() => setIsOpen(false)}
+              className="flex min-w-0 flex-1 items-center space-x-3 py-2.5 pr-3 text-sm font-medium"
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-70" />
+              <span className="truncate">{name}</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              onClick={onToggle}
+              className="flex min-w-0 flex-1 items-center space-x-3 py-2.5 pr-3 text-left text-sm font-medium"
+            >
+              <Icon className="h-4 w-4 shrink-0 opacity-70" />
+              <span className="truncate">{name}</span>
+            </button>
+          )}
+        </div>
+
+        {isOpen && (
+          <div className="ml-5 mt-1 border-l border-border/70 pl-4">
+            <div className="space-y-1 py-1">
+              {isLoading ? (
+                <div className="flex justify-center p-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                </div>
+              ) : items.length > 0 ? (
+                items.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                    className="group flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground/75 transition-all hover:bg-accent/10 hover:text-foreground"
+                  >
+                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-border transition-colors group-hover:bg-accent" />
+                    <span className="truncate">{item.label}</span>
+                  </Link>
+                ))
+              ) : (
+                <div className="px-3 py-1.5 text-sm text-muted-foreground">{emptyLabel}</div>
+              )}
+
+              {href ? (
+                <Link
+                  href={href}
+                  onClick={() => setIsOpen(false)}
+                  className="flex items-center rounded-md px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+                >
+                  {tDashboard("nav.viewAll")}
+                </Link>
+              ) : null}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
 
   return (
     <>
@@ -94,8 +219,55 @@ export function MobileNavSheet({
             {/* Navigation Routes */}
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
               {navigation.map((item) => {
-                const isActive = pathname === item.href || (item.href !== '/' && pathname.startsWith(item.href));
+                const isActive = isPathActive(item.href);
                 const isScriptsMenu = item.href === "/integrations";
+
+                if (item.href === "/b") {
+                  return (
+                    <div key={item.name} className="space-y-1">
+                      {renderExpandableItem({
+                        key: item.href,
+                        href: item.href,
+                        name: item.name,
+                        icon: item.icon,
+                        isOpen: isBoardsOpen,
+                        onToggle: () => setIsBoardsOpen((current) => !current),
+                        isActive,
+                        items: recentBoardLinks,
+                        isLoading: isFetchingBoards,
+                        emptyLabel: tDashboard("nav.noBoardsYet"),
+                      })}
+
+                      {renderExpandableItem({
+                        key: "mesh-boards",
+                        name: tDashboard("nav.meshs"),
+                        icon: GitBranch,
+                        isOpen: ismeshsOpen,
+                        onToggle: () => setIsmeshsOpen((current) => !current),
+                        isActive: false,
+                        items: [],
+                        isLoading: false,
+                        emptyLabel: tDashboard("nav.nomeshsYet"),
+                      })}
+                    </div>
+                  );
+                }
+
+                if (item.href === "/d") {
+                  return renderExpandableItem({
+                    key: item.href,
+                    href: item.href,
+                    name: item.name,
+                    icon: item.icon,
+                    isOpen: isDocumentsOpen,
+                    onToggle: () => setIsDocumentsOpen((current) => !current),
+                    isActive,
+                    items: recentDocumentLinks,
+                    isLoading: isFetchingDocuments,
+                    emptyLabel: tDashboard("nav.noDocumentsYet"),
+                  });
+                }
+
                 return (
                   <div key={item.name} className="flex flex-col">
                     <Link
@@ -147,6 +319,28 @@ export function MobileNavSheet({
                     {activeTeamId === team.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-3 space-y-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false);
+                    onCreateWorkspace?.();
+                  }}
+                  className="w-full flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-accent hover:bg-accent/10"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>{tDashboard("teamSwitcher.createWorkspace")}</span>
+                </button>
+                <Link
+                  href="/pricing"
+                  onClick={() => setIsOpen(false)}
+                  className="w-full flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium text-foreground/80 hover:bg-accent/5 hover:text-foreground"
+                >
+                  <Sparkles className="h-4 w-4" />
+                  <span>{tDashboard("teamSwitcher.upgrade")}</span>
+                </Link>
               </div>
             </div>
 

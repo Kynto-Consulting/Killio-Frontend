@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown, Wrench } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -11,6 +11,7 @@ import { listTeamMembers } from "@/lib/api/contracts";
 import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { ReferenceTokenInput } from "./reference-token-input";
+import { createScript, saveScriptGraph } from "@/lib/api/scripts";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 //comentario para forzar deploy
@@ -33,6 +34,190 @@ interface ToastMessage {
 }
 
 type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "text";
+type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents';
+type AgentToolId = 'search' | 'edit' | 'investigate' | 'docs' | 'boards' | 'scripts';
+
+interface GeneratedScriptDraft {
+  id: string;
+  name: string;
+  description?: string;
+  nodes: Array<{ id: string; kind: string; label?: string; config?: Record<string, any> }>;
+  connections: Array<{ source: string; target: string; sourceHandle?: string; targetHandle?: string }>;
+  isSelected: boolean;
+}
+
+interface GeneratedAgentDraft {
+  id: string;
+  name: string;
+  description: string;
+  reasoning: string;
+  response: string;
+  selectedTools: AgentToolId[];
+  isSelected: boolean;
+}
+
+const AGENT_TOOL_OPTIONS: Array<{ id: AgentToolId; label: string; description: string }> = [
+  { id: 'search', label: 'Search', description: 'Busca información en docs, cards y contexto' },
+  { id: 'edit', label: 'Edit', description: 'Edita contenido con acciones propuestas' },
+  { id: 'investigate', label: 'Investigate', description: 'Analiza métricas y estado del workspace' },
+  { id: 'docs', label: 'Docs', description: 'Crea y organiza documentos' },
+  { id: 'boards', label: 'Boards', description: 'Crea y actualiza tableros y listas' },
+  { id: 'scripts', label: 'Scripts', description: 'Propone y configura automatizaciones' },
+];
+
+const extractJsonObject = (rawText: string): any | null => {
+  if (!rawText) return null;
+  const trimmed = rawText.trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    const start = trimmed.indexOf('{');
+    const end = trimmed.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      try {
+        return JSON.parse(trimmed.slice(start, end + 1));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+};
+
+const VALID_DATABASE_OPERATIONS = new Set(['query', 'insert', 'upsert', 'update', 'delete', 'count']);
+
+const inferDatabaseOperation = (hint: unknown): string => {
+  const normalized = String(hint || '').trim().toLowerCase();
+  if (VALID_DATABASE_OPERATIONS.has(normalized)) return normalized;
+  if (normalized.includes('insert') || normalized.includes('crear') || normalized.includes('agregar')) return 'insert';
+  if (normalized.includes('upsert')) return 'upsert';
+  if (normalized.includes('update') || normalized.includes('actualizar')) return 'update';
+  if (normalized.includes('delete') || normalized.includes('eliminar') || normalized.includes('borrar')) return 'delete';
+  if (normalized.includes('count') || normalized.includes('contar')) return 'count';
+  return 'query';
+};
+
+type NormalizedDraftNode = {
+  id: string;
+  kind: string;
+  label?: string;
+  config: Record<string, any>;
+};
+
+type NormalizedDraftConnection = {
+  source: string;
+  target: string;
+  sourceHandle?: string;
+  targetHandle?: string;
+};
+
+const normalizeGeneratedScriptDraft = (script: any, index: number): GeneratedScriptDraft => {
+  const rawNodes =
+    (Array.isArray(script?.nodes) ? script.nodes : null)
+    || (Array.isArray(script?.graph?.nodes) ? script.graph.nodes : null)
+    || [];
+
+  const usedNodeIds = new Set<string>();
+  const makeUniqueId = (raw: unknown, fallback: string): string => {
+    const base = String(raw || '').trim() || fallback;
+    let candidate = base;
+    let cursor = 2;
+    while (usedNodeIds.has(candidate)) {
+      candidate = `${base}-${cursor}`;
+      cursor += 1;
+    }
+    usedNodeIds.add(candidate);
+    return candidate;
+  };
+
+  const normalizedNodes: NormalizedDraftNode[] = rawNodes.map((rawNode: any, nodeIndex: number) => {
+    const nodeLike = rawNode && typeof rawNode === 'object' ? rawNode : {};
+    let kind = String(nodeLike.kind || nodeLike.nodeKind || nodeLike.type || '').trim() || 'core.transform.json_map';
+    let config =
+      nodeLike.config && typeof nodeLike.config === 'object' && !Array.isArray(nodeLike.config)
+        ? { ...nodeLike.config }
+        : {};
+
+    if (kind === 'killio.database.action') {
+      const operation = inferDatabaseOperation(config.operation || nodeLike.operation || nodeLike.label || nodeLike.name);
+      if (!config.operation) config.operation = operation;
+      if (!config.sourceBrickId && nodeLike.sourceBrickId) {
+        config.sourceBrickId = String(nodeLike.sourceBrickId);
+      }
+      if (!config.sourceBrickId) {
+        kind = 'killio.database.list';
+        config = { source: 'all' };
+      }
+    }
+
+    return {
+      id: makeUniqueId(nodeLike.id || nodeLike.nodeId, `node-${nodeIndex + 1}`),
+      kind,
+      label: typeof nodeLike.label === 'string' ? nodeLike.label : undefined,
+      config,
+    };
+  });
+
+  if (normalizedNodes.length === 0) {
+    normalizedNodes.push({ id: makeUniqueId('trigger-1', 'trigger-1'), kind: 'core.trigger.manual', label: 'Manual Trigger', config: {} });
+  }
+
+  const hasTrigger = normalizedNodes.some(
+    (node: NormalizedDraftNode) =>
+      node.kind === 'core.trigger.manual' || node.kind === 'core.trigger.webhook' || node.kind === 'github.trigger.commit',
+  );
+
+  if (!hasTrigger) {
+    normalizedNodes.unshift({
+      id: makeUniqueId('trigger-1', 'trigger-1'),
+      kind: 'core.trigger.manual',
+      label: 'Manual Trigger',
+      config: {},
+    });
+  }
+
+  const nodeIdSet = new Set(normalizedNodes.map((node: NormalizedDraftNode) => node.id));
+  const rawConnections =
+    (Array.isArray(script?.connections) ? script.connections : null)
+    || (Array.isArray(script?.edges) ? script.edges : null)
+    || (Array.isArray(script?.graph?.edges) ? script.graph.edges : null)
+    || [];
+
+  let normalizedConnections: NormalizedDraftConnection[] = rawConnections
+    .map((rawEdge: any) => {
+      const edgeLike = rawEdge && typeof rawEdge === 'object' ? rawEdge : {};
+      const source = String(edgeLike.source ?? edgeLike.sourceNodeId ?? edgeLike.from ?? '').trim();
+      const target = String(edgeLike.target ?? edgeLike.targetNodeId ?? edgeLike.to ?? '').trim();
+      if (!source || !target) return null;
+      return {
+        source,
+        target,
+        sourceHandle: typeof edgeLike.sourceHandle === 'string' ? edgeLike.sourceHandle : undefined,
+        targetHandle: typeof edgeLike.targetHandle === 'string' ? edgeLike.targetHandle : undefined,
+      };
+    })
+    .filter((edge: NormalizedDraftConnection | null): edge is NormalizedDraftConnection => Boolean(edge))
+    .filter(
+      (edge: NormalizedDraftConnection) =>
+        nodeIdSet.has(edge.source) && nodeIdSet.has(edge.target) && edge.source !== edge.target,
+    );
+
+  if (normalizedConnections.length === 0 && normalizedNodes.length > 1) {
+    normalizedConnections = normalizedNodes.slice(0, -1).map((node: NormalizedDraftNode, nodeIndex: number) => ({
+      source: node.id,
+      target: normalizedNodes[nodeIndex + 1].id,
+    }));
+  }
+
+  return {
+    id: script?.id || `draft-script-${Date.now()}-${index}`,
+    name: String(script?.name || `Script ${index + 1}`),
+    description: script?.description || 'Script generado por AI Draft Studio',
+    nodes: normalizedNodes,
+    connections: normalizedConnections,
+    isSelected: true,
+  };
+};
 
 const inferSourceKind = (file: File): ExtractSourceKind => {
   const fileType = (file.type || "").toLowerCase();
@@ -63,10 +248,16 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
 
-  const [generationType, setGenerationType] = useState<'cards' | 'documents' | 'boards'>('cards');
+  const [generationType, setGenerationType] = useState<GenerationType>('cards');
   const [previewCards, setPreviewCards] = useState<GeneratedCard[]>([]);
   const [previewDocuments, setPreviewDocuments] = useState<any[]>([]);
   const [previewBoards, setPreviewBoards] = useState<any[]>([]);
+  const [previewScripts, setPreviewScripts] = useState<GeneratedScriptDraft[]>([]);
+  const [previewAgents, setPreviewAgents] = useState<GeneratedAgentDraft[]>([]);
+  const [expandedScriptPreviewIds, setExpandedScriptPreviewIds] = useState<string[]>([]);
+  const [showGenerationTypeMenu, setShowGenerationTypeMenu] = useState(false);
+  const [enabledAgentTools, setEnabledAgentTools] = useState<AgentToolId[]>(['search', 'investigate', 'docs', 'boards', 'scripts']);
+  const generationMenuRef = useRef<HTMLDivElement | null>(null);
 
   // State for Global Dispatching Dropdowns
   const [boards, setBoards] = useState<BoardSummary[]>([]);
@@ -128,6 +319,24 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     }
   }, [defaultBoardId, accessToken]);
 
+  useEffect(() => {
+    setShowGenerationTypeMenu(false);
+  }, [generationType]);
+
+  useEffect(() => {
+    const onPointerDown = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (generationMenuRef.current && !generationMenuRef.current.contains(target)) {
+        setShowGenerationTypeMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', onPointerDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+    };
+  }, []);
+
 
   if (!isOpen) return null;
 
@@ -157,6 +366,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewCards([]);
     setPreviewDocuments([]);
     setPreviewBoards([]);
+    setPreviewScripts([]);
+    setPreviewAgents([]);
+    setExpandedScriptPreviewIds([]);
 
     const progressInterval = setInterval(() => {
       setGenerationProgress(prev => {
@@ -277,6 +489,76 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           id: `draft-board-${Date.now()}-${index}`,
           isSelected: true
         })));
+      } else if (generationType === 'scripts') {
+        if (!activeTeamId) throw new Error('No active team selected');
+
+        const scriptsRes = await fetch(`${API}/scripts/generate`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({
+            userPrompt: finalContent,
+            teamId: activeTeamId,
+          }),
+        });
+
+        if (!scriptsRes.ok) {
+          throw new Error(`No se pudo generar script (${scriptsRes.status})`);
+        }
+
+        const generated = await scriptsRes.json();
+        const scriptDrafts = (Array.isArray(generated) ? generated : [generated])
+          .filter(Boolean)
+          .map((script: any, index: number) => normalizeGeneratedScriptDraft(script, index));
+
+        setPreviewScripts(scriptDrafts);
+      } else if (generationType === 'agents') {
+        if (!activeTeamId) throw new Error('No active team selected');
+
+        const toolsSummary = enabledAgentTools.length > 0
+          ? enabledAgentTools.join(', ')
+          : 'ninguna';
+
+        const agentPrompt = `
+Eres un diseñador de agentes para Killio.
+Herramientas habilitadas: ${toolsSummary}
+
+Con base en el contexto del usuario, devuelve SOLO JSON con este formato exacto:
+{
+  "name": "Nombre del agente",
+  "description": "Qué hace",
+  "reasoning": "Resumen breve de razonamiento",
+  "response": "Respuesta conversacional del agente"
+}
+
+Contexto del usuario:
+${finalContent}
+        `.trim();
+
+        const chatRes = await chatWithAiScope(
+          {
+            scope: 'team',
+            scopeId: activeTeamId,
+            message: agentPrompt,
+            contextSummary: existingEntitiesSummary,
+          },
+          accessToken || '',
+        );
+
+        const parsed = extractJsonObject(chatRes.text);
+        const draft: GeneratedAgentDraft = {
+          id: `draft-agent-${Date.now()}`,
+          name: String(parsed?.name || 'Agent Draft'),
+          description: String(parsed?.description || 'Agente generado para este workspace'),
+          reasoning: String(parsed?.reasoning || 'No se devolvió razonamiento estructurado.'),
+          response: String(parsed?.response || chatRes.text || ''),
+          selectedTools: [...enabledAgentTools],
+          isSelected: true,
+        };
+
+        setPreviewAgents([draft]);
       }
 
       setGenerationProgress(100);
@@ -310,6 +592,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     } else if (generationType === 'boards') {
       const allSelected = previewBoards.length > 0 && previewBoards.every((board) => board.isSelected);
       setPreviewBoards((prev) => prev.map((board) => ({ ...board, isSelected: !allSelected })));
+    } else if (generationType === 'scripts') {
+      const allSelected = previewScripts.length > 0 && previewScripts.every((script) => script.isSelected);
+      setPreviewScripts((prev) => prev.map((script) => ({ ...script, isSelected: !allSelected })));
+    } else if (generationType === 'agents') {
+      const allSelected = previewAgents.length > 0 && previewAgents.every((agent) => agent.isSelected);
+      setPreviewAgents((prev) => prev.map((agent) => ({ ...agent, isSelected: !allSelected })));
     }
   };
 
@@ -319,6 +607,29 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
   const handleToggleBoardSelection = (id: string) => {
     setPreviewBoards((prev) => prev.map((board) => board.id === id ? { ...board, isSelected: !board.isSelected } : board));
+  };
+
+  const handleToggleScriptSelection = (id: string) => {
+    setPreviewScripts((prev) => prev.map((script) => script.id === id ? { ...script, isSelected: !script.isSelected } : script));
+  };
+
+  const handleToggleScriptPreview = (id: string) => {
+    setExpandedScriptPreviewIds((prev) =>
+      prev.includes(id) ? prev.filter((scriptId) => scriptId !== id) : [...prev, id],
+    );
+  };
+
+  const handleToggleAgentSelection = (id: string) => {
+    setPreviewAgents((prev) => prev.map((agent) => agent.id === id ? { ...agent, isSelected: !agent.isSelected } : agent));
+  };
+
+  const handleToggleAgentTool = (toolId: AgentToolId) => {
+    setEnabledAgentTools((prev) => {
+      if (prev.includes(toolId)) {
+        return prev.filter((id) => id !== toolId);
+      }
+      return [...prev, toolId];
+    });
   };
 
   const openDraftEditor = (cardId: string) => {
@@ -541,6 +852,141 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       } finally {
         setIsDispatchingSelected(false);
       }
+    } else if (generationType === 'scripts') {
+      const selectedScripts = previewScripts.filter((script) => script.isSelected);
+      if (selectedScripts.length === 0 || !activeTeamId) return;
+
+      setIsDispatchingSelected(true);
+      try {
+        for (const scriptDraft of selectedScripts) {
+          const createdScript = await createScript(
+            {
+              teamId: activeTeamId,
+              name: scriptDraft.name,
+              description: scriptDraft.description,
+              triggerConfig: { type: 'manual' },
+            },
+            accessToken,
+          );
+
+          const nodes = scriptDraft.nodes.map((node, index) => {
+            const nodeLike = node && typeof node === 'object' ? node : ({} as any);
+            let nodeKind = String((nodeLike as any).kind || (nodeLike as any).nodeKind || (nodeLike as any).type || 'core.trigger.manual');
+            let config =
+              nodeLike.config && typeof nodeLike.config === 'object' && !Array.isArray(nodeLike.config)
+                ? { ...nodeLike.config }
+                : {};
+
+            if (nodeKind === 'killio.database.action') {
+              if (!config.operation) {
+                config.operation = inferDatabaseOperation(
+                  config.operation || (nodeLike as any).operation || nodeLike.label || (nodeLike as any).name,
+                );
+              }
+
+              if (!config.sourceBrickId && (nodeLike as any).sourceBrickId) {
+                config.sourceBrickId = String((nodeLike as any).sourceBrickId);
+              }
+
+              if (!config.sourceBrickId) {
+                nodeKind = 'killio.database.list';
+                config = { source: 'all' };
+              }
+            }
+
+            return {
+              id: String(nodeLike.id || `node-${index + 1}`),
+              scriptId: createdScript.id,
+              nodeKind: nodeKind as any,
+              label: nodeLike.label || null,
+              config,
+              positionX: 180 + index * 180,
+              positionY: 140,
+            };
+          });
+
+          const nodeIds = new Set(nodes.map((node) => node.id));
+          let edges = scriptDraft.connections
+            .map((edge, index) => {
+              const edgeLike = edge && typeof edge === 'object' ? (edge as any) : {};
+              const source = String(edgeLike.source ?? edgeLike.sourceNodeId ?? edgeLike.from ?? '').trim();
+              const target = String(edgeLike.target ?? edgeLike.targetNodeId ?? edgeLike.to ?? '').trim();
+
+              if (!source || !target || source === target) {
+                return null;
+              }
+
+              return {
+                id: `edge-${index + 1}`,
+                scriptId: createdScript.id,
+                sourceNodeId: source,
+                targetNodeId: target,
+                sourceHandle: edgeLike.sourceHandle || 'output',
+                targetHandle: edgeLike.targetHandle || 'input',
+              };
+            })
+            .filter((edge): edge is NonNullable<typeof edge> => Boolean(edge))
+            .filter((edge) => nodeIds.has(edge.sourceNodeId) && nodeIds.has(edge.targetNodeId));
+
+          if (edges.length === 0 && nodes.length > 1) {
+            edges = nodes.slice(0, -1).map((node, index) => ({
+              id: `edge-seq-${index + 1}`,
+              scriptId: createdScript.id,
+              sourceNodeId: node.id,
+              targetNodeId: nodes[index + 1].id,
+              sourceHandle: 'output',
+              targetHandle: 'input',
+            }));
+          }
+
+          if (nodes.length > 0) {
+            await saveScriptGraph(createdScript.id, activeTeamId, { nodes, edges }, accessToken);
+          }
+        }
+
+        setPreviewScripts((prev) => prev.filter((script) => !selectedScripts.find((selected) => selected.id === script.id)));
+        pushToast('success', `Se crearon ${selectedScripts.length} scripts.`);
+      } catch (err: any) {
+        pushToast('error', `Error al crear scripts: ${err?.message || 'Error desconocido'}`);
+      } finally {
+        setIsDispatchingSelected(false);
+      }
+    } else if (generationType === 'agents') {
+      const selectedAgents = previewAgents.filter((agent) => agent.isSelected);
+      if (selectedAgents.length === 0 || !activeTeamId) return;
+
+      setIsDispatchingSelected(true);
+      try {
+        for (const agentDraft of selectedAgents) {
+          const agentDocument = await createDocument(
+            {
+              teamId: activeTeamId,
+              title: `Agent: ${agentDraft.name}`,
+            },
+            accessToken,
+          );
+
+          const toolList = agentDraft.selectedTools.map((tool) => `- ${tool}`).join('\n');
+          const markdown = `## ${agentDraft.name}\n\n${agentDraft.description}\n\n### Tools habilitadas\n${toolList || '- (ninguna)'}\n\n### Reasoning\n${agentDraft.reasoning}\n\n### Respuesta\n${agentDraft.response}`;
+
+          await createDocumentBrick(
+            agentDocument.id,
+            {
+              kind: 'text',
+              position: 0,
+              content: { markdown },
+            },
+            accessToken,
+          );
+        }
+
+        setPreviewAgents((prev) => prev.filter((agent) => !selectedAgents.find((selected) => selected.id === agent.id)));
+        pushToast('success', `Se crearon ${selectedAgents.length} agentes como documentos de configuración.`);
+      } catch (err: any) {
+        pushToast('error', `Error al crear agentes: ${err?.message || 'Error desconocido'}`);
+      } finally {
+        setIsDispatchingSelected(false);
+      }
     }
   };
 
@@ -567,7 +1013,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               </p>
             </div>
 
-            <div className="flex-1 flex flex-col relative">
+            <div className="flex-1 flex flex-col relative overflow-visible">
               {/* Dropzone or File Indicator */}
               {!selectedFile ? (
                 <div
@@ -610,13 +1056,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 <ReferenceTokenInput
                   value={fileText}
                   onChange={setFileText}
+                  onPasteImage={(file) => setSelectedFile(file)}
                   placeholder={selectedFile ? "Ej. Filtra solo las tareas de backend..." : "Añade toda la información necesaria para crear las tarjetas..."}
                   documents={teamDocs}
                   boards={boards}
                   users={teamMembers}
                   className="flex-1"
-                  inputClassName="h-full w-full min-h-[160px] rounded-xl bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-shadow"
+                  inputClassName="h-full w-full min-h-[160px] rounded-xl bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-shadow align-top"
                 />
+
               </div>
 
               {/* Generate Action */}
@@ -642,23 +1090,79 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       className="flex-1 inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <Sparkles className="h-5 w-5 mr-2" />
-                      {generationType === 'cards' ? 'Generar Tarjetas' : generationType === 'documents' ? 'Generar Documentos' : 'Generar Tableros'}
+                      {generationType === 'cards'
+                        ? 'Generar Tarjetas'
+                        : generationType === 'documents'
+                          ? 'Generar Documentos'
+                          : generationType === 'boards'
+                            ? 'Generar Tableros'
+                            : generationType === 'scripts'
+                              ? 'Generar Scripts'
+                              : 'Diseñar Agente'}
                     </button>
-                    <div className="relative group/gen">
-                      <button
-                        className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
-                        title="Cambiar tipo de generación"
-                      >
-                        <Plus className="h-5 w-5 text-muted-foreground" />
-                      </button>
-                      <div className="absolute bottom-full right-0 w-48 bg-card border border-border rounded-xl shadow-xl p-1.5 opacity-0 pointer-events-none group-hover/gen:opacity-100 group-hover/gen:pointer-events-auto transition-all scale-95 group-hover/gen:scale-100 origin-bottom-right z-20 before:content-[''] before:absolute before:top-full before:left-0 before:right-0 before:h-2">
-                        <button onClick={() => setGenerationType('cards')} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'cards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                          <Layout className="h-3.5 w-3.5" /> Generar Tarjetas
+                    <div className="flex gap-2">
+                      <div className="relative" ref={generationMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setShowGenerationTypeMenu((prev) => !prev)}
+                          className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
+                          title="Cambiar tipo de generación"
+                        >
+                          <Plus className="h-5 w-5 text-muted-foreground" />
                         </button>
-                        <button onClick={() => setGenerationType('documents')} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'documents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                          <FileText className="h-3.5 w-3.5" /> Generar Documentos
-                        </button>
+                        {showGenerationTypeMenu && (
+                          <div className="absolute bottom-full right-0 w-52 bg-card border border-border rounded-xl shadow-xl p-1.5 transition-all origin-bottom-right z-30 mb-2">
+                          <button onClick={() => { setGenerationType('cards'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'cards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <Layout className="h-3.5 w-3.5" /> Generar Tarjetas
+                          </button>
+                          <button onClick={() => { setGenerationType('documents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'documents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <FileText className="h-3.5 w-3.5" /> Generar Documentos
+                          </button>
+                          <button onClick={() => { setGenerationType('boards'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'boards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <Layout className="h-3.5 w-3.5" /> Generar Tableros
+                          </button>
+                          <button onClick={() => { setGenerationType('scripts'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'scripts' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <Sparkles className="h-3.5 w-3.5" /> Generar Scripts
+                          </button>
+                          <button onClick={() => { setGenerationType('agents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'agents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <Bot className="h-3.5 w-3.5" /> Modo Agente
+                          </button>
+                        </div>
+                        )}
                       </div>
+
+                      {generationType === 'agents' && (
+                        <div className="relative group/tools">
+                          <button
+                            type="button"
+                            className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
+                            title="Tools del agente"
+                          >
+                            <Wrench className="h-4.5 w-4.5 text-muted-foreground" />
+                          </button>
+                          <div className="absolute bottom-full right-0 z-30 mb-2 w-72 rounded-xl border border-border bg-card shadow-xl p-2 opacity-0 pointer-events-none transition-all duration-150 group-hover/tools:opacity-100 group-hover/tools:pointer-events-auto">
+                            <div className="max-h-64 overflow-y-auto space-y-1">
+                              {AGENT_TOOL_OPTIONS.map((tool) => {
+                                const selected = enabledAgentTools.includes(tool.id);
+                                return (
+                                  <button
+                                    key={tool.id}
+                                    type="button"
+                                    onClick={() => handleToggleAgentTool(tool.id)}
+                                    className={`w-full text-left rounded-lg border p-2 transition-colors ${selected ? 'border-accent/40 bg-accent/5' : 'border-transparent hover:border-border hover:bg-secondary/40'}`}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <span className="text-xs font-semibold text-foreground">{tool.label}</span>
+                                      {selected && <CheckCircle2 className="h-3.5 w-3.5 text-accent" />}
+                                    </div>
+                                    <p className="text-[11px] text-muted-foreground mt-1">{tool.description}</p>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -677,19 +1181,43 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
             <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-lg text-foreground">
-                  {generationType === 'cards' ? 'Borradores de Tarjetas' : generationType === 'documents' ? 'Borradores de Documentos' : 'Borradores de Tableros'}
+                  {generationType === 'cards'
+                    ? 'Borradores de Tarjetas'
+                    : generationType === 'documents'
+                      ? 'Borradores de Documentos'
+                      : generationType === 'boards'
+                        ? 'Borradores de Tableros'
+                        : generationType === 'scripts'
+                          ? 'Borradores de Scripts'
+                          : 'Borradores de Agentes'}
                 </h3>
-                {((generationType === 'cards' && previewCards.length > 0) || (generationType === 'documents' && previewDocuments.length > 0) || (generationType === 'boards' && previewBoards.length > 0)) && (
+                {((generationType === 'cards' && previewCards.length > 0)
+                  || (generationType === 'documents' && previewDocuments.length > 0)
+                  || (generationType === 'boards' && previewBoards.length > 0)
+                  || (generationType === 'scripts' && previewScripts.length > 0)
+                  || (generationType === 'agents' && previewAgents.length > 0)) && (
                   <div className="flex items-center space-x-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                      {generationType === 'cards' ? previewCards.length : generationType === 'documents' ? previewDocuments.length : previewBoards.length} en espera
+                      {generationType === 'cards'
+                        ? previewCards.length
+                        : generationType === 'documents'
+                          ? previewDocuments.length
+                          : generationType === 'boards'
+                            ? previewBoards.length
+                            : generationType === 'scripts'
+                              ? previewScripts.length
+                              : previewAgents.length} en espera
                     </span>
                     <button
                       onClick={handleToggleSelectAll}
                       className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium border border-input hover:bg-accent/5"
                     >
                       <CheckSquare className="h-3.5 w-3.5 mr-1" />
-                      {((generationType === 'cards' && previewCards.every(c => c.isSelected)) || (generationType === 'documents' && previewDocuments.every(d => d.isSelected)) || (generationType === 'boards' && previewBoards.every(b => b.isSelected))) ? "Deseleccionar" : "Seleccionar"} todas
+                      {((generationType === 'cards' && previewCards.every(c => c.isSelected))
+                        || (generationType === 'documents' && previewDocuments.every(d => d.isSelected))
+                        || (generationType === 'boards' && previewBoards.every(b => b.isSelected))
+                        || (generationType === 'scripts' && previewScripts.every(s => s.isSelected))
+                        || (generationType === 'agents' && previewAgents.every(a => a.isSelected))) ? "Deseleccionar" : "Seleccionar"} todas
                     </button>
                   </div>
                 )}
@@ -698,7 +1226,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               {(
                 (generationType === 'cards' && previewCards.length === 0) ||
                 (generationType === 'documents' && previewDocuments.length === 0) ||
-                (generationType === 'boards' && previewBoards.length === 0)
+                (generationType === 'boards' && previewBoards.length === 0) ||
+                (generationType === 'scripts' && previewScripts.length === 0) ||
+                (generationType === 'agents' && previewAgents.length === 0)
               ) ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-70">
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
@@ -706,7 +1236,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                   </div>
                   <h4 className="text-lg font-medium mb-2">Aún no hay resultados</h4>
                   <p className="text-sm text-center text-muted-foreground max-w-sm">
-                    {generationType === 'cards' ? 'Sube un archivo o pega texto y haz clic en "Generar Tarjetas" para extraer ítems procesables.' : generationType === 'documents' ? 'Sube un archivo o pega texto y haz clic en "Generar Documentos" para crear documentos.' : 'Sube un archivo o pega texto y haz clic en "Generar Tableros" para crear tableros.'}
+                    {generationType === 'cards'
+                      ? 'Sube un archivo o pega texto y haz clic en "Generar Tarjetas" para extraer ítems procesables.'
+                      : generationType === 'documents'
+                        ? 'Sube un archivo o pega texto y haz clic en "Generar Documentos" para crear documentos.'
+                        : generationType === 'boards'
+                          ? 'Sube un archivo o pega texto y haz clic en "Generar Tableros" para crear tableros.'
+                          : generationType === 'scripts'
+                            ? 'Sube un archivo o pega texto y haz clic en "Generar Scripts" para crear automatizaciones.'
+                            : 'Describe tu agente y habilita tools para diseñarlo con reasoning y plan de acción.'}
                   </p>
                 </div>
               ) : (
@@ -732,6 +1270,22 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
                         Selecciona los tableros que deseas crear y presiona "Crear tableros" para agregarlos a tu equipo.
+                      </p>
+                    </div>
+                  )}
+                  {generationType === 'scripts' && (
+                    <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
+                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                      <p className="text-muted-foreground">
+                        Revisa la estructura del workflow y crea los scripts seleccionados para editarlos luego en el builder visual.
+                      </p>
+                    </div>
+                  )}
+                  {generationType === 'agents' && (
+                    <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
+                      <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
+                      <p className="text-muted-foreground">
+                        El agente usa las tools habilitadas para razonar, investigar y proponer acciones. Puedes guardar su configuración como documento.
                       </p>
                     </div>
                   )}
@@ -814,6 +1368,42 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                         ) : (
                           <>
                             <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear tableros
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {generationType === 'scripts' && previewScripts.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleDispatchSelected}
+                        disabled={isDispatchingSelected || !previewScripts.some((script) => script.isSelected)}
+                        className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground font-semibold hover:bg-accent/90 text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
+                      >
+                        {isDispatchingSelected ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear scripts
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {generationType === 'agents' && previewAgents.length > 0 && (
+                    <div className="flex justify-end">
+                      <button
+                        onClick={handleDispatchSelected}
+                        disabled={isDispatchingSelected || !previewAgents.some((agent) => agent.isSelected)}
+                        className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground font-semibold hover:bg-accent/90 text-xs shadow-sm transition-all whitespace-nowrap disabled:opacity-50"
+                      >
+                        {isDispatchingSelected ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <>
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Guardar agentes
                           </>
                         )}
                       </button>
@@ -984,6 +1574,110 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                             {l.name}
                             <span className="opacity-40 ml-1">({l.cards?.length || 0})</span>
                           </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+
+                  {generationType === 'scripts' && previewScripts.map((script) => (
+                    <div
+                      key={script.id}
+                      className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 flex flex-col group cursor-pointer ${script.isSelected ? "border-accent/40" : "border-border"}`}
+                    >
+                      <div className="flex justify-between items-start gap-4 mb-3">
+                        <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={script.isSelected}
+                            onChange={() => handleToggleScriptSelection(script.id)}
+                            className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                          />
+                        </label>
+                        <h4 className="flex-1 text-base font-semibold leading-tight text-foreground/90">
+                          {script.name}
+                        </h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">SCRIPT</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-muted-foreground mb-3">{script.description || 'Sin descripción'}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">Nodos: {script.nodes.length}</span>
+                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">Conexiones: {script.connections.length}</span>
+                      </div>
+
+                      <div className="mt-3">
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleToggleScriptPreview(script.id);
+                          }}
+                          className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          {expandedScriptPreviewIds.includes(script.id) ? 'Ocultar previsualización' : 'Previsualizar script'}
+                        </button>
+                      </div>
+
+                      {expandedScriptPreviewIds.includes(script.id) && (
+                        <div className="mt-3 rounded-lg border border-border/70 bg-background/40 p-3 space-y-3">
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Nodos</p>
+                            <pre className="text-[11px] whitespace-pre-wrap text-foreground/80 leading-relaxed">
+{script.nodes.map((node) => `- ${node.id} | ${node.kind}${node.label ? ` | ${node.label}` : ''}`).join('\n')}
+                            </pre>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Conexiones</p>
+                            <pre className="text-[11px] whitespace-pre-wrap text-foreground/80 leading-relaxed">
+{script.connections.length > 0
+  ? script.connections.map((edge) => `- ${edge.source} -> ${edge.target}`).join('\n')
+  : '- Sin conexiones'}
+                            </pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+
+                  {generationType === 'agents' && previewAgents.map((agent) => (
+                    <div
+                      key={agent.id}
+                      className={`relative rounded-xl border bg-card shadow-sm hover:shadow-md transition-all p-5 flex flex-col group cursor-pointer ${agent.isSelected ? "border-accent/40" : "border-border"}`}
+                    >
+                      <div className="flex justify-between items-start gap-4 mb-3">
+                        <label className="inline-flex items-center mt-0.5" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            checked={agent.isSelected}
+                            onChange={() => handleToggleAgentSelection(agent.id)}
+                            className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+                          />
+                        </label>
+                        <h4 className="flex-1 text-base font-semibold leading-tight text-foreground/90">{agent.name}</h4>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">AGENT</span>
+                        </div>
+                      </div>
+
+                      <p className="text-sm text-muted-foreground mb-3">{agent.description}</p>
+
+                      <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">Reasoning</p>
+                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{agent.reasoning}</p>
+                      </div>
+
+                      <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3">
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">Respuesta del agente</p>
+                        <p className="text-xs text-muted-foreground whitespace-pre-wrap">{agent.response}</p>
+                      </div>
+
+                      <div className="flex flex-wrap gap-1.5">
+                        {agent.selectedTools.map((tool) => (
+                          <span key={tool} className="text-[10px] px-2 py-1 rounded-full bg-accent/10 text-accent font-semibold uppercase tracking-wide">
+                            {tool}
+                          </span>
                         ))}
                       </div>
                     </div>

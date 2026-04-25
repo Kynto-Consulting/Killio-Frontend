@@ -1363,13 +1363,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   return (
     <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
       {readonly ? (
-        <RichText 
-          content={text} 
-          context={{ documents, boards, users }} 
+        <div
           className={cn(
             "w-full p-2 leading-relaxed text-sm rounded-md prose prose-sm dark:prose-invert max-w-none",
             "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
           )}
+          dangerouslySetInnerHTML={{ __html: processPseudoMarkdown(text) }}
         />
       ) : (
         <div

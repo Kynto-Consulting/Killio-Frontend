@@ -42,6 +42,8 @@ export function BrickDiff({ kind, oldContent, newContent }: BrickDiffProps) {
     case 'accordion':
       return <AccordionDiff old={oldContent || {}} new={newContent || {}} />;
     case 'table':
+    case 'beautiful_table':
+    case 'bountiful_table':
       return <TableDiff old={oldRows} new={newRows} />;
     default:
       return (
@@ -90,8 +92,80 @@ function getTableRows(content: any): string[][] {
     (Array.isArray(content.rows) ? content.rows : null) ||
     (Array.isArray(content.content?.rows) ? content.content.rows : null) ||
     [];
+  if (rows.length === 0) return [];
 
-  return rows.map((row: any) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : []));
+  if (Array.isArray(rows[0])) {
+    return rows.map((row: any) => (Array.isArray(row) ? row.map((cell) => String(cell ?? "")) : []));
+  }
+
+  const source = content.content || content;
+  const columns = Array.isArray(source?.columns) ? source.columns : [];
+  const columnOrder = columns.length > 0
+    ? columns.map((col: any, index: number) => ({
+      id: String(col?.id ?? index),
+      label: String(col?.name ?? col?.label ?? col?.title ?? `col ${index + 1}`),
+    }))
+    : Object.keys((rows[0] && typeof rows[0] === "object" ? rows[0].cells || rows[0] : {}) || {}).map((key) => ({ id: key, label: key }));
+
+  const result: string[][] = [];
+  if (columnOrder.length > 0) {
+    result.push(columnOrder.map((entry) => entry.label));
+  }
+
+  for (const row of rows) {
+    const rowCells = (row && typeof row === "object" ? (row.cells || row) : {}) as Record<string, any>;
+    result.push(columnOrder.map((entry) => stringifyTableCell(rowCells?.[entry.id])));
+  }
+
+  return result;
+}
+
+function stringifyTableCell(value: any): string {
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (Array.isArray(value)) return value.map((item) => stringifyTableCell(item)).join(", ");
+  if (typeof value === "object") {
+    if (typeof value.type === "string") {
+      if (value.type === "checkbox") return value.checked ? "true" : "false";
+      if (value.type === "number") return String(value.number ?? value.value ?? "").trim();
+      if (value.type === "select") return String(value.name ?? value.text ?? value.value ?? "").trim();
+      if (value.type === "multi_select") {
+        return Array.isArray(value.items)
+          ? value.items.map((item: any) => String(item?.name ?? item?.label ?? item ?? "").trim()).filter(Boolean).join(", ")
+          : "";
+      }
+      if (value.type === "date") {
+        const start = String(value.start ?? "").trim();
+        const end = String(value.end ?? "").trim();
+        return end ? `${start} -> ${end}` : start;
+      }
+      if (value.type === "user") {
+        return Array.isArray(value.users)
+          ? value.users.map((user: any) => String(user?.name ?? user?.email ?? user?.id ?? "").trim()).filter(Boolean).join(", ")
+          : "";
+      }
+      if (value.type === "document") {
+        return Array.isArray(value.documents)
+          ? value.documents.map((doc: any) => String(doc?.name ?? doc?.title ?? doc?.id ?? "").trim()).filter(Boolean).join(", ")
+          : "";
+      }
+      if (value.type === "board") {
+        return Array.isArray(value.boards)
+          ? value.boards.map((board: any) => String(board?.name ?? board?.title ?? board?.id ?? "").trim()).filter(Boolean).join(", ")
+          : "";
+      }
+      if (value.type === "card") {
+        return Array.isArray(value.cards)
+          ? value.cards.map((card: any) => String(card?.name ?? card?.title ?? card?.id ?? "").trim()).filter(Boolean).join(", ")
+          : "";
+      }
+      if (value.type === "url") return String(value.url ?? value.value ?? value.text ?? "").trim();
+    }
+
+    return String(value.text ?? value.markdown ?? value.value ?? value.name ?? "").trim() || JSON.stringify(value);
+  }
+  return String(value);
 }
 
 function TextDiff({ old, new: newValue }: { old: string; new: string }) {

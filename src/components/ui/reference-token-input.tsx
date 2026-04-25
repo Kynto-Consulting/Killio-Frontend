@@ -30,6 +30,7 @@ type RichPart = string | MentionPart | DeepPart;
 interface ReferenceTokenInputProps {
   value: string;
   onChange: (value: string) => void;
+  onPasteImage?: (file: File) => void;
   placeholder?: string;
   disabled?: boolean;
   className?: string;
@@ -61,6 +62,7 @@ function tokenEscapeAttr(value: string): string {
 export function ReferenceTokenInput({
   value,
   onChange,
+  onPasteImage,
   placeholder,
   disabled,
   className,
@@ -396,6 +398,77 @@ export function ReferenceTokenInput({
     updatePickerState(markdown, markdownCursor);
   }, [readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState]);
 
+  const insertPlainTextAtSelection = useCallback((text: string) => {
+    if (typeof window === "undefined") return;
+    const root = editorRef.current;
+    if (!root) return;
+
+    const normalized = text.replace(/\r\n/g, "\n");
+    const selection = window.getSelection();
+    if (!selection) return;
+
+    if (selection.rangeCount === 0) {
+      root.focus();
+    }
+
+    const activeSelection = window.getSelection();
+    if (!activeSelection || activeSelection.rangeCount === 0) {
+      return;
+    }
+
+    const range = activeSelection.getRangeAt(0);
+    range.deleteContents();
+
+    const fragment = document.createDocumentFragment();
+    const lines = normalized.split("\n");
+    lines.forEach((line, index) => {
+      if (index > 0) fragment.appendChild(document.createElement("br"));
+      fragment.appendChild(document.createTextNode(line));
+    });
+
+    const lastNode = fragment.lastChild;
+    range.insertNode(fragment);
+
+    if (lastNode) {
+      range.setStartAfter(lastNode);
+      range.collapse(true);
+      activeSelection.removeAllRanges();
+      activeSelection.addRange(range);
+    }
+  }, []);
+
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent<HTMLDivElement>) => {
+      if (disabled) return;
+
+      const clipboard = e.clipboardData;
+      if (!clipboard) return;
+
+      const imageItem = Array.from(clipboard.items || []).find(
+        (item) => item.kind === "file" && item.type.startsWith("image/"),
+      );
+      const plainText = clipboard.getData("text/plain") || "";
+
+      e.preventDefault();
+
+      if (imageItem) {
+        const imageFile = imageItem.getAsFile();
+        if (imageFile) {
+          onPasteImage?.(imageFile);
+        }
+      }
+
+      if (plainText.length > 0) {
+        insertPlainTextAtSelection(plainText);
+        const markdown = readMarkdown();
+        const cursor = getMarkdownCursorOffset();
+        onChange(markdown);
+        updatePickerState(markdown, cursor);
+      }
+    },
+    [disabled, onPasteImage, insertPlainTextAtSelection, readMarkdown, getMarkdownCursorOffset, onChange, updatePickerState],
+  );
+
   const findAdjacentToken = useCallback((direction: "backward" | "forward") => {
     const root = editorRef.current;
     if (!root || typeof window === "undefined") return null;
@@ -551,6 +624,7 @@ export function ReferenceTokenInput({
         contentEditable={!disabled}
         suppressContentEditableWarning
         onInput={handleInput}
+        onPaste={handlePaste}
         onKeyDown={handleKeyDown}
         onBlur={() => {
           const markdown = readMarkdown();
@@ -566,7 +640,7 @@ export function ReferenceTokenInput({
       />
 
       {displayPlaceholder && (
-        <div className="pointer-events-none absolute inset-y-0 left-4 flex items-center text-sm text-muted-foreground/70">
+        <div className="pointer-events-none absolute left-4 top-3 text-sm text-muted-foreground/70">
           {placeholder || "Escribe aquí..."}
         </div>
       )}
