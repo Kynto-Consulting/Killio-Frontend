@@ -55,8 +55,10 @@ export default function DocumentPage() {
   const presenceMembers = useDocumentPresence(docId, user, accessToken);
 
   const sanitizeDocumentBricks = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
-    const ids = new Set(bricks.map((brick) => brick.id));
-    return bricks.map((brick) => ({
+    // Keep one brick per id to prevent optimistic-create + realtime duplicates.
+    const deduped = Array.from(new Map(bricks.map((brick) => [brick.id, brick])).values());
+    const ids = new Set(deduped.map((brick) => brick.id));
+    return deduped.map((brick) => ({
       ...brick,
       content: sanitizeChildrenByContainer(brick.content || {}, ids),
     }));
@@ -434,7 +436,7 @@ export default function DocumentPage() {
           nextBricks = [...nextBricks, newBrick].sort((a, b) => a.position - b.position);
         }
 
-        return { ...prev, bricks: nextBricks };
+        return { ...prev, bricks: sanitizeDocumentBricks(nextBricks) };
       });
 
       if (parentProps && parentBrick) {
