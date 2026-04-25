@@ -1,0 +1,116 @@
+{
+  "hero": {
+    "eyebrow": "Upgrade Workspace",
+    "title": "Planes simples. Equipos potentes.",
+    "subtitle": "Elige el plan que mejor encaja con tu flujo. Cambia entre mensual y anual, activa trial y administra la suscripcion en un solo lugar.",
+    "currentPlan": "Plan actual",
+    "trialActive": "Trial activo — vence el {{date}}",
+    "planStatus": "Estas en el plan {{plan}}"
+  },
+  "cycles": {
+    "monthly": "Mensual",
+    "yearly": "Anual",
+    "save": "Ahorra {{pct}}%"
+  },
+  "status": {
+    "active": "Activa",
+    "trialing": "En trial",
+    "past_due": "Pago pendiente",
+    "cancelled": "Cancelada",
+    "expired": "Expirada"
+  },
+  "summary": {
+    "scriptsMonth": "Scripts este mes",
+    "aiCreditsMonth": "Creditos IA este mes",
+    "billingOwner": "Owner de billing",
+    "rag": "Indice RAG",
+    "ragLine": "{{coverage}}% cobertura - {{sources}} fuentes - {{chunks}} chunks",
+    "ragLastRun": "Ultimo run: {{status}} - modelo {{model}}",
+    "ragEmpty": "Sin estado RAG disponible"
+  },
+  "provider": {
+    "label": "Proveedor IA",
+    "free": "Cohere",
+    "pro": "GitHub Models",
+    "max": "GitHub Models",
+    "enterprise": "GitHub Models + custom"
+  },
+  "plans": {
+    "featuresTitle": "Todo lo incluido",
+    "free": {
+      "name": "Free",
+      "headline": "Empieza rapido con lo esencial",
+      "badge": "Starter"
+    },
+    "pro": {
+      "name": "Pro",
+      "headline": "Para equipos productivos todos los dias",
+      "badge": "Mas popular"
+    },
+    "max": {
+      "name": "Max",
+      "headline": "Para equipos con mayor volumen",
+      "badge": "Escala"
+    },
+    "scripts": "Scripts: {{value}}",
+    "credits": "Creditos IA: {{value}} / mes",
+    "tables": "Killio Tables: {{value}}",
+    "activityHistory": "Historial de actividad: {{value}}",
+    "meshBoards": "Mesh Boards: {{value}}",
+    "prioritySupport": "Soporte prioritario",
+    "customSupport": "Soporte custom",
+    "ssoScim": "SSO / SCIM",
+    "auditLogs": "Audit logs"
+  },
+  "actions": {
+    "currentPlan": "Plan actual",
+    "upgrade": "Mejorar plan",
+    "downgrade": "Bajar a este plan",
+    "switchToYearly": "Cambiar a anual",
+    "switchToMonthly": "Cambiar a mensual",
+    "startTrial": "Iniciar trial gratis de {{days}} dias",
+    "processing": "Procesando...",
+    "contactSales": "Contactar ventas",
+    "cancelAtPeriodEnd": "Cancelar al final del periodo",
+    "resumeSubscription": "Reactivar suscripcion"
+  },
+  "checkout": {
+    "opened": "Abrimos el checkout en una nueva pestana.",
+    "trialActivated": "Trial activado hasta {{date}}.",
+    "contactSales": "{{message}} Contacto: {{email}}",
+    "failed": "No se pudo iniciar el checkout."
+  },
+  "billingResult": {
+    "success": "Pago aprobado. Tu plan se actualizara en breve.",
+    "pending": "Pago pendiente. Te avisaremos cuando se confirme.",
+    "failure": "El pago no se completo. Puedes intentar nuevamente."
+  },
+  "subscription": {
+    "title": "Suscripcion",
+    "cycle": "Ciclo: {{cycle}}",
+    "status": "Estado: {{status}}",
+    "periodEnd": "Fin de periodo: {{date}}",
+    "trialEnd": "Fin del trial: {{date}}",
+    "cancelScheduled": "La cancelacion quedo programada para el fin del periodo."
+  },
+  "extraQuota": {
+    "title": "Cuota extra",
+    "subtitle": "Necesitas mas capacidad este mes? Compra paquetes extra de scripts y creditos IA.",
+    "scripts": "Comprar extra scripts calls",
+    "credits": "Comprar extra AI credits"
+  },
+  "enterprise": {
+    "title": "Enterprise",
+    "subtitle": "Necesitas controles avanzados, onboarding y soporte dedicado?",
+    "cta": "Contactar ventas"
+  },
+  "common": {
+    "unlimited": "Ilimitado",
+    "na": "n/a",
+    "days": "{{count}} dias",
+    "monthSuffix": "/ mes",
+    "yearSuffix": "/ ano",
+    "perUserMonth": "por espacio / mes",
+    "perUserYear": "por espacio / ano"
+  }
+}

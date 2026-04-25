@@ -1,0 +1,116 @@
+{
+  "hero": {
+    "eyebrow": "Upgrade Workspace",
+    "title": "Simple pricing. Powerful teams.",
+    "subtitle": "Pick the plan that matches your workflow. Switch monthly or yearly, start trials, and manage your subscription in one place.",
+    "currentPlan": "Current plan",
+    "trialActive": "Trial active — expires {{date}}",
+    "planStatus": "You are on the {{plan}} plan"
+  },
+  "cycles": {
+    "monthly": "Monthly",
+    "yearly": "Yearly",
+    "save": "Save {{pct}}%"
+  },
+  "status": {
+    "active": "Active",
+    "trialing": "Trial",
+    "past_due": "Payment pending",
+    "cancelled": "Cancelled",
+    "expired": "Expired"
+  },
+  "summary": {
+    "scriptsMonth": "Scripts this month",
+    "aiCreditsMonth": "AI credits this month",
+    "billingOwner": "Billing owner",
+    "rag": "RAG index",
+    "ragLine": "{{coverage}}% coverage - {{sources}} sources - {{chunks}} chunks",
+    "ragLastRun": "Last run: {{status}} - model {{model}}",
+    "ragEmpty": "No RAG status available"
+  },
+  "provider": {
+    "label": "AI provider",
+    "free": "Cohere",
+    "pro": "GitHub Models",
+    "max": "GitHub Models",
+    "enterprise": "GitHub Models + custom"
+  },
+  "plans": {
+    "featuresTitle": "Everything in this plan",
+    "free": {
+      "name": "Free",
+      "headline": "Start and ship essentials",
+      "badge": "Starter"
+    },
+    "pro": {
+      "name": "Pro",
+      "headline": "For focused teams building daily",
+      "badge": "Most popular"
+    },
+    "max": {
+      "name": "Max",
+      "headline": "For high-volume execution",
+      "badge": "Scale"
+    },
+    "scripts": "Scripts: {{value}}",
+    "credits": "AI credits: {{value}} / month",
+    "tables": "Killio Tables: {{value}}",
+    "activityHistory": "Activity History: {{value}}",
+    "meshBoards": "Mesh Boards: {{value}}",
+    "prioritySupport": "Priority support",
+    "customSupport": "Custom support",
+    "ssoScim": "SSO / SCIM",
+    "auditLogs": "Audit logs"
+  },
+  "actions": {
+    "currentPlan": "Current plan",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade to this plan",
+    "switchToYearly": "Switch to yearly",
+    "switchToMonthly": "Switch to monthly",
+    "startTrial": "Start {{days}}-day free trial",
+    "processing": "Processing...",
+    "contactSales": "Contact sales",
+    "cancelAtPeriodEnd": "Cancel at period end",
+    "resumeSubscription": "Resume subscription"
+  },
+  "checkout": {
+    "opened": "Checkout opened in a new tab.",
+    "trialActivated": "Trial activated until {{date}}.",
+    "contactSales": "{{message}} Contact: {{email}}",
+    "failed": "Could not start checkout."
+  },
+  "billingResult": {
+    "success": "Payment approved. Your plan will be updated shortly.",
+    "pending": "Payment pending. We will notify you once confirmed.",
+    "failure": "Payment was not completed. Please try again."
+  },
+  "subscription": {
+    "title": "Subscription",
+    "cycle": "Cycle: {{cycle}}",
+    "status": "Status: {{status}}",
+    "periodEnd": "Period end: {{date}}",
+    "trialEnd": "Trial end: {{date}}",
+    "cancelScheduled": "Cancellation scheduled at period end."
+  },
+  "extraQuota": {
+    "title": "Extra quota",
+    "subtitle": "Need more capacity this month? Request extra script calls and AI credits.",
+    "scripts": "Buy extra script calls",
+    "credits": "Buy extra AI credits"
+  },
+  "enterprise": {
+    "title": "Enterprise",
+    "subtitle": "Need custom controls, onboarding, and dedicated support?",
+    "cta": "Contact sales"
+  },
+  "common": {
+    "unlimited": "Unlimited",
+    "na": "n/a",
+    "days": "{{count}} days",
+    "monthSuffix": "/ month",
+    "yearSuffix": "/ year",
+    "perUserMonth": "per workspace / month",
+    "perUserYear": "per workspace / year"
+  }
+}

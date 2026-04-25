@@ -6,6 +6,7 @@ const BASE_URL = (
 ).replace(/\/$/, '');
 
 export type TeamPlanTier = 'free' | 'pro' | 'max' | 'enterprise';
+export type BillingCycle = 'monthly' | 'yearly';
 
 export interface RagPolicy {
   dailyBaseSync: number;
@@ -17,6 +18,9 @@ export interface BillingPlanDefinition {
   tier: TeamPlanTier;
   label: string;
   priceCentsMonthly: number | null;
+  priceCentsYearly: number | null;
+  yearlyDiscountPct: number;
+  trialDays: number;
   currency: 'PEN';
   scripts: {
     monthlyRunLimit: number | null;
@@ -29,6 +33,18 @@ export interface BillingPlanDefinition {
     storageLimitMb: number | null;
   };
   rag: RagPolicy;
+  activity: {
+    historyRetentionDays: number | null;
+    auditLogs: boolean;
+  };
+  meshBoards: {
+    maxBoards: number | null;
+  };
+  support: {
+    priority: boolean;
+    custom: boolean;
+    ssoScim: boolean;
+  };
   checkoutEnabled: boolean;
 }
 
@@ -40,6 +56,25 @@ export interface TeamBillingSummary {
   isBillingOwner: boolean;
   plans: BillingPlanDefinition[];
   billingEmail: string;
+  subscription: {
+    status: 'trialing' | 'active' | 'past_due' | 'cancelled' | 'expired';
+    planTier: TeamPlanTier;
+    billingCycle: BillingCycle;
+    trialEndsAt: string | null;
+    currentPeriodEnd: string | null;
+    cancelAtPeriodEnd: boolean;
+    providerStatus: string | null;
+  } | null;
+  trial: {
+    active: {
+      planTier: TeamPlanTier;
+      endsAt: string;
+    } | null;
+    eligible: {
+      pro: boolean;
+      max: boolean;
+    };
+  };
   mercadoPago: {
     configured: boolean;
     publicKey: string | null;
@@ -52,6 +87,8 @@ export type BillingCheckoutResponse =
       mode: 'wallet_brick';
       checkoutId: string;
       targetPlanTier: TeamPlanTier;
+      billingCycle: BillingCycle;
+      checkoutKind: 'subscription' | 'one_time';
       amountCents: number;
       currency: 'PEN';
       preferenceId: string;
@@ -59,10 +96,23 @@ export type BillingCheckoutResponse =
       publicKey: string;
     }
   | {
+      mode: 'trial_activated';
+      targetPlanTier: TeamPlanTier;
+      billingCycle: BillingCycle;
+      trialEndsAt: string;
+    }
+  | {
       mode: 'contact_sales';
       billingEmail: string;
       message: string;
     };
+
+export interface TeamSubscriptionUpdateResponse {
+  ok: boolean;
+  cancelAtPeriodEnd?: boolean;
+  cancelledImmediately?: boolean;
+  alreadyCancelled?: boolean;
+}
 
 async function parseApiError(res: Response, fallbackMessage: string): Promise<never> {
   let message = fallbackMessage;
@@ -97,6 +147,10 @@ export async function createTeamCheckout(
   teamId: string,
   targetPlanTier: TeamPlanTier,
   accessToken: string,
+  options?: {
+    billingCycle?: BillingCycle;
+    startTrial?: boolean;
+  },
 ): Promise<BillingCheckoutResponse> {
   const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/checkout`, {
     method: 'POST',
@@ -104,11 +158,51 @@ export async function createTeamCheckout(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ targetPlanTier }),
+    body: JSON.stringify({
+      targetPlanTier,
+      billingCycle: options?.billingCycle,
+      startTrial: options?.startTrial,
+    }),
   });
 
   if (!res.ok) {
     return parseApiError(res, 'Failed to create checkout session.');
+  }
+
+  return res.json();
+}
+
+export async function cancelTeamSubscription(
+  teamId: string,
+  accessToken: string,
+): Promise<TeamSubscriptionUpdateResponse> {
+  const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/subscription/cancel`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    return parseApiError(res, 'Failed to cancel subscription.');
+  }
+
+  return res.json();
+}
+
+export async function resumeTeamSubscription(
+  teamId: string,
+  accessToken: string,
+): Promise<TeamSubscriptionUpdateResponse> {
+  const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/subscription/resume`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    return parseApiError(res, 'Failed to resume subscription.');
   }
 
   return res.json();
