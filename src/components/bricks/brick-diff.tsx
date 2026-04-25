@@ -109,12 +109,12 @@ function getTableRows(content: any): string[][] {
 
   const result: string[][] = [];
   if (columnOrder.length > 0) {
-    result.push(columnOrder.map((entry) => entry.label));
+    result.push(columnOrder.map((entry: any) => entry.label));
   }
 
   for (const row of rows) {
     const rowCells = (row && typeof row === "object" ? (row.cells || row) : {}) as Record<string, any>;
-    result.push(columnOrder.map((entry) => stringifyTableCell(rowCells?.[entry.id])));
+    result.push(columnOrder.map((entry: any) => stringifyTableCell(rowCells?.[entry.id])));
   }
 
   return result;
