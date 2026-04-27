@@ -90,7 +90,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
 
   return (
     <div
-      className="fixed top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 shadow-2xl flex flex-col z-[100] transform transition-transform animate-in slide-in-from-right duration-300"
+      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 shadow-2xl flex flex-col z-[50] transform transition-transform animate-in slide-in-from-right duration-300"
       style={{ width: drawerWidth }}
     >
       <div

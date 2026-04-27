@@ -3034,7 +3034,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 style={{
                   transform: `translate(${viewport.x}px, ${viewport.y}px) scale(${viewport.zoom})`,
                   transformOrigin: "0 0",
-                  willChange: "transform",
                 }}
               >
 
@@ -3263,10 +3262,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <button
                 type="button"
                 title="Alejar (Ctrl+scroll)"
-                onClick={() => setViewport((v) => {
-                  const nz = Math.max(0.2, v.zoom * 0.85);
-                  return { x: v.x, y: v.y, zoom: nz };
-                })}
+                onClick={() => {
+                  const el = canvasRef.current;
+                  const cx = el ? el.clientWidth / 2 : 0;
+                  const cy = el ? el.clientHeight / 2 : 0;
+                  setViewport((v) => {
+                    const nz = Math.max(0.2, v.zoom * 0.8);
+                    const wx = (cx - v.x) / v.zoom;
+                    const wy = (cy - v.y) / v.zoom;
+                    return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
+                  });
+                }}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
@@ -3274,8 +3280,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
               <button
                 type="button"
-                title={`Zoom: ${Math.round(viewport.zoom * 100)}%`}
-                onClick={() => setViewport((v) => ({ ...v, zoom: 1 }))}
+                title="Restablecer zoom (100%)"
+                onClick={() => {
+                  const el = canvasRef.current;
+                  const cx = el ? el.clientWidth / 2 : 0;
+                  const cy = el ? el.clientHeight / 2 : 0;
+                  setViewport((v) => {
+                    const nz = 1;
+                    const wx = (cx - v.x) / v.zoom;
+                    const wy = (cy - v.y) / v.zoom;
+                    return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
+                  });
+                }}
                 className="min-w-[36px] rounded-md px-1.5 py-0.5 text-center text-[9px] font-semibold tabular-nums text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
               >
                 {Math.round(viewport.zoom * 100)}%
@@ -3284,10 +3300,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <button
                 type="button"
                 title="Acercar (Ctrl+scroll)"
-                onClick={() => setViewport((v) => {
-                  const nz = Math.min(2.8, v.zoom * 1.18);
-                  return { x: v.x, y: v.y, zoom: nz };
-                })}
+                onClick={() => {
+                  const el = canvasRef.current;
+                  const cx = el ? el.clientWidth / 2 : 0;
+                  const cy = el ? el.clientHeight / 2 : 0;
+                  setViewport((v) => {
+                    const nz = Math.min(2.8, v.zoom * 1.25);
+                    const wx = (cx - v.x) / v.zoom;
+                    const wy = (cy - v.y) / v.zoom;
+                    return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
+                  });
+                }}
                 className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
@@ -3453,6 +3476,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       </div>
       </>
       )}
+
+      {/* BoardChatDrawer — inside the mesh container so absolute positioning is bounded here */}
+      <BoardChatDrawer
+        isOpen={isCommentsOpen}
+        onClose={() => setIsCommentsOpen(false)}
+        boardId={meshId}
+        initialTab={sidebarTab}
+      />
     </div>
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}
@@ -3469,13 +3500,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         </div>
       </div>
     )}
-
-    <BoardChatDrawer
-      isOpen={isCommentsOpen}
-      onClose={() => setIsCommentsOpen(false)}
-      boardId={meshId}
-      initialTab={sidebarTab}
-    />
 
     {activeTeamId && accessToken && (
       <EntitySelectorModal
