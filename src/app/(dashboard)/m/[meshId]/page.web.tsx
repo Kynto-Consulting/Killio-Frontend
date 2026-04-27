@@ -1069,6 +1069,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const portalHydrationAttemptRef = useRef<Record<string, string>>({});
   const portalScreenshotInFlightRef = useRef<Set<string>>(new Set());
   const portalScreenshotAttemptRef = useRef<Record<string, string>>({});
+  // Live list of portals to refresh periodically — updated from state without restarting the interval
+  const portalsForRefreshRef = useRef<Array<{ brickId: string; portalHref: string }>>([]);
   const floatingToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const buildPortalHref = useCallback((
@@ -1146,7 +1148,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     try {
       await new Promise<void>((resolve, reject) => {
-        const timeoutId = window.setTimeout(() => reject(new Error("portal screenshot timeout")), 12000);
+        const timeoutId = window.setTimeout(() => reject(new Error("portal screenshot timeout")), 20000);
         iframe.onload = () => {
           window.clearTimeout(timeoutId);
           resolve();
@@ -1158,12 +1160,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         iframe.src = portalHref;
       });
 
-      await new Promise((resolve) => window.setTimeout(resolve, 650));
+      // Wait for JS/data to finish loading — Next.js apps need a few seconds to hydrate
+      await new Promise((resolve) => window.setTimeout(resolve, 3500));
 
       const frameDoc = iframe.contentDocument;
       if (!frameDoc) return null;
       if (frameDoc.readyState !== "complete") {
-        await new Promise((resolve) => window.setTimeout(resolve, 450));
+        await new Promise((resolve) => window.setTimeout(resolve, 1500));
       }
 
       const root = (frameDoc.querySelector("main") as HTMLElement | null) ?? frameDoc.body;
@@ -1383,6 +1386,56 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         });
     });
   }, [accessToken, buildPortalFallbackImageDataUrl, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, state.bricksById]);
+
+  // Keep the refresh-ref in sync whenever bricks change (no interval restart needed)
+  useEffect(() => {
+    portalsForRefreshRef.current = Object.values(state.bricksById)
+      .filter((b) => {
+        if (b.kind !== "portal") return false;
+        const c = asRec(b.content);
+        if (typeof c.unifierKind === "string") return false;
+        return typeof c.targetId === "string" && (c.targetId as string).trim().length > 0;
+      })
+      .map((b) => {
+        const c = asRec(b.content);
+        const targetType = typeof c.targetType === "string" ? c.targetType : "mesh";
+        const targetId = typeof c.targetId === "string" ? c.targetId.trim() : "";
+        return { brickId: b.id, portalHref: buildPortalHref(targetType, targetId, { layout: false }) };
+      })
+      .filter((p) => !!p.portalHref);
+  }, [state.bricksById, buildPortalHref]);
+
+  // Periodic portal screenshot refresh — stable interval, reads from ref to avoid restarts
+  useEffect(() => {
+    const REFRESH_MS = 5000;
+    const id = window.setInterval(() => {
+      portalsForRefreshRef.current.forEach(({ brickId, portalHref }) => {
+        if (portalScreenshotInFlightRef.current.has(brickId)) return;
+        portalScreenshotInFlightRef.current.add(brickId);
+        void capturePortalScreenshot(portalHref)
+          .then((screenshotDataUrl) => {
+            if (!screenshotDataUrl) return;
+            setState((cur) => {
+              const live = cur.bricksById[brickId];
+              if (!live || live.kind !== "portal") return cur;
+              const liveContent = asRec(live.content);
+              return {
+                ...cur,
+                bricksById: {
+                  ...cur.bricksById,
+                  [brickId]: {
+                    ...live,
+                    content: { ...liveContent, previewImageDataUrl: screenshotDataUrl, previewImageSource: "screenshot", previewImageCapturedAt: new Date().toISOString() },
+                  },
+                },
+              };
+            });
+          })
+          .finally(() => { portalScreenshotInFlightRef.current.delete(brickId); });
+      });
+    }, REFRESH_MS);
+    return () => window.clearInterval(id);
+  }, [capturePortalScreenshot]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2492,7 +2545,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   <img
                     src={previewImageDataUrl}
                     alt="Portal preview"
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-cover object-top"
                     loading="lazy"
                   />
                 ) : portalPreviewBrick ? (
