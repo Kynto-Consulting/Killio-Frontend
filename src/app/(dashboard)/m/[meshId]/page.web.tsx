@@ -1064,6 +1064,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const aiAbortRef = useRef<(() => void) | null>(null);
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
   const portalHydrationAttemptRef = useRef<Record<string, string>>({});
   const portalScreenshotInFlightRef = useRef<Set<string>>(new Set());
@@ -1461,15 +1462,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
   }, [meshId, revision, updatedAt, state, viewport.x, viewport.y, viewport.zoom]);
 
-  const handleShareMesh = useCallback(async () => {
-    try {
-      const url = typeof window !== "undefined" ? window.location.href : "";
-      if (!url) return;
-      await navigator.clipboard.writeText(url);
-      toast("Link copiado.", "success");
-    } catch {
-      toast("No se pudo copiar el link.", "error");
-    }
+  const handleShareMesh = useCallback(() => {
+    setIsShareModalOpen(true);
   }, []);
 
   useEffect(() => {
@@ -2443,11 +2437,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
             <ExternalLink className="h-3 w-3 shrink-0 text-blue-400" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
-            {targetLabel && <span className="ml-auto truncate text-[9px] text-blue-400/50">{targetLabel}</span>}
+            {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
+            {portalHref && !isEditing && (
+              <a href={portalHref} className="pointer-events-auto ml-auto shrink-0 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => e.stopPropagation()} title="Abrir en nueva pestaña">
+                <ExternalLink className="h-2.5 w-2.5" />
+              </a>
+            )}
           </div>
-          <div className="flex h-[calc(100%-28px)] flex-col gap-1.5 p-2.5">
+          <div className="h-[calc(100%-28px)]">
             {isEditing ? (
-              <div className="flex w-full flex-col gap-2" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="flex w-full flex-col gap-2 p-2.5" onMouseDown={(e) => e.stopPropagation()}>
                 <select className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground pointer-events-auto"
                   defaultValue={targetType}
                   onChange={(e) => setState((cur) => {
@@ -2481,70 +2480,48 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }} />
               </div>
             ) : targetId ? (
-              <>
-                {/* Preview area — flex-1 so it fills available height */}
-                <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-blue-500/20 bg-slate-900/60">
-                  {portalRenderMode === "live" && portalHref ? (
-                    <iframe
-                      src={portalHref}
-                      title={`portal-live-${brick.id}`}
-                      className="h-full w-full pointer-events-none"
+              /* Preview fills full body — double-click on brick opens the iframe overlay */
+              <div className="relative h-full w-full overflow-hidden bg-slate-900/60">
+                {portalRenderMode === "live" && portalHref ? (
+                  <iframe
+                    src={portalHref}
+                    title={`portal-live-${brick.id}`}
+                    className="h-full w-full pointer-events-none"
+                  />
+                ) : previewImageDataUrl ? (
+                  <img
+                    src={previewImageDataUrl}
+                    alt="Portal preview"
+                    className="h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                ) : portalPreviewBrick ? (
+                  <div className="pointer-events-none h-full overflow-hidden p-1.5">
+                    <UnifiedBrickRenderer
+                      brick={portalPreviewBrick}
+                      canEdit={false}
+                      onUpdate={() => undefined}
+                      documents={[]}
+                      boards={[]}
+                      activeBricks={[portalPreviewBrick]}
+                      users={[]}
+                      isCompact
                     />
-                  ) : previewImageDataUrl ? (
-                    <img
-                      src={previewImageDataUrl}
-                      alt="Portal preview"
-                      className="h-full w-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : portalPreviewBrick ? (
-                    <div className="pointer-events-none h-full overflow-hidden p-1.5">
-                      <UnifiedBrickRenderer
-                        brick={portalPreviewBrick}
-                        canEdit={false}
-                        onUpdate={() => undefined}
-                        documents={[]}
-                        boards={[]}
-                        activeBricks={[portalPreviewBrick]}
-                        users={[]}
-                        isCompact
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex h-full items-center justify-center">
-                      <ExternalLink className="h-8 w-8 text-blue-400/25" />
-                    </div>
-                  )}
+                  </div>
+                ) : (
+                  <div className="flex h-full flex-col items-center justify-center gap-1.5">
+                    <ExternalLink className="h-8 w-8 text-blue-400/25" />
+                    <p className="text-[9px] text-blue-400/40">Doble clic para previsualizar</p>
+                  </div>
+                )}
+                {/* Hover overlay with subtitle info */}
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent px-2 py-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                  <p className="truncate text-[10px] font-medium text-blue-100">{targetLabel || targetId.slice(0, 24)}</p>
+                  <p className="text-[8px] text-blue-400/60">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
                 </div>
-
-                {/* Info row */}
-                <div className="shrink-0 text-center">
-                  <p className="truncate text-[11px] font-semibold text-blue-200 leading-tight">{targetLabel || targetId.slice(0, 24)}</p>
-                  <p className="text-[9px] text-muted-foreground/50 leading-tight">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
-                </div>
-
-                {/* Action buttons */}
-                <div className="shrink-0 flex items-center justify-center gap-1.5">
-                  <button
-                    type="button"
-                    className="pointer-events-auto inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-2.5 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (!portalHref) return;
-                      setPortalPreview({ url: portalHref, title: targetLabel || targetId });
-                    }}
-                  >
-                    Vista
-                  </button>
-                  <a href={portalHref}
-                    className="pointer-events-auto inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-2.5 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
-                    onClick={(e) => e.stopPropagation()}>
-                    Entrar <ExternalLink className="h-2.5 w-2.5" />
-                  </a>
-                </div>
-              </>
+              </div>
             ) : (
-              <div className="flex flex-1 items-center justify-center">
+              <div className="flex h-full items-center justify-center">
                 <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el portal</p>
               </div>
             )}
@@ -2644,10 +2621,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           className={`group absolute overflow-hidden transition-[outline-color] duration-100${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
             cursor: dragState?.brickId === brick.id ? "grabbing" : "grab",
-            outline: isSel ? "2px solid rgba(255,255,255,0.5)" : isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+            outline: (isSel || isMultiSel) ? "2px solid rgba(255,255,255,0.5)" : isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
             borderRadius: 6 }}
-          onMouseEnter={(e) => { if (!isSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "rgba(34,211,238,0.35)"; }}
-          onMouseLeave={(e) => { if (!isSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "transparent"; }}
+          onMouseEnter={(e) => { if (!isSel && !isMultiSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "rgba(34,211,238,0.35)"; }}
+          onMouseLeave={(e) => { if (!isSel && !isMultiSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "transparent"; }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => { if (isEditing) { e.stopPropagation(); return; } startDrag(e, brick.id); }}
           onDoubleClick={(e) => onBrickDblClick(e, brick.id)}
@@ -3494,6 +3471,107 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         initialTab={sidebarTab}
       />
     </div>
+
+    {/* ── Share modal ──────────────────────────────────────────────────────────────── */}
+    {isShareModalOpen && (
+      <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setIsShareModalOpen(false); }}>
+        <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Share2 className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-semibold text-foreground">Compartir Mesh Board</p>
+            </div>
+            <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent/20 hover:text-foreground" onClick={() => setIsShareModalOpen(false)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <div className="flex flex-col gap-4 p-4">
+            {/* Link copy */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Link de acceso</p>
+              <div className="flex gap-2">
+                <input
+                  readOnly
+                  value={typeof window !== "undefined" ? window.location.href : ""}
+                  className="flex-1 min-w-0 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-[11px] font-mono text-foreground/70 outline-none"
+                />
+                <button
+                  type="button"
+                  className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
+                      toast("Link copiado.", "success");
+                    } catch { toast("No se pudo copiar.", "error"); }
+                  }}
+                >
+                  <Copy className="h-3 w-3" /> Copiar
+                </button>
+              </div>
+            </div>
+
+            {/* Permissions row */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permisos</p>
+              <div className="grid grid-cols-3 gap-2">
+                {(["Ver", "Comentar", "Editar"] as const).map((label) => (
+                  <button key={label} type="button"
+                    className={`rounded-md border px-3 py-2 text-[11px] font-medium transition-colors ${label === "Editar" ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border/80 hover:text-foreground"}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Share as */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Compartir como</p>
+              <div className="flex flex-col gap-1">
+                {[
+                  { icon: <LayoutGrid className="h-3.5 w-3.5" />, label: "Mesh Board", sub: "Vista completa del canvas", href: typeof window !== "undefined" ? window.location.href : "" },
+                  { icon: <LayoutGrid className="h-3.5 w-3.5 opacity-50" />, label: "Mesh (sin barra lateral)", sub: "Solo el canvas, sin navegación", href: typeof window !== "undefined" ? window.location.href + "?layout=false" : "" },
+                ].map((opt) => (
+                  <button key={opt.label} type="button"
+                    className="flex items-center gap-2.5 rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-left hover:border-border hover:bg-muted/40 transition-colors"
+                    onClick={async () => {
+                      try {
+                        await navigator.clipboard.writeText(opt.href);
+                        toast(`Link copiado: ${opt.label}`, "success");
+                      } catch { toast("No se pudo copiar.", "error"); }
+                    }}>
+                    <span className="shrink-0 text-muted-foreground">{opt.icon}</span>
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-[11px] font-medium text-foreground">{opt.label}</span>
+                      <span className="block text-[10px] text-muted-foreground">{opt.sub}</span>
+                    </span>
+                    <Copy className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Embed */}
+            <div className="flex flex-col gap-1.5">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Embed</p>
+              <button type="button"
+                className="flex items-center gap-2.5 rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-left hover:border-border hover:bg-muted/40 transition-colors"
+                onClick={async () => {
+                  const url = typeof window !== "undefined" ? window.location.href : "";
+                  const code = `<iframe src="${url}?layout=false" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`;
+                  try { await navigator.clipboard.writeText(code); toast("Código embed copiado.", "success"); } catch { toast("No se pudo copiar.", "error"); }
+                }}>
+                <Code2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                <span className="flex-1 min-w-0">
+                  <span className="block text-[11px] font-medium text-foreground">Copiar código iframe</span>
+                  <span className="block text-[10px] text-muted-foreground">Para embeber en documentos o sitios web</span>
+                </span>
+                <Copy className="h-3 w-3 shrink-0 text-muted-foreground/50" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}
     {portalPreview && (
