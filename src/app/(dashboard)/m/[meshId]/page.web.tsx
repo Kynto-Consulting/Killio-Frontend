@@ -11,7 +11,7 @@ import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
-  Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Square, Trash2, Type, Wand2, X,
+  Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Sparkles, Square, Trash2, Type, Wand2, X,
   Share2,
 } from "lucide-react";
 
@@ -25,6 +25,7 @@ import { DocumentBrick } from "@/lib/api/documents";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { EntitySelectorModal, type EntitySelectorResult } from "@/components/ui/entity-selector-modal";
 import { PenToolbar } from "@/components/ui/pen-toolbar";
+import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
@@ -979,6 +980,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     loading?: boolean;
     timestamp: string;
   }>>([]);
+  const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const aiAbortRef = useRef<(() => void) | null>(null);
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
@@ -999,6 +1002,44 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const params = new URLSearchParams();
     params.set("layout", "false");
     return `${base}?${params.toString()}`;
+  }, []);
+
+  const buildPortalFallbackImageDataUrl = useCallback((
+    title: string,
+    subtitle: string,
+    targetType: string,
+  ): string => {
+    const esc = (value: string) => value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/\"/g, "&quot;")
+      .replace(/'/g, "&#39;");
+
+    const safeTitle = esc((title || "Portal").slice(0, 48));
+    const safeSubtitle = esc((subtitle || targetType || "Preview").slice(0, 64));
+    const svg = `
+      <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+        <defs>
+          <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0f172a"/>
+            <stop offset="100%" stop-color="#1e3a8a"/>
+          </linearGradient>
+        </defs>
+        <rect width="1280" height="720" fill="url(#g)"/>
+        <g fill="none" stroke="rgba(255,255,255,0.08)">
+          <rect x="90" y="110" width="1100" height="500" rx="20"/>
+          <rect x="120" y="150" width="1040" height="52" rx="12"/>
+          <rect x="120" y="224" width="720" height="300" rx="16"/>
+          <rect x="862" y="224" width="298" height="300" rx="16"/>
+        </g>
+        <text x="130" y="186" fill="#cbd5e1" font-family="Arial, sans-serif" font-size="22" letter-spacing="2">${safeSubtitle.toUpperCase()}</text>
+        <text x="130" y="300" fill="#ffffff" font-family="Arial, sans-serif" font-size="48" font-weight="700">${safeTitle}</text>
+        <text x="130" y="350" fill="#94a3b8" font-family="Arial, sans-serif" font-size="26">Vista cacheada del portal</text>
+      </svg>
+    `.trim();
+
+    return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
   }, []);
 
   const capturePortalScreenshot = useCallback(async (portalHref: string): Promise<string | null> => {
@@ -1040,20 +1081,29 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
       const frameDoc = iframe.contentDocument;
       if (!frameDoc) return null;
+      if (frameDoc.readyState !== "complete") {
+        await new Promise((resolve) => window.setTimeout(resolve, 450));
+      }
+
       const root = (frameDoc.querySelector("main") as HTMLElement | null) ?? frameDoc.body;
       if (!root) return null;
 
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(root, {
         backgroundColor: "#020617",
-        scale: 0.5,
-        useCORS: false,
+        scale: 0.55,
+        useCORS: true,
         allowTaint: false,
+        foreignObjectRendering: true,
         logging: false,
         width: 1280,
         height: 720,
       });
-      return canvas.toDataURL("image/jpeg", 0.62);
+      try {
+        return canvas.toDataURL("image/jpeg", 0.56);
+      } catch {
+        return null;
+      }
     } catch {
       return null;
     } finally {
@@ -1144,6 +1194,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const targetLabel = typeof content.targetLabel === "string" ? content.targetLabel : "";
       const hasPreview = typeof content.previewMarkdown === "string" && content.previewMarkdown.trim().length > 0;
       const hasPreviewImage = typeof content.previewImageDataUrl === "string" && content.previewImageDataUrl.startsWith("data:image/");
+      const previewImageSource = typeof content.previewImageSource === "string" ? content.previewImageSource : "";
+      const hasScreenshotImage = hasPreviewImage && previewImageSource === "screenshot";
       if (!targetId) {
         delete portalHydrationAttemptRef.current[portalBrick.id];
         delete portalScreenshotAttemptRef.current[portalBrick.id];
@@ -1151,19 +1203,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
 
       const screenshotSignature = `${targetType}:${targetId}`;
-      if (!hasPreviewImage && !portalScreenshotInFlightRef.current.has(portalBrick.id) && portalScreenshotAttemptRef.current[portalBrick.id] !== screenshotSignature) {
+      if (!hasScreenshotImage && !portalScreenshotInFlightRef.current.has(portalBrick.id) && portalScreenshotAttemptRef.current[portalBrick.id] !== screenshotSignature) {
         portalScreenshotAttemptRef.current[portalBrick.id] = screenshotSignature;
         portalScreenshotInFlightRef.current.add(portalBrick.id);
         const portalHref = buildPortalHref(targetType, targetId, { layout: false });
+        const fallbackImageDataUrl = buildPortalFallbackImageDataUrl(
+          targetLabel || targetId,
+          targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento",
+          targetType,
+        );
         void capturePortalScreenshot(portalHref)
           .then((previewImageDataUrl) => {
-            if (!previewImageDataUrl) return;
             setState((cur) => {
               const live = cur.bricksById[portalBrick.id];
               if (!live || live.kind !== "portal") return cur;
               const liveContent = asRec(live.content);
-              const alreadyHasImage = typeof liveContent.previewImageDataUrl === "string" && liveContent.previewImageDataUrl.startsWith("data:image/");
-              if (alreadyHasImage) return cur;
+              const nextImageDataUrl = previewImageDataUrl || (
+                (typeof liveContent.previewImageDataUrl === "string" && liveContent.previewImageDataUrl.startsWith("data:image/"))
+                  ? String(liveContent.previewImageDataUrl)
+                  : fallbackImageDataUrl
+              );
               return {
                 ...cur,
                 bricksById: {
@@ -1172,7 +1231,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     ...live,
                     content: {
                       ...liveContent,
-                      previewImageDataUrl,
+                      previewImageDataUrl: nextImageDataUrl,
+                      previewImageSource: previewImageDataUrl ? "screenshot" : "fallback",
                       previewImageCapturedAt: new Date().toISOString(),
                     },
                   },
@@ -1224,7 +1284,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           portalHydrationInFlightRef.current.delete(portalBrick.id);
         });
     });
-  }, [accessToken, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, state.bricksById]);
+  }, [accessToken, buildPortalFallbackImageDataUrl, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, state.bricksById]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2272,7 +2332,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   defaultValue={targetType}
                   onChange={(e) => setState((cur) => {
                     const b = cur.bricksById[brick.id]; if (!b) return cur;
-                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageCapturedAt: "" } } } };
+                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageSource: "", previewImageCapturedAt: "" } } } };
                   })}
                   onKeyDown={(e) => e.stopPropagation()}>
                   <option value="mesh">Mesh Board</option>
@@ -2297,7 +2357,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <input type="text" placeholder="ID (meshId / docId)…"
                   className="rounded border border-border bg-background px-2 py-1 text-[10px] font-mono text-foreground outline-none pointer-events-auto"
                   defaultValue={targetId}
-                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageCapturedAt: "" } } } }; }); }}
+                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageSource: "", previewImageCapturedAt: "" } } } }; }); }}
                   onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }} />
               </div>
             ) : targetId ? (
@@ -2665,10 +2725,33 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           <button
             type="button"
             onClick={() => {
-              setMeshAiTab("history");
-              setIsAiDrawerOpen(true);
+              setSidebarTab("copilot");
+              setIsAiDrawerOpen(false);
+              setIsCommentsOpen(true);
             }}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
+              isCommentsOpen && sidebarTab === "copilot"
+                ? "border-accent/20 bg-accent/10 text-accent"
+                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            }`}
+            title="Copilot"
+          >
+            <Sparkles className="h-3 w-3" /> Copilot
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setSidebarTab("chat");
+              setIsAiDrawerOpen(false);
+              setIsCommentsOpen(true);
+            }}
+            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
+              isCommentsOpen && sidebarTab === "chat"
+                ? "border-accent/20 bg-accent/10 text-accent"
+                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            }`}
+            title="Comments"
           >
             <MessageSquare className="h-3 w-3" /> Comments
           </button>
@@ -2687,21 +2770,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
           >
             <Share2 className="h-3 w-3" /> Share
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              setMeshAiTab("copilot");
-              setIsAiDrawerOpen((v) => !v);
-            }}
-            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
-              isAiDrawerOpen && meshAiTab === "copilot"
-                ? "border-accent/20 bg-accent/10 text-accent"
-                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-            }`}
-          >
-            <Bot className="h-3 w-3" /> IA
           </button>
 
           <button type="button" onClick={handleSave} disabled={isSaving || isLoading}
@@ -3200,6 +3268,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       </div>
     )}
 
+    <BoardChatDrawer
+      isOpen={isCommentsOpen}
+      onClose={() => setIsCommentsOpen(false)}
+      boardId={meshId}
+      initialTab={sidebarTab}
+    />
+
     {activeTeamId && accessToken && (
       <EntitySelectorModal
         isOpen={selectorModalBrickId !== null}
@@ -3234,6 +3309,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   previewSubtitle: portalArtifact?.subtitle ?? "",
                   previewTitle: portalArtifact?.title ?? result.label,
                   previewImageDataUrl: "",
+                  previewImageSource: "",
                   previewImageCapturedAt: "",
                 } };
               } else {
@@ -3249,6 +3325,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   previewMarkdown: result.previewMarkdown,
                 } };
               }
+
               return { ...cur, bricksById: { ...cur.bricksById, [selectorModalBrickId]: updated } };
             });
             setSelectorModalBrickId(null);
