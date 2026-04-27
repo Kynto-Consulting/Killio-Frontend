@@ -12,7 +12,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Sparkles, Square, Trash2, Type, Wand2, X,
-  Share2,
+  Share2, ZoomIn, ZoomOut, Grid3X3,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -45,7 +45,7 @@ type ShapePreset =
   | "rect" | "rounded-rect" | "circle" | "ellipse" | "diamond"
   | "triangle" | "hexagon" | "star" | "arrow" | "note" | "frame-vector" | "flow-terminator";
 
-type ConnStyle = "technical" | "dashed" | "handdrawn";
+type ConnStyle = "technical" | "dashed" | "handdrawn" | "bezier" | "curved";
 
 type DragState    = { brickId: string; startMouse: { x: number; y: number }; startPosition: { x: number; y: number }; originalParentId: string | null };
 type ResizeState  = { brickId: string; startMouse: { x: number; y: number }; startSize: { w: number; h: number } };
@@ -627,9 +627,75 @@ function defaultMeshState(): MeshState {
 }
 
 function connStyle(preset: ConnStyle): Record<string, unknown> {
-  if (preset === "dashed")    return { stroke: "#7dd3fc", width: 2, pattern: "dashed",  handDrawn: false };
-  if (preset === "handdrawn") return { stroke: "#93c5fd", width: 2.5, pattern: "solid", handDrawn: true  };
-  return                             { stroke: "#22d3ee", width: 2, pattern: "solid",  handDrawn: false };
+  if (preset === "dashed")    return { stroke: "#7dd3fc", width: 2,   pattern: "dashed", connType: "technical" };
+  if (preset === "handdrawn") return { stroke: "#c4b5fd", width: 2.5, pattern: "solid",  connType: "handdrawn" };
+  if (preset === "bezier")    return { stroke: "#6ee7b7", width: 2,   pattern: "solid",  connType: "bezier"    };
+  if (preset === "curved")    return { stroke: "#fbbf24", width: 2,   pattern: "solid",  connType: "curved"    };
+  return                             { stroke: "#22d3ee", width: 2,   pattern: "solid",  connType: "technical" };
+}
+
+/** Deterministic pseudo-random based on string seed. */
+function seedRand(seed: string, i: number): number {
+  let h = 5381;
+  for (let j = 0; j < seed.length; j++) h = (h * 33 ^ seed.charCodeAt(j)) >>> 0;
+  h = (h * 1664525 + i * 1013904223) >>> 0;
+  return (h / 4294967296);
+}
+
+/** Hand-drawn wavy path using cubic beziers with seeded offsets. */
+function handDrawnPath(pts: Array<{ x: number; y: number }>, seed: string): string {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) continue;
+    const px = -dy / len, py = dx / len;
+    const amp = Math.min(6, len * 0.12);
+    const w1 = (seedRand(seed, i * 4)     - 0.5) * 2 * amp;
+    const w2 = (seedRand(seed, i * 4 + 1) - 0.5) * 2 * amp;
+    const cp1x = (a.x + dx / 3 + px * w1).toFixed(1);
+    const cp1y = (a.y + dy / 3 + py * w1).toFixed(1);
+    const cp2x = (a.x + dx * 2 / 3 + px * w2).toFixed(1);
+    const cp2y = (a.y + dy * 2 / 3 + py * w2).toFixed(1);
+    d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${b.x.toFixed(1)},${b.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+/** Cubic bezier from src edge to tgt edge with explicit control points. */
+function buildBezierPath(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  cp1?: { x: number; y: number },
+  cp2?: { x: number; y: number },
+  srcPort?: Port, tgtPort?: Port,
+): { d: string; e1x: number; e1y: number; e2x: number; e2y: number; cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
+  const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
+  const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
+  const e1 = srcPort ? portAbsPos(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPort) : edgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, tc.x, tc.y);
+  const e2 = tgtPort ? portAbsPos(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPort) : edgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, sc.x, sc.y);
+  const stubLen = Math.max(60, Math.hypot(e2.x - e1.x, e2.y - e1.y) * 0.35);
+  const defaultCp1 = cp1 ?? { x: e1.x + e1.nx * stubLen, y: e1.y + e1.ny * stubLen };
+  const defaultCp2 = cp2 ?? { x: e2.x + e2.nx * stubLen, y: e2.y + e2.ny * stubLen };
+  const d = `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} C${defaultCp1.x.toFixed(1)},${defaultCp1.y.toFixed(1)} ${defaultCp2.x.toFixed(1)},${defaultCp2.y.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
+  return { d, e1x: e1.x, e1y: e1.y, e2x: e2.x, e2y: e2.y, cp1: defaultCp1, cp2: defaultCp2 };
+}
+
+/** Organic curved path (quadratic bezier through midpoint). */
+function buildCurvedPath(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  srcPort?: Port, tgtPort?: Port,
+): string {
+  const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
+  const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
+  const e1 = srcPort ? portAbsPos(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPort) : edgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, tc.x, tc.y);
+  const e2 = tgtPort ? portAbsPos(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPort) : edgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, sc.x, sc.y);
+  const mx = (e1.x + e2.x) / 2 + (e2.y - e1.y) * 0.25;
+  const my = (e1.y + e2.y) / 2 - (e2.x - e1.x) * 0.25;
+  return `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
 }
 
 // ─── Toolbar item component ───────────────────────────────────────────────────
@@ -715,6 +781,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
   const [snapTarget,   setSnapTarget]   = useState<{ brickId: string; port: Port } | null>(null);
   const [viewport, setViewport] = useState<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
+  const [showGrid,     setShowGrid]     = useState(true);
+  // bezier cp drag: { connId, cp: 1|2, startMouse, startCp }
+  const [bezierCpDrag, setBezierCpDrag] = useState<{ connId: string; cp: 1 | 2; startMouse: { x: number; y: number }; startCp: { x: number; y: number } } | null>(null);
   const penTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const penStrokesRef  = useRef<PenStroke[]>([]);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -742,6 +811,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (!mobileMode) return;
     setToolMode("pan");
   }, [mobileMode]);
+
+  // Block browser-level pinch/ctrl+scroll zoom over the canvas.
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el) return;
+    const prevent = (e: WheelEvent) => {
+      if (e.ctrlKey) e.preventDefault();
+    };
+    el.addEventListener("wheel", prevent, { passive: false });
+    return () => el.removeEventListener("wheel", prevent);
+  }, []);
 
   const isSavingRef = useRef(false);
   const revisionRef = useRef(0);
@@ -1634,6 +1714,20 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       return;
     }
 
+    // Bezier control point drag
+    if (bezierCpDrag) {
+      const dx = x - bezierCpDrag.startMouse.x;
+      const dy = y - bezierCpDrag.startMouse.y;
+      const newCp = { x: bezierCpDrag.startCp.x + dx, y: bezierCpDrag.startCp.y + dy };
+      setState((cur) => {
+        const co = cur.connectionsById[bezierCpDrag.connId];
+        if (!co) return cur;
+        const key = bezierCpDrag.cp === 1 ? "cp1" : "cp2";
+        return { ...cur, connectionsById: { ...cur.connectionsById, [bezierCpDrag.connId]: { ...co, style: { ...asRec(co.style), [key]: newCp } } } };
+      });
+      return;
+    }
+
     if (toolMode !== "select" && toolMode !== "vec") return;
 
     if (vecDragState) {
@@ -1672,10 +1766,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return { ...cur, bricksById: { ...cur.bricksById, [b.id]: { ...b, position: { x: dragState.startPosition.x + dx, y: dragState.startPosition.y + dy } } } };
       });
     }
-  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, selRect, connSrcId]);
+  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, selRect, connSrcId, bezierCpDrag]);
 
   // ── Mouse up ──────────────────────────────────────────────────────────────────
   const onMouseUp = useCallback(() => {
+    if (bezierCpDrag) { setBezierCpDrag(null); return; }
     if (panDragState) { setPanDragState(null); return; }
 
     // pen flush — use ref to avoid React Strict Mode double-invoke
@@ -1860,7 +1955,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     setDragState(null);
     setResizeState(null);
     setVecDragState(null);
-  }, [panDragState, toolMode, activePen, dragState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom]);
+  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom]);
 
   // ── Drag start ─────────────────────────────────────────────────────────────────
   const startDrag = useCallback((e: React.MouseEvent, brickId: string) => {
@@ -2834,7 +2929,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 className="mt-1.5 w-full rounded-md border border-border bg-background px-1.5 py-1 text-[9px] text-foreground">
                 <option value="technical">─ Technical</option>
                 <option value="dashed">- - Dashed</option>
-                <option value="handdrawn">~ Handdrawn</option>
+                <option value="handdrawn">∿ Hand</option>
+                <option value="bezier">⌒ Bezier</option>
+                <option value="curved">◡ Curved</option>
               </select>
             )}
           </section>
@@ -2907,9 +3004,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               ref={canvasRef}
               className={`absolute inset-0 overflow-hidden touch-none ${toolMode === "pan" ? "cursor-grab" : toolMode === "pen" || toolMode === "conn" ? "cursor-crosshair" : selRect ? "cursor-crosshair" : ""}`}
               style={{
-                backgroundImage: "linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)",
-                backgroundSize: `${Math.max(10, 20 * viewport.zoom)}px ${Math.max(10, 20 * viewport.zoom)}px`,
-                backgroundPosition: `${viewport.x}px ${viewport.y}px`,
+                backgroundImage: showGrid
+                  ? "linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)"
+                  : "none",
+                backgroundSize: showGrid ? `${Math.max(10, 20 * viewport.zoom)}px ${Math.max(10, 20 * viewport.zoom)}px` : undefined,
+                backgroundPosition: showGrid ? `${viewport.x}px ${viewport.y}px` : undefined,
               }}
               onMouseDown={mobileMode ? undefined : onCanvasMouseDown}
               onMouseMove={mobileMode ? undefined : onMouseMove}
@@ -2955,30 +3054,56 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     if (!src || !tgt) return null;
                     const sg = gPos(src.id); const tg = gPos(tgt.id);
                     const st = asRec(conn.style);
-                    const stroke  = typeof st.stroke === "string" ? st.stroke : "#22d3ee";
-                    const width   = typeof st.width  === "number" ? st.width  : 2;
-                    const dashed  = st.pattern === "dashed";
-                    const isSC    = selectedConnId === conn.id;
-                    const cs      = isSC ? "#fff" : stroke;
-                    const cw      = isSC ? width + 1 : width;
-                    const srcH = collapsedBoards.has(src.id) ? 28 : src.size.h;
-                    const tgtH = collapsedBoards.has(tgt.id) ? 28 : tgt.size.h;
-                    const srcR = { x: sg.x, y: sg.y, w: src.size.w, h: srcH };
-                    const tgtR = { x: tg.x, y: tg.y, w: tgt.size.w, h: tgtH };
-                    const obs = Object.values(state.bricksById)
-                      .filter((b) => b.id !== src.id && b.id !== tgt.id)
-                      .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
-                    const sp = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
-                    const tp = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
-                    const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp);
-                    const d = smoothPoly(routePts, CORNER_R);
-                    const labelPt = pointAtPolylineFraction(routePts, 0.5);
-                    const markerId = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
+                    const stroke    = typeof st.stroke === "string" ? st.stroke : "#22d3ee";
+                    const width     = typeof st.width  === "number" ? st.width  : 2;
+                    const dashed    = st.pattern === "dashed";
+                    const cType     = typeof st.connType === "string" ? st.connType : "technical";
+                    const isSC      = selectedConnId === conn.id;
+                    const cs        = isSC ? "#fff" : stroke;
+                    const cw        = isSC ? width + 1 : width;
+                    const srcH      = collapsedBoards.has(src.id) ? 28 : src.size.h;
+                    const tgtH      = collapsedBoards.has(tgt.id) ? 28 : tgt.size.h;
+                    const srcR      = { x: sg.x, y: sg.y, w: src.size.w, h: srcH };
+                    const tgtR      = { x: tg.x, y: tg.y, w: tgt.size.w, h: tgtH };
+                    const sp        = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
+                    const tp        = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
+                    const markerId  = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
                     const connLabel = typeof st.label === "string" ? st.label : "";
                     const isEditingConnLabel = editingConnId === conn.id;
-                    const labelW = isEditingConnLabel ? 260 : 180;
-                    const labelH = isEditingConnLabel ? 82 : 28;
+                    const labelW    = isEditingConnLabel ? 260 : 180;
+                    const labelH    = isEditingConnLabel ? 82 : 28;
                     const labelLift = Math.max(2, labelH * 0.08);
+
+                    // Build path based on connType
+                    let d = "";
+                    let labelPt = { x: 0, y: 0 };
+                    let bezierInfo: ReturnType<typeof buildBezierPath> | null = null;
+
+                    if (cType === "bezier") {
+                      const cp1 = st.cp1 as { x: number; y: number } | undefined;
+                      const cp2 = st.cp2 as { x: number; y: number } | undefined;
+                      bezierInfo = buildBezierPath(srcR, tgtR, cp1, cp2, sp, tp);
+                      d = bezierInfo.d;
+                      labelPt = {
+                        x: 0.125 * bezierInfo.e1x + 0.375 * bezierInfo.cp1.x + 0.375 * bezierInfo.cp2.x + 0.125 * bezierInfo.e2x,
+                        y: 0.125 * bezierInfo.e1y + 0.375 * bezierInfo.cp1.y + 0.375 * bezierInfo.cp2.y + 0.125 * bezierInfo.e2y,
+                      };
+                    } else if (cType === "curved") {
+                      d = buildCurvedPath(srcR, tgtR, sp, tp);
+                      const obs2 = Object.values(state.bricksById)
+                        .filter((b) => b.id !== src.id && b.id !== tgt.id)
+                        .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
+                      const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp);
+                      labelPt = pointAtPolylineFraction(rp2, 0.5);
+                    } else {
+                      const obs = Object.values(state.bricksById)
+                        .filter((b) => b.id !== src.id && b.id !== tgt.id)
+                        .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
+                      const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp);
+                      d = cType === "handdrawn" ? handDrawnPath(routePts, conn.id) : smoothPoly(routePts, CORNER_R);
+                      labelPt = pointAtPolylineFraction(routePts, 0.5);
+                    }
+
                     return (
                       <g key={conn.id} style={{ pointerEvents: "stroke", cursor: "pointer" }}
                         onClick={(e) => { e.stopPropagation(); setSelectedConnId(conn.id); setSelectedId(null); setSelectedIds(new Set()); }}
@@ -3002,9 +3127,31 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         }}>
                         {/* fat transparent hit area */}
                         <path d={d} fill="none" stroke="transparent" strokeWidth={14} style={{ pointerEvents: "stroke" }} />
-                        <path d={d} fill="none" stroke={cs} strokeWidth={cw}
+                        <path d={d} fill="none" stroke={cs} strokeWidth={cType === "handdrawn" ? cw + 0.5 : cw}
                           strokeDasharray={dashed ? "6 4" : undefined}
+                          strokeLinecap={cType === "handdrawn" ? "round" : "butt"}
+                          strokeLinejoin={cType === "handdrawn" ? "round" : "miter"}
                           markerEnd={markerId} opacity={0.9} />
+
+                        {/* Bezier control point handles (vec mode + selected) */}
+                        {cType === "bezier" && isSC && toolMode === "vec" && bezierInfo && (
+                          <g style={{ pointerEvents: "auto" }}>
+                            <line x1={bezierInfo.e1x} y1={bezierInfo.e1y} x2={bezierInfo.cp1.x} y2={bezierInfo.cp1.y} stroke={stroke} strokeWidth={1} strokeDasharray="3 2" opacity={0.5} />
+                            <line x1={bezierInfo.e2x} y1={bezierInfo.e2y} x2={bezierInfo.cp2.x} y2={bezierInfo.cp2.y} stroke={stroke} strokeWidth={1} strokeDasharray="3 2" opacity={0.5} />
+                            <circle cx={bezierInfo.cp1.x} cy={bezierInfo.cp1.y} r={6} fill={stroke} opacity={0.85} className="cursor-move"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                const pt = fromEv(e as unknown as React.MouseEvent);
+                                setBezierCpDrag({ connId: conn.id, cp: 1, startMouse: pt, startCp: { ...bezierInfo!.cp1 } });
+                              }} />
+                            <circle cx={bezierInfo.cp2.x} cy={bezierInfo.cp2.y} r={6} fill={stroke} opacity={0.85} className="cursor-move"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                const pt = fromEv(e as unknown as React.MouseEvent);
+                                setBezierCpDrag({ connId: conn.id, cp: 2, startMouse: pt, startCp: { ...bezierInfo!.cp2 } });
+                              }} />
+                          </g>
+                        )}
                         {(connLabel || isEditingConnLabel) && (
                           <foreignObject
                             x={labelPt.x - labelW / 2}
@@ -3099,6 +3246,55 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </div>
           )}
 
+          {/* ── Zoom + Grid toolbar (bottom-right) ── */}
+          <div className="pointer-events-none absolute bottom-4 right-3 z-30 flex flex-col items-end gap-1.5">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-cyan-300/20 bg-slate-950/88 px-1.5 py-1 shadow-lg backdrop-blur-md">
+              <button
+                type="button"
+                title="Mostrar/ocultar grilla"
+                onClick={() => setShowGrid((v) => !v)}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] transition-colors ${showGrid ? "bg-cyan-400/20 text-cyan-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+              >
+                <Grid3X3 className="h-3.5 w-3.5" />
+              </button>
+
+              <div className="mx-0.5 h-4 w-px bg-white/10" />
+
+              <button
+                type="button"
+                title="Alejar (Ctrl+scroll)"
+                onClick={() => setViewport((v) => {
+                  const nz = Math.max(0.2, v.zoom * 0.85);
+                  return { x: v.x, y: v.y, zoom: nz };
+                })}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+              >
+                <ZoomOut className="h-3.5 w-3.5" />
+              </button>
+
+              <button
+                type="button"
+                title={`Zoom: ${Math.round(viewport.zoom * 100)}%`}
+                onClick={() => setViewport((v) => ({ ...v, zoom: 1 }))}
+                className="min-w-[36px] rounded-md px-1.5 py-0.5 text-center text-[9px] font-semibold tabular-nums text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+              >
+                {Math.round(viewport.zoom * 100)}%
+              </button>
+
+              <button
+                type="button"
+                title="Acercar (Ctrl+scroll)"
+                onClick={() => setViewport((v) => {
+                  const nz = Math.min(2.8, v.zoom * 1.18);
+                  return { x: v.x, y: v.y, zoom: nz };
+                })}
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+              >
+                <ZoomIn className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          </div>
+
           <div
             ref={floatingToolbarRef}
             className={`pointer-events-none absolute inset-x-0 z-30 flex justify-center px-3 ${mobileMode ? "bottom-3 pb-[max(env(safe-area-inset-bottom),0px)]" : "bottom-4"}`}
@@ -3138,12 +3334,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   {toolbarPanel === "conn" && (
                     <div>
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Conectores</p>
-                      <div className="grid grid-cols-3 gap-2">
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
                         {([
-                          ["technical", "Technical", "─"],
-                          ["dashed", "Dashed", "- -"],
-                          ["handdrawn", "Hand", "~"],
-                        ] as [ConnStyle, string, string][]).map(([presetKey, label, glyph]) => (
+                          ["technical", "Technical", "─",   "#22d3ee"],
+                          ["dashed",    "Dashed",    "- -", "#7dd3fc"],
+                          ["handdrawn", "Hand",      "∿",   "#c4b5fd"],
+                          ["bezier",    "Bezier",    "⌒",   "#6ee7b7"],
+                          ["curved",    "Curved",    "◡",   "#fbbf24"],
+                        ] as [ConnStyle, string, string, string][]).map(([presetKey, label, glyph, color]) => (
                           <button
                             key={presetKey}
                             type="button"
@@ -3151,12 +3349,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                               setConnPreset(presetKey);
                               setToolMode("conn");
                             }}
-                            className={`h-10 rounded-lg border text-[10px] font-medium transition-colors ${connPreset === presetKey ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100" : "border-white/10 bg-slate-900/80 text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+                            className={`h-12 rounded-lg border flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${connPreset === presetKey ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100" : "border-white/10 bg-slate-900/80 text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
                           >
-                            <span className="mr-1 opacity-80">{glyph}</span>{label}
+                            <span className="text-base leading-none" style={{ color: connPreset === presetKey ? "#fff" : color }}>{glyph}</span>
+                            <span className="text-[9px]">{label}</span>
                           </button>
                         ))}
                       </div>
+                      {connPreset === "bezier" && (
+                        <p className="mt-2 text-[9px] text-slate-400">Selecciona la conexión y activa modo Vec para editar los puntos de control.</p>
+                      )}
                     </div>
                   )}
 
