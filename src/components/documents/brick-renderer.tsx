@@ -27,10 +27,10 @@ export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards
 
   const renderMarkdown = (text: string) => {
     // Advanced @[type:id:name] parsing
-    // Format: @[doc:uuid:Title] or @[board:uuid:Name]
-    const regex = /@\[(doc|board|card):([^:]+):([^\]]+)\]/g;
+     // Format: @[doc:uuid:Title], @[board:uuid:Name] or @[mesh:uuid:Name]
+     const regex = /@\[(doc|board|mesh|card):([^:]+):([^\]]+)\]/g;
     const processed = text.replace(regex, (match, type, id, name) => {
-       const href = type === 'doc' ? `/d/${id}` : type === 'board' ? `/b/${id}` : `/c/${id}`;
+       const href = type === 'doc' ? `/d/${id}` : type === 'board' ? `/b/${id}` : type === 'mesh' ? `/m/${id}` : `/c/${id}`;
        return `[${name}](${href})`;
     });
 
@@ -42,7 +42,8 @@ export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards
             const href = props.href || '#';
             const isDoc = href.startsWith('/d/');
             const isBoard = href.startsWith('/b/');
-            const isInternal = isDoc || isBoard;
+            const isMesh = href.startsWith('/m/');
+            const isInternal = isDoc || isBoard || isMesh;
             
             return (
               <Link 
@@ -54,6 +55,7 @@ export function BrickRenderer({ brick, canEdit, onUpdate, documents = [], boards
               >
                 {isDoc && <FileText className="h-3 w-3 opacity-70 mr-1" />}
                 {isBoard && <LayoutDashboard className="h-3 w-3 opacity-70 mr-1" />}
+                {isMesh && <LayoutDashboard className="h-3 w-3 opacity-70 mr-1" />}
                 <span>{props.children}</span>
               </Link>
             );

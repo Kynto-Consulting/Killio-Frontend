@@ -257,8 +257,30 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       }
     };
 
+    const escapeRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    const balanceInlineTags = (input: string): string => {
+      const defs: Array<{ open: RegExp; close: string }> = [
+        { open: /\[color:[^\]]+\]/g, close: "[/color]" },
+        { open: /\[bg:[^\]]+\]/g, close: "[/bg]" },
+        { open: /\[size:[^\]]+\]/g, close: "[/size]" },
+        { open: /\[width:[^\]]+\]/g, close: "[/width]" },
+        { open: /\[link:[^\]]+\]/g, close: "[/link]" },
+      ];
+
+      let output = input;
+      for (const def of defs) {
+        const openCount = (output.match(def.open) || []).length;
+        const closeCount = (output.match(new RegExp(escapeRegex(def.close), "g")) || []).length;
+        if (openCount > closeCount) {
+          output += def.close.repeat(openCount - closeCount);
+        }
+      }
+      return output;
+    };
+
     Array.from(tempDiv.childNodes).forEach(walk);
-    return markdown
+    return balanceInlineTags(markdown)
       .replace(/\u00a0/g, " ")
       .replace(/\n{3,}/g, "\n\n")
       .replace(/\n$/, "");
@@ -444,7 +466,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
       }
       let icon = documentIcon;
-      if (type === 'board') icon = boardIcon;
+      if (type === 'board' || type === 'mesh') icon = boardIcon;
       if (type === 'card') icon = cardIcon;
       const token = `@[${type}:${uid}:${name}]`;
       return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
@@ -526,6 +548,35 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     };
 
     const formatInline = (t: string): string => {
+      const findBalancedClose = (
+        source: string,
+        startCursor: number,
+        openToken: string,
+        closeToken: string,
+      ): number => {
+        let depth = 1;
+        let cursor = startCursor;
+
+        while (cursor < source.length) {
+          const nextOpen = source.indexOf(openToken, cursor);
+          const nextClose = source.indexOf(closeToken, cursor);
+
+          if (nextClose === -1) return -1;
+
+          if (nextOpen !== -1 && nextOpen < nextClose) {
+            depth += 1;
+            cursor = nextOpen + openToken.length;
+            continue;
+          }
+
+          depth -= 1;
+          if (depth === 0) return nextClose;
+          cursor = nextClose + closeToken.length;
+        }
+
+        return -1;
+      };
+
       let result = "";
       let cursor = 0;
 
@@ -539,15 +590,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         const colorStart = t.indexOf('[color:', cursor);
         const linkStart  = t.indexOf('[link:',  cursor);
         const sizeStart  = t.indexOf('[size:',  cursor);
+        const widthStart = t.indexOf('[width:', cursor);
         let nextStart = -1;
-        let nextKind: 'bg' | 'color' | 'link' | 'size' | null = null;
+        let nextKind: 'bg' | 'color' | 'link' | 'size' | 'width' | null = null;
 
         const candidates = [
           bgStart    !== -1 ? { start: bgStart,    kind: 'bg'    as const } : null,
           colorStart !== -1 ? { start: colorStart, kind: 'color' as const } : null,
           linkStart  !== -1 ? { start: linkStart,  kind: 'link'  as const } : null,
           sizeStart  !== -1 ? { start: sizeStart,  kind: 'size'  as const } : null,
-        ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' }[];
+          widthStart !== -1 ? { start: widthStart, kind: 'width' as const } : null,
+        ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' | 'width' }[];
 
         if (candidates.length > 0) {
           candidates.sort((a, b) => a.start - b.start);
@@ -565,7 +618,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         if (nextKind === 'bg') {
           const openEnd = t.indexOf(']', nextStart);
           const closeTag = '[/bg]';
-          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          const closeIndex = openEnd === -1 ? -1 : findBalancedClose(t, openEnd + 1, '[bg:', closeTag);
           if (openEnd === -1 || closeIndex === -1) {
             emitPlain(t.slice(nextStart));
             break;
@@ -581,7 +634,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         if (nextKind === 'color') {
           const openEnd = t.indexOf(']', nextStart);
           const closeTag = '[/color]';
-          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          const closeIndex = openEnd === -1 ? -1 : findBalancedClose(t, openEnd + 1, '[color:', closeTag);
           if (openEnd === -1 || closeIndex === -1) {
             emitPlain(t.slice(nextStart));
             break;
@@ -597,7 +650,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         if (nextKind === 'size') {
           const openEnd = t.indexOf(']', nextStart);
           const closeTag = '[/size]';
-          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          const closeIndex = openEnd === -1 ? -1 : findBalancedClose(t, openEnd + 1, '[size:', closeTag);
           if (openEnd === -1 || closeIndex === -1) {
             emitPlain(t.slice(nextStart));
             break;
@@ -610,10 +663,26 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           continue;
         }
 
+        if (nextKind === 'width') {
+          const openEnd = t.indexOf(']', nextStart);
+          const closeTag = '[/width]';
+          const closeIndex = openEnd === -1 ? -1 : findBalancedClose(t, openEnd + 1, '[width:', closeTag);
+          if (openEnd === -1 || closeIndex === -1) {
+            emitPlain(t.slice(nextStart));
+            break;
+          }
+
+          const size  = t.slice(nextStart + 7, openEnd).trim();
+          const inner = t.slice(openEnd + 1, closeIndex);
+          result += `<span data-size="${escapeHtmlAttr(size)}" style="font-size: ${escapeHtmlAttr(size)}">${formatInline(inner)}</span>`;
+          cursor = closeIndex + closeTag.length;
+          continue;
+        }
+
         if (nextKind === 'link') {
           const openEnd = t.indexOf(']', nextStart);
           const closeTag = '[/link]';
-          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          const closeIndex = openEnd === -1 ? -1 : findBalancedClose(t, openEnd + 1, '[link:', closeTag);
           if (openEnd === -1 || closeIndex === -1) {
             emitPlain(t.slice(nextStart));
             break;
@@ -915,7 +984,21 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
       if (pill.classList.contains('deep-pill')) {
         const inner = pill.getAttribute('data-inner') || '';
-        const docId = inner.split(':')[0];
+        const tokens = inner.split(':').map((token) => token.trim()).filter(Boolean);
+        if (tokens.length >= 4) {
+          const scopeType = tokens[0]?.toLowerCase();
+          const scopeId = tokens[1];
+          if (scopeType === 'mesh' && scopeId) {
+            router.push(`/m/${scopeId}`);
+            return;
+          }
+          if ((scopeType === 'doc' || scopeType === 'document') && scopeId) {
+            router.push(`/d/${scopeId}`);
+            return;
+          }
+        }
+
+        const docId = tokens[0];
         if (docId) {
           router.push(`/d/${docId}`);
         }
@@ -927,6 +1010,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
       if (type === 'doc') router.push(`/d/${id}`);
       else if (type === 'board') router.push(`/b/${id}`);
+      else if (type === 'mesh') router.push(`/m/${id}`);
       // Add other navigation or actions as needed
     }
   };

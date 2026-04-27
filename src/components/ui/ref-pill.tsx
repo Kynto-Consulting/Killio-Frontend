@@ -13,7 +13,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'card' | 'user' | 'deep' | 'mention';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention';
   id: string;
   name: string;
   label?: string;
@@ -138,6 +138,7 @@ export function RefPill({
     // Default navigation
     if (type === 'doc') router.push(`/d/${id}`);
     if (type === 'board') router.push(`/b/${id}`);
+    if (type === 'mesh') router.push(`/m/${id}`);
     if (type === 'card' || (type as string) === 'mention' && id.startsWith('card:')) {
       const cardId = id.replace('card:', '');
       try {
@@ -148,8 +149,22 @@ export function RefPill({
       }
     }
     if (type === 'deep') {
-        const docId = id.split(':')[0];
-        router.push(`/d/${docId}`);
+        const tokens = id.split(':').map((token) => token.trim()).filter(Boolean);
+        if (tokens.length >= 4) {
+          const scopeType = tokens[0]?.toLowerCase();
+          const scopeId = tokens[1];
+          if (scopeType === 'mesh' && scopeId) {
+            router.push(`/m/${scopeId}`);
+            return;
+          }
+          if ((scopeType === 'doc' || scopeType === 'document') && scopeId) {
+            router.push(`/d/${scopeId}`);
+            return;
+          }
+        }
+
+        const docId = tokens[0];
+        if (docId) router.push(`/d/${docId}`);
     }
   };
 
@@ -233,6 +248,7 @@ export function RefPill({
   const colors: Record<string, string> = {
     doc: "bg-blue-500/10 border-blue-500/20 text-blue-600 hover:bg-blue-500/20",
     board: "bg-purple-500/10 border-purple-500/20 text-purple-600 hover:bg-purple-500/20",
+    mesh: "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 hover:bg-indigo-500/20",
     card: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20",
     user: "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20",
     deep: "bg-amber-500/10 border-amber-500/20 text-amber-600 hover:bg-amber-500/20",
@@ -242,6 +258,7 @@ export function RefPill({
   const Icons: Record<string, any> = {
     doc: FileText,
     board: LayoutDashboard,
+    mesh: LayoutDashboard,
     card: Hash,
     user: User,
     deep: Database,

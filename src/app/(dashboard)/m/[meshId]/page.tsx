@@ -10,8 +10,9 @@ import { useParams } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
-  Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
-  Minus, MousePointer, Pencil, Save, Send, Square, Trash2, Type, Wand2, X,
+  Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
+  Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Square, Trash2, Type, Wand2, X,
+  Share2,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -19,10 +20,12 @@ import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import { UnifiedTextBrick } from "@/components/bricks/unified-text-brick";
 import { RichText } from "@/components/ui/rich-text";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
+import { useBoardPresence } from "@/hooks/useBoardPresence";
 import { DocumentBrick } from "@/lib/api/documents";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { EntitySelectorModal, type EntitySelectorResult } from "@/components/ui/entity-selector-modal";
 import { PenToolbar } from "@/components/ui/pen-toolbar";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
@@ -642,8 +645,9 @@ function TBItem({
 export default function MeshBoardPage() {
   const params  = useParams<{ meshId: string }>();
   const meshId  = params?.meshId;
-  const { accessToken, activeTeamId } = useSession();
+  const { accessToken, activeTeamId, user } = useSession();
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const presenceMembers = useBoardPresence(meshId ?? null, user, accessToken);
 
   const [state,      setState]      = useState<MeshState>(defaultMeshState());
   const [revision,   setRevision]   = useState(0);
@@ -665,6 +669,7 @@ export default function MeshBoardPage() {
   const [editingValue,   setEditingValue]   = useState<string>("");
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
+  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | null>(null);
 
   // drag state
   const [dragState,    setDragState]    = useState<DragState | null>(null);
@@ -678,7 +683,7 @@ export default function MeshBoardPage() {
   const [penStrokes,    setPenStrokes]    = useState<PenStroke[]>([]);
   const [activePen,     setActivePen]     = useState<PenPoint[] | null>(null);
   const [recognizing,   setRecognizing]   = useState(false);
-  const [penColor, setPenColor] = useState<string>(() => localStorage.getItem("mesh:pen:color") ?? "#000000");
+  const [penColor, setPenColor] = useState<string>(() => localStorage.getItem("mesh:pen:color") ?? "#ffffff");
   const [penStrokeWidth, setPenStrokeWidth] = useState<number>(() => parseFloat(localStorage.getItem("mesh:pen:width") ?? "2"));
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
   const [hoveredRawDrawId, setHoveredRawDrawId] = useState<string | null>(null);
@@ -805,6 +810,7 @@ export default function MeshBoardPage() {
   }>>([]);
   const aiAbortRef = useRef<(() => void) | null>(null);
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
+  const floatingToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const buildPortalHref = useCallback((targetType: string, targetId: string) => {
     if (!targetId) return "";
@@ -839,10 +845,65 @@ export default function MeshBoardPage() {
     return () => document.removeEventListener("keydown", h);
   }, [selectedId, selectedIds, selectedConnId, editingBrickId]);
 
+  useEffect(() => {
+    if (!toolbarPanel) return;
+    const onOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (!floatingToolbarRef.current?.contains(target)) {
+        setToolbarPanel(null);
+      }
+    };
+    document.addEventListener("mousedown", onOutside);
+    return () => document.removeEventListener("mousedown", onOutside);
+  }, [toolbarPanel]);
+
+  const dockBtnClass = useCallback((active: boolean) => (
+    `inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${
+      active
+        ? "border-cyan-300/50 bg-cyan-400/20 text-cyan-100"
+        : "border-white/10 bg-slate-900/85 text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-500/10 hover:text-cyan-100"
+    }`
+  ), []);
+
   // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSave = useCallback(async () => {
     await saveMeshState(state, { silent: false });
   }, [saveMeshState, state]);
+
+  const handleDownloadMesh = useCallback(() => {
+    if (!meshId) return;
+    try {
+      const payload = {
+        meshId,
+        revision,
+        updatedAt,
+        state,
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `mesh-${meshId}-rev-${revision}.json`;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(url);
+      toast("Mesh descargada.", "success");
+    } catch {
+      toast("No se pudo descargar la mesh.", "error");
+    }
+  }, [meshId, revision, updatedAt, state]);
+
+  const handleShareMesh = useCallback(async () => {
+    try {
+      const url = typeof window !== "undefined" ? window.location.href : "";
+      if (!url) return;
+      await navigator.clipboard.writeText(url);
+      toast("Link copiado.", "success");
+    } catch {
+      toast("No se pudo copiar el link.", "error");
+    }
+  }, []);
 
   useEffect(() => {
     if (!meshId || !accessToken || isLoading) return;
@@ -2012,17 +2073,6 @@ export default function MeshBoardPage() {
         />
       )}
 
-      {/* Phase 2: Mesh AI chat + history drawer */}
-      <button
-        type="button"
-        onClick={() => setIsAiDrawerOpen((v) => !v)}
-        className="absolute right-4 top-4 z-50 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-colors hover:bg-blue-700"
-        title={isAiDrawerOpen ? "Cerrar IA" : "Abrir IA"}
-      >
-        <MessageSquare className="h-3.5 w-3.5" />
-        {isAiDrawerOpen ? "Cerrar" : "IA"}
-      </button>
-
       {isAiDrawerOpen && (
         <div className="absolute right-0 top-0 z-40 h-full w-[360px] max-w-[90vw] border-l border-border/60 bg-card shadow-2xl">
           <div className="flex h-full flex-col">
@@ -2104,6 +2154,28 @@ export default function MeshBoardPage() {
         <span className="text-sm font-semibold text-foreground">Mesh</span>
         <span className="text-[10px] text-muted-foreground">rev {revision}</span>
         <div className="ml-auto flex items-center gap-2">
+          <div className="hidden items-center -space-x-1.5 pr-1 sm:flex">
+            {presenceMembers.slice(0, 5).map((member) => (
+              <img
+                key={member.clientId}
+                src={getUserAvatarUrl(member.data.avatar_url, member.data.email, 24)}
+                alt={member.data.displayName}
+                title={member.data.displayName}
+                className="h-6 w-6 rounded-full border border-background ring-1 ring-border/50 object-cover bg-muted"
+              />
+            ))}
+            {presenceMembers.length > 5 && (
+              <div className="h-6 min-w-6 rounded-full border border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center">
+                +{presenceMembers.length - 5}
+              </div>
+            )}
+            {presenceMembers.length === 0 && (
+              <div className="h-6 min-w-6 rounded-full border border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center">
+                ...
+              </div>
+            )}
+          </div>
+
           {selectedConnId && <span className="text-[10px] text-muted-foreground">Doble clic en label de conector para editar con toolbar</span>}
           {(selectedId || selectedConnId || selectedIds.size > 0) && (
             <button type="button" onClick={() => {
@@ -2118,10 +2190,57 @@ export default function MeshBoardPage() {
               <Trash2 className="h-3 w-3" /> {selectedIds.size > 1 ? `${selectedIds.size} sel.` : "Eliminar"}
             </button>
           )}
+
+          <button
+            type="button"
+            onClick={() => {
+              setMeshAiTab("history");
+              setIsAiDrawerOpen(true);
+            }}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+          >
+            <MessageSquare className="h-3 w-3" /> Comments
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadMesh}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+          >
+            <Download className="h-3 w-3" /> Descargar
+          </button>
+
+          <button
+            type="button"
+            onClick={handleShareMesh}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+          >
+            <Share2 className="h-3 w-3" /> Share
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMeshAiTab("copilot");
+              setIsAiDrawerOpen((v) => !v);
+            }}
+            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
+              isAiDrawerOpen && meshAiTab === "copilot"
+                ? "border-accent/20 bg-accent/10 text-accent"
+                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            }`}
+          >
+            <Bot className="h-3 w-3" /> IA
+          </button>
+
           <button type="button" onClick={handleSave} disabled={isSaving || isLoading}
             className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
             {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Guardar
           </button>
+
+          <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "Usuario"}>
+            {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
+          </div>
         </div>
       </div>
 
@@ -2129,7 +2248,7 @@ export default function MeshBoardPage() {
       <div className="flex flex-1 overflow-hidden">
 
         {/* ── Left toolbar ── */}
-        <div className="flex w-[180px] shrink-0 flex-col overflow-y-auto border-r border-border bg-card/80 py-2 text-[10px]">
+        <div className="hidden w-[180px] shrink-0 flex-col overflow-y-auto border-r border-border bg-card/80 py-2 text-[10px]">
 
           {/* Modos */}
           <section className="px-2 pb-2">
@@ -2238,7 +2357,7 @@ export default function MeshBoardPage() {
               <div className="relative min-h-[1000px] min-w-[1800px]">
                 {rootBricks.length === 0 && (
                   <div className="pointer-events-none absolute left-8 top-8 flex items-center gap-2 rounded border border-dashed border-border/60 bg-card/50 px-3 py-2 text-xs text-muted-foreground/60">
-                    <AlertTriangle className="h-4 w-4" /> Arrastra del panel izquierdo · Lápiz (P) para iinkTS · Doble clic en brick para editar
+                    <AlertTriangle className="h-4 w-4" /> Usa el toolbar inferior · Lápiz (P) para iinkTS · Doble clic en brick para editar
                   </div>
                 )}
 
@@ -2401,6 +2520,138 @@ export default function MeshBoardPage() {
               </div>
             </div>
           )}
+
+          <div ref={floatingToolbarRef} className="pointer-events-none absolute inset-x-0 bottom-4 z-30 flex justify-center px-3">
+            <div className="pointer-events-auto flex max-w-full flex-col items-center gap-2">
+              {toolbarPanel && (
+                <div className="w-[min(92vw,780px)] rounded-2xl border border-cyan-300/20 bg-slate-950/92 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md">
+                  {toolbarPanel === "mode" && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Modo</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {([
+                          ["select", "Select", <MousePointer className="h-3.5 w-3.5" />],
+                          ["pan", "Pan", <Hand className="h-3.5 w-3.5" />],
+                          ["pen", "Pen", <Pencil className="h-3.5 w-3.5" />],
+                          ["conn", "Conn", <Link2 className="h-3.5 w-3.5" />],
+                          ["vec", "Vec", <Edit3 className="h-3.5 w-3.5" />],
+                        ] as [ToolMode, string, React.ReactNode][]).map(([modeKey, label, icon]) => (
+                          <button
+                            key={modeKey}
+                            type="button"
+                            onClick={() => {
+                              setToolMode(modeKey);
+                              if (modeKey !== "conn") setConnSrcId(null);
+                              setToolbarPanel(null);
+                            }}
+                            className={`flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg text-[9px] transition-colors ${toolMode === modeKey ? "bg-cyan-400/20 text-cyan-100" : "bg-slate-900/80 text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-100"}`}
+                          >
+                            {icon}
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {toolbarPanel === "conn" && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Conectores</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {([
+                          ["technical", "Technical", "─"],
+                          ["dashed", "Dashed", "- -"],
+                          ["handdrawn", "Hand", "~"],
+                        ] as [ConnStyle, string, string][]).map(([presetKey, label, glyph]) => (
+                          <button
+                            key={presetKey}
+                            type="button"
+                            onClick={() => {
+                              setConnPreset(presetKey);
+                              setToolMode("conn");
+                            }}
+                            className={`h-10 rounded-lg border text-[10px] font-medium transition-colors ${connPreset === presetKey ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100" : "border-white/10 bg-slate-900/80 text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+                          >
+                            <span className="mr-1 opacity-80">{glyph}</span>{label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {toolbarPanel === "basics" && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Básicos</p>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {BASIC_BRICKS.map((entry, i) => (
+                          <TBItem key={i} icon={entry.icon} label={entry.label} draggable
+                            onDragStart={(e) => onToolDragStart(e, { type: "meta", entry })}
+                            onClick={() => { addMeta(entry); setToolbarPanel(null); }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {toolbarPanel === "content" && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Contenido</p>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {CONTENT_BRICKS.map((entry, i) => (
+                          <TBItem key={i} icon={entry.icon} label={entry.label} draggable
+                            onDragStart={(e) => onToolDragStart(e, { type: "meta", entry })}
+                            onClick={() => { addMeta(entry); setToolbarPanel(null); }} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {toolbarPanel === "shapes" && (
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Formas</p>
+                      <div className="grid grid-cols-5 gap-1">
+                        {SHAPES.map(({ preset, label }) => (
+                          <button key={preset} type="button" title={label} draggable
+                            onClick={() => { addShape(preset); setToolbarPanel(null); }}
+                            onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
+                            className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
+                            <div className="relative h-[18px] w-[32px]">
+                              <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
+                            </div>
+                            <span className="max-w-[40px] truncate text-[7px] leading-none">{label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {toolbarPanel === "status" && (
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 sm:grid-cols-4">
+                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Bricks: <span className="font-semibold text-cyan-100">{Object.keys(state.bricksById).length}</span></div>
+                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Conns: <span className="font-semibold text-cyan-100">{Object.keys(state.connectionsById).length}</span></div>
+                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Modo: <span className="font-semibold text-cyan-100">{toolMode}</span></div>
+                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Sel: <span className="font-semibold text-cyan-100">{selectedIds.size || (selectedId ? 1 : 0)}</span></div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="flex max-w-full items-center gap-1 rounded-2xl border border-cyan-300/20 bg-slate-950/88 px-2 py-1 shadow-[0_18px_36px_rgba(0,0,0,0.5)] backdrop-blur-md">
+                <button type="button" title="Select (S)" onClick={() => { setToolMode("select"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "select")}><MousePointer className="h-4 w-4" /></button>
+                <button type="button" title="Pan (H)" onClick={() => { setToolMode("pan"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pan")}><Hand className="h-4 w-4" /></button>
+                <button type="button" title="Pen (P)" onClick={() => { setToolMode("pen"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pen")}><Pencil className="h-4 w-4" /></button>
+                <button type="button" title="Conectores" onClick={() => setToolbarPanel((current) => current === "conn" ? null : "conn")} className={dockBtnClass(toolMode === "conn" || toolbarPanel === "conn")}><Link2 className="h-4 w-4" /></button>
+                <button type="button" title="Vector" onClick={() => { setToolMode("vec"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "vec")}><Edit3 className="h-4 w-4" /></button>
+
+                <div className="mx-1 h-6 w-px bg-white/10" />
+
+                <button type="button" title="Modos" onClick={() => setToolbarPanel((current) => current === "mode" ? null : "mode")} className={dockBtnClass(toolbarPanel === "mode")}><Wand2 className="h-4 w-4" /></button>
+                <button type="button" title="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
+                <button type="button" title="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
+                <button type="button" title="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
+                <button type="button" title="Más" onClick={() => setToolbarPanel((current) => current === "status" ? null : "status")} className={dockBtnClass(toolbarPanel === "status")}><MoreHorizontal className="h-4 w-4" /></button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

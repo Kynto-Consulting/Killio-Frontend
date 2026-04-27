@@ -18,6 +18,7 @@ export interface ResolverContext {
   activeBricks?: ResolverBrick[]; // Bricks available in current scope for local resolution
   documentBricksById?: Record<string, ResolverBrick[]>;
   cardBricksById?: Record<string, ResolverBrick[]>;
+  meshBricksById?: Record<string, ResolverBrick[]>;
   users?: WorkspaceMemberLike[];
 }
 
@@ -33,7 +34,7 @@ export class ReferenceResolver {
     if (tokens.length < 2) return null;
 
     const first = String(tokens[0] || "").toLowerCase();
-    const hasScopedPrefix = (first === "card" || first === "doc" || first === "document" || first === "board") && tokens.length >= 4;
+    const hasScopedPrefix = (first === "card" || first === "doc" || first === "document" || first === "board" || first === "mesh") && tokens.length >= 4;
 
     if (hasScopedPrefix) {
       const entityType = first;
@@ -155,6 +156,10 @@ export class ReferenceResolver {
 
   private static extractTextLike(kind: string, payload: any): string {
     if (kind === "text") return String(payload.markdown ?? payload.text ?? "");
+    if (kind === "draw") return String(payload.markdown ?? payload.label ?? payload.text ?? "");
+    if (kind === "board_empty") return String(payload.label ?? payload.title ?? "");
+    if (kind === "portal") return String(payload.targetLabel ?? payload.targetId ?? "");
+    if (kind === "mirror") return String(payload.sourceLabel ?? payload.sourceId ?? payload.previewMarkdown ?? "");
     if (kind === "accordion") return String(payload.body ?? "");
     if (kind === "ai") return String(payload.response ?? payload.prompt ?? "");
     return String(payload.markdown ?? payload.text ?? payload.body ?? payload.summary ?? "");
@@ -322,10 +327,21 @@ export class ReferenceResolver {
       return null;
     }
 
+    if (entityType === "mesh") {
+      const meshBricks = context.meshBricksById?.[scopeId] || [];
+      const meshBrick = this.findBrickByIdOrAlias(meshBricks as any[], brickId) as any;
+      if (meshBrick) return meshBrick;
+      return null;
+    }
+
     if (prefix === "$") {
       const docBricks = context.documentBricksById?.[scopeId] || [];
       const docBrick = this.findBrickByIdOrAlias(docBricks as any[], brickId) as any;
       if (docBrick) return docBrick;
+
+      const meshBricks = context.meshBricksById?.[scopeId] || [];
+      const meshBrick = this.findBrickByIdOrAlias(meshBricks as any[], brickId) as any;
+      if (meshBrick) return meshBrick;
     }
 
     return null;
@@ -390,7 +406,8 @@ export class ReferenceResolver {
 
   /**
    * Resolves @[type:id:extra] into a display value or link data.
-   * Format: @[doc:uuid] -> { link: '/d/uuid', label: 'DocTitle' }
+  * Format: @[doc:uuid] -> { link: '/d/uuid', label: 'DocTitle' }
+  * Format: @[mesh:uuid] -> { link: '/m/uuid', label: 'MeshName' }
    * Format: @[doc:uuid:brickId:A1] -> { value: 'CellContent' }
    */
   static resolve(ref: string, context: ResolverContext): { label: string; href?: string; value?: any } {
@@ -415,7 +432,15 @@ export class ReferenceResolver {
 
     if (type === 'board') {
       const board = context.boards.find(b => b.id === id);
+      if (board?.boardType === 'mesh') {
+        return { label: board.name, href: `/m/${id}` };
+      }
       return { label: board ? board.name : 'Unknown Board', href: `/b/${id}` };
+    }
+
+    if (type === 'mesh') {
+      const board = context.boards.find(b => b.id === id && b.boardType === 'mesh');
+      return { label: board ? board.name : 'Unknown Mesh', href: `/m/${id}` };
     }
 
     if (type === 'folder' && context.folders) {
@@ -468,16 +493,20 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[(?:doc|board|card|user|folder):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[(?:doc|board|mesh|card|user|folder):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
-      const match = part.match(/@\[(doc|board|card|user|folder):([^:\]]+)(?::([^\]]+))?\]/);
+      const match = part.match(/@\[(doc|board|mesh|card|user|folder):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
-        const mentionType = type as "doc" | "board" | "card" | "user" | "folder";
+        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder";
+        const isMeshBoard = parsedMentionType === "board" && context.boards.find((b) => b.id === id)?.boardType === "mesh";
+        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder";
         const fallbackName =
           mentionType === "doc"
             ? context.documents.find((d) => d.id === id)?.title
+            : mentionType === "mesh"
+              ? context.boards.find((b) => b.id === id && b.boardType === 'mesh')?.name
             : mentionType === "board"
               ? context.boards.find((b) => b.id === id)?.name
               : mentionType === "folder"
@@ -487,7 +516,7 @@ export class ReferenceResolver {
                 : undefined;
         const resolvedName = mentionType === "user" ? (fallbackName || nameRaw) : (nameRaw || fallbackName);
         const name = String(resolvedName || "Referencia");
-        return { type: 'mention', mentionType: type, id, name, key: i };
+        return { type: 'mention', mentionType, id, name, key: i };
       }
 
       const deepMatch = part.match(/([$#])\[([^\]]+)\]/);
@@ -501,6 +530,7 @@ export class ReferenceResolver {
         const { entityType, scopeId, selector, args } = parsed;
         const selectorLabel = this.describeSelector(selector, args);
         const docTitle = context.documents.find((d) => d.id === scopeId)?.title;
+        const meshTitle = context.boards.find((b) => b.id === scopeId && b.boardType === 'mesh')?.name;
         const resolvedValue = brick ? this.resolveDeepToken(inner, context, deepPrefix) : "";
         const normalizedResolvedValue = this.stripOuterBoldMarkers(String(resolvedValue || ""));
 
@@ -509,6 +539,8 @@ export class ReferenceResolver {
         const isInline = !!brick && !nonInlineSelectors.has(selector) && isSingleLine;
         const scopeLabel = entityType === "card"
           ? "Tarjeta"
+          : entityType === "mesh"
+            ? (meshTitle || "Mesh")
           : entityType === "board"
             ? "Board"
             : docTitle;

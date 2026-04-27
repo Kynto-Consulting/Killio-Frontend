@@ -5,6 +5,7 @@ import { Portal } from "./portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { useSession } from "@/components/providers/session-provider";
 import { DocumentBrick, getDocument } from "@/lib/api/documents";
+import { getMesh, MeshBrick } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
@@ -13,7 +14,7 @@ type PickerCard = { id: string; title: string };
 
 type MentionPart = {
   type: "mention";
-  mentionType: "doc" | "board" | "card" | "user";
+  mentionType: "doc" | "board" | "mesh" | "card" | "user" | "folder";
   id: string;
   name: string;
 };
@@ -82,10 +83,11 @@ export function ReferenceTokenInput({
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerRange, setPickerRange] = useState<{ trigger: number; cursor: number } | null>(null);
   const [documentBricksById, setDocumentBricksById] = useState<Record<string, DocumentBrick[]>>({});
+  const [meshBricksById, setMeshBricksById] = useState<Record<string, MeshBrick[]>>({});
 
   const resolverContext = useMemo(
-    () => ({ documents, boards, folders, users, activeBricks, documentBricksById } as any),
-    [documents, boards, folders, users, activeBricks, documentBricksById]
+    () => ({ documents, boards, folders, users, activeBricks, documentBricksById, meshBricksById } as any),
+    [documents, boards, folders, users, activeBricks, documentBricksById, meshBricksById]
   );
 
   const getRichParts = useCallback(
@@ -333,38 +335,78 @@ export function ReferenceTokenInput({
     if (!accessToken) return;
 
     const docIds = new Set<string>();
-    const regex = /\$\[([^:\]]+):([^:\]]+):[^\]]+\]/g;
+    const meshIds = new Set<string>();
+    const regex = /[$#]\[([^\]]+)\]/g;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(value || "")) !== null) {
-      docIds.add(match[1]);
+      const inner = match[1] || "";
+      const tokens = inner.split(":").map((token) => token.trim()).filter(Boolean);
+      if (tokens.length < 3) continue;
+
+      const first = (tokens[0] || "").toLowerCase();
+      const hasScopedPrefix = (first === "doc" || first === "document" || first === "mesh" || first === "card" || first === "board") && tokens.length >= 4;
+
+      if (hasScopedPrefix) {
+        const scopeId = tokens[1];
+        if (!scopeId) continue;
+        if (first === "mesh") meshIds.add(scopeId);
+        if (first === "doc" || first === "document") docIds.add(scopeId);
+        continue;
+      }
+
+      docIds.add(tokens[0]);
     }
 
-    const missing = Array.from(docIds).filter((docId) => !documentBricksById[docId]);
-    if (!missing.length) return;
+    const missingDocs = Array.from(docIds).filter((docId) => !documentBricksById[docId]);
+    const missingMeshes = Array.from(meshIds).filter((meshId) => !meshBricksById[meshId]);
+    if (!missingDocs.length && !missingMeshes.length) return;
 
     let cancelled = false;
-    Promise.all(
-      missing.map(async (docId) => {
-        try {
-          const doc = await getDocument(docId, accessToken);
-          return { docId, bricks: doc.bricks || [] };
-        } catch {
-          return { docId, bricks: [] as DocumentBrick[] };
-        }
-      })
-    ).then((rows) => {
+    Promise.all([
+      Promise.all(
+        missingDocs.map(async (docId) => {
+          try {
+            const doc = await getDocument(docId, accessToken);
+            return { docId, bricks: doc.bricks || [] };
+          } catch {
+            return { docId, bricks: [] as DocumentBrick[] };
+          }
+        })
+      ),
+      Promise.all(
+        missingMeshes.map(async (meshId) => {
+          try {
+            const mesh = await getMesh(meshId, accessToken);
+            return { meshId, bricks: Object.values(mesh.state?.bricksById || {}) };
+          } catch {
+            return { meshId, bricks: [] as MeshBrick[] };
+          }
+        })
+      ),
+    ]).then(([docRows, meshRows]) => {
       if (cancelled) return;
-      setDocumentBricksById((prev) => {
-        const next = { ...prev };
-        for (const row of rows) next[row.docId] = row.bricks;
-        return next;
-      });
+
+      if (docRows.length > 0) {
+        setDocumentBricksById((prev) => {
+          const next = { ...prev };
+          for (const row of docRows) next[row.docId] = row.bricks;
+          return next;
+        });
+      }
+
+      if (meshRows.length > 0) {
+        setMeshBricksById((prev) => {
+          const next = { ...prev };
+          for (const row of meshRows) next[row.meshId] = row.bricks;
+          return next;
+        });
+      }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [value, accessToken, documentBricksById]);
+  }, [value, accessToken, documentBricksById, meshBricksById]);
 
   const closePicker = useCallback(() => {
     setIsPickerOpen(false);

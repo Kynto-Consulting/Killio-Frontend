@@ -241,7 +241,7 @@ export function RichText({
                   <RefPill
                     key={partIdx}
                     type="deep"
-                    id={part.inner?.split(":")[0] || part.id}
+                    id={part.inner || part.id}
                     name={part.label}
                     onClick={deepClick}
                   />
@@ -323,6 +323,35 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
   };
 
   const renderWithWrappers = (value: string, keyPrefix: string): ReactNode[] => {
+    const findBalancedClose = (
+      source: string,
+      startCursor: number,
+      openToken: string,
+      closeToken: string,
+    ): number => {
+      let depth = 1;
+      let cursor = startCursor;
+
+      while (cursor < source.length) {
+        const nextOpen = source.indexOf(openToken, cursor);
+        const nextClose = source.indexOf(closeToken, cursor);
+
+        if (nextClose === -1) return -1;
+
+        if (nextOpen !== -1 && nextOpen < nextClose) {
+          depth += 1;
+          cursor = nextOpen + openToken.length;
+          continue;
+        }
+
+        depth -= 1;
+        if (depth === 0) return nextClose;
+        cursor = nextClose + closeToken.length;
+      }
+
+      return -1;
+    };
+
     const nodes: ReactNode[] = [];
     let cursor = 0;
     let partIndex = 0;
@@ -332,15 +361,17 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       const colorStart = value.indexOf('[color:', cursor);
       const linkStart  = value.indexOf('[link:',  cursor);
       const sizeStart  = value.indexOf('[size:',  cursor);
+      const widthStart = value.indexOf('[width:', cursor);
       let nextStart = -1;
-      let nextKind: 'bg' | 'color' | 'link' | 'size' | null = null;
+      let nextKind: 'bg' | 'color' | 'link' | 'size' | 'width' | null = null;
 
       const candidates = [
         bgStart    !== -1 ? { start: bgStart,    kind: 'bg'    as const } : null,
         colorStart !== -1 ? { start: colorStart, kind: 'color' as const } : null,
         linkStart  !== -1 ? { start: linkStart,  kind: 'link'  as const } : null,
         sizeStart  !== -1 ? { start: sizeStart,  kind: 'size'  as const } : null,
-      ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' }[];
+        widthStart !== -1 ? { start: widthStart, kind: 'width' as const } : null,
+      ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' | 'width' }[];
 
       if (candidates.length > 0) {
         candidates.sort((a, b) => a.start - b.start);
@@ -360,7 +391,7 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       if (nextKind === 'bg') {
         const openEnd = value.indexOf(']', nextStart);
         const closeTag = '[/bg]';
-        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        const closeIndex = openEnd === -1 ? -1 : findBalancedClose(value, openEnd + 1, '[bg:', closeTag);
         if (openEnd === -1 || closeIndex === -1) {
           nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-bg-${partIndex++}`));
           break;
@@ -380,7 +411,7 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       if (nextKind === 'color') {
         const openEnd = value.indexOf(']', nextStart);
         const closeTag = '[/color]';
-        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        const closeIndex = openEnd === -1 ? -1 : findBalancedClose(value, openEnd + 1, '[color:', closeTag);
         if (openEnd === -1 || closeIndex === -1) {
           nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-color-${partIndex++}`));
           break;
@@ -400,7 +431,7 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       if (nextKind === 'size') {
         const openEnd = value.indexOf(']', nextStart);
         const closeTag = '[/size]';
-        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        const closeIndex = openEnd === -1 ? -1 : findBalancedClose(value, openEnd + 1, '[size:', closeTag);
         if (openEnd === -1 || closeIndex === -1) {
           nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-size-${partIndex++}`));
           break;
@@ -417,10 +448,30 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
         continue;
       }
 
+      if (nextKind === 'width') {
+        const openEnd = value.indexOf(']', nextStart);
+        const closeTag = '[/width]';
+        const closeIndex = openEnd === -1 ? -1 : findBalancedClose(value, openEnd + 1, '[width:', closeTag);
+        if (openEnd === -1 || closeIndex === -1) {
+          nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-width-${partIndex++}`));
+          break;
+        }
+
+        const size  = value.slice(nextStart + 7, openEnd).trim();
+        const inner = value.slice(openEnd + 1, closeIndex);
+        nodes.push(
+          <span key={`${keyPrefix}-width-${partIndex++}`} data-size={size} style={{ fontSize: size }}>
+            {renderWithWrappers(inner, `${keyPrefix}-width-inner`) }
+          </span>,
+        );
+        cursor = closeIndex + closeTag.length;
+        continue;
+      }
+
       if (nextKind === 'link') {
         const openEnd = value.indexOf(']', nextStart);
         const closeTag = '[/link]';
-        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        const closeIndex = openEnd === -1 ? -1 : findBalancedClose(value, openEnd + 1, '[link:', closeTag);
         if (openEnd === -1 || closeIndex === -1) {
           nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-link-${partIndex++}`));
           break;

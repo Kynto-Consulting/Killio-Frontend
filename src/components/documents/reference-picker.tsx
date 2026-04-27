@@ -12,12 +12,13 @@ import {
   Loader2,
   Folder,
 } from "lucide-react";
-import { BoardSummary } from "@/lib/api/contracts";
+import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
-type MentionType = "board" | "doc" | "card" | "user" | "folder";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder";
+type AllowedMentionType = MentionType | "document";
 
 type ActiveBrick = {
   id: string;
@@ -29,7 +30,7 @@ type ActiveBrick = {
 export interface ReferencePickerSelection {
   token: string;
   label: string;
-  category: "mention" | "deep-local" | "deep-doc" | "template";
+  category: "mention" | "deep-local" | "deep-doc" | "deep-mesh" | "template";
   mentionType?: MentionType;
 }
 
@@ -50,10 +51,10 @@ interface ReferencePickerProps {
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
-  allowedTypes?: MentionType[];
+  allowedTypes?: AllowedMentionType[];
 }
 
-type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "selectors";
+type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors";
 type SelectorOption = { value: string; label: string };
 type SelectorSuggestion = SelectorOption & { isCustom?: boolean };
 
@@ -210,10 +211,24 @@ export function ReferencePicker({
   const [mode, setMode] = useState<PickerMode>("root");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedDoc, setSelectedDoc] = useState<DocumentSummary | null>(null);
+  const [selectedMesh, setSelectedMesh] = useState<BoardSummary | null>(null);
   const [selectedBrick, setSelectedBrick] = useState<ActiveBrick | null>(null);
-  const [selectedSource, setSelectedSource] = useState<"local" | "document" | null>(null);
+  const [selectedSource, setSelectedSource] = useState<"local" | "document" | "mesh" | null>(null);
   const [documentBricks, setDocumentBricks] = useState<ActiveBrick[]>([]);
+  const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
   const [isLoadingDocBricks, setIsLoadingDocBricks] = useState(false);
+  const [isLoadingMeshBricks, setIsLoadingMeshBricks] = useState(false);
+
+  const normalizedAllowedTypes = useMemo(() => {
+    if (!allowedTypes?.length) return undefined;
+    const normalized = allowedTypes.map((type) => (type === "document" ? "doc" : type));
+    if (normalized.includes("board") && !normalized.includes("mesh")) {
+      normalized.push("mesh");
+    }
+    return normalized;
+  }, [allowedTypes]);
+
+  const meshBoards = useMemo(() => boards.filter((b) => b.boardType === "mesh"), [boards]);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const itemRefs = useRef<Map<number, HTMLButtonElement>>(new Map());
@@ -243,17 +258,24 @@ export function ReferencePicker({
 
   useEffect(() => {
     setSelectedIndex(0);
-  }, [query, mode, selectedDoc?.id, selectedBrick?.id, selectedSource]);
+  }, [query, mode, selectedDoc?.id, selectedMesh?.id, selectedBrick?.id, selectedSource]);
 
   const mentionResults = useMemo(() => {
     const q = query.toLowerCase().trim();
     let mentions: MentionResult[] = [
-      ...boards.map((b) => ({
+      ...boards.filter((b) => b.boardType !== "mesh").map((b) => ({
         token: `@[board:${b.id}:${b.name}]`,
         label: b.name,
         category: "mention" as const,
         mentionType: "board" as const,
         search: `board ${b.name} ${b.id}`.toLowerCase(),
+      })),
+      ...meshBoards.map((b) => ({
+        token: `@[mesh:${b.id}:${b.name}]`,
+        label: b.name,
+        category: "mention" as const,
+        mentionType: "mesh" as const,
+        search: `mesh board ${b.name} ${b.id}`.toLowerCase(),
       })),
       ...documents.map((d) => ({
         token: `@[doc:${d.id}:${d.title}]`,
@@ -286,8 +308,8 @@ export function ReferencePicker({
         })),
     ];
 
-    if (allowedTypes && allowedTypes.length > 0) {
-      mentions = mentions.filter(m => m.mentionType && allowedTypes.includes(m.mentionType));
+    if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
+      mentions = mentions.filter(m => m.mentionType && normalizedAllowedTypes.includes(m.mentionType));
     }
 
     const filteredMentions = mentions.filter((m) => {
@@ -298,9 +320,10 @@ export function ReferencePicker({
     let extra = [
       { key: "locals", label: "Locales", subtitle: "Referencia del documento actual" },
       { key: "documents", label: "Documentos", subtitle: "Referencia de otro documento" },
+      { key: "meshes", label: "Meshes", subtitle: "Referencia de otro mesh board" },
     ];
 
-    if (allowedTypes && allowedTypes.length > 0) {
+    if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
       extra = []; // Hide extra complex pickers if restricted to just simple mentions
     }
 
@@ -310,7 +333,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, documents, users, cards, query, allowedTypes]);
+  }, [boards, meshBoards, documents, users, cards, folders, query, normalizedAllowedTypes]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -341,6 +364,20 @@ export function ReferencePicker({
     });
   }, [documentBricks, query]);
 
+  const meshesFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return meshBoards.filter((b) => !q || b.name.toLowerCase().includes(q));
+  }, [meshBoards, query]);
+
+  const meshBricksFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return meshBricks.filter((b) => {
+      if (!q) return true;
+      const label = getBrickLabel(b).toLowerCase();
+      return label.includes(q) || b.kind.toLowerCase().includes(q);
+    });
+  }, [meshBricks, query]);
+
   const selectorFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return currentSelectors.filter((s) => !q || s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q));
@@ -353,6 +390,7 @@ export function ReferencePicker({
   const openLocals = () => {
     setSelectedSource("local");
     setSelectedDoc(null);
+    setSelectedMesh(null);
     setSelectedBrick(null);
     setQuery("");
     setMode("local-bricks");
@@ -361,10 +399,21 @@ export function ReferencePicker({
   const openDocuments = () => {
     setSelectedSource("document");
     setSelectedDoc(null);
+    setSelectedMesh(null);
     setSelectedBrick(null);
     setDocumentBricks([]);
     setQuery("");
     setMode("doc-list");
+  };
+
+  const openMeshes = () => {
+    setSelectedSource("mesh");
+    setSelectedDoc(null);
+    setSelectedMesh(null);
+    setSelectedBrick(null);
+    setMeshBricks([]);
+    setQuery("");
+    setMode("mesh-list");
   };
 
   const selectBrickAndGoSelectors = (brick: ActiveBrick) => {
@@ -395,6 +444,33 @@ export function ReferencePicker({
     }
   };
 
+  const loadMeshBricks = async (mesh: BoardSummary) => {
+    setSelectedMesh(mesh);
+    setSelectedBrick(null);
+    setQuery("");
+    setIsLoadingMeshBricks(true);
+    try {
+      if (!accessToken) {
+        setMeshBricks([]);
+        setMode("mesh-bricks");
+        return;
+      }
+      const snapshot = await getMesh(mesh.id, accessToken);
+      const bricks = Object.values(snapshot.state?.bricksById || {}).map((brick) => ({
+        id: brick.id,
+        kind: brick.kind,
+        content: brick.content as Record<string, any>,
+      }));
+      setMeshBricks(bricks);
+      setMode("mesh-bricks");
+    } catch {
+      setMeshBricks([]);
+      setMode("mesh-bricks");
+    } finally {
+      setIsLoadingMeshBricks(false);
+    }
+  };
+
   const selectSelector = (selectorValue: string, selectorLabel: string) => {
     if (!selectedSource || !selectedBrick) return;
 
@@ -408,12 +484,23 @@ export function ReferencePicker({
       return;
     }
 
-    if (!selectedDoc) return;
-    const token = `$[${selectedDoc.id}:${selectedBrick.id}:${selectorValue}]`;
+    if (selectedSource === "document") {
+      if (!selectedDoc) return;
+      const token = `$[${selectedDoc.id}:${selectedBrick.id}:${selectorValue}]`;
+      closeAndSelect({
+        token,
+        label: `${selectedDoc.title} · ${selectedBrick.kind} · ${selectorLabel}`,
+        category: "deep-doc",
+      });
+      return;
+    }
+
+    if (!selectedMesh) return;
+    const token = `$[mesh:${selectedMesh.id}:${selectedBrick.id}:${selectorValue}]`;
     closeAndSelect({
       token,
-      label: `${selectedDoc.title} · ${selectedBrick.kind} · ${selectorLabel}`,
-      category: "deep-doc",
+      label: `${selectedMesh.name} · ${selectedBrick.kind} · ${selectorLabel}`,
+      category: "deep-mesh",
     });
   };
 
@@ -436,9 +523,12 @@ export function ReferencePicker({
       if (selectedSource === "local") {
         setSelectedBrick(null);
         setMode("local-bricks");
-      } else {
+      } else if (selectedSource === "document") {
         setSelectedBrick(null);
         setMode("doc-bricks");
+      } else {
+        setSelectedBrick(null);
+        setMode("mesh-bricks");
       }
       return;
     }
@@ -447,6 +537,13 @@ export function ReferencePicker({
       setSelectedDoc(null);
       setDocumentBricks([]);
       setMode("doc-list");
+      return;
+    }
+
+    if (mode === "mesh-bricks") {
+      setSelectedMesh(null);
+      setMeshBricks([]);
+      setMode("mesh-list");
       return;
     }
 
@@ -459,6 +556,8 @@ export function ReferencePicker({
     if (mode === "local-bricks") return localBricksFiltered.length;
     if (mode === "doc-list") return docsFiltered.length;
     if (mode === "doc-bricks") return docBricksFiltered.length;
+    if (mode === "mesh-list") return meshesFiltered.length;
+    if (mode === "mesh-bricks") return meshBricksFiltered.length;
     return selectorSuggestions.length;
   };
 
@@ -473,6 +572,7 @@ export function ReferencePicker({
       if (!item) return;
       if (item.key === "locals") openLocals();
       if (item.key === "documents") openDocuments();
+      if (item.key === "meshes") openMeshes();
       return;
     }
 
@@ -490,6 +590,18 @@ export function ReferencePicker({
 
     if (mode === "doc-bricks") {
       const brick = docBricksFiltered[index];
+      if (brick) selectBrickAndGoSelectors(brick);
+      return;
+    }
+
+    if (mode === "mesh-list") {
+      const mesh = meshesFiltered[index];
+      if (mesh) loadMeshBricks(mesh);
+      return;
+    }
+
+    if (mode === "mesh-bricks") {
+      const brick = meshBricksFiltered[index];
       if (brick) selectBrickAndGoSelectors(brick);
       return;
     }
@@ -540,6 +652,10 @@ export function ReferencePicker({
           ? "Documentos"
           : mode === "doc-bricks"
             ? selectedDoc?.title || "Bricks del documento"
+            : mode === "mesh-list"
+              ? "Meshes"
+              : mode === "mesh-bricks"
+                ? selectedMesh?.name || "Bricks del mesh"
             : `Selector ${selectedBrick?.kind || ""}`;
 
   const headerSubtitle =
@@ -551,6 +667,10 @@ export function ReferencePicker({
           ? "Elige documento origen"
           : mode === "doc-bricks"
             ? "Elige un brick del documento"
+            : mode === "mesh-list"
+              ? "Elige mesh origen"
+              : mode === "mesh-bricks"
+                ? "Elige un brick del mesh"
             : "Elige el selector segun tipo";
 
   return (
@@ -613,6 +733,7 @@ export function ReferencePicker({
                   }`}
                 >
                   {item.category === "mention" && item.mentionType === "board" && <LayoutDashboard className="h-4 w-4 opacity-70" />}
+                  {item.category === "mention" && item.mentionType === "mesh" && <LayoutDashboard className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "doc" && <FileText className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "card" && <CreditCard className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "folder" && <Folder className="h-4 w-4 opacity-70" />}
@@ -635,7 +756,11 @@ export function ReferencePicker({
                       else itemRefs.current.delete(idx);
                     }}
                     onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => (item.key === "locals" ? openLocals() : openDocuments())}
+                    onClick={() => {
+                      if (item.key === "locals") openLocals();
+                      else if (item.key === "documents") openDocuments();
+                      else if (item.key === "meshes") openMeshes();
+                    }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
                       idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
@@ -740,6 +865,66 @@ export function ReferencePicker({
             </>
           )}
 
+          {mode === "mesh-list" && (
+            <>
+              {meshesFiltered.map((mesh, idx) => (
+                <button
+                  key={mesh.id}
+                  ref={(el) => {
+                    if (el) itemRefs.current.set(idx, el);
+                    else itemRefs.current.delete(idx);
+                  }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => loadMeshBricks(mesh)}
+                  onMouseEnter={() => setSelectedIndex(idx)}
+                  className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                    idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
+                  }`}
+                >
+                  <LayoutDashboard className="h-4 w-4 opacity-70" />
+                  <div className="flex flex-col min-w-0 flex-1">
+                    <span className="text-sm font-medium truncate">{mesh.name}</span>
+                    <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">mesh</span>
+                  </div>
+                  <ChevronRight className="h-4 w-4 opacity-60" />
+                </button>
+              ))}
+            </>
+          )}
+
+          {mode === "mesh-bricks" && (
+            <>
+              {isLoadingMeshBricks ? (
+                <div className="p-8 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Cargando bricks...
+                </div>
+              ) : (
+                meshBricksFiltered.map((brick, idx) => (
+                  <button
+                    key={brick.id}
+                    ref={(el) => {
+                      if (el) itemRefs.current.set(idx, el);
+                      else itemRefs.current.delete(idx);
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectBrickAndGoSelectors(brick)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                      idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
+                    }`}
+                  >
+                    <FileText className="h-4 w-4 opacity-70" />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">{getBrickLabel(brick)}</span>
+                      <span className="text-[10px] uppercase tracking-wider opacity-50">{brick.kind}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 opacity-60" />
+                  </button>
+                ))
+              )}
+            </>
+          )}
+
           {mode === "selectors" && (
             <>
               {selectorSuggestions.map((sel, idx) => (
@@ -769,12 +954,16 @@ export function ReferencePicker({
             </>
           )}
 
-          {getCurrentCount() === 0 && !isLoadingDocBricks && (
+          {getCurrentCount() === 0 && !isLoadingDocBricks && !isLoadingMeshBricks && (
             <div className="p-8 text-center text-muted-foreground text-sm">No hay resultados para "{query}"</div>
           )}
 
           {mode === "doc-bricks" && !accessToken && !isLoadingDocBricks && (
             <div className="px-3 pb-3 text-[11px] text-amber-500">No hay sesion para cargar bricks del documento.</div>
+          )}
+
+          {mode === "mesh-bricks" && !accessToken && !isLoadingMeshBricks && (
+            <div className="px-3 pb-3 text-[11px] text-amber-500">No hay sesion para cargar bricks del mesh.</div>
           )}
         </div>
 

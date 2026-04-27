@@ -53,7 +53,7 @@ export const useUnifiedBrickList = ({
     if (command.id === "mention-person" || command.id === "mention-page") {
       setPickerState({
         isOpen: true,
-        filter: command.id === "mention-person" ? ["user"] : ["document", "board"],
+        filter: command.id === "mention-person" ? ["user"] : ["document", "board", "mesh"],
         triggerBrickId: afterBrickId,
       });
       return;
