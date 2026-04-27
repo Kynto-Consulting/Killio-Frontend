@@ -1327,6 +1327,23 @@ export async function normalizeMeshState(meshId: string, accessToken: string): P
   });
 }
 
+export function buildMeshAiContext(state: MeshState): string {
+  const brickCount = Object.keys(state.bricksById).length;
+  const connCount = Object.keys(state.connectionsById).length;
+  const textSnippets = Object.values(state.bricksById)
+    .filter((b) => b.kind === 'text')
+    .map((b) => {
+      const content = (b.content && typeof b.content === 'object') ? (b.content as Record<string, unknown>) : {};
+      const markdown = typeof content.markdown === 'string' ? content.markdown : '';
+      return markdown.replace(/\s+/g, ' ').trim();
+    })
+    .filter((value) => value.length > 0)
+    .slice(0, 5)
+    .map((value) => value.slice(0, 80));
+
+  return `Mesh: ${brickCount} bricks, ${connCount} conexiones. Textos: ${textSnippets.length ? textSnippets.join(' | ') : '(vacío)'}`;
+}
+
 export async function getCardContext(cardId: string, accessToken: string): Promise<{ boardId: string; listId: string; title: string }> {
   return request<{ boardId: string; listId: string; title: string }>(`/cards/${cardId}/context`, {
     method: 'GET',

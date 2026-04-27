@@ -9,9 +9,9 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, Code2,
-  Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand,
+  Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
-  Minus, MousePointer, Pencil, Save, Square, Trash2, Type, Wand2, X,
+  Minus, MousePointer, Pencil, Save, Send, Square, Trash2, Type, Wand2, X,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -22,9 +22,10 @@ import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { DocumentBrick } from "@/lib/api/documents";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { EntitySelectorModal, type EntitySelectorResult } from "@/components/ui/entity-selector-modal";
+import { PenToolbar } from "@/components/ui/pen-toolbar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
-  getMesh, normalizeMeshState, updateMeshState,
+  getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
 } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 
@@ -46,7 +47,7 @@ type ResizeState  = { brickId: string; startMouse: { x: number; y: number }; sta
 type VecDragState = { brickId: string; pointIndex: number; startMouse: { x: number; y: number } };
 type PanDragState = { startMouse: { x: number; y: number }; startScroll: { x: number; y: number } };
 type PenPoint     = { x: number; y: number; t: number };
-type PenStroke    = { points: PenPoint[] };
+type PenStroke    = { points: PenPoint[]; color?: string; width?: number };
 
 type MetaEntry = { kind: MeshBrickKind; label: string; unifierKind?: string; icon: React.ReactNode };
 
@@ -607,13 +608,6 @@ function connStyle(preset: ConnStyle): Record<string, unknown> {
   return                             { stroke: "#22d3ee", width: 2, pattern: "solid",  handDrawn: false };
 }
 
-const MESH_RICH_TEXT_CONTEXT: ResolverContext = {
-  documents: [],
-  boards: [],
-  activeBricks: [],
-  users: [],
-};
-
 // ─── Toolbar item component ───────────────────────────────────────────────────
 
 function TBItem({
@@ -684,6 +678,8 @@ export default function MeshBoardPage() {
   const [penStrokes,    setPenStrokes]    = useState<PenStroke[]>([]);
   const [activePen,     setActivePen]     = useState<PenPoint[] | null>(null);
   const [recognizing,   setRecognizing]   = useState(false);
+  const [penColor, setPenColor] = useState<string>(() => localStorage.getItem("mesh:pen:color") ?? "#000000");
+  const [penStrokeWidth, setPenStrokeWidth] = useState<number>(() => parseFloat(localStorage.getItem("mesh:pen:width") ?? "2"));
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
   const [hoveredRawDrawId, setHoveredRawDrawId] = useState<string | null>(null);
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
@@ -691,6 +687,12 @@ export default function MeshBoardPage() {
   const penTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
   const penStrokesRef  = useRef<PenStroke[]>([]);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Persist pen settings to localStorage
+  useEffect(() => {
+    localStorage.setItem("mesh:pen:color", penColor);
+    localStorage.setItem("mesh:pen:width", penStrokeWidth.toString());
+  }, [penColor, penStrokeWidth]);
   const isSavingRef = useRef(false);
   const revisionRef = useRef(0);
   const stateHashRef = useRef("");
@@ -780,6 +782,29 @@ export default function MeshBoardPage() {
 
   const gPos = useCallback((id: string) => resolveGlobal(state.bricksById, id), [state.bricksById]);
 
+  // Phase 1: Context for mentions resolution inside mesh
+  const MESH_CONTEXT = useMemo<ResolverContext>(() => ({
+    documents: [],
+    boards: [],
+    users: [],
+    activeBricks: [],
+  }), []);
+
+  // Phase 2: Build AI context summary from mesh state
+  const meshAiContext = useMemo(() => buildMeshAiContext(state), [state]);
+  const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [meshAiTab, setMeshAiTab] = useState<"copilot" | "history">("copilot");
+  const [meshAiInput, setMeshAiInput] = useState("");
+  const [meshAiLoading, setMeshAiLoading] = useState(false);
+  const [meshAiMessages, setMeshAiMessages] = useState<Array<{
+    id: number;
+    role: "user" | "bot";
+    content: string;
+    loading?: boolean;
+    timestamp: string;
+  }>>([]);
+  const aiAbortRef = useRef<(() => void) | null>(null);
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -828,6 +853,64 @@ export default function MeshBoardPage() {
       }
     };
   }, [meshId, accessToken, isLoading, state, saveMeshState]);
+
+  useEffect(() => {
+    return () => {
+      aiAbortRef.current?.();
+      aiAbortRef.current = null;
+    };
+  }, []);
+
+  const handleMeshAiSubmit = useCallback((e?: React.FormEvent) => {
+    e?.preventDefault();
+    const prompt = meshAiInput.trim();
+    if (!prompt || meshAiLoading || !accessToken || !activeTeamId || !meshId) return;
+
+    const userMsg = { id: Date.now(), role: "user" as const, content: prompt, timestamp: new Date().toISOString() };
+    const loadingId = Date.now() + 1;
+    setMeshAiMessages((prev) => [
+      ...prev,
+      userMsg,
+      { id: loadingId, role: "bot", content: "", loading: true, timestamp: new Date().toISOString() },
+    ]);
+    setMeshAiInput("");
+    setMeshAiLoading(true);
+
+    let acc = "";
+    aiAbortRef.current?.();
+    aiAbortRef.current = streamAiChat(
+      {
+        scope: "team",
+        scopeId: activeTeamId,
+        message: `Mesh ${meshId}: ${prompt}`,
+        contextSummary: meshAiContext,
+        history: meshAiMessages
+          .filter((m) => !m.loading)
+          .slice(-16)
+          .map((m) => ({ role: m.role === "bot" ? "assistant" as const : "user" as const, content: m.content })),
+      },
+      accessToken,
+      (event) => {
+        if (event.type === "delta") {
+          acc += event.text;
+          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: acc } : m));
+          return;
+        }
+        if (event.type === "done") {
+          const finalText = event.text || acc || "No hubo respuesta de IA.";
+          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: finalText } : m));
+          aiAbortRef.current = null;
+          setMeshAiLoading(false);
+          return;
+        }
+        if (event.type === "error") {
+          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: "Error al consultar IA." } : m));
+          aiAbortRef.current = null;
+          setMeshAiLoading(false);
+        }
+      },
+    );
+  }, [meshAiInput, meshAiLoading, accessToken, activeTeamId, meshId, meshAiContext, meshAiMessages]);
 
   // ── Inline editing ────────────────────────────────────────────────────────────
   const startEdit = useCallback((brickId: string) => {
@@ -1057,7 +1140,7 @@ export default function MeshBoardPage() {
 
     // pen flush — use ref to avoid React Strict Mode double-invoke
     if (toolMode === "pen" && activePen && activePen.length > 1) {
-      const stroke: PenStroke = { points: activePen };
+      const stroke: PenStroke = { points: activePen, color: penColor, width: penStrokeWidth };
       setActivePen(null);
       penStrokesRef.current = [...penStrokesRef.current, stroke];
       setPenStrokes([...penStrokesRef.current]);
@@ -1081,12 +1164,14 @@ export default function MeshBoardPage() {
             const c = asRec(b.content);
             const current = Array.isArray(c.manualStrokes) ? [...(c.manualStrokes as unknown[])] : [];
             const g = resolveGlobal(cur.bricksById, b.id);
-            const normalizedBatch = strokes.map((s) =>
-              s.points.map((p) => ({
+            const normalizedBatch = strokes.map((s) => ({
+              points: s.points.map((p) => ({
                 x: +Math.max(0, Math.min(1, (p.x - g.x) / Math.max(b.size.w, 1))).toFixed(4),
                 y: +Math.max(0, Math.min(1, (p.y - g.y) / Math.max(b.size.h, 1))).toFixed(4),
-              }))
-            );
+              })),
+              color: s.color ?? penColor,
+              width: s.width ?? penStrokeWidth,
+            }));
             return {
               ...cur,
               bricksById: {
@@ -1149,8 +1234,28 @@ export default function MeshBoardPage() {
                 : undefined;
               nb = mkBrick(mapped.meshKind, Object.keys(cur.bricksById).length, parentId, pos, mapped.preset);
               if (sz) nb = { ...nb, size: sz };
+              if (mapped.meshKind === "draw" || mapped.meshKind === "frame") {
+                const content = asRec(nb.content);
+                const style = asRec(content.style);
+                nb = {
+                  ...nb,
+                  content: {
+                    ...content,
+                    style: {
+                      ...style,
+                      stroke: penColor,
+                      strokeWidth: penStrokeWidth,
+                    },
+                    strokeColor: penColor,
+                    strokeWidth: penStrokeWidth,
+                  },
+                };
+              }
             } else {
-              nb = setMd(mkBrick("text", Object.keys(cur.bricksById).length, parentId, pos), text!.trim());
+              // Phase 4: Apply pen tokens [size] and [color] to created text
+              const baseText = text!.trim();
+              const textWithTokens = `[size:${penStrokeWidth}rem][color:${penColor}]${baseText}`;
+              nb = setMd(mkBrick("text", Object.keys(cur.bricksById).length, parentId, pos), textWithTokens);
             }
             const by = { ...cur.bricksById, [nb.id]: nb };
             let root = cur.rootOrder;
@@ -1215,7 +1320,7 @@ export default function MeshBoardPage() {
     setDragState(null);
     setResizeState(null);
     setVecDragState(null);
-  }, [panDragState, toolMode, activePen, dragState, selRect, state.bricksById, accessToken, connPreset]);
+  }, [panDragState, toolMode, activePen, dragState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth]);
 
   // ── Drag start ─────────────────────────────────────────────────────────────────
   const startDrag = useCallback((e: React.MouseEvent, brickId: string) => {
@@ -1467,7 +1572,7 @@ export default function MeshBoardPage() {
       const shapeH       = collapsed ? 28 : brick.size.h;
       const shapeLabel   = typeof c.label === "string" ? c.label : "";
       const shapeStroke = sStroke;
-      const shapeFill = isDrawBrick ? "transparent" : sFill;
+      const shapeFill = isDrawBrick ? "rgba(0,0,0,0)" : sFill;
       const toggleCollapse = (e: React.MouseEvent) => {
         e.stopPropagation();
         setCollapsedBoards((prev) => { const n = new Set(prev); n.has(brick.id) ? n.delete(brick.id) : n.add(brick.id); return n; });
@@ -1498,7 +1603,7 @@ export default function MeshBoardPage() {
                 />
               ) : (
                 <span className="truncate opacity-70">
-                  <RichText content={shapeLabel || String(shapeP)} context={MESH_RICH_TEXT_CONTEXT} className="inline text-[10px] leading-none" />
+                  <RichText content={shapeLabel || String(shapeP)} context={MESH_CONTEXT} className="inline text-[10px] leading-none" />
                 </span>
               )}
               <button type="button" className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded text-white/40 hover:text-white/80 hover:bg-white/10"
@@ -1518,11 +1623,11 @@ export default function MeshBoardPage() {
                 style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
                 {isEditing && !label ? (
                   <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
-                    <RichText content={md} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                    <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 ) : (
                   <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
-                    <RichText content={md} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                    <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 )}
               </div>
@@ -1584,7 +1689,9 @@ export default function MeshBoardPage() {
     // ─ Raw draw area (no shape preset): transparent area, only border on hover/connected ─
     if (brick.kind === "draw" && !shapeP) {
       const isHoverRaw = hoveredRawDrawId === brick.id;
-      const manualStrokes = Array.isArray(c.manualStrokes) ? (c.manualStrokes as Array<Array<{ x: number; y: number }>>) : [];
+      const manualStrokes = Array.isArray(c.manualStrokes)
+        ? (c.manualStrokes as Array<Array<{ x: number; y: number }> | { points: Array<{ x: number; y: number }>; color?: string; width?: number }>)
+        : [];
       const rawOutline = isConnected
         ? "2px solid rgba(34,211,238,0.55)"
         : isHoverRaw
@@ -1612,7 +1719,10 @@ export default function MeshBoardPage() {
         >
           {manualStrokes.length > 0 && (
             <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
-              {manualStrokes.map((strokePts, idx) => {
+              {manualStrokes.map((strokeEntry, idx) => {
+                const strokePts = Array.isArray(strokeEntry) ? strokeEntry : strokeEntry.points;
+                const strokeColor = Array.isArray(strokeEntry) ? "#67e8f9" : (strokeEntry.color ?? "#67e8f9");
+                const strokeWidth = Array.isArray(strokeEntry) ? 2 : (strokeEntry.width ?? 2);
                 if (!Array.isArray(strokePts) || strokePts.length < 2) return null;
                 const d = strokePts
                   .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
@@ -1622,8 +1732,8 @@ export default function MeshBoardPage() {
                     key={idx}
                     d={d}
                     fill="none"
-                    stroke="#67e8f9"
-                    strokeWidth={2}
+                    stroke={strokeColor}
+                    strokeWidth={strokeWidth}
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     opacity={0.95}
@@ -1828,7 +1938,104 @@ export default function MeshBoardPage() {
 
   return (
     <>
-    <div className="flex h-full flex-col" style={{ userSelect: anyDrag ? "none" : undefined }}>
+    <div className="relative flex h-full flex-col" style={{ userSelect: anyDrag ? "none" : undefined }}>
+      {/* Phase 4: Pen Toolbar */}
+      {toolMode === "pen" && (
+        <PenToolbar
+          color={penColor}
+          strokeWidth={penStrokeWidth}
+          onColorChange={setPenColor}
+          onStrokeWidthChange={setPenStrokeWidth}
+        />
+      )}
+
+      {/* Phase 2: Mesh AI chat + history drawer */}
+      <button
+        type="button"
+        onClick={() => setIsAiDrawerOpen((v) => !v)}
+        className="absolute right-4 top-4 z-50 inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white shadow-md transition-colors hover:bg-blue-700"
+        title={isAiDrawerOpen ? "Cerrar IA" : "Abrir IA"}
+      >
+        <MessageSquare className="h-3.5 w-3.5" />
+        {isAiDrawerOpen ? "Cerrar" : "IA"}
+      </button>
+
+      {isAiDrawerOpen && (
+        <div className="absolute right-0 top-0 z-40 h-full w-[360px] max-w-[90vw] border-l border-border/60 bg-card shadow-2xl">
+          <div className="flex h-full flex-col">
+            <div className="flex items-center justify-between border-b border-border/50 px-3 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Mesh Copilot</span>
+              <button type="button" onClick={() => setIsAiDrawerOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-accent/15 hover:text-foreground">
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+
+            <div className="flex border-b border-border/40 px-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setMeshAiTab("copilot")}
+                className={`flex-1 rounded-t-md px-2 py-2 text-[10px] font-bold uppercase tracking-wide ${meshAiTab === "copilot" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <span className="inline-flex items-center gap-1"><Bot className="h-3 w-3" /> Copilot</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMeshAiTab("history")}
+                className={`flex-1 rounded-t-md px-2 py-2 text-[10px] font-bold uppercase tracking-wide ${meshAiTab === "history" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                <span className="inline-flex items-center gap-1"><History className="h-3 w-3" /> History</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3">
+              {meshAiTab === "copilot" ? (
+                <div className="space-y-3">
+                  {meshAiMessages.length === 0 && (
+                    <div className="rounded border border-border/60 bg-muted/20 p-2 text-[11px] text-muted-foreground">
+                      Pregunta sobre esta mesh. El contexto actual de bricks y conexiones se envia automaticamente.
+                    </div>
+                  )}
+                  {meshAiMessages.map((msg) => (
+                    <div key={msg.id} className={`rounded-lg border p-2 text-[12px] ${msg.role === "user" ? "border-blue-500/40 bg-blue-500/10 text-blue-100" : "border-border/60 bg-muted/20 text-foreground"}`}>
+                      <div className="mb-1 text-[9px] uppercase tracking-wider opacity-60">{msg.role === "user" ? "Tu" : "Copilot"}</div>
+                      <div className="whitespace-pre-wrap">{msg.loading ? "..." : msg.content}</div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {meshAiMessages.length === 0 ? (
+                    <p className="text-[11px] text-muted-foreground">Sin historial todavia.</p>
+                  ) : (
+                    meshAiMessages.map((msg) => (
+                      <div key={`h-${msg.id}`} className="rounded border border-border/60 bg-muted/10 px-2 py-1.5 text-[11px]">
+                        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{msg.role} • {new Date(msg.timestamp).toLocaleTimeString()}</div>
+                        <div className="truncate">{msg.content || "..."}</div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+
+            {meshAiTab === "copilot" && (
+              <form onSubmit={handleMeshAiSubmit} className="border-t border-border/50 p-2">
+                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
+                  <input
+                    value={meshAiInput}
+                    onChange={(e) => setMeshAiInput(e.target.value)}
+                    placeholder="Pregunta a IA sobre esta mesh..."
+                    className="w-full bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground"
+                  />
+                  <button type="submit" disabled={meshAiLoading || !meshAiInput.trim()} className="rounded bg-blue-600 p-1 text-white disabled:opacity-40">
+                    {meshAiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
       {/* ── Top bar ── */}
       <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card/70 px-4 py-1.5">
         <span className="text-sm font-semibold text-foreground">Mesh</span>
@@ -2080,7 +2287,7 @@ export default function MeshBoardPage() {
                                 setEditingConnId(conn.id);
                               }}>
                                 <div className={`max-w-[180px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${isSC ? "text-white" : "text-slate-300"} bg-slate-950/55 border border-white/10 shadow-sm [&_*]:text-inherit`}>
-                                  <RichText content={connLabel} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                                  <RichText content={connLabel} context={MESH_CONTEXT} className="inline" />
                                 </div>
                               </div>
                             )}
@@ -2111,8 +2318,8 @@ export default function MeshBoardPage() {
 
                   {/* Pen strokes */}
                   {toolMode === "pen" && <>
-                    {penStrokes.map((s, i) => <path key={i} d={strokeToPath(s)} fill="none" stroke="#a78bfa" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.65} />)}
-                    {activePen && activePen.length > 1 && <path d={strokeToPath({ points: activePen })} fill="none" stroke="#c4b5fd" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />}
+                    {penStrokes.map((s, i) => <path key={i} d={strokeToPath(s)} fill="none" stroke={s.color ?? penColor} strokeWidth={s.width ?? penStrokeWidth} strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />)}
+                    {activePen && activePen.length > 1 && <path d={strokeToPath({ points: activePen, color: penColor, width: penStrokeWidth })} fill="none" stroke={penColor} strokeWidth={penStrokeWidth} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />}
                   </>}
 
                   {/* Rubber-band selection rect */}
