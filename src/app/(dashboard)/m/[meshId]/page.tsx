@@ -804,6 +804,14 @@ export default function MeshBoardPage() {
     timestamp: string;
   }>>([]);
   const aiAbortRef = useRef<(() => void) | null>(null);
+  const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
+
+  const buildPortalHref = useCallback((targetType: string, targetId: string) => {
+    if (!targetId) return "";
+    if (targetType === "mesh") return `/m/${targetId}`;
+    if (targetType === "board") return `/b/${targetId}`;
+    return `/d/${targetId}`;
+  }, []);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1753,6 +1761,8 @@ export default function MeshBoardPage() {
       const targetType = typeof c.targetType === "string" ? c.targetType as string : "mesh";
       const targetId   = typeof c.targetId   === "string" ? c.targetId   : "";
       const targetLabel = typeof c.targetLabel === "string" ? c.targetLabel : "";
+      const portalRenderMode = typeof c.portalRenderMode === "string" ? c.portalRenderMode : "artifact";
+      const portalHref = buildPortalHref(targetType, targetId);
       return (
         <div key={brick.id}
           className={`group absolute overflow-hidden rounded-xl border-2${ring}`}
@@ -1762,7 +1772,15 @@ export default function MeshBoardPage() {
             cursor: dragState?.brickId === brick.id ? "grabbing" : "grab" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
-          onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            if (toolMode !== "select") return;
+            if (portalHref) {
+              setPortalPreview({ url: portalHref, title: targetLabel || targetId });
+              return;
+            }
+            startEdit(brick.id);
+          }}
         >
           <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
             <ExternalLink className="h-3 w-3 shrink-0 text-blue-400" />
@@ -1780,7 +1798,18 @@ export default function MeshBoardPage() {
                   })}
                   onKeyDown={(e) => e.stopPropagation()}>
                   <option value="mesh">Mesh Board</option>
+                  <option value="board">Kanban Board</option>
                   <option value="document">Documento</option>
+                </select>
+                <select className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground pointer-events-auto"
+                  defaultValue={portalRenderMode}
+                  onChange={(e) => setState((cur) => {
+                    const b = cur.bricksById[brick.id]; if (!b) return cur;
+                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), portalRenderMode: e.target.value } } } };
+                  })}
+                  onKeyDown={(e) => e.stopPropagation()}>
+                  <option value="artifact">Artifact / screenshot</option>
+                  <option value="live">Live mini preview</option>
                 </select>
                 <input autoFocus type="text" placeholder="Nombre del destino…"
                   className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground outline-none pointer-events-auto"
@@ -1795,16 +1824,44 @@ export default function MeshBoardPage() {
               </div>
             ) : targetId ? (
               <>
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20">
-                  <ExternalLink className="h-5 w-5 text-blue-400" />
-                </div>
+                {portalRenderMode === "live" && portalHref ? (
+                  <div className="h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-900/60">
+                    <iframe
+                      src={portalHref}
+                      title={`portal-live-${brick.id}`}
+                      className="h-full w-full pointer-events-none"
+                    />
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20">
+                      <ExternalLink className="h-5 w-5 text-blue-400" />
+                    </div>
+                    <div className="w-full rounded-md border border-blue-500/20 bg-blue-950/30 px-3 py-2">
+                      <p className="truncate text-center text-[10px] text-blue-200/90">Artifact preview</p>
+                    </div>
+                  </>
+                )}
                 <p className="text-center text-[11px] font-medium text-blue-200">{targetLabel || targetId.slice(0, 20)}</p>
-                <p className="text-[9px] text-muted-foreground/50">{targetType === "mesh" ? "Mesh Board" : "Documento"}</p>
-                <a href={targetType === "mesh" ? `/m/${targetId}` : `/d/${targetId}`}
-                  className="pointer-events-auto mt-1 inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-3 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
-                  onClick={(e) => e.stopPropagation()}>
-                  Entrar <ExternalLink className="h-2.5 w-2.5" />
-                </a>
+                <p className="text-[9px] text-muted-foreground/50">{targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento"}</p>
+                <div className="mt-1 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    className="pointer-events-auto inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-2.5 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (!portalHref) return;
+                      setPortalPreview({ url: portalHref, title: targetLabel || targetId });
+                    }}
+                  >
+                    Vista
+                  </button>
+                  <a href={portalHref}
+                    className="pointer-events-auto inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-2.5 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
+                    onClick={(e) => e.stopPropagation()}>
+                    Entrar <ExternalLink className="h-2.5 w-2.5" />
+                  </a>
+                </div>
               </>
             ) : (
               <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el portal</p>
@@ -1821,6 +1878,8 @@ export default function MeshBoardPage() {
       const sourceId       = typeof c.sourceId       === "string" ? c.sourceId       : "";
       const sourceLabel    = typeof c.sourceLabel    === "string" ? c.sourceLabel    : "";
       const previewMd      = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+      const sourceKind     = typeof c.sourceType === "string" ? c.sourceType : "";
+      const sourcePath     = typeof c.sourcePath === "string" ? c.sourcePath : "";
       return (
         <div key={brick.id}
           className={`group absolute overflow-hidden rounded-xl border-2${ring}`}
@@ -1858,11 +1917,15 @@ export default function MeshBoardPage() {
                   onKeyDown={(e) => e.stopPropagation()} />
               </div>
             ) : (previewMd || sourceId) ? (
-              <div className="pointer-events-none overflow-auto p-3 opacity-80">
+              <div className="pointer-events-none overflow-auto p-3 opacity-90">
+                <div className="mb-2 rounded border border-purple-500/20 bg-purple-950/20 px-2 py-1">
+                  <p className="truncate text-[9px] uppercase tracking-wide text-purple-300/70">{sourceKind || "source"}{sourcePath ? ` · ${sourcePath}` : ""}</p>
+                  <p className="truncate text-[10px] text-purple-200/90">{sourceLabel || sourceId.slice(0, 24)}</p>
+                </div>
                 {previewMd ? (
-                  previewMd.split("\n").map((line, i) => (
-                    <p key={i} className="text-[10px] leading-relaxed text-slate-300">{line || " "}</p>
-                  ))
+                  <div className="text-[10px] leading-relaxed text-slate-200/90 [&_*]:text-inherit">
+                    <RichText content={previewMd} context={MESH_CONTEXT} className="inline" />
+                  </div>
                 ) : (
                   <p className="text-[10px] text-muted-foreground/50">Fuente: {sourceId.slice(0, 30)}</p>
                 )}
@@ -2355,15 +2418,34 @@ export default function MeshBoardPage() {
     </div>
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}
+    {portalPreview && (
+      <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/70 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setPortalPreview(null); }}>
+        <div className="flex h-[85vh] w-[95vw] max-w-[1300px] flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <p className="truncate text-sm font-medium text-foreground">{portalPreview.title || "Portal preview"}</p>
+            <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent/20 hover:text-foreground" onClick={() => setPortalPreview(null)}>
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <iframe src={portalPreview.url} title="portal-preview-iframe" className="h-full w-full" />
+        </div>
+      </div>
+    )}
+
     {activeTeamId && accessToken && (
       <EntitySelectorModal
         isOpen={selectorModalBrickId !== null}
         onClose={() => setSelectorModalBrickId(null)}
         teamId={activeTeamId}
         accessToken={accessToken}
-        allowedTypes={selectorModalBrickKind === "portal" ? ["mesh", "board", "document", "card"] : ["document", "card"]}
+        selectionMode={selectorModalBrickKind === "portal" ? "portal" : "mirror"}
+        allowedTypes={selectorModalBrickKind === "portal" ? ["mesh", "board", "document"] : ["mesh", "board", "document"]}
         onSelect={(result: EntitySelectorResult) => {
           if (!selectorModalBrickId) return;
+          if (selectorModalBrickKind === "portal" && result.type === "mesh" && result.id === meshId) {
+            toast("El portal no puede apuntar a esta misma mesh.", "error");
+            return;
+          }
           setState((cur) => {
             const b = cur.bricksById[selectorModalBrickId];
             if (!b) return cur;
@@ -2373,11 +2455,19 @@ export default function MeshBoardPage() {
                 targetId: result.id,
                 targetType: result.type,
                 targetLabel: result.label,
+                portalRenderMode: "artifact",
               } };
             } else {
               updated = { ...b, content: { ...asRec(b.content),
                 sourceId: result.id,
                 sourceLabel: result.label + (result.context ? ` (${result.context})` : ""),
+                sourceType: result.sourceScopeType ?? result.type,
+                sourceScopeId: result.sourceScopeId,
+                sourceCardId: result.sourceCardId,
+                sourceListId: result.sourceListId,
+                sourcePath: result.context,
+                sourceBrickKind: result.brickKind,
+                previewMarkdown: result.previewMarkdown,
               } };
             }
             return { ...cur, bricksById: { ...cur.bricksById, [selectorModalBrickId]: updated } };
