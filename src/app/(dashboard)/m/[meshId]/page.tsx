@@ -28,8 +28,9 @@ import { PenToolbar } from "@/components/ui/pen-toolbar";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
-  getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
+  getBoard, getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
 } from "@/lib/api/contracts";
+import { getDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -194,6 +195,20 @@ function toDocBrick(mb: MeshBrick, forcedKind?: string): DocumentBrick {
     kind,
     position: 0,
     content: { ...c, kind, markdown: md, text: md },
+    createdByUserId: "mesh",
+    createdAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: "1970-01-01T00:00:00.000Z",
+  };
+}
+
+function mkPreviewBrick(idSeed: string, kind: string, markdown: string): DocumentBrick {
+  const safeKind = kind.trim() || "text";
+  return {
+    id: `preview_${idSeed}`,
+    documentId: `preview:${idSeed}`,
+    kind: safeKind,
+    position: 0,
+    content: { kind: safeKind, markdown, text: markdown },
     createdByUserId: "mesh",
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
@@ -683,8 +698,8 @@ export default function MeshBoardPage() {
   const [penStrokes,    setPenStrokes]    = useState<PenStroke[]>([]);
   const [activePen,     setActivePen]     = useState<PenPoint[] | null>(null);
   const [recognizing,   setRecognizing]   = useState(false);
-  const [penColor, setPenColor] = useState<string>(() => localStorage.getItem("mesh:pen:color") ?? "#ffffff");
-  const [penStrokeWidth, setPenStrokeWidth] = useState<number>(() => parseFloat(localStorage.getItem("mesh:pen:width") ?? "2"));
+  const [penColor, setPenColor] = useState<string>("#ffffff");
+  const [penStrokeWidth, setPenStrokeWidth] = useState<number>(2);
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
   const [hoveredRawDrawId, setHoveredRawDrawId] = useState<string | null>(null);
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
@@ -693,10 +708,21 @@ export default function MeshBoardPage() {
   const penStrokesRef  = useRef<PenStroke[]>([]);
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Persist pen settings to localStorage
+  // Restore pen settings from localStorage safely on client.
   useEffect(() => {
-    localStorage.setItem("mesh:pen:color", penColor);
-    localStorage.setItem("mesh:pen:width", penStrokeWidth.toString());
+    if (typeof window === "undefined") return;
+    const storedColor = window.localStorage.getItem("mesh:pen:color");
+    const storedWidth = window.localStorage.getItem("mesh:pen:width");
+    if (storedColor) setPenColor(storedColor);
+    const parsed = storedWidth ? Number.parseFloat(storedWidth) : NaN;
+    if (Number.isFinite(parsed) && parsed > 0) setPenStrokeWidth(parsed);
+  }, []);
+
+  // Persist pen settings to localStorage.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("mesh:pen:color", penColor);
+    window.localStorage.setItem("mesh:pen:width", penStrokeWidth.toString());
   }, [penColor, penStrokeWidth]);
   const isSavingRef = useRef(false);
   const revisionRef = useRef(0);
@@ -810,6 +836,8 @@ export default function MeshBoardPage() {
   }>>([]);
   const aiAbortRef = useRef<(() => void) | null>(null);
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
+  const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
+  const portalHydrationAttemptRef = useRef<Record<string, string>>({});
   const floatingToolbarRef = useRef<HTMLDivElement | null>(null);
 
   const buildPortalHref = useCallback((targetType: string, targetId: string) => {
@@ -818,6 +846,133 @@ export default function MeshBoardPage() {
     if (targetType === "board") return `/b/${targetId}`;
     return `/d/${targetId}`;
   }, []);
+
+  const loadPortalArtifact = useCallback(async (
+    targetType: string,
+    targetId: string,
+    fallbackLabel?: string,
+  ): Promise<{ markdown: string; kind: string; subtitle: string; title: string } | null> => {
+    if (!accessToken || !targetId) return null;
+
+    const extractMarkdown = (input: unknown): string => {
+      if (typeof input === "string") return input;
+      if (input && typeof input === "object") {
+        const rec = input as Record<string, unknown>;
+        if (typeof rec.markdown === "string") return rec.markdown;
+        if (typeof rec.text === "string") return rec.text;
+        if (typeof rec.summary === "string") return rec.summary;
+        if (typeof rec.label === "string") return rec.label;
+      }
+      return "";
+    };
+
+    try {
+      if (targetType === "document") {
+        const doc = await getDocument(targetId, accessToken);
+        const firstBrick = (doc.bricks || []).find((b) => extractMarkdown(b.content).trim().length > 0) ?? (doc.bricks || [])[0];
+        const markdown = firstBrick ? extractMarkdown(firstBrick.content).trim() : "";
+        return {
+          markdown: markdown || "Sin contenido visible en el documento.",
+          kind: firstBrick?.kind ?? "text",
+          subtitle: "Documento",
+          title: doc.title || fallbackLabel || targetId,
+        };
+      }
+
+      if (targetType === "board") {
+        const board = await getBoard(targetId, accessToken);
+        const firstCard = board.lists.flatMap((l) => l.cards || [])[0];
+        const firstBlock = firstCard?.blocks?.find((blk) => extractMarkdown(blk).trim().length > 0) ?? firstCard?.blocks?.[0];
+        const markdown = extractMarkdown(firstBlock).trim() || firstCard?.summary?.trim() || firstCard?.title || "";
+        return {
+          markdown: markdown || "Sin cards con contenido visible.",
+          kind: firstBlock?.kind ?? "text",
+          subtitle: `Board${firstCard?.title ? ` · ${firstCard.title}` : ""}`,
+          title: board.name || fallbackLabel || targetId,
+        };
+      }
+
+      const mesh = await getMesh(targetId, accessToken);
+      const byId = mesh.state.bricksById;
+      const orderedIds = [
+        ...mesh.state.rootOrder,
+        ...Object.keys(byId).filter((id) => !mesh.state.rootOrder.includes(id)),
+      ];
+      const firstBrick = orderedIds
+        .map((id) => byId[id])
+        .find((b) => b && extractMarkdown(b.content).trim().length > 0) ?? orderedIds.map((id) => byId[id]).find(Boolean);
+      const markdown = firstBrick ? extractMarkdown(firstBrick.content).trim() : "";
+      return {
+        markdown: markdown || "Sin contenido visible en la mesh.",
+        kind: firstBrick?.kind ?? "text",
+        subtitle: "Mesh",
+        title: fallbackLabel || targetId,
+      };
+    } catch {
+      return null;
+    }
+  }, [accessToken]);
+
+  useEffect(() => {
+    if (!accessToken) return;
+
+    const portals = Object.values(state.bricksById).filter((b) => {
+      if (b.kind !== "portal") return false;
+      const content = asRec(b.content);
+      if (typeof content.unifierKind === "string") return false;
+      return typeof content.targetId === "string" && content.targetId.trim().length > 0;
+    });
+
+    portals.forEach((portalBrick) => {
+      const content = asRec(portalBrick.content);
+      const targetType = typeof content.targetType === "string" ? content.targetType : "mesh";
+      const targetId = typeof content.targetId === "string" ? content.targetId.trim() : "";
+      const targetLabel = typeof content.targetLabel === "string" ? content.targetLabel : "";
+      const hasPreview = typeof content.previewMarkdown === "string" && content.previewMarkdown.trim().length > 0;
+      if (!targetId) {
+        delete portalHydrationAttemptRef.current[portalBrick.id];
+        return;
+      }
+      if (hasPreview) return;
+
+      const signature = `${targetType}:${targetId}`;
+      if (portalHydrationAttemptRef.current[portalBrick.id] === signature) return;
+      if (portalHydrationInFlightRef.current.has(portalBrick.id)) return;
+
+      portalHydrationAttemptRef.current[portalBrick.id] = signature;
+      portalHydrationInFlightRef.current.add(portalBrick.id);
+      void loadPortalArtifact(targetType, targetId, targetLabel)
+        .then((artifact) => {
+          if (!artifact) return;
+          setState((cur) => {
+            const live = cur.bricksById[portalBrick.id];
+            if (!live || live.kind !== "portal") return cur;
+            const liveContent = asRec(live.content);
+            const alreadyHasPreview = typeof liveContent.previewMarkdown === "string" && liveContent.previewMarkdown.trim().length > 0;
+            if (alreadyHasPreview) return cur;
+            return {
+              ...cur,
+              bricksById: {
+                ...cur.bricksById,
+                [portalBrick.id]: {
+                  ...live,
+                  content: {
+                    ...liveContent,
+                    previewMarkdown: artifact.markdown,
+                    previewKind: artifact.kind,
+                    previewSubtitle: artifact.subtitle,
+                    previewTitle: artifact.title,
+                  },
+                },
+              },
+            };
+          });
+        })
+        .finally(() => {
+          portalHydrationInFlightRef.current.delete(portalBrick.id);
+        });
+    });
+  }, [accessToken, loadPortalArtifact, state.bricksById]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1823,6 +1978,12 @@ export default function MeshBoardPage() {
       const targetId   = typeof c.targetId   === "string" ? c.targetId   : "";
       const targetLabel = typeof c.targetLabel === "string" ? c.targetLabel : "";
       const portalRenderMode = typeof c.portalRenderMode === "string" ? c.portalRenderMode : "artifact";
+      const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+      const previewKind = typeof c.previewKind === "string" ? c.previewKind : "text";
+      const previewSubtitle = typeof c.previewSubtitle === "string" ? c.previewSubtitle : "";
+      const portalPreviewBrick = previewMd.trim()
+        ? mkPreviewBrick(`portal_${brick.id}`, previewKind, previewMd)
+        : null;
       const portalHref = buildPortalHref(targetType, targetId);
       return (
         <div key={brick.id}
@@ -1855,7 +2016,7 @@ export default function MeshBoardPage() {
                   defaultValue={targetType}
                   onChange={(e) => setState((cur) => {
                     const b = cur.bricksById[brick.id]; if (!b) return cur;
-                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value } } } };
+                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "" } } } };
                   })}
                   onKeyDown={(e) => e.stopPropagation()}>
                   <option value="mesh">Mesh Board</option>
@@ -1880,31 +2041,62 @@ export default function MeshBoardPage() {
                 <input type="text" placeholder="ID (meshId / docId)…"
                   className="rounded border border-border bg-background px-2 py-1 text-[10px] font-mono text-foreground outline-none pointer-events-auto"
                   defaultValue={targetId}
-                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v } } } }; }); }}
+                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "" } } } }; }); }}
                   onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }} />
               </div>
             ) : targetId ? (
               <>
                 {portalRenderMode === "live" && portalHref ? (
                   <div className="h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-900/60">
-                    <iframe
-                      src={portalHref}
-                      title={`portal-live-${brick.id}`}
-                      className="h-full w-full pointer-events-none"
-                    />
+                    <div className={`grid h-full w-full ${portalPreviewBrick ? "grid-rows-[1fr_auto]" : "grid-rows-1"}`}>
+                      <iframe
+                        src={portalHref}
+                        title={`portal-live-${brick.id}`}
+                        className="h-full w-full pointer-events-none"
+                      />
+                      {portalPreviewBrick && (
+                        <div className="pointer-events-none max-h-28 overflow-hidden border-t border-blue-500/20 bg-slate-950/85 p-2">
+                          <UnifiedBrickRenderer
+                            brick={portalPreviewBrick}
+                            canEdit={false}
+                            onUpdate={() => undefined}
+                            documents={[]}
+                            boards={[]}
+                            activeBricks={[portalPreviewBrick]}
+                            users={[]}
+                            isCompact
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20">
                       <ExternalLink className="h-5 w-5 text-blue-400" />
                     </div>
-                    <div className="w-full rounded-md border border-blue-500/20 bg-blue-950/30 px-3 py-2">
-                      <p className="truncate text-center text-[10px] text-blue-200/90">Artifact preview</p>
-                    </div>
+                    {portalPreviewBrick ? (
+                      <div className="pointer-events-none h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-950/70 p-2">
+                        <UnifiedBrickRenderer
+                          brick={portalPreviewBrick}
+                          canEdit={false}
+                          onUpdate={() => undefined}
+                          documents={[]}
+                          boards={[]}
+                          activeBricks={[portalPreviewBrick]}
+                          users={[]}
+                          isCompact
+                        />
+                      </div>
+                    ) : (
+                      <div className="w-full rounded-md border border-blue-500/20 bg-blue-950/30 px-3 py-2">
+                        <p className="truncate text-center text-[10px] text-blue-200/90">Artifact preview</p>
+                      </div>
+                    )}
                   </>
                 )}
                 <p className="text-center text-[11px] font-medium text-blue-200">{targetLabel || targetId.slice(0, 20)}</p>
-                <p className="text-[9px] text-muted-foreground/50">{targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento"}</p>
+                <p className="text-[9px] text-muted-foreground/50">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
                 <div className="mt-1 flex items-center gap-1.5">
                   <button
                     type="button"
@@ -1940,19 +2132,23 @@ export default function MeshBoardPage() {
       const sourceLabel    = typeof c.sourceLabel    === "string" ? c.sourceLabel    : "";
       const previewMd      = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
       const sourceKind     = typeof c.sourceType === "string" ? c.sourceType : "";
+      const sourceBrickKind = typeof c.sourceBrickKind === "string" ? c.sourceBrickKind : "text";
       const sourcePath     = typeof c.sourcePath === "string" ? c.sourcePath : "";
+      const mirrorPreviewBrick = previewMd.trim()
+        ? mkPreviewBrick(`mirror_${brick.id}`, sourceBrickKind, previewMd)
+        : null;
       return (
         <div key={brick.id}
-          className={`group absolute overflow-hidden rounded-xl border-2${ring}`}
+          className={`group absolute overflow-hidden rounded-xl border${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
-            borderColor: isSel ? "rgba(255,255,255,0.5)" : "rgba(168,85,247,0.55)",
-            background: "rgba(15,23,42,0.92)",
+            borderColor: isSel ? "rgba(255,255,255,0.45)" : "rgba(168,85,247,0.35)",
+            background: "transparent",
             cursor: dragState?.brickId === brick.id ? "grabbing" : "grab" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
         >
-          <div className="flex h-7 items-center gap-1.5 border-b border-purple-500/20 bg-purple-950/50 px-2.5 select-none">
+          <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
             <Eye className="h-3 w-3 shrink-0 text-purple-400" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
             {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
@@ -1978,17 +2174,25 @@ export default function MeshBoardPage() {
                   onKeyDown={(e) => e.stopPropagation()} />
               </div>
             ) : (previewMd || sourceId) ? (
-              <div className="pointer-events-none overflow-auto p-3 opacity-90">
-                <div className="mb-2 rounded border border-purple-500/20 bg-purple-950/20 px-2 py-1">
-                  <p className="truncate text-[9px] uppercase tracking-wide text-purple-300/70">{sourceKind || "source"}{sourcePath ? ` · ${sourcePath}` : ""}</p>
-                  <p className="truncate text-[10px] text-purple-200/90">{sourceLabel || sourceId.slice(0, 24)}</p>
-                </div>
-                {previewMd ? (
-                  <div className="text-[10px] leading-relaxed text-slate-200/90 [&_*]:text-inherit">
-                    <RichText content={previewMd} context={MESH_CONTEXT} className="inline" />
+              <div className="pointer-events-none overflow-auto p-2 opacity-95">
+                {mirrorPreviewBrick ? (
+                  <div className="h-full w-full overflow-hidden rounded-md border border-white/10 bg-transparent">
+                    <UnifiedBrickRenderer
+                      brick={mirrorPreviewBrick}
+                      canEdit={false}
+                      onUpdate={() => undefined}
+                      documents={[]}
+                      boards={[]}
+                      activeBricks={[mirrorPreviewBrick]}
+                      users={[]}
+                      isCompact
+                    />
                   </div>
                 ) : (
-                  <p className="text-[10px] text-muted-foreground/50">Fuente: {sourceId.slice(0, 30)}</p>
+                  <>
+                    <p className="truncate text-[9px] uppercase tracking-wide text-purple-300/60">{sourceKind || "source"}{sourcePath ? ` · ${sourcePath}` : ""}</p>
+                    <p className="text-[10px] text-muted-foreground/60">Fuente: {sourceLabel || sourceId.slice(0, 30)}</p>
+                  </>
                 )}
               </div>
             ) : (
@@ -2697,33 +2901,43 @@ export default function MeshBoardPage() {
             toast("El portal no puede apuntar a esta misma mesh.", "error");
             return;
           }
-          setState((cur) => {
-            const b = cur.bricksById[selectorModalBrickId];
-            if (!b) return cur;
-            let updated: MeshBrick;
+          void (async () => {
+            let portalArtifact: { markdown: string; kind: string; subtitle: string; title: string } | null = null;
             if (selectorModalBrickKind === "portal") {
-              updated = { ...b, content: { ...asRec(b.content),
-                targetId: result.id,
-                targetType: result.type,
-                targetLabel: result.label,
-                portalRenderMode: "artifact",
-              } };
-            } else {
-              updated = { ...b, content: { ...asRec(b.content),
-                sourceId: result.id,
-                sourceLabel: result.label + (result.context ? ` (${result.context})` : ""),
-                sourceType: result.sourceScopeType ?? result.type,
-                sourceScopeId: result.sourceScopeId,
-                sourceCardId: result.sourceCardId,
-                sourceListId: result.sourceListId,
-                sourcePath: result.context,
-                sourceBrickKind: result.brickKind,
-                previewMarkdown: result.previewMarkdown,
-              } };
+              portalArtifact = await loadPortalArtifact(result.type, result.id, result.label);
             }
-            return { ...cur, bricksById: { ...cur.bricksById, [selectorModalBrickId]: updated } };
-          });
-          setSelectorModalBrickId(null);
+            setState((cur) => {
+              const b = cur.bricksById[selectorModalBrickId];
+              if (!b) return cur;
+              let updated: MeshBrick;
+              if (selectorModalBrickKind === "portal") {
+                updated = { ...b, content: { ...asRec(b.content),
+                  targetId: result.id,
+                  targetType: result.type,
+                  targetLabel: result.label,
+                  portalRenderMode: "artifact",
+                  previewMarkdown: portalArtifact?.markdown ?? "",
+                  previewKind: portalArtifact?.kind ?? "text",
+                  previewSubtitle: portalArtifact?.subtitle ?? "",
+                  previewTitle: portalArtifact?.title ?? result.label,
+                } };
+              } else {
+                updated = { ...b, content: { ...asRec(b.content),
+                  sourceId: result.id,
+                  sourceLabel: result.label + (result.context ? ` (${result.context})` : ""),
+                  sourceType: result.sourceScopeType ?? result.type,
+                  sourceScopeId: result.sourceScopeId,
+                  sourceCardId: result.sourceCardId,
+                  sourceListId: result.sourceListId,
+                  sourcePath: result.context,
+                  sourceBrickKind: result.brickKind,
+                  previewMarkdown: result.previewMarkdown,
+                } };
+              }
+              return { ...cur, bricksById: { ...cur.bricksById, [selectorModalBrickId]: updated } };
+            });
+            setSelectorModalBrickId(null);
+          })();
         }}
       />
     )}

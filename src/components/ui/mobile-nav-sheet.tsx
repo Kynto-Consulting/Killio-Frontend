@@ -42,25 +42,36 @@ export function MobileNavSheet({
   boardName?: string;
   documentName?: string;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isBoardsOpen, setIsBoardsOpen] = useState(() => pathname.startsWith("/b"));
-  const [ismeshsOpen, setIsmeshsOpen] = useState(false);
-  const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => pathname.startsWith("/d"));
   const pathname = usePathname();
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+  const [isOpen, setIsOpen] = useState(false);
+  const [isBoardsOpen, setIsBoardsOpen] = useState(() => pathname.startsWith("/b"));
+  const [ismeshsOpen, setIsmeshsOpen] = useState(() => pathname.startsWith("/m"));
+  const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => pathname.startsWith("/d"));
   
   const activeTeam = teams.find(t => t.id === activeTeamId);
-  const recentBoardLinks = boards.slice(0, 3).map((board) => ({ id: board.id, label: board.name, href: `/b/${board.id}` }));
+  const recentBoardLinks = boards
+    .filter((board) => board.boardType !== "mesh")
+    .slice(0, 3)
+    .map((board) => ({ id: board.id, label: board.name, href: `/b/${board.id}` }));
+  const recentMeshLinks = boards
+    .filter((board) => board.boardType === "mesh")
+    .slice(0, 3)
+    .map((board) => ({ id: board.id, label: board.name, href: `/m/${board.id}` }));
   const recentDocumentLinks = recentDocuments.slice(0, 3).map((document) => ({ id: document.id, label: document.title, href: `/d/${document.id}` }));
   
   const currentNav = navigation.find(n => pathname === n.href || (n.href !== '/' && pathname.startsWith(n.href)));
-  const pageLabel = boardName || documentName || currentNav?.name || tDashboard("nav.workspaces");
+  const pageLabel = boardName || documentName || (pathname.startsWith("/m") ? tDashboard("nav.meshs") : currentNav?.name) || tDashboard("nav.workspaces");
 
   useEffect(() => {
     if (pathname.startsWith("/b")) {
       setIsBoardsOpen(true);
+    }
+    if (pathname.startsWith("/m")) {
+      setIsmeshsOpen(true);
     }
     if (pathname.startsWith("/d")) {
       setIsDocumentsOpen(true);
@@ -240,13 +251,14 @@ export function MobileNavSheet({
 
                       {renderExpandableItem({
                         key: "mesh-boards",
+                        href: "/m",
                         name: tDashboard("nav.meshs"),
                         icon: GitBranch,
                         isOpen: ismeshsOpen,
                         onToggle: () => setIsmeshsOpen((current) => !current),
-                        isActive: false,
-                        items: [],
-                        isLoading: false,
+                        isActive: isPathActive("/m"),
+                        items: recentMeshLinks,
+                        isLoading: isFetchingBoards,
                         emptyLabel: tDashboard("nav.nomeshsYet"),
                       })}
                     </div>
