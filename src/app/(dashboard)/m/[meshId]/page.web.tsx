@@ -1292,17 +1292,34 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento",
           targetType,
         );
+
+        // Set fallback immediately so the portal shows something right away
+        if (!hasPreviewImage) {
+          setState((cur) => {
+            const live = cur.bricksById[portalBrick.id];
+            if (!live || live.kind !== "portal") return cur;
+            const liveContent = asRec(live.content);
+            if (typeof liveContent.previewImageDataUrl === "string" && liveContent.previewImageDataUrl.startsWith("data:image/")) return cur;
+            return {
+              ...cur,
+              bricksById: {
+                ...cur.bricksById,
+                [portalBrick.id]: {
+                  ...live,
+                  content: { ...liveContent, previewImageDataUrl: fallbackImageDataUrl, previewImageSource: "fallback", previewImageCapturedAt: new Date().toISOString() },
+                },
+              },
+            };
+          });
+        }
+
         void capturePortalScreenshot(portalHref)
-          .then((previewImageDataUrl) => {
+          .then((screenshotDataUrl) => {
+            if (!screenshotDataUrl) return; // keep the fallback already set
             setState((cur) => {
               const live = cur.bricksById[portalBrick.id];
               if (!live || live.kind !== "portal") return cur;
               const liveContent = asRec(live.content);
-              const nextImageDataUrl = previewImageDataUrl || (
-                (typeof liveContent.previewImageDataUrl === "string" && liveContent.previewImageDataUrl.startsWith("data:image/"))
-                  ? String(liveContent.previewImageDataUrl)
-                  : fallbackImageDataUrl
-              );
               return {
                 ...cur,
                 bricksById: {
@@ -1311,8 +1328,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     ...live,
                     content: {
                       ...liveContent,
-                      previewImageDataUrl: nextImageDataUrl,
-                      previewImageSource: previewImageDataUrl ? "screenshot" : "fallback",
+                      previewImageDataUrl: screenshotDataUrl,
+                      previewImageSource: "screenshot",
                       previewImageCapturedAt: new Date().toISOString(),
                     },
                   },
@@ -1887,9 +1904,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 };
               }
             } else {
-              // Phase 4: Apply pen tokens [size] and [color] to created text
+              // Phase 4: Derive size from bbox height, bold from stroke width, color from pen
               const baseText = text!.trim();
-              const textWithTokens = `[size:${penStrokeWidth}rem][color:${penColor}]${baseText}`;
+              // bbox height (canvas px) → rem: ~40px = 1rem, clamped 0.6–5
+              const sizeRem = Math.max(0.6, Math.min(5, bbox.h / 40)).toFixed(2);
+              // stroke width ≥ 3 → bold markdown
+              const styledText = penStrokeWidth >= 3 ? `**${baseText}**` : baseText;
+              // wrap with properly-closed tags
+              const isDefaultColor = penColor === "#ffffff" || penColor === "#fff" || !penColor;
+              const textWithTokens = isDefaultColor
+                ? `[size:${sizeRem}rem]${styledText}[/size]`
+                : `[size:${sizeRem}rem][color:${penColor}]${styledText}[/color][/size]`;
               nb = setMd(mkBrick("text", Object.keys(cur.bricksById).length, parentId, pos), textWithTokens);
             }
             const by = { ...cur.bricksById, [nb.id]: nb };
@@ -2420,7 +2445,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
             {targetLabel && <span className="ml-auto truncate text-[9px] text-blue-400/50">{targetLabel}</span>}
           </div>
-          <div className="flex h-[calc(100%-28px)] flex-col items-center justify-center gap-2.5 p-4">
+          <div className="flex h-[calc(100%-28px)] flex-col gap-1.5 p-2.5">
             {isEditing ? (
               <div className="flex w-full flex-col gap-2" onMouseDown={(e) => e.stopPropagation()}>
                 <select className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground pointer-events-auto"
@@ -2457,67 +2482,49 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             ) : targetId ? (
               <>
-                {portalRenderMode === "live" && portalHref ? (
-                  <div className="h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-900/60">
-                    <div className={`grid h-full w-full ${portalPreviewBrick ? "grid-rows-[1fr_auto]" : "grid-rows-1"}`}>
-                      <iframe
-                        src={portalHref}
-                        title={`portal-live-${brick.id}`}
-                        className="h-full w-full pointer-events-none"
+                {/* Preview area — flex-1 so it fills available height */}
+                <div className="relative min-h-0 flex-1 overflow-hidden rounded-lg border border-blue-500/20 bg-slate-900/60">
+                  {portalRenderMode === "live" && portalHref ? (
+                    <iframe
+                      src={portalHref}
+                      title={`portal-live-${brick.id}`}
+                      className="h-full w-full pointer-events-none"
+                    />
+                  ) : previewImageDataUrl ? (
+                    <img
+                      src={previewImageDataUrl}
+                      alt="Portal preview"
+                      className="h-full w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : portalPreviewBrick ? (
+                    <div className="pointer-events-none h-full overflow-hidden p-1.5">
+                      <UnifiedBrickRenderer
+                        brick={portalPreviewBrick}
+                        canEdit={false}
+                        onUpdate={() => undefined}
+                        documents={[]}
+                        boards={[]}
+                        activeBricks={[portalPreviewBrick]}
+                        users={[]}
+                        isCompact
                       />
-                      {portalPreviewBrick && (
-                        <div className="pointer-events-none max-h-28 overflow-hidden border-t border-blue-500/20 bg-slate-950/85 p-2">
-                          <UnifiedBrickRenderer
-                            brick={portalPreviewBrick}
-                            canEdit={false}
-                            onUpdate={() => undefined}
-                            documents={[]}
-                            boards={[]}
-                            activeBricks={[portalPreviewBrick]}
-                            users={[]}
-                            isCompact
-                          />
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ) : (
-                  <>
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20">
-                      <ExternalLink className="h-5 w-5 text-blue-400" />
+                  ) : (
+                    <div className="flex h-full items-center justify-center">
+                      <ExternalLink className="h-8 w-8 text-blue-400/25" />
                     </div>
-                    {previewImageDataUrl ? (
-                      <div className="pointer-events-none h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-950/70">
-                        <img
-                          src={previewImageDataUrl}
-                          alt="Portal screenshot preview"
-                          className="h-full w-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                    ) : portalPreviewBrick ? (
-                      <div className="pointer-events-none h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-950/70 p-2">
-                        <UnifiedBrickRenderer
-                          brick={portalPreviewBrick}
-                          canEdit={false}
-                          onUpdate={() => undefined}
-                          documents={[]}
-                          boards={[]}
-                          activeBricks={[portalPreviewBrick]}
-                          users={[]}
-                          isCompact
-                        />
-                      </div>
-                    ) : (
-                      <div className="w-full rounded-md border border-blue-500/20 bg-blue-950/30 px-3 py-2">
-                        <p className="truncate text-center text-[10px] text-blue-200/90">Artifact preview</p>
-                      </div>
-                    )}
-                  </>
-                )}
-                <p className="text-center text-[11px] font-medium text-blue-200">{targetLabel || targetId.slice(0, 20)}</p>
-                <p className="text-[9px] text-muted-foreground/50">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
-                <div className="mt-1 flex items-center gap-1.5">
+                  )}
+                </div>
+
+                {/* Info row */}
+                <div className="shrink-0 text-center">
+                  <p className="truncate text-[11px] font-semibold text-blue-200 leading-tight">{targetLabel || targetId.slice(0, 24)}</p>
+                  <p className="text-[9px] text-muted-foreground/50 leading-tight">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
+                </div>
+
+                {/* Action buttons */}
+                <div className="shrink-0 flex items-center justify-center gap-1.5">
                   <button
                     type="button"
                     className="pointer-events-auto inline-flex items-center gap-1 rounded-md bg-blue-600/30 px-2.5 py-1 text-[10px] font-medium text-blue-300 hover:bg-blue-600/50 transition-colors"
@@ -2537,7 +2544,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 </div>
               </>
             ) : (
-              <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el portal</p>
+              <div className="flex flex-1 items-center justify-center">
+                <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el portal</p>
+              </div>
             )}
           </div>
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
