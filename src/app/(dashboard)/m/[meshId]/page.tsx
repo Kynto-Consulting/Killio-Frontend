@@ -331,6 +331,23 @@ function pointAtPolylineFraction(pts: Array<{ x: number; y: number }>, fraction:
   return pts[pts.length - 1];
 }
 
+function findRawDrawAt(by: Record<string, MeshBrick>, x: number, y: number): MeshBrick | null {
+  const candidates = Object.values(by).filter((b) => {
+    if (b.kind !== "draw") return false;
+    const c = asRec(b.content);
+    return typeof c.shapePreset !== "string";
+  });
+
+  for (let i = candidates.length - 1; i >= 0; i--) {
+    const b = candidates[i];
+    const g = resolveGlobal(by, b.id);
+    if (x >= g.x && x <= g.x + b.size.w && y >= g.y && y <= g.y + b.size.h) {
+      return b;
+    }
+  }
+  return null;
+}
+
 function insertBrick(state: MeshState, brick: MeshBrick, globalDrop?: { x: number; y: number }): MeshState {
   const by = { ...state.bricksById };
   let root = [...state.rootOrder];
@@ -668,6 +685,7 @@ export default function MeshBoardPage() {
   const [activePen,     setActivePen]     = useState<PenPoint[] | null>(null);
   const [recognizing,   setRecognizing]   = useState(false);
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
+  const [hoveredRawDrawId, setHoveredRawDrawId] = useState<string | null>(null);
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
   const [snapTarget,   setSnapTarget]   = useState<{ brickId: string; port: Port } | null>(null);
   const penTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1049,6 +1067,37 @@ export default function MeshBoardPage() {
         penStrokesRef.current = [];
         setPenStrokes([]);
         if (!strokes.length) return;
+
+        const rawDrawTarget = (() => {
+          const bb = strokesBBox(strokes);
+          const mid = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
+          return findRawDrawAt(state.bricksById, mid.x, mid.y);
+        })();
+
+        if (rawDrawTarget) {
+          setState((cur) => {
+            const b = cur.bricksById[rawDrawTarget.id];
+            if (!b) return cur;
+            const c = asRec(b.content);
+            const current = Array.isArray(c.manualStrokes) ? [...(c.manualStrokes as unknown[])] : [];
+            const g = resolveGlobal(cur.bricksById, b.id);
+            const normalizedBatch = strokes.map((s) =>
+              s.points.map((p) => ({
+                x: +Math.max(0, Math.min(1, (p.x - g.x) / Math.max(b.size.w, 1))).toFixed(4),
+                y: +Math.max(0, Math.min(1, (p.y - g.y) / Math.max(b.size.h, 1))).toFixed(4),
+              }))
+            );
+            return {
+              ...cur,
+              bricksById: {
+                ...cur.bricksById,
+                [b.id]: { ...b, content: { ...c, manualStrokes: [...current, ...normalizedBatch] } },
+              },
+            };
+          });
+          return;
+        }
+
         const el = canvasRef.current;
         const cw = el ? el.scrollWidth : 1600;
         const ch = el ? el.scrollHeight : 900;
@@ -1532,6 +1581,63 @@ export default function MeshBoardPage() {
       );
     }
 
+    // ─ Raw draw area (no shape preset): transparent area, only border on hover/connected ─
+    if (brick.kind === "draw" && !shapeP) {
+      const isHoverRaw = hoveredRawDrawId === brick.id;
+      const manualStrokes = Array.isArray(c.manualStrokes) ? (c.manualStrokes as Array<Array<{ x: number; y: number }>>) : [];
+      const rawOutline = isConnected
+        ? "2px solid rgba(34,211,238,0.55)"
+        : isHoverRaw
+          ? "1px solid rgba(34,211,238,0.35)"
+          : "1px solid transparent";
+
+      return (
+        <div
+          key={brick.id}
+          className={`group absolute${ring}`}
+          style={{
+            left: brick.position.x,
+            top: brick.position.y,
+            width: brick.size.w,
+            height: brick.size.h,
+            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab",
+            outline: rawOutline,
+            borderRadius: 10,
+            background: "transparent",
+          }}
+          onMouseEnter={() => setHoveredRawDrawId(brick.id)}
+          onMouseLeave={() => setHoveredRawDrawId((cur) => (cur === brick.id ? null : cur))}
+          onClick={(e) => onBrickClick(e, brick.id)}
+          onMouseDown={(e) => startDrag(e, brick.id)}
+        >
+          {manualStrokes.length > 0 && (
+            <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
+              {manualStrokes.map((strokePts, idx) => {
+                if (!Array.isArray(strokePts) || strokePts.length < 2) return null;
+                const d = strokePts
+                  .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
+                  .join(" ");
+                return (
+                  <path
+                    key={idx}
+                    d={d}
+                    fill="none"
+                    stroke="#67e8f9"
+                    strokeWidth={2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity={0.95}
+                  />
+                );
+              })}
+            </svg>
+          )}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {magnetDots}
+        </div>
+      );
+    }
+
     // ─ Portal (navigable link to another board/document) ─
     if (brick.kind === "portal" && !uKind) {
       const targetType = typeof c.targetType === "string" ? c.targetType as string : "mesh";
@@ -1905,18 +2011,37 @@ export default function MeshBoardPage() {
                     const isEditingConnLabel = editingConnId === conn.id;
                     const labelW = isEditingConnLabel ? 260 : 180;
                     const labelH = isEditingConnLabel ? 82 : 28;
+                    const labelLift = Math.max(2, labelH * 0.08);
                     return (
                       <g key={conn.id} style={{ pointerEvents: "stroke", cursor: "pointer" }}
-                        onClick={(e) => { e.stopPropagation(); setSelectedConnId(conn.id); setSelectedId(null); setSelectedIds(new Set()); }}>
+                        onClick={(e) => { e.stopPropagation(); setSelectedConnId(conn.id); setSelectedId(null); setSelectedIds(new Set()); }}
+                        onDoubleClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedConnId(conn.id);
+                          setEditingConnId(conn.id);
+                          if (!connLabel) {
+                            setState((cur) => {
+                              const co = cur.connectionsById[conn.id];
+                              if (!co) return cur;
+                              return {
+                                ...cur,
+                                connectionsById: {
+                                  ...cur.connectionsById,
+                                  [conn.id]: { ...co, style: { ...asRec(co.style), label: "" } },
+                                },
+                              };
+                            });
+                          }
+                        }}>
                         {/* fat transparent hit area */}
                         <path d={d} fill="none" stroke="transparent" strokeWidth={14} style={{ pointerEvents: "stroke" }} />
                         <path d={d} fill="none" stroke={cs} strokeWidth={cw}
                           strokeDasharray={dashed ? "6 4" : undefined}
                           markerEnd={markerId} opacity={0.9} />
-                        {connLabel && (
+                        {(connLabel || isEditingConnLabel) && (
                           <foreignObject
                             x={labelPt.x - labelW / 2}
-                            y={labelPt.y - labelH / 2}
+                            y={labelPt.y - labelH / 2 - labelLift}
                             width={labelW}
                             height={labelH}
                             style={{ pointerEvents: "auto", overflow: "visible" }}
