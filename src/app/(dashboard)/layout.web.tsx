@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -20,6 +20,9 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();
+  const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
@@ -122,6 +125,10 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     setTeams(updatedTeams);
     setActiveTeamId(newTeam.id);
   };
+
+  if (isLayoutDisabled) {
+    return <main className="min-h-screen bg-background text-foreground">{children}</main>;
+  }
 
   if (!accessToken) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;

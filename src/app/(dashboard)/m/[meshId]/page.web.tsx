@@ -983,13 +983,82 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
   const portalHydrationAttemptRef = useRef<Record<string, string>>({});
+  const portalScreenshotInFlightRef = useRef<Set<string>>(new Set());
+  const portalScreenshotAttemptRef = useRef<Record<string, string>>({});
   const floatingToolbarRef = useRef<HTMLDivElement | null>(null);
 
-  const buildPortalHref = useCallback((targetType: string, targetId: string) => {
+  const buildPortalHref = useCallback((
+    targetType: string,
+    targetId: string,
+    opts?: { layout?: boolean },
+  ) => {
     if (!targetId) return "";
-    if (targetType === "mesh") return `/m/${targetId}`;
-    if (targetType === "board") return `/b/${targetId}`;
-    return `/d/${targetId}`;
+    const layoutEnabled = opts?.layout ?? true;
+    const base = targetType === "mesh" ? `/m/${targetId}` : targetType === "board" ? `/b/${targetId}` : `/d/${targetId}`;
+    if (layoutEnabled) return base;
+    const params = new URLSearchParams();
+    params.set("layout", "false");
+    return `${base}?${params.toString()}`;
+  }, []);
+
+  const capturePortalScreenshot = useCallback(async (portalHref: string): Promise<string | null> => {
+    if (typeof window === "undefined" || !portalHref) return null;
+
+    const iframe = document.createElement("iframe");
+    iframe.setAttribute("aria-hidden", "true");
+    iframe.style.position = "fixed";
+    iframe.style.left = "-99999px";
+    iframe.style.top = "0";
+    iframe.style.width = "1280px";
+    iframe.style.height = "720px";
+    iframe.style.opacity = "0";
+    iframe.style.pointerEvents = "none";
+    iframe.style.border = "0";
+    document.body.appendChild(iframe);
+
+    const cleanup = () => {
+      iframe.onload = null;
+      iframe.onerror = null;
+      iframe.remove();
+    };
+
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const timeoutId = window.setTimeout(() => reject(new Error("portal screenshot timeout")), 12000);
+        iframe.onload = () => {
+          window.clearTimeout(timeoutId);
+          resolve();
+        };
+        iframe.onerror = () => {
+          window.clearTimeout(timeoutId);
+          reject(new Error("portal screenshot load failed"));
+        };
+        iframe.src = portalHref;
+      });
+
+      await new Promise((resolve) => window.setTimeout(resolve, 650));
+
+      const frameDoc = iframe.contentDocument;
+      if (!frameDoc) return null;
+      const root = (frameDoc.querySelector("main") as HTMLElement | null) ?? frameDoc.body;
+      if (!root) return null;
+
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(root, {
+        backgroundColor: "#020617",
+        scale: 0.5,
+        useCORS: false,
+        allowTaint: false,
+        logging: false,
+        width: 1280,
+        height: 720,
+      });
+      return canvas.toDataURL("image/jpeg", 0.62);
+    } catch {
+      return null;
+    } finally {
+      cleanup();
+    }
   }, []);
 
   const loadPortalArtifact = useCallback(async (
@@ -1074,10 +1143,48 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const targetId = typeof content.targetId === "string" ? content.targetId.trim() : "";
       const targetLabel = typeof content.targetLabel === "string" ? content.targetLabel : "";
       const hasPreview = typeof content.previewMarkdown === "string" && content.previewMarkdown.trim().length > 0;
+      const hasPreviewImage = typeof content.previewImageDataUrl === "string" && content.previewImageDataUrl.startsWith("data:image/");
       if (!targetId) {
         delete portalHydrationAttemptRef.current[portalBrick.id];
+        delete portalScreenshotAttemptRef.current[portalBrick.id];
         return;
       }
+
+      const screenshotSignature = `${targetType}:${targetId}`;
+      if (!hasPreviewImage && !portalScreenshotInFlightRef.current.has(portalBrick.id) && portalScreenshotAttemptRef.current[portalBrick.id] !== screenshotSignature) {
+        portalScreenshotAttemptRef.current[portalBrick.id] = screenshotSignature;
+        portalScreenshotInFlightRef.current.add(portalBrick.id);
+        const portalHref = buildPortalHref(targetType, targetId, { layout: false });
+        void capturePortalScreenshot(portalHref)
+          .then((previewImageDataUrl) => {
+            if (!previewImageDataUrl) return;
+            setState((cur) => {
+              const live = cur.bricksById[portalBrick.id];
+              if (!live || live.kind !== "portal") return cur;
+              const liveContent = asRec(live.content);
+              const alreadyHasImage = typeof liveContent.previewImageDataUrl === "string" && liveContent.previewImageDataUrl.startsWith("data:image/");
+              if (alreadyHasImage) return cur;
+              return {
+                ...cur,
+                bricksById: {
+                  ...cur.bricksById,
+                  [portalBrick.id]: {
+                    ...live,
+                    content: {
+                      ...liveContent,
+                      previewImageDataUrl,
+                      previewImageCapturedAt: new Date().toISOString(),
+                    },
+                  },
+                },
+              };
+            });
+          })
+          .finally(() => {
+            portalScreenshotInFlightRef.current.delete(portalBrick.id);
+          });
+      }
+
       if (hasPreview) return;
 
       const signature = `${targetType}:${targetId}`;
@@ -1117,7 +1224,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           portalHydrationInFlightRef.current.delete(portalBrick.id);
         });
     });
-  }, [accessToken, loadPortalArtifact, state.bricksById]);
+  }, [accessToken, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, state.bricksById]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2129,10 +2236,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
       const previewKind = typeof c.previewKind === "string" ? c.previewKind : "text";
       const previewSubtitle = typeof c.previewSubtitle === "string" ? c.previewSubtitle : "";
+      const previewImageDataUrl = typeof c.previewImageDataUrl === "string" ? c.previewImageDataUrl : "";
       const portalPreviewBrick = previewMd.trim()
         ? mkPreviewBrick(`portal_${brick.id}`, previewKind, previewMd)
         : null;
-      const portalHref = buildPortalHref(targetType, targetId);
+      const portalHref = buildPortalHref(targetType, targetId, { layout: false });
       return (
         <div key={brick.id}
           className={`group absolute overflow-hidden rounded-xl border-2${ring}`}
@@ -2164,7 +2272,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   defaultValue={targetType}
                   onChange={(e) => setState((cur) => {
                     const b = cur.bricksById[brick.id]; if (!b) return cur;
-                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "" } } } };
+                    return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetType: e.target.value, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageCapturedAt: "" } } } };
                   })}
                   onKeyDown={(e) => e.stopPropagation()}>
                   <option value="mesh">Mesh Board</option>
@@ -2189,7 +2297,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <input type="text" placeholder="ID (meshId / docId)…"
                   className="rounded border border-border bg-background px-2 py-1 text-[10px] font-mono text-foreground outline-none pointer-events-auto"
                   defaultValue={targetId}
-                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "" } } } }; }); }}
+                  onBlur={(e) => { const v = e.target.value.trim(); setState((cur) => { const b = cur.bricksById[brick.id]; if (!b) return cur; return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: { ...b, content: { ...asRec(b.content), targetId: v, previewMarkdown: "", previewKind: "", previewSubtitle: "", previewTitle: "", previewImageDataUrl: "", previewImageCapturedAt: "" } } } }; }); }}
                   onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }} />
               </div>
             ) : targetId ? (
@@ -2223,7 +2331,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-500/20">
                       <ExternalLink className="h-5 w-5 text-blue-400" />
                     </div>
-                    {portalPreviewBrick ? (
+                    {previewImageDataUrl ? (
+                      <div className="pointer-events-none h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-950/70">
+                        <img
+                          src={previewImageDataUrl}
+                          alt="Portal screenshot preview"
+                          className="h-full w-full object-cover"
+                          loading="lazy"
+                        />
+                      </div>
+                    ) : portalPreviewBrick ? (
                       <div className="pointer-events-none h-full w-full overflow-hidden rounded-md border border-blue-500/20 bg-slate-950/70 p-2">
                         <UnifiedBrickRenderer
                           brick={portalPreviewBrick}
@@ -2726,10 +2843,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 backgroundSize: `${Math.max(10, 20 * viewport.zoom)}px ${Math.max(10, 20 * viewport.zoom)}px`,
                 backgroundPosition: `${viewport.x}px ${viewport.y}px`,
               }}
-              onMouseDown={onCanvasMouseDown}
-              onMouseMove={onMouseMove}
-              onMouseUp={onMouseUp}
+              onMouseDown={mobileMode ? undefined : onCanvasMouseDown}
+              onMouseMove={mobileMode ? undefined : onMouseMove}
+              onMouseUp={mobileMode ? undefined : onMouseUp}
               onMouseLeave={() => { setActivePen(null); setDragState(null); setResizeState(null); setPanDragState(null); setSelRect(null); }}
+              onPointerDown={mobileMode ? onCanvasPointerDown : undefined}
+              onPointerMove={mobileMode ? onCanvasPointerMove : undefined}
+              onPointerUp={mobileMode ? onCanvasPointerUp : undefined}
+              onPointerCancel={mobileMode ? onCanvasPointerUp : undefined}
               onClick={onCanvasClick}
               onWheel={onCanvasWheel}
               onDragOver={onCanvasDragOver}
@@ -3112,6 +3233,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   previewKind: portalArtifact?.kind ?? "text",
                   previewSubtitle: portalArtifact?.subtitle ?? "",
                   previewTitle: portalArtifact?.title ?? result.label,
+                  previewImageDataUrl: "",
+                  previewImageCapturedAt: "",
                 } };
               } else {
                 updated = { ...b, content: { ...asRec(b.content),

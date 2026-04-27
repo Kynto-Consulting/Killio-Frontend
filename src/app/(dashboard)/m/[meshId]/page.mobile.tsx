@@ -2,12 +2,12 @@
 
 import dynamic from "next/dynamic";
 
-const MeshDesktopParity = dynamic<{ mobileMode?: boolean }>(() => import("./page.web"));
+const MeshMobileBoard = dynamic(() => import("./page.web"), { ssr: false });
 
 export default function MeshMobilePage() {
   return (
     <div className="h-full w-full touch-manipulation">
-      <MeshDesktopParity mobileMode />
+      <MeshMobileBoard mobileMode />
     </div>
   );
 }
