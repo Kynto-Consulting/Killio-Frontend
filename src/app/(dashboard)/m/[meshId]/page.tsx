@@ -16,6 +16,7 @@ import {
 
 import { useSession } from "@/components/providers/session-provider";
 import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
+import { UnifiedTextBrick } from "@/components/bricks/unified-text-brick";
 import { RichText } from "@/components/ui/rich-text";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { DocumentBrick } from "@/lib/api/documents";
@@ -272,6 +273,16 @@ function buildConnPath(
   srcPort?: Port,
   tgtPort?: Port,
 ): string {
+  return smoothPoly(buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort), CORNER_R);
+}
+
+function buildConnPolyline(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  obs: Array<{ x: number; y: number; w: number; h: number }>,
+  srcPort?: Port,
+  tgtPort?: Port,
+): Array<{ x: number; y: number }> {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
   const e1 = srcPort
@@ -287,7 +298,37 @@ function buildConnPath(
   const vhPts = [{ x: e1.x, y: e1.y }, s1, { x: s1.x, y: s2.y }, s2, { x: e2.x, y: e2.y }];
   const scoreHV = collisionScore(hvPts, obs);
   const scoreVH = collisionScore(vhPts, obs);
-  return smoothPoly(scoreHV <= scoreVH ? hvPts : vhPts, CORNER_R);
+  return scoreHV <= scoreVH ? hvPts : vhPts;
+}
+
+function pointAtPolylineFraction(pts: Array<{ x: number; y: number }>, fraction: number): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+
+  const clamped = Math.max(0, Math.min(1, fraction));
+  let total = 0;
+  const segments: number[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const seg = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+    segments.push(seg);
+    total += seg;
+  }
+  if (total <= 0) return pts[Math.floor((pts.length - 1) / 2)];
+
+  const target = total * clamped;
+  let acc = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (acc + seg >= target) {
+      const t = seg > 0 ? (target - acc) / seg : 0;
+      return {
+        x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+        y: pts[i].y + (pts[i + 1].y - pts[i].y) * t,
+      };
+    }
+    acc += seg;
+  }
+  return pts[pts.length - 1];
 }
 
 function insertBrick(state: MeshState, brick: MeshBrick, globalDrop?: { x: number; y: number }): MeshState {
@@ -608,6 +649,7 @@ export default function MeshBoardPage() {
   const [selectedId,     setSelectedId]     = useState<string | null>(null);
   const [selectedIds,    setSelectedIds]    = useState<Set<string>>(new Set());
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
+  const [editingConnId,  setEditingConnId]  = useState<string | null>(null);
   const [editingBrickId, setEditingBrickId] = useState<string | null>(null);
   const [editingValue,   setEditingValue]   = useState<string>("");
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
@@ -626,7 +668,6 @@ export default function MeshBoardPage() {
   const [activePen,     setActivePen]     = useState<PenPoint[] | null>(null);
   const [recognizing,   setRecognizing]   = useState(false);
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
-  const [hoveredShapeId, setHoveredShapeId] = useState<string | null>(null);
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
   const [snapTarget,   setSnapTarget]   = useState<{ brickId: string; port: Port } | null>(null);
   const penTimer       = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -731,7 +772,7 @@ export default function MeshBoardPage() {
       if (e.key === "s" || e.key === "v") { setToolMode("select"); return; }
       if (e.key === "h")                  { setToolMode("pan"); return; }
       if (e.key === "p")                  { setToolMode("pen"); return; }
-      if (e.key === "Escape")             { setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null); setConnSrcId(null); setEditingBrickId(null); return; }
+      if (e.key === "Escape")             { setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null); setConnSrcId(null); setEditingBrickId(null); setEditingConnId(null); return; }
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
         if (selectedIds.size > 0) {
@@ -1194,14 +1235,18 @@ export default function MeshBoardPage() {
       return;
     }
     if (toolMode !== "select") return;
+    if (editingConnId) setEditingConnId(null);
     if (editingBrickId) setEditingBrickId(null);
     setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
-  }, [toolMode, connSrcId, connSrcPort, snapTarget, fromEv, state.bricksById, gPos, addConn, editingBrickId]);
+  }, [toolMode, connSrcId, connSrcPort, snapTarget, fromEv, state.bricksById, gPos, addConn, editingBrickId, editingConnId]);
 
   const onBrickClick = useCallback((e: React.MouseEvent, brickId: string) => {
     e.stopPropagation();
     if (editingBrickId && editingBrickId !== brickId) {
       setEditingBrickId(null);
+    }
+    if (editingConnId) {
+      setEditingConnId(null);
     }
     if (toolMode === "conn") {
       if (!connSrcId) { setConnSrcId(brickId); setConnSrcPort(null); return; }
@@ -1220,7 +1265,7 @@ export default function MeshBoardPage() {
     setSelectedId(brickId);
     setSelectedIds(new Set());
     setSelectedConnId(null);
-  }, [toolMode, connSrcId, connSrcPort, snapTarget, addConn, editingBrickId]);
+  }, [toolMode, connSrcId, connSrcPort, snapTarget, addConn, editingBrickId, editingConnId]);
 
   const onBrickDblClick = useCallback((e: React.MouseEvent, brickId: string) => {
     e.stopPropagation();
@@ -1372,9 +1417,7 @@ export default function MeshBoardPage() {
       const collapsed    = collapsedBoards.has(brick.id);
       const shapeH       = collapsed ? 28 : brick.size.h;
       const shapeLabel   = typeof c.label === "string" ? c.label : "";
-      const isHoverShape = hoveredShapeId === brick.id;
-      const showShapeBorder = !isDrawBrick || isSel || isConnected || isHoverShape;
-      const shapeStroke = showShapeBorder ? sStroke : "transparent";
+      const shapeStroke = sStroke;
       const shapeFill = isDrawBrick ? "transparent" : sFill;
       const toggleCollapse = (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -1384,11 +1427,7 @@ export default function MeshBoardPage() {
         <div key={brick.id}
           className={`group absolute${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: isCont && !collapsed ? "visible" : "hidden",
-            outline: isSel ? "2px solid rgba(255,255,255,0.5)" : isConnected ? "2px solid rgba(34,211,238,0.55)" : isHoverShape ? "1px solid rgba(34,211,238,0.35)" : "1px solid transparent",
-            borderRadius: 6 }}
-          onMouseEnter={() => setHoveredShapeId(brick.id)}
-          onMouseLeave={() => setHoveredShapeId((cur) => (cur === brick.id ? null : cur))}
+            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: isCont && !collapsed ? "visible" : "hidden" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
@@ -1429,15 +1468,9 @@ export default function MeshBoardPage() {
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center"
                 style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
                 {isEditing && !label ? (
-                  <textarea
-                    autoFocus
-                    className="pointer-events-auto w-full resize-none rounded bg-slate-900/90 px-1.5 py-1 text-center text-[11px] leading-snug text-white outline outline-2 outline-cyan-400"
-                    rows={3}
-                    value={editingValue}
-                    onChange={(e) => setEditingValue(e.target.value)}
-                    onBlur={commitEdit}
-                    onKeyDown={(e) => { if (e.key === "Escape" || (e.key === "Enter" && !e.shiftKey)) commitEdit(); e.stopPropagation(); }}
-                  />
+                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
+                    <RichText content={md} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                  </div>
                 ) : (
                   <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
                     <RichText content={md} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
@@ -1446,6 +1479,32 @@ export default function MeshBoardPage() {
               </div>
             );
           })()}
+          {!collapsed && isEditing && !shapeLabel && (
+            <div
+              className="absolute inset-0 z-20"
+              style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px` }}
+              onMouseDown={(e) => e.stopPropagation()}
+            >
+              <div className="h-full w-full overflow-auto rounded bg-slate-950/75 px-1 py-0.5">
+                <UnifiedTextBrick
+                  id={`shape-text-${brick.id}`}
+                  text={getMd(brick)}
+                  onUpdate={(nextMd) => {
+                    setState((cur) => {
+                      const b = cur.bricksById[brick.id];
+                      if (!b) return cur;
+                      return { ...cur, bricksById: { ...cur.bricksById, [brick.id]: setMd(b, nextMd) } };
+                    });
+                  }}
+                  readonly={false}
+                  documents={[]}
+                  boards={[]}
+                  activeBricks={[]}
+                  users={[]}
+                />
+              </div>
+            </div>
+          )}
           {/* Children when container */}
           {isCont && !collapsed && kids.map((child) => renderBrick(child))}
           {/* Quick-add bar when selected container */}
@@ -1669,28 +1728,7 @@ export default function MeshBoardPage() {
         <span className="text-sm font-semibold text-foreground">Mesh</span>
         <span className="text-[10px] text-muted-foreground">rev {revision}</span>
         <div className="ml-auto flex items-center gap-2">
-          {selectedConnId && (() => {
-            const conn = state.connectionsById[selectedConnId];
-            const curLabel = conn ? (typeof asRec(conn.style).label === "string" ? asRec(conn.style).label as string : "") : "";
-            return (
-              <input
-                type="text"
-                placeholder="Label…"
-                defaultValue={curLabel}
-                key={selectedConnId}
-                className="h-7 w-28 rounded-md border border-border bg-background px-2 text-xs text-foreground"
-                onBlur={(e) => {
-                  const v = e.target.value.trim();
-                  setState((c) => {
-                    const co = c.connectionsById[selectedConnId];
-                    if (!co) return c;
-                    return { ...c, connectionsById: { ...c.connectionsById, [selectedConnId]: { ...co, style: { ...asRec(co.style), label: v } } } };
-                  });
-                }}
-                onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }}
-              />
-            );
-          })()}
+          {selectedConnId && <span className="text-[10px] text-muted-foreground">Doble clic en label de conector para editar con toolbar</span>}
           {(selectedId || selectedConnId || selectedIds.size > 0) && (
             <button type="button" onClick={() => {
               if (selectedIds.size > 0) {
@@ -1859,12 +1897,14 @@ export default function MeshBoardPage() {
                       .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
                     const sp = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
                     const tp = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
-                    const d = buildConnPath(srcR, tgtR, obs, sp, tp);
+                    const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp);
+                    const d = smoothPoly(routePts, CORNER_R);
+                    const labelPt = pointAtPolylineFraction(routePts, 0.5);
                     const markerId = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
                     const connLabel = typeof st.label === "string" ? st.label : "";
-                    // midpoint approximation for label
-                    const mx = (srcR.x + srcR.w / 2 + tgtR.x + tgtR.w / 2) / 2;
-                    const my = (srcR.y + srcR.h / 2 + tgtR.y + tgtR.h / 2) / 2;
+                    const isEditingConnLabel = editingConnId === conn.id;
+                    const labelW = isEditingConnLabel ? 260 : 180;
+                    const labelH = isEditingConnLabel ? 82 : 28;
                     return (
                       <g key={conn.id} style={{ pointerEvents: "stroke", cursor: "pointer" }}
                         onClick={(e) => { e.stopPropagation(); setSelectedConnId(conn.id); setSelectedId(null); setSelectedIds(new Set()); }}>
@@ -1875,17 +1915,50 @@ export default function MeshBoardPage() {
                           markerEnd={markerId} opacity={0.9} />
                         {connLabel && (
                           <foreignObject
-                            x={mx - 90}
-                            y={my - 30}
-                            width={180}
-                            height={26}
-                            style={{ pointerEvents: "none", overflow: "visible" }}
+                            x={labelPt.x - labelW / 2}
+                            y={labelPt.y - labelH / 2}
+                            width={labelW}
+                            height={labelH}
+                            style={{ pointerEvents: "auto", overflow: "visible" }}
                           >
-                            <div className="flex w-full justify-center" style={{ userSelect: "none" }}>
-                              <div className={`max-w-[180px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${isSC ? "text-white" : "text-slate-300"} bg-slate-950/55 border border-white/10 shadow-sm [&_*]:text-inherit`}>
-                                <RichText content={connLabel} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                            {isEditingConnLabel ? (
+                              <div className="rounded border border-cyan-400/50 bg-slate-950/85 p-1 shadow-xl"
+                                onMouseDown={(e) => e.stopPropagation()}
+                                onClick={(e) => e.stopPropagation()}>
+                                <UnifiedTextBrick
+                                  id={`conn-label-${conn.id}`}
+                                  text={connLabel}
+                                  onUpdate={(nextLabel) => {
+                                    setState((cur) => {
+                                      const co = cur.connectionsById[conn.id];
+                                      if (!co) return cur;
+                                      return {
+                                        ...cur,
+                                        connectionsById: {
+                                          ...cur.connectionsById,
+                                          [conn.id]: { ...co, style: { ...asRec(co.style), label: nextLabel } },
+                                        },
+                                      };
+                                    });
+                                  }}
+                                  readonly={false}
+                                  documents={[]}
+                                  boards={[]}
+                                  activeBricks={[]}
+                                  users={[]}
+                                />
                               </div>
-                            </div>
+                            ) : (
+                              <div className="flex w-full justify-center" style={{ userSelect: "none" }} onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedConnId(conn.id);
+                                setEditingConnId(conn.id);
+                              }}>
+                                <div className={`max-w-[180px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${isSC ? "text-white" : "text-slate-300"} bg-slate-950/55 border border-white/10 shadow-sm [&_*]:text-inherit`}>
+                                  <RichText content={connLabel} context={MESH_RICH_TEXT_CONTEXT} className="inline" />
+                                </div>
+                              </div>
+                            )}
                           </foreignObject>
                         )}
                       </g>
