@@ -193,6 +193,17 @@ export function RichText({
     );
   }
 
+  // When wrapper tags span multiple lines, process the whole content at once so
+  // [size:] / [color:] etc. aren't split at line boundaries. Reference resolution
+  // (@mentions) is skipped in this path — pen-drawn styled blocks won't have them.
+  const hasMultilineWrappers =
+    content.includes('\n') &&
+    /\[(?:size|color|bg|link|width):/.test(content);
+
+  if (hasMultilineWrappers) {
+    return <div className={className}>{renderInlineMarkdown(content, availableTags)}</div>;
+  }
+
   const lines = content.split(/\r?\n/);
 
   return (
@@ -380,12 +391,28 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
       }
 
       if (nextStart === -1) {
-        nodes.push(...renderLeafMarkdown(value.slice(cursor), `${keyPrefix}-plain-${partIndex++}`));
+        const remaining = value.slice(cursor);
+        if (remaining.includes('\n')) {
+          remaining.split('\n').forEach((ln, i) => {
+            if (i > 0) nodes.push(<br key={`${keyPrefix}-nlbr-${partIndex++}`} />);
+            nodes.push(...renderLeafMarkdown(ln, `${keyPrefix}-plain-${partIndex++}`));
+          });
+        } else {
+          nodes.push(...renderLeafMarkdown(remaining, `${keyPrefix}-plain-${partIndex++}`));
+        }
         break;
       }
 
       if (nextStart > cursor) {
-        nodes.push(...renderLeafMarkdown(value.slice(cursor, nextStart), `${keyPrefix}-plain-${partIndex++}`));
+        const before = value.slice(cursor, nextStart);
+        if (before.includes('\n')) {
+          before.split('\n').forEach((ln, i) => {
+            if (i > 0) nodes.push(<br key={`${keyPrefix}-nlbr-${partIndex++}`} />);
+            nodes.push(...renderLeafMarkdown(ln, `${keyPrefix}-plain-${partIndex++}`));
+          });
+        } else {
+          nodes.push(...renderLeafMarkdown(before, `${keyPrefix}-plain-${partIndex++}`));
+        }
       }
 
       if (nextKind === 'bg') {
