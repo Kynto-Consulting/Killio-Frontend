@@ -96,7 +96,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [slashRange, setSlashRange] = useState<{ from: number; to: number } | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
-  const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0 });
+  const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0, bottom: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
@@ -223,11 +223,23 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           const uid = el.getAttribute("data-id");
           const label = el.textContent || "";
           markdown += `@[user:${uid}:${label.replace('@', '')}]`;
+        } else if (tag === "span" && el.hasAttribute("data-bg")) {
+          const bg = el.getAttribute("data-bg") || "transparent";
+          markdown += `[bg:${bg}]`;
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "[/bg]";
+          return;
         } else if (tag === "span" && el.hasAttribute("data-color")) {
           const color = el.getAttribute("data-color") || "default";
           markdown += `[color:${color}]`;
           Array.from(el.childNodes).forEach(walk);
           markdown += "[/color]";
+          return;
+        } else if (tag === "span" && el.hasAttribute("data-size")) {
+          const size = el.getAttribute("data-size") || "1rem";
+          markdown += `[size:${size}]`;
+          Array.from(el.childNodes).forEach(walk);
+          markdown += "[/size]";
           return;
         } else if (tag === "a" && (el.getAttribute("data-link") || el.getAttribute("href"))) {
           const href = el.getAttribute("data-link") || el.getAttribute("href") || "";
@@ -523,17 +535,24 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       };
 
       while (cursor < t.length) {
+        const bgStart    = t.indexOf('[bg:',    cursor);
         const colorStart = t.indexOf('[color:', cursor);
-        const linkStart = t.indexOf('[link:', cursor);
+        const linkStart  = t.indexOf('[link:',  cursor);
+        const sizeStart  = t.indexOf('[size:',  cursor);
         let nextStart = -1;
-        let nextKind: 'color' | 'link' | null = null;
+        let nextKind: 'bg' | 'color' | 'link' | 'size' | null = null;
 
-        if (colorStart !== -1 && (linkStart === -1 || colorStart < linkStart)) {
-          nextStart = colorStart;
-          nextKind = 'color';
-        } else if (linkStart !== -1) {
-          nextStart = linkStart;
-          nextKind = 'link';
+        const candidates = [
+          bgStart    !== -1 ? { start: bgStart,    kind: 'bg'    as const } : null,
+          colorStart !== -1 ? { start: colorStart, kind: 'color' as const } : null,
+          linkStart  !== -1 ? { start: linkStart,  kind: 'link'  as const } : null,
+          sizeStart  !== -1 ? { start: sizeStart,  kind: 'size'  as const } : null,
+        ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' }[];
+
+        if (candidates.length > 0) {
+          candidates.sort((a, b) => a.start - b.start);
+          nextStart = candidates[0].start;
+          nextKind  = candidates[0].kind;
         }
 
         if (nextStart === -1) {
@@ -542,6 +561,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         }
 
         emitPlain(t.slice(cursor, nextStart));
+
+        if (nextKind === 'bg') {
+          const openEnd = t.indexOf(']', nextStart);
+          const closeTag = '[/bg]';
+          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          if (openEnd === -1 || closeIndex === -1) {
+            emitPlain(t.slice(nextStart));
+            break;
+          }
+
+          const bg = t.slice(nextStart + 4, openEnd).trim();
+          const inner = t.slice(openEnd + 1, closeIndex);
+          result += `<span data-bg="${escapeHtmlAttr(bg)}" style="background-color: ${escapeHtmlAttr(bg)}; padding: 0 2px; border-radius: 3px;">${formatInline(inner)}</span>`;
+          cursor = closeIndex + closeTag.length;
+          continue;
+        }
 
         if (nextKind === 'color') {
           const openEnd = t.indexOf(']', nextStart);
@@ -555,6 +590,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           const color = t.slice(nextStart + 7, openEnd).trim();
           const inner = t.slice(openEnd + 1, closeIndex);
           result += `<span data-color="${escapeHtmlAttr(color)}" style="color: ${escapeHtmlAttr(color)}">${formatInline(inner)}</span>`;
+          cursor = closeIndex + closeTag.length;
+          continue;
+        }
+
+        if (nextKind === 'size') {
+          const openEnd = t.indexOf(']', nextStart);
+          const closeTag = '[/size]';
+          const closeIndex = t.indexOf(closeTag, openEnd + 1);
+          if (openEnd === -1 || closeIndex === -1) {
+            emitPlain(t.slice(nextStart));
+            break;
+          }
+
+          const size  = t.slice(nextStart + 6, openEnd).trim();
+          const inner = t.slice(openEnd + 1, closeIndex);
+          result += `<span data-size="${escapeHtmlAttr(size)}" style="font-size: ${escapeHtmlAttr(size)}">${formatInline(inner)}</span>`;
           cursor = closeIndex + closeTag.length;
           continue;
         }
@@ -745,14 +796,28 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     });
   };
 
-  // Sync content from prop if it changes and we are NOT focused
+  const isFloatingEditorUiTarget = (node: Node | null): boolean => {
+    if (!(node instanceof HTMLElement)) return false;
+    return !!node.closest('[data-editor-floating-ui="true"]');
+  };
+
+  // Sync content from props only when editor is not focused.
+  // While focused, keep browser-managed contentEditable DOM to avoid cursor jumps.
   useEffect(() => {
     if (contentRef.current) {
-      const rendered = processPseudoMarkdown(text);
       const isFocused = document.activeElement === contentRef.current;
-      
-      // Always sync if content changed, regardless of focus
-      // This ensures pasted images update correctly
+      if (isFocused) {
+        const tc = contentRef.current.textContent || "";
+        if (tc.length === 0) {
+          contentRef.current.setAttribute("data-empty", "true");
+        } else {
+          contentRef.current.removeAttribute("data-empty");
+        }
+        return;
+      }
+
+      const rendered = processPseudoMarkdown(text);
+
       if (contentRef.current.innerHTML !== rendered) {
         logPasteDebug("useEffect syncing content", {
           isFocused,
@@ -770,6 +835,16 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       }
     }
   }, [text, documents, boards, activeBricks]);
+
+  useEffect(() => {
+    if (!readonly) return;
+    setIsFormatToolbarOpen(false);
+    setIsSlashOpen(false);
+    setIsPickerOpen(false);
+    setIsDatePickerOpen(false);
+    setIsEmojiPickerOpen(false);
+    setIsMathPickerOpen(false);
+  }, [readonly]);
 
   const handleFocus = () => {
     if (contentRef.current) {
@@ -790,7 +865,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
   };
 
-  const handleBlur = () => {
+  const handleBlur = (e: React.FocusEvent<HTMLDivElement>) => {
+    const next = e.relatedTarget as Node | null;
+    if (isFloatingEditorUiTarget(next)) {
+      return;
+    }
+
     if (isPickerOpen || isDatePickerOpen || isEmojiPickerOpen || isMathPickerOpen) {
       return;
     }
@@ -855,8 +935,38 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setTimeout(checkSelectionForToolbar, 10);
   };
 
+  const resolveFormattingRange = (): Range | null => {
+    if (!contentRef.current || typeof window === "undefined") return null;
+    const selection = window.getSelection();
+
+    if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
+      const liveRange = selection.getRangeAt(0);
+      if (contentRef.current.contains(liveRange.commonAncestorContainer)) {
+        savedRangeRef.current = liveRange.cloneRange();
+        return liveRange;
+      }
+    }
+
+    const saved = savedRangeRef.current;
+    if (!saved) return null;
+
+    try {
+      if (!contentRef.current.contains(saved.commonAncestorContainer)) {
+        return null;
+      }
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(saved);
+      }
+      return saved;
+    } catch {
+      return null;
+    }
+  };
+
   const handleFormat = (type: "bold" | "italic" | "strike" | "code" | "link" | "underline" | "math") => {
     if (!contentRef.current) return;
+    resolveFormattingRange();
     
     switch (type) {
       case "bold": document.execCommand("bold", false, undefined); break;
@@ -885,7 +995,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const checkSelectionForToolbar = () => {
     if (readonly) return;
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed || selection.rangeCount === 0 || !contentRef.current?.contains(selection.anchorNode)) {
+    if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
+      setIsFormatToolbarOpen(false);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    if (!contentRef.current?.contains(range.commonAncestorContainer)) {
       setIsFormatToolbarOpen(false);
       return;
     }
@@ -896,12 +1012,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return;
     }
 
-    const range = selection.getRangeAt(0);
+    savedRangeRef.current = range.cloneRange();
     const rect = range.getBoundingClientRect();
     
     setFormatToolbarPosition({
-      top: rect.top + window.scrollY,
-      left: rect.left + window.scrollX + (rect.width / 2),
+      top: rect.top,
+      left: rect.left + (rect.width / 2),
+      bottom: rect.bottom,
     });
     setIsFormatToolbarOpen(true);
   };
@@ -1522,12 +1639,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         </Portal>
       ) : null}
 
-      <Portal>
-        <InlineFormatToolbar
-          position={formatToolbarPosition}
-          isVisible={isFormatToolbarOpen}
-          onFormat={handleFormat}
-          onAction={(action) => {
+      {!readonly ? (
+        <Portal>
+          <InlineFormatToolbar
+            position={formatToolbarPosition}
+            isVisible={isFormatToolbarOpen}
+            onFormat={handleFormat}
+            onAction={(action) => {
             setIsFormatToolbarOpen(false);
             const sel = window.getSelection();
             if (sel && sel.rangeCount > 0) {
@@ -1565,12 +1683,66 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 
                 onAiAction?.(action, aiContext);
               }
+            } else if (action.startsWith('color:')) {
+              const colorValue = action.slice(6);
+              if (contentRef.current) {
+                const range2 = resolveFormattingRange();
+                if (range2) {
+                  const sel2 = window.getSelection();
+                  const colorSpan = document.createElement("span");
+                  colorSpan.setAttribute("data-color", colorValue);
+                  colorSpan.style.color = colorValue;
+                  colorSpan.appendChild(range2.extractContents());
+                  range2.insertNode(colorSpan);
+                  if (sel2) sel2.removeAllRanges();
+                }
+                const colorMd = revertToMarkdown(contentRef.current.innerHTML || "");
+                onUpdate(colorMd);
+                contentRef.current.innerHTML = processMarkdownWithPills(colorMd);
+              }
+            } else if (action.startsWith('bg:')) {
+              const bgValue = action.slice(3);
+              if (contentRef.current) {
+                const rangeBg = resolveFormattingRange();
+                if (rangeBg) {
+                  const selBg = window.getSelection();
+                  const bgSpan = document.createElement("span");
+                  bgSpan.setAttribute("data-bg", bgValue);
+                  bgSpan.style.backgroundColor = bgValue;
+                  bgSpan.style.padding = "0 2px";
+                  bgSpan.style.borderRadius = "3px";
+                  bgSpan.appendChild(rangeBg.extractContents());
+                  rangeBg.insertNode(bgSpan);
+                  if (selBg) selBg.removeAllRanges();
+                }
+                const bgMd = revertToMarkdown(contentRef.current.innerHTML || "");
+                onUpdate(bgMd);
+                contentRef.current.innerHTML = processMarkdownWithPills(bgMd);
+              }
+            } else if (action.startsWith('size:')) {
+              const sizeValue = action.slice(5);
+              if (contentRef.current) {
+                const range3 = resolveFormattingRange();
+                if (range3) {
+                  const sel3 = window.getSelection();
+                  const sizeSpan = document.createElement("span");
+                  sizeSpan.setAttribute("data-size", sizeValue);
+                  sizeSpan.style.fontSize = sizeValue;
+                  sizeSpan.appendChild(range3.extractContents());
+                  range3.insertNode(sizeSpan);
+                  if (sel3) sel3.removeAllRanges();
+                }
+                const sizeMd = revertToMarkdown(contentRef.current.innerHTML || "");
+                onUpdate(sizeMd);
+                contentRef.current.innerHTML = processMarkdownWithPills(sizeMd);
+              }
             } else {
               console.log('Action clicked:', action);
             }
-          }}
-        />
-      </Portal>
+            }}
+          />
+        </Portal>
+      ) : null}
 
         {isDatePickerOpen && !readonly && (
           <Portal>

@@ -5,13 +5,13 @@ import {
   Bold, Italic, Strikethrough, Code, Link, 
   Underline, List, MessageSquare, SmilePlus, Calendar, 
   PenSquare, Settings2, Sparkles, Sigma, MoreHorizontal,
-  ChevronDown
+  ChevronDown, Type, Highlighter
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface InlineFormatToolbarProps {
-  position: { top: number; left: number };
+  position: { top: number; left: number; bottom?: number };
   onFormat: (type: "bold" | "italic" | "strike" | "code" | "link" | "underline" | "math") => void;
   onAction?: (action: string) => void;
   isVisible: boolean;
@@ -25,29 +25,68 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
 }) => {
   const t = useTranslations("document-detail");
   const toolbarRef = useRef<HTMLDivElement>(null);
-  const [adjustedPos, setAdjustedPosition] = useState(position);
+  const [adjustedPos, setAdjustedPosition] = useState({ top: position.top, left: position.left });
+  const [activePanel, setActivePanel] = useState<'color' | 'size' | 'highlight' | null>(null);
+
+  const COLOR_PRESETS = [
+    { label: "Default", value: "inherit" },
+    { label: "White",   value: "#ffffff" },
+    { label: "Gray",    value: "#94a3b8" },
+    { label: "Red",     value: "#f87171" },
+    { label: "Orange",  value: "#fb923c" },
+    { label: "Yellow",  value: "#facc15" },
+    { label: "Green",   value: "#4ade80" },
+    { label: "Cyan",    value: "#22d3ee" },
+    { label: "Blue",    value: "#60a5fa" },
+    { label: "Purple",  value: "#c084fc" },
+    { label: "Pink",    value: "#f472b6" },
+  ];
+
+  const SIZE_PRESETS = [
+    { label: "XS",  value: "0.65rem" },
+    { label: "SM",  value: "0.75rem" },
+    { label: "MD",  value: "1rem" },
+    { label: "LG",  value: "1.25rem" },
+    { label: "XL",  value: "1.5rem" },
+    { label: "2XL", value: "2rem" },
+    { label: "3XL", value: "2.5rem" },
+  ];
+
+  const HIGHLIGHT_PRESETS = [
+    { label: "None",   value: "transparent" },
+    { label: "Yellow", value: "#fef08a" },
+    { label: "Green",  value: "#86efac" },
+    { label: "Cyan",   value: "#67e8f9" },
+    { label: "Blue",   value: "#93c5fd" },
+    { label: "Pink",   value: "#f9a8d4" },
+    { label: "Orange", value: "#fdba74" },
+    { label: "Purple", value: "#c4b5fd" },
+  ];
 
   useLayoutEffect(() => {
     if (isVisible && toolbarRef.current) {
       const rect = toolbarRef.current.getBoundingClientRect();
       const screenWidth = window.innerWidth;
+      const screenHeight = window.innerHeight;
+      const margin = 12;
+      const gap = 10;
       
-      let newLeft = position.left;
-      let newTop = position.top;
+      let newLeft = position.left - rect.width / 2;
+      let newTop = position.top - rect.height - gap;
+      const anchorBottom = position.bottom ?? position.top;
 
-      if (newLeft - rect.width / 2 < 12) {
-        newLeft = rect.width / 2 + 12;
-      } else if (newLeft + rect.width / 2 > screenWidth - 12) {
-        newLeft = screenWidth - rect.width / 2 - 12;
+      // Prefer above selection; if no room, render below.
+      if (newTop < margin) {
+        newTop = anchorBottom + gap;
       }
 
-      if (newTop - rect.height - 12 < 12) {
-         newTop = 12 + rect.height + 12; 
-      }
+      // Clamp to viewport for comfort.
+      newLeft = Math.max(margin, Math.min(screenWidth - rect.width - margin, newLeft));
+      newTop = Math.max(margin, Math.min(screenHeight - rect.height - margin, newTop));
       
       setAdjustedPosition({ top: newTop, left: newLeft });
     } else {
-      setAdjustedPosition(position);
+      setAdjustedPosition({ top: position.top, left: position.left });
     }
   }, [position, isVisible]);
 
@@ -56,12 +95,12 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
   return (
     <div
       ref={toolbarRef}
-      className="absolute z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-xl w-[260px] animate-in fade-in zoom-in-95 duration-100"
+      data-editor-floating-ui="true"
+      data-inline-format-toolbar="true"
+      className="fixed z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-xl w-[260px] animate-in fade-in zoom-in-95 duration-100"
       style={{
         top: adjustedPos.top,
         left: adjustedPos.left,
-        transform: "translate(-50%, -100%)",
-        marginTop: "-12px",
       }}
       onMouseDown={(e) => e.preventDefault()} // Prevent losing focus on editor
     >
@@ -77,10 +116,36 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         <div className="w-[1px] h-4 bg-border/60 mx-0.5"></div>
 
         <button 
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground font-serif hover:text-foreground transition-colors font-bold"
-          title="Text Color / Highlight"
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors font-serif font-bold",
+            activePanel === 'color' ? "bg-muted text-foreground" : "text-muted-foreground"
+          )}
+          title="Text Color"
+          onClick={() => setActivePanel((p) => p === 'color' ? null : 'color')}
         >
           A
+        </button>
+
+        <button
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
+            activePanel === 'size' ? "bg-muted text-foreground" : "text-muted-foreground"
+          )}
+          title="Text Size"
+          onClick={() => setActivePanel((p) => p === 'size' ? null : 'size')}
+        >
+          <Type className="h-4 w-4" />
+        </button>
+
+        <button
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
+            activePanel === 'highlight' ? "bg-muted text-foreground" : "text-muted-foreground"
+          )}
+          title="Highlight"
+          onClick={() => setActivePanel((p) => p === 'highlight' ? null : 'highlight')}
+        >
+          <Highlighter className="h-4 w-4" />
         </button>
 
         <button
@@ -143,6 +208,67 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
           <MoreHorizontal className="h-4 w-4" />
         </button>
       </div>
+
+      {/* Color picker panel */}
+      {activePanel === 'color' && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 px-1 py-2">
+          {COLOR_PRESETS.map((c) => (
+            <button
+              key={c.value}
+              title={c.label}
+              className="h-5 w-5 rounded-full border border-border/60 hover:scale-110 transition-transform shrink-0"
+              style={{ background: c.value === "inherit" ? "linear-gradient(135deg,#fff 50%,#000 50%)" : c.value }}
+              onClick={() => { onAction?.(`color:${c.value}`); setActivePanel(null); }}
+            />
+          ))}
+          <input
+            type="color"
+            className="h-5 w-5 cursor-pointer rounded border border-border/60 bg-transparent p-0"
+            title="Custom color"
+            onChange={(e) => onAction?.(`color:${e.target.value}`)}
+            onBlur={() => setActivePanel(null)}
+          />
+        </div>
+      )}
+
+      {/* Size picker panel */}
+      {activePanel === 'size' && (
+        <div className="flex flex-wrap items-center gap-1 border-t border-border/40 px-1 py-2">
+          {SIZE_PRESETS.map((s) => (
+            <button
+              key={s.value}
+              title={s.value}
+              className="flex h-6 items-center justify-center rounded px-2 bg-muted/40 hover:bg-muted text-foreground transition-colors"
+              style={{ fontSize: s.value }}
+              onClick={() => { onAction?.(`size:${s.value}`); setActivePanel(null); }}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Highlight picker panel */}
+      {activePanel === 'highlight' && (
+        <div className="flex flex-wrap items-center gap-1.5 border-t border-border/40 px-1 py-2">
+          {HIGHLIGHT_PRESETS.map((h) => (
+            <button
+              key={h.value}
+              title={h.label}
+              className="h-5 w-5 rounded border border-border/60 hover:scale-110 transition-transform shrink-0"
+              style={{ background: h.value === "transparent" ? "transparent" : h.value }}
+              onClick={() => { onAction?.(`bg:${h.value}`); setActivePanel(null); }}
+            />
+          ))}
+          <input
+            type="color"
+            className="h-5 w-5 cursor-pointer rounded border border-border/60 bg-transparent p-0"
+            title="Custom highlight"
+            onChange={(e) => onAction?.(`bg:${e.target.value}`)}
+            onBlur={() => setActivePanel(null)}
+          />
+        </div>
+      )}
 
       {/* Row 2: Basic Actions */}
       <div className="flex items-center gap-1.5 mt-0.5">

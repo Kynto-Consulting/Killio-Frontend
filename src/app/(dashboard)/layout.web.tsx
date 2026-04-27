@@ -57,6 +57,9 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     if (isPathActive("/b")) {
       setIsBoardsOpen(true);
     }
+    if (isPathActive("/m")) {
+      setIsmeshsOpen(true);
+    }
     if (isPathActive("/d")) {
       setIsDocumentsOpen(true);
     }
@@ -124,10 +127,16 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;
   }
 
-  const recentBoardLinks = boards.slice(0, 3).map((board) => ({
+  const recentBoardLinks = boards.filter((board) => board.boardType !== "mesh").slice(0, 3).map((board) => ({
     id: board.id,
     label: board.name,
     href: `/b/${board.id}`,
+  }));
+
+  const recentMeshLinks = boards.filter((board) => board.boardType === "mesh").slice(0, 3).map((board) => ({
+    id: board.id,
+    label: board.name,
+    href: `/m/${board.id}`,
   }));
 
   const recentDocumentLinks = recentDocuments.slice(0, 3).map((document) => ({
@@ -282,13 +291,14 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
                     {renderExpandableItem({
                       key: "mesh",
+                      href: "/m",
                       name: tDashboard("nav.meshs"),
                       icon: GitBranch,
                       isOpen: ismeshsOpen,
                       onToggle: () => setIsmeshsOpen((current) => !current),
-                      isActive: false,
-                      items: [],
-                      isLoading: false,
+                      isActive: isPathActive("/m"),
+                      items: recentMeshLinks,
+                      isLoading: isFetchingBoards,
                       emptyLabel: tDashboard("nav.nomeshsYet"),
                     })}
                   </div>

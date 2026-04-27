@@ -13,7 +13,14 @@ export type BoardEvent = {
   | 'brick.updated'
   | 'brick.reordered'
   | 'brick.deleted'
-  | 'board.commented';
+  | 'board.commented'
+  | 'mesh.state.updated'
+  | 'mesh.brick.created'
+  | 'mesh.brick.updated'
+  | 'mesh.brick.deleted'
+  | 'mesh.connection.created'
+  | 'mesh.connection.updated'
+  | 'mesh.connection.deleted';
   payload: Record<string, unknown>;
 };
 
@@ -52,6 +59,13 @@ export function useBoardRealtime(
       'brick.updated',
       'brick.reordered',
       'brick.deleted',
+      'mesh.state.updated',
+      'mesh.brick.created',
+      'mesh.brick.updated',
+      'mesh.brick.deleted',
+      'mesh.connection.created',
+      'mesh.connection.updated',
+      'mesh.connection.deleted',
     ];
 
     const subscriptions: Array<{ eventName: BoardEvent['type']; listener: (message: unknown) => void }> = [];

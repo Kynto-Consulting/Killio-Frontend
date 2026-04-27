@@ -328,17 +328,24 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
     let partIndex = 0;
 
     while (cursor < value.length) {
+      const bgStart    = value.indexOf('[bg:',    cursor);
       const colorStart = value.indexOf('[color:', cursor);
-      const linkStart = value.indexOf('[link:', cursor);
+      const linkStart  = value.indexOf('[link:',  cursor);
+      const sizeStart  = value.indexOf('[size:',  cursor);
       let nextStart = -1;
-      let nextKind: 'color' | 'link' | null = null;
+      let nextKind: 'bg' | 'color' | 'link' | 'size' | null = null;
 
-      if (colorStart !== -1 && (linkStart === -1 || colorStart < linkStart)) {
-        nextStart = colorStart;
-        nextKind = 'color';
-      } else if (linkStart !== -1) {
-        nextStart = linkStart;
-        nextKind = 'link';
+      const candidates = [
+        bgStart    !== -1 ? { start: bgStart,    kind: 'bg'    as const } : null,
+        colorStart !== -1 ? { start: colorStart, kind: 'color' as const } : null,
+        linkStart  !== -1 ? { start: linkStart,  kind: 'link'  as const } : null,
+        sizeStart  !== -1 ? { start: sizeStart,  kind: 'size'  as const } : null,
+      ].filter(Boolean) as { start: number; kind: 'bg' | 'color' | 'link' | 'size' }[];
+
+      if (candidates.length > 0) {
+        candidates.sort((a, b) => a.start - b.start);
+        nextStart = candidates[0].start;
+        nextKind  = candidates[0].kind;
       }
 
       if (nextStart === -1) {
@@ -348,6 +355,26 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
 
       if (nextStart > cursor) {
         nodes.push(...renderLeafMarkdown(value.slice(cursor, nextStart), `${keyPrefix}-plain-${partIndex++}`));
+      }
+
+      if (nextKind === 'bg') {
+        const openEnd = value.indexOf(']', nextStart);
+        const closeTag = '[/bg]';
+        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        if (openEnd === -1 || closeIndex === -1) {
+          nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-bg-${partIndex++}`));
+          break;
+        }
+
+        const bg = value.slice(nextStart + 4, openEnd).trim();
+        const inner = value.slice(openEnd + 1, closeIndex);
+        nodes.push(
+          <span key={`${keyPrefix}-bg-${partIndex++}`} data-bg={bg} style={{ backgroundColor: bg, borderRadius: 3, padding: "0 2px" }}>
+            {renderWithWrappers(inner, `${keyPrefix}-bg-inner`) }
+          </span>,
+        );
+        cursor = closeIndex + closeTag.length;
+        continue;
       }
 
       if (nextKind === 'color') {
@@ -364,6 +391,26 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
         nodes.push(
           <span key={`${keyPrefix}-color-${partIndex++}`} data-color={color} style={{ color }}>
             {renderWithWrappers(inner, `${keyPrefix}-color-inner`) }
+          </span>,
+        );
+        cursor = closeIndex + closeTag.length;
+        continue;
+      }
+
+      if (nextKind === 'size') {
+        const openEnd = value.indexOf(']', nextStart);
+        const closeTag = '[/size]';
+        const closeIndex = value.indexOf(closeTag, openEnd + 1);
+        if (openEnd === -1 || closeIndex === -1) {
+          nodes.push(...renderLeafMarkdown(value.slice(nextStart), `${keyPrefix}-broken-size-${partIndex++}`));
+          break;
+        }
+
+        const size  = value.slice(nextStart + 6, openEnd).trim();
+        const inner = value.slice(openEnd + 1, closeIndex);
+        nodes.push(
+          <span key={`${keyPrefix}-size-${partIndex++}`} data-size={size} style={{ fontSize: size }}>
+            {renderWithWrappers(inner, `${keyPrefix}-size-inner`) }
           </span>,
         );
         cursor = closeIndex + closeTag.length;

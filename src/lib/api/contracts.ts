@@ -30,6 +30,7 @@ export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';
 export type BoardSummary = {
   id: string;
   teamId: string;
+  boardType: 'kanban' | 'mesh';
   name: string;
   slug: string;
   description: string | null;
@@ -442,6 +443,7 @@ export type ListView = {
 export type BoardView = {
   id: string;
   teamId: string;
+  boardType: 'kanban' | 'mesh';
   name: string;
   description: string | null;
   coverImageUrl: string | null;
@@ -509,6 +511,7 @@ type CreateTeamPayload = {
 type CreateBoardPayload = {
   name: string;
   slug: string;
+  boardType?: 'kanban' | 'mesh';
   description?: string;
   coverImageUrl?: string;
   backgroundKind?: 'none' | 'preset' | 'image' | 'color' | 'gradient';
@@ -529,6 +532,50 @@ export type UpdateBoardAppearancePayload = {
   themeKind?: 'preset' | 'custom';
   themePreset?: string | null;
   themeCustom?: Record<string, unknown>;
+};
+
+export type MeshBrickKind =
+  | 'board_empty'
+  | 'text'
+  | 'frame'
+  | 'script'
+  | 'mirror'
+  | 'portal'
+  | 'decision'
+  | 'draw';
+
+export type MeshBrick = {
+  id: string;
+  kind: MeshBrickKind;
+  parentId: string | null;
+  position: { x: number; y: number };
+  size: { w: number; h: number };
+  rotation?: number;
+  metadata?: Record<string, unknown>;
+  content?: Record<string, unknown>;
+};
+
+export type MeshConnection = {
+  id: string;
+  cons: [string, string];
+  label: { type: 'doc'; content?: unknown[] };
+  style?: Record<string, unknown>;
+};
+
+export type MeshState = {
+  version: string;
+  viewport: { x: number; y: number; zoom: number };
+  rootOrder: string[];
+  bricksById: Record<string, MeshBrick>;
+  connectionsById: Record<string, MeshConnection>;
+};
+
+export type MeshSnapshot = {
+  meshId: string;
+  schemaVersion: string;
+  revision: number;
+  updatedAt: string;
+  state: MeshState;
 };
 
 type InvitePayload = {
@@ -693,6 +740,19 @@ export async function createTeam(payload: CreateTeamPayload, accessToken: string
 
 export async function listTeamBoards(teamId: string, accessToken: string): Promise<BoardSummary[]> {
   return request<BoardSummary[]>(`/teams/${teamId}/boards`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export type TeamCatalog = {
+  boards: BoardSummary[];
+  documents: { id: string; title: string }[];
+  cards: { id: string; title: string; boardId: string; boardName: string }[];
+};
+
+export async function listTeamCatalog(teamId: string, accessToken: string): Promise<TeamCatalog> {
+  return request<TeamCatalog>(`/teams/${teamId}/catalog`, {
     method: 'GET',
     headers: authHeaders(accessToken),
   });
@@ -1237,6 +1297,32 @@ export async function listTeamActivity(teamId: string, accessToken: string): Pro
 export async function getBoard(boardId: string, accessToken: string): Promise<BoardView> {
   return request<BoardView>(`/boards/${boardId}`, {
     method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function getMesh(meshId: string, accessToken: string): Promise<MeshSnapshot> {
+  return request<MeshSnapshot>(`/meshes/${meshId}`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function updateMeshState(
+  meshId: string,
+  payload: { state: MeshState; expectedRevision: number },
+  accessToken: string,
+): Promise<MeshSnapshot> {
+  return request<MeshSnapshot>(`/meshes/${meshId}/state`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function normalizeMeshState(meshId: string, accessToken: string): Promise<MeshSnapshot> {
+  return request<MeshSnapshot>(`/meshes/${meshId}/normalize`, {
+    method: 'POST',
     headers: authHeaders(accessToken),
   });
 }
