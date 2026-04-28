@@ -21,6 +21,7 @@ export type EntitySelectorResult = {
   sourceCardLabel?: string;
   brickKind?: string;
   previewMarkdown?: string;
+  previewContent?: Record<string, unknown>;
 };
 
 interface EntitySelectorModalProps {
@@ -39,7 +40,88 @@ type SelectorBrick = {
   kind: string;
   label: string;
   preview: string;
+  previewContent?: Record<string, unknown>;
 };
+
+function clonePreviewContent(value: unknown): Record<string, unknown> | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  try {
+    return JSON.parse(JSON.stringify(value)) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+function toBoardBrickPreviewContent(brick: CardView["blocks"][number]): Record<string, unknown> | undefined {
+  if (!brick || typeof brick !== "object") return undefined;
+
+  if ((brick as any).content && typeof (brick as any).content === "object") {
+    return clonePreviewContent((brick as any).content);
+  }
+
+  if (brick.kind === "text") {
+    const markdown = String((brick as any).markdown || "");
+    return { kind: "text", markdown, text: markdown, displayStyle: (brick as any).displayStyle || "paragraph" };
+  }
+
+  if (brick.kind === "table") {
+    return { kind: "table", rows: Array.isArray((brick as any).rows) ? (brick as any).rows : [] };
+  }
+
+  if (brick.kind === "checklist") {
+    return { kind: "checklist", items: Array.isArray((brick as any).items) ? (brick as any).items : [] };
+  }
+
+  if (brick.kind === "media") {
+    return {
+      kind: "media",
+      mediaType: (brick as any).mediaType,
+      title: (brick as any).title,
+      url: (brick as any).url,
+      mimeType: (brick as any).mimeType,
+      sizeBytes: (brick as any).sizeBytes,
+      caption: (brick as any).caption,
+      assetId: (brick as any).assetId,
+    };
+  }
+
+  if (brick.kind === "graph") {
+    return {
+      kind: "graph",
+      type: (brick as any).type,
+      data: Array.isArray((brick as any).data) ? (brick as any).data : [],
+      title: (brick as any).title,
+    };
+  }
+
+  if (brick.kind === "accordion") {
+    return {
+      ...(clonePreviewContent((brick as any).content) || {}),
+      kind: "accordion",
+      title: (brick as any).title || "",
+      body: (brick as any).body || "",
+      isExpanded: !!(brick as any).isExpanded,
+    };
+  }
+
+  if (brick.kind === "tabs") {
+    return {
+      ...(clonePreviewContent((brick as any).content) || {}),
+      kind: "tabs",
+      tabs: Array.isArray((brick as any).tabs) ? (brick as any).tabs : [],
+    };
+  }
+
+  if (brick.kind === "columns") {
+    return {
+      ...(clonePreviewContent((brick as any).content) || {}),
+      kind: "columns",
+      columns: Array.isArray((brick as any).columns) ? (brick as any).columns : [],
+    };
+  }
+
+  return undefined;
+}
 
 type SelectorStep =
   | { kind: "entity" }
@@ -82,6 +164,7 @@ function getDocBrickPreview(brick: DocumentBrick): SelectorBrick {
     kind: brick.kind,
     label: title,
     preview: markdown || `${brick.kind} (${brick.id})`,
+    previewContent: clonePreviewContent(content),
   };
 }
 
@@ -95,6 +178,7 @@ function getBoardBrickPreview(brick: CardView["blocks"][number]): SelectorBrick 
     kind: brick.kind,
     label: title,
     preview: markdown || summary || `${brick.kind} (${brick.id})`,
+    previewContent: toBoardBrickPreviewContent(brick),
   };
 }
 
@@ -108,6 +192,7 @@ function getMeshBrickPreview(brick: { id: string; kind: string; content?: Record
     kind: brick.kind,
     label: title,
     preview: markdown || label || `${brick.kind} (${brick.id})`,
+    previewContent: clonePreviewContent(content),
   };
 }
 
@@ -384,6 +469,7 @@ export function EntitySelectorModal({
                       sourceCardLabel: step.sourceCardLabel,
                       brickKind: brick.kind,
                       previewMarkdown: brick.preview,
+                      previewContent: brick.previewContent,
                     })}
                   >
                     <FileText className="mt-0.5 h-4 w-4 shrink-0 text-violet-400" />

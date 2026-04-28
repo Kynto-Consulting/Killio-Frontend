@@ -3,6 +3,7 @@
  */
 import { useEffect, useState } from 'react';
 import { useSession } from '@/components/providers/session-provider';
+import { BRICK_TYPE_DEFINITIONS } from '@/lib/ai-brick-context';
 
 export interface BrickTypeInfo {
   kind: string;
@@ -104,7 +105,22 @@ export function buildAiDraftSystemPrompt(context: ScriptGenerationContext | null
     return `You are an AI assistant that helps users create scripts and automation workflows.`;
   }
 
-  const brickTypesText = Object.values(context.brickTypes)
+  const mergedBrickTypes = {
+    ...Object.fromEntries(
+      Object.values(BRICK_TYPE_DEFINITIONS).map((definition) => [
+        definition.kind,
+        {
+          kind: definition.kind,
+          displayName: definition.displayName,
+          description: definition.description,
+          methods: definition.methods,
+        },
+      ]),
+    ),
+    ...(context.brickTypes || {}),
+  };
+
+  const brickTypesText = Object.values(mergedBrickTypes)
     .map(
       (bt) =>
         `- ${bt.displayName} (${bt.kind}): ${bt.description}${

@@ -208,14 +208,17 @@ function toDocBrick(mb: MeshBrick, forcedKind?: string): DocumentBrick {
   };
 }
 
-function mkPreviewBrick(idSeed: string, kind: string, markdown: string): DocumentBrick {
+function mkPreviewBrick(idSeed: string, kind: string, markdown: string, contentOverride?: Record<string, unknown> | null): DocumentBrick {
   const safeKind = kind.trim() || "text";
+  const content = contentOverride && typeof contentOverride === "object"
+    ? { ...contentOverride, kind: typeof contentOverride.kind === "string" ? contentOverride.kind : safeKind }
+    : { kind: safeKind, markdown, text: markdown };
   return {
     id: `preview_${idSeed}`,
     documentId: `preview:${idSeed}`,
     kind: safeKind,
     position: 0,
-    content: { kind: safeKind, markdown, text: markdown },
+    content,
     createdByUserId: "mesh",
     createdAt: "1970-01-01T00:00:00.000Z",
     updatedAt: "1970-01-01T00:00:00.000Z",
@@ -2599,11 +2602,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const sourceId       = typeof c.sourceId       === "string" ? c.sourceId       : "";
       const sourceLabel    = typeof c.sourceLabel    === "string" ? c.sourceLabel    : "";
       const previewMd      = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+      const previewContent = c.previewContent && typeof c.previewContent === "object" ? c.previewContent as Record<string, unknown> : null;
       const sourceKind     = typeof c.sourceType === "string" ? c.sourceType : "";
       const sourceBrickKind = typeof c.sourceBrickKind === "string" ? c.sourceBrickKind : "text";
       const sourcePath     = typeof c.sourcePath === "string" ? c.sourcePath : "";
-      const mirrorPreviewBrick = previewMd.trim()
-        ? mkPreviewBrick(`mirror_${brick.id}`, sourceBrickKind, previewMd)
+      const previewKind = !previewContent && ["beautiful_table", "bountiful_table", "database", "tabs", "columns", "accordion"].includes(sourceBrickKind)
+        ? "text"
+        : sourceBrickKind;
+      const mirrorPreviewBrick = (previewContent || previewMd.trim())
+        ? mkPreviewBrick(`mirror_${brick.id}`, previewKind, previewMd, previewContent)
         : null;
       return (
         <div key={brick.id}
@@ -3698,6 +3705,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   sourcePath: result.context,
                   sourceBrickKind: result.brickKind,
                   previewMarkdown: result.previewMarkdown,
+                  previewContent: result.previewContent,
                 } };
               }
 

@@ -123,6 +123,58 @@ export const BRICK_TYPE_DEFINITIONS: Record<string, BrickTypeInfo> = {
       { name: "rowCount", type: "number", description: "Cantidad de registros" },
     ],
   },
+  beautiful_table: {
+    kind: "beautiful_table",
+    displayName: "Bountiful Table",
+    description: "Alias moderno del database brick con columnas tipadas, filas estructuradas y soporte para filtros/relaciones",
+    methods: [
+      {
+        name: "query",
+        description: "Consultar registros con filtros",
+        parameters: {
+          where: { type: "Record<string, any>", required: false, description: "Condiciones de filtro" },
+          select: { type: "string[]", required: false, description: "Columnas a recuperar" },
+          orderBy: { type: "string", required: false, description: "Ordenamiento" },
+          limit: { type: "number", required: false, description: "Máximo de registros" },
+        },
+        returns: "ExecutionItem[] con data como registros",
+      },
+      {
+        name: "insert",
+        description: "Insertar nuevos registros",
+        parameters: {
+          records: { type: "Record<string, any>[]", required: true, description: "Arreglo de registros a insertar" },
+        },
+        returns: "{ insertedCount: number, insertedIds: string[] }",
+      },
+      {
+        name: "update",
+        description: "Actualizar registros existentes",
+        parameters: {
+          where: { type: "Record<string, any>", required: true, description: "Filtro para encontrar registros" },
+          data: { type: "Record<string, any>", required: true, description: "Datos a actualizar" },
+        },
+        returns: "{ updatedCount: number }",
+      },
+    ],
+    properties: [
+      { name: "id", type: "string", description: "ID único del brick" },
+      { name: "title", type: "string", description: "Nombre de la tabla" },
+      { name: "columns", type: "ColumnDef[]", description: "Definición de columnas" },
+      { name: "rows", type: "BountifulRow[]", description: "Filas con celdas tipadas" },
+      { name: "rowCount", type: "number", description: "Cantidad de registros" },
+    ],
+  },
+  bountiful_table: {
+    kind: "bountiful_table",
+    displayName: "Bountiful Table",
+    description: "Alias legacy de beautiful_table/database brick",
+    methods: [],
+    properties: [
+      { name: "columns", type: "ColumnDef[]", description: "Definición de columnas" },
+      { name: "rows", type: "BountifulRow[]", description: "Filas con celdas tipadas" },
+    ],
+  },
   form: {
     kind: "form",
     displayName: "Formulario",
@@ -300,7 +352,7 @@ function buildLocalBrickInventory(bricks: any[], maxLength: number): string {
     let summary = `${idx + 1}. [${kind}] id=${brickId}`;
 
     // Información específica por tipo
-    if (kind === "database" || kind === "table") {
+    if (kind === "database" || kind === "beautiful_table" || kind === "bountiful_table" || kind === "table") {
       const rows = Array.isArray(brick.content?.rows) ? brick.content.rows : [];
       const columns = Array.isArray(brick.content?.columns) ? brick.content.columns : [];
       summary += ` rows=${rows.length} cols=${columns.length}`;

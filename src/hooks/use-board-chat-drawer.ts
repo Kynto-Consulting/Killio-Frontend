@@ -17,11 +17,16 @@ import {
   updateCard,
   updateList,
   getCardActivity,
-  generateReportDocumentWithAi
+  generateReportDocumentWithAi,
+  createCardBrick,
+  updateCardBrick,
+  deleteCardBrick,
+  type BrickMutationInput,
 } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
+import { buildBricksContextText } from "@/lib/brick-context";
 import {
   extractDocumentReferenceIds,
   formatDateRangeLabel,
@@ -63,6 +68,104 @@ export type Message = {
   loading?: boolean;
   timestamp?: string;
 };
+
+function toAiContextBrick(brick: any): { kind: string; content: Record<string, unknown> } {
+  const kind = String(brick?.kind || "text").toLowerCase();
+  if (brick?.content && typeof brick.content === "object") {
+    return { kind, content: brick.content as Record<string, unknown> };
+  }
+  if (kind === "text") {
+    const markdown = String(brick?.markdown || "");
+    return { kind: "text", content: { kind: "text", markdown, text: markdown, displayStyle: brick?.displayStyle || "paragraph" } };
+  }
+  if (kind === "table") return { kind: "table", content: { kind: "table", rows: Array.isArray(brick?.rows) ? brick.rows : [] } };
+  if (kind === "checklist") return { kind: "checklist", content: { kind: "checklist", items: Array.isArray(brick?.items) ? brick.items : [] } };
+  if (kind === "media") return { kind: "media", content: { kind: "media", mediaType: brick?.mediaType, title: brick?.title, url: brick?.url, caption: brick?.caption } };
+  if (kind === "graph") return { kind: "graph", content: { kind: "graph", type: brick?.type, data: Array.isArray(brick?.data) ? brick.data : [], title: brick?.title } };
+  if (kind === "accordion") return { kind: "accordion", content: { ...(brick?.content || {}), kind: "accordion", title: brick?.title || "", body: brick?.body || "", isExpanded: !!brick?.isExpanded } };
+  if (kind === "tabs") return { kind: "tabs", content: { ...(brick?.content || {}), kind: "tabs", tabs: Array.isArray(brick?.tabs) ? brick.tabs : [] } };
+  if (kind === "columns") return { kind: "columns", content: { ...(brick?.content || {}), kind: "columns", columns: Array.isArray(brick?.columns) ? brick.columns : [] } };
+  if (kind === "ai") {
+    const markdown = [brick?.title, brick?.prompt, brick?.response].filter(Boolean).join("\n\n");
+    return { kind: "text", content: { kind: "text", markdown, text: markdown } };
+  }
+  const fallback = JSON.stringify(brick || {});
+  return { kind: "text", content: { kind: "text", markdown: fallback, text: fallback } };
+}
+
+function toCardBrickMutationInput(kind: string, content: any): BrickMutationInput | null {
+  const normalizedKind = String(kind || content?.kind || "text").trim().toLowerCase();
+  if (normalizedKind === "text") {
+    return {
+      kind: "text",
+      displayStyle: content?.displayStyle || "paragraph",
+      markdown: String(content?.markdown ?? content?.text ?? ""),
+    };
+  }
+  if (normalizedKind === "table") {
+    return {
+      kind: "table",
+      rows: Array.isArray(content?.rows) ? content.rows.map((row: any) => Array.isArray(row) ? row.map((cell: any) => String(cell ?? "")) : []) : [],
+    };
+  }
+  if (normalizedKind === "checklist") {
+    return {
+      kind: "checklist",
+      items: Array.isArray(content?.items)
+        ? content.items.map((item: any, index: number) => ({
+            id: String(item?.id || `task-${index}`),
+            label: String(item?.label ?? item?.text ?? ""),
+            checked: !!item?.checked,
+          }))
+        : [],
+    };
+  }
+  if (normalizedKind === "media") {
+    return {
+      kind: "media",
+      mediaType: content?.mediaType || "file",
+      title: content?.title ?? null,
+      url: content?.url ?? null,
+      mimeType: content?.mimeType ?? null,
+      sizeBytes: content?.sizeBytes ?? null,
+      caption: content?.caption ?? null,
+      assetId: content?.assetId ?? null,
+    };
+  }
+  if (normalizedKind === "graph") {
+    return {
+      kind: "graph",
+      type: content?.type || "line",
+      data: Array.isArray(content?.data) ? content.data : [],
+      title: content?.title,
+      content: content?.content || {},
+    } as BrickMutationInput;
+  }
+  if (normalizedKind === "accordion") {
+    return {
+      kind: "accordion",
+      title: String(content?.title || ""),
+      body: String(content?.body || ""),
+      isExpanded: !!content?.isExpanded,
+      content: content?.content || {},
+    } as BrickMutationInput;
+  }
+  if (normalizedKind === "tabs") {
+    return {
+      kind: "tabs",
+      tabs: Array.isArray(content?.tabs) ? content.tabs : [],
+      content: content?.content || {},
+    } as BrickMutationInput;
+  }
+  if (normalizedKind === "columns") {
+    return {
+      kind: "columns",
+      columns: Array.isArray(content?.columns) ? content.columns : [],
+      content: content?.content || {},
+    } as BrickMutationInput;
+  }
+  return null;
+}
 
 function getDateLabel(date: Date, locale: string = 'es', t: (key: string) => string): string {
   const today = new Date();
@@ -374,40 +477,8 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
 
   const summarizeBrickForAi = (brick: any) => {
     const kind = String(brick?.kind || "unknown");
-    if (kind === "text") {
-      const markdown = brick?.markdown ?? brick?.content?.markdown;
-      const displayStyle = brick?.displayStyle ?? brick?.content?.displayStyle;
-      return `text(style=${displayStyle || "paragraph"}, md=${clipAiContext(markdown) || "empty"})`;
-    }
-    if (kind === "table") {
-      const rows = Array.isArray(brick?.rows) ? brick.rows : Array.isArray(brick?.content?.rows) ? brick.content.rows : [];
-      const rowCount = rows.length;
-      const colCount = rowCount > 0 && Array.isArray(rows[0]) ? rows[0].length : 0;
-      const preview = rowCount > 0 ? clipAiContext((rows[0] || []).join(" | "), 100) : "empty";
-      return `table(rows=${rowCount}, cols=${colCount}, head=${preview || "empty"})`;
-    }
-    if (kind === "checklist") {
-      const items = Array.isArray(brick?.items) ? brick.items : Array.isArray(brick?.content?.items) ? brick.content.items : [];
-      const done = items.filter((item: any) => !!item?.checked).length;
-      const preview = items.slice(0, 3).map((item: any) => clipAiContext(item?.label, 60)).filter(Boolean).join("; ");
-      return `checklist(done=${done}/${items.length}, items=${preview || "none"})`;
-    }
-    if (kind === "media") {
-      return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
-    }
-    if (kind === "ai") {
-      return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
-    }
-    if (kind === "graph") {
-      const graphData = Array.isArray(brick?.data) ? brick.data : Array.isArray(brick?.content?.data) ? brick.content.data : [];
-      const tableSource = brick?.tableSource ?? brick?.content?.tableSource;
-      const sourceLabel = tableSource?.brickId ? `table:${String(tableSource.brickId).slice(0, 8)}` : "manual";
-      return `graph(type=${brick?.type || brick?.content?.type || "line"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, source=${sourceLabel}, points=${graphData.length})`;
-    }
-    if (kind === "accordion") {
-      return `accordion(title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, expanded=${(brick?.isExpanded ?? brick?.content?.isExpanded) ? "yes" : "no"}, body=${clipAiContext(brick?.body ?? brick?.content?.body, 100) || "empty"})`;
-    }
-    return `${kind}(raw=${clipAiContext(JSON.stringify(brick), 120) || "none"})`;
+    const summary = buildBricksContextText([toAiContextBrick(brick)], 520).replace(/\n+/g, " || ").trim();
+    return `${kind}(${clipAiContext(summary || "empty", 220) || "empty"})`;
   };
 
   const summarizeCard = (card: any) => {
@@ -421,6 +492,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     const shortSummary = summary ? summary.slice(0, 220) : "No summary";
 
     const brickList = (card.blocks || []).slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(" || ") || "none";
+    const brickIds = (card.blocks || []).slice(0, 12).map((brick: any) => `${brick.kind}[${brick.id}]`).join(", ") || "none";
 
     return [
       `Card: ${card.title}`,
@@ -429,6 +501,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       `tags: ${tags}`,
       `assignees: ${assignees}`,
       `bricks: ${(card.blocks || []).length}`,
+      `brickIds: ${brickIds}`,
       `checklist: ${checklistDone}/${checklistTotal}`,
       `summary: ${shortSummary}`,
       `brickDetails: ${brickList}`,
@@ -457,6 +530,16 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       `Description: ${board.description || "none"}`,
       `Visibility: ${board.visibility}`,
       `Totals: ${board.lists.length} lists, ${cardCount} cards`,
+      "",
+      "Allowed AI actions:",
+      "- CARD_UPDATE { cardId, title?, summary?, status?, start_at?, due_at?, completed_at?, archived_at?, targetListId? }",
+      "- CARD_MOVE { cardId, targetListId }",
+      "- CARD_BRICK_INSERT { cardId, kind, content }",
+      "- CARD_BRICK_REPLACE { cardId, brickId, kind?, content }",
+      "- CARD_BRICK_DELETE { cardId, brickId }",
+      "- TAG_ADD { cardId, tagName, color? }",
+      "- LIST_RENAME { listId, name }",
+      "Usa IDs exactos del contexto. Si editas bricks, preserva estructuras como tablas, checklists, tabs y columnas.",
       "",
       "Board structure and cards:",
       ...listLines,
@@ -715,6 +798,28 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
 
         if (Object.keys(updates).length === 0) throw new Error('CARD_UPDATE no contiene campos a actualizar');
         await updateCard(cardId, updates, accessToken);
+      } else if (action === 'CARD_BRICK_INSERT' || action === 'CARD_BRICK_APPEND') {
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
+        const content = payload?.content;
+        if (!cardId || !content) throw new Error('CARD_BRICK_INSERT requiere cardId y content');
+        const input = toCardBrickMutationInput(kind, content);
+        if (!input) throw new Error(`Tipo de brick no soportado para insercion: ${kind}`);
+        await createCardBrick(cardId, input, accessToken);
+      } else if (action === 'CARD_BRICK_REPLACE') {
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const brickId = String(payload?.brickId || '').trim();
+        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
+        const content = payload?.content;
+        if (!cardId || !brickId || !content) throw new Error('CARD_BRICK_REPLACE requiere cardId, brickId y content');
+        const input = toCardBrickMutationInput(kind, content);
+        if (!input) throw new Error(`Tipo de brick no soportado para reemplazo: ${kind}`);
+        await updateCardBrick(cardId, brickId, input, accessToken);
+      } else if (action === 'CARD_BRICK_DELETE') {
+        const cardId = entityId || String(payload?.cardId || '').trim();
+        const brickId = String(payload?.brickId || '').trim();
+        if (!cardId || !brickId) throw new Error('CARD_BRICK_DELETE requiere cardId y brickId');
+        await deleteCardBrick(cardId, brickId, accessToken);
       } else if (action === 'LIST_RENAME') {
         const listId = entityId || String(payload?.listId || '').trim();
         const name = String(payload?.title || payload?.name || '').trim();

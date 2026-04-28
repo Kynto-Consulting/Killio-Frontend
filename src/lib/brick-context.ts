@@ -344,6 +344,17 @@ export function buildDocumentContextSummary(
   if (inventory) {
     parts.push("=== BRICKS DISPONIBLES (usar IDs exactos, no inventar) ===", inventory, "=== FIN BRICKS DISPONIBLES ===", "");
   }
+  parts.push(
+    "=== ACCIONES IA PERMITIDAS EN DOCUMENTOS ===",
+    "- DOC_RENAME { title }",
+    "- DOC_BRICK_INSERT { kind, content, position? }",
+    "- DOC_BRICK_APPEND { kind, content, position? }",
+    "- DOC_BRICK_REPLACE { brickId, content }",
+    "- DOC_BRICK_DELETE { brickId }",
+    "Reglas: usa brickId/rowId/colId exactos del contexto. Para beautiful_table/database/bountiful_table conserva columns, rows, tipos de columna y forma de cada celda; no conviertas celdas tipadas a texto plano.",
+    "=== FIN ACCIONES IA ===",
+    ""
+  );
   parts.push("=== CONTENIDO DEL DOCUMENTO ===", body, "=== FIN DEL DOCUMENTO ===");
   return parts.join("\n").slice(0, maxLength);
 }

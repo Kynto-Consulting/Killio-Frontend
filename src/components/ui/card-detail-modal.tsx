@@ -28,6 +28,7 @@ import { toast } from "@/lib/toast";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } from "@/lib/workspace-members";
+import { buildBricksContextText } from "@/lib/brick-context";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -469,6 +470,48 @@ export function CardDetailModal({
           await updateCard(cardId, updates, accessToken);
           window.dispatchEvent(new Event('board:refresh'));
         }
+      } else if (action === 'CARD_BRICK_INSERT' || action === 'CARD_BRICK_APPEND') {
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        if (!cardId) throw new Error('CARD_BRICK_INSERT requiere cardId');
+
+        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
+        const draftBrick = buildDraftBrick({ ...(payload?.content || {}), kind } as BrickMutationInput, (localBlocks[localBlocks.length - 1]?.position ?? 0) + 1000);
+        const input = brickToMutationInput(draftBrick);
+        if (!input) throw new Error(`Tipo de brick no soportado: ${kind}`);
+
+        if (card?.id && cardId === card.id) {
+          await handleCreateBrick(input);
+        } else {
+          await createCardBrick(cardId, input, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
+      } else if (action === 'CARD_BRICK_REPLACE') {
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        const brickId = String(payload?.brickId || '').trim();
+        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
+        if (!cardId || !brickId) throw new Error('CARD_BRICK_REPLACE requiere cardId y brickId');
+
+        const draftBrick = buildDraftBrick({ ...(payload?.content || {}), kind } as BrickMutationInput, 1000);
+        const input = brickToMutationInput({ ...draftBrick, id: brickId } as BoardBrick);
+        if (!input) throw new Error(`Tipo de brick no soportado: ${kind}`);
+
+        if (card?.id && cardId === card.id) {
+          await handleUpdateBrick(brickId, input as Partial<BrickMutationInput>);
+        } else {
+          await updateCardBrick(cardId, brickId, input, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
+      } else if (action === 'CARD_BRICK_DELETE') {
+        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
+        const brickId = String(payload?.brickId || '').trim();
+        if (!cardId || !brickId) throw new Error('CARD_BRICK_DELETE requiere cardId y brickId');
+
+        if (card?.id && cardId === card.id) {
+          await handleDeleteBrick(brickId);
+        } else {
+          await deleteCardBrick(cardId, brickId, accessToken);
+          window.dispatchEvent(new Event('board:refresh'));
+        }
       } else if (action === 'LIST_RENAME') {
         if (!boardId) throw new Error('LIST_RENAME requiere contexto de board');
         const listId = entityId || String(payload?.listId || (card as any)?.listId || '').trim();
@@ -548,48 +591,41 @@ export function CardDetailModal({
     return `${normalized.slice(0, max)}...`;
   };
 
+  const toAiContextBrick = (brick: any): { kind: string; content: Record<string, unknown> } => {
+    const kind = String(brick?.kind || 'text').toLowerCase();
+    if (brick?.content && typeof brick.content === 'object') {
+      return { kind, content: brick.content as Record<string, unknown> };
+    }
+    if (kind === 'text') {
+      const markdown = String(brick?.markdown || '');
+      return { kind: 'text', content: { kind: 'text', markdown, text: markdown, displayStyle: brick?.displayStyle || 'paragraph' } };
+    }
+    if (kind === 'table') return { kind: 'table', content: { kind: 'table', rows: Array.isArray(brick?.rows) ? brick.rows : [] } };
+    if (kind === 'checklist') return { kind: 'checklist', content: { kind: 'checklist', items: Array.isArray(brick?.items) ? brick.items : [] } };
+    if (kind === 'media') return { kind: 'media', content: { kind: 'media', mediaType: brick?.mediaType, title: brick?.title, url: brick?.url, caption: brick?.caption } };
+    if (kind === 'graph') return { kind: 'graph', content: { kind: 'graph', type: brick?.type, data: Array.isArray(brick?.data) ? brick.data : [], title: brick?.title } };
+    if (kind === 'accordion') return { kind: 'accordion', content: { ...(brick?.content || {}), kind: 'accordion', title: brick?.title || '', body: brick?.body || '', isExpanded: !!brick?.isExpanded } };
+    if (kind === 'tabs') return { kind: 'tabs', content: { ...(brick?.content || {}), kind: 'tabs', tabs: Array.isArray(brick?.tabs) ? brick.tabs : [] } };
+    if (kind === 'columns') return { kind: 'columns', content: { ...(brick?.content || {}), kind: 'columns', columns: Array.isArray(brick?.columns) ? brick.columns : [] } };
+    if (kind === 'ai') {
+      const markdown = [brick?.title, brick?.prompt, brick?.response].filter(Boolean).join('\n\n');
+      return { kind: 'text', content: { kind: 'text', markdown, text: markdown } };
+    }
+    const fallback = JSON.stringify(brick || {});
+    return { kind: 'text', content: { kind: 'text', markdown: fallback, text: fallback } };
+  };
+
   const summarizeBrickForAi = (brick: any) => {
-    const kind = String(brick?.kind || "unknown");
-    if (kind === "text") {
-      const markdown = brick?.markdown ?? brick?.content?.markdown;
-      const displayStyle = brick?.displayStyle ?? brick?.content?.displayStyle;
-      return `text(style=${displayStyle || "paragraph"}, md=${clipAiContext(markdown) || "empty"})`;
-    }
-    if (kind === "table") {
-      const rows = Array.isArray(brick?.rows) ? brick.rows : Array.isArray(brick?.content?.rows) ? brick.content.rows : [];
-      const rowCount = rows.length;
-      const colCount = rowCount > 0 && Array.isArray(rows[0]) ? rows[0].length : 0;
-      const preview = rowCount > 0 ? clipAiContext((rows[0] || []).join(" | "), 100) : "empty";
-      return `table(rows=${rowCount}, cols=${colCount}, head=${preview || "empty"})`;
-    }
-    if (kind === "checklist") {
-      const items = Array.isArray(brick?.items) ? brick.items : Array.isArray(brick?.content?.items) ? brick.content.items : [];
-      const done = items.filter((item: any) => !!item?.checked).length;
-      const preview = items.slice(0, 3).map((item: any) => clipAiContext(item?.label, 60)).filter(Boolean).join("; ");
-      return `checklist(done=${done}/${items.length}, items=${preview || "none"})`;
-    }
-    if (kind === "media") {
-      return `media(type=${brick?.mediaType || brick?.content?.mediaType || "file"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, caption=${clipAiContext(brick?.caption ?? brick?.content?.caption, 70) || "none"}, url=${clipAiContext(brick?.url ?? brick?.content?.url, 90) || "none"})`;
-    }
-    if (kind === "ai") {
-      return `ai(status=${brick?.status || brick?.content?.status || "unknown"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, prompt=${clipAiContext(brick?.prompt ?? brick?.content?.prompt, 90) || "none"}, response=${clipAiContext(brick?.response ?? brick?.content?.response, 90) || "none"})`;
-    }
-    if (kind === "graph") {
-      const graphData = Array.isArray(brick?.data) ? brick.data : Array.isArray(brick?.content?.data) ? brick.content.data : [];
-      const tableSource = brick?.tableSource ?? brick?.content?.tableSource;
-      const sourceLabel = tableSource?.brickId ? `table:${String(tableSource.brickId).slice(0, 8)}` : "manual";
-      return `graph(type=${brick?.type || brick?.content?.type || "line"}, title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, source=${sourceLabel}, points=${graphData.length})`;
-    }
-    if (kind === "accordion") {
-      return `accordion(title=${clipAiContext(brick?.title ?? brick?.content?.title, 70) || "none"}, expanded=${(brick?.isExpanded ?? brick?.content?.isExpanded) ? "yes" : "no"}, body=${clipAiContext(brick?.body ?? brick?.content?.body, 100) || "empty"})`;
-    }
-    return `${kind}(raw=${clipAiContext(JSON.stringify(brick), 120) || "none"})`;
+    const kind = String(brick?.kind || 'unknown');
+    const summary = buildBricksContextText([toAiContextBrick(brick)], 520).replace(/\n+/g, ' || ').trim();
+    return `${kind}(${clipAiContext(summary || 'empty', 220) || 'empty'})`;
   };
 
   const summarizeCardForAi = (cardData: any, listLabel?: string) => {
     const tags = (cardData?.tags || []).map((tag: any) => tag?.name).filter(Boolean).join(', ') || 'none';
     const assignees = (cardData?.assignees || []).map((member: any) => member?.name || member?.email).filter(Boolean).join(', ') || 'none';
     const bricks = Array.isArray(cardData?.blocks) ? cardData.blocks : [];
+    const brickIds = bricks.slice(0, 12).map((brick: any) => `${brick.kind}[${brick.id}]`).join(', ') || 'none';
     const brickDetails = bricks.slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(' || ') || 'none';
     return [
       listLabel ? `[${listLabel}]` : null,
@@ -599,6 +635,7 @@ export function CardDetailModal({
       `tags: ${tags}`,
       `assignees: ${assignees}`,
       `bricks: ${bricks.length}`,
+      `brickIds: ${brickIds}`,
       `brickDetails: ${brickDetails}`,
     ].filter(Boolean).join(' | ');
   };
