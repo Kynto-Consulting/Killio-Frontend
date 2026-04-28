@@ -255,11 +255,23 @@ function segHitsRect(ax: number, ay: number, bx: number, by: number, rx: number,
   return t0 < t1;
 }
 
-/** True if segment (ax,ay)→(bx,by) crosses any edge of the closed polygon. */
+/** Ray-casting point-in-polygon (winding). */
+function pointInPolygon(px: number, py: number, pts: Array<{ x: number; y: number }>): boolean {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+/** True if segment (ax,ay)→(bx,by) crosses any edge of the polygon OR its midpoint is inside. */
 function segHitsPolyPts(
   ax: number, ay: number, bx: number, by: number,
   pts: Array<{ x: number; y: number }>,
 ): boolean {
+  // Midpoint inside polygon — catches segments wholly inside concave pockets
+  if (pointInPolygon((ax + bx) / 2, (ay + by) / 2, pts)) return true;
   const n = pts.length;
   const d1x = bx - ax, d1y = by - ay;
   for (let i = 0; i < n; i++) {
@@ -295,9 +307,13 @@ function mkObstaclePoly(b: MeshBrick, g: { x: number; y: number }): ObstaclePoly
   return { x: g.x, y: g.y, w: b.size.w, h: b.size.h, polyPts };
 }
 
-function collisionScore(pts: Array<{ x: number; y: number }>, obs: ObstaclePoly[]): number {
+function collisionScore(
+  pts: Array<{ x: number; y: number }>, obs: ObstaclePoly[],
+  skipFirst = 0, skipLast = 0,
+): number {
   let n = 0;
-  for (let i = 0; i < pts.length - 1; i++) {
+  const end = pts.length - 1 - skipLast;
+  for (let i = skipFirst; i < end; i++) {
     const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y;
     for (const o of obs) {
       if (o.polyPts) {
@@ -308,6 +324,25 @@ function collisionScore(pts: Array<{ x: number; y: number }>, obs: ObstaclePoly[
     }
   }
   return n;
+}
+
+/** Build an ObstaclePoly from a plain rect + optional preset/vecPts (no MeshBrick needed). */
+function mkPolyFromRect(
+  rect: { x: number; y: number; w: number; h: number },
+  preset?: ShapePreset, vecPts?: VecPts,
+): ObstaclePoly {
+  const rawNorm = vecPts ?? (preset ? SHAPE_PTS[preset] : undefined);
+  let polyPts: Array<{ x: number; y: number }> | undefined;
+  if (rawNorm) {
+    polyPts = rawNorm.map(p => ({ x: rect.x + p.x * rect.w, y: rect.y + p.y * rect.h }));
+  } else if (preset === "circle" || preset === "ellipse" || preset === "flow-terminator") {
+    const a = rect.w / 2, bh = rect.h / 2, cx = rect.x + a, cy = rect.y + bh;
+    polyPts = Array.from({ length: 16 }, (_, i) => {
+      const θ = (i / 16) * Math.PI * 2;
+      return { x: cx + a * Math.cos(θ), y: cy + bh * Math.sin(θ) };
+    });
+  }
+  return { ...rect, polyPts };
 }
 
 /** Polyline with rounded corners of radius r using Q bezier arcs. */
@@ -396,10 +431,18 @@ function buildConnPolyline(
   const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
   const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
 
+  // Include src and tgt shapes as obstacles so the route can't re-enter them.
+  // We skip the first (e1→s1) and last (s2→e2) stub segments when scoring because
+  // those necessarily touch the shape borders.
+  const srcOb = mkPolyFromRect(srcRect, srcPreset, srcVecPts);
+  const tgtOb = mkPolyFromRect(tgtRect, tgtPreset, tgtVecPts);
+  const allObs = [srcOb, tgtOb, ...obs];
+  const score = (pts: Array<{ x: number; y: number }>) => collisionScore(pts, allObs, 1, 1);
+
   // Direct routes: HV and VH
   const hvPts: Array<{ x: number; y: number }> = [e1, s1, { x: s2.x, y: s1.y }, s2, e2];
   const vhPts: Array<{ x: number; y: number }> = [e1, s1, { x: s1.x, y: s2.y }, s2, e2];
-  const hvSc = collisionScore(hvPts, obs), vhSc = collisionScore(vhPts, obs);
+  const hvSc = score(hvPts), vhSc = score(vhPts);
   // Early exit — skip bypass generation if a direct route is already clean
   if (hvSc === 0 && vhSc === 0) return polylineLength(hvPts) <= polylineLength(vhPts) ? hvPts : vhPts;
   if (hvSc === 0) return hvPts;
@@ -411,11 +454,11 @@ function buildConnPolyline(
   let bestSc = Math.min(hvSc, vhSc), bestLen = polylineLength(best);
 
   const consider = (cand: Array<{ x: number; y: number }>) => {
-    const cs = collisionScore(cand, obs), cl = polylineLength(cand);
+    const cs = score(cand), cl = polylineLength(cand);
     if (cs < bestSc || (cs === bestSc && cl < bestLen)) { best = cand; bestSc = cs; bestLen = cl; }
   };
 
-  for (const ob of obs) {
+  for (const ob of allObs) {
     const top = ob.y - M, bot = ob.y + ob.h + M;
     const lft = ob.x - M,  rgt = ob.x + ob.w + M;
     // Simple axis-aligned detours
