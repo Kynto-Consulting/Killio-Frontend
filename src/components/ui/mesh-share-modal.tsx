@@ -91,7 +91,7 @@ export function MeshShareModal({
           <p className="text-sm text-muted-foreground">Controla quién puede ver y editar este Mesh Board.</p>
         </div>
 
-        <div className="p-4 space-y-6 max-h-[60vh] overflow-y-auto">
+        <div className="p-4 space-y-6 max-h-[40vh] overflow-y-auto">
           {/* Invite */}
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">Invitar personas</label>
@@ -159,46 +159,47 @@ export function MeshShareModal({
             ) : null}
           </div>
 
-          {/* General access */}
-          <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground">Acceso general</label>
-            <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
-              <div className="flex items-center gap-3">
-                <div className={`p-2 rounded-full ${visibility === "public_link" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
-                  {visibility === "public_link" ? <Globe className="h-5 w-5" /> : visibility === "team" ? <Users className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
-                </div>
-                <div className="relative">
-                  <button type="button"
-                    onClick={() => !isUpdatingVisibility && setIsVisDropdownOpen(!isVisDropdownOpen)}
-                    disabled={isUpdatingVisibility}
-                    className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0">
-                    {isUpdatingVisibility && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
-                    <span>
-                      {visibility === "private" && "Solo miembros"}
-                      {visibility === "team" && `Acceso del equipo (${teamName})`}
-                      {visibility === "public_link" && "Cualquiera con el link"}
-                    </span>
-                    <ChevronDown className="h-4 w-4 opacity-50" />
-                  </button>
-                  {isVisDropdownOpen && (
-                    <div className="absolute left-0 mt-2 w-64 rounded-md border border-border bg-popover shadow-md z-50 overflow-hidden">
-                      {[
-                        { value: "private" as const, label: "Solo miembros", desc: "Solo personas invitadas pueden acceder" },
-                        { value: "team" as const, label: `Equipo: ${teamName}`, desc: "Todos los miembros del equipo pueden ver" },
-                        { value: "public_link" as const, label: "Cualquiera con el link", desc: "Cualquier persona con el enlace puede ver" },
-                      ].map(opt => (
-                        <div key={opt.value} className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
-                          onClick={() => handleVisibilityChange(opt.value)}>
-                          <div className="font-medium">{opt.label}</div>
-                          <div className="text-xs text-muted-foreground">{opt.desc}</div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    {visibility === "public_link" ? "Accesible desde /public-mesh sin iniciar sesión" : visibility === "team" ? "Solo miembros del workspace" : "Requiere invitación explícita"}
-                  </p>
-                </div>
+        </div>
+
+        {/* General access — outside scroll container so dropdown is never clipped */}
+        <div className="px-4 pb-4 space-y-3">
+          <label className="text-sm font-medium text-foreground">Acceso general</label>
+          <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
+            <div className="flex items-center gap-3">
+              <div className={`p-2 rounded-full ${visibility === "public_link" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
+                {visibility === "public_link" ? <Globe className="h-5 w-5" /> : visibility === "team" ? <Users className="h-5 w-5" /> : <Lock className="h-5 w-5" />}
+              </div>
+              <div className="relative">
+                <button type="button"
+                  onClick={() => !isUpdatingVisibility && setIsVisDropdownOpen(!isVisDropdownOpen)}
+                  disabled={isUpdatingVisibility}
+                  className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0">
+                  {isUpdatingVisibility && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                  <span>
+                    {visibility === "private" && "Solo miembros"}
+                    {visibility === "team" && `Acceso del equipo (${teamName})`}
+                    {visibility === "public_link" && "Cualquiera con el link"}
+                  </span>
+                  <ChevronDown className="h-4 w-4 opacity-50" />
+                </button>
+                {isVisDropdownOpen && (
+                  <div className="absolute left-0 bottom-full mb-2 w-64 rounded-md border border-border bg-popover shadow-md z-50 overflow-hidden">
+                    {[
+                      { value: "private" as const, label: "Solo miembros", desc: "Solo personas invitadas pueden acceder" },
+                      { value: "team" as const, label: `Equipo: ${teamName}`, desc: "Todos los miembros del equipo pueden ver" },
+                      { value: "public_link" as const, label: "Cualquiera con el link", desc: "Cualquier persona con el enlace puede ver" },
+                    ].map(opt => (
+                      <div key={opt.value} className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
+                        onClick={() => handleVisibilityChange(opt.value)}>
+                        <div className="font-medium">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground">{opt.desc}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  {visibility === "public_link" ? "Accesible desde /public-mesh sin iniciar sesión" : visibility === "team" ? "Solo miembros del workspace" : "Requiere invitación explícita"}
+                </p>
               </div>
             </div>
           </div>
