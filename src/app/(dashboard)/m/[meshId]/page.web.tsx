@@ -347,27 +347,42 @@ function buildConnPolyline(
   const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
   const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
 
-  // Generate route candidates: HV + VH + bypass routes around each obstacle
-  const M = 28;
-  const cands: Array<Array<{ x: number; y: number }>> = [
-    [e1, s1, { x: s2.x, y: s1.y }, s2, e2],  // HV
-    [e1, s1, { x: s1.x, y: s2.y }, s2, e2],  // VH
-  ];
+  // Direct routes: HV and VH
+  const hvPts: Array<{ x: number; y: number }> = [e1, s1, { x: s2.x, y: s1.y }, s2, e2];
+  const vhPts: Array<{ x: number; y: number }> = [e1, s1, { x: s1.x, y: s2.y }, s2, e2];
+  const hvSc = collisionScore(hvPts, obs), vhSc = collisionScore(vhPts, obs);
+  // Early exit — skip bypass generation if a direct route is already clean
+  if (hvSc === 0 && vhSc === 0) return polylineLength(hvPts) <= polylineLength(vhPts) ? hvPts : vhPts;
+  if (hvSc === 0) return hvPts;
+  if (vhSc === 0) return vhPts;
+
+  // Both blocked: try corner-hugging bypass routes around each obstacle
+  const M = 36;
+  let best = hvSc <= vhSc ? hvPts : vhPts;
+  let bestSc = Math.min(hvSc, vhSc), bestLen = polylineLength(best);
+
+  const consider = (cand: Array<{ x: number; y: number }>) => {
+    const cs = collisionScore(cand, obs), cl = polylineLength(cand);
+    if (cs < bestSc || (cs === bestSc && cl < bestLen)) { best = cand; bestSc = cs; bestLen = cl; }
+  };
+
   for (const ob of obs) {
     const top = ob.y - M, bot = ob.y + ob.h + M;
     const lft = ob.x - M,  rgt = ob.x + ob.w + M;
-    cands.push(
-      [e1, s1, { x: s1.x, y: top }, { x: s2.x, y: top }, s2, e2],  // detour above
-      [e1, s1, { x: s1.x, y: bot }, { x: s2.x, y: bot }, s2, e2],  // detour below
-      [e1, s1, { x: lft, y: s1.y }, { x: lft, y: s2.y }, s2, e2],  // detour left
-      [e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: s2.y }, s2, e2],  // detour right
-    );
-  }
-  // Pick fewest collisions, break ties by shortest path
-  let best = cands[0], bestSc = collisionScore(best, obs), bestLen = polylineLength(best);
-  for (const cand of cands.slice(1)) {
-    const cs = collisionScore(cand, obs), cl = polylineLength(cand);
-    if (cs < bestSc || (cs === bestSc && cl < bestLen)) { best = cand; bestSc = cs; bestLen = cl; }
+    // Simple axis-aligned detours
+    consider([e1, s1, { x: s1.x, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: s2.y }, s2, e2]);
+    // Corner-hugging routes (reliable for large obstacles like draw bricks / boards)
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: top }, { x: lft, y: top }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: top }, { x: rgt, y: top }, { x: rgt, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: lft, y: bot }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: rgt, y: bot }, { x: rgt, y: s2.y }, s2, e2]);
   }
   return best;
 }
@@ -657,7 +672,11 @@ function shapeEdgeExit(
   const dx = tcx - cx, dy = tcy - cy;
   const len = Math.hypot(dx, dy);
   if (len < 0.5) return { x: cx, y: cy - bh / 2, nx: 0, ny: -1 };
-  return rayPolygonExit(cx, cy, rawPts.map(p => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
+  const result = rayPolygonExit(cx, cy, rawPts.map(p => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
+  // Snap to cardinal so stubs always leave shapes horizontally or vertically
+  const nx = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0;
+  const ny = Math.abs(dx) >= Math.abs(dy) ? 0 : (dy > 0 ? 1 : -1);
+  return { x: result.x, y: result.y, nx, ny };
 }
 
 /** Magnet port position on the actual shape border (polygon-aware). */
@@ -670,7 +689,9 @@ function shapePortAbsPos(
   if (!rawPts) return portAbsPos(gx, gy, bw, bh, port);
   const dirs: Record<Port, [number, number]> = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
   const [dx, dy] = dirs[port];
-  return rayPolygonExit(gx + bw / 2, gy + bh / 2, rawPts.map(p => ({ x: gx + p.x * bw, y: gy + p.y * bh })), dx, dy);
+  const result = rayPolygonExit(gx + bw / 2, gy + bh / 2, rawPts.map(p => ({ x: gx + p.x * bw, y: gy + p.y * bh })), dx, dy);
+  // Always use the port's cardinal direction so stubs leave straight
+  return { x: result.x, y: result.y, nx: dx, ny: dy };
 }
 
 // ─── SVG renderers ────────────────────────────────────────────────────────────
