@@ -2665,13 +2665,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </svg>
           )}
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
-          {/* Clear all strokes button */}
-          {isSel && manualStrokes.length > 0 && (
-            <button type="button" title="Borrar todo el dibujo" onClick={(e) => { e.stopPropagation(); clearDrawStrokes(brick.id); }}
-              className="pointer-events-auto absolute top-1 right-1 z-40 flex h-6 w-6 items-center justify-center rounded-full bg-red-900/70 text-red-300 hover:bg-red-700 hover:text-white transition-colors">
-              <Trash2 className="h-3 w-3" />
-            </button>
-          )}
           {vecCustomPortDots}
           {magnetDots}
         </div>
@@ -3076,6 +3069,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
 
           {selectedConnId && <span className="text-[10px] text-muted-foreground">Doble clic en label de conector para editar con toolbar</span>}
+          {selectedId && (() => {
+            const selB = state.bricksById[selectedId];
+            const hasStrokes = selB?.kind === "draw" && !asRec(selB.content).shapePreset &&
+              Array.isArray(asRec(selB.content).manualStrokes) &&
+              (asRec(selB.content).manualStrokes as unknown[]).length > 0;
+            return hasStrokes ? (
+              <button type="button" onClick={() => clearDrawStrokes(selectedId)}
+                className="inline-flex h-7 items-center gap-1 rounded-md border border-orange-500/40 bg-orange-950/30 px-2 text-xs text-orange-300 hover:bg-orange-900/40">
+                <Trash2 className="h-3 w-3" /> Borrar trazos
+              </button>
+            ) : null;
+          })()}
           {(selectedId || selectedConnId || selectedIds.size > 0) && (
             <button type="button" onClick={() => {
               if (selectedIds.size > 0) {
