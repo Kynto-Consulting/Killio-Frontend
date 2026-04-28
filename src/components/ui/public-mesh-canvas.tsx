@@ -849,7 +849,7 @@ function RenderBrick({
             width: brick.size.w,
             height: brick.size.h,
             background: "transparent",
-            outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+            outline: "1px solid transparent",
           }}
         >
           {manualStrokes.length > 0 && (
@@ -892,7 +892,7 @@ function RenderBrick({
           top: g.y,
           width: brick.size.w,
           height: brick.size.h,
-          outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+          outline:  "1px solid transparent",
         }}
       >
         <ShapeSvg
