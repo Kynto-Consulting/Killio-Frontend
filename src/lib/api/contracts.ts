@@ -1522,6 +1522,64 @@ export async function removeBoardMember(
 }
 
 // ==========================================
+// Mesh sharing / members / visibility
+// ==========================================
+
+export type MeshMemberSummary = {
+  id: string;
+  email: string;
+  displayName?: string;
+  avatarUrl?: string;
+  role: string;
+};
+
+export async function updateMeshVisibility(
+  meshId: string,
+  visibility: 'private' | 'team' | 'public_link',
+  accessToken: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/meshes/${meshId}/visibility`, {
+    method: 'PATCH',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ visibility }),
+  });
+}
+
+export async function getMeshMembers(
+  meshId: string,
+  accessToken: string
+): Promise<MeshMemberSummary[]> {
+  return request<MeshMemberSummary[]>(`/meshes/${meshId}/members`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function addMeshMember(
+  meshId: string,
+  email: string,
+  role: string,
+  accessToken: string
+): Promise<{ id: string }> {
+  return request<{ id: string }>(`/meshes/${meshId}/members`, {
+    method: 'POST',
+    headers: { ...authHeaders(accessToken), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, role }),
+  });
+}
+
+export async function removeMeshMember(
+  meshId: string,
+  memberId: string,
+  accessToken: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/meshes/${meshId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+// ==========================================
 // Bricks & Uploads
 // ==========================================
 

@@ -26,6 +26,7 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import { EntitySelectorModal, type EntitySelectorResult } from "@/components/ui/entity-selector-modal";
 import { PenToolbar } from "@/components/ui/pen-toolbar";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
+import { MeshShareModal } from "@/components/ui/mesh-share-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
@@ -768,6 +769,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [vecDragState, setVecDragState] = useState<VecDragState | null>(null);
   const [panDragState, setPanDragState] = useState<PanDragState | null>(null);
   const [selRect,      setSelRect]      = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  // Ref mirrors selRect so event-handler closures always see the latest value (avoids stale-closure bug in onMouseMove/onMouseUp)
+  const selRectRef = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const [pointer,      setPointer]      = useState<{ x: number; y: number } | null>(null);
 
   // pen state
@@ -1744,9 +1747,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const { x, y } = fromEv(e);
     setPointer({ x, y });
 
-    // Rubber-band selection rect
-    if (toolMode === "select" && selRect) {
-      setSelRect((r) => r ? { ...r, x2: x, y2: y } : null);
+    // Rubber-band selection rect — use ref so the check is never stale
+    if (toolMode === "select" && selRectRef.current) {
+      const updated = { ...selRectRef.current, x2: x, y2: y };
+      selRectRef.current = updated;
+      setSelRect(updated);
     }
 
     // Update snap target when mid-connection
@@ -1830,7 +1835,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return { ...cur, bricksById: { ...cur.bricksById, [b.id]: { ...b, position: { x: dragState.startPosition.x + dx, y: dragState.startPosition.y + dy } } } };
       });
     }
-  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, selRect, connSrcId, bezierCpDrag]);
+  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, connSrcId, bezierCpDrag]);
 
   // ── Mouse up ──────────────────────────────────────────────────────────────────
   const onMouseUp = useCallback(() => {
@@ -2008,10 +2013,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return { ...cur, bricksById: by, rootOrder: root };
       });
     }
-    // Rubber-band finalization
-    if (selRect) {
-      const rx1 = Math.min(selRect.x1, selRect.x2), ry1 = Math.min(selRect.y1, selRect.y2);
-      const rx2 = Math.max(selRect.x1, selRect.x2), ry2 = Math.max(selRect.y1, selRect.y2);
+    // Rubber-band finalization — always read from ref (never stale)
+    const currentSelRect = selRectRef.current;
+    if (currentSelRect) {
+      selRectRef.current = null;
+      setSelRect(null);
+      const rx1 = Math.min(currentSelRect.x1, currentSelRect.x2), ry1 = Math.min(currentSelRect.y1, currentSelRect.y2);
+      const rx2 = Math.max(currentSelRect.x1, currentSelRect.x2), ry2 = Math.max(currentSelRect.y1, currentSelRect.y2);
       if (rx2 - rx1 > 4 || ry2 - ry1 > 4) {
         const ids = new Set<string>();
         Object.values(state.bricksById).forEach((b) => {
@@ -2021,7 +2029,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         setSelectedIds(ids);
         setSelectedId(null);
       }
-      setSelRect(null);
     }
 
     setDragState(null);
@@ -2069,7 +2076,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
     if (toolMode === "select" && e.button === 0) {
       const { x, y } = fromEv(e);
-      setSelRect({ x1: x, y1: y, x2: x, y2: y });
+      const rect = { x1: x, y1: y, x2: x, y2: y };
+      selRectRef.current = rect;
+      setSelRect(rect);
       setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
     }
   }, [toolMode, fromEv, viewport.x, viewport.y]);
@@ -3052,7 +3061,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               onMouseDown={mobileMode ? undefined : onCanvasMouseDown}
               onMouseMove={mobileMode ? undefined : onMouseMove}
               onMouseUp={mobileMode ? undefined : onMouseUp}
-              onMouseLeave={() => { setActivePen(null); setDragState(null); setResizeState(null); setPanDragState(null); setSelRect(null); }}
+              onMouseLeave={() => { setActivePen(null); setDragState(null); setResizeState(null); setPanDragState(null); selRectRef.current = null; setSelRect(null); }}
               onPointerDown={mobileMode ? onCanvasPointerDown : undefined}
               onPointerMove={mobileMode ? onCanvasPointerMove : undefined}
               onPointerUp={mobileMode ? onCanvasPointerUp : undefined}
