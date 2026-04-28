@@ -300,7 +300,10 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
         <div className="p-4 border-t border-border/50 bg-muted/20 flex justify-between items-center">
           <button
             onClick={() => {
-              navigator.clipboard.writeText(window.location.href);
+              const url = visibility === "public_link"
+                ? `${window.location.origin}/public-board/${boardId}`
+                : window.location.href;
+              navigator.clipboard.writeText(url);
               toast(t("shareModal.copiedToast"), "success");
             }}
             className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors"

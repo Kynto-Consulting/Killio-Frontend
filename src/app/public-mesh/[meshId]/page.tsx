@@ -1,12 +1,16 @@
 import Link from "next/link";
+import { PublicMeshCanvas } from "@/components/ui/public-mesh-canvas";
+import type { MeshState } from "@/components/ui/public-mesh-canvas";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
 type PublicMeshView = {
   meshId: string;
   name?: string;
-  visibility?: "private" | "team" | "public_link";
   schemaVersion?: string;
+  revision?: number;
+  updatedAt?: string;
+  state: MeshState;
 };
 
 async function fetchPublicMesh(meshId: string): Promise<PublicMeshView | null> {
@@ -26,7 +30,7 @@ export default async function PublicMeshPage({ params }: { params: Promise<{ mes
   const { meshId } = await params;
   const mesh = await fetchPublicMesh(meshId);
 
-  if (!mesh || mesh.visibility !== "public_link") {
+  if (!mesh) {
     return (
       <main className="min-h-screen bg-background text-foreground p-6 md:p-10">
         <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6">
@@ -40,14 +44,14 @@ export default async function PublicMeshPage({ params }: { params: Promise<{ mes
     );
   }
 
-  const appUrl = `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/m/${meshId}?layout=false`;
+  const displayName = mesh.name || `Mesh ${meshId.slice(0, 8)}`;
 
   return (
-    <main className="flex min-h-screen flex-col bg-background text-foreground">
+    <main className="flex h-screen flex-col bg-background text-foreground overflow-hidden">
       {/* Sticky header */}
-      <header className="sticky top-0 z-50 flex h-12 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur-sm">
+      <header className="sticky top-0 z-50 flex h-12 shrink-0 items-center justify-between border-b border-border bg-card/95 px-4 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold">{mesh.name || `Mesh ${meshId.slice(0, 8)}`}</span>
+          <span className="text-sm font-semibold">{displayName}</span>
           <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-primary">Público</span>
         </div>
         <div className="flex items-center gap-2">
@@ -60,16 +64,8 @@ export default async function PublicMeshPage({ params }: { params: Promise<{ mes
         </div>
       </header>
 
-      {/* Embedded canvas */}
-      <div className="flex-1">
-        <iframe
-          src={appUrl}
-          title={mesh.name || "Mesh Board"}
-          className="h-full w-full border-0"
-          style={{ minHeight: "calc(100vh - 48px)" }}
-          allow="clipboard-write"
-        />
-      </div>
+      {/* Interactive canvas */}
+      <PublicMeshCanvas state={mesh.state} meshName={displayName} />
     </main>
   );
 }
