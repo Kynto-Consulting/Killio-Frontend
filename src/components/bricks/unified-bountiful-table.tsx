@@ -50,6 +50,11 @@ export interface BountifulColumn {
   personFormat?: "name" | "email" | "alias";
   documentFormat?: "name" | "full";
   phoneFormat?: { country?: string };
+  checkboxStyle?: {
+    color?: string;   // "blue" | "green" | "red" | "purple" | "orange" | "yellow" | "pink" | "teal"
+    gantt?: boolean;  // consecutive checked cells render as a connected Gantt bar
+    label?: string;   // text label shown next to the bar / checkbox when checked
+  };
 }
 
 export interface BountifulCell {
@@ -451,6 +456,7 @@ function ColorDot({ color, selected, onClick }: { color: string; selected?: bool
 // ─── Normalize column options to ensure every option has an id ───────────────
 
 function normalizeColumnOptions(cols: BountifulColumn[]): BountifulColumn[] {
+  if (!Array.isArray(cols)) return [];
   return cols.map(col => ({
     ...col,
     options: col.options?.map((o: any, i: number) => ({
@@ -566,7 +572,7 @@ function ColumnHeaderMenu({
 
   useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50); }, []);
 
-  const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time", "people", "created_by", "last_edited_by", "document", "phone_number"].includes(column.type);
+  const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time", "people", "created_by", "last_edited_by", "document", "phone_number", "checkbox"].includes(column.type);
 
   const top = Math.min(anchorRect.bottom + 4, window.innerHeight - 480);
   const left = Math.min(anchorRect.left, window.innerWidth - 280);
@@ -855,6 +861,25 @@ const SWATCH_COLORS: Record<string, string> = {
   red: "bg-red-500", orange: "bg-orange-500", yellow: "bg-yellow-400",
   green: "bg-green-500", teal: "bg-teal-500", gray: "bg-gray-400", brown: "bg-amber-700",
 };
+
+// Checkbox color maps — defined as static objects so Tailwind includes the classes
+const CHECKBOX_CHECKED_COLOR: Record<string, string> = {
+  blue: "text-blue-500", green: "text-green-500", red: "text-red-500",
+  purple: "text-purple-500", orange: "text-orange-500", yellow: "text-yellow-500",
+  pink: "text-pink-500", teal: "text-teal-500",
+};
+const CHECKBOX_GANTT_BG: Record<string, string> = {
+  blue: "bg-blue-500/20 border-l-blue-500", green: "bg-green-500/20 border-l-green-500",
+  red: "bg-red-500/20 border-l-red-500", purple: "bg-purple-500/20 border-l-purple-500",
+  orange: "bg-orange-500/20 border-l-orange-500", yellow: "bg-yellow-500/20 border-l-yellow-500",
+  pink: "bg-pink-500/20 border-l-pink-500", teal: "bg-teal-500/20 border-l-teal-500",
+};
+const CHECKBOX_GANTT_BAR: Record<string, string> = {
+  blue: "bg-blue-500/50", green: "bg-green-500/50", red: "bg-red-500/50",
+  purple: "bg-purple-500/50", orange: "bg-orange-500/50", yellow: "bg-yellow-500/50",
+  pink: "bg-pink-500/50", teal: "bg-teal-500/50",
+};
+const CHECKBOX_COLORS_LIST = ["blue", "green", "red", "purple", "orange", "yellow", "pink", "teal"] as const;
 
 function EditPropertyFlyout({
   column, menuTop, menuLeft, menuWidth, onClose, onUpdateOptions, onUpdateColumn, onAIAutocomplete, onMainClose,
@@ -1239,6 +1264,58 @@ function EditPropertyFlyout({
               <span className="text-muted-foreground/30">›</span>
             </div>
           </button>
+        </div>
+      )}
+
+      {/* Checkbox type */}
+      {subTab === "main" && column.type === "checkbox" && (
+        <div className="p-3 space-y-3">
+          {/* Color picker */}
+          <div>
+            <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-2">Color al marcar</label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                className={cn("h-5 w-5 rounded-full border-2 transition-all bg-muted/80",
+                  !column.checkboxStyle?.color ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
+                title="Por defecto (accent)"
+                onClick={() => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, color: undefined } })} />
+              {CHECKBOX_COLORS_LIST.map(c => (
+                <button key={c}
+                  className={cn("h-5 w-5 rounded-full border-2 transition-all", SWATCH_COLORS[c] || "bg-gray-400",
+                    column.checkboxStyle?.color === c ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
+                  title={c}
+                  onClick={() => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, color: c } })} />
+              ))}
+            </div>
+          </div>
+
+          {/* Gantt mode toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <span className="text-xs font-medium text-foreground block">Modo Gantt</span>
+              <span className="text-[10px] text-muted-foreground">Barras conectadas para diagramas</span>
+            </div>
+            <button
+              onClick={() => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, gantt: !column.checkboxStyle?.gantt } })}
+              className={cn("h-5 w-9 rounded-full transition-colors relative shrink-0",
+                column.checkboxStyle?.gantt ? "bg-accent" : "bg-muted/60")}>
+              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all",
+                column.checkboxStyle?.gantt ? "left-4" : "left-0.5")} />
+            </button>
+          </div>
+
+          {/* Label (only in Gantt mode) */}
+          {column.checkboxStyle?.gantt && (
+            <div className="animate-in slide-in-from-top-1 duration-150">
+              <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Etiqueta de barra</label>
+              <input
+                type="text"
+                value={column.checkboxStyle?.label || ""}
+                onChange={e => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, label: e.target.value || undefined } })}
+                placeholder="Ej: En progreso"
+                className="w-full h-7 rounded-md border border-input bg-background px-2 text-xs outline-none focus:ring-1 focus:ring-accent transition-shadow" />
+            </div>
+          )}
         </div>
       )}
 
@@ -3028,11 +3105,49 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
 
   // Checkbox
   if (cellType === "checkbox") {
+    const checkStyle = column.checkboxStyle;
+    const colorKey = checkStyle?.color;
+    const ganttMode = checkStyle?.gantt;
+    const checkedColor = colorKey ? (CHECKBOX_CHECKED_COLOR[colorKey] || "text-accent") : "text-accent";
+
+    if (ganttMode && cell.checked) {
+      const ganttBg = colorKey ? (CHECKBOX_GANTT_BG[colorKey] || "bg-accent/20 border-l-accent") : "bg-accent/20 border-l-accent";
+      const ganttBar = colorKey ? (CHECKBOX_GANTT_BAR[colorKey] || "bg-accent/50") : "bg-accent/50";
+      return (
+        <div
+          className={cn("w-full min-h-[24px] flex items-center gap-2 rounded border-l-2 px-2 transition-colors", ganttBg,
+            !readonly && "cursor-pointer hover:opacity-80")}
+          onClick={() => { if (!readonly) onCellChange?.({ type: "checkbox", checked: false }); }}>
+          <div className={cn("h-2.5 flex-1 rounded-full", ganttBar)} />
+          {checkStyle?.label && (
+            <span className={cn("text-[11px] font-semibold shrink-0", checkedColor)}>{checkStyle.label}</span>
+          )}
+        </div>
+      );
+    }
+
+    // Unchecked in gantt mode — show empty slot
+    if (ganttMode && !cell.checked) {
+      return (
+        <div
+          className={cn("w-full min-h-[24px] flex items-center gap-2 rounded px-2 transition-colors",
+            !readonly && "cursor-pointer hover:bg-muted/30")}
+          onClick={() => { if (!readonly) onCellChange?.({ type: "checkbox", checked: true }); }}>
+          <div className="h-2.5 flex-1 rounded-full bg-muted/30 border border-border/30" />
+        </div>
+      );
+    }
+
+    // Normal checkbox
     const Icon = cell.checked ? CheckSquare : Square;
     return (
-      <div className="w-full min-h-[24px] flex items-center cursor-pointer"
+      <div className="w-full min-h-[24px] flex items-center gap-2 cursor-pointer"
         onClick={() => { if (!readonly) onCellChange?.({ type: "checkbox", checked: !cell.checked }); }}>
-        <Icon className={cn("w-4 h-4 transition-colors", cell.checked ? "text-accent" : "text-muted-foreground/40 hover:text-accent")} />
+        <Icon className={cn("w-4 h-4 transition-colors",
+          cell.checked ? checkedColor : "text-muted-foreground/40 hover:text-accent")} />
+        {checkStyle?.label && cell.checked && (
+          <span className={cn("text-xs font-medium", checkedColor)}>{checkStyle.label}</span>
+        )}
       </div>
     );
   }
@@ -3215,10 +3330,18 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Fallback — render with RichText if contains formatting, otherwise plain
-  const fallbackText = cell.text || cell.value || (typeof cell === "object" ? JSON.stringify(cell) : String(cell));
+  // Intentionally extract human-readable text instead of raw JSON when cell type
+  // doesn't match the column type (e.g. after a column type change not yet persisted to server).
+  const fallbackText =
+    cell.text || cell.name || cell.value ||
+    (cell.items?.length ? cell.items.map(i => i.name).filter(Boolean).join(', ') : '') ||
+    (cell.url || '') ||
+    (cell.checked !== undefined ? (cell.checked ? '✓' : '') : '') ||
+    '';
+  const displayFallback = fallbackText || (typeof cell === "object" ? JSON.stringify(cell) : String(cell));
   return (
     <div className="w-full min-h-[24px] flex items-center cursor-text" onClick={() => startTextEdit(fallbackText)}>
-      <span className="text-muted-foreground truncate max-w-[200px] text-sm">{fallbackText}</span>
+      <span className="text-muted-foreground truncate max-w-[200px] text-sm">{displayFallback}</span>
     </div>
   );
 }
@@ -3419,8 +3542,12 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     const nc = [...columns]; nc.splice(srcIdx + 1, 0, nc2);
     const nr = rows.map(r => ({ ...r, cells: { ...r.cells, [nc2.id]: r.cells[colId] ? { ...r.cells[colId]! } : null } }));
     setColumns(nc); setRows(nr);
-    if (onDuplicateColumn) { onDuplicateColumn(colId, nc2.id, nc2.name, srcIdx + 1); }
-    else if (onAddColumn) { onAddColumn(nc2, srcIdx + 1); }
+    if (onDuplicateColumn) {
+      // Marcar interno para que el efecto de initRows no sobreescriba el estado optimista
+      // hasta que llegue el evento WS con los datos correctos del servidor.
+      isInternalUpdate.current = true;
+      onDuplicateColumn(colId, nc2.id, nc2.name, srcIdx + 1);
+    } else if (onAddColumn) { onAddColumn(nc2, srcIdx + 1); }
     else { emitUpdate(nc, nr); }
   };
 
@@ -3448,6 +3575,9 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     setRows(nr);
     if (onPatchColumn) {
       // Cuando existe parche granular, evita onUpdate completo para no re-renderizar todo el documento.
+      // Marcar como actualización interna para que el useEffect no revierta las celdas coercionadas
+      // cuando el servidor responde con el patch de columna (que NO incluye las celdas).
+      isInternalUpdate.current = true;
       onPatchColumn(colId, updates);
       return;
     }
@@ -3480,6 +3610,27 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     });
     return offsets;
   }, [visibleColumns]);
+
+  // Auto-compute column widths when col.wrap is true: fit the longest cell content (excluding title)
+  const autoColumnWidths = useMemo(() => {
+    const result: Record<string, number> = {};
+    columns.forEach(col => {
+      if (!col.wrap) return;
+      let maxLen = 0;
+      for (const row of rows) {
+        const cell = row.cells?.[col.id];
+        if (!cell) continue;
+        const text =
+          cell.text || cell.name || cell.value ||
+          (cell.items?.length ? cell.items.map(i => i.name).join(', ') : '') ||
+          (cell.url ?? '');
+        if (text.length > maxLen) maxLen = text.length;
+      }
+      // ~8px per character, min 120px, max 500px, +32px for cell padding
+      result[col.id] = Math.min(500, Math.max(120, maxLen * 8 + 32));
+    });
+    return result;
+  }, [columns, rows]);
 
   const toggleVisibility = (colId: string) => {
     const col = columns.find(c => c.id === colId);
@@ -3975,7 +4126,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
       )}
 
       {/* Table */}
-      <div className="overflow-auto flex-1 custom-scrollbar">
+      <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
         <table className="w-full text-sm text-left whitespace-nowrap border-collapse">
           <thead className="bg-muted/30 sticky top-0 z-10">
             <tr>
@@ -3995,7 +4146,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                       dragOverIdx === columns.indexOf(col) && "bg-accent/10 border-l-2 border-l-accent",
                       isPinned && "sticky z-20 shadow-[2px_0_4px_rgba(0,0,0,0.05)]")}
                     onClick={(e) => { if (!readonly) setHeaderMenu({ colId: col.id, rect: e.currentTarget.getBoundingClientRect() }); }}
-                    style={{ width: col.width || 180, left: isPinned ? left : undefined }}>
+                    style={{ width: col.wrap ? (autoColumnWidths[col.id] || col.width || 180) : (col.width || 180), left: isPinned ? left : undefined }}>
                     <div className="flex items-center gap-1.5 pointer-events-none">
                       <span className="opacity-50">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
                       <span className="text-xs truncate">{col.name}</span>
@@ -4024,7 +4175,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                       className={cn("px-3 py-1.5 border-r border-border last:border-r-0 relative align-middle bg-card/40 transition-colors",
                       isPinned && "sticky z-[5] shadow-[2px_0_4px_rgba(0,0,0,0.02)]",
                       isSelected && "bg-accent/20 ring-1 ring-inset ring-accent")}
-                      style={{ left: isPinned ? left : undefined }}>
+                      style={{ left: isPinned ? left : undefined, width: col.wrap ? (autoColumnWidths[col.id] || col.width || 180) : (col.width || 180) }}>
                       <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly={readonly}
                         onCellChange={newCell => handleCellChange(row.id, col.id, newCell)}
                         onOpenReferencePicker={setPickerState}
