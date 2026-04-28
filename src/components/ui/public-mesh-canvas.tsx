@@ -38,6 +38,11 @@ type ShapePreset =
   | "triangle" | "hexagon" | "star" | "arrow" | "note"
   | "frame-vector" | "flow-terminator";
 
+type Port = "top" | "right" | "bottom" | "left";
+type AnchorNorm = { x: number; y: number };
+type VecPts = { x: number; y: number }[];
+type ObstaclePoly = { x: number; y: number; w: number; h: number; polyPts?: Array<{ x: number; y: number }> };
+
 type ManualStroke = {
   points: Array<{ x: number; y: number }>;
   color: string | undefined;
@@ -195,6 +200,112 @@ function edgeExit(bx: number, by: number, bw: number, bh: number, tcx: number, t
   return { x: cx + dx * t, y: cy + dy * t, nx: 0, ny: Math.sign(dy) };
 }
 
+function portAbsPos(gx: number, gy: number, bw: number, bh: number, port: Port) {
+  switch (port) {
+    case "top":    return { x: gx + bw / 2, y: gy,          nx: 0,  ny: -1 };
+    case "right":  return { x: gx + bw,     y: gy + bh / 2, nx: 1,  ny: 0  };
+    case "bottom": return { x: gx + bw / 2, y: gy + bh,     nx: 0,  ny: 1  };
+    case "left":   return { x: gx,          y: gy + bh / 2, nx: -1, ny: 0  };
+  }
+}
+
+function segHitsRect(ax: number, ay: number, bx: number, by: number, rx: number, ry: number, rw: number, rh: number): boolean {
+  const dx = bx - ax, dy = by - ay;
+  const p = [-dx, dx, -dy, dy];
+  const q = [ax - rx, rx + rw - ax, ay - ry, ry + rh - ay];
+  let t0 = 0, t1 = 1;
+  for (let i = 0; i < 4; i++) {
+    if (p[i] === 0) { if (q[i] < 0) return false; }
+    else { const t = q[i] / p[i]; if (p[i] < 0) t0 = Math.max(t0, t); else t1 = Math.min(t1, t); }
+  }
+  return t0 < t1;
+}
+
+function pointInPolygon(px: number, py: number, pts: Array<{ x: number; y: number }>): boolean {
+  let inside = false;
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const xi = pts[i].x, yi = pts[i].y, xj = pts[j].x, yj = pts[j].y;
+    if ((yi > py) !== (yj > py) && px < (xj - xi) * (py - yi) / (yj - yi) + xi) inside = !inside;
+  }
+  return inside;
+}
+
+function segHitsPolyPts(
+  ax: number, ay: number, bx: number, by: number,
+  pts: Array<{ x: number; y: number }>,
+): boolean {
+  if (pointInPolygon((ax + bx) / 2, (ay + by) / 2, pts)) return true;
+  const n = pts.length;
+  const d1x = bx - ax, d1y = by - ay;
+  for (let i = 0; i < n; i++) {
+    const A = pts[i], B = pts[(i + 1) % n];
+    const d2x = B.x - A.x, d2y = B.y - A.y;
+    const cross = d1x * d2y - d1y * d2x;
+    if (Math.abs(cross) < 1e-10) continue;
+    const t = ((A.x - ax) * d2y - (A.y - ay) * d2x) / cross;
+    const u = ((A.x - ax) * d1y - (A.y - ay) * d1x) / cross;
+    if (t > 1e-6 && t < 1 - 1e-6 && u >= 0 && u <= 1) return true;
+  }
+  return false;
+}
+
+function mkObstaclePoly(b: MeshBrick, g: { x: number; y: number }): ObstaclePoly {
+  const preset = (asRec(b.content).shapePreset as ShapePreset | undefined);
+  const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
+  const rawNorm = bvp ?? (preset ? SHAPE_PTS[preset] : undefined);
+  let polyPts: Array<{ x: number; y: number }> | undefined;
+  if (rawNorm) {
+    polyPts = rawNorm.map((p) => ({ x: g.x + p.x * b.size.w, y: g.y + p.y * b.size.h }));
+  } else if (preset === "circle" || preset === "ellipse" || preset === "flow-terminator") {
+    const a = b.size.w / 2, bh = b.size.h / 2, cx = g.x + a, cy = g.y + bh;
+    polyPts = Array.from({ length: 16 }, (_, i) => {
+      const theta = (i / 16) * Math.PI * 2;
+      return { x: cx + a * Math.cos(theta), y: cy + bh * Math.sin(theta) };
+    });
+  }
+  return { x: g.x, y: g.y, w: b.size.w, h: b.size.h, polyPts };
+}
+
+function mkPolyFromRect(
+  rect: { x: number; y: number; w: number; h: number },
+  preset?: ShapePreset,
+  vecPts?: VecPts,
+): ObstaclePoly {
+  const rawNorm = vecPts ?? (preset ? SHAPE_PTS[preset] : undefined);
+  let polyPts: Array<{ x: number; y: number }> | undefined;
+  if (rawNorm) {
+    polyPts = rawNorm.map((p) => ({ x: rect.x + p.x * rect.w, y: rect.y + p.y * rect.h }));
+  } else if (preset === "circle" || preset === "ellipse" || preset === "flow-terminator") {
+    const a = rect.w / 2, bh = rect.h / 2, cx = rect.x + a, cy = rect.y + bh;
+    polyPts = Array.from({ length: 16 }, (_, i) => {
+      const theta = (i / 16) * Math.PI * 2;
+      return { x: cx + a * Math.cos(theta), y: cy + bh * Math.sin(theta) };
+    });
+  }
+  return { ...rect, polyPts };
+}
+
+function collisionScore(
+  pts: Array<{ x: number; y: number }>,
+  obs: ObstaclePoly[],
+  skipFirst = 0,
+  skipLast = 0,
+): number {
+  let n = 0;
+  const end = pts.length - 1 - skipLast;
+  for (let i = skipFirst; i < end; i++) {
+    const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y;
+    for (const o of obs) {
+      if (o.polyPts) {
+        if (segHitsPolyPts(ax, ay, bx, by, o.polyPts)) n++;
+      } else if (segHitsRect(ax, ay, bx, by, o.x + 4, o.y + 4, o.w - 8, o.h - 8)) {
+        n++;
+      }
+    }
+  }
+  return n;
+}
+
 function smoothPoly(pts: Array<{ x: number; y: number }>, r: number): string {
   if (pts.length < 2) return "";
   let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
@@ -215,21 +326,301 @@ function smoothPoly(pts: Array<{ x: number; y: number }>, r: number): string {
 
 const STUB = 28, CORNER_R = 10;
 
+function polylineLength(pts: Array<{ x: number; y: number }>): number {
+  let len = 0;
+  for (let i = 0; i + 1 < pts.length; i++) {
+    len += Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+  }
+  return len;
+}
+
+function pointAtPolylineFraction(pts: Array<{ x: number; y: number }>, fraction: number): { x: number; y: number } {
+  if (pts.length === 0) return { x: 0, y: 0 };
+  if (pts.length === 1) return pts[0];
+  const clamped = Math.max(0, Math.min(1, fraction));
+  let total = 0;
+  const segments: number[] = [];
+  for (let i = 0; i < pts.length - 1; i++) {
+    const seg = Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+    segments.push(seg);
+    total += seg;
+  }
+  if (total <= 0) return pts[Math.floor((pts.length - 1) / 2)];
+  const target = total * clamped;
+  let acc = 0;
+  for (let i = 0; i < segments.length; i++) {
+    const seg = segments[i];
+    if (acc + seg >= target) {
+      const t = seg > 0 ? (target - acc) / seg : 0;
+      return {
+        x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+        y: pts[i].y + (pts[i + 1].y - pts[i].y) * t,
+      };
+    }
+    acc += seg;
+  }
+  return pts[pts.length - 1];
+}
+
+function seedRand(seed: string, i: number): number {
+  let h = 5381;
+  for (let j = 0; j < seed.length; j++) h = (h * 33 ^ seed.charCodeAt(j)) >>> 0;
+  h = (h * 1664525 + i * 1013904223) >>> 0;
+  return h / 4294967296;
+}
+
+function handDrawnPath(pts: Array<{ x: number; y: number }>, seed: string): string {
+  if (pts.length < 2) return "";
+  let d = `M${pts[0].x.toFixed(1)},${pts[0].y.toFixed(1)}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const a = pts[i], b = pts[i + 1];
+    const dx = b.x - a.x, dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1) continue;
+    const px = -dy / len, py = dx / len;
+    const amp = Math.min(6, len * 0.12);
+    const w1 = (seedRand(seed, i * 4) - 0.5) * 2 * amp;
+    const w2 = (seedRand(seed, i * 4 + 1) - 0.5) * 2 * amp;
+    const cp1x = (a.x + dx / 3 + px * w1).toFixed(1);
+    const cp1y = (a.y + dy / 3 + py * w1).toFixed(1);
+    const cp2x = (a.x + dx * 2 / 3 + px * w2).toFixed(1);
+    const cp2y = (a.y + dy * 2 / 3 + py * w2).toFixed(1);
+    d += ` C${cp1x},${cp1y} ${cp2x},${cp2y} ${b.x.toFixed(1)},${b.y.toFixed(1)}`;
+  }
+  return d;
+}
+
+function ellipseExit(
+  cx: number, cy: number, a: number, b: number,
+  dx: number, dy: number,
+): { x: number; y: number; nx: number; ny: number } {
+  const len = Math.hypot(dx, dy);
+  if (len < 0.5) return { x: cx, y: cy - b, nx: 0, ny: -1 };
+  const ndx = dx / len, ndy = dy / len;
+  const t = 1 / Math.sqrt((ndx / a) ** 2 + (ndy / b) ** 2);
+  const ex = cx + ndx * t, ey = cy + ndy * t;
+  const nx = Math.abs(ndx) >= Math.abs(ndy) ? (ndx > 0 ? 1 : -1) : 0;
+  const ny = Math.abs(ndx) >= Math.abs(ndy) ? 0 : (ndy > 0 ? 1 : -1);
+  return { x: ex, y: ey, nx, ny };
+}
+
+function rayPolygonExit(
+  cx: number, cy: number,
+  pts: Array<{ x: number; y: number }>,
+  dx: number, dy: number,
+): { x: number; y: number; nx: number; ny: number } {
+  const n = pts.length;
+  let bestT = Infinity, bestX = cx, bestY = cy, bestNx = 0, bestNy = -1;
+  for (let i = 0; i < n; i++) {
+    const A = pts[i], B = pts[(i + 1) % n];
+    const edx = B.x - A.x, edy = B.y - A.y;
+    const denom = edx * dy - edy * dx;
+    if (Math.abs(denom) < 1e-10) continue;
+    const ox = cx - A.x, oy = cy - A.y;
+    const u = (ox * dy - oy * dx) / denom;
+    if (u < -1e-6 || u > 1 + 1e-6) continue;
+    const t = (ox * edy - oy * edx) / denom;
+    if (t < 1e-6 || t >= bestT) continue;
+    bestT = t;
+    bestX = cx + t * dx;
+    bestY = cy + t * dy;
+    const el = Math.hypot(edx, edy) || 1;
+    let nx = edy / el, ny = -edx / el;
+    if (nx * dx + ny * dy < 0) { nx = -nx; ny = -ny; }
+    bestNx = nx;
+    bestNy = ny;
+  }
+  return { x: bestX, y: bestY, nx: bestNx, ny: bestNy };
+}
+
+function shapeEdgeExit(
+  bx: number, by: number, bw: number, bh: number,
+  preset: ShapePreset | undefined,
+  tcx: number, tcy: number,
+  customPts?: VecPts,
+): { x: number; y: number; nx: number; ny: number } {
+  if (preset === "circle" || preset === "ellipse") {
+    return ellipseExit(bx + bw / 2, by + bh / 2, bw / 2, bh / 2, tcx - (bx + bw / 2), tcy - (by + bh / 2));
+  }
+  if (preset === "flow-terminator") {
+    const r = Math.min(bw, bh) / 2;
+    return ellipseExit(bx + bw / 2, by + bh / 2, r, r, tcx - (bx + bw / 2), tcy - (by + bh / 2));
+  }
+  const rawPts = customPts ?? (preset ? SHAPE_PTS[preset] : undefined);
+  if (!rawPts) return edgeExit(bx, by, bw, bh, tcx, tcy);
+  const cx = bx + bw / 2, cy = by + bh / 2;
+  const dx = tcx - cx, dy = tcy - cy;
+  const len = Math.hypot(dx, dy);
+  if (len < 0.5) return { x: cx, y: cy - bh / 2, nx: 0, ny: -1 };
+  const result = rayPolygonExit(cx, cy, rawPts.map((p) => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
+  const nx = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0;
+  const ny = Math.abs(dx) >= Math.abs(dy) ? 0 : (dy > 0 ? 1 : -1);
+  return { x: result.x, y: result.y, nx, ny };
+}
+
+function shapePortAbsPos(
+  gx: number, gy: number, bw: number, bh: number,
+  preset: ShapePreset | undefined,
+  port: Port,
+  customPts?: VecPts,
+): { x: number; y: number; nx: number; ny: number } {
+  const dirs: Record<Port, [number, number]> = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
+  const [dx, dy] = dirs[port];
+  if (preset === "circle" || preset === "ellipse") {
+    return { ...ellipseExit(gx + bw / 2, gy + bh / 2, bw / 2, bh / 2, dx, dy), nx: dx, ny: dy };
+  }
+  if (preset === "flow-terminator") {
+    const r = Math.min(bw, bh) / 2;
+    return { ...ellipseExit(gx + bw / 2, gy + bh / 2, r, r, dx, dy), nx: dx, ny: dy };
+  }
+  const rawPts = customPts ?? (preset ? SHAPE_PTS[preset] : undefined);
+  if (!rawPts) return portAbsPos(gx, gy, bw, bh, port);
+  const result = rayPolygonExit(gx + bw / 2, gy + bh / 2, rawPts.map((p) => ({ x: gx + p.x * bw, y: gy + p.y * bh })), dx, dy);
+  return { x: result.x, y: result.y, nx: dx, ny: dy };
+}
+
+function resolveConnEndpoint(
+  rect: { x: number; y: number; w: number; h: number },
+  port: Port | undefined,
+  preset: ShapePreset | undefined,
+  anchor: AnchorNorm | undefined,
+  fallback: { x: number; y: number },
+  vecPts?: VecPts,
+): { x: number; y: number; nx: number; ny: number } {
+  if (anchor) {
+    const ax = rect.x + anchor.x * rect.w, ay = rect.y + anchor.y * rect.h;
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    const ddx = ax - cx, ddy = ay - cy, dlen = Math.hypot(ddx, ddy) || 1;
+    return { x: ax, y: ay, nx: ddx / dlen, ny: ddy / dlen };
+  }
+  if (port) return shapePortAbsPos(rect.x, rect.y, rect.w, rect.h, preset, port, vecPts);
+  return shapeEdgeExit(rect.x, rect.y, rect.w, rect.h, preset, fallback.x, fallback.y, vecPts);
+}
+
 function buildConnPath(
   srcRect: { x: number; y: number; w: number; h: number },
   tgtRect: { x: number; y: number; w: number; h: number },
+  obs: ObstaclePoly[],
+  srcPort?: Port,
+  tgtPort?: Port,
+  srcPreset?: ShapePreset,
+  tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm,
+  tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts,
+  tgtVecPts?: VecPts,
+): string {
+  return smoothPoly(
+    buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts),
+    CORNER_R,
+  );
+}
+
+function buildConnPolyline(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  obs: ObstaclePoly[],
+  srcPort?: Port,
+  tgtPort?: Port,
+  srcPreset?: ShapePreset,
+  tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm,
+  tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts,
+  tgtVecPts?: VecPts,
+): Array<{ x: number; y: number }> {
+  const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
+  const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
+  const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
+  const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
+
+  const srcOb = mkPolyFromRect(srcRect, srcPreset, srcVecPts);
+  const tgtOb = mkPolyFromRect(tgtRect, tgtPreset, tgtVecPts);
+  const allObs = [srcOb, tgtOb, ...obs];
+  const score = (pts: Array<{ x: number; y: number }>) => collisionScore(pts, allObs, 1, 1);
+
+  const hvPts: Array<{ x: number; y: number }> = [e1, s1, { x: s2.x, y: s1.y }, s2, e2];
+  const vhPts: Array<{ x: number; y: number }> = [e1, s1, { x: s1.x, y: s2.y }, s2, e2];
+  const hvSc = score(hvPts), vhSc = score(vhPts);
+
+  if (hvSc === 0 && vhSc === 0) return polylineLength(hvPts) <= polylineLength(vhPts) ? hvPts : vhPts;
+  if (hvSc === 0) return hvPts;
+  if (vhSc === 0) return vhPts;
+
+  const M = 36;
+  let best = hvSc <= vhSc ? hvPts : vhPts;
+  let bestSc = Math.min(hvSc, vhSc), bestLen = polylineLength(best);
+
+  const consider = (cand: Array<{ x: number; y: number }>) => {
+    const cs = score(cand), cl = polylineLength(cand);
+    if (cs < bestSc || (cs === bestSc && cl < bestLen)) { best = cand; bestSc = cs; bestLen = cl; }
+  };
+
+  for (const ob of allObs) {
+    const top = ob.y - M, bot = ob.y + ob.h + M;
+    const lft = ob.x - M, rgt = ob.x + ob.w + M;
+    consider([e1, s1, { x: s1.x, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: top }, { x: s2.x, y: top }, s2, e2]);
+    consider([e1, s1, { x: lft, y: s1.y }, { x: lft, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: bot }, { x: s2.x, y: bot }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: top }, { x: lft, y: top }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: top }, { x: rgt, y: top }, { x: rgt, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: lft, y: bot }, { x: lft, y: s2.y }, s2, e2]);
+    consider([e1, s1, { x: s1.x, y: bot }, { x: rgt, y: bot }, { x: rgt, y: s2.y }, s2, e2]);
+  }
+  return best;
+}
+
+function buildBezierPath(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  cp1?: { x: number; y: number },
+  cp2?: { x: number; y: number },
+  srcPort?: Port,
+  tgtPort?: Port,
+  srcPreset?: ShapePreset,
+  tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm,
+  tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts,
+  tgtVecPts?: VecPts,
+): { d: string; e1x: number; e1y: number; e2x: number; e2y: number; cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
+  const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
+  const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
+  const stubLen = Math.max(60, Math.hypot(e2.x - e1.x, e2.y - e1.y) * 0.35);
+  const defaultCp1 = cp1 ?? { x: e1.x + e1.nx * stubLen, y: e1.y + e1.ny * stubLen };
+  const defaultCp2 = cp2 ?? { x: e2.x + e2.nx * stubLen, y: e2.y + e2.ny * stubLen };
+  const d = `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} C${defaultCp1.x.toFixed(1)},${defaultCp1.y.toFixed(1)} ${defaultCp2.x.toFixed(1)},${defaultCp2.y.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
+  return { d, e1x: e1.x, e1y: e1.y, e2x: e2.x, e2y: e2.y, cp1: defaultCp1, cp2: defaultCp2 };
+}
+
+function buildCurvedPath(
+  srcRect: { x: number; y: number; w: number; h: number },
+  tgtRect: { x: number; y: number; w: number; h: number },
+  srcPort?: Port,
+  tgtPort?: Port,
+  srcPreset?: ShapePreset,
+  tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm,
+  tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts,
+  tgtVecPts?: VecPts,
 ): string {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = edgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, tc.x, tc.y);
-  const e2 = edgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, sc.x, sc.y);
-  const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
-  const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
-  const hvPts = [e1, s1, { x: s2.x, y: s1.y }, s2, e2];
-  const vhPts = [e1, s1, { x: s1.x, y: s2.y }, s2, e2];
-  const hvLen = hvPts.reduce((a, b, i) => i > 0 ? a + Math.hypot(b.x - hvPts[i - 1].x, b.y - hvPts[i - 1].y) : a, 0);
-  const vhLen = vhPts.reduce((a, b, i) => i > 0 ? a + Math.hypot(b.x - vhPts[i - 1].x, b.y - vhPts[i - 1].y) : a, 0);
-  return smoothPoly(hvLen <= vhLen ? hvPts : vhPts, CORNER_R);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
+  const mx = (e1.x + e2.x) / 2 + (e2.y - e1.y) * 0.25;
+  const my = (e1.y + e2.y) / 2 - (e2.x - e1.x) * 0.25;
+  return `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
 }
 
 // ─── Fit-to-screen helper ─────────────────────────────────────────────────────
@@ -576,6 +967,11 @@ function ConnectorLayer({ state }: { state: MeshState }) {
   const conns = Object.values(state.connectionsById);
   if (conns.length === 0) return null;
 
+  const readAnchor = (value: unknown): AnchorNorm | undefined => {
+    const rec = asRec(value);
+    return typeof rec.x === "number" && typeof rec.y === "number" ? { x: rec.x, y: rec.y } : undefined;
+  };
+
   return (
     <svg
       className="pointer-events-none absolute inset-0"
@@ -583,7 +979,7 @@ function ConnectorLayer({ state }: { state: MeshState }) {
     >
       <defs>
         <marker id="pub-arr" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-          <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#22d3ee" opacity="0.9" />
+          <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="context-stroke" opacity="0.9" />
         </marker>
       </defs>
 
@@ -596,12 +992,46 @@ function ConnectorLayer({ state }: { state: MeshState }) {
         const tg = resolveGlobal(state.bricksById, tgt.id);
         const srcRect = { x: sg.x, y: sg.y, w: src.size.w, h: src.size.h };
         const tgtRect = { x: tg.x, y: tg.y, w: tgt.size.w, h: tgt.size.h };
-        const d = buildConnPath(srcRect, tgtRect);
 
         const st = asRec(conn.style);
         const stroke = typeof st.stroke === "string" ? st.stroke : "#22d3ee";
         const width  = typeof st.width  === "number" ? st.width  : 2;
         const dashed = st.pattern === "dashed";
+        const cType = typeof st.connType === "string" ? st.connType : "technical";
+        const sp = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
+        const tp = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
+        const srcPreset = asRec(src.content).shapePreset as ShapePreset | undefined;
+        const tgtPreset = asRec(tgt.content).shapePreset as ShapePreset | undefined;
+        const srcAnchor = readAnchor(st.srcAnchorNorm);
+        const tgtAnchor = readAnchor(st.tgtAnchorNorm);
+        const srcVecPts = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
+        const tgtVecPts = Array.isArray(asRec(tgt.content).vectorPoints) ? asRec(tgt.content).vectorPoints as VecPts : undefined;
+
+        const obs = Object.values(state.bricksById)
+          .filter((b) => b.id !== src.id && b.id !== tgt.id)
+          .map((b) => mkObstaclePoly(b, resolveGlobal(state.bricksById, b.id)));
+
+        const routePts = buildConnPolyline(srcRect, tgtRect, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
+
+        let d = "";
+        let labelPt = pointAtPolylineFraction(routePts, 0.5);
+
+        if (cType === "bezier") {
+          const cp1 = readAnchor(st.cp1);
+          const cp2 = readAnchor(st.cp2);
+          const bezierInfo = buildBezierPath(srcRect, tgtRect, cp1, cp2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
+          d = bezierInfo.d;
+          labelPt = {
+            x: 0.125 * bezierInfo.e1x + 0.375 * bezierInfo.cp1.x + 0.375 * bezierInfo.cp2.x + 0.125 * bezierInfo.e2x,
+            y: 0.125 * bezierInfo.e1y + 0.375 * bezierInfo.cp1.y + 0.375 * bezierInfo.cp2.y + 0.125 * bezierInfo.e2y,
+          };
+        } else if (cType === "curved") {
+          d = buildCurvedPath(srcRect, tgtRect, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
+        } else if (cType === "handdrawn") {
+          d = handDrawnPath(routePts, conn.id);
+        } else {
+          d = buildConnPath(srcRect, tgtRect, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
+        }
 
         // label at midpoint
         const label = (() => {
@@ -625,25 +1055,26 @@ function ConnectorLayer({ state }: { state: MeshState }) {
               d={d}
               fill="none"
               stroke={stroke}
-              strokeWidth={width}
+              strokeWidth={cType === "handdrawn" ? width + 0.5 : width}
               strokeDasharray={dashed ? "6 4" : undefined}
+              strokeLinecap={cType === "handdrawn" ? "round" : "butt"}
+              strokeLinejoin={cType === "handdrawn" ? "round" : "miter"}
               markerEnd="url(#pub-arr)"
               opacity={0.9}
             />
-            {label && (() => {
-              // approximate midpoint from path
-              return (
-                <text
-                  fontSize={10}
-                  fill="#e2e8f0"
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="pointer-events-none select-none"
-                >
-                  {label}
-                </text>
-              );
-            })()}
+            {label && (
+              <text
+                x={labelPt.x}
+                y={labelPt.y - 6}
+                fontSize={10}
+                fill="#e2e8f0"
+                textAnchor="middle"
+                dominantBaseline="middle"
+                className="pointer-events-none select-none"
+              >
+                {label}
+              </text>
+            )}
           </g>
         );
       })}
@@ -752,7 +1183,12 @@ export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
   }, []);
 
   // Top-level bricks (no parent)
-  const rootIds = state.rootOrder.filter((id) => {
+  const orderedIds = [
+    ...state.rootOrder,
+    ...Object.keys(state.bricksById).filter((id) => !state.rootOrder.includes(id)),
+  ];
+
+  const rootIds = orderedIds.filter((id) => {
     const b = state.bricksById[id];
     return b && !b.parentId;
   });
