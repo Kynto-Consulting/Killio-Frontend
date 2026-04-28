@@ -12,7 +12,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Sparkles, Square, Trash2, Type, Wand2, X,
-  Share2, ZoomIn, ZoomOut, Grid3X3,
+  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -2504,9 +2504,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
             {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
             {portalHref && !isEditing && (
-              <a href={portalHref} className="pointer-events-auto ml-auto shrink-0 flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => e.stopPropagation()} title="Abrir en nueva pestaña">
-                <ExternalLink className="h-2.5 w-2.5" />
-              </a>
+              <div className="pointer-events-auto ml-auto flex items-center gap-0.5">
+                <button type="button" className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => { e.stopPropagation(); setPortalPreview({ url: portalHref, title: targetLabel || targetId }); }} title="Ver en pantalla completa">
+                  <Maximize2 className="h-2.5 w-2.5" />
+                </button>
+                <a href={portalHref} className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => e.stopPropagation()} title="Abrir en nueva pestaña" target="_blank" rel="noopener noreferrer">
+                  <ExternalLink className="h-2.5 w-2.5" />
+                </a>
+              </div>
             )}
           </div>
           <div className="h-[calc(100%-28px)]">
@@ -2557,7 +2562,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   <img
                     src={previewImageDataUrl}
                     alt="Portal preview"
-                    className="h-full w-full object-cover object-top"
+                    className="w-full"
+                    style={{ display: "block" }}
                     loading="lazy"
                   />
                 ) : portalPreviewBrick ? (
@@ -3542,105 +3548,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     </div>
 
     {/* ── Share modal ──────────────────────────────────────────────────────────────── */}
-    {isShareModalOpen && (
-      <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/60 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) setIsShareModalOpen(false); }}>
-        <div className="flex w-full max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card shadow-2xl">
-          <div className="flex items-center justify-between border-b border-border px-4 py-3">
-            <div className="flex items-center gap-2">
-              <Share2 className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-semibold text-foreground">Compartir Mesh Board</p>
-            </div>
-            <button type="button" className="rounded p-1 text-muted-foreground hover:bg-accent/20 hover:text-foreground" onClick={() => setIsShareModalOpen(false)}>
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-          <div className="flex flex-col gap-4 p-4">
-            {/* Link copy */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Link de acceso</p>
-              <div className="flex gap-2">
-                <input
-                  readOnly
-                  value={typeof window !== "undefined" ? window.location.href : ""}
-                  className="flex-1 min-w-0 rounded-md border border-border bg-muted/40 px-2.5 py-1.5 text-[11px] font-mono text-foreground/70 outline-none"
-                />
-                <button
-                  type="button"
-                  className="shrink-0 inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                  onClick={async () => {
-                    try {
-                      await navigator.clipboard.writeText(typeof window !== "undefined" ? window.location.href : "");
-                      toast("Link copiado.", "success");
-                    } catch { toast("No se pudo copiar.", "error"); }
-                  }}
-                >
-                  <Copy className="h-3 w-3" /> Copiar
-                </button>
-              </div>
-            </div>
-
-            {/* Permissions row */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Permisos</p>
-              <div className="grid grid-cols-3 gap-2">
-                {(["Ver", "Comentar", "Editar"] as const).map((label) => (
-                  <button key={label} type="button"
-                    className={`rounded-md border px-3 py-2 text-[11px] font-medium transition-colors ${label === "Editar" ? "border-primary bg-primary/10 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-border/80 hover:text-foreground"}`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Share as */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Compartir como</p>
-              <div className="flex flex-col gap-1">
-                {[
-                  { icon: <LayoutGrid className="h-3.5 w-3.5" />, label: "Mesh Board", sub: "Vista completa del canvas", href: typeof window !== "undefined" ? window.location.href : "" },
-                  { icon: <LayoutGrid className="h-3.5 w-3.5 opacity-50" />, label: "Mesh (sin barra lateral)", sub: "Solo el canvas, sin navegación", href: typeof window !== "undefined" ? window.location.href + "?layout=false" : "" },
-                ].map((opt) => (
-                  <button key={opt.label} type="button"
-                    className="flex items-center gap-2.5 rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-left hover:border-border hover:bg-muted/40 transition-colors"
-                    onClick={async () => {
-                      try {
-                        await navigator.clipboard.writeText(opt.href);
-                        toast(`Link copiado: ${opt.label}`, "success");
-                      } catch { toast("No se pudo copiar.", "error"); }
-                    }}>
-                    <span className="shrink-0 text-muted-foreground">{opt.icon}</span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[11px] font-medium text-foreground">{opt.label}</span>
-                      <span className="block text-[10px] text-muted-foreground">{opt.sub}</span>
-                    </span>
-                    <Copy className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Embed */}
-            <div className="flex flex-col gap-1.5">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Embed</p>
-              <button type="button"
-                className="flex items-center gap-2.5 rounded-md border border-border/50 bg-muted/20 px-3 py-2 text-left hover:border-border hover:bg-muted/40 transition-colors"
-                onClick={async () => {
-                  const url = typeof window !== "undefined" ? window.location.href : "";
-                  const code = `<iframe src="${url}?layout=false" width="100%" height="600" frameborder="0" allowfullscreen></iframe>`;
-                  try { await navigator.clipboard.writeText(code); toast("Código embed copiado.", "success"); } catch { toast("No se pudo copiar.", "error"); }
-                }}>
-                <Code2 className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <span className="flex-1 min-w-0">
-                  <span className="block text-[11px] font-medium text-foreground">Copiar código iframe</span>
-                  <span className="block text-[10px] text-muted-foreground">Para embeber en documentos o sitios web</span>
-                </span>
-                <Copy className="h-3 w-3 shrink-0 text-muted-foreground/50" />
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    )}
+    <MeshShareModal
+      isOpen={isShareModalOpen}
+      onClose={() => setIsShareModalOpen(false)}
+      meshId={meshId ?? ""}
+      meshName={`Mesh ${(meshId ?? "").slice(0, 8)}`}
+      accessToken={accessToken ?? ""}
+    />
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}
     {portalPreview && (
