@@ -32,6 +32,7 @@ import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
 } from "@/lib/api/contracts";
+import { getAblyClient } from "@/lib/ably";
 import { getDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 
@@ -633,6 +634,22 @@ const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
   "frame-vector": [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
 };
 
+/** Analytical ellipse exit: ray from (cx,cy) in direction (dx,dy) hitting ellipse with semi-axes (a,b). */
+function ellipseExit(
+  cx: number, cy: number, a: number, b: number,
+  dx: number, dy: number,
+): { x: number; y: number; nx: number; ny: number } {
+  const len = Math.hypot(dx, dy);
+  if (len < 0.5) return { x: cx, y: cy - b, nx: 0, ny: -1 };
+  const ndx = dx / len, ndy = dy / len;
+  const t = 1 / Math.sqrt((ndx / a) ** 2 + (ndy / b) ** 2);
+  const ex = cx + ndx * t, ey = cy + ndy * t;
+  // Cardinal-snap outward normal
+  const nx = Math.abs(ndx) >= Math.abs(ndy) ? (ndx > 0 ? 1 : -1) : 0;
+  const ny = Math.abs(ndx) >= Math.abs(ndy) ? 0 : (ndy > 0 ? 1 : -1);
+  return { x: ex, y: ey, nx, ny };
+}
+
 /** Ray–polygon intersection. Returns first point where ray (cx,cy)→(dx,dy) exits the polygon. */
 function rayPolygonExit(
   cx: number, cy: number,
@@ -666,6 +683,12 @@ function shapeEdgeExit(
   preset: ShapePreset | undefined,
   tcx: number, tcy: number,
 ): { x: number; y: number; nx: number; ny: number } {
+  if (preset === "circle" || preset === "ellipse")
+    return ellipseExit(bx + bw / 2, by + bh / 2, bw / 2, bh / 2, tcx - (bx + bw / 2), tcy - (by + bh / 2));
+  if (preset === "flow-terminator") {
+    const r = Math.min(bw, bh) / 2;
+    return ellipseExit(bx + bw / 2, by + bh / 2, r, r, tcx - (bx + bw / 2), tcy - (by + bh / 2));
+  }
   const rawPts = preset ? SHAPE_PTS[preset] : undefined;
   if (!rawPts) return edgeExit(bx, by, bw, bh, tcx, tcy);
   const cx = bx + bw / 2, cy = by + bh / 2;
@@ -685,12 +708,17 @@ function shapePortAbsPos(
   preset: ShapePreset | undefined,
   port: Port,
 ): { x: number; y: number; nx: number; ny: number } {
-  const rawPts = preset ? SHAPE_PTS[preset] : undefined;
-  if (!rawPts) return portAbsPos(gx, gy, bw, bh, port);
   const dirs: Record<Port, [number, number]> = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
   const [dx, dy] = dirs[port];
+  if (preset === "circle" || preset === "ellipse")
+    return { ...ellipseExit(gx + bw / 2, gy + bh / 2, bw / 2, bh / 2, dx, dy), nx: dx, ny: dy };
+  if (preset === "flow-terminator") {
+    const r = Math.min(bw, bh) / 2;
+    return { ...ellipseExit(gx + bw / 2, gy + bh / 2, r, r, dx, dy), nx: dx, ny: dy };
+  }
+  const rawPts = preset ? SHAPE_PTS[preset] : undefined;
+  if (!rawPts) return portAbsPos(gx, gy, bw, bh, port);
   const result = rayPolygonExit(gx + bw / 2, gy + bh / 2, rawPts.map(p => ({ x: gx + p.x * bw, y: gy + p.y * bh })), dx, dy);
-  // Always use the port's cardinal direction so stubs leave straight
   return { x: result.x, y: result.y, nx: dx, ny: dy };
 }
 
@@ -736,8 +764,12 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
   }
   if (!vp) return null;
   const pStr = vp.map((p) => `${+(p.x * w).toFixed(1)},${+(p.y * h).toFixed(1)}`).join(" ");
+  // Expand viewBox to accommodate vec pts that may sit outside [0,1]
+  const xs = vp.map(p => p.x * w), ys = vp.map(p => p.y * h);
+  const vbX = Math.min(0, ...xs) - sw, vbY = Math.min(0, ...ys) - sw;
+  const vbW = Math.max(w, ...xs) - vbX + sw, vbH = Math.max(h, ...ys) - vbY + sw;
   return (
-    <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+    <svg width="100%" height="100%" viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} overflow="visible" className="pointer-events-none absolute inset-0" style={{ overflow: "visible" }}>
       <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} />
     </svg>
   );
@@ -1566,6 +1598,133 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     return () => window.clearInterval(id);
   }, [capturePortalScreenshot]);
 
+  // ── Mirror hydration (option 1: fetch on mount / when brick is added) ─────────
+  const mirrorHydrationAttemptRef = useRef<Record<string, string>>({});
+  const mirrorHydrationInFlightRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!accessToken) return;
+    const mirrors = Object.values(state.bricksById).filter((b) => {
+      if (b.kind !== "mirror") return false;
+      const c = asRec(b.content);
+      return typeof c.sourceScopeId === "string" && (c.sourceScopeId as string).trim().length > 0
+          && typeof c.sourceId === "string" && (c.sourceId as string).trim().length > 0;
+    });
+
+    mirrors.forEach((mirrorBrick) => {
+      const c = asRec(mirrorBrick.content);
+      const sourceType   = typeof c.sourceType   === "string" ? c.sourceType   : "mesh";
+      const sourceScopeId = (c.sourceScopeId as string).trim();
+      const sourceId     = (c.sourceId as string).trim();
+      const sig = `${sourceType}:${sourceScopeId}:${sourceId}`;
+      if (mirrorHydrationAttemptRef.current[mirrorBrick.id] === sig) return;
+      if (mirrorHydrationInFlightRef.current.has(mirrorBrick.id)) return;
+      mirrorHydrationAttemptRef.current[mirrorBrick.id] = sig;
+      mirrorHydrationInFlightRef.current.add(mirrorBrick.id);
+
+      void (async () => {
+        try {
+          let previewMarkdown = "";
+          let previewContent: Record<string, unknown> | null = null;
+          if (sourceType === "mesh") {
+            const mesh = await getMesh(sourceScopeId, accessToken);
+            const brick = mesh.state.bricksById[sourceId];
+            if (brick) {
+              const bc = asRec(brick.content);
+              previewMarkdown = typeof bc.markdown === "string" ? bc.markdown
+                : typeof bc.text === "string" ? bc.text : "";
+              previewContent = bc as Record<string, unknown>;
+            }
+          } else if (sourceType === "board") {
+            const board = await getBoard(sourceScopeId, accessToken);
+            const card = board.lists.flatMap((l) => l.cards || []).find((card) => card.id === sourceId || card.blocks?.some((blk: Record<string, unknown>) => blk.id === sourceId));
+            if (card) {
+              previewMarkdown = card.summary?.trim() || card.title || "";
+            }
+          } else if (sourceType === "document") {
+            const doc = await getDocument(sourceScopeId, accessToken);
+            const brick = (doc.bricks || []).find((b) => b.id === sourceId);
+            if (brick) {
+              const bc = asRec(brick.content);
+              previewMarkdown = typeof bc.markdown === "string" ? bc.markdown : typeof bc.text === "string" ? bc.text : "";
+            }
+          }
+          if (!previewMarkdown && !previewContent) return;
+          setState((cur) => {
+            const live = cur.bricksById[mirrorBrick.id];
+            if (!live || live.kind !== "mirror") return cur;
+            return { ...cur, bricksById: { ...cur.bricksById, [mirrorBrick.id]: { ...live, content: { ...asRec(live.content), previewMarkdown, previewContent } } } };
+          });
+        } catch { /* silent */ } finally {
+          mirrorHydrationInFlightRef.current.delete(mirrorBrick.id);
+        }
+      })();
+    });
+  }, [accessToken, state.bricksById]);
+
+  // ── Mirror WS refresh (option 3: subscribe to source mesh channel) ────────────
+  useEffect(() => {
+    if (!accessToken) return;
+    // Collect distinct source scope IDs and which mirror bricks watch them
+    const scopeMap = new Map<string, { scopeId: string; brickIds: Set<string> }>();
+    Object.values(state.bricksById).forEach((b) => {
+      if (b.kind !== "mirror") return;
+      const c = asRec(b.content);
+      const sourceType    = typeof c.sourceType    === "string" ? c.sourceType    : "mesh";
+      const sourceScopeId = typeof c.sourceScopeId === "string" ? (c.sourceScopeId as string).trim() : "";
+      if (!sourceScopeId || sourceType !== "mesh") return;
+      if (!scopeMap.has(sourceScopeId)) scopeMap.set(sourceScopeId, { scopeId: sourceScopeId, brickIds: new Set() });
+      scopeMap.get(sourceScopeId)!.brickIds.add(b.id);
+    });
+    if (scopeMap.size === 0) return;
+
+    const ably = getAblyClient(accessToken);
+    const subscriptions: Array<{ channel: ReturnType<typeof ably.channels.get>; listener: (msg: unknown) => void }> = [];
+
+    scopeMap.forEach(({ scopeId, brickIds }) => {
+      const channel = ably.channels.get(`board:${scopeId}`);
+      const listener = async (message: unknown) => {
+        const data = ((message as { data?: unknown }).data ?? {}) as Record<string, unknown>;
+        const eventType = (message as { name?: string }).name ?? "";
+        if (eventType !== "mesh.brick.updated" && eventType !== "mesh.state.updated") return;
+        // Re-fetch the source mesh and update all mirrors watching this scope
+        try {
+          const mesh = await getMesh(scopeId, accessToken);
+          setState((cur) => {
+            let next = cur;
+            brickIds.forEach((mirrorId) => {
+              const mirrorBrick = cur.bricksById[mirrorId];
+              if (!mirrorBrick || mirrorBrick.kind !== "mirror") return;
+              const mc = asRec(mirrorBrick.content);
+              const sourceId = typeof mc.sourceId === "string" ? mc.sourceId : "";
+              if (!sourceId) return;
+              // Only update if this specific brick changed (if brickId is in payload)
+              const payloadBrickId = typeof data.brickId === "string" ? data.brickId : null;
+              if (payloadBrickId && payloadBrickId !== sourceId) return;
+              const sourceBrick = mesh.state.bricksById[sourceId];
+              if (!sourceBrick) return;
+              const bc = asRec(sourceBrick.content);
+              const previewMarkdown = typeof bc.markdown === "string" ? bc.markdown : typeof bc.text === "string" ? bc.text : "";
+              next = { ...next, bricksById: { ...next.bricksById, [mirrorId]: { ...mirrorBrick, content: { ...mc, previewMarkdown, previewContent: bc as Record<string, unknown> } } } };
+            });
+            return next;
+          });
+        } catch { /* silent */ }
+      };
+      channel.subscribe("mesh.brick.updated", listener);
+      channel.subscribe("mesh.state.updated", listener);
+      subscriptions.push({ channel, listener });
+    });
+
+    return () => {
+      subscriptions.forEach(({ channel, listener }) => {
+        channel.unsubscribe("mesh.brick.updated", listener);
+        channel.unsubscribe("mesh.state.updated", listener);
+      });
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, meshId]);
+
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -1944,8 +2103,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const b = cur.bricksById[vecDragState.brickId];
         if (!b) return cur;
         const g = resolveGlobal(cur.bricksById, b.id);
-        const nx = Math.max(0, Math.min(1, (x - g.x) / Math.max(b.size.w, 1)));
-        const ny = Math.max(0, Math.min(1, (y - g.y) / Math.max(b.size.h, 1)));
+        const nx = (x - g.x) / Math.max(b.size.w, 1);
+        const ny = (y - g.y) / Math.max(b.size.h, 1);
         const c  = asRec(b.content);
         const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
         pts[vecDragState.pointIndex] = { x: +nx.toFixed(4), y: +ny.toFixed(4) };
