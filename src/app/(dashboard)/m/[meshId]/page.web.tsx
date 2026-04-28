@@ -311,6 +311,7 @@ function resolveConnEndpoint(
   preset: ShapePreset | undefined,
   anchor: AnchorNorm | undefined,
   fallback: { x: number; y: number },
+  vecPts?: { x: number; y: number }[],  // user-modified normalized vec points for this brick
 ): { x: number; y: number; nx: number; ny: number } {
   if (anchor) {
     const ax = rect.x + anchor.x * rect.w, ay = rect.y + anchor.y * rect.h;
@@ -318,9 +319,11 @@ function resolveConnEndpoint(
     const ddx = ax - cx, ddy = ay - cy, dlen = Math.hypot(ddx, ddy) || 1;
     return { x: ax, y: ay, nx: ddx / dlen, ny: ddy / dlen };
   }
-  if (port) return shapePortAbsPos(rect.x, rect.y, rect.w, rect.h, preset, port);
-  return shapeEdgeExit(rect.x, rect.y, rect.w, rect.h, preset, fallback.x, fallback.y);
+  if (port) return shapePortAbsPos(rect.x, rect.y, rect.w, rect.h, preset, port, vecPts);
+  return shapeEdgeExit(rect.x, rect.y, rect.w, rect.h, preset, fallback.x, fallback.y, vecPts);
 }
+
+type VecPts = { x: number; y: number }[];
 
 function buildConnPath(
   srcRect: { x: number; y: number; w: number; h: number },
@@ -329,8 +332,9 @@ function buildConnPath(
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts, tgtVecPts?: VecPts,
 ): string {
-  return smoothPoly(buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort, srcPreset, tgtPreset, srcAnchor, tgtAnchor), CORNER_R);
+  return smoothPoly(buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts), CORNER_R);
 }
 
 function buildConnPolyline(
@@ -340,11 +344,12 @@ function buildConnPolyline(
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts, tgtVecPts?: VecPts,
 ): Array<{ x: number; y: number }> {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
-  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
   const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
   const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
 
@@ -682,6 +687,7 @@ function shapeEdgeExit(
   bx: number, by: number, bw: number, bh: number,
   preset: ShapePreset | undefined,
   tcx: number, tcy: number,
+  customPts?: { x: number; y: number }[],  // user-modified normalized vec points
 ): { x: number; y: number; nx: number; ny: number } {
   if (preset === "circle" || preset === "ellipse")
     return ellipseExit(bx + bw / 2, by + bh / 2, bw / 2, bh / 2, tcx - (bx + bw / 2), tcy - (by + bh / 2));
@@ -689,14 +695,14 @@ function shapeEdgeExit(
     const r = Math.min(bw, bh) / 2;
     return ellipseExit(bx + bw / 2, by + bh / 2, r, r, tcx - (bx + bw / 2), tcy - (by + bh / 2));
   }
-  const rawPts = preset ? SHAPE_PTS[preset] : undefined;
+  // Prefer user-modified vec points, fall back to preset template, then bounding-box
+  const rawPts = customPts ?? (preset ? SHAPE_PTS[preset] : undefined);
   if (!rawPts) return edgeExit(bx, by, bw, bh, tcx, tcy);
   const cx = bx + bw / 2, cy = by + bh / 2;
   const dx = tcx - cx, dy = tcy - cy;
   const len = Math.hypot(dx, dy);
   if (len < 0.5) return { x: cx, y: cy - bh / 2, nx: 0, ny: -1 };
   const result = rayPolygonExit(cx, cy, rawPts.map(p => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
-  // Snap to cardinal so stubs always leave shapes horizontally or vertically
   const nx = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0;
   const ny = Math.abs(dx) >= Math.abs(dy) ? 0 : (dy > 0 ? 1 : -1);
   return { x: result.x, y: result.y, nx, ny };
@@ -707,6 +713,7 @@ function shapePortAbsPos(
   gx: number, gy: number, bw: number, bh: number,
   preset: ShapePreset | undefined,
   port: Port,
+  customPts?: { x: number; y: number }[],  // user-modified normalized vec points
 ): { x: number; y: number; nx: number; ny: number } {
   const dirs: Record<Port, [number, number]> = { top: [0, -1], right: [1, 0], bottom: [0, 1], left: [-1, 0] };
   const [dx, dy] = dirs[port];
@@ -716,7 +723,7 @@ function shapePortAbsPos(
     const r = Math.min(bw, bh) / 2;
     return { ...ellipseExit(gx + bw / 2, gy + bh / 2, r, r, dx, dy), nx: dx, ny: dy };
   }
-  const rawPts = preset ? SHAPE_PTS[preset] : undefined;
+  const rawPts = customPts ?? (preset ? SHAPE_PTS[preset] : undefined);
   if (!rawPts) return portAbsPos(gx, gy, bw, bh, port);
   const result = rayPolygonExit(gx + bw / 2, gy + bh / 2, rawPts.map(p => ({ x: gx + p.x * bw, y: gy + p.y * bh })), dx, dy);
   return { x: result.x, y: result.y, nx: dx, ny: dy };
@@ -764,12 +771,12 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
   }
   if (!vp) return null;
   const pStr = vp.map((p) => `${+(p.x * w).toFixed(1)},${+(p.y * h).toFixed(1)}`).join(" ");
-  // Expand viewBox to accommodate vec pts that may sit outside [0,1]
-  const xs = vp.map(p => p.x * w), ys = vp.map(p => p.y * h);
-  const vbX = Math.min(0, ...xs) - sw, vbY = Math.min(0, ...ys) - sw;
-  const vbW = Math.max(w, ...xs) - vbX + sw, vbH = Math.max(h, ...ys) - vbY + sw;
+  // Fixed viewBox preserves 1:1 mapping so dots and polygon always align.
+  // overflow:visible lets points dragged outside the brick bounds render cleanly.
   return (
-    <svg width="100%" height="100%" viewBox={`${vbX} ${vbY} ${vbW} ${vbH}`} overflow="visible" className="pointer-events-none absolute inset-0" style={{ overflow: "visible" }}>
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}
+      className="pointer-events-none absolute inset-0"
+      style={{ overflow: "visible" }}>
       <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} />
     </svg>
   );
@@ -827,11 +834,12 @@ function buildBezierPath(
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts, tgtVecPts?: VecPts,
 ): { d: string; e1x: number; e1y: number; e2x: number; e2y: number; cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
-  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
   const stubLen = Math.max(60, Math.hypot(e2.x - e1.x, e2.y - e1.y) * 0.35);
   const defaultCp1 = cp1 ?? { x: e1.x + e1.nx * stubLen, y: e1.y + e1.ny * stubLen };
   const defaultCp2 = cp2 ?? { x: e2.x + e2.nx * stubLen, y: e2.y + e2.ny * stubLen };
@@ -846,11 +854,12 @@ function buildCurvedPath(
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
+  srcVecPts?: VecPts, tgtVecPts?: VecPts,
 ): string {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
-  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc, srcVecPts);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc, tgtVecPts);
   const mx = (e1.x + e2.x) / 2 + (e2.y - e1.y) * 0.25;
   const my = (e1.y + e2.y) / 2 - (e2.x - e1.x) * 0.25;
   return `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
@@ -2059,8 +2068,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         if (b.id === connSrcId) return;
         const g = gPos(b.id);
         const bPreset = asRec(b.content).shapePreset as ShapePreset | undefined;
+        const bVecPts = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
         ALL_PORTS.forEach((port) => {
-          const mp = shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bPreset, port);
+          const mp = shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bPreset, port, bVecPts);
           const d = Math.hypot(x - mp.x, y - mp.y);
           if (d < bestDist) { bestDist = d; bestId = b.id; bestPort = port; }
         });
@@ -2549,12 +2559,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     // Magnet port dots rendered inside each brick when conn mode is active
     const brickShapePreset = asRec(brick.content).shapePreset as ShapePreset | undefined;
+    const brickVecPts = Array.isArray(asRec(brick.content).vectorPoints) ? asRec(brick.content).vectorPoints as VecPts : undefined;
     const brickCustomPorts = Array.isArray(asRec(brick.content).customPorts)
       ? (asRec(brick.content).customPorts as AnchorNorm[]) : [];
     const magnetDots = toolMode === "conn" ? (
       <div className="pointer-events-none absolute inset-0 z-50">
         {ALL_PORTS.map((port) => {
-          const mp = shapePortAbsPos(0, 0, brick.size.w, brick.size.h, brickShapePreset, port);
+          const mp = shapePortAbsPos(0, 0, brick.size.w, brick.size.h, brickShapePreset, port, brickVecPts);
           const isSnap = snapTarget?.brickId === brick.id && snapTarget.port === port;
           const isSrc  = connSrcId === brick.id && connSrcPort === port;
           return (
@@ -2680,7 +2691,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         <div key={brick.id}
           className={`group absolute${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: isCont && !collapsed ? "visible" : "hidden" }}
+            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: "visible" }}
           onClick={(e) => { if (e.altKey && toolMode === "vec" && isSel) { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); addCustomPort(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } onBrickClick(e, brick.id); }}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
@@ -3528,6 +3539,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const tgtPreset = asRec(tgt.content).shapePreset as ShapePreset | undefined;
                     const srcAnchor = st.srcAnchorNorm as AnchorNorm | undefined;
                     const tgtAnchor = st.tgtAnchorNorm as AnchorNorm | undefined;
+                    // User-modified vector points — used so connections track edited polygon borders
+                    const srcVecPts = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
+                    const tgtVecPts = Array.isArray(asRec(tgt.content).vectorPoints) ? asRec(tgt.content).vectorPoints as VecPts : undefined;
                     const markerId  = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
                     const connLabel = typeof st.label === "string" ? st.label : "";
                     const isEditingConnLabel = editingConnId === conn.id;
@@ -3543,24 +3557,24 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     if (cType === "bezier") {
                       const cp1 = st.cp1 as { x: number; y: number } | undefined;
                       const cp2 = st.cp2 as { x: number; y: number } | undefined;
-                      bezierInfo = buildBezierPath(srcR, tgtR, cp1, cp2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
+                      bezierInfo = buildBezierPath(srcR, tgtR, cp1, cp2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       d = bezierInfo.d;
                       labelPt = {
                         x: 0.125 * bezierInfo.e1x + 0.375 * bezierInfo.cp1.x + 0.375 * bezierInfo.cp2.x + 0.125 * bezierInfo.e2x,
                         y: 0.125 * bezierInfo.e1y + 0.375 * bezierInfo.cp1.y + 0.375 * bezierInfo.cp2.y + 0.125 * bezierInfo.e2y,
                       };
                     } else if (cType === "curved") {
-                      d = buildCurvedPath(srcR, tgtR, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
+                      d = buildCurvedPath(srcR, tgtR, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       const obs2 = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
                         .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
-                      const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
+                      const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       labelPt = pointAtPolylineFraction(rp2, 0.5);
                     } else {
                       const obs = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
                         .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
-                      const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
+                      const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       d = cType === "handdrawn" ? handDrawnPath(routePts, conn.id) : smoothPoly(routePts, CORNER_R);
                       labelPt = pointAtPolylineFraction(routePts, 0.5);
                     }
@@ -3673,13 +3687,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const st = connStyle(connPreset);
                     const srcH2 = collapsedBoards.has(connSrcId) ? 28 : src.size.h;
                     const srcPresetGhost = asRec(src.content).shapePreset as ShapePreset | undefined;
+                    const srcVecPtsGhost = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
                     const e = resolveConnEndpoint(
                       { x: sg.x, y: sg.y, w: src.size.w, h: srcH2 },
                       connSrcPort ?? undefined, srcPresetGhost, connSrcAnchor ?? undefined,
-                      pointer,
+                      pointer, srcVecPtsGhost,
                     );
                     const end = snapTarget
-                      ? (() => { const b = state.bricksById[snapTarget.brickId]; if (!b) return pointer; const g = gPos(snapTarget.brickId); const bp = asRec(b.content).shapePreset as ShapePreset | undefined; return shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bp, snapTarget.port); })()
+                      ? (() => { const b = state.bricksById[snapTarget.brickId]; if (!b) return pointer; const g = gPos(snapTarget.brickId); const bp = asRec(b.content).shapePreset as ShapePreset | undefined; const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined; return shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bp, snapTarget.port, bvp); })()
                       : pointer;
                     return <>
                       <line x1={e.x} y1={e.y} x2={end.x} y2={end.y} stroke={String(st.stroke)} strokeWidth={2} strokeDasharray="4 3" opacity={0.5} />
