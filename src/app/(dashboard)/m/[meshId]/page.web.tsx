@@ -255,11 +255,56 @@ function segHitsRect(ax: number, ay: number, bx: number, by: number, rx: number,
   return t0 < t1;
 }
 
-function collisionScore(pts: Array<{ x: number; y: number }>, obs: Array<{ x: number; y: number; w: number; h: number }>): number {
+/** True if segment (ax,ay)→(bx,by) crosses any edge of the closed polygon. */
+function segHitsPolyPts(
+  ax: number, ay: number, bx: number, by: number,
+  pts: Array<{ x: number; y: number }>,
+): boolean {
+  const n = pts.length;
+  const d1x = bx - ax, d1y = by - ay;
+  for (let i = 0; i < n; i++) {
+    const A = pts[i], B = pts[(i + 1) % n];
+    const d2x = B.x - A.x, d2y = B.y - A.y;
+    const cross = d1x * d2y - d1y * d2x;
+    if (Math.abs(cross) < 1e-10) continue;
+    const t = ((A.x - ax) * d2y - (A.y - ay) * d2x) / cross;
+    const u = ((A.x - ax) * d1y - (A.y - ay) * d1x) / cross;
+    // t strictly inside (0,1) so endpoint touches don't count; u in [0,1]
+    if (t > 1e-6 && t < 1 - 1e-6 && u >= 0 && u <= 1) return true;
+  }
+  return false;
+}
+
+type VecPts = { x: number; y: number }[];
+type ObstaclePoly = { x: number; y: number; w: number; h: number; polyPts?: Array<{ x: number; y: number }> };
+
+function mkObstaclePoly(b: MeshBrick, g: { x: number; y: number }): ObstaclePoly {
+  const preset = (asRec(b.content).shapePreset as ShapePreset | undefined);
+  const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
+  const rawNorm = bvp ?? (preset ? SHAPE_PTS[preset] : undefined);
+  let polyPts: Array<{ x: number; y: number }> | undefined;
+  if (rawNorm) {
+    polyPts = rawNorm.map(p => ({ x: g.x + p.x * b.size.w, y: g.y + p.y * b.size.h }));
+  } else if (preset === "circle" || preset === "ellipse" || preset === "flow-terminator") {
+    const a = b.size.w / 2, bh = b.size.h / 2, cx = g.x + a, cy = g.y + bh;
+    polyPts = Array.from({ length: 16 }, (_, i) => {
+      const θ = (i / 16) * Math.PI * 2;
+      return { x: cx + a * Math.cos(θ), y: cy + bh * Math.sin(θ) };
+    });
+  }
+  return { x: g.x, y: g.y, w: b.size.w, h: b.size.h, polyPts };
+}
+
+function collisionScore(pts: Array<{ x: number; y: number }>, obs: ObstaclePoly[]): number {
   let n = 0;
   for (let i = 0; i < pts.length - 1; i++) {
+    const ax = pts[i].x, ay = pts[i].y, bx = pts[i + 1].x, by = pts[i + 1].y;
     for (const o of obs) {
-      if (segHitsRect(pts[i].x, pts[i].y, pts[i + 1].x, pts[i + 1].y, o.x + 4, o.y + 4, o.w - 8, o.h - 8)) n++;
+      if (o.polyPts) {
+        if (segHitsPolyPts(ax, ay, bx, by, o.polyPts)) n++;
+      } else {
+        if (segHitsRect(ax, ay, bx, by, o.x + 4, o.y + 4, o.w - 8, o.h - 8)) n++;
+      }
     }
   }
   return n;
@@ -323,12 +368,10 @@ function resolveConnEndpoint(
   return shapeEdgeExit(rect.x, rect.y, rect.w, rect.h, preset, fallback.x, fallback.y, vecPts);
 }
 
-type VecPts = { x: number; y: number }[];
-
 function buildConnPath(
   srcRect: { x: number; y: number; w: number; h: number },
   tgtRect: { x: number; y: number; w: number; h: number },
-  obs: Array<{ x: number; y: number; w: number; h: number }>,
+  obs: ObstaclePoly[],
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
@@ -340,7 +383,7 @@ function buildConnPath(
 function buildConnPolyline(
   srcRect: { x: number; y: number; w: number; h: number },
   tgtRect: { x: number; y: number; w: number; h: number },
-  obs: Array<{ x: number; y: number; w: number; h: number }>,
+  obs: ObstaclePoly[],
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
   srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
@@ -3567,13 +3610,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       d = buildCurvedPath(srcR, tgtR, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       const obs2 = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
-                        .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
+                        .map((b) => mkObstaclePoly(b, gPos(b.id)));
                       const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       labelPt = pointAtPolylineFraction(rp2, 0.5);
                     } else {
                       const obs = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
-                        .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
+                        .map((b) => mkObstaclePoly(b, gPos(b.id)));
                       const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
                       d = cType === "handdrawn" ? handDrawnPath(routePts, conn.id) : smoothPoly(routePts, CORNER_R);
                       labelPt = pointAtPolylineFraction(routePts, 0.5);
