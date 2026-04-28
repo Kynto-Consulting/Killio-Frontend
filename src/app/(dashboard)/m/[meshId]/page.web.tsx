@@ -295,14 +295,41 @@ function portAbsPos(gx: number, gy: number, bw: number, bh: number, port: Port) 
   }
 }
 
+function polylineLength(pts: Array<{ x: number; y: number }>): number {
+  let len = 0;
+  for (let i = 0; i + 1 < pts.length; i++)
+    len += Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y);
+  return len;
+}
+
+type AnchorNorm = { x: number; y: number };
+
+function resolveConnEndpoint(
+  rect: { x: number; y: number; w: number; h: number },
+  port: Port | undefined,
+  preset: ShapePreset | undefined,
+  anchor: AnchorNorm | undefined,
+  fallback: { x: number; y: number },
+): { x: number; y: number; nx: number; ny: number } {
+  if (anchor) {
+    const ax = rect.x + anchor.x * rect.w, ay = rect.y + anchor.y * rect.h;
+    const cx = rect.x + rect.w / 2, cy = rect.y + rect.h / 2;
+    const ddx = ax - cx, ddy = ay - cy, dlen = Math.hypot(ddx, ddy) || 1;
+    return { x: ax, y: ay, nx: ddx / dlen, ny: ddy / dlen };
+  }
+  if (port) return shapePortAbsPos(rect.x, rect.y, rect.w, rect.h, preset, port);
+  return shapeEdgeExit(rect.x, rect.y, rect.w, rect.h, preset, fallback.x, fallback.y);
+}
+
 function buildConnPath(
   srcRect: { x: number; y: number; w: number; h: number },
   tgtRect: { x: number; y: number; w: number; h: number },
   obs: Array<{ x: number; y: number; w: number; h: number }>,
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
 ): string {
-  return smoothPoly(buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort, srcPreset, tgtPreset), CORNER_R);
+  return smoothPoly(buildConnPolyline(srcRect, tgtRect, obs, srcPort, tgtPort, srcPreset, tgtPreset, srcAnchor, tgtAnchor), CORNER_R);
 }
 
 function buildConnPolyline(
@@ -311,23 +338,38 @@ function buildConnPolyline(
   obs: Array<{ x: number; y: number; w: number; h: number }>,
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
 ): Array<{ x: number; y: number }> {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = srcPort
-    ? shapePortAbsPos(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, srcPort)
-    : shapeEdgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, tc.x, tc.y);
-  const e2 = tgtPort
-    ? shapePortAbsPos(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, tgtPort)
-    : shapeEdgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, sc.x, sc.y);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
   const s1 = { x: e1.x + e1.nx * STUB, y: e1.y + e1.ny * STUB };
   const s2 = { x: e2.x + e2.nx * STUB, y: e2.y + e2.ny * STUB };
 
-  const hvPts = [{ x: e1.x, y: e1.y }, s1, { x: s2.x, y: s1.y }, s2, { x: e2.x, y: e2.y }];
-  const vhPts = [{ x: e1.x, y: e1.y }, s1, { x: s1.x, y: s2.y }, s2, { x: e2.x, y: e2.y }];
-  const scoreHV = collisionScore(hvPts, obs);
-  const scoreVH = collisionScore(vhPts, obs);
-  return scoreHV <= scoreVH ? hvPts : vhPts;
+  // Generate route candidates: HV + VH + bypass routes around each obstacle
+  const M = 28;
+  const cands: Array<Array<{ x: number; y: number }>> = [
+    [e1, s1, { x: s2.x, y: s1.y }, s2, e2],  // HV
+    [e1, s1, { x: s1.x, y: s2.y }, s2, e2],  // VH
+  ];
+  for (const ob of obs) {
+    const top = ob.y - M, bot = ob.y + ob.h + M;
+    const lft = ob.x - M,  rgt = ob.x + ob.w + M;
+    cands.push(
+      [e1, s1, { x: s1.x, y: top }, { x: s2.x, y: top }, s2, e2],  // detour above
+      [e1, s1, { x: s1.x, y: bot }, { x: s2.x, y: bot }, s2, e2],  // detour below
+      [e1, s1, { x: lft, y: s1.y }, { x: lft, y: s2.y }, s2, e2],  // detour left
+      [e1, s1, { x: rgt, y: s1.y }, { x: rgt, y: s2.y }, s2, e2],  // detour right
+    );
+  }
+  // Pick fewest collisions, break ties by shortest path
+  let best = cands[0], bestSc = collisionScore(best, obs), bestLen = polylineLength(best);
+  for (const cand of cands.slice(1)) {
+    const cs = collisionScore(cand, obs), cl = polylineLength(cand);
+    if (cs < bestSc || (cs === bestSc && cl < bestLen)) { best = cand; bestSc = cs; bestLen = cl; }
+  }
+  return best;
 }
 
 function pointAtPolylineFraction(pts: Array<{ x: number; y: number }>, fraction: number): { x: number; y: number } {
@@ -731,11 +773,12 @@ function buildBezierPath(
   cp2?: { x: number; y: number },
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
 ): { d: string; e1x: number; e1y: number; e2x: number; e2y: number; cp1: { x: number; y: number }; cp2: { x: number; y: number } } {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = srcPort ? shapePortAbsPos(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, srcPort) : shapeEdgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, tc.x, tc.y);
-  const e2 = tgtPort ? shapePortAbsPos(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, tgtPort) : shapeEdgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, sc.x, sc.y);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
   const stubLen = Math.max(60, Math.hypot(e2.x - e1.x, e2.y - e1.y) * 0.35);
   const defaultCp1 = cp1 ?? { x: e1.x + e1.nx * stubLen, y: e1.y + e1.ny * stubLen };
   const defaultCp2 = cp2 ?? { x: e2.x + e2.nx * stubLen, y: e2.y + e2.ny * stubLen };
@@ -749,11 +792,12 @@ function buildCurvedPath(
   tgtRect: { x: number; y: number; w: number; h: number },
   srcPort?: Port, tgtPort?: Port,
   srcPreset?: ShapePreset, tgtPreset?: ShapePreset,
+  srcAnchor?: AnchorNorm, tgtAnchor?: AnchorNorm,
 ): string {
   const sc = { x: srcRect.x + srcRect.w / 2, y: srcRect.y + srcRect.h / 2 };
   const tc = { x: tgtRect.x + tgtRect.w / 2, y: tgtRect.y + tgtRect.h / 2 };
-  const e1 = srcPort ? shapePortAbsPos(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, srcPort) : shapeEdgeExit(srcRect.x, srcRect.y, srcRect.w, srcRect.h, srcPreset, tc.x, tc.y);
-  const e2 = tgtPort ? shapePortAbsPos(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, tgtPort) : shapeEdgeExit(tgtRect.x, tgtRect.y, tgtRect.w, tgtRect.h, tgtPreset, sc.x, sc.y);
+  const e1 = resolveConnEndpoint(srcRect, srcPort, srcPreset, srcAnchor, tc);
+  const e2 = resolveConnEndpoint(tgtRect, tgtPort, tgtPreset, tgtAnchor, sc);
   const mx = (e1.x + e2.x) / 2 + (e2.y - e1.y) * 0.25;
   const my = (e1.y + e2.y) / 2 - (e2.x - e1.x) * 0.25;
   return `M${e1.x.toFixed(1)},${e1.y.toFixed(1)} Q${mx.toFixed(1)},${my.toFixed(1)} ${e2.x.toFixed(1)},${e2.y.toFixed(1)}`;
@@ -820,6 +864,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [editingBrickId, setEditingBrickId] = useState<string | null>(null);
   const [editingValue,   setEditingValue]   = useState<string>("");
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
+  const [connSrcAnchor,  setConnSrcAnchor]  = useState<AnchorNorm | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
   const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | null>(null);
 
@@ -1777,13 +1822,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }, [addMeta, addShape, toCanvas]);
 
   // ── Connections ───────────────────────────────────────────────────────────────
-  const addConn = useCallback((src: string, tgt: string, sp?: Port, tp?: Port) => {
+  const addConn = useCallback((src: string, tgt: string, sp?: Port, tp?: Port, sa?: AnchorNorm, ta?: AnchorNorm) => {
     if (src === tgt) return;
     setState((cur) => {
       if (Object.values(cur.connectionsById).some((c) => c.cons[0] === src && c.cons[1] === tgt)) return cur;
       const style: Record<string, unknown> = { ...connStyle(connPreset) };
       if (sp) style.srcPort = sp;
       if (tp) style.tgtPort = tp;
+      if (sa) style.srcAnchorNorm = sa;
+      if (ta) style.tgtAnchorNorm = ta;
       const conn: MeshConnection = { id: mkId("conn"), cons: [src, tgt], label: { type: "doc", content: [] }, style };
       return { ...cur, connectionsById: { ...cur.connectionsById, [conn.id]: conn } };
     });
@@ -1791,16 +1838,27 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
   const startConnFromPort = useCallback((brickId: string, port: Port) => {
     if (toolMode !== "conn") return;
-    setConnSrcId(brickId);
-    setConnSrcPort(port);
+    setConnSrcId(brickId); setConnSrcPort(port); setConnSrcAnchor(null);
+  }, [toolMode]);
+
+  const startConnFromAnchor = useCallback((brickId: string, anchor: AnchorNorm) => {
+    if (toolMode !== "conn") return;
+    setConnSrcId(brickId); setConnSrcPort(null); setConnSrcAnchor(anchor);
   }, [toolMode]);
 
   const finishConnAtPort = useCallback((brickId: string, port: Port) => {
     if (!connSrcId || connSrcId === brickId) return;
-    addConn(connSrcId, brickId, connSrcPort ?? undefined, port);
-    setConnSrcId(null); setConnSrcPort(null); setSnapTarget(null);
+    addConn(connSrcId, brickId, connSrcPort ?? undefined, port, connSrcAnchor ?? undefined);
+    setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
     toast("Conexión creada.", "success");
-  }, [connSrcId, connSrcPort, addConn]);
+  }, [connSrcId, connSrcPort, connSrcAnchor, addConn]);
+
+  const finishConnAtAnchor = useCallback((brickId: string, anchor: AnchorNorm) => {
+    if (!connSrcId || connSrcId === brickId) return;
+    addConn(connSrcId, brickId, connSrcPort ?? undefined, undefined, connSrcAnchor ?? undefined, anchor);
+    setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
+    toast("Conexión creada.", "success");
+  }, [connSrcId, connSrcPort, connSrcAnchor, addConn]);
 
   // ── Mouse move ────────────────────────────────────────────────────────────────
   const onMouseMove = useCallback((e: React.MouseEvent) => {
@@ -2119,6 +2177,70 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     setResizeState({ brickId, startMouse: { x, y }, startSize: { ...b.size } });
   }, [fromEv, state.bricksById]);
 
+  const deleteVecPoint = useCallback((brickId: string, idx: number) => {
+    setState((cur) => {
+      const b = cur.bricksById[brickId];
+      if (!b) return cur;
+      const c = asRec(b.content);
+      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
+      if (pts.length <= 3) return cur; // keep minimum triangle
+      pts.splice(idx, 1);
+      return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, vectorPoints: pts } } } };
+    });
+  }, []);
+
+  const insertVecPoint = useCallback((brickId: string, nx: number, ny: number) => {
+    setState((cur) => {
+      const b = cur.bricksById[brickId];
+      if (!b) return cur;
+      const c = asRec(b.content);
+      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
+      if (!pts.length) return cur;
+      const newPt = { x: +Math.max(0, Math.min(1, nx)).toFixed(4), y: +Math.max(0, Math.min(1, ny)).toFixed(4) };
+      let bestEdge = 0, bestDist = Infinity;
+      for (let i = 0; i < pts.length; i++) {
+        const A = pts[i], B = pts[(i + 1) % pts.length];
+        const edx = B.x - A.x, edy = B.y - A.y, lenSq = edx * edx + edy * edy;
+        const t = lenSq > 0 ? Math.max(0, Math.min(1, ((newPt.x - A.x) * edx + (newPt.y - A.y) * edy) / lenSq)) : 0;
+        const dist = Math.hypot(newPt.x - A.x - t * edx, newPt.y - A.y - t * edy);
+        if (dist < bestDist) { bestDist = dist; bestEdge = i; }
+      }
+      pts.splice(bestEdge + 1, 0, newPt);
+      return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, vectorPoints: pts } } } };
+    });
+  }, []);
+
+  const addCustomPort = useCallback((brickId: string, nx: number, ny: number) => {
+    setState((cur) => {
+      const b = cur.bricksById[brickId];
+      if (!b) return cur;
+      const c = asRec(b.content);
+      const current = Array.isArray(c.customPorts) ? [...(c.customPorts as AnchorNorm[])] : [];
+      current.push({ x: +Math.max(0, Math.min(1, nx)).toFixed(4) as unknown as number, y: +Math.max(0, Math.min(1, ny)).toFixed(4) as unknown as number });
+      return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, customPorts: current } } } };
+    });
+  }, []);
+
+  const deleteCustomPort = useCallback((brickId: string, idx: number) => {
+    setState((cur) => {
+      const b = cur.bricksById[brickId];
+      if (!b) return cur;
+      const c = asRec(b.content);
+      const current = Array.isArray(c.customPorts) ? [...(c.customPorts as AnchorNorm[])] : [];
+      current.splice(idx, 1);
+      return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, customPorts: current } } } };
+    });
+  }, []);
+
+  const clearDrawStrokes = useCallback((brickId: string) => {
+    setState((cur) => {
+      const b = cur.bricksById[brickId];
+      if (!b) return cur;
+      const c = asRec(b.content);
+      return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, manualStrokes: [] } } } };
+    });
+  }, []);
+
   const startVecDrag = useCallback((e: React.MouseEvent, brickId: string, idx: number) => {
     e.stopPropagation();
     setVecDragState({ brickId, pointIndex: idx, startMouse: fromEv(e) });
@@ -2148,8 +2270,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const onCanvasClick = useCallback((e: React.MouseEvent) => {
     if (toolMode === "conn" && connSrcId) {
       if (snapTarget) {
-        addConn(connSrcId, snapTarget.brickId, connSrcPort ?? undefined, snapTarget.port);
-        setConnSrcId(null); setConnSrcPort(null); setSnapTarget(null);
+        addConn(connSrcId, snapTarget.brickId, connSrcPort ?? undefined, snapTarget.port, connSrcAnchor ?? undefined);
+        setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
         toast("Conexión creada.", "success");
         return;
       }
@@ -2161,7 +2283,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const d = Math.hypot(g.x + b.size.w / 2 - x, g.y + b.size.h / 2 - y);
         if (d < nd) { nd = d; nearId = b.id; }
       });
-      if (nearId && nd <= 160) { addConn(connSrcId, nearId, connSrcPort ?? undefined); setConnSrcId(null); setConnSrcPort(null); toast("Conexión creada.", "success"); }
+      if (nearId && nd <= 160) { addConn(connSrcId, nearId, connSrcPort ?? undefined, undefined, connSrcAnchor ?? undefined); setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); toast("Conexión creada.", "success"); }
       return;
     }
     if (toolMode !== "select") return;
@@ -2247,20 +2369,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     // Magnet port dots rendered inside each brick when conn mode is active
     const brickShapePreset = asRec(brick.content).shapePreset as ShapePreset | undefined;
+    const brickCustomPorts = Array.isArray(asRec(brick.content).customPorts)
+      ? (asRec(brick.content).customPorts as AnchorNorm[]) : [];
     const magnetDots = toolMode === "conn" ? (
       <div className="pointer-events-none absolute inset-0 z-50">
         {ALL_PORTS.map((port) => {
           const mp = shapePortAbsPos(0, 0, brick.size.w, brick.size.h, brickShapePreset, port);
-          const style: React.CSSProperties = {
-            position: "absolute",
-            left: mp.x,
-            top: mp.y,
-            transform: "translate(-50%,-50%)",
-          };
           const isSnap = snapTarget?.brickId === brick.id && snapTarget.port === port;
           const isSrc  = connSrcId === brick.id && connSrcPort === port;
           return (
-            <div key={port} style={style}
+            <div key={port} style={{ position: "absolute", left: mp.x, top: mp.y, transform: "translate(-50%,-50%)" }}
               className={`pointer-events-auto rounded-full border-2 cursor-crosshair transition-all duration-100
                 ${isSnap || isSrc
                   ? "h-4 w-4 border-white bg-cyan-300 shadow-[0_0_8px_2px_rgba(34,211,238,0.7)]"
@@ -2272,6 +2390,29 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             />
           );
         })}
+        {/* Custom user-defined magnet ports */}
+        {brickCustomPorts.map((cp, i) => (
+          <div key={`cp-${i}`}
+            style={{ position: "absolute", left: cp.x * brick.size.w, top: cp.y * brick.size.h, transform: "translate(-50%,-50%)" }}
+            className="pointer-events-auto h-3 w-3 rounded-full border-2 border-yellow-400 bg-yellow-900/60 cursor-crosshair hover:h-4 hover:w-4 hover:bg-yellow-400/70 transition-all duration-100"
+            title="Puerto personalizado · Clic der. para eliminar en modo vec"
+            onMouseDown={(e) => { e.stopPropagation(); startConnFromAnchor(brick.id, cp); }}
+            onMouseUp={(e) => { e.stopPropagation(); if (connSrcId && connSrcId !== brick.id) finishConnAtAnchor(brick.id, cp); }}
+          />
+        ))}
+      </div>
+    ) : null;
+    // Custom port dots in vec mode (for editing)
+    const vecCustomPortDots = toolMode === "vec" && isSel ? (
+      <div className="pointer-events-none absolute inset-0 z-50">
+        {brickCustomPorts.map((cp, i) => (
+          <div key={`vcp-${i}`}
+            style={{ position: "absolute", left: cp.x * brick.size.w, top: cp.y * brick.size.h, transform: "translate(-50%,-50%)" }}
+            className="pointer-events-auto h-3.5 w-3.5 rounded-full border-2 border-yellow-400 bg-yellow-500 cursor-pointer"
+            title="Puerto personalizado · Clic der. para eliminar"
+            onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); deleteCustomPort(brick.id, i); }}
+          />
+        ))}
       </div>
     ) : null;
 
@@ -2360,9 +2501,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           className={`group absolute${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
             cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: isCont && !collapsed ? "visible" : "hidden" }}
-          onClick={(e) => onBrickClick(e, brick.id)}
+          onClick={(e) => { if (e.altKey && toolMode === "vec" && isSel) { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); addCustomPort(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } onBrickClick(e, brick.id); }}
           onMouseDown={(e) => startDrag(e, brick.id)}
-          onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
+          onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
           {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} />}
           {/* Header – only shown when collapsed OR when there's a label OR when it has children */}
@@ -2457,8 +2598,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {isSel && toolMode === "vec" && vecPts?.map((pt, i) => (
             <div key={i} className="absolute z-40 h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-yellow-300 ring-1 ring-black/60"
               style={{ left: pt.x * brick.size.w, top: pt.y * brick.size.h }}
-              onMouseDown={(e) => startVecDrag(e, brick.id, i)} />
+              title="Arrastrar para mover · Clic derecho para eliminar"
+              onMouseDown={(e) => startVecDrag(e, brick.id, i)}
+              onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); deleteVecPoint(brick.id, i); }} />
           ))}
+          {vecCustomPortDots}
           {magnetDots}
         </div>
       );
@@ -2521,6 +2665,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </svg>
           )}
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {/* Clear all strokes button */}
+          {isSel && manualStrokes.length > 0 && (
+            <button type="button" title="Borrar todo el dibujo" onClick={(e) => { e.stopPropagation(); clearDrawStrokes(brick.id); }}
+              className="pointer-events-auto absolute top-1 right-1 z-40 flex h-6 w-6 items-center justify-center rounded-full bg-red-900/70 text-red-300 hover:bg-red-700 hover:text-white transition-colors">
+              <Trash2 className="h-3 w-3" />
+            </button>
+          )}
+          {vecCustomPortDots}
           {magnetDots}
         </div>
       );
@@ -3189,6 +3341,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const tp        = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
                     const srcPreset = asRec(src.content).shapePreset as ShapePreset | undefined;
                     const tgtPreset = asRec(tgt.content).shapePreset as ShapePreset | undefined;
+                    const srcAnchor = st.srcAnchorNorm as AnchorNorm | undefined;
+                    const tgtAnchor = st.tgtAnchorNorm as AnchorNorm | undefined;
                     const markerId  = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
                     const connLabel = typeof st.label === "string" ? st.label : "";
                     const isEditingConnLabel = editingConnId === conn.id;
@@ -3204,24 +3358,24 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     if (cType === "bezier") {
                       const cp1 = st.cp1 as { x: number; y: number } | undefined;
                       const cp2 = st.cp2 as { x: number; y: number } | undefined;
-                      bezierInfo = buildBezierPath(srcR, tgtR, cp1, cp2, sp, tp, srcPreset, tgtPreset);
+                      bezierInfo = buildBezierPath(srcR, tgtR, cp1, cp2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
                       d = bezierInfo.d;
                       labelPt = {
                         x: 0.125 * bezierInfo.e1x + 0.375 * bezierInfo.cp1.x + 0.375 * bezierInfo.cp2.x + 0.125 * bezierInfo.e2x,
                         y: 0.125 * bezierInfo.e1y + 0.375 * bezierInfo.cp1.y + 0.375 * bezierInfo.cp2.y + 0.125 * bezierInfo.e2y,
                       };
                     } else if (cType === "curved") {
-                      d = buildCurvedPath(srcR, tgtR, sp, tp, srcPreset, tgtPreset);
+                      d = buildCurvedPath(srcR, tgtR, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
                       const obs2 = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
                         .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
-                      const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp, srcPreset, tgtPreset);
+                      const rp2 = buildConnPolyline(srcR, tgtR, obs2, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
                       labelPt = pointAtPolylineFraction(rp2, 0.5);
                     } else {
                       const obs = Object.values(state.bricksById)
                         .filter((b) => b.id !== src.id && b.id !== tgt.id)
                         .map((b) => { const g = gPos(b.id); return { x: g.x, y: g.y, w: b.size.w, h: b.size.h }; });
-                      const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp, srcPreset, tgtPreset);
+                      const routePts = buildConnPolyline(srcR, tgtR, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor);
                       d = cType === "handdrawn" ? handDrawnPath(routePts, conn.id) : smoothPoly(routePts, CORNER_R);
                       labelPt = pointAtPolylineFraction(routePts, 0.5);
                     }
@@ -3334,9 +3488,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const st = connStyle(connPreset);
                     const srcH2 = collapsedBoards.has(connSrcId) ? 28 : src.size.h;
                     const srcPresetGhost = asRec(src.content).shapePreset as ShapePreset | undefined;
-                    const e = connSrcPort
-                      ? shapePortAbsPos(sg.x, sg.y, src.size.w, srcH2, srcPresetGhost, connSrcPort)
-                      : shapeEdgeExit(sg.x, sg.y, src.size.w, srcH2, srcPresetGhost, pointer.x, pointer.y);
+                    const e = resolveConnEndpoint(
+                      { x: sg.x, y: sg.y, w: src.size.w, h: srcH2 },
+                      connSrcPort ?? undefined, srcPresetGhost, connSrcAnchor ?? undefined,
+                      pointer,
+                    );
                     const end = snapTarget
                       ? (() => { const b = state.bricksById[snapTarget.brickId]; if (!b) return pointer; const g = gPos(snapTarget.brickId); const bp = asRec(b.content).shapePreset as ShapePreset | undefined; return shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bp, snapTarget.port); })()
                       : pointer;
