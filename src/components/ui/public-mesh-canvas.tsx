@@ -38,6 +38,12 @@ type ShapePreset =
   | "triangle" | "hexagon" | "star" | "arrow" | "note"
   | "frame-vector" | "flow-terminator";
 
+type ManualStroke = {
+  points: Array<{ x: number; y: number }>;
+  color: string | undefined;
+  width: number | undefined;
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function asRec(v: unknown): Record<string, unknown> {
@@ -60,6 +66,35 @@ function childOrder(b: MeshBrick): string[] {
 function getMd(b: MeshBrick): string {
   const md = asRec(b.content).markdown;
   return typeof md === "string" ? md : "";
+}
+
+function normalizeManualStrokes(raw: unknown): ManualStroke[] {
+  if (!Array.isArray(raw)) return [];
+
+  const normalized = raw
+    .map((entry) => {
+      const rec = asRec(entry);
+      const rawPoints = Array.isArray(rec.points) ? (rec.points as unknown[]) : [];
+      const points = rawPoints
+        .map((point) => {
+          const p = asRec(point);
+          const x = typeof p.x === "number" ? p.x : NaN;
+          const y = typeof p.y === "number" ? p.y : NaN;
+          return { x, y };
+        })
+        .filter((point) => Number.isFinite(point.x) && Number.isFinite(point.y));
+
+      if (points.length === 0) return null;
+
+      return {
+        points,
+        color: typeof rec.color === "string" ? rec.color : undefined,
+        width: typeof rec.width === "number" && Number.isFinite(rec.width) ? rec.width : undefined,
+      } satisfies ManualStroke;
+    })
+    .filter((stroke): stroke is ManualStroke => stroke !== null);
+
+  return normalized;
 }
 
 // ─── Shape geometry ───────────────────────────────────────────────────────────
@@ -359,9 +394,7 @@ function RenderBrick({
       : [];
 
     // Pen strokes
-    const manualStrokes = Array.isArray(c.manualStrokes)
-      ? (c.manualStrokes as Array<{ points: Array<{ x: number; y: number }>; color?: string; width?: number }>)
-      : [];
+    const manualStrokes = normalizeManualStrokes(c.manualStrokes);
     const penPathD = manualStrokes
       .map((s) => {
         if (!s.points.length) return "";

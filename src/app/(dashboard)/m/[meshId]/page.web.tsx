@@ -1024,6 +1024,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [selRect,      setSelRect]      = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   // Ref mirrors selRect so event-handler closures always see the latest value (avoids stale-closure bug in onMouseMove/onMouseUp)
   const selRectRef = useRef<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  // Mouseup after rubber-band selection is followed by a click; consume that click to avoid clearing the new selection.
+  const ignoreNextCanvasClickRef = useRef(false);
   const [pointer,      setPointer]      = useState<{ x: number; y: number } | null>(null);
 
   // pen state
@@ -2423,6 +2425,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         });
         setSelectedIds(ids);
         setSelectedId(null);
+        ignoreNextCanvasClickRef.current = true;
       }
     }
 
@@ -2544,6 +2547,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
   // ── Canvas clicks ────────────────────────────────────────────────────────────
   const onCanvasClick = useCallback((e: React.MouseEvent) => {
+    if (toolMode === "select" && ignoreNextCanvasClickRef.current) {
+      ignoreNextCanvasClickRef.current = false;
+      return;
+    }
+
     if (toolMode === "conn" && connSrcId) {
       if (snapTarget) {
         addConn(connSrcId, snapTarget.brickId, connSrcPort ?? undefined, snapTarget.port, connSrcAnchor ?? undefined);
