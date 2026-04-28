@@ -1,7 +1,9 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
+import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
+import type { DocumentBrick } from "@/lib/api/documents";
 
 // ─── Types (from mesh-schema / page.web.tsx) ─────────────────────────────────
 
@@ -79,7 +81,11 @@ function normalizeManualStrokes(raw: unknown): ManualStroke[] {
   const normalized = raw
     .map((entry) => {
       const rec = asRec(entry);
-      const rawPoints = Array.isArray(rec.points) ? (rec.points as unknown[]) : [];
+      const rawPoints = Array.isArray(entry)
+        ? (entry as unknown[])
+        : Array.isArray(rec.points)
+          ? (rec.points as unknown[])
+          : [];
       const points = rawPoints
         .map((point) => {
           const p = asRec(point);
@@ -91,15 +97,58 @@ function normalizeManualStrokes(raw: unknown): ManualStroke[] {
 
       if (points.length === 0) return null;
 
+      const legacyEntry = Array.isArray(entry);
+
       return {
         points,
-        color: typeof rec.color === "string" ? rec.color : undefined,
-        width: typeof rec.width === "number" && Number.isFinite(rec.width) ? rec.width : undefined,
+        color: legacyEntry
+          ? "#67e8f9"
+          : typeof rec.color === "string"
+            ? rec.color
+            : undefined,
+        width: legacyEntry
+          ? 2
+          : typeof rec.width === "number" && Number.isFinite(rec.width)
+            ? rec.width
+            : undefined,
       } satisfies ManualStroke;
     })
     .filter((stroke): stroke is ManualStroke => stroke !== null);
 
   return normalized;
+}
+
+function toDocBrick(mb: MeshBrick, forcedKind?: string): DocumentBrick {
+  const c = asRec(mb.content);
+  const md = typeof c.markdown === "string" ? c.markdown : "";
+  const kind = forcedKind ?? (typeof c.unifierKind === "string" ? c.unifierKind : "text");
+  return {
+    id: mb.id,
+    documentId: `mesh:${mb.id}`,
+    kind,
+    position: 0,
+    content: { ...c, kind, markdown: md, text: md },
+    createdByUserId: "mesh",
+    createdAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: "1970-01-01T00:00:00.000Z",
+  };
+}
+
+function mkPreviewBrick(idSeed: string, kind: string, markdown: string, contentOverride?: Record<string, unknown> | null): DocumentBrick {
+  const safeKind = kind.trim() || "text";
+  const content = contentOverride && typeof contentOverride === "object"
+    ? { ...contentOverride, kind: typeof contentOverride.kind === "string" ? contentOverride.kind : safeKind }
+    : { kind: safeKind, markdown, text: markdown };
+  return {
+    id: `preview_${idSeed}`,
+    documentId: `preview:${idSeed}`,
+    kind: safeKind,
+    position: 0,
+    content,
+    createdByUserId: "preview",
+    createdAt: "1970-01-01T00:00:00.000Z",
+    updatedAt: "1970-01-01T00:00:00.000Z",
+  };
 }
 
 // ─── Shape geometry ───────────────────────────────────────────────────────────
@@ -671,9 +720,11 @@ function renderMd(text: string): string {
 function RenderBrick({
   brick,
   bricksById,
+  connectedIds,
 }: {
   brick: MeshBrick;
   bricksById: Record<string, MeshBrick>;
+  connectedIds: Set<string>;
 }) {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
@@ -693,6 +744,12 @@ function RenderBrick({
   const vecPts  = Array.isArray(c.vectorPoints)
     ? (c.vectorPoints as { x: number; y: number }[])
     : undefined;
+
+  const isConnected = connectedIds.has(brick.id);
+  const uKind = typeof c.unifierKind === "string" ? c.unifierKind : null;
+  const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
+  const unifierKindFinal = uKind ?? (brick.kind === "mirror" ? "callout" : "text");
+  const docBrick = isUnifier ? toDocBrick(brick, unifierKindFinal) : null;
 
   const text = getMd(brick);
 
@@ -716,7 +773,6 @@ function RenderBrick({
           background: "rgba(15,23,42,0.35)",
         }}
       >
-        {/* Header */}
         <div
           className="flex h-7 items-center px-3 text-[10px] font-bold uppercase tracking-widest text-cyan-300 select-none rounded-t-xl"
           style={{ background: "rgba(34,211,238,0.06)", borderBottom: "1px solid rgba(34,211,238,0.2)" }}
@@ -724,9 +780,8 @@ function RenderBrick({
           <span className="truncate">{title || "Board"}</span>
         </div>
 
-        {/* Render children in-place (they use absolute global coords) */}
         {kids.map((kid) => (
-          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} />
+          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
         ))}
       </div>
     );
@@ -763,14 +818,12 @@ function RenderBrick({
           />
         )}
         {label && (
-          <div
-            className="absolute left-2 top-1.5 text-[10px] font-semibold text-cyan-200/70 select-none pointer-events-none"
-          >
+          <div className="absolute left-2 top-1.5 text-[10px] font-semibold text-cyan-200/70 select-none pointer-events-none">
             {label}
           </div>
         )}
         {kids.map((kid) => (
-          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} />
+          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
         ))}
       </div>
     );
@@ -784,71 +837,98 @@ function RenderBrick({
       ? childOrder(brick).map((id) => bricksById[id]).filter(Boolean)
       : [];
 
-    // Pen strokes
     const manualStrokes = normalizeManualStrokes(c.manualStrokes);
-    const penPathD = manualStrokes
-      .map((s) => {
-        if (!s.points.length) return "";
-        const [f, ...rest] = s.points;
-        return (
-          `M${(g.x + f.x * brick.size.w).toFixed(1)},${(g.y + f.y * brick.size.h).toFixed(1)}` +
-          rest.map((p) => ` L${(g.x + p.x * brick.size.w).toFixed(1)},${(g.y + p.y * brick.size.h).toFixed(1)}`).join("")
-        );
-      })
-      .filter(Boolean)
-      .join(" ");
+
+    if (!hasShape) {
+      return (
+        <div
+          className="absolute rounded-xl"
+          style={{
+            left: g.x,
+            top: g.y,
+            width: brick.size.w,
+            height: brick.size.h,
+            background: "transparent",
+            outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+          }}
+        >
+          {manualStrokes.length > 0 && (
+            <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
+              {manualStrokes.map((stroke, idx) => {
+                if (!stroke.points.length) return null;
+                const d = stroke.points
+                  .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
+                  .join(" ");
+                return (
+                  <path
+                    key={idx}
+                    d={d}
+                    fill="none"
+                    stroke={stroke.color ?? "#67e8f9"}
+                    strokeWidth={stroke.width ?? 2}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity={0.95}
+                  />
+                );
+              })}
+            </svg>
+          )}
+          {isContainer && kids.map((kid) => (
+            <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
+          ))}
+        </div>
+      );
+    }
 
     const tPadX = Math.round(brick.size.w * 0.18);
     const tPadY = Math.round(brick.size.h * 0.18);
 
     return (
       <div
-        className="absolute"
-        style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}
+        className="absolute rounded-xl"
+        style={{
+          left: g.x,
+          top: g.y,
+          width: brick.size.w,
+          height: brick.size.h,
+          outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+        }}
       >
-        {hasShape && (
-          <ShapeSvg
-            preset={shapeP!}
-            w={brick.size.w}
-            h={brick.size.h}
-            pts={vecPts}
-            stroke={sStroke}
-            fill={sFill}
-            sw={sSW}
-          />
-        )}
+        <ShapeSvg
+          preset={shapeP!}
+          w={brick.size.w}
+          h={brick.size.h}
+          pts={vecPts}
+          stroke={sStroke}
+          fill="rgba(0,0,0,0)"
+          sw={sSW}
+        />
 
-        {/* Pen strokes overlay */}
-        {penPathD && (
-          <svg
-            className="pointer-events-none absolute inset-0"
-            width={brick.size.w}
-            height={brick.size.h}
-            viewBox={`${g.x} ${g.y} ${brick.size.w} ${brick.size.h}`}
-          >
-            {manualStrokes.map((s, i) => {
-              if (!s.points.length) return null;
-              const [f, ...rest] = s.points;
-              const sd =
-                `M${(g.x + f.x * brick.size.w).toFixed(1)},${(g.y + f.y * brick.size.h).toFixed(1)}` +
-                rest.map((p) => ` L${(g.x + p.x * brick.size.w).toFixed(1)},${(g.y + p.y * brick.size.h).toFixed(1)}`).join("");
+        {manualStrokes.length > 0 && (
+          <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
+            {manualStrokes.map((stroke, idx) => {
+              if (!stroke.points.length) return null;
+              const d = stroke.points
+                .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
+                .join(" ");
               return (
                 <path
-                  key={i}
-                  d={sd}
+                  key={idx}
+                  d={d}
                   fill="none"
-                  stroke={s.color ?? "#ffffff"}
-                  strokeWidth={s.width ?? 2}
+                  stroke={stroke.color ?? "#67e8f9"}
+                  strokeWidth={stroke.width ?? 2}
                   strokeLinecap="round"
                   strokeLinejoin="round"
+                  opacity={0.95}
                 />
               );
             })}
           </svg>
         )}
 
-        {/* Text inside shape */}
-        {text && hasShape && (
+        {text && (
           <div
             className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
             style={{ padding: `${tPadY}px ${tPadX}px`, zIndex: 10 }}
@@ -860,90 +940,158 @@ function RenderBrick({
           </div>
         )}
 
-        {/* Children */}
         {isContainer && kids.map((kid) => (
-          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} />
+          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
         ))}
       </div>
     );
   }
 
-  // ── text ───────────────────────────────────────────────────────────────────
-  if (effectiveKind === "text") {
+  // ── text + unifier bricks (original unified renderer path) ─────────────────
+  if (docBrick) {
     return (
       <div
-        className="absolute overflow-hidden rounded-lg"
-        style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}
+        className="absolute overflow-hidden rounded-md"
+        style={{
+          left: g.x,
+          top: g.y,
+          width: brick.size.w,
+          height: brick.size.h,
+          outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+          borderRadius: 6,
+        }}
       >
-        <div
-          className="h-full w-full overflow-hidden p-2 text-xs leading-relaxed text-slate-100"
-          dangerouslySetInnerHTML={{ __html: renderMd(text) }}
-        />
+        <div className="h-full w-full overflow-auto pointer-events-none">
+          <UnifiedBrickRenderer
+            brick={docBrick}
+            canEdit={false}
+            onUpdate={() => undefined}
+            documents={[]}
+            boards={[]}
+            activeBricks={[docBrick]}
+            users={[]}
+            isCompact
+          />
+        </div>
       </div>
     );
   }
 
-  // ── portal ────────────────────────────────────────────────────────────────
-  if (brick.kind === "portal") {
+  // ── portal (classic) ───────────────────────────────────────────────────────
+  if (brick.kind === "portal" && !uKind) {
     const targetLabel = typeof c.targetLabel === "string" ? c.targetLabel : "";
-    const targetType  = typeof c.targetType  === "string" ? c.targetType  : "mesh";
-    const hasImage    = typeof c.previewImageDataUrl === "string" && (c.previewImageDataUrl as string).startsWith("data:image/");
+    const targetType = typeof c.targetType === "string" ? c.targetType : "mesh";
+    const targetId = typeof c.targetId === "string" ? c.targetId : "";
+    const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+    const previewKind = typeof c.previewKind === "string" ? c.previewKind : "text";
+    const previewImageDataUrl = typeof c.previewImageDataUrl === "string" ? c.previewImageDataUrl : "";
+    const portalPreviewBrick = previewMd.trim() ? mkPreviewBrick(`portal_${brick.id}`, previewKind, previewMd) : null;
 
     return (
       <div
         className="absolute overflow-hidden rounded-xl border-2"
         style={{
-          left: g.x, top: g.y,
-          width: brick.size.w, height: brick.size.h,
-          borderColor: "rgba(59,130,246,0.55)",
+          left: g.x,
+          top: g.y,
+          width: brick.size.w,
+          height: brick.size.h,
+          borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(59,130,246,0.55)",
           background: "rgba(15,23,42,0.92)",
         }}
       >
-        <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-slate-900/40 px-2.5 select-none">
+        <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
           <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
-          {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-400/50">{targetLabel}</span>}
+          {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
         </div>
-        <div className="flex h-[calc(100%-28px)] items-center justify-center">
-          {hasImage ? (
+        <div className="relative h-[calc(100%-28px)] w-full overflow-hidden bg-slate-900/60">
+          {previewImageDataUrl ? (
             <img
-              src={c.previewImageDataUrl as string}
+              src={previewImageDataUrl}
               alt="Portal preview"
-              className="w-full h-full object-cover opacity-80"
+              className="w-full"
+              style={{ display: "block" }}
+              loading="lazy"
             />
+          ) : portalPreviewBrick ? (
+            <div className="pointer-events-none h-full overflow-hidden p-1.5">
+              <UnifiedBrickRenderer
+                brick={portalPreviewBrick}
+                canEdit={false}
+                onUpdate={() => undefined}
+                documents={[]}
+                boards={[]}
+                activeBricks={[portalPreviewBrick]}
+                users={[]}
+                isCompact
+              />
+            </div>
           ) : (
-            <p className="text-[10px] text-blue-400/30 text-center px-3">
-              {targetLabel || (targetType === "board" ? "Kanban Board" : targetType === "document" ? "Documento" : "Mesh Board")}
-            </p>
+            <div className="flex h-full items-center justify-center px-3">
+              <p className="text-[10px] text-blue-400/30 text-center">
+                {targetLabel || targetId || (targetType === "board" ? "Kanban Board" : targetType === "document" ? "Documento" : "Mesh Board")}
+              </p>
+            </div>
           )}
         </div>
       </div>
     );
   }
 
-  // ── mirror ────────────────────────────────────────────────────────────────
-  if (brick.kind === "mirror") {
-    const sourceLabel = typeof c.sourceLabel    === "string" ? c.sourceLabel    : "";
-    const previewMd   = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+  // ── mirror (classic) ───────────────────────────────────────────────────────
+  if (brick.kind === "mirror" && !uKind) {
+    const sourceId = typeof c.sourceId === "string" ? c.sourceId : "";
+    const sourceLabel = typeof c.sourceLabel === "string" ? c.sourceLabel : "";
+    const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+    const previewContent = c.previewContent && typeof c.previewContent === "object" ? c.previewContent as Record<string, unknown> : null;
+    const sourceBrickKind = typeof c.sourceBrickKind === "string" ? c.sourceBrickKind : "text";
+    const previewKind = !previewContent && ["beautiful_table", "bountiful_table", "database", "tabs", "columns", "accordion"].includes(sourceBrickKind)
+      ? "text"
+      : sourceBrickKind;
+    const mirrorPreviewBrick = (previewContent || previewMd.trim())
+      ? mkPreviewBrick(`mirror_${brick.id}`, previewKind, previewMd, previewContent)
+      : null;
 
     return (
       <div
-        className="absolute overflow-hidden rounded-xl border-2"
+        className="absolute overflow-hidden rounded-xl border"
         style={{
-          left: g.x, top: g.y,
-          width: brick.size.w, height: brick.size.h,
-          borderColor: "rgba(168,85,247,0.55)",
-          background: "rgba(15,23,42,0.92)",
+          left: g.x,
+          top: g.y,
+          width: brick.size.w,
+          height: brick.size.h,
+          borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(168,85,247,0.35)",
+          background: "transparent",
         }}
       >
-        <div className="flex h-7 items-center gap-1.5 border-b border-purple-500/20 bg-slate-900/40 px-2.5 select-none">
+        <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
           <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
-          {sourceLabel && <span className="ml-1 truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
+          {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
+          <span className="ml-1 text-[7px] text-purple-400/30">read-only</span>
         </div>
-        <div className="overflow-hidden p-2 text-[10px] leading-relaxed text-slate-300/80 pointer-events-none">
-          {previewMd ? (
-            <p dangerouslySetInnerHTML={{ __html: renderMd(previewMd) }} />
+        <div className="flex h-[calc(100%-28px)] flex-col overflow-hidden">
+          {(previewMd || sourceId) ? (
+            <div className="pointer-events-none overflow-auto p-2 opacity-95 h-full">
+              {mirrorPreviewBrick ? (
+                <div className="h-full w-full overflow-hidden rounded-md border border-white/10 bg-transparent">
+                  <UnifiedBrickRenderer
+                    brick={mirrorPreviewBrick}
+                    canEdit={false}
+                    onUpdate={() => undefined}
+                    documents={[]}
+                    boards={[]}
+                    activeBricks={[mirrorPreviewBrick]}
+                    users={[]}
+                    isCompact
+                  />
+                </div>
+              ) : (
+                <p className="text-[10px] text-muted-foreground/60">Fuente: {sourceLabel || sourceId.slice(0, 30)}</p>
+              )}
+            </div>
           ) : (
-            <p className="text-purple-400/25">Vista espejo</p>
+            <div className="flex h-full items-center justify-center">
+              <p className="text-center text-[10px] text-muted-foreground/40">Mirror sin contenido</p>
+            </div>
           )}
         </div>
       </div>
@@ -1033,8 +1181,9 @@ function ConnectorLayer({ state }: { state: MeshState }) {
           d = buildConnPath(srcRect, tgtRect, obs, sp, tp, srcPreset, tgtPreset, srcAnchor, tgtAnchor, srcVecPts, tgtVecPts);
         }
 
-        // label at midpoint
+        // label at midpoint (prefer style.label from original runtime)
         const label = (() => {
+          if (typeof st.label === "string" && st.label.trim().length > 0) return st.label.trim();
           if (!conn.label) return "";
           const lContent = asRec(conn.label);
           const items = Array.isArray(lContent.content) ? (lContent.content as unknown[]) : [];
@@ -1087,11 +1236,12 @@ function ConnectorLayer({ state }: { state: MeshState }) {
 function renderBrickTree(
   ids: string[],
   bricksById: Record<string, MeshBrick>,
+  connectedIds: Set<string>,
 ): React.ReactNode[] {
   return ids.map((id) => {
     const b = bricksById[id];
     if (!b) return null;
-    return <RenderBrick key={id} brick={b} bricksById={bricksById} />;
+    return <RenderBrick key={id} brick={b} bricksById={bricksById} connectedIds={connectedIds} />;
   });
 }
 
@@ -1112,6 +1262,15 @@ export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
   }));
 
   const [panState, setPanState] = useState<{ startMouse: { x: number; y: number }; startVp: { x: number; y: number } } | null>(null);
+
+  const connectedBrickIds = useMemo(() => {
+    const ids = new Set<string>();
+    Object.values(state.connectionsById).forEach((conn) => {
+      ids.add(conn.cons[0]);
+      ids.add(conn.cons[1]);
+    });
+    return ids;
+  }, [state.connectionsById]);
 
   // Fit on mount
   useEffect(() => {
@@ -1239,7 +1398,7 @@ export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
         <ConnectorLayer state={state} />
 
         {/* Bricks */}
-        {renderBrickTree(rootIds, state.bricksById)}
+        {renderBrickTree(rootIds, state.bricksById, connectedBrickIds)}
       </div>
 
       {/* HUD — zoom controls */}
