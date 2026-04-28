@@ -1181,7 +1181,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const html2canvas = (await import("html2canvas")).default;
       const canvas = await html2canvas(root, {
         backgroundColor: "#020617",
-        scale: 0.55,
+        scale: 1.5,
         useCORS: true,
         allowTaint: false,
         foreignObjectRendering: true,
@@ -1190,9 +1190,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         height: 720,
       });
       try {
-        return canvas.toDataURL("image/jpeg", 0.56);
+        return canvas.toDataURL("image/webp", 0.85);
       } catch {
-        return null;
+        return canvas.toDataURL("image/jpeg", 0.85);
       }
     } catch {
       return null;
