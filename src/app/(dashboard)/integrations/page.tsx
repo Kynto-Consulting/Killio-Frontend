@@ -113,33 +113,64 @@ function ComingSoonIntegrationCard({
   actionDisabled?: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-muted-foreground">
+    <div style={{
+      background: "rgba(255,255,255,0.035)",
+      border: "1px solid rgba(255,255,255,0.08)",
+      borderRadius: 14,
+      padding: 20,
+      opacity: 0.65,
+      transition: "border-color .15s, transform .15s",
+      display: "flex",
+      flexDirection: "column",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
+            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
+            color: "rgba(255,255,255,0.45)",
+          }}>
             <Icon className="h-4 w-4" />
           </div>
-          <h3 className="text-base font-semibold text-foreground">{title}</h3>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{title}</span>
         </div>
-        <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{badge}</span>
+        <span style={{
+          fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em",
+          textTransform: "uppercase", color: "rgba(255,255,255,0.45)",
+          background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)",
+        }}>{badge}</span>
       </div>
-      <p className="mt-3 text-xs text-muted-foreground">{description}</p>
-      {actionLabel ? (
-        <button
-          type="button"
-          onClick={onAction}
-          disabled={actionDisabled || !onAction}
-          className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground hover:bg-accent/10 disabled:cursor-default disabled:opacity-70"
-        >
-          <Clock3 className="h-3.5 w-3.5" />
-          {actionLabel}
-        </button>
-      ) : (
-        <div className="mt-4 inline-flex items-center gap-1 rounded-md border border-border bg-background px-2.5 py-1 text-[11px] text-muted-foreground">
-          <Clock3 className="h-3.5 w-3.5" />
-          {badge}
-        </div>
-      )}
+      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>{description}</p>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        {actionLabel ? (
+          <button
+            type="button"
+            onClick={onAction}
+            disabled={actionDisabled || !onAction}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8,
+              fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.035)", color: "rgba(255,255,255,0.6)",
+            }}
+          >
+            <Clock3 className="h-3.5 w-3.5" />
+            {actionLabel}
+          </button>
+        ) : (
+          <button
+            type="button"
+            disabled
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8,
+              fontSize: 12, fontWeight: 600, cursor: "not-allowed", border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.035)", color: "rgba(255,255,255,0.4)", opacity: 0.6,
+            }}
+          >
+            <Clock3 className="h-3.5 w-3.5" />
+            Notify me
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -860,47 +891,87 @@ export default function IntegrationsPage() {
         <div className={`flex min-h-0 flex-1 ${tab === "scripts" ? "overflow-y-auto lg:overflow-hidden" : "overflow-hidden"}`}>
         {/* ── Integraciones ────────────────────────────────────────────────── */}
         {tab === "integrations" && (
-          <div className="flex-1 overflow-y-auto px-3 py-4 sm:px-6">
-            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-              <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+          <div className="flex-1 overflow-y-auto" style={{ background: "#020408" }}>
+            <div style={{ padding: "28px 32px", maxWidth: 1160, display: "flex", flexDirection: "column", gap: 24 }}>
 
-              <WhatsappIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+              {/* Header */}
+              <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+                <div>
+                  <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "#fff" }}>{t("title")}</div>
+                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>
+                    {t("tabs.integrations")} · sync data across your stack
+                  </div>
+                </div>
+              </div>
 
-              <SlackWebhookIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+              {/* Stat row */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
+                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>5</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Available</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>3</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Coming soon</div>
+                </div>
+                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "rgba(255,255,255,0.3)" : "#fff", lineHeight: 1 }}>
+                    {usageLoading ? "—" : usage ? (usage.limit === null ? String(usage.executed) : `${usage.executed}/${usage.limit}`) : "—"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Script runs</div>
+                </div>
+              </div>
 
-              <NotionIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+              {/* Available integrations */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
+                  Available
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+                  <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <WhatsappIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <SlackWebhookIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <NotionIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                </div>
+              </div>
 
-              <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+              {/* Coming soon */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
+                  Coming soon
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+                  <ComingSoonIntegrationCard
+                    title={t("integrations.catalog.metaTitle")}
+                    description={t("integrations.catalog.metaDescription")}
+                    icon={Globe}
+                    badge={t("integrations.catalog.tutorial")}
+                    actionLabel={t("integrations.catalog.viewTutorial")}
+                    onAction={() => setShowMetaTutorialModal(true)}
+                  />
+                  <ComingSoonIntegrationCard
+                    title={t("integrations.catalog.googleTitle")}
+                    description={t("integrations.catalog.googleDescription")}
+                    icon={Globe}
+                    badge={t("integrations.catalog.comingSoon")}
+                  />
+                  <ComingSoonIntegrationCard
+                    title={t("integrations.catalog.jiraTitle")}
+                    description={t("integrations.catalog.jiraDescription")}
+                    icon={SquareKanban}
+                    badge={t("integrations.catalog.comingSoon")}
+                  />
+                </div>
+              </div>
 
-              <ComingSoonIntegrationCard
-                title={t("integrations.catalog.metaTitle")}
-                description={t("integrations.catalog.metaDescription")}
-                icon={Globe}
-                badge={t("integrations.catalog.tutorial")}
-                actionLabel={t("integrations.catalog.viewTutorial")}
-                onAction={() => setShowMetaTutorialModal(true)}
-              />
-
-              <ComingSoonIntegrationCard
-                title={t("integrations.catalog.googleTitle")}
-                description={t("integrations.catalog.googleDescription")}
-                icon={Globe}
-                badge={t("integrations.catalog.comingSoon")}
-              />
-
-              <ComingSoonIntegrationCard
-                title={t("integrations.catalog.jiraTitle")}
-                description={t("integrations.catalog.jiraDescription")}
-                icon={SquareKanban}
-                badge={t("integrations.catalog.comingSoon")}
-              />
             </div>
           </div>
         )}
 
         {/* ── Scripts ──────────────────────────────────────────────────────── */}
         {tab === "scripts" && (
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden px-3 py-3 sm:px-4 sm:py-4">
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" style={{ background: "#020408", padding: "12px 16px" }}>
             <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[320px,minmax(0,1fr)] xl:grid-cols-[340px,minmax(0,1fr)]">
               <div className="min-h-[320px] lg:min-h-0">
                 <ScriptList
@@ -918,16 +989,16 @@ export default function IntegrationsPage() {
                 />
               </div>
 
-              <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border bg-card/40 lg:min-h-0">
-                <div className="flex flex-wrap items-center gap-2 border-b border-border px-3 py-2.5 sm:px-4">
+              <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0" style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.035)" }}>
+                <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px" }}>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold text-foreground">
+                    <p className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
                       {selectedScript?.name ?? t("tabs.scripts")}
                     </p>
                     {selectedScript ? (
-                      <p className="truncate text-xs text-muted-foreground">{selectedScript.description || t("scripts.selectToEditHelp")}</p>
+                      <p className="truncate" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{selectedScript.description || t("scripts.selectToEditHelp")}</p>
                     ) : (
-                      <p className="truncate text-xs text-muted-foreground">{t("scripts.selectToEditHelp")}</p>
+                      <p className="truncate" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{t("scripts.selectToEditHelp")}</p>
                     )}
                   </div>
 
@@ -939,23 +1010,24 @@ export default function IntegrationsPage() {
                           await handleDelete(selectedScript);
                         }
                       }}
-                      className="inline-flex items-center gap-1.5 rounded-md border border-destructive/20 bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
+                      style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.07)", color: "#f87171" }}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                       {t("scripts.delete")}
                     </button>
                   )}
 
-                  <div className="ml-auto flex items-center gap-1 rounded-md border border-border bg-background p-1">
+                  <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, padding: "4px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
                     <button
                       type="button"
                       onClick={() => setScriptSubView("canvas")}
                       disabled={!selectedScript}
-                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                        scriptSubView === "canvas"
-                          ? "bg-accent/20 text-accent"
-                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                      } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                      style={{
+                        padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
+                        transition: "all .15s", color: scriptSubView === "canvas" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)",
+                        background: scriptSubView === "canvas" ? "rgba(255,255,255,0.06)" : "transparent",
+                        opacity: !selectedScript ? 0.5 : 1, border: "none",
+                      }}
                     >
                       {t("scripts.graphTab")}
                     </button>
@@ -963,11 +1035,12 @@ export default function IntegrationsPage() {
                       type="button"
                       onClick={() => setScriptSubView("runs")}
                       disabled={!selectedScript}
-                      className={`rounded px-2.5 py-1.5 text-xs font-medium transition-colors ${
-                        scriptSubView === "runs"
-                          ? "bg-accent/20 text-accent"
-                          : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                      } ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                      style={{
+                        padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
+                        transition: "all .15s", color: scriptSubView === "runs" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)",
+                        background: scriptSubView === "runs" ? "rgba(255,255,255,0.06)" : "transparent",
+                        opacity: !selectedScript ? 0.5 : 1, border: "none",
+                      }}
                     >
                       {t("scripts.runsTab")}
                     </button>
@@ -1009,13 +1082,13 @@ export default function IntegrationsPage() {
                   </>
                 ) : (
                   <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                    <div className="rounded-full bg-accent/10 p-5 text-accent">
+                    <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "#d8ff72" }}>
                       <Zap className="h-8 w-8" />
                     </div>
-                    <p className="text-sm font-medium text-foreground">
+                    <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
                       {t("scripts.selectToEdit")}
                     </p>
-                    <p className="text-xs text-muted-foreground">
+                    <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
                       {t("scripts.selectToEditHelp")}
                     </p>
                   </div>
