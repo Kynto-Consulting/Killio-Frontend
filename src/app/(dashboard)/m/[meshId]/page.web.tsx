@@ -35,6 +35,8 @@ import {
 import { getAblyClient } from "@/lib/ably";
 import { getDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
+import { useMeshCursors } from "@/hooks/useMeshCursors";
+import { MeshCursorLayer } from "@/components/ui/mesh-cursor-layer";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
@@ -993,6 +995,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const presenceMembers = useBoardPresence(meshId ?? null, user, accessToken);
 
+  const [toolMode,       setToolMode]       = useState<ToolMode>("select");
+
+  const { cursors: remoteCursors, publishCursor } = useMeshCursors(
+    meshId ?? null,
+    user?.id ?? null,
+    user?.displayName ?? user?.name ?? user?.email ?? "User",
+    accessToken,
+    toolMode,
+  );
+
   const [state,      setState]      = useState<MeshState>(defaultMeshState());
   const [revision,   setRevision]   = useState(0);
   const [updatedAt,  setUpdatedAt]  = useState<string | null>(null);
@@ -1003,8 +1015,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [selectorModalBrickId,   setSelectorModalBrickId]   = useState<string | null>(null);
   const [selectorModalBrickKind, setSelectorModalBrickKind] = useState<"portal" | "mirror">("portal");
 
-  // tool state
-  const [toolMode,       setToolMode]       = useState<ToolMode>("select");
+  // tool state — toolMode/setToolMode declared above (needed by useMeshCursors)
   const [selectedId,     setSelectedId]     = useState<string | null>(null);
   const [selectedIds,    setSelectedIds]    = useState<Set<string>>(new Set());
   const [selectedConnId, setSelectedConnId] = useState<string | null>(null);
@@ -2141,6 +2152,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const onMouseMove = useCallback((e: React.MouseEvent) => {
     const { x, y } = fromEv(e);
     setPointer({ x, y });
+    publishCursor(x, y);
 
     // Rubber-band selection rect — use ref so the check is never stale
     if (toolMode === "select" && selRectRef.current) {
@@ -2232,7 +2244,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return { ...cur, bricksById: { ...cur.bricksById, [b.id]: { ...b, position: { x: dragState.startPosition.x + dx, y: dragState.startPosition.y + dy } } } };
       });
     }
-  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, connSrcId, bezierCpDrag]);
+  }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, connSrcId, bezierCpDrag, publishCursor]);
 
   // ── Mouse up ──────────────────────────────────────────────────────────────────
   const onMouseUp = useCallback(() => {
@@ -3586,6 +3598,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               onDragOver={onCanvasDragOver}
               onDrop={onCanvasDrop}
             >
+              {/* ── Remote cursors overlay (screen-space, outside viewport transform) ── */}
+              <MeshCursorLayer cursors={remoteCursors} viewport={viewport} />
+
               {rootBricks.length === 0 && (
                 <div className="pointer-events-none absolute left-8 top-8 z-10 flex items-center gap-2 rounded border border-dashed border-border/60 bg-card/50 px-3 py-2 text-xs text-muted-foreground/60">
                   <AlertTriangle className="h-4 w-4" /> Usa el toolbar inferior · Lápiz (P) para iinkTS · Doble clic en brick para editar
