@@ -47,6 +47,8 @@ import { WhatsappIntegrationPanel } from "@/components/scripts/WhatsappIntegrati
 import { SlackWebhookIntegrationPanel } from "@/components/scripts/SlackWebhookIntegrationPanel";
 import { NotionIntegrationPanel } from "@/components/scripts/NotionIntegrationPanel";
 import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPanel";
+import { GoogleDriveIntegrationPanel } from "@/components/scripts/GoogleDriveIntegrationPanel";
+import { OneDriveIntegrationPanel } from "@/components/scripts/OneDriveIntegrationPanel";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
@@ -946,6 +948,8 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                   <SlackWebhookIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                   <NotionIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                   <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <GoogleDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <OneDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                 </div>
               </div>
 
@@ -962,12 +966,6 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                     badge={t("integrations.catalog.tutorial")}
                     actionLabel={t("integrations.catalog.viewTutorial")}
                     onAction={() => setShowMetaTutorialModal(true)}
-                  />
-                  <ComingSoonIntegrationCard
-                    title={t("integrations.catalog.googleTitle")}
-                    description={t("integrations.catalog.googleDescription")}
-                    icon={Globe}
-                    badge={t("integrations.catalog.comingSoon")}
                   />
                   <ComingSoonIntegrationCard
                     title={t("integrations.catalog.jiraTitle")}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { saveNotionCallback, saveTrelloCallback } from "@/lib/api/integrations";
+import { saveNotionCallback, saveTrelloCallback, saveGoogleDriveCallback, saveOneDriveCallback } from "@/lib/api/integrations";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function IntegrationCallbackPage() {
@@ -76,6 +76,10 @@ export default function IntegrationCallbackPage() {
       try {
         if (provider === "notion") {
           await saveNotionCallback(teamId, code, accessToken);
+        } else if (provider === "google_drive") {
+          await saveGoogleDriveCallback(teamId, code, accessToken);
+        } else if (provider === "onedrive") {
+          await saveOneDriveCallback(teamId, code, accessToken);
         } else {
           throw new Error(t("callback.errors.unsupportedProvider"));
         }
