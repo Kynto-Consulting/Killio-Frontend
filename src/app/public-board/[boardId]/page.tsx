@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
+import { normalizeLocale, getI18nText } from "@/i18n";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -142,16 +144,18 @@ function boardBgStyle(board: Pick<PublicBoardView, "backgroundKind" | "backgroun
 
 // ─── Date helper ──────────────────────────────────────────────────────────────
 
-function formatDue(iso: string): string {
+type DueLabels = { past: string; today: string; tomorrow: string };
+
+function formatDue(iso: string, labels: DueLabels, locale: string): string {
   const d = new Date(iso);
   if (isNaN(d.getTime())) return "";
   const now = new Date();
   const diffMs = d.getTime() - now.getTime();
   const diffDays = Math.ceil(diffMs / 86400000);
-  if (diffDays < 0) return "Vencida";
-  if (diffDays === 0) return "Hoy";
-  if (diffDays === 1) return "Mañana";
-  return d.toLocaleDateString("es", { day: "numeric", month: "short" });
+  if (diffDays < 0) return labels.past;
+  if (diffDays === 0) return labels.today;
+  if (diffDays === 1) return labels.tomorrow;
+  return d.toLocaleDateString(locale, { day: "numeric", month: "short" });
 }
 
 function dueColor(iso: string, completed: boolean): string {
@@ -194,14 +198,23 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
   const { boardId } = await params;
   const board = await fetchPublicBoard(boardId);
 
+  const cookieStore = await cookies();
+  const locale = normalizeLocale(cookieStore.get("killio_locale")?.value);
+  const t = (key: string) => getI18nText(locale, "boards", key) ?? key;
+  const dueLabels: DueLabels = {
+    past: t("publicView.duePast"),
+    today: t("publicView.dueToday"),
+    tomorrow: t("publicView.dueTomorrow"),
+  };
+
   if (!board || board.visibility !== "public_link") {
     return (
       <main className="min-h-screen bg-background text-foreground p-6 md:p-10">
         <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6">
-          <h1 className="text-2xl font-semibold">Board no disponible</h1>
-          <p className="mt-2 text-muted-foreground">Este board no es público o el enlace no es válido.</p>
+          <h1 className="text-2xl font-semibold">{t("publicView.notAvailableTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("publicView.notAvailableDescription")}</p>
           <Link href="/login" className="inline-flex mt-5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground">
-            Iniciar sesión
+            {t("publicView.login")}
           </Link>
         </div>
       </main>
@@ -228,7 +241,7 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
             className="rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider"
             style={{ backgroundColor: `${theme.panel}`, color: theme.accent, border: `1px solid ${theme.border}` }}
           >
-            Público
+            {t("publicView.badge")}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -237,14 +250,14 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
             className="rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
             style={{ borderColor: theme.border, color: theme.text }}
           >
-            Iniciar sesión
+            {t("publicView.login")}
           </Link>
           <Link
             href="/register"
             className="rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
             style={{ backgroundColor: theme.accent, color: theme.accentForeground }}
           >
-            Registrarse
+            {t("publicView.signup")}
           </Link>
         </div>
       </header>
@@ -284,10 +297,10 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
               {/* Cards */}
               <div className="flex flex-col gap-2 p-2">
                 {list.cards.length === 0 ? (
-                  <p className="py-4 text-center text-xs opacity-40">Sin cards</p>
+                  <p className="py-4 text-center text-xs opacity-40">{t("publicView.noCards")}</p>
                 ) : (
                   list.cards.map((card) => (
-                    <PublicCard key={card.id} card={card} theme={theme} />
+                    <PublicCard key={card.id} card={card} theme={theme} dueLabels={dueLabels} locale={locale} />
                   ))
                 )}
               </div>
@@ -296,7 +309,7 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
 
           {nonArchived.length === 0 && (
             <div className="flex items-center justify-center w-full py-20 opacity-40 text-sm">
-              Este board no tiene listas todavía.
+              {t("publicView.noLists")}
             </div>
           )}
         </div>
@@ -307,10 +320,10 @@ export default async function PublicBoardPage({ params }: { params: Promise<{ bo
 
 // ─── Card component ───────────────────────────────────────────────────────────
 
-function PublicCard({ card, theme }: { card: PublicCard; theme: BoardThemeTokens }) {
+function PublicCard({ card, theme, dueLabels, locale }: { card: PublicCard; theme: BoardThemeTokens; dueLabels: DueLabels; locale: string }) {
   const isCompleted = !!card.completedAt || card.status === "done";
   const hasDue = !!card.dueAt;
-  const dueLabel = hasDue ? formatDue(card.dueAt!) : null;
+  const dueLabel = hasDue ? formatDue(card.dueAt!, dueLabels, locale) : null;
   const dueClr = hasDue ? dueColor(card.dueAt!, isCompleted) : null;
   const tags = card.tags ?? [];
   const assignees = card.assignees ?? [];

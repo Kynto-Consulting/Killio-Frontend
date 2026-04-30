@@ -113,5 +113,89 @@
   "confirmDelete": {
     "title": "Delete Board",
     "description": "Are you sure you want to delete this board? This action cannot be undone."
+  },
+  "boardSettingsModal": {
+    "title": "Board settings",
+    "tabs": {
+      "general": "General",
+      "appearance": "Appearance",
+      "sharing": "Share",
+      "danger": "Danger"
+    },
+    "general": {
+      "nameLabel": "Board name",
+      "namePlaceholder": "Name",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional description",
+      "saving": "Saving...",
+      "save": "Save changes",
+      "nameEmptyError": "Board name cannot be empty.",
+      "saveError": "Could not save general settings."
+    },
+    "appearance": {
+      "cover": "Cover",
+      "background": "Board background",
+      "theme": "Theme",
+      "themePreset": "Preset",
+      "themeCustom": "Custom",
+      "saving": "Saving...",
+      "save": "Save appearance",
+      "saveError": "Could not save board appearance.",
+      "upload": {
+        "uploadCover": "Upload cover",
+        "uploadBackground": "Upload background",
+        "removeCover": "Remove cover",
+        "invalidImage": "File must be a valid image.",
+        "uploadError": "Could not upload image."
+      },
+      "coverKinds": {
+        "none": "No background",
+        "preset": "Preset",
+        "gradient": "Gradient",
+        "color": "Color",
+        "image": "Image"
+      },
+      "themePresets": {
+        "killio-default": "Classic",
+        "trello-ocean": "Ocean",
+        "trello-forest": "Forest",
+        "trello-sunrise": "Sunrise"
+      }
+    },
+    "sharing": {
+      "description": "Manage access, permissions, and board visibility from the share panel.",
+      "open": "Open share panel"
+    },
+    "danger": {
+      "description": "This action will permanently delete the board and all associated content.",
+      "delete": "Delete board"
+    }
+  },
+  "chatDrawer": {
+    "appliedChanges": "Applied {{applied}} of {{total}} suggested changes.",
+    "applyFailed": "Could not apply suggested changes.",
+    "resizeTitle": "Drag to resize",
+    "headerActivity": "Activity",
+    "headerCollaboration": "Collaboration",
+    "tabActivity": "Activity",
+    "aiWelcome": "Hi! I'm your AI assistant. I can help you organize this board, prioritize tasks or detect blockers. How can I help?",
+    "actionDone": "Action applied: {{action}}.",
+    "actionFailed": "Could not execute action {{action}}. Check IDs and permissions.",
+    "suggestedAction": "Suggested Action",
+    "applyOne": "Apply improvement",
+    "applyAll": "Apply all changes",
+    "summarizeBoard": "Summarize board",
+    "summarizeBoardPrompt": "Summarize this board and highlight today's priorities.",
+    "generateReport": "Generate report",
+    "generateReportPrompt": "Generate a technical report with this board's context.",
+    "reportGenerated": "Technical report generated: {{token}}",
+    "reportError": "Could not generate the technical report at this time. Please try again.",
+    "noActivity": "No recent activity.",
+    "changeSummary": "Change Summary",
+    "andMore": "and {{n}} more...",
+    "fields": "Fields:",
+    "someone": "Someone",
+    "inputPlaceholderAI": "Ask the AI something or use @...",
+    "inputPlaceholderChat": "Ask or mention with @..."
   }
 }

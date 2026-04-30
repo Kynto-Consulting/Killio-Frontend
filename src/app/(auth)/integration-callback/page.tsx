@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { saveNotionCallback, saveTrelloCallback } from "@/lib/api/integrations";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
@@ -10,6 +11,7 @@ export default function IntegrationCallbackPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { accessToken, user } = useSession();
+  const t = useTranslations("integrations");
   
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -37,20 +39,20 @@ export default function IntegrationCallbackPage() {
     if (trelloToken) {
       const pendingTeamId = localStorage.getItem("trello_pending_teamId");
       if (!pendingTeamId) {
-        setError("Session expired. Please try connecting Trello again.");
+        setError(t("callback.errors.sessionExpired"));
         return;
       }
       localStorage.removeItem("trello_pending_teamId");
       saveTrelloCallback(pendingTeamId, trelloToken, accessToken)
         .then(() => { setSuccess(true); setTimeout(() => router.replace("/integrations"), 1500); })
-        .catch((err: any) => setError(err.message || "Failed to finalize Trello integration."));
+        .catch((err: any) => setError(err.message || t("callback.errors.finalizeTrello")));
       return;
     }
 
     // Notion / other OAuth2 flow: code + state in query params
     const stateStr = searchParams.get("state");
     if (!code || !stateStr) {
-      setError("Missing code or state parameters from OAuth provider.");
+      setError(t("callback.errors.missingOAuthParams"));
       return;
     }
 
@@ -59,14 +61,14 @@ export default function IntegrationCallbackPage() {
       const decoded = atob(stateStr);
       stateObj = JSON.parse(decoded);
     } catch {
-      setError("Invalid state parameter format.");
+      setError(t("callback.errors.invalidState"));
       return;
     }
 
     const { teamId, provider } = stateObj;
 
     if (!teamId || !provider) {
-      setError("Incomplete state information.");
+      setError(t("callback.errors.incompleteState"));
       return;
     }
 
@@ -75,19 +77,19 @@ export default function IntegrationCallbackPage() {
         if (provider === "notion") {
           await saveNotionCallback(teamId, code, accessToken);
         } else {
-          throw new Error("Unsupported provider callback");
+          throw new Error(t("callback.errors.unsupportedProvider"));
         }
         setSuccess(true);
         setTimeout(() => {
           router.replace("/integrations");
         }, 1500);
       } catch (err: any) {
-        setError(err.message || "Failed to finalize integration setup.");
+        setError(err.message || t("callback.errors.finalizeSetup"));
       }
     };
 
     processCallback();
-  }, [accessToken, user, router, searchParams]);
+  }, [accessToken, user, router, searchParams, t]);
 
   if (error) {
     return (
@@ -98,7 +100,7 @@ export default function IntegrationCallbackPage() {
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">
-              Integration Failed
+              {t("callback.ui.failedTitle")}
             </h1>
             <p className="text-sm text-muted-foreground">{error}</p>
           </div>
@@ -106,7 +108,7 @@ export default function IntegrationCallbackPage() {
             onClick={() => router.replace("/integrations")}
             className="w-full rounded-md bg-secondary px-4 py-3 text-sm font-medium hover:bg-secondary/90 transition-colors"
           >
-            Return to Integrations
+            {t("callback.ui.returnButton")}
           </button>
         </div>
       </div>
@@ -118,8 +120,8 @@ export default function IntegrationCallbackPage() {
       <div className="flex min-h-screen items-center justify-center bg-background">
         <div className="space-y-4 text-center">
           <CheckCircle className="mx-auto h-12 w-12 text-emerald-500" />
-          <h1 className="text-xl font-semibold text-foreground">Integration Connected!</h1>
-          <p className="text-sm text-muted-foreground">Redirecting you back...</p>
+          <h1 className="text-xl font-semibold text-foreground">{t("callback.ui.successTitle")}</h1>
+          <p className="text-sm text-muted-foreground">{t("callback.ui.redirecting")}</p>
         </div>
       </div>
     );
@@ -129,8 +131,8 @@ export default function IntegrationCallbackPage() {
     <div className="flex min-h-screen items-center justify-center bg-background">
       <div className="space-y-4 text-center">
         <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
-        <h1 className="text-lg font-medium text-foreground">Finalizing Authorization...</h1>
-        <p className="text-sm text-muted-foreground">Please wait while we connect your account.</p>
+        <h1 className="text-lg font-medium text-foreground">{t("callback.ui.finalizingTitle")}</h1>
+        <p className="text-sm text-muted-foreground">{t("callback.ui.finalizingDescription")}</p>
       </div>
     </div>
   );

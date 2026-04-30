@@ -1,8 +1,11 @@
 "use client";
 
 import React from "react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function OfflinePage() {
+  const t = useTranslations("landing");
+
   return (
     <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-center">
       <div className="max-w-md w-full space-y-8 bg-neutral-900 border border-neutral-800 rounded-2xl p-8 shadow-xl">
@@ -27,11 +30,10 @@ export default function OfflinePage() {
 
         <div className="space-y-3">
           <h1 className="text-2xl font-semibold text-white tracking-tight">
-            You are offline
+            {t("offline.title")}
           </h1>
           <p className="text-neutral-400 text-sm leading-relaxed">
-            It looks like you've lost your internet connection. 
-            Any edits you make to cached documents will automatically sync when you're back online.
+            {t("offline.description")}
           </p>
         </div>
 
@@ -40,13 +42,13 @@ export default function OfflinePage() {
             onClick={() => window.location.reload()}
             className="w-full py-2.5 px-4 bg-white text-black font-medium rounded-lg hover:bg-neutral-200 transition-colors"
           >
-            Try Again
+            {t("offline.tryAgain")}
           </button>
           <button
             onClick={() => window.history.back()}
             className="w-full py-2.5 px-4 bg-neutral-800 text-white font-medium rounded-lg hover:bg-neutral-700 transition-colors"
           >
-            Go Back
+            {t("offline.goBack")}
           </button>
         </div>
       </div>

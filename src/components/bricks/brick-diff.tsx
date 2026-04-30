@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import * as jsdiff from "diff";
 import { ReactNode } from "react";
 import { Check, X } from "lucide-react";
@@ -11,10 +12,11 @@ export type BrickDiffProps = {
 };
 
 export function BrickDiff({ kind, oldContent, newContent }: BrickDiffProps) {
+  const t = useTranslations("common");
   if (!oldContent && !newContent) {
     return (
       <div className="text-[10px] text-muted-foreground italic border border-dashed p-2 rounded">
-        Sin contenido para comparar.
+        {t("brickDiff.noContent")}
       </div>
     );
   }
@@ -220,6 +222,7 @@ function ChecklistDiff({ old, new: newValue }: { old: any[]; new: any[] }) {
 }
 
 function AccordionDiff({ old, new: newValue }: { old: any; new: any }) {
+  const t = useTranslations("common");
   const oldTitle = typeof old?.title === "string" ? old.title : (typeof old?.content?.title === "string" ? old.content.title : "");
   const newTitle = typeof newValue?.title === "string" ? newValue.title : (typeof newValue?.content?.title === "string" ? newValue.content.title : "");
   const oldBody = typeof old?.body === "string" ? old.body : (typeof old?.content?.body === "string" ? old.content.body : "");
@@ -228,11 +231,11 @@ function AccordionDiff({ old, new: newValue }: { old: any; new: any }) {
   return (
     <div className="space-y-2 border-l-2 border-accent/20 pl-2">
       <div className="text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1">
-        <span>Título:</span>
+        <span>{t("brickDiff.title")}</span>
         <TextDiff old={oldTitle} new={newTitle} />
       </div>
       <div className="text-[10px] font-bold text-muted-foreground uppercase flex flex-col gap-1">
-        <span>Contenido:</span>
+        <span>{t("brickDiff.content")}</span>
         <TextDiff old={oldBody} new={newBody} />
       </div>
     </div>

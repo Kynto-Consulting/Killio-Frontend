@@ -1,4 +1,5 @@
 "use client";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { Bot, MessageSquare, History, Send, X, Loader2, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, CheckCheck, FileText } from "lucide-react";
@@ -124,6 +125,7 @@ export function DocumentCommentsDrawer({
   onAiInputClear?: () => void;
   bricks?: any[];
 }) {
+  const t = useTranslations("document-detail");
   const getActionTheme = useActionTheme();
   const { accessToken, user, activeTeamId } = useSession();
   const [activeTab, setActiveTab] = useState(initialTab);
@@ -330,13 +332,13 @@ export function DocumentCommentsDrawer({
       window.dispatchEvent(new Event("document:refresh"));
       await fetchDocContent();
       if (!options?.silent) {
-        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: `He ejecutado la acción: ${action}.` }]);
+        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: t("commentsDrawer.actionDone", { action }) }]);
       }
       return true;
     } catch (err) {
       console.error("Failed to execute AI action", err);
       if (!options?.silent) {
-        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: `No pude ejecutar la acción ${action || "UNKNOWN"}. Verifica los datos o permisos.` }]);
+        setAiMessages((prev) => [...prev, { id: Date.now(), role: "bot", content: t("commentsDrawer.actionFailed", { action: action || 'UNKNOWN' }) }]);
       }
       return false;
     }
@@ -412,8 +414,8 @@ export function DocumentCommentsDrawer({
         id: Date.now(),
         role: "bot",
         content: appliedCount > 0
-          ? `Apliqué ${appliedCount} de ${actions.length} cambios sugeridos.`
-          : "No pude aplicar los cambios sugeridos.",
+          ? t("commentsDrawer.appliedChanges", { applied: appliedCount, total: actions.length })
+          : t("commentsDrawer.applyFailed"),
       },
     ]);
     setApplyingAllMessageId(null);
@@ -535,7 +537,7 @@ export function DocumentCommentsDrawer({
       {/* Header with Tabs */}
       <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
         <div className="flex items-center justify-between p-4 pb-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Colaboración</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("commentsDrawer.collaboration")}</h3>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -595,7 +597,7 @@ export function DocumentCommentsDrawer({
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
-                  <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a mejorar este documento, resumir ideas o proponer acciones claras. ¿Qué necesitas?</p>
+                  <p>{t("commentsDrawer.aiWelcome")}</p>
                 </div>
               </div>
 
@@ -643,7 +645,7 @@ export function DocumentCommentsDrawer({
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
-                          <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">Acción Sugerida</span>
+                          <span className="text-[10px] uppercase font-black text-emerald-600/80 tracking-widest">{t("commentsDrawer.suggestedAction")}</span>
                         </div>
                       </div>
                       <p className="text-[11px] font-semibold text-foreground/80">{action.explanation || "Realizar cambios en el documento"}</p>
@@ -706,13 +708,13 @@ export function DocumentCommentsDrawer({
                 </button>
                 <button
                   onClick={() => {
-                    void handleAiSubmit(undefined, "Propón mejoras de redacción y estructura para este documento.");
+                    void handleAiSubmit(undefined, t("commentsDrawer.improveWritingPrompt"));
                   }}
                   disabled={isLoading}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all disabled:opacity-50"
                 >
                   <Sparkles className="w-3 h-3" />
-                  Mejorar redacción
+                  {t("commentsDrawer.improveWriting")}
                 </button>
               </div>
             </div>
@@ -724,7 +726,7 @@ export function DocumentCommentsDrawer({
             {comments.length === 0 && !isLoading && (
               <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60">
                 <MessageSquare className="h-8 w-8 mb-2" />
-                <p>No hay comentarios aún.</p>
+                <p>{t("commentsDrawer.noComments")}</p>
               </div>
             )}
             {isLoading && comments.length === 0 && (
@@ -841,7 +843,7 @@ export function DocumentCommentsDrawer({
                                     </div>
                                   );
                                 }).slice(0, 5)}
-                                {group.length > 5 && <div className="text-[8px] text-muted-foreground italic pl-2">y {group.length - 5} más...</div>}
+                                {group.length > 5 && <div className="text-[8px] text-muted-foreground italic pl-2">{t("commentsDrawer.andMore", { n: group.length - 5 })}</div>}
                               </div>
                             </div>
                           </button>

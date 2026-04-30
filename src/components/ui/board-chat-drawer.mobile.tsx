@@ -1,4 +1,5 @@
 ﻿"use client";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActionTheme } from "@/hooks/use-action-theme";
 import { useState } from "react";
 
@@ -21,6 +22,7 @@ export interface BoardChatDrawerProps {
 
 
 export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = 'chat' }: BoardChatDrawerProps) {
+  const t = useTranslations("board-detail");
   const getActionTheme = useActionTheme();
   const {
     state: {
@@ -50,8 +52,8 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         id: Date.now(),
         role: "bot",
         content: appliedCount > 0
-          ? `Apliqué ${appliedCount} de ${actions.length} cambios sugeridos.`
-          : "No pude aplicar los cambios sugeridos.",
+          ? t("chatDrawer.appliedChanges", { applied: appliedCount, total: actions.length })
+          : t("chatDrawer.applyFailed"),
       },
     ]);
     setApplyingAllMessageId(null);
@@ -76,7 +78,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
       {/* Header with Tabs */}
       <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
         <div className="flex items-center justify-between p-4 pb-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? 'Actividad' : 'Colaboración'}</h3>
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</h3>
           <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
@@ -86,7 +88,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
           {[
             { id: 'copilot', label: 'Copilot', icon: Bot },
             { id: 'chat', label: 'Chat', icon: MessageSquare },
-            { id: 'activity', label: 'Actividad', icon: History }
+            { id: 'activity', label: t("chatDrawer.tabActivity"), icon: History }
           ].map(tab => (
             <button
               key={tab.id}
@@ -112,7 +114,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                   <Bot className="h-4 w-4" />
                 </div>
                 <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
-                  <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a organizar este tablero, priorizar tareas o detectar bloqueos. ¿En qué te ayudo?</p>
+                  <p>{t("chatDrawer.aiWelcome")}</p>
                 </div>
               </div>
 
@@ -155,7 +157,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                             context={getResolverContext(teamDocs, [], teamMembers)}
                             availableTags={allAvailableTags}
                             onSuggestionApply={() => {
-                              setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: 'Acción realizada con éxito.' }]);
+                              setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: t("chatDrawer.actionDone") }]);
                             }}
                           />
                         )}
@@ -166,7 +168,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                       <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
                         <div className="flex items-center gap-2 mb-1">
                           <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
+                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">{t("chatDrawer.suggestedAction")}</span>
                         </div>
                         
                         <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
@@ -178,7 +180,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                           className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
                         >
                           <CheckCircle2 className="h-3.5 w-3.5" />
-                          Aplicar mejora
+                          {t("chatDrawer.applyOne")}
                         </button>
                       </div>
                     ))}
@@ -197,7 +199,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                           ) : (
                             <CheckCheck className="h-3.5 w-3.5" />
                           )}
-                          <span>Aplicar todos los cambios</span>
+                          <span>{t("chatDrawer.applyAll")}</span>
                         </button>
                       </div>
                     )}
@@ -208,24 +210,24 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
               <div className="flex flex-wrap gap-2 pt-2">
                 <button
                   onClick={() => {
-                    void sendMessage(undefined, "Resume este tablero y destaca prioridades para hoy.");
+                    void sendMessage(undefined, t("chatDrawer.summarizeBoardPrompt"));
                   }}
                   disabled={isLoading}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
                 >
                   <FileText className="w-3 h-3" />
-                  Resumir tablero
+                  {t("chatDrawer.summarizeBoard")}
                 </button>
                 <button
                   onClick={() => {
-                    const prompt = "Generar reporte técnico con el contexto de este tablero.";
+                    const prompt = t("chatDrawer.generateReportPrompt");
                     void sendMessage(undefined, prompt);
                   }}
                   disabled={isLoading || isGeneratingReport}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
                 >
                   {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                  Generar reporte
+                  {t("chatDrawer.generateReport")}
                 </button>
               </div>
             </div>
@@ -300,7 +302,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
             {groupedActivities.length === 0 && (
               <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60 font-medium">
                 <History className="h-8 w-8 mb-2" />
-                <p>No hay actividad reciente.</p>
+                <p>{t("chatDrawer.noActivity")}</p>
               </div>
             )}
             {groupedActivities.map((group) => {
@@ -336,7 +338,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
 
                             {/* Custom Hover Summary */}
                             <div className="absolute left-full ml-2 top-0 z-50 invisible group-hover/info:visible bg-card border border-border shadow-xl rounded-lg p-2 min-w-32 animate-in fade-in zoom-in-95 duration-150">
-                              <div className="text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 mb-1 border-b border-border/40 pb-1">Resumen de Cambios</div>
+                              <div className="text-[9px] font-bold uppercase tracking-tight text-muted-foreground/80 mb-1 border-b border-border/40 pb-1">{t("chatDrawer.changeSummary")}</div>
                               <div className="space-y-1">
                                 {group.map((item, idx) => {
                                   const itemChanges = (item.payload as any)?.changes || {};
@@ -348,7 +350,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                                     </div>
                                   );
                                 }).slice(0, 5)}
-                                {group.length > 5 && <div className="text-[8px] text-muted-foreground italic pl-2">y {group.length - 5} más...</div>}
+                                {group.length > 5 && <div className="text-[8px] text-muted-foreground italic pl-2">{t("chatDrawer.andMore", { n: group.length - 5 })}</div>}
                               </div>
                             </div>
                           </button>
@@ -361,13 +363,13 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
 
                     <div className="space-y-1">
                       <p className="text-xs text-foreground/80 leading-relaxed">
-                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, 'Alguien')}</span>
+                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
                         <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
                       </p>
 
                       {changedFields && (
                         <p className="text-[10px] bg-muted/30 px-2 py-1 rounded border border-border/30 text-muted-foreground italic">
-                          Campos: {changedFields}
+                          {t("chatDrawer.fields")} {changedFields}
                         </p>
                       )}
 
@@ -392,7 +394,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
             <ReferenceTokenInput
               value={inputVal}
               onChange={setInputVal}
-              placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : "Pregunta o menciona con @..."}
+              placeholder={activeTab === 'copilot' ? t("chatDrawer.inputPlaceholderAI") : t("chatDrawer.inputPlaceholderChat")}
               documents={teamDocs}
               boards={teamBoardsForMentions}
               users={teamMembers}

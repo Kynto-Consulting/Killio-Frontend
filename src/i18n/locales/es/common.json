@@ -26,5 +26,35 @@
   "dates": {
     "today": "HOY",
     "yesterday": "AYER"
+  },
+  "untitled": "(sin título)",
+  "noUserInfo": "No hay más información disponible para este usuario.",
+  "typeHere": "Escribe aquí...",
+  "brickDiff": {
+    "noContent": "Sin contenido para comparar.",
+    "title": "Título:",
+    "content": "Contenido:"
+  },
+  "aiPanel": {
+    "uploadDesc": "Sube tus PDFs, Excels, notas, audios o imágenes. Nuestra IA analizará el contenido estrictamente para extraer tarjetas descriptivas listas para refinar.",
+    "uploadFilePlaceholder": "Sube tu archivo PDF, CSV, Audio...",
+    "designAgent": "Diseñar Agente",
+    "noResults": "Aún no hay resultados",
+    "noResultsDesc": {
+      "cards": "Sube un archivo o pega texto y haz clic en \"Generar Tarjetas\" para extraer ítems procesables.",
+      "documents": "Sube un archivo o pega texto y haz clic en \"Generar Documentos\" para crear documentos.",
+      "boards": "Sube un archivo o pega texto y haz clic en \"Generar Tableros\" para crear tableros.",
+      "scripts": "Sube un archivo o pega texto y haz clic en \"Generar Scripts\" para crear automatizaciones.",
+      "agents": "Describe tu agente y habilita tools para diseñarlo con reasoning y plan de acción."
+    },
+    "createdAgents": "Se crearon {count} agentes como documentos de configuración.",
+    "filterContextPlaceholder": "Ej. Filtra solo las tareas de backend...",
+    "changeGenerationType": "Cambiar tipo de generación",
+    "insufficientInfo": "El usuario no proporcionó información suficiente.",
+    "noStructuredReasoning": "No se devolvió razonamiento estructurado."
+  },
+  "agentTools": {
+    "search": "Busca información en docs, cards y contexto",
+    "investigate": "Analiza métricas y estado del workspace"
   }
 }

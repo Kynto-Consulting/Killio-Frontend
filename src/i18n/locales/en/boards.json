@@ -16,5 +16,41 @@
   "boardDeleteError": "Failed to delete board",
   "noActiveWorkspace": "No active workspace found. Please select or create one from the top menu first.",
   "deleteTitle": "Delete Board",
-  "deleteDescription": "Are you sure you want to delete the board \"{{name}}\"? This action cannot be undone."
+  "deleteDescription": "Are you sure you want to delete the board \"{{name}}\"? This action cannot be undone.",
+  "publicView": {
+    "notAvailableTitle": "Board not available",
+    "notAvailableDescription": "This board is not public or the link is invalid.",
+    "login": "Sign in",
+    "signup": "Sign up",
+    "badge": "Public",
+    "noCards": "No cards",
+    "noLists": "This board has no lists yet.",
+    "duePast": "Overdue",
+    "dueToday": "Today",
+    "dueTomorrow": "Tomorrow"
+  },
+  "publicMeshView": {
+    "notAvailableTitle": "Mesh not available",
+    "notAvailableDescription": "This Mesh Board is not public or the link is invalid.",
+    "login": "Sign in",
+    "signup": "Sign up",
+    "badge": "Public",
+    "noBricks": "This mesh has no bricks yet."
+  },
+  "mesh": {
+    "title": "Mesh Boards",
+    "subtitle": "Fractal space for visual modeling and meta bricks.",
+    "searchPlaceholder": "Search mesh",
+    "newMesh": "New mesh",
+    "loading": "Loading mesh boards...",
+    "updated": "Updated",
+    "noMeshTitle": "No mesh boards",
+    "noMeshDescription": "Create the first mesh to start modeling the infinite canvas.",
+    "createFirst": "Create first mesh",
+    "loadError": "Failed to load mesh boards.",
+    "createPrompt": "Name for the new mesh board",
+    "createPromptDefault": "New Mesh Board",
+    "createSuccess": "Mesh board created.",
+    "createError": "Failed to create mesh board."
+  }
 }

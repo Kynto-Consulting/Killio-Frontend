@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -17,7 +17,7 @@ const API = (
 function SignupPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useSession();
+  const { login, user, accessToken, isLoading: isSessionLoading } = useSession();
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
   const [form, setForm] = useState({
@@ -35,6 +35,12 @@ function SignupPageContent() {
   const from = searchParams.get("from");
   const safeFrom = from && from.startsWith("/") ? from : "/";
   const loginHref = safeFrom !== "/" ? `/login?from=${encodeURIComponent(safeFrom)}` : "/login";
+
+  useEffect(() => {
+    if (!isSessionLoading && user && accessToken) {
+      router.replace("/");
+    }
+  }, [isSessionLoading, user, accessToken, router]);
 
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm((prev) => ({

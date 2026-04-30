@@ -26,5 +26,35 @@
   "dates": {
     "today": "TODAY",
     "yesterday": "YESTERDAY"
+  },
+  "untitled": "(untitled)",
+  "noUserInfo": "No additional information available for this user.",
+  "typeHere": "Type here...",
+  "brickDiff": {
+    "noContent": "No content to compare.",
+    "title": "Title:",
+    "content": "Content:"
+  },
+  "aiPanel": {
+    "uploadDesc": "Upload your PDFs, Excels, notes, audio or images. Our AI will strictly analyze the content to extract actionable descriptive cards ready to refine.",
+    "uploadFilePlaceholder": "Upload your PDF, CSV, Audio...",
+    "designAgent": "Design Agent",
+    "noResults": "No results yet",
+    "noResultsDesc": {
+      "cards": "Upload a file or paste text and click \"Generate Cards\" to extract actionable items.",
+      "documents": "Upload a file or paste text and click \"Generate Documents\" to create documents.",
+      "boards": "Upload a file or paste text and click \"Generate Boards\" to create boards.",
+      "scripts": "Upload a file or paste text and click \"Generate Scripts\" to create automations.",
+      "agents": "Describe your agent and enable tools to design it with reasoning and action plan."
+    },
+    "createdAgents": "{count} agents created as configuration documents.",
+    "filterContextPlaceholder": "e.g. Filter only backend tasks...",
+    "changeGenerationType": "Change generation type",
+    "insufficientInfo": "The user did not provide sufficient information.",
+    "noStructuredReasoning": "No structured reasoning was returned."
+  },
+  "agentTools": {
+    "search": "Searches for information in docs, cards and context",
+    "investigate": "Analyzes metrics and workspace status"
   }
 }

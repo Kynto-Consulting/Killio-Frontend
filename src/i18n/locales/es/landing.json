@@ -200,6 +200,45 @@
     "title": "Pon estructura a la ejecucion antes de que el trabajo se vuelva ruido.",
     "description": "Crea un workspace, acepta los terminos una vez y dale a tu equipo un sistema operativo mas claro desde el primer dia."
   },
+  "mobile": {
+    "badge": "Beta publica",
+    "hero": {
+      "titleLine1": "Un workspace movil.",
+      "titleLine2": "Cero friccion para ejecutar.",
+      "subtitle": "Planifica, escribe, automatiza y entrega desde tu celular sin cambiar de herramientas.",
+      "primaryCta": "Crear cuenta"
+    },
+    "highlights": {
+      "flow": {
+        "title": "Flujo que entrega",
+        "description": "Tableros, docs y meshes conectados en una sola capa de ejecucion."
+      },
+      "ai": {
+        "title": "Copilotos de IA",
+        "description": "Genera planes, resumenes y acciones directamente desde el contexto."
+      },
+      "teams": {
+        "title": "Hecho para equipos",
+        "description": "Roles, invitaciones y colaboracion estructurada desde el dia uno."
+      }
+    },
+    "launch": {
+      "kicker": "Lanza rapido",
+      "title": "Empieza tu primer workspace en minutos",
+      "points": {
+        "one": "Crea tu equipo e invita colaboradores.",
+        "two": "Abre tablero, documento o mesh desde un solo home.",
+        "three": "Automatiza trabajo recurrente con acciones de IA."
+      },
+      "cta": "Empezar gratis"
+    }
+  },
+  "offline": {
+    "title": "Estas sin conexion",
+    "description": "Parece que perdiste tu conexion a internet. Los cambios en documentos cacheados se sincronizaran automaticamente cuando vuelvas a estar en linea.",
+    "tryAgain": "Reintentar",
+    "goBack": "Volver"
+  },
   "footer": "Hecho para equipos rapidos que odian el caos de pestanas.",
   "footerNote": "Rutas legales clasicas, consentimiento transparente y una entrada publica que no empuja a invitados directo al login.",
   "copyright": "Killio by Kynto"

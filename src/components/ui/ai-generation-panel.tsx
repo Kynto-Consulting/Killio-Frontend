@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { useState, useEffect, useRef } from "react";
 import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown, Wrench } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
@@ -57,9 +58,9 @@ interface GeneratedAgentDraft {
 }
 
 const AGENT_TOOL_OPTIONS: Array<{ id: AgentToolId; label: string; description: string }> = [
-  { id: 'search', label: 'Search', description: 'Busca información en docs, cards y contexto' },
+  { id: 'search', label: 'Search', description: 'agentTools.search' },
   { id: 'edit', label: 'Edit', description: 'Edita contenido con acciones propuestas' },
-  { id: 'investigate', label: 'Investigate', description: 'Analiza métricas y estado del workspace' },
+  { id: 'investigate', label: 'Investigate', description: 'agentTools.investigate' },
   { id: 'docs', label: 'Docs', description: 'Crea y organiza documentos' },
   { id: 'boards', label: 'Boards', description: 'Crea y actualiza tableros y listas' },
   { id: 'scripts', label: 'Scripts', description: 'Propone y configura automatizaciones' },
@@ -239,6 +240,7 @@ const inferSourceKind = (file: File): ExtractSourceKind => {
 };
 
 export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const t = useTranslations("common");
   const { accessToken, activeTeamId } = useSession();
 
   const [dragActive, setDragActive] = useState(false);
@@ -437,7 +439,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
       // Fallback
       if (!finalContent.trim()) {
-        finalContent = "El usuario no proporcionó información suficiente.";
+        finalContent = t("aiPanel.insufficientInfo");
       }
 
       const existingEntitiesSummary = [
@@ -552,7 +554,7 @@ ${finalContent}
           id: `draft-agent-${Date.now()}`,
           name: String(parsed?.name || 'Agent Draft'),
           description: String(parsed?.description || 'Agente generado para este workspace'),
-          reasoning: String(parsed?.reasoning || 'No se devolvió razonamiento estructurado.'),
+          reasoning: String(parsed?.reasoning || t("aiPanel.noStructuredReasoning")),
           response: String(parsed?.response || chatRes.text || ''),
           selectedTools: [...enabledAgentTools],
           isSelected: true,
@@ -981,7 +983,7 @@ ${finalContent}
         }
 
         setPreviewAgents((prev) => prev.filter((agent) => !selectedAgents.find((selected) => selected.id === agent.id)));
-        pushToast('success', `Se crearon ${selectedAgents.length} agentes como documentos de configuración.`);
+        pushToast('success', t("aiPanel.createdAgents", { count: selectedAgents.length }));
       } catch (err: any) {
         pushToast('error', `Error al crear agentes: ${err?.message || 'Error desconocido'}`);
       } finally {
@@ -1009,7 +1011,7 @@ ${finalContent}
 
             <div className="space-y-4 mb-6">
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Sube tus Pdfs, Excels, notas, audios o imágenes. Nuestra IA analizará el contenido estrictamente para extraer tarjetas descriptivas listas para refinar.
+                {t("aiPanel.uploadDesc")}
               </p>
             </div>
 
@@ -1026,7 +1028,7 @@ ${finalContent}
                   onClick={() => document.getElementById("file-upload")?.click()}
                 >
                   <UploadCloud className="h-6 w-6 text-accent mb-2" />
-                  <h3 className="text-sm font-semibold text-foreground">Sube tu archivo PDF, CSV, Audio...</h3>
+                  <h3 className="text-sm font-semibold text-foreground">{t("aiPanel.uploadFilePlaceholder")}</h3>
                   <input id="file-upload" type="file" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
                 </div>
               ) : (
@@ -1057,7 +1059,7 @@ ${finalContent}
                   value={fileText}
                   onChange={setFileText}
                   onPasteImage={(file) => setSelectedFile(file)}
-                  placeholder={selectedFile ? "Ej. Filtra solo las tareas de backend..." : "Añade toda la información necesaria para crear las tarjetas..."}
+                  placeholder={selectedFile ? t("aiPanel.filterContextPlaceholder") : "Añade toda la información necesaria para crear las tarjetas..."}
                   documents={teamDocs}
                   boards={boards}
                   users={teamMembers}
@@ -1098,7 +1100,7 @@ ${finalContent}
                             ? 'Generar Tableros'
                             : generationType === 'scripts'
                               ? 'Generar Scripts'
-                              : 'Diseñar Agente'}
+                              : t("aiPanel.designAgent")}
                     </button>
                     <div className="flex gap-2">
                       <div className="relative" ref={generationMenuRef}>
@@ -1106,7 +1108,7 @@ ${finalContent}
                           type="button"
                           onClick={() => setShowGenerationTypeMenu((prev) => !prev)}
                           className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
-                          title="Cambiar tipo de generación"
+                          title={t("aiPanel.changeGenerationType")}
                         >
                           <Plus className="h-5 w-5 text-muted-foreground" />
                         </button>
@@ -1234,17 +1236,17 @@ ${finalContent}
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
                     <Bot className="h-12 w-12 text-accent/40" />
                   </div>
-                  <h4 className="text-lg font-medium mb-2">Aún no hay resultados</h4>
+                  <h4 className="text-lg font-medium mb-2">{t("aiPanel.noResults")}</h4>
                   <p className="text-sm text-center text-muted-foreground max-w-sm">
                     {generationType === 'cards'
-                      ? 'Sube un archivo o pega texto y haz clic en "Generar Tarjetas" para extraer ítems procesables.'
+                      ? t("aiPanel.noResultsDesc.cards")
                       : generationType === 'documents'
-                        ? 'Sube un archivo o pega texto y haz clic en "Generar Documentos" para crear documentos.'
+                        ? t("aiPanel.noResultsDesc.documents")
                         : generationType === 'boards'
-                          ? 'Sube un archivo o pega texto y haz clic en "Generar Tableros" para crear tableros.'
+                          ? t("aiPanel.noResultsDesc.boards")
                           : generationType === 'scripts'
-                            ? 'Sube un archivo o pega texto y haz clic en "Generar Scripts" para crear automatizaciones.'
-                            : 'Describe tu agente y habilita tools para diseñarlo con reasoning y plan de acción.'}
+                            ? t("aiPanel.noResultsDesc.scripts")
+                            : t("aiPanel.noResultsDesc.agents")}
                   </p>
                 </div>
               ) : (

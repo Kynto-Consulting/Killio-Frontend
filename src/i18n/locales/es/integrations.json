@@ -71,6 +71,25 @@
     "scripts": "Scripts",
     "table": "KillioTable"
   },
+  "callback": {
+    "errors": {
+      "sessionExpired": "La sesion expiro. Vuelve a conectar Trello.",
+      "finalizeTrello": "No se pudo finalizar la integracion de Trello.",
+      "missingOAuthParams": "Faltan parametros code o state del proveedor OAuth.",
+      "invalidState": "El formato del parametro state es invalido.",
+      "incompleteState": "La informacion de state esta incompleta.",
+      "unsupportedProvider": "Callback de proveedor no soportado.",
+      "finalizeSetup": "No se pudo finalizar la configuracion de la integracion."
+    },
+    "ui": {
+      "failedTitle": "Fallo la integracion",
+      "returnButton": "Volver a Integraciones",
+      "successTitle": "Integracion conectada",
+      "redirecting": "Redirigiendo...",
+      "finalizingTitle": "Finalizando autorizacion...",
+      "finalizingDescription": "Espera mientras conectamos tu cuenta."
+    }
+  },
   "integrations": {
     "catalog": {
       "comingSoon": "Próximamente",

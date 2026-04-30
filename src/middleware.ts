@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
  * Killio Route Middleware
  * ─────────────────────────────────────────────────
  * - Unauthenticated users hitting any non-public route → redirect to /login
- * - Authenticated users hitting /login → redirect to /
+ * - /login and /signup stay accessible; authenticated client logic can redirect after full session validation
  *
  * Authentication signal: `killio_token` cookie (set on login).
  * This middleware only runs on Node.js edge runtime so we only do
@@ -30,11 +30,6 @@ export function middleware(request: NextRequest) {
     pathname.includes('.')
   ) {
     return NextResponse.next();
-  }
-
-  // Authenticated user trying to access auth entrypoints → send to dashboard
-  if (token && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/', request.url));
   }
 
   // Device detection from User-Agent

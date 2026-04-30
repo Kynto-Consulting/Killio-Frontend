@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -87,6 +88,7 @@ export function RefPill({
   workspaceUsers = [],
   workspaceName,
 }: RefPillProps) {
+  const t = useTranslations("common");
   const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
   const triggerRef = useRef<HTMLButtonElement | null>(null);
@@ -340,7 +342,7 @@ export function RefPill({
                     ))}
                   </div>
                 ) : (
-                  <div className="text-xs text-muted-foreground">No hay más información disponible para este usuario.</div>
+                  <div className="text-xs text-muted-foreground">{t("noUserInfo")}</div>
                 )}
               </div>
             )}

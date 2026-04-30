@@ -200,6 +200,45 @@
     "title": "Bring structure to execution before the work gets noisy.",
     "description": "Create a workspace, accept the terms once, and give your team a sharper operating system from day one."
   },
+  "mobile": {
+    "badge": "Public beta",
+    "hero": {
+      "titleLine1": "One mobile workspace.",
+      "titleLine2": "Zero execution friction.",
+      "subtitle": "Plan, write, automate and deliver from your phone without changing tools.",
+      "primaryCta": "Create account"
+    },
+    "highlights": {
+      "flow": {
+        "title": "Flow that ships",
+        "description": "Boards, docs and meshes connected in one execution layer."
+      },
+      "ai": {
+        "title": "AI copilots",
+        "description": "Generate plans, summaries and actions directly from context."
+      },
+      "teams": {
+        "title": "Built for teams",
+        "description": "Roles, invites and structured collaboration from day one."
+      }
+    },
+    "launch": {
+      "kicker": "Launch fast",
+      "title": "Start your first workspace in minutes",
+      "points": {
+        "one": "Create your team and invite collaborators.",
+        "two": "Open board, document or mesh from one home.",
+        "three": "Automate recurring work with AI actions."
+      },
+      "cta": "Get started free"
+    }
+  },
+  "offline": {
+    "title": "You are offline",
+    "description": "It looks like you've lost your internet connection. Any edits you make to cached documents will sync automatically when you are back online.",
+    "tryAgain": "Try Again",
+    "goBack": "Go Back"
+  },
   "footer": "Built for fast teams that hate tab chaos.",
   "footerNote": "Classic legal routes, transparent consent, and a public front door that does not hijack guests into auth.",
   "copyright": "Killio by Kynto"

@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface MeshShareModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export function MeshShareModal({
   isOpen, onClose, meshId, meshName, teamName = "Workspace Team",
   initialVisibility = "team", accessToken,
 }: MeshShareModalProps) {
+  const t = useTranslations("modals");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [members, setMembers] = useState<MeshMemberSummary[]>([]);
@@ -33,7 +35,11 @@ export function MeshShareModal({
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isVisDropdownOpen, setIsVisDropdownOpen] = useState(false);
 
-  const roleLabels: Record<string, string> = { viewer: "Lector", commenter: "Comentador", editor: "Editor" };
+  const roleLabels: Record<string, string> = {
+    viewer: t("meshShareModal.roles.viewer"),
+    commenter: t("meshShareModal.roles.commenter"),
+    editor: t("meshShareModal.roles.editor"),
+  };
 
   useEffect(() => {
     if (isOpen && meshId) loadMembers();
@@ -51,7 +57,7 @@ export function MeshShareModal({
     setVisibility(newVis);
     setIsUpdatingVisibility(true);
     try { await updateMeshVisibility(meshId, newVis, accessToken); }
-    catch { setVisibility(prev); toast("No se pudo cambiar la visibilidad.", "error"); }
+    catch { setVisibility(prev); toast(t("meshShareModal.toastVisibilityError"), "error"); }
     finally { setIsUpdatingVisibility(false); setIsVisDropdownOpen(false); }
   };
 
@@ -62,7 +68,7 @@ export function MeshShareModal({
       await addMeshMember(meshId, inviteEmail, inviteRole, accessToken);
       setInviteEmail("");
       await loadMembers();
-    } catch { toast("No se pudo invitar al usuario.", "error"); }
+    } catch { toast(t("meshShareModal.toastInviteError"), "error"); }
     finally { setIsInviting(false); }
   };
 
@@ -70,7 +76,7 @@ export function MeshShareModal({
     try {
       await removeMeshMember(meshId, memberId, accessToken);
       setMembers(members.filter(m => m.id !== memberId));
-    } catch { toast("No se pudo eliminar el miembro.", "error"); }
+    } catch { toast(t("meshShareModal.toastRemoveError"), "error"); }
   };
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/public-mesh/${meshId}` : "";
@@ -83,25 +89,25 @@ export function MeshShareModal({
         {/* Header */}
         <div className="p-4 border-b border-border/50 flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-semibold tracking-tight">Compartir &ldquo;{meshName}&rdquo;</h2>
+            <h2 className="text-lg font-semibold tracking-tight">{t("meshShareModal.title", { name: meshName })}</h2>
             <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </button>
           </div>
-          <p className="text-sm text-muted-foreground">Controla quién puede ver y editar este Mesh Board.</p>
+          <p className="text-sm text-muted-foreground">{t("meshShareModal.description")}</p>
         </div>
 
         <div className="p-4 space-y-6 max-h-[40vh] overflow-y-auto">
           {/* Invite */}
           <div className="space-y-3">
-            <label className="text-sm font-medium text-foreground">Invitar personas</label>
+            <label className="text-sm font-medium text-foreground">{t("meshShareModal.inviteLabel")}</label>
             <div className="flex items-center gap-2">
               <input
                 type="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleInvite(); }}
-                placeholder="correo@ejemplo.com"
+                placeholder={t("meshShareModal.emailPlaceholder")}
                 className="flex-1 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
               {/* Role picker */}
@@ -124,14 +130,14 @@ export function MeshShareModal({
               </div>
               <button onClick={handleInvite} disabled={isInviting || !inviteEmail.trim()}
                 className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center">
-                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Invitar"}
+                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("meshShareModal.invite")}
               </button>
             </div>
 
             {/* Members */}
             {isLoadingMembers ? (
               <div className="flex items-center gap-2 text-xs text-muted-foreground py-2">
-                <Loader2 className="h-3 w-3 animate-spin" /> Cargando miembros…
+                <Loader2 className="h-3 w-3 animate-spin" /> {t("meshShareModal.loadingMembers")}
               </div>
             ) : members.length > 0 ? (
               <div className="mt-2 space-y-1 border border-border/50 rounded-lg p-2 bg-muted/10 max-h-40 overflow-y-auto">
@@ -139,10 +145,10 @@ export function MeshShareModal({
                   <div key={member.id} className="flex items-center justify-between p-2 rounded-md hover:bg-accent/10 group">
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-full overflow-hidden border border-border bg-accent/10">
-                        <img src={getUserAvatarUrl(member.avatarUrl, member.email, 32)} alt={member.displayName || "Usuario"} className="h-full w-full object-cover" />
+                        <img src={getUserAvatarUrl(member.avatarUrl, member.email, 32)} alt={member.displayName || t("meshShareModal.displayNameFallback")} className="h-full w-full object-cover" />
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-sm font-medium leading-none">{member.displayName || "Usuario invitado"}</span>
+                        <span className="text-sm font-medium leading-none">{member.displayName || t("meshShareModal.displayNameFallback")}</span>
                         <span className="text-xs text-muted-foreground">{member.email}</span>
                       </div>
                     </div>
@@ -163,7 +169,7 @@ export function MeshShareModal({
 
         {/* General access — outside scroll container so dropdown is never clipped */}
         <div className="px-4 pb-4 space-y-3">
-          <label className="text-sm font-medium text-foreground">Acceso general</label>
+          <label className="text-sm font-medium text-foreground">{t("meshShareModal.generalAccess")}</label>
           <div className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30">
             <div className="flex items-center gap-3">
               <div className={`p-2 rounded-full ${visibility === "public_link" ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>
@@ -176,18 +182,18 @@ export function MeshShareModal({
                   className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0">
                   {isUpdatingVisibility && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
                   <span>
-                    {visibility === "private" && "Solo miembros"}
-                    {visibility === "team" && `Acceso del equipo (${teamName})`}
-                    {visibility === "public_link" && "Cualquiera con el link"}
+                    {visibility === "private" && t("meshShareModal.visibility.private")}
+                    {visibility === "team" && t("meshShareModal.visibility.teamShort", { teamName })}
+                    {visibility === "public_link" && t("meshShareModal.visibility.publicLink")}
                   </span>
                   <ChevronDown className="h-4 w-4 opacity-50" />
                 </button>
                 {isVisDropdownOpen && (
                   <div className="absolute left-0 bottom-full mb-2 w-64 rounded-md border border-border bg-popover shadow-md z-50 overflow-hidden">
                     {[
-                      { value: "private" as const, label: "Solo miembros", desc: "Solo personas invitadas pueden acceder" },
-                      { value: "team" as const, label: `Equipo: ${teamName}`, desc: "Todos los miembros del equipo pueden ver" },
-                      { value: "public_link" as const, label: "Cualquiera con el link", desc: "Cualquier persona con el enlace puede ver" },
+                      { value: "private" as const, label: t("meshShareModal.visibility.private"), desc: t("meshShareModal.visibility.privateDesc") },
+                      { value: "team" as const, label: t("meshShareModal.visibility.team", { teamName }), desc: t("meshShareModal.visibility.teamDesc") },
+                      { value: "public_link" as const, label: t("meshShareModal.visibility.publicLink"), desc: t("meshShareModal.visibility.publicLinkDesc") },
                     ].map(opt => (
                       <div key={opt.value} className="cursor-pointer px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground"
                         onClick={() => handleVisibilityChange(opt.value)}>
@@ -198,7 +204,7 @@ export function MeshShareModal({
                   </div>
                 )}
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {visibility === "public_link" ? "Accesible desde /public-mesh sin iniciar sesión" : visibility === "team" ? "Solo miembros del workspace" : "Requiere invitación explícita"}
+                  {visibility === "public_link" ? t("meshShareModal.accessNote.public") : visibility === "team" ? t("meshShareModal.accessNote.team") : t("meshShareModal.accessNote.private")}
                 </p>
               </div>
             </div>
@@ -210,14 +216,14 @@ export function MeshShareModal({
           <button
             onClick={() => {
               navigator.clipboard.writeText(publicUrl);
-              toast("Link copiado.", "success");
+              toast(t("meshShareModal.toastLinkCopied"), "success");
             }}
             className="inline-flex items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors">
             <Link className="h-4 w-4 mr-2" />
-            Copiar link
+            {t("meshShareModal.copyLink")}
           </button>
           <button onClick={onClose} className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90">
-            Listo
+            {t("meshShareModal.done")}
           </button>
         </div>
       </div>

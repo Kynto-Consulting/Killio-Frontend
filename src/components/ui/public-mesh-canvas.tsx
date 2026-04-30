@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
@@ -1253,6 +1254,7 @@ interface PublicMeshCanvasProps {
 }
 
 export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
+  const t = useTranslations("boards");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const [viewport, setViewport] = useState<{ x: number; y: number; zoom: number }>(() => ({
@@ -1455,7 +1457,7 @@ export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
       {/* Empty state */}
       {rootIds.length === 0 && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-          <p className="text-sm text-slate-500">Este mesh no tiene bricks todavía.</p>
+          <p className="text-sm text-slate-500">{t("publicMeshView.noBricks")}</p>
         </div>
       )}
     </div>

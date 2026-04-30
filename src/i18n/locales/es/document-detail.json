@@ -11,6 +11,20 @@
   "notFoundTitle": "Documento no encontrado",
   "notFoundDescription": "El documento que buscas no existe o no tienes acceso.",
   "returnDashboard": "Volver al dashboard",
+  "publicView": {
+    "loading": "Cargando documento publico",
+    "publicLabel": "Documento publico",
+    "notAvailableTitle": "Documento no disponible",
+    "notAvailableDescription": "Este documento no es publico o el enlace no es valido.",
+    "login": "Iniciar sesion",
+    "signup": "Crear cuenta",
+    "home": "Ir al inicio",
+    "readOnly": "Solo lectura",
+    "headerSignup": "Crear cuenta",
+    "headerLogin": "Iniciar sesion",
+    "sharedDescription": "Este documento se comparte por enlace y solo permite lectura.",
+    "empty": "Este documento no tiene contenido todavia."
+  },
   "presenceViewing": "{{name}} esta viendo",
   "header": {
     "copilot": "Copilot",
@@ -533,5 +547,34 @@
       "searchPlaceholder": "Buscar país...",
       "noCountry": "Sin formato"
     }
+  },
+  "checklist": {
+    "addFirstItem": "Añadir primer ítem",
+    "addItemPlaceholder": "Añadir algo para hacer...",
+    "addItem": "Añadir ítem"
+  },
+  "graph": {
+    "defaultTitle": "Análisis de datos",
+    "invalidJson": "JSON inválido.",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Título del gráfico",
+    "chartType": "Tipo de gráfico",
+    "applyTableConfig": "Aplicar configuración tabla"
+  },
+  "commentsDrawer": {
+    "collaboration": "Colaboración",
+    "aiWelcome": "¡Hola! Soy tu asistente de IA. Puedo ayudarte a mejorar este documento, resumir ideas o proponer acciones claras. ¿Qué necesitas?",
+    "suggestedAction": "Acción Sugerida",
+    "improveWriting": "Mejorar redacción",
+    "improveWritingPrompt": "Propón mejoras de redacción y estructura para este documento.",
+    "noComments": "No hay comentarios aún.",
+    "andMore": "y {{n}} más...",
+    "appliedChanges": "Apliqué {{applied}} de {{total}} cambios sugeridos.",
+    "applyFailed": "No pude aplicar los cambios sugeridos.",
+    "actionDone": "He ejecutado la acción: {{action}}.",
+    "actionFailed": "No pude ejecutar la acción {{action}}. Verifica los datos o permisos.",
+    "applyAll": "Aplicar todos los cambios",
+    "applyOne": "Aplicar mejora",
+    "daysAgo": "Hace {{n}} días"
   }
 }

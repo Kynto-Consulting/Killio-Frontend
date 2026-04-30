@@ -46,5 +46,40 @@
     "cancel": "Cancelar",
     "delete": "Eliminar",
     "deleting": "Eliminando..."
+  },
+  "meshShareModal": {
+    "title": "Compartir \"{{name}}\"",
+    "description": "Controla quién puede ver y editar este Mesh Board.",
+    "inviteLabel": "Invitar personas",
+    "emailPlaceholder": "correo@ejemplo.com",
+    "roles": {
+      "viewer": "Lector",
+      "commenter": "Comentador",
+      "editor": "Editor"
+    },
+    "invite": "Invitar",
+    "loadingMembers": "Cargando miembros…",
+    "displayNameFallback": "Usuario invitado",
+    "generalAccess": "Acceso general",
+    "visibility": {
+      "private": "Solo miembros",
+      "privateDesc": "Solo personas invitadas pueden acceder",
+      "team": "Equipo: {{teamName}}",
+      "teamShort": "Acceso del equipo ({{teamName}})",
+      "teamDesc": "Todos los miembros del equipo pueden ver",
+      "publicLink": "Cualquiera con el link",
+      "publicLinkDesc": "Cualquier persona con el enlace puede ver"
+    },
+    "accessNote": {
+      "public": "Accesible desde /public-mesh sin iniciar sesión",
+      "team": "Solo miembros del workspace",
+      "private": "Requiere invitación explícita"
+    },
+    "copyLink": "Copiar link",
+    "done": "Listo",
+    "toastLinkCopied": "Link copiado.",
+    "toastVisibilityError": "No se pudo cambiar la visibilidad.",
+    "toastInviteError": "No se pudo invitar al usuario.",
+    "toastRemoveError": "No se pudo eliminar el miembro."
   }
 }

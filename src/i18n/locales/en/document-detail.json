@@ -11,6 +11,20 @@
   "notFoundTitle": "Document Not Found",
   "notFoundDescription": "The document you are looking for does not exist or you don't have access.",
   "returnDashboard": "Return to Dashboard",
+  "publicView": {
+    "loading": "Loading public document",
+    "publicLabel": "Public document",
+    "notAvailableTitle": "Document unavailable",
+    "notAvailableDescription": "This document is not public or the link is invalid.",
+    "login": "Sign in",
+    "signup": "Create account",
+    "home": "Go home",
+    "readOnly": "Read only",
+    "headerSignup": "Create account",
+    "headerLogin": "Sign in",
+    "sharedDescription": "This document is shared by link and is read-only.",
+    "empty": "This document has no content yet."
+  },
   "presenceViewing": "{{name}} is viewing",
   "header": {
     "copilot": "Copilot",
@@ -533,5 +547,34 @@
       "searchPlaceholder": "Search country...",
       "noCountry": "No format"
     }
+  },
+  "checklist": {
+    "addFirstItem": "Add first item",
+    "addItemPlaceholder": "Add something to do...",
+    "addItem": "Add item"
+  },
+  "graph": {
+    "defaultTitle": "Data analysis",
+    "invalidJson": "Invalid JSON.",
+    "titleLabel": "Title",
+    "titlePlaceholder": "Chart title",
+    "chartType": "Chart type",
+    "applyTableConfig": "Apply table configuration"
+  },
+  "commentsDrawer": {
+    "collaboration": "Collaboration",
+    "aiWelcome": "Hi! I'm your AI assistant. I can help you improve this document, summarize ideas or propose clear actions. What do you need?",
+    "suggestedAction": "Suggested Action",
+    "improveWriting": "Improve writing",
+    "improveWritingPrompt": "Propose writing and structure improvements for this document.",
+    "noComments": "No comments yet.",
+    "andMore": "and {{n}} more...",
+    "appliedChanges": "Applied {{applied}} of {{total}} suggested changes.",
+    "applyFailed": "Could not apply suggested changes.",
+    "actionDone": "Action executed: {{action}}.",
+    "actionFailed": "Could not execute action {{action}}. Check data or permissions.",
+    "applyAll": "Apply all changes",
+    "applyOne": "Apply improvement",
+    "daysAgo": "{{n}} days ago"
   }
 }

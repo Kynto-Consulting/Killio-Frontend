@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Portal } from "./portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
@@ -78,6 +79,7 @@ export function ReferenceTokenInput({
   submitOnEnter = true,
   onKeyDown,
 }: ReferenceTokenInputProps) {
+  const t = useTranslations("common");
   const { accessToken } = useSession();
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -683,7 +685,7 @@ export function ReferenceTokenInput({
 
       {displayPlaceholder && (
         <div className="pointer-events-none absolute left-4 top-3 text-sm text-muted-foreground/70">
-          {placeholder || "Escribe aquí..."}
+          {placeholder || t("typeHere")}
         </div>
       )}
 

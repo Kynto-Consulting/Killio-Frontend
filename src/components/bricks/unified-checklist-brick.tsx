@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import React from "react";
 import { CheckSquare, Square, Plus, Trash2, GripVertical } from "lucide-react";
 import { ReferenceResolver } from "@/lib/reference-resolver";
@@ -18,7 +19,7 @@ interface ChecklistBrickProps {
 }
 
 export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {
-
+  const t = useTranslations("document-detail");
   const renderLabelWithMentions = (content: string) => {
     const richParts = ReferenceResolver.renderRich(content, { documents, boards, users } as any);
     return richParts.map((part, i) => {
@@ -68,7 +69,7 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, 
           className="flex w-full items-center gap-2 rounded-md border border-dashed border-border px-3 py-2 text-left text-sm text-muted-foreground hover:bg-muted/20"
         >
           <Plus className="h-4 w-4" />
-          Añadir primer ítem
+          {t("checklist.addFirstItem")}
         </button>
       )}
 
@@ -113,7 +114,7 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, 
                 submitOnEnter={false}
                 className="w-full"
                 inputClassName={`border-none bg-transparent px-1 py-1 shadow-none min-h-[30px] ${item.checked ? 'line-through text-muted-foreground opacity-50' : 'text-foreground'}`}
-                placeholder="Añadir algo para hacer..."
+                placeholder={t("checklist.addItemPlaceholder")}
               />
             )}
           </div>
@@ -136,7 +137,7 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, 
           className="ml-8 mt-1 inline-flex items-center gap-1 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted/20 hover:text-foreground"
         >
           <Plus className="h-3.5 w-3.5" />
-          Añadir ítem
+          {t("checklist.addItem")}
         </button>
       )}
     </div>

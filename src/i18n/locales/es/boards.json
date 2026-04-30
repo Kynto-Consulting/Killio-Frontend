@@ -16,5 +16,41 @@
   "boardDeleteError": "No se pudo eliminar el tablero",
   "noActiveWorkspace": "No se encontro un espacio activo. Selecciona o crea uno desde el menu superior.",
   "deleteTitle": "Eliminar tablero",
-  "deleteDescription": "Seguro que quieres eliminar el tablero \"{{name}}\"? Esta accion no se puede deshacer."
+  "deleteDescription": "Seguro que quieres eliminar el tablero \"{{name}}\"? Esta accion no se puede deshacer.",
+  "publicView": {
+    "notAvailableTitle": "Board no disponible",
+    "notAvailableDescription": "Este board no es público o el enlace no es válido.",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse",
+    "badge": "Público",
+    "noCards": "Sin cards",
+    "noLists": "Este board no tiene listas todavía.",
+    "duePast": "Vencida",
+    "dueToday": "Hoy",
+    "dueTomorrow": "Mañana"
+  },
+  "publicMeshView": {
+    "notAvailableTitle": "Mesh no disponible",
+    "notAvailableDescription": "Este Mesh Board no es público o el enlace no es válido.",
+    "login": "Iniciar sesión",
+    "signup": "Registrarse",
+    "badge": "Público",
+    "noBricks": "Este mesh no tiene bricks todavía."
+  },
+  "mesh": {
+    "title": "Mesh Boards",
+    "subtitle": "Espacio fractal para modelado visual y meta bricks.",
+    "searchPlaceholder": "Buscar mesh",
+    "newMesh": "Nueva mesh",
+    "loading": "Cargando mesh boards...",
+    "updated": "Actualizado",
+    "noMeshTitle": "No hay mesh boards",
+    "noMeshDescription": "Crea la primera mesh para empezar a modelar el canvas infinito.",
+    "createFirst": "Crear primera mesh",
+    "loadError": "No se pudieron cargar las mesh boards.",
+    "createPrompt": "Nombre de la nueva mesh board",
+    "createPromptDefault": "Nueva Mesh Board",
+    "createSuccess": "Mesh board creada.",
+    "createError": "No se pudo crear la mesh board."
+  }
 }

@@ -52,7 +52,7 @@ export default function PublicDocumentPage() {
       <main className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="flex items-center gap-3 rounded-full border border-border bg-card px-4 py-3 shadow-sm">
           <Loader2 className="h-4 w-4 animate-spin text-accent" />
-          <span className="text-sm text-muted-foreground">Cargando documento público</span>
+          <span className="text-sm text-muted-foreground">{t("publicView.loading")}</span>
         </div>
       </main>
     );
@@ -64,21 +64,21 @@ export default function PublicDocumentPage() {
         <div className="mx-auto max-w-3xl rounded-2xl border border-border bg-card p-6 shadow-sm">
           <div className="flex items-center gap-2 text-muted-foreground">
             <Lock className="h-4 w-4" />
-            <span className="text-xs font-semibold uppercase tracking-[0.2em]">Documento público</span>
+            <span className="text-xs font-semibold uppercase tracking-[0.2em]">{t("publicView.publicLabel")}</span>
           </div>
-          <h1 className="mt-3 text-3xl font-semibold tracking-tight">Documento no disponible</h1>
-          <p className="mt-2 text-muted-foreground">Este documento no es público o el enlace no es válido.</p>
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight">{t("publicView.notAvailableTitle")}</h1>
+          <p className="mt-2 text-muted-foreground">{t("publicView.notAvailableDescription")}</p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link href="/login" className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90">
               <LogIn className="h-4 w-4" />
-              Iniciar sesión
+              {t("publicView.login")}
             </Link>
             <Link href="/signup" className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-4 py-2 text-sm font-medium hover:bg-accent/10">
               <UserPlus className="h-4 w-4" />
-              Crear cuenta
+              {t("publicView.signup")}
             </Link>
             <Link href="/" className="inline-flex items-center rounded-md border border-border bg-background px-4 py-2 text-sm font-medium">
-              Ir al inicio
+              {t("publicView.home")}
             </Link>
           </div>
         </div>
@@ -100,18 +100,18 @@ export default function PublicDocumentPage() {
           </div>
           <span className="hidden md:inline-flex items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
             <Lock className="h-3 w-3" />
-            Solo lectura
+            {t("publicView.readOnly")}
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <Link href="/signup" className="hidden sm:inline-flex items-center gap-2 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-accent/10">
             <UserPlus className="h-3.5 w-3.5" />
-            Crear cuenta
+            {t("publicView.headerSignup")}
           </Link>
           <Link href="/login" className="inline-flex items-center gap-2 rounded-md bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground hover:bg-primary/90">
             <LogIn className="h-3.5 w-3.5" />
-            Iniciar sesión
+            {t("publicView.headerLogin")}
           </Link>
         </div>
       </header>
@@ -120,13 +120,13 @@ export default function PublicDocumentPage() {
         <div className="max-w-4xl w-full">
           <div className="mb-8 border-b border-border/50 pb-5">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">{document.title}</h2>
-            <p className="mt-3 text-sm text-muted-foreground">Este documento se comparte por enlace y solo permite lectura.</p>
+            <p className="mt-3 text-sm text-muted-foreground">{t("publicView.sharedDescription")}</p>
           </div>
 
           <div className="pb-32 space-y-2">
             {topLevelBricks.length === 0 ? (
               <div className="rounded-xl border border-dashed border-border bg-muted/20 p-6 text-sm text-muted-foreground">
-                Este documento no tiene contenido todavía.
+                {t("publicView.empty")}
               </div>
             ) : (
               topLevelBricks.map((brick: DocumentBrick) => (

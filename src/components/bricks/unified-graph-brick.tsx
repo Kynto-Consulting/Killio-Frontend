@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useMemo, useState } from "react";
 import {
   BarChart,
@@ -55,9 +56,10 @@ const DEFAULT_MANUAL_DATA = [
 ];
 
 export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpdate, readonly, activeBricks = [] }) => {
+  const t = useTranslations("document-detail");
   const safeConfig: GraphConfig = {
     type: config?.type || "line",
-    title: config?.title || "Análisis de datos",
+    title: config?.title || t("graph.defaultTitle"),
     data: Array.isArray(config?.data) && config?.data.length > 0 ? config?.data : DEFAULT_MANUAL_DATA,
     tableSource: config?.tableSource,
   };
@@ -156,7 +158,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
       updateConfig({ data: parsed, tableSource: undefined });
       setIsConfiguring(false);
     } catch {
-      setJsonError("JSON inválido.");
+      setJsonError(t("graph.invalidJson"));
     }
   };
 
@@ -254,7 +256,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
             <BarChart2 className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">{safeConfig.title || "Análisis de datos"}</p>
+            <p className="text-sm font-semibold text-foreground">{safeConfig.title || t("graph.defaultTitle")}</p>
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
               {safeConfig.tableSource ? "Fuente: tabla" : "Fuente: manual"}
             </p>
@@ -269,16 +271,16 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
 
       {!readonly && isConfiguring && (
         <div className="rounded-lg border border-border/70 bg-background/70 p-3 space-y-3">
-          <label className="block text-xs font-semibold text-muted-foreground">Título</label>
+          <label className="block text-xs font-semibold text-muted-foreground">{t("graph.titleLabel")}</label>
           <input
             className="w-full rounded-md border border-input bg-card px-2 py-1.5 text-sm outline-none focus:ring-1 focus:ring-accent"
             value={safeConfig.title || ""}
             onChange={(e) => updateConfig({ title: e.target.value })}
-            placeholder="Título del gráfico"
+            placeholder={t("graph.titlePlaceholder")}
           />
 
           <div className="space-y-1">
-            <label className="block text-xs font-semibold text-muted-foreground">Tipo de gráfico</label>
+            <label className="block text-xs font-semibold text-muted-foreground">{t("graph.chartType")}</label>
             <div className="flex flex-wrap gap-2">
               <Button variant={safeConfig.type === "line" ? "default" : "ghost"} size="sm" className="h-8 px-2" onClick={() => updateConfig({ type: "line" })}>
                 <LineChartIcon className="h-3.5 w-3.5" />
@@ -404,7 +406,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
                   </div>
 
                   <div className="flex justify-end">
-                    <Button size="sm" className="h-8 text-xs" onClick={saveTableSource}>Aplicar configuración tabla</Button>
+                    <Button size="sm" className="h-8 text-xs" onClick={saveTableSource}>{t("graph.applyTableConfig")}</Button>
                   </div>
                 </>
               )}

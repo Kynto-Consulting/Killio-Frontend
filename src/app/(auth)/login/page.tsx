@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
@@ -17,7 +17,7 @@ const API = (
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { login } = useSession();
+  const { login, user, accessToken, isLoading: isSessionLoading } = useSession();
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
   const [identifier, setIdentifier] = useState("");
@@ -28,8 +28,15 @@ function LoginPageContent() {
   const [rememberMe, setRememberMe] = useState(false);
 
   const from = searchParams.get('from');
-  const safeFrom = from && from.startsWith('/') ? from : '/';
+  const fromPath = from ? from.split('?')[0] : null;
+  const safeFrom = from && from.startsWith('/') && fromPath !== '/login' && fromPath !== '/signup' ? from : '/';
   const signupHref = safeFrom !== '/' ? `/signup?from=${encodeURIComponent(safeFrom)}` : '/signup';
+
+  useEffect(() => {
+    if (!isSessionLoading && user && accessToken) {
+      router.replace(safeFrom);
+    }
+  }, [isSessionLoading, user, accessToken, router, safeFrom]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

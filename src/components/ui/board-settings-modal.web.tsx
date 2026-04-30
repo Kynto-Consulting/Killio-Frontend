@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 type CoverKind = "none" | "preset" | "image" | "color" | "gradient";
 
@@ -29,10 +30,10 @@ const DEFAULT_GRADIENT = "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)";
 const DEFAULT_COLOR = "#0f172a";
 
 const THEME_PRESET_OPTIONS = [
-  { id: "killio-default", label: "Clásico", accent: "#d8ff72", surface: "#0b0f14", Icon: Sparkles },
-  { id: "trello-ocean", label: "Océano", accent: "#67e8f9", surface: "#0c2233", Icon: Waves },
-  { id: "trello-forest", label: "Bosque", accent: "#86efac", surface: "#10251f", Icon: Trees },
-  { id: "trello-sunrise", label: "Amanecer", accent: "#fcd34d", surface: "#3b1f10", Icon: Sun },
+  { id: "killio-default", i18nKey: "killio-default", accent: "#d8ff72", surface: "#0b0f14", Icon: Sparkles },
+  { id: "trello-ocean", i18nKey: "trello-ocean", accent: "#67e8f9", surface: "#0c2233", Icon: Waves },
+  { id: "trello-forest", i18nKey: "trello-forest", accent: "#86efac", surface: "#10251f", Icon: Trees },
+  { id: "trello-sunrise", i18nKey: "trello-sunrise", accent: "#fcd34d", surface: "#3b1f10", Icon: Sun },
 ] as const;
 
 function isImageUrl(value?: string | null): boolean {
@@ -132,6 +133,7 @@ export function BoardSettingsModalWeb({
   onOpenDelete,
   onUploadImage,
 }: BoardSettingsModalProps) {
+  const t = useTranslations("board-detail");
   const coverFileInputRef = useRef<HTMLInputElement>(null);
   const backgroundFileInputRef = useRef<HTMLInputElement>(null);
   const initialCover = parseCoverValue(boardAppearance.coverImageUrl ?? null);
@@ -208,7 +210,7 @@ export function BoardSettingsModalWeb({
   const handleUpload = async (file: File, target: "cover" | "background") => {
     if (!onUploadImage) return;
     if (!file.type.startsWith("image/")) {
-      setError("El archivo debe ser una imagen válida.");
+      setError(t("boardSettingsModal.appearance.upload.invalidImage"));
       return;
     }
 
@@ -224,7 +226,7 @@ export function BoardSettingsModalWeb({
         setImageBackground(uploadedUrl);
       }
     } catch (err: any) {
-      setError(err?.message || "No se pudo subir la imagen.");
+      setError(err?.message || t("boardSettingsModal.appearance.upload.uploadError"));
     } finally {
       setIsUploadingImage(false);
     }
@@ -232,7 +234,7 @@ export function BoardSettingsModalWeb({
 
   const saveGeneral = async () => {
     if (!name.trim()) {
-      setError("El nombre del tablero no puede estar vacío.");
+      setError(t("boardSettingsModal.general.nameEmptyError"));
       return;
     }
 
@@ -242,7 +244,7 @@ export function BoardSettingsModalWeb({
       await onSaveGeneral({ name: name.trim(), description: description.trim() || null });
       onClose();
     } catch (err: any) {
-      setError(err?.message || "No se pudo guardar la configuración general.");
+      setError(err?.message || t("boardSettingsModal.general.saveError"));
     } finally {
       setIsSavingGeneral(false);
     }
@@ -282,7 +284,7 @@ export function BoardSettingsModalWeb({
       await onSaveAppearance(payload);
       onClose();
     } catch (err: any) {
-      setError(err?.message || "No se pudo guardar la apariencia del tablero.");
+      setError(err?.message || t("boardSettingsModal.appearance.saveError"));
     } finally {
       setIsSavingAppearance(false);
     }
@@ -294,7 +296,7 @@ export function BoardSettingsModalWeb({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-card/90">
           <div className="flex items-center gap-2">
             <Settings2 className="h-4 w-4 text-muted-foreground" />
-            <h3 className="font-semibold">Configuración del tablero</h3>
+            <h3 className="font-semibold">{t("boardSettingsModal.title")}</h3>
           </div>
           <button onClick={onClose} className="rounded-md p-1.5 hover:bg-accent/10 text-muted-foreground">
             <X className="h-4 w-4" />
@@ -302,36 +304,36 @@ export function BoardSettingsModalWeb({
         </div>
 
         <div className="px-5 pt-4 pb-3 border-b border-border flex flex-wrap gap-2">
-          <button onClick={() => setActiveTab("general")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "general" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>General</button>
-          <button onClick={() => setActiveTab("appearance")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "appearance" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>Apariencia</button>
-          <button onClick={() => setActiveTab("sharing")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "sharing" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>Compartir</button>
-          <button onClick={() => setActiveTab("danger")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "danger" ? "bg-red-500/10 text-red-500" : "hover:bg-red-500/5 text-muted-foreground"}`}>Peligro</button>
+          <button onClick={() => setActiveTab("general")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "general" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>{t("boardSettingsModal.tabs.general")}</button>
+          <button onClick={() => setActiveTab("appearance")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "appearance" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>{t("boardSettingsModal.tabs.appearance")}</button>
+          <button onClick={() => setActiveTab("sharing")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "sharing" ? "bg-accent/15 text-accent" : "hover:bg-accent/5 text-muted-foreground"}`}>{t("boardSettingsModal.tabs.sharing")}</button>
+          <button onClick={() => setActiveTab("danger")} className={`px-3 py-1.5 rounded-md text-sm ${activeTab === "danger" ? "bg-red-500/10 text-red-500" : "hover:bg-red-500/5 text-muted-foreground"}`}>{t("boardSettingsModal.tabs.danger")}</button>
         </div>
 
         <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
           {activeTab === "general" && (
             <div className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Nombre del tablero</label>
+                <label className="text-sm font-medium">{t("boardSettingsModal.general.nameLabel")}</label>
                 <input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder="Nombre"
+                  placeholder={t("boardSettingsModal.general.namePlaceholder")}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-sm font-medium">Descripción</label>
+                <label className="text-sm font-medium">{t("boardSettingsModal.general.descriptionLabel")}</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  placeholder="Descripción opcional"
+                  placeholder={t("boardSettingsModal.general.descriptionPlaceholder")}
                 />
               </div>
               <div className="flex justify-end">
                 <button onClick={saveGeneral} disabled={isSavingGeneral || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-                  {isSavingGeneral ? "Guardando..." : "Guardar cambios"}
+                  {isSavingGeneral ? t("boardSettingsModal.general.saving") : t("boardSettingsModal.general.save")}
                 </button>
               </div>
             </div>
@@ -351,13 +353,13 @@ export function BoardSettingsModalWeb({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Portada</label>
+                <label className="text-sm font-medium">{t("boardSettingsModal.appearance.cover")}</label>
                 <div className="grid grid-cols-5 gap-2">
-                  <button type="button" onClick={() => setCoverKind("none")} className={`h-8 rounded-md border text-xs ${coverKind === "none" ? "border-primary bg-primary/10" : "border-border"}`}>Sin fondo</button>
-                  <button type="button" onClick={() => setCoverKind("preset")} className={`h-8 rounded-md border text-xs ${coverKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
-                  <button type="button" onClick={() => setCoverKind("gradient")} className={`h-8 rounded-md border text-xs ${coverKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>Gradiente</button>
-                  <button type="button" onClick={() => setCoverKind("color")} className={`h-8 rounded-md border text-xs ${coverKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>Color</button>
-                  <button type="button" onClick={() => setCoverKind("image")} className={`h-8 rounded-md border text-xs ${coverKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>Imagen</button>
+                  <button type="button" onClick={() => setCoverKind("none")} className={`h-8 rounded-md border text-xs ${coverKind === "none" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.none")}</button>
+                  <button type="button" onClick={() => setCoverKind("preset")} className={`h-8 rounded-md border text-xs ${coverKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.preset")}</button>
+                  <button type="button" onClick={() => setCoverKind("gradient")} className={`h-8 rounded-md border text-xs ${coverKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.gradient")}</button>
+                  <button type="button" onClick={() => setCoverKind("color")} className={`h-8 rounded-md border text-xs ${coverKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.color")}</button>
+                  <button type="button" onClick={() => setCoverKind("image")} className={`h-8 rounded-md border text-xs ${coverKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.image")}</button>
                 </div>
 
                 {coverKind === "preset" && (
@@ -383,7 +385,7 @@ export function BoardSettingsModalWeb({
                       }}
                     />
                     <button onClick={() => coverFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
-                      <ImagePlus className="h-3.5 w-3.5" /> Subir portada
+                      <ImagePlus className="h-3.5 w-3.5" /> {t("boardSettingsModal.appearance.upload.uploadCover")}
                     </button>
                   </>
                 )}
@@ -401,19 +403,19 @@ export function BoardSettingsModalWeb({
 
                 {coverKind !== "none" ? (
                   <button onClick={() => setCoverKind("none")} type="button" disabled={!canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
-                    <Trash2 className="h-3.5 w-3.5" /> Quitar portada
+                    <Trash2 className="h-3.5 w-3.5" /> {t("boardSettingsModal.appearance.upload.removeCover")}
                   </button>
                 ) : null}
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Fondo del board</label>
+                <label className="text-sm font-medium">{t("boardSettingsModal.appearance.background")}</label>
                 <div className="grid grid-cols-5 gap-2">
-                  <button type="button" onClick={() => setBackgroundKind("none")} className={`h-8 rounded-md border text-xs ${backgroundKind === "none" ? "border-primary bg-primary/10" : "border-border"}`}>Sin fondo</button>
-                  <button type="button" onClick={() => setBackgroundKind("preset")} className={`h-8 rounded-md border text-xs ${backgroundKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
-                  <button type="button" onClick={() => setBackgroundKind("gradient")} className={`h-8 rounded-md border text-xs ${backgroundKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>Gradiente</button>
-                  <button type="button" onClick={() => setBackgroundKind("color")} className={`h-8 rounded-md border text-xs ${backgroundKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>Color</button>
-                  <button type="button" onClick={() => setBackgroundKind("image")} className={`h-8 rounded-md border text-xs ${backgroundKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>Imagen</button>
+                  <button type="button" onClick={() => setBackgroundKind("none")} className={`h-8 rounded-md border text-xs ${backgroundKind === "none" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.none")}</button>
+                  <button type="button" onClick={() => setBackgroundKind("preset")} className={`h-8 rounded-md border text-xs ${backgroundKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.preset")}</button>
+                  <button type="button" onClick={() => setBackgroundKind("gradient")} className={`h-8 rounded-md border text-xs ${backgroundKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.gradient")}</button>
+                  <button type="button" onClick={() => setBackgroundKind("color")} className={`h-8 rounded-md border text-xs ${backgroundKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.color")}</button>
+                  <button type="button" onClick={() => setBackgroundKind("image")} className={`h-8 rounded-md border text-xs ${backgroundKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.coverKinds.image")}</button>
                 </div>
 
                 {backgroundKind === "preset" && (
@@ -439,7 +441,7 @@ export function BoardSettingsModalWeb({
                       }}
                     />
                     <button onClick={() => backgroundFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
-                      <ImagePlus className="h-3.5 w-3.5" /> Subir fondo
+                      <ImagePlus className="h-3.5 w-3.5" /> {t("boardSettingsModal.appearance.upload.uploadBackground")}
                     </button>
                   </>
                 )}
@@ -457,10 +459,10 @@ export function BoardSettingsModalWeb({
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Tema</label>
+                <label className="text-sm font-medium">{t("boardSettingsModal.appearance.theme")}</label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button type="button" onClick={() => setThemeKind("preset")} className={`h-8 rounded-md border text-xs ${themeKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
-                  <button type="button" onClick={() => setThemeKind("custom")} className={`h-8 rounded-md border text-xs ${themeKind === "custom" ? "border-primary bg-primary/10" : "border-border"}`}>Custom</button>
+                  <button type="button" onClick={() => setThemeKind("preset")} className={`h-8 rounded-md border text-xs ${themeKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.themePreset")}</button>
+                  <button type="button" onClick={() => setThemeKind("custom")} className={`h-8 rounded-md border text-xs ${themeKind === "custom" ? "border-primary bg-primary/10" : "border-border"}`}>{t("boardSettingsModal.appearance.themeCustom")}</button>
                 </div>
 
                 {themeKind === "preset" ? (
@@ -469,7 +471,7 @@ export function BoardSettingsModalWeb({
                       const selected = themePreset === preset.id;
                       return (
                         <button key={preset.id} type="button" onClick={() => setThemePreset(preset.id)} className={`rounded-md border p-2 text-left ${selected ? "border-primary bg-primary/10" : "border-border hover:bg-accent/5"}`}>
-                          <span className="text-xs font-semibold flex items-center gap-1.5"><preset.Icon className="h-3.5 w-3.5" /> {preset.label}</span>
+                          <span className="text-xs font-semibold flex items-center gap-1.5"><preset.Icon className="h-3.5 w-3.5" /> {t(`boardSettingsModal.appearance.themePresets.${preset.i18nKey}`)}</span>
                           <div className="flex items-center gap-1.5 mt-1.5">
                             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.accent }} />
                             <span className="h-3 w-3 rounded-full" style={{ backgroundColor: preset.surface }} />
@@ -494,7 +496,7 @@ export function BoardSettingsModalWeb({
 
               <div className="flex justify-end">
                 <button onClick={saveAppearance} disabled={isSavingAppearance || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-                  {isSavingAppearance ? "Guardando..." : "Guardar apariencia"}
+                  {isSavingAppearance ? t("boardSettingsModal.appearance.saving") : t("boardSettingsModal.appearance.save")}
                 </button>
               </div>
             </div>
@@ -502,7 +504,7 @@ export function BoardSettingsModalWeb({
 
           {activeTab === "sharing" && (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Administra accesos, permisos y visibilidad del tablero desde el panel de compartir.</p>
+              <p className="text-sm text-muted-foreground">{t("boardSettingsModal.sharing.description")}</p>
               <button
                 onClick={() => {
                   onClose();
@@ -511,14 +513,14 @@ export function BoardSettingsModalWeb({
                 disabled={!canManageBoard}
                 className="h-10 px-4 rounded-md border border-input inline-flex items-center gap-2 text-sm font-medium disabled:opacity-50"
               >
-                <Share2 className="h-4 w-4" /> Abrir panel de compartir
+                <Share2 className="h-4 w-4" /> {t("boardSettingsModal.sharing.open")}
               </button>
             </div>
           )}
 
           {activeTab === "danger" && (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Esta acción eliminará el tablero y su contenido asociado.</p>
+              <p className="text-sm text-muted-foreground">{t("boardSettingsModal.danger.description")}</p>
               <button
                 onClick={() => {
                   onClose();
@@ -527,7 +529,7 @@ export function BoardSettingsModalWeb({
                 disabled={!canEdit}
                 className="h-10 px-4 rounded-md bg-red-500 text-white inline-flex items-center gap-2 text-sm font-medium disabled:opacity-50"
               >
-                <AlertTriangle className="h-4 w-4" /> Eliminar tablero
+                <AlertTriangle className="h-4 w-4" /> {t("boardSettingsModal.danger.delete")}
               </button>
             </div>
           )}

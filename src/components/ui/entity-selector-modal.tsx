@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, FileText, Layers, LayoutGrid, Loader2, Search, X } from "lucide-react";
 import { getBoard, getCard, getMesh, listTeamCatalog, type CardView, type TeamCatalog } from "@/lib/api/contracts";
 import { getDocument, type DocumentBrick } from "@/lib/api/documents";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 export type EntitySelectorResult = {
   id: string;
@@ -205,6 +206,7 @@ export function EntitySelectorModal({
   allowedTypes,
   selectionMode = "portal",
 }: EntitySelectorModalProps) {
+  const t = useTranslations("common");
   const [catalog, setCatalog] = useState<TeamCatalog | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -441,7 +443,7 @@ export function EntitySelectorModal({
                     }}
                   >
                     <LayoutGrid className="h-4 w-4 shrink-0 text-emerald-400" />
-                    <span className="flex-1 truncate text-foreground">{card.title || "(sin título)"}</span>
+                    <span className="flex-1 truncate text-foreground">{card.title || t("untitled")}</span>
                   </button>
                 ))}
             </section>
@@ -534,7 +536,7 @@ export function EntitySelectorModal({
                       onClick={() => void handleEntitySelect({ id: d.id, type: "document", label: d.title })}
                     >
                       <FileText className="h-4 w-4 shrink-0 text-violet-400" />
-                      <span className="flex-1 truncate text-foreground">{d.title || "(sin título)"}</span>
+                      <span className="flex-1 truncate text-foreground">{d.title || t("untitled")}</span>
                     </button>
                   ))}
                 </section>
@@ -553,7 +555,7 @@ export function EntitySelectorModal({
                     >
                       <LayoutGrid className="h-4 w-4 shrink-0 text-emerald-400" />
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-foreground">{c.title || "(sin título)"}</p>
+                        <p className="truncate text-foreground">{c.title || t("untitled")}</p>
                         <p className="truncate text-[10px] text-muted-foreground/60">{c.boardName}</p>
                       </div>
                     </button>

@@ -312,6 +312,21 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     }
     return typeof current === 'string' ? current : key;
   };
+  const tb = (key: string, vars?: Record<string, string | number>) => {
+    const parts = key.split('.');
+    let current: any = (messages as any)['board-detail'];
+    for (const part of parts) {
+      if (!current) return key;
+      current = current[part];
+    }
+    let result = typeof current === 'string' ? current : key;
+    if (vars) {
+      Object.entries(vars).forEach(([k, v]) => {
+        result = result.replace(new RegExp(`\\{\\{${k}\\}\\}`, 'g'), String(v));
+      });
+    }
+    return result;
+  };
   const [activeTab, setActiveTab] = useState(initialTab);
 
   useEffect(() => {
@@ -697,7 +712,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
         {
           id: Date.now() + 1,
           role: "bot",
-          content: `Reporte técnico generado: ${toDocumentMentionToken(createdDoc.id, createdDoc.title)}`,
+          content: tb('chatDrawer.reportGenerated', { token: toDocumentMentionToken(createdDoc.id, createdDoc.title) }),
         },
       ]);
     } catch (error) {
@@ -707,7 +722,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
         {
           id: Date.now() + 1,
           role: "bot",
-          content: "No pude generar el reporte técnico en este momento. Intenta de nuevo.",
+          content: tb('chatDrawer.reportError'),
         },
       ]);
     } finally {
@@ -834,13 +849,13 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
 
       window.dispatchEvent(new Event('board:refresh'));
       if (!options?.silent && action !== 'REPORT_GENERATE') {
-        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `He ejecutado la acción: ${action}.` }]);
+        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: tb('chatDrawer.actionDone', { action }) }]);
       }
       return true;
     } catch (err) {
       console.error("Failed to execute AI action", err);
       if (!options?.silent) {
-        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
+        setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: tb('chatDrawer.actionFailed', { action: action || 'UNKNOWN' }) }]);
       }
       return false;
     }

@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { GitBranch, Loader2, Plus, Search } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { ApiError, BoardSummary, createBoard, listTeamBoards } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 
@@ -20,6 +21,7 @@ function slugifyMeshName(name: string): string {
 }
 
 export default function MeshBoardsPage() {
+  const t = useTranslations("boards");
   const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
 
@@ -38,7 +40,7 @@ export default function MeshBoardsPage() {
       })
       .catch((error) => {
         console.error(error);
-        toast("No se pudieron cargar las mesh boards.", "error");
+        toast(t("mesh.loadError"), "error");
       })
       .finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId]);
@@ -53,7 +55,7 @@ export default function MeshBoardsPage() {
       return;
     }
 
-    const inputName = window.prompt("Nombre de la nueva mesh board", "Nueva Mesh Board");
+    const inputName = window.prompt(t("mesh.createPrompt"), t("mesh.createPromptDefault"));
     const meshName = inputName?.trim();
 
     if (!meshName) {
@@ -73,14 +75,14 @@ export default function MeshBoardsPage() {
       );
 
       setMeshes((current) => [created, ...current]);
-      toast("Mesh board creada.", "success");
+      toast(t("mesh.createSuccess"), "success");
       router.push(`/m/${created.id}`);
     } catch (error) {
       console.error(error);
       const message =
         error instanceof ApiError
           ? error.message
-          : "No se pudo crear la mesh board.";
+          : t("mesh.createError");
       toast(message, "error");
     } finally {
       setIsCreating(false);
@@ -91,8 +93,8 @@ export default function MeshBoardsPage() {
     <div className="container mx-auto max-w-6xl p-6 lg:p-10">
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Mesh Boards</h1>
-          <p className="text-muted-foreground">Espacio fractal para modelado visual y meta bricks.</p>
+          <h1 className="text-3xl font-bold tracking-tight">{t("mesh.title")}</h1>
+          <p className="text-muted-foreground">{t("mesh.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-3">
@@ -101,7 +103,7 @@ export default function MeshBoardsPage() {
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Buscar mesh"
+              placeholder={t("mesh.searchPlaceholder")}
               className="h-9 w-64 rounded-md border border-input bg-card px-3 pl-9 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
             />
           </div>
@@ -113,7 +115,7 @@ export default function MeshBoardsPage() {
             className="inline-flex h-9 items-center justify-center rounded-md bg-primary/90 px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary disabled:opacity-60"
           >
             {isCreating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-            Nueva mesh
+            {t("mesh.newMesh")}
           </button>
         </div>
       </div>
@@ -121,7 +123,7 @@ export default function MeshBoardsPage() {
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
           <Loader2 className="mb-4 h-8 w-8 animate-spin" />
-          <p>Cargando mesh boards...</p>
+          <p>{t("mesh.loading")}</p>
         </div>
       ) : filteredMeshes.length > 0 ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
@@ -137,7 +139,7 @@ export default function MeshBoardsPage() {
               <div className="flex flex-1 flex-col p-4">
                 <h2 className="truncate text-lg font-semibold transition-colors group-hover:text-accent">{mesh.name}</h2>
                 <p className="mt-auto pt-4 text-xs uppercase tracking-wider text-muted-foreground">
-                  Updated {new Date(mesh.updatedAt).toLocaleDateString()}
+                  {t("mesh.updated")} {new Date(mesh.updatedAt).toLocaleDateString()}
                 </p>
               </div>
             </Link>
@@ -145,15 +147,15 @@ export default function MeshBoardsPage() {
         </div>
       ) : (
         <div className="rounded-xl border border-dashed border-border bg-card/30 py-20 text-center">
-          <h2 className="text-xl font-semibold">No hay mesh boards</h2>
-          <p className="mt-2 text-muted-foreground">Crea la primera mesh para empezar a modelar el canvas infinito.</p>
+          <h2 className="text-xl font-semibold">{t("mesh.noMeshTitle")}</h2>
+          <p className="mt-2 text-muted-foreground">{t("mesh.noMeshDescription")}</p>
           <button
             type="button"
             onClick={handleCreateMesh}
             disabled={isCreating}
             className="mt-6 inline-flex h-9 items-center justify-center rounded-md bg-accent/10 px-4 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:opacity-60"
           >
-            Crear primera mesh
+            {t("mesh.createFirst")}
           </button>
         </div>
       )}
