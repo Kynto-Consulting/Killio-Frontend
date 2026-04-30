@@ -16,6 +16,7 @@ import { UnifiedCalloutBrick } from "./unified-callout-brick";
 import { UnifiedTabsBrick } from "./unified-tabs-brick";
 import { UnifiedColumnsBrick } from "./unified-columns-brick";
 import { UnifiedMediaBrick } from "./unified-media-brick";
+import { UnifiedPopupDocumentBrick } from "./unified-popup-document-brick";
 import { DocumentBrick, DocumentSummary } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
@@ -421,6 +422,17 @@ export function UnifiedBrickRenderer({
       break;
 
     // Add other cases as they are implemented...
+
+    case 'popup_document':
+      brickBody = (
+        <UnifiedPopupDocumentBrick
+          id={brick.id}
+          content={content as any}
+          canEdit={canEdit}
+          onUpdate={(nextContent) => onUpdate({ ...content, kind: 'popup_document', ...nextContent })}
+        />
+      );
+      break;
 
     default:
       brickBody = (

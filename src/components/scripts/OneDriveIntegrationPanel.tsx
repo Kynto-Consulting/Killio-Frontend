@@ -135,11 +135,11 @@ export function OneDriveIntegrationPanel({ teamId, accessToken }: OneDriveIntegr
   return (
     <>
       <ConfirmDialog
-        open={!!disconnectingCred}
+        isOpen={!!disconnectingCred}
         title={t("integrations.onedrive.disconnectTitle")}
         description={t("integrations.onedrive.disconnectConfirm")}
         onConfirm={confirmDisconnect}
-        onCancel={() => setDisconnectingCred(null)}
+        onClose={() => setDisconnectingCred(null)}
       />
 
       {/* Public confirmation modal */}

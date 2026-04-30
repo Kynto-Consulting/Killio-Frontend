@@ -135,11 +135,11 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
   return (
     <>
       <ConfirmDialog
-        open={!!disconnectingCred}
+        isOpen={!!disconnectingCred}
         title={t("integrations.googleDrive.disconnectTitle")}
         description={t("integrations.googleDrive.disconnectConfirm")}
         onConfirm={confirmDisconnect}
-        onCancel={() => setDisconnectingCred(null)}
+        onClose={() => setDisconnectingCred(null)}
       />
 
       {/* Public confirmation modal */}

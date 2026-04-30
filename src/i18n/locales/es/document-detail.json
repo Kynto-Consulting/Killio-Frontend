@@ -257,6 +257,11 @@
     "titleFile": "Insertar o subir un archivo",
     "titleMedia": "Insertar multimedia"
   },
+  "popupDocument": {
+    "untitled": "Documento sin título",
+    "open": "Abrir",
+    "noContent": "Sin contenido vinculado aún."
+  },
   "bricks": {
     "tabs": {
       "defaultTab1": "Tab 1",
@@ -528,7 +533,8 @@
       "last_edited_by": "Última edición por",
       "document": "Documento",
       "board": "Tablero",
-      "card": "Tarjeta"
+      "card": "Tarjeta",
+      "popup_document": "Documento popup"
     },
     "personFormat": {
       "title": "Mostrar como",

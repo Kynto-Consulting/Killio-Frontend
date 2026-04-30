@@ -25,6 +25,7 @@ import katex from "katex";
 import "katex/dist/katex.min.css";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { getWorkspaceMemberLabel, WorkspaceMemberLike } from "@/lib/workspace-members";
+import { UnifiedPopupDocumentBrick } from "./unified-popup-document-brick";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,19 @@ export interface BountifulCell {
   documents?: { id: string; name?: string }[];
   boards?: { id: string; name?: string }[];
   cards?: { id: string; name?: string }[];
+  // popup_document cell fields
+  title?: string;
+  inlineDocumentId?: string | null;
+  externalSource?: {
+    provider: "google_drive" | "onedrive";
+    fileId: string;
+    fileName: string;
+    mimeType?: string;
+    webViewLink?: string;
+    webUrl?: string;
+    isPublic: boolean;
+    credentialId: string;
+  } | null;
   // Metadata for time tracking
   _createdAt?: string;
   _lastEditedAt?: string;
@@ -138,6 +152,7 @@ const COL_TYPE_VALUES = [
   "date", "people", "checkbox", "url", "email", "phone_number",
   "formula",  "rollup", "created_time", "created_by",
   "last_edited_time", "last_edited_by", "document", "board", "card",
+  "popup_document",
   //"relation","title",
 ] as const;
 
@@ -164,6 +179,7 @@ const COL_TYPE_ICONS: Record<string, React.ReactNode> = {
   document: <FileText className="h-3.5 w-3.5" />,
   board: <LayoutDashboard className="h-3.5 w-3.5" />,
   card: <CreditCard className="h-3.5 w-3.5" />,
+  popup_document: <FileText className="h-3.5 w-3.5" />,
 };
 
 const colTypeIcon: Record<string, React.ReactNode> = Object.fromEntries(
@@ -194,6 +210,7 @@ function createDefaultCell(colType: string): BountifulCell {
     case "relation": case "document": return { type: "document", documents: [] };
     case "board": return { type: "board", boards: [] };
     case "card": return { type: "card", cards: [] };
+    case "popup_document": return { type: "popup_document", title: "", inlineDocumentId: null };
     case "formula": case "rollup": return { type: "text", text: "" };
     default: return { type: "text", text: "" };
   }
@@ -240,6 +257,8 @@ function getCellFamily(type?: string) {
       return "board";
     case "card":
       return "card";
+    case "popup_document":
+      return "popup_document";
     default:
       return normalizeStoredCellType(type) || "text";
   }
@@ -278,6 +297,8 @@ function getCanonicalCellTypeForColumn(colType: string) {
       return "board";
     case "card":
       return "card";
+    case "popup_document":
+      return "popup_document";
     case "number":
       return "number";
     default:
@@ -2880,6 +2901,27 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
           : (colType === "document" || colType === "relation")
             ? "doc"
             : null;
+
+  // ── popup_document column type ──
+  if (colType === "popup_document") {
+    const popupContent = {
+      title: cell?.title || cell?.text || "",
+      inlineDocumentId: cell?.inlineDocumentId ?? null,
+      externalSource: cell?.externalSource ?? null,
+    };
+    return (
+      <div className="w-full">
+        <UnifiedPopupDocumentBrick
+          id={`${row.id}-${column.id}`}
+          content={popupContent}
+          canEdit={!readonly}
+          onUpdate={(nextContent) => {
+            onCellChange?.({ ...cell, type: "popup_document", ...nextContent } as any);
+          }}
+        />
+      </div>
+    );
+  }
 
   if (relationPickerType) {
     const openPicker = () => {

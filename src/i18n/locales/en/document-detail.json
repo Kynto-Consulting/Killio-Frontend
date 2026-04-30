@@ -257,6 +257,11 @@
     "titleFile": "Embed or upload file",
     "titleMedia": "Embed media"
   },
+  "popupDocument": {
+    "untitled": "Untitled document",
+    "open": "Open",
+    "noContent": "No content linked yet."
+  },
   "bricks": {
     "tabs": {
       "defaultTab1": "Tab 1",
@@ -528,7 +533,8 @@
       "last_edited_by": "Last edited by",
       "document": "Document",
       "board": "Board",
-      "card": "Card"
+      "card": "Card",
+      "popup_document": "Popup document"
     },
     "personFormat": {
       "title": "Display as",
