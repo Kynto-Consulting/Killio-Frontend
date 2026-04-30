@@ -318,6 +318,8 @@
       "sub": "Conecta Killio a las herramientas que tu equipo ya ama. Dispara automatizaciones, sincroniza datos y recibe notificaciones donde trabajas.",
       "github": "GitHub",
       "notion": "Notion",
+      "googledrive": "Google Drive",
+      "onedrive": "OneDrive",
       "slack": "Slack",
       "trello": "Trello",
       "whatsapp": "WhatsApp",

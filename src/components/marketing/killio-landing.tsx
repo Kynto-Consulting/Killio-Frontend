@@ -360,6 +360,8 @@ function IntegrationsSection({ t }: { t: T }) {
   const integrations = [
     { icon: <Ic.GitHub />,  key: "github"   },
     { icon: <Ic.Notion />,  key: "notion"   },
+    { icon: <Ic.Globe />,   key: "googledrive" },
+    { icon: <Ic.Folder />,  key: "onedrive" },
     { icon: <Ic.Slack />,   key: "slack"    },
     { icon: <Ic.Trello />,  key: "trello"   },
     { icon: <Ic.Phone />,   key: "whatsapp" },
