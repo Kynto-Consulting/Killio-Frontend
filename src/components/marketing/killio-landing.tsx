@@ -1,7 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import "@/app/landing.css";
+
+type T = (key: string, params?: Record<string, string | number>) => string;
 
 // ─── Scroll fade hook ─────────────────────────────────────────────────────────
 function useFadeRef() {
@@ -48,7 +51,7 @@ const Ic = {
 };
 
 // ─── Nav ──────────────────────────────────────────────────────────────────────
-function Nav() {
+function Nav({ t }: { t: T }) {
   return (
     <nav>
       <div className="nav-inner">
@@ -57,14 +60,14 @@ function Nav() {
           <span>Killio</span>
         </a>
         <div className="nav-links">
-          <a href="#features">Features</a>
-          <a href="#ai">AI & Automation</a>
-          <a href="#integrations">Integrations</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#features">{t("kl.nav.features")}</a>
+          <a href="#ai">{t("kl.nav.ai")}</a>
+          <a href="#integrations">{t("kl.nav.integrations")}</a>
+          <a href="#pricing">{t("kl.nav.pricing")}</a>
         </div>
         <div className="nav-actions">
-          <a href="/login" className="btn-ghost">Sign in</a>
-          <a href="/signup" className="btn-lime">Get started free</a>
+          <a href="/login" className="btn-ghost">{t("kl.nav.signIn")}</a>
+          <a href="/signup" className="btn-lime">{t("kl.nav.getStarted")}</a>
         </div>
       </div>
     </nav>
@@ -72,7 +75,7 @@ function Nav() {
 }
 
 // ─── Hero ─────────────────────────────────────────────────────────────────────
-function Hero() {
+function Hero({ t }: { t: T }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -85,25 +88,24 @@ function Hero() {
       <div className="container" ref={ref} style={{ opacity: 0, transform: "translateY(20px)", transition: "all 0.8s ease" }}>
         <div className="hero-badge">
           <span className="hero-badge-dot" />
-          Now in public beta
+          {t("kl.hero.badge")}
         </div>
         <h1 className="hero-title">
-          Where teams <span className="accent">kill it.</span><br />Every. Single. Day.
+          {t("kl.hero.titlePrefix")} <span className="accent">{t("kl.hero.titleAccent")}</span><br />{t("kl.hero.titleSuffix")}
         </h1>
         <p className="hero-sub">
-          Kanban boards, rich documents, infinite mesh canvases — wired together with AI automation. One workspace. Zero friction.
-        </p>
+          {t("kl.hero.sub")}</p>
         <div className="hero-actions">
-          <a href="/signup" className="btn-lime-lg">Start for free <Ic.Arrow /></a>
-          <a href="#features" className="btn-outline-lg">Explore features</a>
+          <a href="/signup" className="btn-lime-lg">{t("kl.hero.ctaPrimary")} <Ic.Arrow /></a>
+          <a href="#features" className="btn-outline-lg">{t("kl.hero.ctaSecondary")}</a>
         </div>
         <div className="hero-notice">
-          <Ic.Sparkle /> No credit card required · Free plan forever
+          <Ic.Sparkle /> {t("kl.hero.notice")}
         </div>
         <div className="stats-row">
-          <div className="stat-item"><div className="stat-val">2,400+</div><div className="stat-label">Teams onboarded</div></div>
-          <div className="stat-item"><div className="stat-val">1.2M</div><div className="stat-label">Actions automated</div></div>
-          <div className="stat-item"><div className="stat-val">99.9%</div><div className="stat-label">Uptime SLA</div></div>
+          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
+          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.actionsValue")}</div><div className="stat-label">{t("kl.hero.stats.actionsLabel")}</div></div>
+          <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.uptimeValue")}</div><div className="stat-label">{t("kl.hero.stats.uptimeLabel")}</div></div>
         </div>
       </div>
     </section>
@@ -228,42 +230,42 @@ function MeshPreview() {
 }
 
 // ─── Features Section ─────────────────────────────────────────────────────────
-function FeaturesSection() {
+function FeaturesSection({ t }: { t: T }) {
   const ref = useFadeRef();
   return (
     <section className="features-section" id="features">
       <div className="container">
         <div className="section-header fade-up" ref={ref}>
-          <span className="eyebrow">Features</span>
-          <h2 className="section-title">Everything your team needs.<br />Nothing you don&apos;t.</h2>
-          <p className="section-sub">Three powerful workspaces, one seamless experience. Move between boards, docs, and canvases without missing a beat.</p>
+          <span className="eyebrow">{t("kl.features.eyebrow")}</span>
+          <h2 className="section-title">{t("kl.features.title")}</h2>
+          <p className="section-sub">{t("kl.features.sub")}</p>
         </div>
         <div className="bento-grid">
           <div className="bento-card">
             <div className="bento-card-body">
-              <span className="bento-tag lime"><Ic.Kanban /> Kanban Board</span>
-              <h3 className="bento-title">Drag-and-drop project flow</h3>
-              <p className="bento-desc">Visual pipelines with cards, tags, assignees, checklists, file attachments, comments, and urgency levels. DnD across columns in real time.</p>
+              <span className="bento-tag lime"><Ic.Kanban /> {t("kl.features.kanban.tag")}</span>
+              <h3 className="bento-title">{t("kl.features.kanban.title")}</h3>
+              <p className="bento-desc">{t("kl.features.kanban.desc")}</p>
             </div>
             <div className="bento-preview"><KanbanPreview /></div>
           </div>
           <div className="bento-card">
             <div className="bento-card-body">
-              <span className="bento-tag indigo"><Ic.File /> Documents</span>
-              <h3 className="bento-title">Block-based rich editor</h3>
-              <p className="bento-desc">Write with slash commands. Add tables, graphs, checklists, code blocks, callouts, media, forms, and math — all draggable and nestable.</p>
+              <span className="bento-tag indigo"><Ic.File /> {t("kl.features.docs.tag")}</span>
+              <h3 className="bento-title">{t("kl.features.docs.title")}</h3>
+              <p className="bento-desc">{t("kl.features.docs.desc")}</p>
             </div>
             <div className="bento-preview"><DocPreview /></div>
           </div>
           <div className="bento-card span-2">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 280 }}>
               <div className="bento-card-body" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <span className="bento-tag cyan"><Ic.Mesh /> Mesh Board</span>
-                <h3 className="bento-title">Infinite canvas for visual thinkers</h3>
-                <p className="bento-desc">Freeform nodes, connections, shapes, frames, and portals on an infinite whiteboard. Freehand pen tool, AI-assisted context, and collaborative real-time editing.</p>
+                <span className="bento-tag cyan"><Ic.Mesh /> {t("kl.features.mesh.tag")}</span>
+                <h3 className="bento-title">{t("kl.features.mesh.title")}</h3>
+                <p className="bento-desc">{t("kl.features.mesh.desc")}</p>
                 <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {["Shapes & frames", "Pen drawing", "Node connections", "Portals", "AI context"].map((f) => (
-                    <span key={f} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, background: "rgba(34,211,238,0.07)", border: "1px solid rgba(34,211,238,0.2)", color: "#67e8f9" }}>{f}</span>
+                  {(["pill1","pill2","pill3","pill4","pill5"] as const).map((pk) => (
+                    <span key={pk} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, background: "rgba(34,211,238,0.07)", border: "1px solid rgba(34,211,238,0.2)", color: "#67e8f9" }}>{t(`kl.features.mesh.${pk}`)}</span>
                   ))}
                 </div>
               </div>
@@ -279,7 +281,7 @@ function FeaturesSection() {
 }
 
 // ─── Script Canvas ────────────────────────────────────────────────────────────
-function ScriptCanvas() {
+function ScriptCanvas({ t }: { t: T }) {
   const paths = [
     { from: { x: 148, y: 62  }, to: { x: 178, y: 166 }, color: "rgba(216,255,114,0.35)" },
     { from: { x: 318, y: 166 }, to: { x: 330, y: 98  }, color: "rgba(251,191,36,0.35)"  },
@@ -310,19 +312,19 @@ function ScriptCanvas() {
       <div className="sn action2"><div className="sn-dot" style={{ background: "#67e8f9" }} />Send WhatsApp</div>
       <div className="sn end"><div className="sn-dot" style={{ background: "#fca5a5" }} />Log & Done</div>
       <div style={{ position: "absolute", bottom: 16, right: 16, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", fontSize: 11, fontWeight: 600, color: "#a5b4fc" }}>
-        <Ic.Sparkle /> AI Script Generator
+        <Ic.Sparkle /> {t("kl.ai.scriptBadge")}
       </div>
     </div>
   );
 }
 
 // ─── AI Section ───────────────────────────────────────────────────────────────
-function AISection() {
+function AISection({ t }: { t: T }) {
   const ref = useFadeRef();
-  const features = [
-    { icon: <Ic.Zap />,      cls: "lime",   title: "Visual Script Builder", desc: "Build automation workflows with a node-based canvas editor. Connect triggers, conditions, and actions — no code required." },
-    { icon: <Ic.Brain />,    cls: "indigo", title: "AI Generation & Chat",  desc: "Ask AI to generate scripts, suggest improvements, summarize cards, or chat directly inside any board or document." },
-    { icon: <Ic.Database />, cls: "cyan",   title: "RAG Knowledge Base",    desc: "Killio indexes your workspace into a vector store. AI answers are grounded in your actual data — always accurate, never hallucinated." },
+  const featureKeys = [
+    { icon: <Ic.Zap />,      cls: "lime",   key: "builder" },
+    { icon: <Ic.Brain />,    cls: "indigo", key: "chat"    },
+    { icon: <Ic.Database />, cls: "cyan",   key: "rag"     },
   ];
   return (
     <section className="ai-section" id="ai" style={{ position: "relative" }}>
@@ -330,22 +332,22 @@ function AISection() {
       <div className="container">
         <div className="ai-grid fade-up" ref={ref}>
           <div>
-            <span className="eyebrow">AI & Automation</span>
-            <h2 className="section-title" style={{ textAlign: "left", marginBottom: 16 }}>Your team,<br />amplified by AI.</h2>
-            <p className="section-sub" style={{ textAlign: "left", margin: "0 0 40px" }}>Automate the repetitive. Unlock the creative. Killio&apos;s AI layer works across every workspace feature.</p>
+            <span className="eyebrow">{t("kl.ai.eyebrow")}</span>
+            <h2 className="section-title" style={{ textAlign: "left", marginBottom: 16 }}>{t("kl.ai.title1")}<br />{t("kl.ai.title2")}</h2>
+            <p className="section-sub" style={{ textAlign: "left", margin: "0 0 40px" }}>{t("kl.ai.sub")}</p>
             <div className="ai-features-list">
-              {features.map((f) => (
-                <div className="ai-feature-item" key={f.title}>
+              {featureKeys.map((f) => (
+                <div className="ai-feature-item" key={f.key}>
                   <div className={`ai-icon ${f.cls}`}>{f.icon}</div>
                   <div>
-                    <div className="ai-feature-title">{f.title}</div>
-                    <div className="ai-feature-desc">{f.desc}</div>
+                    <div className="ai-feature-title">{t(`kl.ai.${f.key}.title`)}</div>
+                    <div className="ai-feature-desc">{t(`kl.ai.${f.key}.desc`)}</div>
                   </div>
                 </div>
               ))}
             </div>
           </div>
-          <ScriptCanvas />
+          <ScriptCanvas t={t} />
         </div>
       </div>
     </section>
@@ -353,31 +355,31 @@ function AISection() {
 }
 
 // ─── Integrations ─────────────────────────────────────────────────────────────
-function IntegrationsSection() {
+function IntegrationsSection({ t }: { t: T }) {
   const ref = useFadeRef();
   const integrations = [
-    { icon: <Ic.GitHub />,  name: "GitHub"       },
-    { icon: <Ic.Notion />,  name: "Notion"       },
-    { icon: <Ic.Slack />,   name: "Slack"        },
-    { icon: <Ic.Trello />,  name: "Trello"       },
-    { icon: <Ic.Phone />,   name: "WhatsApp"     },
-    { icon: <Ic.Webhook />, name: "Webhooks"     },
-    { icon: <Ic.Mail />,    name: "Email"        },
-    { icon: <Ic.Sparkle />, name: "Zapier (soon)"},
+    { icon: <Ic.GitHub />,  key: "github"   },
+    { icon: <Ic.Notion />,  key: "notion"   },
+    { icon: <Ic.Slack />,   key: "slack"    },
+    { icon: <Ic.Trello />,  key: "trello"   },
+    { icon: <Ic.Phone />,   key: "whatsapp" },
+    { icon: <Ic.Webhook />, key: "webhooks" },
+    { icon: <Ic.Mail />,    key: "email"    },
+    { icon: <Ic.Sparkle />, key: "zapier"   },
   ];
   return (
     <section className="integrations-section" id="integrations">
       <div className="container">
         <div className="section-header fade-up" ref={ref}>
-          <span className="eyebrow">Integrations</span>
-          <h2 className="section-title">Plays well with<br />your whole stack.</h2>
-          <p className="section-sub">Connect Killio to the tools your team already loves. Trigger automations, sync data, and get notified where you work.</p>
+          <span className="eyebrow">{t("kl.integrations.eyebrow")}</span>
+          <h2 className="section-title">{t("kl.integrations.title")}</h2>
+          <p className="section-sub">{t("kl.integrations.sub")}</p>
         </div>
         <div className="integrations-grid">
           {integrations.map((int) => (
-            <div className="int-pill" key={int.name}>
+            <div className="int-pill" key={int.key}>
               <div className="int-icon">{int.icon}</div>
-              <span>{int.name}</span>
+              <span>{t(`kl.integrations.${int.key}`)}</span>
             </div>
           ))}
         </div>
@@ -387,53 +389,24 @@ function IntegrationsSection() {
 }
 
 // ─── Pricing ──────────────────────────────────────────────────────────────────
-function PricingSection() {
+function PricingSection({ t }: { t: T }) {
   const [cycle, setCycle] = useState("monthly");
   const ref = useFadeRef();
   const plans = [
     {
-      key: "free", label: "Free", variant: "free",
-      headline: "For individuals getting started.",
-      monthly: "S/ 0", yearly: "S/ 0", priceSub: "Forever free",
-      features: [
-        { text: "100 script runs / month",    chk: "lime" },
-        { text: "10 AI credits / month",   chk: "lime" },
-        { text: "7-day activity history",    chk: "lime" },
-        { text: "Up to 2 Mesh boards",       chk: "lime" },
-        { text: "Unlimited boards & docs",   chk: "lime" },
-      ],
-      cta: "Get started free", ctaV: "free",
+      key: "free", variant: "free", ctaV: "free",
+      monthly: t("kl.pricing.free.price"), yearly: t("kl.pricing.free.price"),
+      features: ["f1","f2","f3","f4","f5"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
     },
     {
-      key: "pro", label: "Pro", variant: "pro",
-      headline: "For growing teams that need more power.",
-      monthly: "S/ 39", yearly: "S/ 31", priceSub: "per user / month",
-      badge: "Most popular", badgeV: "pro",
-      features: [
-        { text: "500 script runs / month",  chk: "indigo" },
-        { text: "80 AI credits / month",  chk: "indigo" },
-        { text: "30-day activity history",  chk: "indigo" },
-        { text: "Up to 10 Mesh boards",     chk: "indigo" },
-        { text: "Priority support",         chk: "indigo" },
-        { text: "14-day free trial",        chk: "indigo" },
-      ],
-      cta: "Start Pro trial", ctaV: "pro",
+      key: "pro", variant: "pro", ctaV: "pro",
+      monthly: t("kl.pricing.pro.price"), yearly: t("kl.pricing.pro.priceYearly"),
+      features: ["f1","f2","f3","f4","f5","f6"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
     },
     {
-      key: "max", label: "Max", variant: "max",
-      headline: "For power users who need unlimited scale.",
-      monthly: "S/ 89", yearly: "S/ 71", priceSub: "per user / month",
-      badge: "Best value", badgeV: "max",
-      features: [
-        { text: "2000 script runs",          chk: "cyan" },
-        { text: "250 AI credits / month",       chk: "cyan" },
-        { text: "Unlimited activity history",     chk: "cyan" },
-        { text: "Unlimited Mesh boards",          chk: "cyan" },
-        { text: "SSO & SCIM provisioning",        chk: "cyan" },
-        { text: "Audit logs + custom support",    chk: "cyan" },
-        { text: "14-day free trial",              chk: "cyan" },
-      ],
-      cta: "Start Max trial", ctaV: "max",
+      key: "max", variant: "max", ctaV: "max",
+      monthly: t("kl.pricing.max.price"), yearly: t("kl.pricing.max.priceYearly"),
+      features: ["f1","f2","f3","f4","f5","f6","f7"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
     },
   ];
   return (
@@ -441,15 +414,15 @@ function PricingSection() {
       <div className="glow-cyan" style={{ right: "-200px", top: "20%" }} />
       <div className="container">
         <div className="section-header fade-up" ref={ref}>
-          <span className="eyebrow">Pricing</span>
-          <h2 className="section-title">Simple, honest pricing.<br />No surprises.</h2>
-          <p className="section-sub">Start free. Scale when you&apos;re ready. All plans include unlimited boards, docs, and team members.</p>
+          <span className="eyebrow">{t("kl.pricing.eyebrow")}</span>
+          <h2 className="section-title">{t("kl.pricing.title1")}<br />{t("kl.pricing.title2")}</h2>
+          <p className="section-sub">{t("kl.pricing.sub")}</p>
         </div>
         <div className="billing-toggle">
           <div className="billing-toggle-inner">
-            <button className={`toggle-btn ${cycle === "monthly" ? "active" : "inactive"}`} onClick={() => setCycle("monthly")}>Monthly</button>
+            <button className={`toggle-btn ${cycle === "monthly" ? "active" : "inactive"}`} onClick={() => setCycle("monthly")}>{t("kl.pricing.monthly")}</button>
             <button className={`toggle-btn ${cycle === "yearly" ? "active" : "inactive"}`} onClick={() => setCycle("yearly")}>
-              Yearly <span className="save-badge">Save 20%</span>
+              {t("kl.pricing.yearly")} <span className="save-badge">{t("kl.pricing.save")}</span>
             </button>
           </div>
         </div>
@@ -457,16 +430,16 @@ function PricingSection() {
           {plans.map((plan) => (
             <div className={`plan-card ${plan.variant}`} key={plan.key}>
               {plan.variant !== "free" && <div className={`plan-bar ${plan.variant}`} />}
-              {"badge" in plan && plan.badge && <div className={`plan-badge ${"badgeV" in plan ? plan.badgeV : ""}`}>{plan.badge}</div>}
-              <div className="plan-name">{plan.label}</div>
-              <div className="plan-headline">{plan.headline}</div>
+              {plan.key !== "free" && <div className={`plan-badge ${plan.key}`}>{t(`kl.pricing.${plan.key}.badge`)}</div>}
+              <div className="plan-name">{t(`kl.pricing.${plan.key}.label`)}</div>
+              <div className="plan-headline">{t(`kl.pricing.${plan.key}.headline`)}</div>
               <div className="plan-price-row">
                 <div className="plan-price">{cycle === "monthly" ? plan.monthly : plan.yearly}</div>
-                <div className="plan-price-sub">{plan.key === "free" ? plan.priceSub : (cycle === "yearly" ? `${plan.priceSub} · billed annually` : plan.priceSub)}</div>
-                {plan.key !== "free" && cycle === "yearly" && <div style={{ fontSize: 11, color: "#a5b4fc", fontWeight: 700, marginTop: 4 }}>vs {plan.monthly}/mo billed monthly</div>}
+                <div className="plan-price-sub">{plan.key === "free" ? t("kl.pricing.free.priceSub") : (cycle === "yearly" ? `${t(`kl.pricing.${plan.key}.priceSub`)} · ${t("kl.pricing.billedAnnually")}` : t(`kl.pricing.${plan.key}.priceSub`))}</div>
+                {plan.key !== "free" && cycle === "yearly" && <div style={{ fontSize: 11, color: "#a5b4fc", fontWeight: 700, marginTop: 4 }}>{t("kl.pricing.vsMonthly", { price: t(`kl.pricing.${plan.key}.price`) })}</div>}
               </div>
               <div className="plan-features">
-                <div className="pf-label">What&apos;s included</div>
+                <div className="pf-label">{t("kl.pricing.included")}</div>
                 {plan.features.map((f, i) => (
                   <div className="pf-item" key={i}>
                     <div className={`pf-check ${f.chk}`}><Ic.Check /></div>
@@ -475,17 +448,17 @@ function PricingSection() {
                 ))}
               </div>
               <div className="plan-cta">
-                <button className={`plan-btn ${plan.ctaV}`} onClick={() => window.location.href = "/signup"}>{plan.cta}</button>
+                <button className={`plan-btn ${plan.ctaV}`} onClick={() => window.location.href = "/signup"}>{t(`kl.pricing.${plan.key}.cta`)}</button>
               </div>
             </div>
           ))}
         </div>
         <div className="enterprise-banner">
           <div>
-            <div className="ent-title">Need Enterprise?</div>
-            <div className="ent-sub">Custom contracts, dedicated infrastructure, SLA guarantees, SSO/SCIM, and a dedicated account manager.</div>
+            <div className="ent-title">{t("kl.pricing.enterprise.title")}</div>
+            <div className="ent-sub">{t("kl.pricing.enterprise.sub")}</div>
           </div>
-          <a href="mailto:sales@killio.com" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>Contact sales <Ic.Arrow /></a>
+          <a href="mailto:sales@killio.com" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>{t("kl.pricing.enterprise.cta")} <Ic.Arrow /></a>
         </div>
       </div>
     </section>
@@ -493,29 +466,29 @@ function PricingSection() {
 }
 
 // ─── Features Strip ───────────────────────────────────────────────────────────
-function FeaturesStrip() {
+function FeaturesStrip({ t }: { t: T }) {
   const ref = useFadeRef();
   const items = [
-    { icon: <Ic.History />,  title: "Activity History",   desc: "Full audit trail of every action across boards, documents, and automations." },
-    { icon: <Ic.BarChart />, title: "Workspace Metrics",  desc: "Track team velocity, script usage, AI credit consumption, and more." },
-    { icon: <Ic.Users />,    title: "Team Roles & Invites",desc: "Owner, admin, member, and guest roles. Email invites with delivery tracking." },
-    { icon: <Ic.Monitor />,  title: "Mobile Ready",       desc: "Full mobile layout for boards and documents. Work from anywhere." },
-    { icon: <Ic.Globe />,    title: "Public Sharing",     desc: "Share any board, document, or mesh canvas publicly with a single link." },
-    { icon: <Ic.Folder />,   title: "Folder Organization",desc: "Organize boards and documents into nested folders for clean workspace structure." },
+    { icon: <Ic.History />,  key: "history" },
+    { icon: <Ic.BarChart />, key: "metrics" },
+    { icon: <Ic.Users />,    key: "roles"   },
+    { icon: <Ic.Monitor />,  key: "mobile"  },
+    { icon: <Ic.Globe />,    key: "sharing" },
+    { icon: <Ic.Folder />,   key: "folders" },
   ];
   return (
     <section className="features-strip">
       <div className="container">
         <div className="section-header fade-up" ref={ref} style={{ marginBottom: 40 }}>
-          <span className="eyebrow">Built for teams</span>
-          <h2 className="section-title">Every detail, covered.</h2>
+          <span className="eyebrow">{t("kl.strip.eyebrow")}</span>
+          <h2 className="section-title">{t("kl.strip.title")}</h2>
         </div>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 16 }}>
           {items.map((item) => (
-            <div key={item.title} className="bento-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
+            <div key={item.key} className="bento-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 12 }}>
               <div style={{ color: "var(--lime)", opacity: 0.85 }}>{item.icon}</div>
-              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{item.title}</div>
-              <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{item.desc}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{t(`kl.strip.${item.key}.title`)}</div>
+              <div style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.6 }}>{t(`kl.strip.${item.key}.desc`)}</div>
             </div>
           ))}
         </div>
@@ -525,7 +498,7 @@ function FeaturesStrip() {
 }
 
 // ─── CTA ──────────────────────────────────────────────────────────────────────
-function CTASection() {
+function CTASection({ t }: { t: T }) {
   const ref = useFadeRef();
   return (
     <section className="cta-section">
@@ -533,12 +506,12 @@ function CTASection() {
         <div className="cta-box fade-up" ref={ref}>
           <div className="cta-glow" />
           <div style={{ position: "relative", zIndex: 1 }}>
-            <span className="eyebrow" style={{ display: "block", marginBottom: 16 }}>Get started today</span>
-            <h2 className="cta-title">Stop managing chaos.<br />Start shipping results.</h2>
-            <p className="cta-sub">Join thousands of teams already using Killio to move faster, think clearer, and build better.</p>
+            <span className="eyebrow" style={{ display: "block", marginBottom: 16 }}>{t("kl.cta.eyebrow")}</span>
+            <h2 className="cta-title">{t("kl.cta.title1")}<br />{t("kl.cta.title2")}</h2>
+            <p className="cta-sub">{t("kl.cta.sub")}</p>
             <div className="hero-actions">
-              <a href="/signup" className="btn-lime-lg">Create free account <Ic.Arrow /></a>
-              <a href="#pricing" className="btn-outline-lg">View plans</a>
+              <a href="/signup" className="btn-lime-lg">{t("kl.cta.primary")} <Ic.Arrow /></a>
+              <a href="#pricing" className="btn-outline-lg">{t("kl.cta.secondary")}</a>
             </div>
           </div>
         </div>
@@ -548,7 +521,7 @@ function CTASection() {
 }
 
 // ─── Footer ───────────────────────────────────────────────────────────────────
-function Footer() {
+function Footer({ t }: { t: T }) {
   return (
     <footer>
       <div className="footer-inner">
@@ -557,12 +530,12 @@ function Footer() {
           <span>Killio</span>
         </a>
         <div className="footer-links">
-          <a href="/privacy">Privacy</a>
-          <a href="/terms">Terms</a>
-          <a href="/cookies">Cookies</a>
-          <a href="mailto:killio@kynto.studio">Contact</a>
+          <a href="/privacy">{t("kl.footer.privacy")}</a>
+          <a href="/terms">{t("kl.footer.terms")}</a>
+          <a href="/cookies">{t("kl.footer.cookies")}</a>
+          <a href="mailto:killio@kynto.studio">{t("kl.footer.contact")}</a>
         </div>
-        <div className="footer-copy">© 2026 Killio. Built by Kynto Studio.</div>
+        <div className="footer-copy">{t("kl.footer.copyright")}</div>
       </div>
     </footer>
   );
@@ -570,6 +543,7 @@ function Footer() {
 
 // ─── KillioLanding ────────────────────────────────────────────────────────────
 export function KillioLanding() {
+  const t = useTranslations("landing");
   useEffect(() => {
     const obs = new IntersectionObserver(
       (entries) => entries.forEach((e) => { if (e.isIntersecting) e.target.classList.add("visible"); }),
@@ -581,15 +555,15 @@ export function KillioLanding() {
 
   return (
     <div className="kl-root">
-      <Nav />
-      <Hero />
-      <FeaturesSection />
-      <AISection />
-      <IntegrationsSection />
-      <PricingSection />
-      <FeaturesStrip />
-      <CTASection />
-      <Footer />
+      <Nav t={t} />
+      <Hero t={t} />
+      <FeaturesSection t={t} />
+      <AISection t={t} />
+      <IntegrationsSection t={t} />
+      <PricingSection t={t} />
+      <FeaturesStrip t={t} />
+      <CTASection t={t} />
+      <Footer t={t} />
     </div>
   );
 }

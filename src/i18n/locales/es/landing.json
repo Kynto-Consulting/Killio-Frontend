@@ -241,5 +241,174 @@
   },
   "footer": "Hecho para equipos rapidos que odian el caos de pestanas.",
   "footerNote": "Rutas legales clasicas, consentimiento transparente y una entrada publica que no empuja a invitados directo al login.",
-  "copyright": "Killio by Kynto"
+  "copyright": "Killio by Kynto",
+  "kl": {
+    "nav": {
+      "features": "Funcionalidades",
+      "ai": "IA y Automatizacion",
+      "integrations": "Integraciones",
+      "signIn": "Iniciar sesion",
+      "getStarted": "Empezar gratis"
+    },
+    "hero": {
+      "badge": "Ahora en beta publica",
+      "titlePrefix": "Donde los equipos",
+      "titleAccent": "lo logran.",
+      "titleSuffix": "Cada. Maldito. Dia.",
+      "sub": "Tableros Kanban, documentos enriquecidos, lienzos infinitos — conectados con automatizacion IA. Un workspace. Cero friccion.",
+      "ctaPrimary": "Empieza gratis",
+      "ctaSecondary": "Ver funcionalidades",
+      "notice": "Sin tarjeta de credito · Plan gratis para siempre",
+      "stats": {
+        "teamsValue": "2.400+",
+        "teamsLabel": "Equipos registrados",
+        "actionsValue": "1.2M",
+        "actionsLabel": "Acciones automatizadas",
+        "uptimeValue": "99.9%",
+        "uptimeLabel": "SLA de disponibilidad"
+      }
+    },
+    "features": {
+      "eyebrow": "Funcionalidades",
+      "title": "Todo lo que tu equipo necesita. Nada que no.",
+      "sub": "Tres workspaces potentes, una experiencia sin fisuras. Muevete entre tableros, documentos y lienzos sin perder el ritmo.",
+      "kanban": {
+        "tag": "Tablero Kanban",
+        "title": "Flujo de proyecto con drag-and-drop",
+        "desc": "Pipelines visuales con cards, etiquetas, responsables, checklists, archivos adjuntos, comentarios y niveles de urgencia. DnD entre columnas en tiempo real."
+      },
+      "docs": {
+        "tag": "Documentos",
+        "title": "Editor enriquecido basado en bloques",
+        "desc": "Escribe con comandos de barra. Agrega tablas, graficos, checklists, bloques de codigo, callouts, media, formularios y matematicas — todo arrastrable y anidable."
+      },
+      "mesh": {
+        "tag": "Tablero Mesh",
+        "title": "Lienzo infinito para pensadores visuales",
+        "desc": "Nodos libres, conexiones, formas, marcos y portales en una pizarra infinita. Dibujo a mano, contexto asistido por IA y edicion colaborativa en tiempo real.",
+        "pill1": "Formas y marcos",
+        "pill2": "Dibujo libre",
+        "pill3": "Conexiones de nodos",
+        "pill4": "Portales",
+        "pill5": "Contexto IA"
+      }
+    },
+    "ai": {
+      "eyebrow": "IA y Automatizacion",
+      "title1": "Tu equipo,",
+      "title2": "amplificado por IA.",
+      "sub": "Automatiza lo repetitivo. Desbloquea lo creativo. La capa de IA de Killio funciona en todas las funcionalidades del workspace.",
+      "builder": {
+        "title": "Constructor Visual de Scripts",
+        "desc": "Crea flujos de automatizacion con un editor basado en nodos. Conecta disparadores, condiciones y acciones sin necesidad de codigo."
+      },
+      "chat": {
+        "title": "Generacion IA y Chat",
+        "desc": "Pide a la IA que genere scripts, sugiera mejoras, resuma cards o chatea directamente dentro de cualquier tablero o documento."
+      },
+      "rag": {
+        "title": "Base de Conocimiento RAG",
+        "desc": "Killio indexa tu workspace en un vector store. Las respuestas de la IA se basan en tus datos reales — siempre precisas, nunca alucinadas."
+      },
+      "scriptBadge": "Generador de Scripts IA"
+    },
+    "integrations": {
+      "eyebrow": "Integraciones",
+      "title": "Se lleva bien con todo tu stack.",
+      "sub": "Conecta Killio a las herramientas que tu equipo ya ama. Dispara automatizaciones, sincroniza datos y recibe notificaciones donde trabajas.",
+      "github": "GitHub",
+      "notion": "Notion",
+      "slack": "Slack",
+      "trello": "Trello",
+      "whatsapp": "WhatsApp",
+      "webhooks": "Webhooks",
+      "email": "Email",
+      "zapier": "Zapier (pronto)"
+    },
+    "pricing": {
+      "eyebrow": "Planes",
+      "title1": "Precios simples y honestos.",
+      "title2": "Sin sorpresas.",
+      "sub": "Empieza gratis. Escala cuando estes listo. Todos los planes incluyen tableros, documentos y miembros ilimitados.",
+      "monthly": "Mensual",
+      "yearly": "Anual",
+      "save": "Ahorra 20%",
+      "billedAnnually": "facturado anualmente",
+      "vsMonthly": "vs {price}/mes facturado mensualmente",
+      "included": "Que incluye",
+      "enterprise": {
+        "title": "Necesitas Enterprise?",
+        "sub": "Contratos personalizados, infraestructura dedicada, garantias SLA, SSO/SCIM y un account manager dedicado.",
+        "cta": "Contactar ventas"
+      },
+      "free": {
+        "label": "Free",
+        "headline": "Para personas que estan empezando.",
+        "price": "S/ 0",
+        "priceSub": "Gratis para siempre",
+        "f1": "100 ejecuciones de script / mes",
+        "f2": "10 creditos IA / mes",
+        "f3": "7 dias de historial",
+        "f4": "Hasta 2 tableros Mesh",
+        "f5": "Tableros y documentos ilimitados",
+        "cta": "Empezar gratis"
+      },
+      "pro": {
+        "label": "Pro",
+        "headline": "Para equipos en crecimiento que necesitan mas poder.",
+        "price": "S/ 39",
+        "priceYearly": "S/ 31",
+        "priceSub": "por usuario / mes",
+        "badge": "Mas popular",
+        "f1": "500 ejecuciones de script / mes",
+        "f2": "80 creditos IA / mes",
+        "f3": "30 dias de historial",
+        "f4": "Hasta 10 tableros Mesh",
+        "f5": "Soporte prioritario",
+        "f6": "14 dias de prueba gratis",
+        "cta": "Iniciar prueba Pro"
+      },
+      "max": {
+        "label": "Max",
+        "headline": "Para usuarios avanzados que necesitan escala ilimitada.",
+        "price": "S/ 89",
+        "priceYearly": "S/ 71",
+        "priceSub": "por usuario / mes",
+        "badge": "Mejor valor",
+        "f1": "2000 ejecuciones de script",
+        "f2": "250 creditos IA / mes",
+        "f3": "Historial ilimitado",
+        "f4": "Tableros Mesh ilimitados",
+        "f5": "SSO y aprovisionamiento SCIM",
+        "f6": "Logs de auditoria + soporte personalizado",
+        "f7": "14 dias de prueba gratis",
+        "cta": "Iniciar prueba Max"
+      }
+    },
+    "strip": {
+      "eyebrow": "Construido para equipos",
+      "title": "Cada detalle, cubierto.",
+      "history": { "title": "Historial de Actividad",    "desc": "Registro completo de cada accion en tableros, documentos y automatizaciones." },
+      "metrics": { "title": "Metricas del Workspace",    "desc": "Monitorea la velocidad del equipo, uso de scripts, consumo de creditos IA y mas." },
+      "roles":   { "title": "Roles e Invitaciones",      "desc": "Roles de propietario, admin, miembro e invitado. Invitaciones por email con seguimiento." },
+      "mobile":  { "title": "Listo para Movil",          "desc": "Diseno completo para tableros y documentos en movil. Trabaja desde cualquier lugar." },
+      "sharing": { "title": "Compartir Publicamente",    "desc": "Comparte cualquier tablero, documento o lienzo Mesh publicamente con un solo enlace." },
+      "folders": { "title": "Organizacion por Carpetas", "desc": "Organiza tableros y documentos en carpetas anidadas para una estructura de workspace limpia." }
+    },
+    "cta": {
+      "eyebrow": "Empieza hoy",
+      "title1": "Deja de gestionar el caos.",
+      "title2": "Empieza a entregar resultados.",
+      "sub": "Unete a miles de equipos que ya usan Killio para moverse mas rapido, pensar con mas claridad y construir mejor.",
+      "primary": "Crear cuenta gratis",
+      "secondary": "Ver planes"
+    },
+    "footer": {
+      "privacy": "Privacidad",
+      "terms": "Terminos",
+      "cookies": "Cookies",
+      "contact": "Contacto",
+      "copyright": "© 2026 Killio. Creado por Kynto Studio."
+    }
+  }
 }

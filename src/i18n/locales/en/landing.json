@@ -241,5 +241,174 @@
   },
   "footer": "Built for fast teams that hate tab chaos.",
   "footerNote": "Classic legal routes, transparent consent, and a public front door that does not hijack guests into auth.",
-  "copyright": "Killio by Kynto"
+  "copyright": "Killio by Kynto",
+  "kl": {
+    "nav": {
+      "features": "Features",
+      "ai": "AI & Automation",
+      "integrations": "Integrations",
+      "signIn": "Sign in",
+      "getStarted": "Get started free"
+    },
+    "hero": {
+      "badge": "Now in public beta",
+      "titlePrefix": "Where teams",
+      "titleAccent": "kill it.",
+      "titleSuffix": "Every. Single. Day.",
+      "sub": "Kanban boards, rich documents, infinite mesh canvases — wired together with AI automation. One workspace. Zero friction.",
+      "ctaPrimary": "Start for free",
+      "ctaSecondary": "Explore features",
+      "notice": "No credit card required · Free plan forever",
+      "stats": {
+        "teamsValue": "2,400+",
+        "teamsLabel": "Teams onboarded",
+        "actionsValue": "1.2M",
+        "actionsLabel": "Actions automated",
+        "uptimeValue": "99.9%",
+        "uptimeLabel": "Uptime SLA"
+      }
+    },
+    "features": {
+      "eyebrow": "Features",
+      "title": "Everything your team needs. Nothing you don't.",
+      "sub": "Three powerful workspaces, one seamless experience. Move between boards, docs, and canvases without missing a beat.",
+      "kanban": {
+        "tag": "Kanban Board",
+        "title": "Drag-and-drop project flow",
+        "desc": "Visual pipelines with cards, tags, assignees, checklists, file attachments, comments, and urgency levels. DnD across columns in real time."
+      },
+      "docs": {
+        "tag": "Documents",
+        "title": "Block-based rich editor",
+        "desc": "Write with slash commands. Add tables, graphs, checklists, code blocks, callouts, media, forms, and math — all draggable and nestable."
+      },
+      "mesh": {
+        "tag": "Mesh Board",
+        "title": "Infinite canvas for visual thinkers",
+        "desc": "Freeform nodes, connections, shapes, frames, and portals on an infinite whiteboard. Freehand pen tool, AI-assisted context, and collaborative real-time editing.",
+        "pill1": "Shapes & frames",
+        "pill2": "Pen drawing",
+        "pill3": "Node connections",
+        "pill4": "Portals",
+        "pill5": "AI context"
+      }
+    },
+    "ai": {
+      "eyebrow": "AI & Automation",
+      "title1": "Your team,",
+      "title2": "amplified by AI.",
+      "sub": "Automate the repetitive. Unlock the creative. Killio's AI layer works across every workspace feature.",
+      "builder": {
+        "title": "Visual Script Builder",
+        "desc": "Build automation workflows with a node-based canvas editor. Connect triggers, conditions, and actions — no code required."
+      },
+      "chat": {
+        "title": "AI Generation & Chat",
+        "desc": "Ask AI to generate scripts, suggest improvements, summarize cards, or chat directly inside any board or document."
+      },
+      "rag": {
+        "title": "RAG Knowledge Base",
+        "desc": "Killio indexes your workspace into a vector store. AI answers are grounded in your actual data — always accurate, never hallucinated."
+      },
+      "scriptBadge": "AI Script Generator"
+    },
+    "integrations": {
+      "eyebrow": "Integrations",
+      "title": "Plays well with your whole stack.",
+      "sub": "Connect Killio to the tools your team already loves. Trigger automations, sync data, and get notified where you work.",
+      "github": "GitHub",
+      "notion": "Notion",
+      "slack": "Slack",
+      "trello": "Trello",
+      "whatsapp": "WhatsApp",
+      "webhooks": "Webhooks",
+      "email": "Email",
+      "zapier": "Zapier (soon)"
+    },
+    "pricing": {
+      "eyebrow": "Pricing",
+      "title1": "Simple, honest pricing.",
+      "title2": "No surprises.",
+      "sub": "Start free. Scale when you're ready. All plans include unlimited boards, docs, and team members.",
+      "monthly": "Monthly",
+      "yearly": "Yearly",
+      "save": "Save 20%",
+      "billedAnnually": "billed annually",
+      "vsMonthly": "vs {price}/mo billed monthly",
+      "included": "What's included",
+      "enterprise": {
+        "title": "Need Enterprise?",
+        "sub": "Custom contracts, dedicated infrastructure, SLA guarantees, SSO/SCIM, and a dedicated account manager.",
+        "cta": "Contact sales"
+      },
+      "free": {
+        "label": "Free",
+        "headline": "For individuals getting started.",
+        "price": "S/ 0",
+        "priceSub": "Forever free",
+        "f1": "100 script runs / month",
+        "f2": "10 AI credits / month",
+        "f3": "7-day activity history",
+        "f4": "Up to 2 Mesh boards",
+        "f5": "Unlimited boards & docs",
+        "cta": "Get started free"
+      },
+      "pro": {
+        "label": "Pro",
+        "headline": "For growing teams that need more power.",
+        "price": "S/ 39",
+        "priceYearly": "S/ 31",
+        "priceSub": "per user / month",
+        "badge": "Most popular",
+        "f1": "500 script runs / month",
+        "f2": "80 AI credits / month",
+        "f3": "30-day activity history",
+        "f4": "Up to 10 Mesh boards",
+        "f5": "Priority support",
+        "f6": "14-day free trial",
+        "cta": "Start Pro trial"
+      },
+      "max": {
+        "label": "Max",
+        "headline": "For power users who need unlimited scale.",
+        "price": "S/ 89",
+        "priceYearly": "S/ 71",
+        "priceSub": "per user / month",
+        "badge": "Best value",
+        "f1": "2000 script runs",
+        "f2": "250 AI credits / month",
+        "f3": "Unlimited activity history",
+        "f4": "Unlimited Mesh boards",
+        "f5": "SSO & SCIM provisioning",
+        "f6": "Audit logs + custom support",
+        "f7": "14-day free trial",
+        "cta": "Start Max trial"
+      }
+    },
+    "strip": {
+      "eyebrow": "Built for teams",
+      "title": "Every detail, covered.",
+      "history": { "title": "Activity History",    "desc": "Full audit trail of every action across boards, documents, and automations." },
+      "metrics": { "title": "Workspace Metrics",   "desc": "Track team velocity, script usage, AI credit consumption, and more." },
+      "roles":   { "title": "Team Roles & Invites", "desc": "Owner, admin, member, and guest roles. Email invites with delivery tracking." },
+      "mobile":  { "title": "Mobile Ready",         "desc": "Full mobile layout for boards and documents. Work from anywhere." },
+      "sharing": { "title": "Public Sharing",       "desc": "Share any board, document, or mesh canvas publicly with a single link." },
+      "folders": { "title": "Folder Organization",  "desc": "Organize boards and documents into nested folders for clean workspace structure." }
+    },
+    "cta": {
+      "eyebrow": "Get started today",
+      "title1": "Stop managing chaos.",
+      "title2": "Start shipping results.",
+      "sub": "Join thousands of teams already using Killio to move faster, think clearer, and build better.",
+      "primary": "Create free account",
+      "secondary": "View plans"
+    },
+    "footer": {
+      "privacy": "Privacy",
+      "terms": "Terms",
+      "cookies": "Cookies",
+      "contact": "Contact",
+      "copyright": "© 2026 Killio. Built by Kynto Studio."
+    }
+  }
 }
