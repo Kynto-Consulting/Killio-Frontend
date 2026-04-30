@@ -403,8 +403,8 @@ function PricingSection() {
       headline: "For individuals getting started.",
       monthly: "S/ 0", yearly: "S/ 0", priceSub: "Forever free",
       features: [
-        { text: "50 script runs / month",    chk: "lime" },
-        { text: "0.20 AI credits / month",   chk: "lime" },
+        { text: "100 script runs / month",    chk: "lime" },
+        { text: "10 AI credits / month",   chk: "lime" },
         { text: "7-day activity history",    chk: "lime" },
         { text: "Up to 2 Mesh boards",       chk: "lime" },
         { text: "Unlimited boards & docs",   chk: "lime" },
@@ -418,7 +418,7 @@ function PricingSection() {
       badge: "Most popular", badgeV: "pro",
       features: [
         { text: "500 script runs / month",  chk: "indigo" },
-        { text: "2.00 AI credits / month",  chk: "indigo" },
+        { text: "80 AI credits / month",  chk: "indigo" },
         { text: "30-day activity history",  chk: "indigo" },
         { text: "Up to 10 Mesh boards",     chk: "indigo" },
         { text: "Priority support",         chk: "indigo" },
@@ -432,8 +432,8 @@ function PricingSection() {
       monthly: "S/ 89", yearly: "S/ 71", priceSub: "per user / month",
       badge: "Best value", badgeV: "max",
       features: [
-        { text: "Unlimited script runs",          chk: "cyan" },
-        { text: "10.00 AI credits / month",       chk: "cyan" },
+        { text: "2000 script runs",          chk: "cyan" },
+        { text: "250 AI credits / month",       chk: "cyan" },
         { text: "Unlimited activity history",     chk: "cyan" },
         { text: "Unlimited Mesh boards",          chk: "cyan" },
         { text: "SSO & SCIM provisioning",        chk: "cyan" },
