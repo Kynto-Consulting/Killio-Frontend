@@ -517,3 +517,201 @@ export async function listGithubInstallationBranches(
   if (!res.ok) return parseApiError(res, 'Failed to fetch GitHub branches');
   return res.json();
 }
+
+// ─── Google Drive ─────────────────────────────────────────────────────────────
+
+export interface GoogleDriveIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: 'google_drive';
+  name: string;
+  email: string;
+  googleUserId: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface GoogleDriveFile {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink?: string;
+  iconLink?: string;
+  modifiedTime?: string;
+}
+
+export async function listGoogleDriveCredentials(
+  teamId: string,
+  accessToken: string,
+): Promise<GoogleDriveIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/google-drive/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch Google Drive credentials');
+  return res.json();
+}
+
+export async function deleteGoogleDriveCredential(
+  teamId: string,
+  credentialId: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/google-drive/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete Google Drive credential');
+}
+
+export async function getGoogleDriveConnectUrl(
+  teamId: string,
+  accessToken: string,
+): Promise<IntegrationConnectUrlResponse> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/google-drive/connect-url`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to get Google Drive connect URL');
+  return res.json();
+}
+
+export async function saveGoogleDriveCallback(
+  teamId: string,
+  code: string,
+  accessToken: string,
+): Promise<GoogleDriveIntegrationCredential> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/google-drive/callback`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to connect Google Drive');
+  return res.json();
+}
+
+export async function searchGoogleDriveFiles(
+  teamId: string,
+  credentialId: string,
+  query: string,
+  accessToken: string,
+): Promise<GoogleDriveFile[]> {
+  const encodedQuery = encodeURIComponent(query || '');
+  const res = await fetch(
+    `${BASE_URL}/integrations/${teamId}/google-drive/credentials/${credentialId}/files?query=${encodedQuery}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) return parseApiError(res, 'Failed to search Google Drive files');
+  return res.json();
+}
+
+export async function makeGoogleDriveFilePublic(
+  teamId: string,
+  credentialId: string,
+  fileId: string,
+  accessToken: string,
+): Promise<{ webViewLink: string }> {
+  const res = await fetch(
+    `${BASE_URL}/integrations/${teamId}/google-drive/credentials/${credentialId}/files/${encodeURIComponent(fileId)}/make-public`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) return parseApiError(res, 'Failed to make Google Drive file public');
+  return res.json();
+}
+
+// ─── OneDrive ─────────────────────────────────────────────────────────────────
+
+export interface OneDriveIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: 'onedrive';
+  name: string;
+  email: string;
+  microsoftUserId: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface OneDriveFile {
+  id: string;
+  name: string;
+  mimeType?: string;
+  webUrl?: string;
+  size?: number;
+  lastModifiedDateTime?: string;
+}
+
+export async function listOneDriveCredentials(
+  teamId: string,
+  accessToken: string,
+): Promise<OneDriveIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/onedrive/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch OneDrive credentials');
+  return res.json();
+}
+
+export async function deleteOneDriveCredential(
+  teamId: string,
+  credentialId: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/onedrive/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete OneDrive credential');
+}
+
+export async function getOneDriveConnectUrl(
+  teamId: string,
+  accessToken: string,
+): Promise<IntegrationConnectUrlResponse> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/onedrive/connect-url`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to get OneDrive connect URL');
+  return res.json();
+}
+
+export async function saveOneDriveCallback(
+  teamId: string,
+  code: string,
+  accessToken: string,
+): Promise<OneDriveIntegrationCredential> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/onedrive/callback`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to connect OneDrive');
+  return res.json();
+}
+
+export async function searchOneDriveFiles(
+  teamId: string,
+  credentialId: string,
+  query: string,
+  accessToken: string,
+): Promise<OneDriveFile[]> {
+  const encodedQuery = encodeURIComponent(query || '');
+  const res = await fetch(
+    `${BASE_URL}/integrations/${teamId}/onedrive/credentials/${credentialId}/files?query=${encodedQuery}`,
+    { headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) return parseApiError(res, 'Failed to search OneDrive files');
+  return res.json();
+}
+
+export async function makeOneDriveFilePublic(
+  teamId: string,
+  credentialId: string,
+  fileId: string,
+  accessToken: string,
+): Promise<{ webUrl: string }> {
+  const res = await fetch(
+    `${BASE_URL}/integrations/${teamId}/onedrive/credentials/${credentialId}/files/${encodeURIComponent(fileId)}/make-public`,
+    { method: 'POST', headers: { Authorization: `Bearer ${accessToken}` } },
+  );
+  if (!res.ok) return parseApiError(res, 'Failed to make OneDrive file public');
+  return res.json();
+}
