@@ -50,6 +50,7 @@ export default function DocumentPage() {
   const [exportSize, setExportSize] = useState<'letter' | 'A4'>('A4');
   const [isExporting, setIsExporting] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'comments' | 'activity'>('comments');
+  const [parentDoc, setParentDoc] = useState<DocumentSummary | null>(null);
 
   const { activeTeamId } = useSession();
   const presenceMembers = useDocumentPresence(docId, user, accessToken);
@@ -70,6 +71,14 @@ export default function DocumentPage() {
       setIsLoading(true);
       const doc = await getDocument(docId, accessToken);
       setDocument({ ...doc, bricks: sanitizeDocumentBricks(doc.bricks) });
+
+      if (doc.parentDocumentId) {
+        getDocument(doc.parentDocumentId, accessToken)
+          .then((p) => setParentDoc(p))
+          .catch(() => setParentDoc(null));
+      } else {
+        setParentDoc(null);
+      }
 
       if (activeTeamId) {
         const [docs, boards, members, flds] = await Promise.all([
@@ -1269,6 +1278,20 @@ export default function DocumentPage() {
                  <FolderIcon className="h-4 w-4 opacity-70" />
                  <span className="hidden sm:inline">{t("allDocuments") || "Todos los documentos"}</span>
               </Link>
+
+              {parentDoc && (
+                <>
+                  <span className="text-muted-foreground/40 mx-1">/</span>
+                  <Link
+                    href={`/d/${parentDoc.id}`}
+                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors"
+                    title={parentDoc.title}
+                  >
+                    <FileText className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline max-w-[120px] truncate">{parentDoc.title}</span>
+                  </Link>
+                </>
+              )}
 
               {docBreadcrumbs && docBreadcrumbs.map((f, i) => (
                 <div key={f.id} className="flex items-center">

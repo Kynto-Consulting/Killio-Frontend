@@ -264,7 +264,10 @@
   "popupDocument": {
     "untitled": "Untitled document",
     "open": "Open",
-    "noContent": "No content linked yet."
+    "openFull": "Open full document",
+    "noContent": "No content linked yet.",
+    "loadTimeout": "Document load timed out",
+    "createFailed": "Failed to create popup document"
   },
   "bricks": {
     "tabs": {
