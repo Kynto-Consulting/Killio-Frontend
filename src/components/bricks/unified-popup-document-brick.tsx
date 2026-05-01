@@ -379,14 +379,6 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     };
   }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, loadInlineDocument, parentDocumentId]);
 
-  const currentTitle = doc?.title ?? externalSource?.fileName ?? content.title ?? t("popupDocument.untitled", { fallback: "Untitled" });
-  const standaloneHref = (() => {
-    if (!inlineDocumentId) return null;
-    const parentLabel = parentDocumentTitle || parentDocumentId || "document";
-    const docLabel = currentTitle || "document";
-    return `/d/${inlineDocumentId}/${slugifySegment(parentLabel)}/.../${slugifySegment(docLabel)}`;
-  })();
-
   // External source (Drive/OneDrive file) – show iframe viewer
   const externalSource = content.externalSource;
   const viewerUrl = externalSource
@@ -394,6 +386,14 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       ? `https://drive.google.com/file/d/${externalSource.fileId}/preview`
       : externalSource.webUrl ?? null
     : null;
+
+  const currentTitle = doc?.title ?? externalSource?.fileName ?? content.title ?? t("popupDocument.untitled", { fallback: "Untitled" });
+  const standaloneHref = (() => {
+    if (!inlineDocumentId) return null;
+    const parentLabel = parentDocumentTitle || parentDocumentId || "document";
+    const docLabel = currentTitle || "document";
+    return `/d/${inlineDocumentId}/${slugifySegment(parentLabel)}/.../${slugifySegment(docLabel)}`;
+  })();
 
   return (
     <div
