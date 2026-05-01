@@ -9,6 +9,7 @@ import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { CreateDocumentModal } from "@/components/ui/create-document-modal";
 import { EditDocumentModal } from "@/components/ui/edit-document-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
@@ -35,6 +36,7 @@ function DocumentsPageContent() {
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [deletingDocumentId, setDeletingDocumentId] = useState<string | null>(null);
+  const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<DocumentSummary | null>(null);
   const [editingDocument, setEditingDocument] = useState<DocumentSummary | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
@@ -198,20 +200,14 @@ function DocumentsPageContent() {
     return doc.title.toLowerCase().includes((searchQuery || "").toLowerCase());
   });
 
-  const handleDeleteDocument = async (doc: DocumentSummary) => {
+  const handleDeleteDocument = (doc: DocumentSummary) => {
     if (!accessToken || deletingDocumentId) return;
+    setDeleteDocumentTarget(doc);
+  };
 
-    const typed = window.prompt(t("deletePrompt", { title: doc.title }));
-    if (typed !== doc.title) {
-      if (typed !== null) {
-        toast(t("deleteConfirmMismatch"), "error");
-      }
-      return;
-    }
-
-    const accepted = window.confirm(t("deleteFinalConfirm", { title: doc.title }));
-    if (!accepted) return;
-
+  const confirmDeleteDocument = async () => {
+    if (!accessToken || !deleteDocumentTarget) return;
+    const doc = deleteDocumentTarget;
     setDeletingDocumentId(doc.id);
     try {
       await deleteDocument(doc.id, accessToken);
@@ -462,6 +458,18 @@ function DocumentsPageContent() {
         document={editingDocument}
         folders={folders}
         onSubmit={handleEditDocumentSubmit}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteDocumentTarget}
+        onClose={() => setDeleteDocumentTarget(null)}
+        onConfirm={confirmDeleteDocument}
+        title={t("deleteDialogTitle", { fallback: "Eliminar documento" })}
+        description={t("deleteDialogDescription", { fallback: "Esta acción no se puede deshacer. Escribe el nombre del documento para confirmar." })}
+        confirmText={deleteDocumentTarget?.title}
+        confirmLabel={t("deleteDialogConfirm", { fallback: "Eliminar" })}
+        cancelLabel={t("deleteDialogCancel", { fallback: "Cancelar" })}
+        variant="danger"
       />
     </div>
   );
