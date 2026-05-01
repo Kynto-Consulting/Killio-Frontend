@@ -165,6 +165,13 @@ export async function createDocumentBrick(
   });
 }
 
+export async function getDocumentBricks(
+  documentId: string,
+  accessToken: string
+): Promise<DocumentBrick[]> {
+  return fetchApi(`/documents/${documentId}/bricks`, { accessToken });
+}
+
 export async function reorderDocumentBricks(
   documentId: string,
   updates: { id: string; position: number }[],

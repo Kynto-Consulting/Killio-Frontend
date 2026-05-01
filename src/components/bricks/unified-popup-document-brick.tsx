@@ -5,6 +5,7 @@ import { FileText, ExternalLink, X, Loader2, ChevronRight, Pencil } from "lucide
 import {
   createDocument,
   getDocument,
+  getDocumentBricks,
   updateDocumentTitle,
   createDocumentBrick,
   updateDocumentBrick,
@@ -47,6 +48,36 @@ function sanitizeBricks(bricks: DocumentBrick[]): DocumentBrick[] {
     ...b,
     content: sanitizeChildrenByContainer(b.content || {}, ids),
   }));
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timeoutId = setTimeout(() => reject(new Error(message)), ms);
+    promise
+      .then((value) => {
+        clearTimeout(timeoutId);
+        resolve(value);
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        reject(err);
+      });
+  });
+}
+
+function buildFallbackDocumentView(documentId: string, title: string, bricks: DocumentBrick[]): DocumentView {
+  const now = new Date().toISOString();
+  return {
+    id: documentId,
+    title,
+    teamId: "",
+    visibility: "private",
+    createdByUserId: "",
+    createdAt: now,
+    updatedAt: now,
+    role: "editor",
+    bricks,
+  };
 }
 
 export function UnifiedPopupDocumentBrick({
@@ -205,19 +236,42 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
 
   const { inlineDocumentId } = content;
 
+  const loadInlineDocument = useCallback(
+    async (documentId: string, titleFallback?: string): Promise<DocumentView> => {
+      const safeTitle = (titleFallback || content.title || "").trim() || t("popupDocument.untitled", { fallback: "Untitled document" });
+
+      try {
+        const full = await withTimeout(
+          getDocument(documentId, accessToken),
+          7000,
+          t("popupDocument.loadTimeout", { fallback: "Document load timeout" }),
+        );
+        return { ...full, bricks: sanitizeBricks(full.bricks) };
+      } catch {
+        const bricks = await withTimeout(
+          getDocumentBricks(documentId, accessToken),
+          7000,
+          t("popupDocument.loadTimeout", { fallback: "Document load timeout" }),
+        );
+        return buildFallbackDocumentView(documentId, safeTitle, sanitizeBricks(bricks));
+      }
+    },
+    [accessToken, content.title, t],
+  );
+
   const fetchDoc = useCallback(async () => {
     if (!inlineDocumentId || !accessToken) return;
     setLoading(true);
     setError(null);
     try {
-      const result = await getDocument(inlineDocumentId, accessToken);
-      setDoc({ ...result, bricks: sanitizeBricks(result.bricks) });
+      const result = await loadInlineDocument(inlineDocumentId, content.title);
+      setDoc(result);
     } catch (err: any) {
       setError(err.message ?? "Failed to load document");
     } finally {
       setLoading(false);
     }
-  }, [inlineDocumentId, accessToken]);
+  }, [inlineDocumentId, accessToken, loadInlineDocument, content.title]);
 
   useEffect(() => {
     fetchDoc();
@@ -251,9 +305,9 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
           inlineDocumentId: created.id,
         });
 
-        const full = await getDocument(created.id, accessToken);
+        const full = await loadInlineDocument(created.id, content.title || created.title);
         if (!cancelled) {
-          setDoc({ ...full, bricks: sanitizeBricks(full.bricks) });
+          setDoc(full);
         }
       } catch (err: any) {
         if (!cancelled) {
@@ -272,7 +326,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     return () => {
       cancelled = true;
     };
-  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, isCreatingInlineDoc]);
+  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, isCreatingInlineDoc, loadInlineDocument]);
 
   // External source (Drive/OneDrive file) – show iframe viewer
   const externalSource = content.externalSource;
@@ -413,11 +467,17 @@ interface InlineDocumentBodyProps {
 function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDocumentBodyProps) {
   // Lazy import to avoid circular deps; UnifiedBrickList is the same renderer used in document pages
   const [BrickListComponent, setBrickListComponent] = useState<React.ComponentType<any> | null>(null);
+  const [brickListLoadError, setBrickListLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    import("@/components/bricks/unified-brick-list").then((m) => {
-      setBrickListComponent(() => m.UnifiedBrickList);
-    });
+    import("@/components/bricks/unified-brick-list")
+      .then((m) => {
+        setBrickListComponent(() => m.UnifiedBrickList);
+        setBrickListLoadError(null);
+      })
+      .catch(() => {
+        setBrickListLoadError("Failed to load document renderer");
+      });
   }, []);
 
   const handleBrickUpdate = useCallback(
@@ -449,6 +509,14 @@ function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDo
   );
 
   if (!BrickListComponent) {
+    if (brickListLoadError) {
+      return (
+        <div style={{ fontSize: 13, color: "#f87171", textAlign: "center", paddingTop: 20 }}>
+          {brickListLoadError}
+        </div>
+      );
+    }
+
     return (
       <div style={{ display: "flex", justifyContent: "center", paddingTop: 20 }}>
         <Loader2 style={{ width: 16, height: 16, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
