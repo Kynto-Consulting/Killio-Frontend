@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { FileText, ExternalLink, X, Loader2, ChevronRight, Pencil } from "lucide-react";
 import {
+  createDocument,
   getDocument,
   updateDocumentTitle,
   createDocumentBrick,
@@ -55,7 +56,7 @@ export function UnifiedPopupDocumentBrick({
   onUpdate,
 }: UnifiedPopupDocumentBrickProps) {
   const t = useTranslations("document-detail");
-  const { accessToken } = useSession();
+  const { accessToken, activeTeamId } = useSession();
   const [isOpen, setIsOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState(content.title ?? "");
@@ -174,6 +175,7 @@ export function UnifiedPopupDocumentBrick({
         <PopupDocumentPanel
           content={content}
           canEdit={canEdit}
+          teamId={activeTeamId ?? null}
           accessToken={accessToken ?? ""}
           onClose={() => setIsOpen(false)}
           onUpdate={onUpdate}
@@ -188,16 +190,18 @@ export function UnifiedPopupDocumentBrick({
 interface PopupDocumentPanelProps {
   content: PopupDocumentContent;
   canEdit: boolean;
+  teamId: string | null;
   accessToken: string;
   onClose: () => void;
   onUpdate: (content: PopupDocumentContent) => void;
 }
 
-function PopupDocumentPanel({ content, canEdit, accessToken, onClose, onUpdate }: PopupDocumentPanelProps) {
+function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, onUpdate }: PopupDocumentPanelProps) {
   const t = useTranslations("document-detail");
   const [doc, setDoc] = useState<DocumentView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isCreatingInlineDoc, setIsCreatingInlineDoc] = useState(false);
 
   const { inlineDocumentId } = content;
 
@@ -218,6 +222,57 @@ function PopupDocumentPanel({ content, canEdit, accessToken, onClose, onUpdate }
   useEffect(() => {
     fetchDoc();
   }, [fetchDoc]);
+
+  useEffect(() => {
+    if (inlineDocumentId || content.externalSource) return;
+    if (!canEdit || !teamId || !accessToken) return;
+    if (isCreatingInlineDoc) return;
+
+    let cancelled = false;
+
+    const provisionInlineDocument = async () => {
+      setIsCreatingInlineDoc(true);
+      setLoading(true);
+      setError(null);
+      try {
+        const baseTitle = (content.title || "").trim() || t("popupDocument.untitled", { fallback: "Untitled document" });
+        const created = await createDocument({ teamId, title: baseTitle }, accessToken);
+        await createDocumentBrick(
+          created.id,
+          { kind: "text", position: 1000, content: { text: "" } },
+          accessToken,
+        );
+
+        if (cancelled) return;
+
+        onUpdate({
+          ...content,
+          title: content.title || created.title,
+          inlineDocumentId: created.id,
+        });
+
+        const full = await getDocument(created.id, accessToken);
+        if (!cancelled) {
+          setDoc({ ...full, bricks: sanitizeBricks(full.bricks) });
+        }
+      } catch (err: any) {
+        if (!cancelled) {
+          setError(err?.message ?? t("popupDocument.createFailed", { fallback: "Failed to create popup document" }));
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setIsCreatingInlineDoc(false);
+        }
+      }
+    };
+
+    provisionInlineDocument();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, isCreatingInlineDoc]);
 
   // External source (Drive/OneDrive file) – show iframe viewer
   const externalSource = content.externalSource;
@@ -328,7 +383,7 @@ function PopupDocumentPanel({ content, canEdit, accessToken, onClose, onUpdate }
           )}
 
           {/* No linked document yet */}
-          {!loading && !error && !inlineDocumentId && !externalSource && (
+          {!loading && !error && !inlineDocumentId && !externalSource && !isCreatingInlineDoc && (
             <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", paddingTop: 40 }}>
               {t("popupDocument.noContent", { fallback: "No content linked yet." })}
             </div>
