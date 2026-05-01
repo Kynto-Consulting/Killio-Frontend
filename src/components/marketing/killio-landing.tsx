@@ -1,12 +1,42 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import {
+  ArrowRight,
+  Check,
+  Kanban,
+  FileText,
+  Orbit,
+  Zap,
+  BrainCircuit,
+  Database,
+  Sparkles,
+  Slash,
+  Webhook,
+  Mail,
+  History,
+  BarChart3,
+  Monitor,
+  Globe,
+  Folder,
+  Users,
+} from "lucide-react";
+import {
+  SiGithub,
+  SiNotion,
+  SiGoogledrive,
+  SiSlack,
+  SiTrello,
+  SiWhatsapp,
+  SiZapier,
+} from "react-icons/si";
+import { TbBrandOnedrive } from "react-icons/tb";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import "@/app/landing.css";
 
 type T = (key: string, params?: Record<string, string | number>) => string;
 
-// ─── Scroll fade hook ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Scroll fade hook â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function useFadeRef() {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -22,35 +52,7 @@ function useFadeRef() {
   return ref;
 }
 
-// ─── SVG Icon library ─────────────────────────────────────────────────────────
-const Ic = {
-  Arrow:    () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg>,
-  Check:    () => <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 5l2.5 2.5L8 3"/></svg>,
-  Kanban:   () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="2" width="4" height="10" rx="1"/><rect x="6" y="2" width="4" height="7" rx="1"/><rect x="11" y="2" width="4" height="12" rx="1"/></svg>,
-  File:     () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 1H3a1 1 0 00-1 1v12a1 1 0 001 1h10a1 1 0 001-1V6L9 1z"/><path d="M9 1v5h5M5 9h6M5 12h4"/></svg>,
-  Mesh:     () => <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="3" cy="8" r="1.5"/><circle cx="13" cy="3" r="1.5"/><circle cx="13" cy="13" r="1.5"/><circle cx="8" cy="8" r="1.5"/><path d="M4.5 8h2M9.5 8l2-3.5M9.5 8l2 3.5"/></svg>,
-  Zap:      () => <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M9.5 1.5L2 9.5h6l-1.5 6 8-8H8.5l1-6z"/></svg>,
-  Brain:    () => <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M8.5 14v-4"/><ellipse cx="8.5" cy="7" rx="4" ry="4.5"/><path d="M4.5 7H2a2 2 0 000 4h2.5"/><path d="M12.5 7H15a2 2 0 010 4h-2.5"/></svg>,
-  Database: () => <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><ellipse cx="8.5" cy="4.5" rx="5.5" ry="2"/><path d="M3 4.5v4c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2v-4"/><path d="M3 8.5v4c0 1.1 2.46 2 5.5 2s5.5-.9 5.5-2v-4"/></svg>,
-  GitHub:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.509 11.509 0 0112 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.566 21.797 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>,
-  Slack:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M5.042 15.165a2.528 2.528 0 01-2.52 2.523A2.528 2.528 0 010 15.165a2.527 2.527 0 012.522-2.52h2.52v2.52zm1.271 0a2.527 2.527 0 012.521-2.52 2.527 2.527 0 012.521 2.52v6.313A2.528 2.528 0 018.834 24a2.528 2.528 0 01-2.521-2.522v-6.313zM8.834 5.042a2.528 2.528 0 01-2.521-2.52A2.528 2.528 0 018.834 0a2.528 2.528 0 012.521 2.522v2.52H8.834zm0 1.271a2.528 2.528 0 012.521 2.521 2.528 2.528 0 01-2.521 2.521H2.522A2.528 2.528 0 010 8.834a2.528 2.528 0 012.522-2.521h6.312zm10.122 2.521a2.528 2.528 0 012.522-2.521A2.528 2.528 0 0124 8.834a2.528 2.528 0 01-2.522 2.521h-2.522V8.834zm-1.268 0a2.528 2.528 0 01-2.523 2.521 2.527 2.527 0 01-2.52-2.521V2.522A2.527 2.527 0 0115.165 0a2.528 2.528 0 012.523 2.522v6.312zm-2.523 10.122a2.528 2.528 0 012.523 2.522A2.528 2.528 0 0115.165 24a2.527 2.527 0 01-2.52-2.522v-2.522h2.52zm0-1.268a2.527 2.527 0 01-2.52-2.523 2.526 2.526 0 012.52-2.52h6.313A2.527 2.527 0 0124 15.165a2.528 2.528 0 01-2.522 2.523h-6.313z"/></svg>,
-  Notion:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M4.459 4.208c.746.606 1.026.56 2.428.466l13.215-.793c.28 0 .047-.28-.046-.326L17.86 1.968c-.42-.326-.981-.7-2.055-.607L3.01 2.295c-.466.046-.56.28-.374.466zm.793 3.08v13.904c0 .747.373 1.027 1.214.98l14.523-.84c.841-.046.935-.56.935-1.167V6.354c0-.606-.233-.933-.748-.887l-15.177.887c-.56.047-.747.327-.747.933zm14.337.745c.093.42 0 .84-.42.888l-.7.14v10.264c-.608.327-1.168.514-1.635.514-.748 0-.935-.234-1.495-.933l-4.577-7.186v6.952L12.21 19s0 .84-1.168.84l-3.222.186c-.093-.186 0-.653.327-.746l.84-.233V9.854L7.822 9.76c-.094-.42.14-1.026.793-1.073l3.456-.233 4.764 7.279v-6.44l-1.215-.14c-.093-.514.28-.887.747-.933zM1.936 1.035l13.31-.98c1.634-.14 2.055-.047 3.082.7l4.249 2.986c.7.513.934.653.934 1.213v16.378c0 1.026-.373 1.634-1.68 1.726l-15.458.934c-.98.047-1.448-.093-1.962-.747l-3.129-4.06c-.56-.747-.793-1.306-.793-1.96V2.667c0-.839.374-1.54 1.447-1.632z"/></svg>,
-  Phone:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="5" y="1" width="14" height="22" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>,
-  Webhook:  () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 16.5a3 3 0 100-6 3 3 0 000 6z"/><path d="M6 16.5a3 3 0 100-6 3 3 0 000 6z"/><path d="M15 10.5A6 6 0 009 7.5"/><path d="M9 13.5h6"/></svg>,
-  Mail:     () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M2 7l10 7 10-7"/></svg>,
-  Trello:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><rect width="24" height="24" rx="4" fill="#0052CC"/><rect x="3.5" y="3.5" width="7" height="14" rx="1.5" fill="white"/><rect x="13.5" y="3.5" width="7" height="9" rx="1.5" fill="white"/></svg>,
-  History:  () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M3 12a9 9 0 109-9H3"/><path d="M3 7v5h5"/><path d="M12 7v5l3 3"/></svg>,
-  BarChart: () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="3" y="12" width="4" height="9"/><rect x="10" y="6" width="4" height="15"/><rect x="17" y="2" width="4" height="19"/></svg>,
-  Shield:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M12 2L3 6v6c0 5.25 3.75 10.15 9 11.25C18.25 22.15 22 17.25 22 12V6L12 2z"/><path d="M9 12l2 2 4-4"/></svg>,
-  Monitor:  () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>,
-  Globe:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>,
-  Folder:   () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2v11z"/></svg>,
-  Users:    () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>,
-  Sparkle:  () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"><path d="M7 1v2M7 11v2M1 7h2M11 7h2M3.05 3.05l1.41 1.41M9.54 9.54l1.41 1.41M3.05 10.95l1.41-1.41M9.54 4.46l1.41-1.41"/><circle cx="7" cy="7" r="1.5" fill="currentColor" stroke="none"/></svg>,
-  SlashCmd: () => <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M9 2L5 12"/><path d="M3 7h8"/></svg>,
-};
-
-// ─── Nav ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ SVG Icon library â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Nav({ t }: { t: T }) {
   return (
     <nav>
@@ -74,7 +76,7 @@ function Nav({ t }: { t: T }) {
   );
 }
 
-// ─── Hero ─────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Hero â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Hero({ t }: { t: T }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -96,11 +98,11 @@ function Hero({ t }: { t: T }) {
         <p className="hero-sub">
           {t("kl.hero.sub")}</p>
         <div className="hero-actions">
-          <a href="/signup" className="btn-lime-lg">{t("kl.hero.ctaPrimary")} <Ic.Arrow /></a>
+          <a href="/signup" className="btn-lime-lg">{t("kl.hero.ctaPrimary")} <ArrowRight className="h-4 w-4" /></a>
           <a href="#features" className="btn-outline-lg">{t("kl.hero.ctaSecondary")}</a>
         </div>
         <div className="hero-notice">
-          <Ic.Sparkle /> {t("kl.hero.notice")}
+          <Sparkles className="h-4 w-4" /> {t("kl.hero.notice")}
         </div>
         <div className="stats-row">
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
@@ -112,7 +114,7 @@ function Hero({ t }: { t: T }) {
   );
 }
 
-// ─── Kanban Preview ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Kanban Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function KanbanPreview() {
   const cols = [
     { name: "To Do", count: 3, cards: [
@@ -147,7 +149,7 @@ function KanbanPreview() {
   );
 }
 
-// ─── Doc Preview ──────────────────────────────────────────────────────────────
+// â”€â”€â”€ Doc Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function DocPreview() {
   return (
     <div className="doc-preview">
@@ -164,7 +166,7 @@ function DocPreview() {
         <div className="doc-p" style={{ width: "72%" }} />
         <div style={{ height: 2 }} />
         <div className="doc-callout">
-          <Ic.Sparkle />
+          <Sparkles className="h-3.5 w-3.5" />
           <div className="doc-callout-text" />
         </div>
         <div className="doc-table">
@@ -181,15 +183,15 @@ function DocPreview() {
           ))}
         </div>
         <div className="doc-slash">
-          <Ic.SlashCmd />
-          <span className="doc-slash-text">Type / for commands — text, table, graph, checklist, code…</span>
+          <Slash className="h-3.5 w-3.5" />
+          <span className="doc-slash-text">Type / for commands â€” text, table, graph, checklist, codeâ€¦</span>
         </div>
       </div>
     </div>
   );
 }
 
-// ─── Mesh Preview ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Mesh Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function MeshPreview() {
   const nodes = [
     { id: "a", x: 20,  y: 28,  w: 130, h: 38, label: "Project Kick-off", bg: "rgba(216,255,114,0.1)", border: "rgba(216,255,114,0.4)", color: "#d8ff72" },
@@ -229,7 +231,7 @@ function MeshPreview() {
   );
 }
 
-// ─── Features Section ─────────────────────────────────────────────────────────
+// â”€â”€â”€ Features Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FeaturesSection({ t }: { t: T }) {
   const ref = useFadeRef();
   return (
@@ -243,7 +245,7 @@ function FeaturesSection({ t }: { t: T }) {
         <div className="bento-grid">
           <div className="bento-card">
             <div className="bento-card-body">
-              <span className="bento-tag lime"><Ic.Kanban /> {t("kl.features.kanban.tag")}</span>
+              <span className="bento-tag lime"><Kanban className="h-4 w-4" /> {t("kl.features.kanban.tag")}</span>
               <h3 className="bento-title">{t("kl.features.kanban.title")}</h3>
               <p className="bento-desc">{t("kl.features.kanban.desc")}</p>
             </div>
@@ -251,7 +253,7 @@ function FeaturesSection({ t }: { t: T }) {
           </div>
           <div className="bento-card">
             <div className="bento-card-body">
-              <span className="bento-tag indigo"><Ic.File /> {t("kl.features.docs.tag")}</span>
+              <span className="bento-tag indigo"><FileText className="h-4 w-4" /> {t("kl.features.docs.tag")}</span>
               <h3 className="bento-title">{t("kl.features.docs.title")}</h3>
               <p className="bento-desc">{t("kl.features.docs.desc")}</p>
             </div>
@@ -260,7 +262,7 @@ function FeaturesSection({ t }: { t: T }) {
           <div className="bento-card span-2">
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 280 }}>
               <div className="bento-card-body" style={{ display: "flex", flexDirection: "column", justifyContent: "center" }}>
-                <span className="bento-tag cyan"><Ic.Mesh /> {t("kl.features.mesh.tag")}</span>
+                <span className="bento-tag cyan"><Orbit className="h-4 w-4" /> {t("kl.features.mesh.tag")}</span>
                 <h3 className="bento-title">{t("kl.features.mesh.title")}</h3>
                 <p className="bento-desc">{t("kl.features.mesh.desc")}</p>
                 <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 8 }}>
@@ -280,7 +282,7 @@ function FeaturesSection({ t }: { t: T }) {
   );
 }
 
-// ─── Script Canvas ────────────────────────────────────────────────────────────
+// â”€â”€â”€ Script Canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ScriptCanvas({ t }: { t: T }) {
   const paths = [
     { from: { x: 148, y: 62  }, to: { x: 178, y: 166 }, color: "rgba(216,255,114,0.35)" },
@@ -312,19 +314,19 @@ function ScriptCanvas({ t }: { t: T }) {
       <div className="sn action2"><div className="sn-dot" style={{ background: "#67e8f9" }} />Send WhatsApp</div>
       <div className="sn end"><div className="sn-dot" style={{ background: "#fca5a5" }} />Log & Done</div>
       <div style={{ position: "absolute", bottom: 16, right: 16, display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 999, background: "rgba(99,102,241,0.15)", border: "1px solid rgba(99,102,241,0.3)", fontSize: 11, fontWeight: 600, color: "#a5b4fc" }}>
-        <Ic.Sparkle /> {t("kl.ai.scriptBadge")}
+        <Sparkles className="h-3.5 w-3.5" /> {t("kl.ai.scriptBadge")}
       </div>
     </div>
   );
 }
 
-// ─── AI Section ───────────────────────────────────────────────────────────────
+// â”€â”€â”€ AI Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function AISection({ t }: { t: T }) {
   const ref = useFadeRef();
   const featureKeys = [
-    { icon: <Ic.Zap />,      cls: "lime",   key: "builder" },
-    { icon: <Ic.Brain />,    cls: "indigo", key: "chat"    },
-    { icon: <Ic.Database />, cls: "cyan",   key: "rag"     },
+    { icon: <Zap className="h-4 w-4" />,          cls: "lime",   key: "builder" },
+    { icon: <BrainCircuit className="h-4 w-4" />, cls: "indigo", key: "chat"    },
+    { icon: <Database className="h-4 w-4" />,     cls: "cyan",   key: "rag"     },
   ];
   return (
     <section className="ai-section" id="ai" style={{ position: "relative" }}>
@@ -354,20 +356,20 @@ function AISection({ t }: { t: T }) {
   );
 }
 
-// ─── Integrations ─────────────────────────────────────────────────────────────
+// â”€â”€â”€ Integrations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function IntegrationsSection({ t }: { t: T }) {
   const ref = useFadeRef();
   const integrations = [
-    { icon: <Ic.GitHub />,  key: "github"   },
-    { icon: <Ic.Notion />,  key: "notion"   },
-    { icon: <Ic.Globe />,   key: "googledrive" },
-    { icon: <Ic.Folder />,  key: "onedrive" },
-    { icon: <Ic.Slack />,   key: "slack"    },
-    { icon: <Ic.Trello />,  key: "trello"   },
-    { icon: <Ic.Phone />,   key: "whatsapp" },
-    { icon: <Ic.Webhook />, key: "webhooks" },
-    { icon: <Ic.Mail />,    key: "email"    },
-    { icon: <Ic.Sparkle />, key: "zapier"   },
+    { icon: <SiGithub className="h-4 w-4" />,              key: "github"      },
+    { icon: <SiNotion className="h-4 w-4" />,              key: "notion"      },
+    { icon: <SiGoogledrive className="h-4 w-4" />,         key: "googledrive" },
+    { icon: <TbBrandOnedrive className="h-4 w-4" />,       key: "onedrive"    },
+    { icon: <SiSlack className="h-4 w-4" />,               key: "slack"       },
+    { icon: <SiTrello className="h-4 w-4" />,              key: "trello"      },
+    { icon: <SiWhatsapp className="h-4 w-4" />,            key: "whatsapp"    },
+    { icon: <Webhook className="h-4 w-4" />,               key: "webhooks"    },
+    { icon: <Mail className="h-4 w-4" />,                  key: "email"       },
+    { icon: <SiZapier className="h-4 w-4" />,              key: "zapier"      },
   ];
   return (
     <section className="integrations-section" id="integrations">
@@ -390,7 +392,7 @@ function IntegrationsSection({ t }: { t: T }) {
   );
 }
 
-// ─── Pricing ──────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Pricing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function PricingSection({ t }: { t: T }) {
   const [cycle, setCycle] = useState("monthly");
   const ref = useFadeRef();
@@ -437,14 +439,14 @@ function PricingSection({ t }: { t: T }) {
               <div className="plan-headline">{t(`kl.pricing.${plan.key}.headline`)}</div>
               <div className="plan-price-row">
                 <div className="plan-price">{cycle === "monthly" ? plan.monthly : plan.yearly}</div>
-                <div className="plan-price-sub">{plan.key === "free" ? t("kl.pricing.free.priceSub") : (cycle === "yearly" ? `${t(`kl.pricing.${plan.key}.priceSub`)} · ${t("kl.pricing.billedAnnually")}` : t(`kl.pricing.${plan.key}.priceSub`))}</div>
+                <div className="plan-price-sub">{plan.key === "free" ? t("kl.pricing.free.priceSub") : (cycle === "yearly" ? `${t(`kl.pricing.${plan.key}.priceSub`)} Â· ${t("kl.pricing.billedAnnually")}` : t(`kl.pricing.${plan.key}.priceSub`))}</div>
                 {plan.key !== "free" && cycle === "yearly" && <div style={{ fontSize: 11, color: "#a5b4fc", fontWeight: 700, marginTop: 4 }}>{t("kl.pricing.vsMonthly", { price: t(`kl.pricing.${plan.key}.price`) })}</div>}
               </div>
               <div className="plan-features">
                 <div className="pf-label">{t("kl.pricing.included")}</div>
                 {plan.features.map((f, i) => (
                   <div className="pf-item" key={i}>
-                    <div className={`pf-check ${f.chk}`}><Ic.Check /></div>
+                    <div className={`pf-check ${f.chk}`}><Check className="h-3 w-3" /></div>
                     <span>{f.text}</span>
                   </div>
                 ))}
@@ -460,23 +462,23 @@ function PricingSection({ t }: { t: T }) {
             <div className="ent-title">{t("kl.pricing.enterprise.title")}</div>
             <div className="ent-sub">{t("kl.pricing.enterprise.sub")}</div>
           </div>
-          <a href="mailto:sales@killio.com" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>{t("kl.pricing.enterprise.cta")} <Ic.Arrow /></a>
+          <a href="mailto:sales@killio.com" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>{t("kl.pricing.enterprise.cta")} <ArrowRight className="h-4 w-4" /></a>
         </div>
       </div>
     </section>
   );
 }
 
-// ─── Features Strip ───────────────────────────────────────────────────────────
+// â”€â”€â”€ Features Strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FeaturesStrip({ t }: { t: T }) {
   const ref = useFadeRef();
   const items = [
-    { icon: <Ic.History />,  key: "history" },
-    { icon: <Ic.BarChart />, key: "metrics" },
-    { icon: <Ic.Users />,    key: "roles"   },
-    { icon: <Ic.Monitor />,  key: "mobile"  },
-    { icon: <Ic.Globe />,    key: "sharing" },
-    { icon: <Ic.Folder />,   key: "folders" },
+    { icon: <History className="h-5 w-5" />,   key: "history" },
+    { icon: <BarChart3 className="h-5 w-5" />, key: "metrics" },
+    { icon: <Users className="h-5 w-5" />,     key: "roles"   },
+    { icon: <Monitor className="h-5 w-5" />,   key: "mobile"  },
+    { icon: <Globe className="h-5 w-5" />,     key: "sharing" },
+    { icon: <Folder className="h-5 w-5" />,    key: "folders" },
   ];
   return (
     <section className="features-strip">
@@ -499,7 +501,7 @@ function FeaturesStrip({ t }: { t: T }) {
   );
 }
 
-// ─── CTA ──────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ CTA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function CTASection({ t }: { t: T }) {
   const ref = useFadeRef();
   return (
@@ -512,7 +514,7 @@ function CTASection({ t }: { t: T }) {
             <h2 className="cta-title">{t("kl.cta.title1")}<br />{t("kl.cta.title2")}</h2>
             <p className="cta-sub">{t("kl.cta.sub")}</p>
             <div className="hero-actions">
-              <a href="/signup" className="btn-lime-lg">{t("kl.cta.primary")} <Ic.Arrow /></a>
+              <a href="/signup" className="btn-lime-lg">{t("kl.cta.primary")} <ArrowRight className="h-4 w-4" /></a>
               <a href="#pricing" className="btn-outline-lg">{t("kl.cta.secondary")}</a>
             </div>
           </div>
@@ -522,7 +524,7 @@ function CTASection({ t }: { t: T }) {
   );
 }
 
-// ─── Footer ───────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Footer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function Footer({ t }: { t: T }) {
   return (
     <footer>
@@ -543,7 +545,7 @@ function Footer({ t }: { t: T }) {
   );
 }
 
-// ─── KillioLanding ────────────────────────────────────────────────────────────
+// â”€â”€â”€ KillioLanding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 export function KillioLanding() {
   const t = useTranslations("landing");
   useEffect(() => {
