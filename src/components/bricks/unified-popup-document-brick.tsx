@@ -7,15 +7,18 @@ import {
   createDocument,
   getDocument,
   getDocumentBricks,
+  listDocuments,
   updateDocumentTitle,
   createDocumentBrick,
   updateDocumentBrick,
   deleteDocumentBrick,
   reorderDocumentBricks,
+  DocumentSummary,
   patchBrickCell,
   DocumentView,
   DocumentBrick,
 } from "@/lib/api/documents";
+import { listTeamBoards, listTeamMembers, BoardSummary, TeamMemberSummary } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { sanitizeChildrenByContainer } from "@/lib/bricks/nesting";
@@ -81,14 +84,24 @@ function buildFallbackDocumentView(documentId: string, title: string, bricks: Do
   };
 }
 
-function slugifySegment(input: string): string {
-  const normalized = input
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-  return normalized || "document";
+let cachedUnifiedBrickList: React.ComponentType<any> | null = null;
+let unifiedBrickListImportPromise: Promise<React.ComponentType<any>> | null = null;
+
+function loadUnifiedBrickListComponent(): Promise<React.ComponentType<any>> {
+  if (cachedUnifiedBrickList) {
+    return Promise.resolve(cachedUnifiedBrickList);
+  }
+  if (!unifiedBrickListImportPromise) {
+    unifiedBrickListImportPromise = import("@/components/bricks/unified-brick-list")
+      .then((m) => {
+        cachedUnifiedBrickList = m.UnifiedBrickList;
+        return m.UnifiedBrickList;
+      })
+      .finally(() => {
+        unifiedBrickListImportPromise = null;
+      });
+  }
+  return unifiedBrickListImportPromise;
 }
 
 export function UnifiedPopupDocumentBrick({
@@ -249,6 +262,9 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   const [isCreatingInlineDoc, setIsCreatingInlineDoc] = useState(false);
   const creatingInlineDocRef = useRef(false);
   const [parentDocumentTitle, setParentDocumentTitle] = useState<string | null>(null);
+  const [teamDocuments, setTeamDocuments] = useState<DocumentSummary[]>([]);
+  const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberSummary[]>([]);
 
   const { inlineDocumentId } = content;
 
@@ -317,6 +333,37 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       cancelled = true;
     };
   }, [parentDocumentId, accessToken]);
+
+  useEffect(() => {
+    void loadUnifiedBrickListComponent();
+  }, []);
+
+  useEffect(() => {
+    if (!teamId || !accessToken) {
+      setTeamDocuments([]);
+      setTeamBoards([]);
+      setTeamMembers([]);
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.all([
+      listDocuments(teamId, accessToken).catch(() => [] as DocumentSummary[]),
+      listTeamBoards(teamId, accessToken).catch(() => [] as BoardSummary[]),
+      listTeamMembers(teamId, accessToken).catch(() => [] as TeamMemberSummary[]),
+    ]).then(([docs, boards, members]) => {
+      if (!cancelled) {
+        setTeamDocuments(docs);
+        setTeamBoards(boards);
+        setTeamMembers(members);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [teamId, accessToken]);
 
   useEffect(() => {
     if (inlineDocumentId || content.externalSource) return;
@@ -415,7 +462,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       <div
         style={{
           position: "relative",
-          width: "min(680px, 100vw)",
+          width: "min(860px, 100vw)",
           height: "100%",
           background: "#0c0e14",
           borderLeft: "1px solid rgba(255,255,255,0.1)",
@@ -496,7 +543,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: "auto", padding: "20px 24px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: "16px 20px 96px" }}>
           {loading && (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 40 }}>
               <Loader2 style={{ width: 20, height: 20, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
@@ -523,6 +570,9 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
               doc={doc}
               canEdit={canEdit}
               accessToken={accessToken}
+              documents={teamDocuments}
+              boards={teamBoards}
+              users={teamMembers}
               onDocUpdate={setDoc}
             />
           )}
@@ -552,24 +602,27 @@ interface InlineDocumentBodyProps {
   doc: DocumentView;
   canEdit: boolean;
   accessToken: string;
+  documents: DocumentSummary[];
+  boards: BoardSummary[];
+  users: TeamMemberSummary[];
   onDocUpdate: (doc: DocumentView) => void;
 }
 
-function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDocumentBodyProps) {
-  // Lazy import to avoid circular deps; UnifiedBrickList is the same renderer used in document pages
-  const [BrickListComponent, setBrickListComponent] = useState<React.ComponentType<any> | null>(null);
+function InlineDocumentBody({ doc, canEdit, accessToken, documents, boards, users, onDocUpdate }: InlineDocumentBodyProps) {
+  const [BrickListComponent, setBrickListComponent] = useState<React.ComponentType<any> | null>(() => cachedUnifiedBrickList);
   const [brickListLoadError, setBrickListLoadError] = useState<string | null>(null);
 
   useEffect(() => {
-    import("@/components/bricks/unified-brick-list")
-      .then((m) => {
-        setBrickListComponent(() => m.UnifiedBrickList);
+    if (BrickListComponent) return;
+    loadUnifiedBrickListComponent()
+      .then((Component) => {
+        setBrickListComponent(() => Component);
         setBrickListLoadError(null);
       })
       .catch(() => {
         setBrickListLoadError("Failed to load document renderer");
       });
-  }, []);
+  }, [BrickListComponent]);
 
   const handleBrickUpdate = useCallback(
     async (brickId: string, newContent: any) => {
@@ -681,9 +734,9 @@ function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDo
       bricks={doc.bricks}
       activeBricks={doc.bricks}
       canEdit={canEdit}
-      documents={[]}
-      boards={[]}
-      users={[]}
+      documents={documents}
+      boards={boards}
+      users={users}
       onUpdateBrick={handleBrickUpdate}
       onAddBrick={handleAddBrick}
       onDeleteBrick={handleDeleteBrick}
