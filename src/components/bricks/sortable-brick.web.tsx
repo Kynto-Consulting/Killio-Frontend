@@ -50,12 +50,12 @@ export function SortableBrickWeb({ id, children, readonly, onDelete, onAddBelow,
       data-brick-id={id}
       style={style}
       onMouseDown={handleMouseDown}
-      className={`group relative flex items-start gap-1 rounded-lg p-1.5 transition-colors ${
+      className={`group/sortable relative flex items-start gap-1 rounded-lg p-1.5 transition-colors ${
         isDragging ? "bg-accent/10 ring-2 ring-accent/40" : "hover:bg-accent/5"
       }`}
     >
       {!readonly && (
-        <div className={`absolute ${isCompact ? "-left-8" : "-left-16"} flex flex-row items-center justify-end px-1 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity gap-0.5 z-20 top-1.5`}>
+        <div className={`absolute ${isCompact ? "-left-8" : "-left-16"} flex flex-row items-center justify-end px-1 shrink-0 opacity-0 group-hover/sortable:opacity-100 transition-opacity gap-0.5 z-20 top-1.5`}>
           {!isCompact && (
             <button
               type="button"
