@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { FileText, ExternalLink, X, Loader2, ChevronRight, Pencil } from "lucide-react";
+import { useParams } from "next/navigation";
+import { FileText, ExternalLink, X, Loader2, ChevronRight, Pencil, Folder as FolderIcon } from "lucide-react";
 import {
   createDocument,
   getDocument,
@@ -78,6 +79,16 @@ function buildFallbackDocumentView(documentId: string, title: string, bricks: Do
     role: "editor",
     bricks,
   };
+}
+
+function slugifySegment(input: string): string {
+  const normalized = input
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  return normalized || "document";
 }
 
 export function UnifiedPopupDocumentBrick({
@@ -229,11 +240,15 @@ interface PopupDocumentPanelProps {
 
 function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, onUpdate }: PopupDocumentPanelProps) {
   const t = useTranslations("document-detail");
+  const params = useParams() as Record<string, string | string[] | undefined>;
+  const routeDocId = params?.docId;
+  const parentDocumentId = Array.isArray(routeDocId) ? routeDocId[0] : routeDocId;
   const [doc, setDoc] = useState<DocumentView | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingInlineDoc, setIsCreatingInlineDoc] = useState(false);
   const creatingInlineDocRef = useRef(false);
+  const [parentDocumentTitle, setParentDocumentTitle] = useState<string | null>(null);
 
   const { inlineDocumentId } = content;
 
@@ -279,6 +294,31 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   }, [fetchDoc]);
 
   useEffect(() => {
+    if (!parentDocumentId || !accessToken) {
+      setParentDocumentTitle(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    getDocument(parentDocumentId, accessToken)
+      .then((parentDoc) => {
+        if (!cancelled) {
+          setParentDocumentTitle(parentDoc.title || null);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setParentDocumentTitle(null);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [parentDocumentId, accessToken]);
+
+  useEffect(() => {
     if (inlineDocumentId || content.externalSource) return;
     if (!canEdit || !teamId || !accessToken) return;
     if (creatingInlineDocRef.current) return;
@@ -292,7 +332,15 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       setError(null);
       try {
         const baseTitle = (content.title || "").trim() || t("popupDocument.untitled", { fallback: "Untitled document" });
-        const created = await createDocument({ teamId, title: baseTitle }, accessToken);
+        const created = await createDocument(
+          {
+            teamId,
+            title: baseTitle,
+            isInlinePopup: true,
+            parentDocumentId: parentDocumentId || undefined,
+          },
+          accessToken,
+        );
         await createDocumentBrick(
           created.id,
           { kind: "text", position: 1000, content: { text: "" } },
@@ -329,7 +377,15 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     return () => {
       cancelled = true;
     };
-  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, loadInlineDocument]);
+  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, loadInlineDocument, parentDocumentId]);
+
+  const currentTitle = doc?.title ?? externalSource?.fileName ?? content.title ?? t("popupDocument.untitled", { fallback: "Untitled" });
+  const standaloneHref = (() => {
+    if (!inlineDocumentId) return null;
+    const parentLabel = parentDocumentTitle || parentDocumentId || "document";
+    const docLabel = currentTitle || "document";
+    return `/d/${inlineDocumentId}/${slugifySegment(parentLabel)}/.../${slugifySegment(docLabel)}`;
+  })();
 
   // External source (Drive/OneDrive file) – show iframe viewer
   const externalSource = content.externalSource;
@@ -377,24 +433,58 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             padding: "14px 20px",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
             flexShrink: 0,
           }}
         >
-          <FileText style={{ width: 16, height: 16, color: "rgba(255,255,255,0.4)" }} />
-          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.88)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {doc?.title ?? externalSource?.fileName ?? content.title ?? t("popupDocument.untitled", { fallback: "Untitled" })}
-          </span>
-          {inlineDocumentId && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
+            <a href="/d" style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.58)", textDecoration: "none", fontSize: 12, padding: "4px 6px", borderRadius: 6 }}>
+              <FolderIcon style={{ width: 14, height: 14 }} />
+              <span>{t("allDocuments")}</span>
+            </a>
+
+            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>/</span>
+
+            {parentDocumentTitle && (
+              <>
+                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {parentDocumentTitle}
+                </span>
+                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>/</span>
+              </>
+            )}
+
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 8px" }}>
+              <FileText style={{ width: 14, height: 14, color: "rgba(255,255,255,0.55)", flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {currentTitle}
+              </span>
+            </div>
+          </div>
+
+          {standaloneHref && (
             <a
-              href={`/d/${inlineDocumentId}`}
+              href={standaloneHref}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ padding: 4, color: "rgba(255,255,255,0.35)", lineHeight: 1 }}
-              title="Open standalone"
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "6px 10px",
+                borderRadius: 8,
+                border: "1px solid rgba(255,255,255,0.14)",
+                color: "rgba(255,255,255,0.8)",
+                textDecoration: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+              title={t("popupDocument.openFull", { fallback: "Open full" })}
             >
+              <span>{t("popupDocument.openFull", { fallback: "Open full" })}</span>
               <ExternalLink style={{ width: 14, height: 14 }} />
             </a>
           )}

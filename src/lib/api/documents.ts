@@ -8,6 +8,8 @@ export type DocumentSummary = {
   teamId: string;
   visibility: 'private' | 'team' | 'public_link';
   folderId?: string;
+  isInlinePopup?: boolean;
+  parentDocumentId?: string | null;
   createdByUserId: string;
   createdAt: string;
   updatedAt: string;
@@ -78,7 +80,7 @@ export async function listDocuments(teamId: string, accessToken: string, folderI
 }
 
 export async function createDocument(
-  payload: { teamId: string; title: string; folderId?: string },
+  payload: { teamId: string; title: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string },
   accessToken: string
 ): Promise<DocumentSummary> {
   return fetchApi('/documents', {
