@@ -390,9 +390,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   const currentTitle = doc?.title ?? externalSource?.fileName ?? content.title ?? t("popupDocument.untitled", { fallback: "Untitled" });
   const standaloneHref = (() => {
     if (!inlineDocumentId) return null;
-    const parentLabel = parentDocumentTitle || parentDocumentId || "document";
-    const docLabel = currentTitle || "document";
-    return `/d/${inlineDocumentId}/${slugifySegment(parentLabel)}/.../${slugifySegment(docLabel)}`;
+    return `/d/${inlineDocumentId}`;
   })();
 
   return (
@@ -589,6 +587,67 @@ function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDo
     [doc, canEdit, accessToken, onDocUpdate],
   );
 
+  const handleAddBrick = useCallback(
+    async (kind: string, afterBrickId?: string, _parentProps?: any, initialContent?: any) => {
+      if (!canEdit) return;
+      try {
+        let position: number;
+        if (afterBrickId) {
+          const after = doc.bricks.find((b) => b.id === afterBrickId);
+          position = after ? after.position + 1000 : (doc.bricks.length + 1) * 1000;
+        } else {
+          position = (doc.bricks.length + 1) * 1000;
+        }
+        const newBrick = await createDocumentBrick(
+          doc.id,
+          { kind, position, content: initialContent ?? {} },
+          accessToken,
+        );
+        const updatedBricks = [...doc.bricks];
+        if (afterBrickId) {
+          const idx = updatedBricks.findIndex((b) => b.id === afterBrickId);
+          updatedBricks.splice(idx + 1, 0, newBrick);
+        } else {
+          updatedBricks.push(newBrick);
+        }
+        onDocUpdate({ ...doc, bricks: updatedBricks });
+      } catch {
+        // ignore
+      }
+    },
+    [doc, canEdit, accessToken, onDocUpdate],
+  );
+
+  const handleDeleteBrick = useCallback(
+    async (brickId: string) => {
+      if (!canEdit) return;
+      try {
+        await deleteDocumentBrick(doc.id, brickId, accessToken);
+        onDocUpdate({ ...doc, bricks: doc.bricks.filter((b) => b.id !== brickId) });
+      } catch {
+        // ignore
+      }
+    },
+    [doc, canEdit, accessToken, onDocUpdate],
+  );
+
+  const handleReorderBricks = useCallback(
+    async (ids: string[]) => {
+      if (!canEdit) return;
+      const updates = ids.map((id, idx) => ({ id, position: (idx + 1) * 1000 }));
+      const reordered = ids
+        .map((id) => doc.bricks.find((b) => b.id === id))
+        .filter(Boolean) as typeof doc.bricks;
+      onDocUpdate({ ...doc, bricks: reordered });
+      try {
+        await reorderDocumentBricks(doc.id, updates, accessToken);
+      } catch {
+        // ignore
+      }
+    },
+    [doc, canEdit, accessToken, onDocUpdate],
+  );
+
   const handlePatchCell = useCallback(
     async (brickId: string, patch: Record<string, any>) => {
       if (!canEdit) return;
@@ -620,12 +679,15 @@ function InlineDocumentBody({ doc, canEdit, accessToken, onDocUpdate }: InlineDo
   return (
     <BrickListComponent
       bricks={doc.bricks}
+      activeBricks={doc.bricks}
       canEdit={canEdit}
       documents={[]}
       boards={[]}
       users={[]}
-      activeBricks={doc.bricks}
-      onBrickUpdate={handleBrickUpdate}
+      onUpdateBrick={handleBrickUpdate}
+      onAddBrick={handleAddBrick}
+      onDeleteBrick={handleDeleteBrick}
+      onReorderBricks={handleReorderBricks}
       onPatchCell={handlePatchCell}
       onPatchColumn={handlePatchCell}
     />
