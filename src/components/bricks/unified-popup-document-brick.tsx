@@ -265,6 +265,9 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   const [teamDocuments, setTeamDocuments] = useState<DocumentSummary[]>([]);
   const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberSummary[]>([]);
+  const [isMobile, setIsMobile] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(860);
+  const isResizingRef = useRef(false);
 
   const { inlineDocumentId } = content;
 
@@ -333,6 +336,60 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       cancelled = true;
     };
   }, [parentDocumentId, accessToken]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const media = window.matchMedia("(max-width: 768px)");
+    const update = () => setIsMobile(media.matches);
+    update();
+
+    const savedWidth = window.localStorage.getItem("killio.popupDrawer.width");
+    if (savedWidth) {
+      const parsed = Number(savedWidth);
+      if (!Number.isNaN(parsed)) {
+        setPanelWidth(Math.max(700, Math.min(1400, parsed)));
+      }
+    }
+
+    media.addEventListener("change", update);
+    return () => media.removeEventListener("change", update);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const onMouseMove = (event: MouseEvent) => {
+      if (!isResizingRef.current || isMobile) return;
+      const next = Math.max(700, Math.min(1400, window.innerWidth - event.clientX));
+      setPanelWidth(next);
+    };
+
+    const onMouseUp = () => {
+      if (!isResizingRef.current) return;
+      isResizingRef.current = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+      if (!isMobile) {
+        window.localStorage.setItem("killio.popupDrawer.width", String(panelWidth));
+      }
+    };
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [isMobile, panelWidth]);
+
+  const startResize = (event: React.MouseEvent) => {
+    if (isMobile) return;
+    event.preventDefault();
+    isResizingRef.current = true;
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "col-resize";
+  };
 
   useEffect(() => {
     void loadUnifiedBrickListComponent();
@@ -447,7 +504,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
         inset: 0,
         zIndex: 300,
         display: "flex",
-        alignItems: "stretch",
+        alignItems: isMobile ? "flex-end" : "stretch",
         justifyContent: "flex-end",
         pointerEvents: "none",
       }}
@@ -462,24 +519,44 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
       <div
         style={{
           position: "relative",
-          width: "min(860px, 100vw)",
-          height: "100%",
+          width: isMobile ? "100vw" : `min(${panelWidth}px, 96vw)`,
+          height: isMobile ? "min(86vh, 100%)" : "100%",
           background: "#0c0e14",
-          borderLeft: "1px solid rgba(255,255,255,0.1)",
+          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)",
+          borderTop: isMobile ? "1px solid rgba(255,255,255,0.1)" : "none",
+          borderTopLeftRadius: isMobile ? 16 : 0,
+          borderTopRightRadius: isMobile ? 16 : 0,
           display: "flex",
           flexDirection: "column",
           overflow: "hidden",
           pointerEvents: "auto",
-          animation: "slideInFromRight 0.2s ease-out",
+          animation: isMobile ? "slideInFromBottom 0.22s ease-out" : "slideInFromRight 0.2s ease-out",
         }}
       >
+        {!isMobile && (
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: "absolute",
+              left: 0,
+              top: 0,
+              bottom: 0,
+              width: 10,
+              cursor: "col-resize",
+              zIndex: 20,
+              background: "transparent",
+            }}
+            title="Drag to resize"
+          />
+        )}
+
         {/* Header */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 8,
-            padding: "14px 20px",
+            padding: isMobile ? "12px 14px" : "14px 20px",
             borderBottom: "1px solid rgba(255,255,255,0.08)",
             flexShrink: 0,
           }}
@@ -543,7 +620,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
         </div>
 
         {/* Body */}
-        <div style={{ flex: 1, overflow: "auto", padding: "16px 20px 96px" }}>
+        <div style={{ flex: 1, overflow: "auto", padding: isMobile ? "10px 8px 120px" : "16px 20px 120px" }}>
           {loading && (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 40 }}>
               <Loader2 style={{ width: 20, height: 20, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
@@ -566,15 +643,17 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
 
           {/* Inline document: lazy-loaded brick list */}
           {!loading && !error && doc && !externalSource && (
-            <InlineDocumentBody
-              doc={doc}
-              canEdit={canEdit}
-              accessToken={accessToken}
-              documents={teamDocuments}
-              boards={teamBoards}
-              users={teamMembers}
-              onDocUpdate={setDoc}
-            />
+            <div style={{ paddingLeft: isMobile ? 8 : 22, paddingRight: isMobile ? 8 : 28, paddingTop: 4 }}>
+              <InlineDocumentBody
+                doc={doc}
+                canEdit={canEdit}
+                accessToken={accessToken}
+                documents={teamDocuments}
+                boards={teamBoards}
+                users={teamMembers}
+                onDocUpdate={setDoc}
+              />
+            </div>
           )}
 
           {/* No linked document yet */}
@@ -590,6 +669,11 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
         @keyframes slideInFromRight {
           from { transform: translateX(100%); }
           to { transform: translateX(0); }
+        }
+
+        @keyframes slideInFromBottom {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
         }
       `}</style>
     </div>
