@@ -643,7 +643,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
 
           {/* Inline document: lazy-loaded brick list */}
           {!loading && !error && doc && !externalSource && (
-            <div style={{ paddingLeft: isMobile ? 8 : 22, paddingRight: isMobile ? 8 : 28, paddingTop: 4 }}>
+            <div style={{ paddingLeft: isMobile ? 8 : 80, paddingRight: isMobile ? 8 : 32, paddingTop: 4 }}>
               <InlineDocumentBody
                 doc={doc}
                 canEdit={canEdit}
@@ -773,7 +773,11 @@ function InlineDocumentBody({ doc, canEdit, accessToken, documents, boards, user
       if (!canEdit) return;
       const updates = ids.map((id, idx) => ({ id, position: (idx + 1) * 1000 }));
       const reordered = ids
-        .map((id) => doc.bricks.find((b) => b.id === id))
+        .map((id, idx) => {
+          const brick = doc.bricks.find((b) => b.id === id);
+          if (!brick) return null;
+          return { ...brick, position: (idx + 1) * 1000 };
+        })
         .filter(Boolean) as typeof doc.bricks;
       onDocUpdate({ ...doc, bricks: reordered });
       try {
