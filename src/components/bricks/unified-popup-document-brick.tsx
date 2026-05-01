@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { FileText, ExternalLink, X, Loader2, ChevronRight, Pencil } from "lucide-react";
 import {
   createDocument,
@@ -233,6 +233,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isCreatingInlineDoc, setIsCreatingInlineDoc] = useState(false);
+  const creatingInlineDocRef = useRef(false);
 
   const { inlineDocumentId } = content;
 
@@ -280,11 +281,12 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
   useEffect(() => {
     if (inlineDocumentId || content.externalSource) return;
     if (!canEdit || !teamId || !accessToken) return;
-    if (isCreatingInlineDoc) return;
+    if (creatingInlineDocRef.current) return;
 
     let cancelled = false;
 
     const provisionInlineDocument = async () => {
+      creatingInlineDocRef.current = true;
       setIsCreatingInlineDoc(true);
       setLoading(true);
       setError(null);
@@ -314,6 +316,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
           setError(err?.message ?? t("popupDocument.createFailed", { fallback: "Failed to create popup document" }));
         }
       } finally {
+        creatingInlineDocRef.current = false;
         if (!cancelled) {
           setLoading(false);
           setIsCreatingInlineDoc(false);
@@ -326,7 +329,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     return () => {
       cancelled = true;
     };
-  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, isCreatingInlineDoc, loadInlineDocument]);
+  }, [inlineDocumentId, content.externalSource, content.title, canEdit, teamId, accessToken, onUpdate, t, loadInlineDocument]);
 
   // External source (Drive/OneDrive file) – show iframe viewer
   const externalSource = content.externalSource;
