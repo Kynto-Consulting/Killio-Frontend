@@ -164,6 +164,21 @@ export type MarketplacePackDetail = {
   placeholders: MarketplacePlaceholder[];
 };
 
+export type MarketplaceAssetSuggestion = {
+  assetType: MarketplaceAssetType;
+  sourceEntityId: string;
+  logicalKey: string;
+  displayName: string;
+  score: number;
+  referencedByValues: string[];
+};
+
+export type MarketplaceAssetSuggestionsResponse = {
+  suggestions: MarketplaceAssetSuggestion[];
+  unresolvedEntityIds: string[];
+  analyzedAssets: number;
+};
+
 function buildQuery(params: Record<string, string | number | undefined | null>): string {
   const q = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -267,4 +282,26 @@ export async function importMarketplacePack(
     accessToken,
     body: JSON.stringify(input),
   });
+}
+
+export async function listMarketplaceAssetSuggestions(
+  teamId: string,
+  input: {
+    selectedAssets: Array<{
+      assetType: MarketplaceAssetType;
+      sourceEntityId: string;
+    }>;
+    targetType?: MarketplaceAssetType;
+    limit?: number;
+  },
+  accessToken: string,
+): Promise<MarketplaceAssetSuggestionsResponse> {
+  return fetchApi<MarketplaceAssetSuggestionsResponse>(
+    `/marketplace/teams/${encodeURIComponent(teamId)}/asset-suggestions`,
+    {
+      method: "POST",
+      accessToken,
+      body: JSON.stringify(input),
+    },
+  );
 }

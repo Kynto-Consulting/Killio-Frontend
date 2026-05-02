@@ -417,7 +417,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
       {/* ══ IMPORT MODAL ══ */}
       {importModal ? (
         <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[180] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
           onClick={(e) => { if (e.target === e.currentTarget) setImportModal(null); }}
         >
           <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">

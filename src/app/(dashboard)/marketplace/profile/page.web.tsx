@@ -13,6 +13,7 @@ import {
   Package,
   Plus,
   RefreshCcw,
+  Search,
   Sparkles,
   Upload,
   X,
@@ -26,6 +27,7 @@ import { BoardSummary, listTeamBoards, listTeamCatalog, TeamCatalog } from "@/li
 import {
   createMarketplacePack,
   createMarketplaceSnapshot,
+  listMarketplaceAssetSuggestions,
   listMyMarketplacePacks,
   MarketplaceAssetType,
   MarketplacePack,
@@ -54,6 +56,7 @@ type WizardState = {
   publishMode: MarketplacePublishMode;
   selectedAssetKeys: string[];
   version: string;
+  locale: string;
   snapshotStatus: MarketplaceVersionStatus;
   submitting: boolean;
   error: string | null;
@@ -93,6 +96,55 @@ function buildSourceAssets(catalog: TeamCatalog, boards: BoardSummary[], scripts
   return items;
 }
 
+function buildLocalizedReleaseKey(version: string, localeCode: string): string {
+  const versionPart = version.trim() || "v1.0";
+  const localePart = localeCode.trim().toLowerCase() || "en";
+  return `${versionPart}@${localePart}`;
+}
+
+const LOCALE_PRESETS: Array<{ code: string; label: string }> = [
+  { code: "en", label: "English" },
+  { code: "es", label: "Espanol" },
+  { code: "pt", label: "Portugues" },
+  { code: "fr", label: "Francais" },
+  { code: "de", label: "Deutsch" },
+  { code: "it", label: "Italiano" },
+  { code: "ja", label: "Japanese" },
+  { code: "ko", label: "Korean" },
+  { code: "zh-cn", label: "Chinese (Simplified)" },
+  { code: "zh-tw", label: "Chinese (Traditional)" },
+];
+
+function sanitizeLocaleCode(input: string): string {
+  return input.trim().toLowerCase();
+}
+
+function getLocaleOptions(locales: string[]): string[] {
+  const valid = /^[a-z]{2,3}(?:-[a-z0-9]{2,8})*$/i;
+  const unique = new Set<string>();
+  for (const localeCode of locales) {
+    const normalized = sanitizeLocaleCode(localeCode);
+    if (!normalized || !valid.test(normalized)) continue;
+    unique.add(normalized);
+  }
+  return Array.from(unique);
+}
+
+function getLocaleLabel(localeCode: string): string {
+  const normalized = sanitizeLocaleCode(localeCode);
+  const preset = LOCALE_PRESETS.find((p) => p.code === normalized);
+  return preset ? `${preset.label} (${normalized})` : normalized;
+}
+
+function parseAssetKey(assetKey: string): { assetType: MarketplaceAssetType; sourceEntityId: string } | null {
+  const parts = assetKey.split(":");
+  if (parts.length !== 2) return null;
+  const [assetType, sourceEntityId] = parts;
+  if (!assetType || !sourceEntityId) return null;
+  if (!(["document", "board", "mesh", "script"] as string[]).includes(assetType)) return null;
+  return { assetType: assetType as MarketplaceAssetType, sourceEntityId };
+}
+
 /* ── asset type config ── */
 const ASSET_TYPES: { type: MarketplaceAssetType; label: string; icon: typeof FileText; color: string }[] = [
   { type: "document", label: "Documents", icon: FileText,  color: "#818cf8" },
@@ -100,6 +152,13 @@ const ASSET_TYPES: { type: MarketplaceAssetType; label: string; icon: typeof Fil
   { type: "mesh",     label: "Meshes",    icon: GitBranch, color: "#22d3ee" },
   { type: "script",   label: "Scripts",   icon: Zap,       color: "#fbbf24" },
 ];
+
+const ASSET_TYPE_MAP: Record<MarketplaceAssetType, { label: string; icon: typeof FileText; color: string }> = {
+  document: { label: "Documents", icon: FileText, color: "#818cf8" },
+  board: { label: "Kanban", icon: Layout, color: "#f472b6" },
+  mesh: { label: "Meshes", icon: GitBranch, color: "#22d3ee" },
+  script: { label: "Scripts", icon: Zap, color: "#fbbf24" },
+};
 
 /* ── publish mode config ── */
 const PUB_MODES: { mode: MarketplacePublishMode; label: string; sub: string; icon: typeof Lock; color: string }[] = [
@@ -121,18 +180,145 @@ function modeIcon(mode: MarketplacePublishMode) {
 
 /* ── asset picker ── */
 function AssetPicker({
-  assets, selectedKeys, onToggle, loading,
+  assets,
+  selectedKeys,
+  onSelectionChange,
+  loading,
+  accessToken,
+  teamId,
 }: {
   assets: SourceAsset[];
   selectedKeys: string[];
-  onToggle: (key: string) => void;
+  onSelectionChange: (next: string[]) => void;
   loading: boolean;
+  accessToken?: string | null;
+  teamId?: string | null;
 }) {
-  const byType = useMemo(() => {
-    const m: Record<MarketplaceAssetType, SourceAsset[]> = { document: [], board: [], mesh: [], script: [] };
-    for (const a of assets) m[a.assetType].push(a);
-    return m;
+  const [openType, setOpenType] = useState<MarketplaceAssetType | null>(null);
+  const [search, setSearch] = useState("");
+  const [suggestedKeys, setSuggestedKeys] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+  const [suggestionsError, setSuggestionsError] = useState<string | null>(null);
+
+  const selectedSet = useMemo(() => new Set(selectedKeys), [selectedKeys]);
+  const assetsByKey = useMemo(() => new Map(assets.map((asset) => [asset.key, asset])), [assets]);
+
+  const assetsByType = useMemo(() => {
+    const grouped: Record<MarketplaceAssetType, SourceAsset[]> = {
+      document: [],
+      board: [],
+      mesh: [],
+      script: [],
+    };
+    for (const asset of assets) {
+      grouped[asset.assetType].push(asset);
+    }
+    return grouped;
   }, [assets]);
+
+  const selectedCountByType = useMemo(() => {
+    const grouped: Record<MarketplaceAssetType, number> = {
+      document: 0,
+      board: 0,
+      mesh: 0,
+      script: 0,
+    };
+    for (const selectedKey of selectedKeys) {
+      const parsed = parseAssetKey(selectedKey);
+      if (!parsed) continue;
+      grouped[parsed.assetType] += 1;
+    }
+    return grouped;
+  }, [selectedKeys]);
+
+  const openTypeAssets = useMemo(() => {
+    if (!openType) return [];
+    const query = search.trim().toLowerCase();
+    const base = assetsByType[openType] ?? [];
+    if (!query) return base;
+    return base.filter((asset) => `${asset.label} ${asset.logicalKey}`.toLowerCase().includes(query));
+  }, [assetsByType, openType, search]);
+
+  const suggestedAssets = useMemo(
+    () => suggestedKeys.map((assetKey) => assetsByKey.get(assetKey)).filter((asset): asset is SourceAsset => Boolean(asset)),
+    [assetsByKey, suggestedKeys],
+  );
+
+  const toggleAsset = useCallback((assetKey: string) => {
+    const nextSet = new Set(selectedKeys);
+    if (nextSet.has(assetKey)) nextSet.delete(assetKey);
+    else nextSet.add(assetKey);
+    onSelectionChange(Array.from(nextSet));
+  }, [onSelectionChange, selectedKeys]);
+
+  const addMany = useCallback((assetKeys: string[]) => {
+    const nextSet = new Set(selectedKeys);
+    for (const assetKey of assetKeys) {
+      nextSet.add(assetKey);
+    }
+    onSelectionChange(Array.from(nextSet));
+  }, [onSelectionChange, selectedKeys]);
+
+  useEffect(() => {
+    if (!openType) {
+      setSearch("");
+      setSuggestedKeys([]);
+      setSuggestionsError(null);
+      setSuggestionsLoading(false);
+      return;
+    }
+
+    if (!teamId || !accessToken) {
+      setSuggestedKeys([]);
+      setSuggestionsError(null);
+      return;
+    }
+
+    const selectedAssets = selectedKeys
+      .map((assetKey) => assetsByKey.get(assetKey))
+      .filter((asset): asset is SourceAsset => Boolean(asset))
+      .map((asset) => ({ assetType: asset.assetType, sourceEntityId: asset.sourceEntityId }));
+
+    if (selectedAssets.length === 0) {
+      setSuggestedKeys([]);
+      setSuggestionsError(null);
+      return;
+    }
+
+    let cancelled = false;
+    setSuggestionsLoading(true);
+    setSuggestionsError(null);
+
+    listMarketplaceAssetSuggestions(
+      teamId,
+      {
+        selectedAssets,
+        targetType: openType,
+        limit: 16,
+      },
+      accessToken,
+    )
+      .then((response) => {
+        if (cancelled) return;
+        const keys = response.suggestions
+          .map((item) => `${item.assetType}:${item.sourceEntityId}`)
+          .filter((assetKey) => assetsByKey.has(assetKey) && !selectedSet.has(assetKey));
+        setSuggestedKeys(Array.from(new Set(keys)));
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        setSuggestedKeys([]);
+        setSuggestionsError(error instanceof Error ? error.message : "Could not load suggestions");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setSuggestionsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessToken, assetsByKey, openType, selectedKeys, selectedSet, teamId]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-8 text-sm text-white/30"><RefreshCcw className="mr-2 h-4 w-4 animate-spin" />Loading workspace assets…</div>;
@@ -143,36 +329,204 @@ function AssetPicker({
 
   return (
     <div className="space-y-4">
-      {ASSET_TYPES.map(({ type, label, icon: Icon, color }) => {
-        const options = byType[type];
-        if (options.length === 0) return null;
-        return (
-          <div key={type}>
-            <div className="mb-2 flex items-center gap-2">
-              <div className="flex h-5 w-5 items-center justify-center rounded-md" style={{ background: `${color}18`, color }}>
-                <Icon className="h-3 w-3" />
+      <div className="grid gap-3 sm:grid-cols-2">
+        {ASSET_TYPES.map((assetType) => {
+          const Icon = assetType.icon;
+          const selectedCount = selectedCountByType[assetType.type];
+          const totalCount = assetsByType[assetType.type].length;
+          return (
+            <button
+              key={assetType.type}
+              type="button"
+              onClick={() => setOpenType(assetType.type)}
+              className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.06]"
+            >
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"
+                style={{ background: `${assetType.color}18`, borderColor: `${assetType.color}40`, color: assetType.color }}
+              >
+                <Icon className="h-5 w-5" />
               </div>
-              <p className="text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color }}>{label}</p>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-bold text-white">{assetType.label}</p>
+                <p className="mt-0.5 text-xs text-white/40">{selectedCount} selected of {totalCount}</p>
+              </div>
+              <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+            </button>
+          );
+        })}
+      </div>
+
+      {selectedKeys.length > 0 ? (
+        <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+          <p className="text-xs font-semibold text-white/45">Selected assets</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {selectedKeys.slice(0, 12).map((selectedKey) => {
+              const selectedAsset = assetsByKey.get(selectedKey);
+              if (!selectedAsset) return null;
+              return (
+                <button
+                  key={selectedKey}
+                  type="button"
+                  onClick={() => toggleAsset(selectedKey)}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/35 bg-[#d8ff72]/10 px-3 py-1 text-xs font-semibold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/20"
+                >
+                  <X className="h-3 w-3" />
+                  {selectedAsset.label}
+                </button>
+              );
+            })}
+            {selectedKeys.length > 12 ? (
+              <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/45">
+                +{selectedKeys.length - 12} more
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {openType ? (
+        <div
+          className="fixed inset-0 z-[190] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              setOpenType(null);
+            }
+          }}
+        >
+          <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">Choose assets</p>
+                <h3 className="mt-1 text-lg font-extrabold text-white">{ASSET_TYPE_MAP[openType].label}</h3>
+                <p className="mt-1 text-xs text-white/40">Pick items and get smart suggestions from real workspace references.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setOpenType(null)}
+                className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/40 transition-colors hover:border-white/20 hover:text-white"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <div className="flex flex-wrap gap-2">
-              {options.map((a) => {
-                const on = selectedKeys.includes(a.key);
-                return (
+
+            <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="relative w-full sm:max-w-sm">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+                  <input
+                    value={search}
+                    onChange={(event) => setSearch(event.target.value)}
+                    placeholder={`Search ${ASSET_TYPE_MAP[openType].label.toLowerCase()}`}
+                    className="w-full rounded-xl border border-white/10 bg-black/30 py-2 pl-8 pr-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-[#d8ff72]/40"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/45">
+                    {openTypeAssets.length} visible
+                  </span>
                   <button
-                    key={a.key}
                     type="button"
-                    onClick={() => onToggle(a.key)}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition-all ${on ? "border-[#d8ff72]/40 bg-[#d8ff72]/10 text-[#d8ff72]" : "border-white/10 bg-white/[0.04] text-white/50 hover:border-white/20 hover:text-white"}`}
+                    onClick={() => addMany(openTypeAssets.map((asset) => asset.key))}
+                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition-colors hover:border-white/20 hover:text-white"
                   >
-                    {on && <span className="h-1.5 w-1.5 rounded-full bg-[#d8ff72]" />}
-                    {a.label}
+                    Add visible
                   </button>
-                );
-              })}
+                </div>
+              </div>
+
+              {suggestionsLoading ? (
+                <div className="flex items-center text-xs text-white/45">
+                  <RefreshCcw className="mr-2 h-3.5 w-3.5 animate-spin" /> Loading suggestions...
+                </div>
+              ) : null}
+
+              {suggestionsError ? (
+                <div className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                  {suggestionsError}
+                </div>
+              ) : null}
+
+              {suggestedAssets.length > 0 ? (
+                <div className="rounded-2xl border border-[#d8ff72]/20 bg-[#d8ff72]/8 p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <p className="text-xs font-semibold text-[#d8ff72]">Suggested from your current selection</p>
+                    <button
+                      type="button"
+                      onClick={() => addMany(suggestedAssets.map((asset) => asset.key))}
+                      className="rounded-lg border border-[#d8ff72]/40 bg-[#d8ff72]/15 px-2.5 py-1 text-[11px] font-bold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/25"
+                    >
+                      Add all suggested
+                    </button>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {suggestedAssets.map((asset) => (
+                      <button
+                        key={`suggested-${asset.key}`}
+                        type="button"
+                        onClick={() => toggleAsset(asset.key)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/35 bg-[#d8ff72]/10 px-3 py-1 text-xs font-semibold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/20"
+                      >
+                        <Plus className="h-3 w-3" />
+                        {asset.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
+              {openTypeAssets.length === 0 ? (
+                <div className="flex flex-col items-center rounded-2xl border border-dashed border-white/10 py-10 text-center">
+                  <Package className="h-8 w-8 text-white/20" />
+                  <p className="mt-2 text-sm text-white/35">No assets found for this filter.</p>
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {openTypeAssets.map((asset) => {
+                    const isSelected = selectedSet.has(asset.key);
+                    const typeMeta = ASSET_TYPE_MAP[asset.assetType];
+                    const Icon = typeMeta.icon;
+                    return (
+                      <button
+                        key={asset.key}
+                        type="button"
+                        onClick={() => toggleAsset(asset.key)}
+                        className={`flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${isSelected ? "border-[#d8ff72]/40 bg-[#d8ff72]/10" : "border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"}`}
+                      >
+                        <div
+                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border"
+                          style={{ background: `${typeMeta.color}18`, borderColor: `${typeMeta.color}3a`, color: typeMeta.color }}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className={`truncate text-sm font-semibold ${isSelected ? "text-[#d8ff72]" : "text-white"}`}>{asset.label}</p>
+                            {isSelected ? <Check className="h-4 w-4 shrink-0 text-[#d8ff72]" /> : null}
+                          </div>
+                          <p className="mt-1 text-xs text-white/35">{typeMeta.label}</p>
+                          <p className="mt-1 truncate font-mono text-[11px] text-white/30">{asset.logicalKey}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-between border-t border-white/8 px-5 py-3">
+              <span className="text-xs text-white/40">{selectedKeys.length} assets selected</span>
+              <button
+                type="button"
+                onClick={() => setOpenType(null)}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/65 transition-colors hover:border-white/20 hover:text-white"
+              >
+                Done
+              </button>
             </div>
           </div>
-        );
-      })}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -233,9 +587,26 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
   useEffect(() => { loadPacks().catch(() => undefined); }, [loadPacks]);
   useEffect(() => { loadAssets().catch(() => undefined); }, [loadAssets]);
 
+  const localeOptions = useMemo(
+    () => getLocaleOptions([locale, ...LOCALE_PRESETS.map((preset) => preset.code), ...packs.map((pack) => pack.defaultLocale)]),
+    [locale, packs],
+  );
+
   /* ── open wizard ── */
   const openWizard = () => {
-    setWizard({ step: 1, title: "", slug: "", summary: "", publishMode: "private", selectedAssetKeys: [], version: "v1.0", snapshotStatus: "published", submitting: false, error: null });
+    setWizard({
+      step: 1,
+      title: "",
+      slug: "",
+      summary: "",
+      publishMode: "private",
+      selectedAssetKeys: [],
+      version: "v1.0",
+      locale,
+      snapshotStatus: "published",
+      submitting: false,
+      error: null,
+    });
   };
 
   /* ── wizard submit ── */
@@ -243,12 +614,30 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
     if (!wizard || !accessToken || !activeTeamId) return;
     setWizard((w) => w ? { ...w, submitting: true, error: null } : w);
     try {
-      const pack = await createMarketplacePack({ teamId: activeTeamId, slug: wizard.slug, title: wizard.title, summary: wizard.summary || undefined, publishMode: wizard.publishMode, defaultLocale: locale }, accessToken);
+      const localeCode = sanitizeLocaleCode(wizard.locale || locale);
+      const pack = await createMarketplacePack({ teamId: activeTeamId, slug: wizard.slug, title: wizard.title, summary: wizard.summary || undefined, publishMode: wizard.publishMode, defaultLocale: localeCode }, accessToken);
 
       if (wizard.selectedAssetKeys.length > 0) {
         const assetByKey = new Map(sourceAssets.map((a) => [a.key, a]));
         const assets = wizard.selectedAssetKeys.map((k) => assetByKey.get(k)).filter(Boolean).map((a) => ({ assetType: a!.assetType, sourceEntityId: a!.sourceEntityId, logicalKey: a!.logicalKey, displayName: a!.label }));
-        await createMarketplaceSnapshot(pack.id, { version: wizard.version, status: wizard.snapshotStatus, assets, localizations: [{ locale, title: wizard.title, summary: wizard.summary || undefined, isDefault: true }] }, accessToken);
+        await createMarketplaceSnapshot(
+          pack.id,
+          {
+            version: wizard.version,
+            status: wizard.snapshotStatus,
+            assets,
+            localizations: [{
+              locale: localeCode,
+              title: wizard.title,
+              summary: wizard.summary || undefined,
+              metadata: {
+                releaseKey: buildLocalizedReleaseKey(wizard.version, localeCode),
+              },
+              isDefault: true,
+            }],
+          },
+          accessToken,
+        );
       }
 
       setWizard(null);
@@ -279,16 +668,33 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
     if (!snapModal || !accessToken) return;
     setSnapModal((s) => s ? { ...s, submitting: true, error: null } : s);
     try {
+      const localeCode = sanitizeLocaleCode(snapModal.locale || locale);
       const assetByKey = new Map(sourceAssets.map((a) => [a.key, a]));
       const assets = snapModal.selectedAssetKeys.map((k) => assetByKey.get(k)).filter(Boolean).map((a) => ({ assetType: a!.assetType, sourceEntityId: a!.sourceEntityId, logicalKey: a!.logicalKey, displayName: a!.label }));
-      await createMarketplaceSnapshot(snapModal.pack.id, { version: snapModal.version, status: snapModal.status, assets, localizations: [{ locale: snapModal.locale, title: snapModal.title, isDefault: true }] }, accessToken);
+      await createMarketplaceSnapshot(
+        snapModal.pack.id,
+        {
+          version: snapModal.version,
+          status: snapModal.status,
+          assets,
+          localizations: [{
+            locale: localeCode,
+            title: snapModal.title,
+            metadata: {
+              releaseKey: buildLocalizedReleaseKey(snapModal.version, localeCode),
+            },
+            isDefault: true,
+          }],
+        },
+        accessToken,
+      );
       setMsgByPack((p) => ({ ...p, [snapModal.pack.id]: t("feedback.snapshotOk") }));
       setSnapModal(null);
       await loadPacks();
     } catch (e) {
       setSnapModal((s) => s ? { ...s, submitting: false, error: e instanceof Error ? e.message : t("errors.snapshot") } : s);
     }
-  }, [accessToken, loadPacks, snapModal, sourceAssets, t]);
+  }, [accessToken, loadPacks, locale, snapModal, sourceAssets, t]);
 
   const cols = compact ? "grid-cols-1" : "grid-cols-1 xl:grid-cols-2";
   const displayName = user?.displayName || user?.username || "You";
@@ -428,7 +834,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     <div className="mt-auto border-t border-white/6 p-4">
                       <button
                         type="button"
-                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], version: "v1.0", status: "published", locale, title: pack.title, submitting: false, error: null })}
+                        onClick={() => setSnapModal({ pack, selectedAssetKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-white/60 transition-all hover:border-white/20 hover:text-white"
                       >
                         <Upload className="h-4 w-4" />
@@ -448,7 +854,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
           CREATE WIZARD MODAL
       ════════════════════════════════════════════════════ */}
       {wizard ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
 
             {/* wizard header */}
@@ -558,13 +964,10 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   <AssetPicker
                     assets={sourceAssets}
                     selectedKeys={wizard.selectedAssetKeys}
-                    onToggle={(key) => setWizard((w) => {
-                      if (!w) return w;
-                      const s = new Set(w.selectedAssetKeys);
-                      s.has(key) ? s.delete(key) : s.add(key);
-                      return { ...w, selectedAssetKeys: Array.from(s) };
-                    })}
+                    onSelectionChange={(next) => setWizard((w) => (w ? { ...w, selectedAssetKeys: next } : w))}
                     loading={assetsLoading}
+                    accessToken={accessToken}
+                    teamId={activeTeamId}
                   />
                   <p className="mt-4 text-[12px] text-white/25">You can always add more assets later by publishing a new snapshot.</p>
                 </div>
@@ -590,7 +993,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   </div>
 
                   {wizard.selectedAssetKeys.length > 0 && (
-                    <div className="grid gap-4 sm:grid-cols-3">
+                    <div className="grid gap-4 sm:grid-cols-4">
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Version</label>
                         <input
@@ -602,11 +1005,15 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
-                        <input
-                          value={locale}
-                          readOnly
-                          className="mt-1.5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-2 text-sm text-white/40 outline-none"
-                        />
+                        <select
+                          value={wizard.locale}
+                          onChange={(e) => setWizard((w) => (w ? { ...w, locale: sanitizeLocaleCode(e.target.value) } : w))}
+                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                        >
+                          {localeOptions.map((localeCode) => (
+                            <option key={localeCode} value={localeCode}>{getLocaleLabel(localeCode)}</option>
+                          ))}
+                        </select>
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
@@ -618,6 +1025,14 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                           <option value="published">Published</option>
                           <option value="draft">Draft</option>
                         </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>
+                        <input
+                          value={buildLocalizedReleaseKey(wizard.version, wizard.locale)}
+                          readOnly
+                          className="mt-1.5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-white/55 outline-none"
+                        />
                       </div>
                     </div>
                   )}
@@ -677,7 +1092,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
           SNAPSHOT MODAL
       ════════════════════════════════════════════════════ */}
       {snapModal ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
           <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
 
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
@@ -693,7 +1108,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
             <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
               {/* version meta */}
-              <div className="grid gap-3 sm:grid-cols-3">
+              <div className="grid gap-3 sm:grid-cols-4">
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Version</label>
                   <input
@@ -705,11 +1120,15 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
-                  <input
+                  <select
                     value={snapModal.locale}
-                    onChange={(e) => setSnapModal((s) => s ? { ...s, locale: e.target.value } : s)}
+                    onChange={(e) => setSnapModal((s) => s ? { ...s, locale: sanitizeLocaleCode(e.target.value) } : s)}
                     className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
-                  />
+                  >
+                    {localeOptions.map((localeCode) => (
+                      <option key={localeCode} value={localeCode}>{getLocaleLabel(localeCode)}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
@@ -722,6 +1141,14 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     <option value="draft">Draft</option>
                     <option value="archived">Archived</option>
                   </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>
+                  <input
+                    value={buildLocalizedReleaseKey(snapModal.version, snapModal.locale)}
+                    readOnly
+                    className="mt-1.5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-white/55 outline-none"
+                  />
                 </div>
               </div>
 
@@ -748,13 +1175,10 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <AssetPicker
                   assets={sourceAssets}
                   selectedKeys={snapModal.selectedAssetKeys}
-                  onToggle={(key) => setSnapModal((s) => {
-                    if (!s) return s;
-                    const set = new Set(s.selectedAssetKeys);
-                    set.has(key) ? set.delete(key) : set.add(key);
-                    return { ...s, selectedAssetKeys: Array.from(set) };
-                  })}
+                  onSelectionChange={(next) => setSnapModal((s) => (s ? { ...s, selectedAssetKeys: next } : s))}
                   loading={assetsLoading}
+                  accessToken={accessToken}
+                  teamId={activeTeamId}
                 />
               </div>
 
