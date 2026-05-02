@@ -1,9 +1,9 @@
 "use client";
 
-import { MarketplacePageView } from "../page.web";
+import { MarketplaceSellerProfilePageView } from "./page.web";
 
 export function MarketplaceSellerProfileMobilePage() {
-  return <MarketplacePageView compact mode="seller" />;
+  return <MarketplaceSellerProfilePageView compact />;
 }
 
 export default MarketplaceSellerProfileMobilePage;

@@ -53,6 +53,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const [isBoardsOpen, setIsBoardsOpen] = useState(() => isPathActive("/b"));
   const [ismeshsOpen, setIsmeshsOpen] = useState(false);
   const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => isPathActive("/d"));
+  const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(() => isPathActive("/marketplace"));
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
@@ -66,6 +67,9 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     }
     if (isPathActive("/d")) {
       setIsDocumentsOpen(true);
+    }
+    if (isPathActive("/marketplace")) {
+      setIsMarketplaceOpen(true);
     }
   }, [pathname]);
 
@@ -330,6 +334,48 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                 });
               }
 
+              if (isMarketplaceMenu) {
+                return (
+                  <div key={item.name} className="flex flex-col">
+                    <div className={`group flex items-center rounded-md transition-colors pl-3 ${isActive ? "bg-accent/5 text-foreground" : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"}`}>
+                      <button
+                        type="button"
+                        onClick={() => setIsMarketplaceOpen((v) => !v)}
+                        className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-left text-sm font-medium"
+                      >
+                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
+                        <span className="truncate">{item.name}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsMarketplaceOpen((v) => !v)}
+                        className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isMarketplaceOpen ? "rotate-90" : ""}`} />
+                      </button>
+                    </div>
+                    {isMarketplaceOpen && (
+                      <div className="ml-5 mt-1 border-l border-border/70 pl-3">
+                        <div className="space-y-1 py-1">
+                          <Link
+                            href="/marketplace"
+                            className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${pathname === "/marketplace" ? "bg-accent/10 text-foreground" : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"}`}
+                          >
+                            {tDashboard("nav.marketplaceHome")}
+                          </Link>
+                          <Link
+                            href="/marketplace/profile"
+                            className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${pathname === "/marketplace/profile" ? "bg-accent/10 text-foreground" : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"}`}
+                          >
+                            {tDashboard("nav.marketplaceSellerProfile")}
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <div key={item.name} className="flex flex-col">
                   <Link
@@ -352,31 +398,6 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                       id="sidebar-scripts-options"
                       className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
                     ></div>
-                  )}
-
-                  {isActive && isMarketplaceMenu && (
-                    <div className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3">
-                      <Link
-                        href="/marketplace"
-                        className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
-                          pathname === "/marketplace"
-                            ? "bg-accent/10 text-foreground"
-                            : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
-                        }`}
-                      >
-                        {tDashboard("nav.marketplaceHome")}
-                      </Link>
-                      <Link
-                        href="/marketplace/profile"
-                        className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
-                          pathname === "/marketplace/profile"
-                            ? "bg-accent/10 text-foreground"
-                            : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
-                        }`}
-                      >
-                        {tDashboard("nav.marketplaceSellerProfile")}
-                      </Link>
-                    </div>
                   )}
                 </div>
               );
