@@ -46,15 +46,15 @@
   },
   "integrations": {
     "title": "Integraciones y automatizacion que se ejecutan solas",
-    "description": "Conecta GitHub y herramientas externas, recibe webhooks y convierte eventos en acciones dentro del workspace.",
+    "description": "Conecta GitHub y tus herramientas favoritas para convertir cada novedad en accion dentro de tu workspace.",
     "items": {
       "github": {
         "title": "Commits de GitHub",
-        "description": "Dispara flujos desde eventos push y enruta trabajo automaticamente."
+        "description": "Inicia flujos desde la actividad del repositorio y enruta trabajo automaticamente."
       },
       "webhook": {
-        "title": "Webhooks publicos",
-        "description": "Recibe payloads externos con URLs seguras por script."
+        "title": "Enlaces de eventos",
+        "description": "Recibe novedades de herramientas externas mediante enlaces seguros."
       },
       "conditions": {
         "title": "Ruteo inteligente",
@@ -62,7 +62,7 @@
       },
       "actions": {
         "title": "Acciones en Killio",
-        "description": "Crea, actualiza, mueve y asigna cards desde un solo grafo de automatizacion."
+        "description": "Crea, actualiza, mueve y asigna cards desde un flujo visual unificado."
       }
     }
   },
@@ -300,22 +300,22 @@
       "sub": "Automatiza lo repetitivo. Desbloquea lo creativo. La capa de IA de Killio funciona en todas las funcionalidades del workspace.",
       "builder": {
         "title": "Constructor Visual de Scripts",
-        "desc": "Crea flujos de automatizacion con un editor basado en nodos. Conecta disparadores, condiciones y acciones sin necesidad de codigo."
+        "desc": "Disena automatizaciones de forma visual y conecta inicios, reglas y acciones en minutos."
       },
       "chat": {
         "title": "Generacion IA y Chat",
         "desc": "Pide a la IA que genere scripts, sugiera mejoras, resuma cards o chatea directamente dentro de cualquier tablero o documento."
       },
       "rag": {
-        "title": "Base de Conocimiento RAG",
-        "desc": "Killio indexa tu workspace en un vector store. Las respuestas de la IA se basan en tus datos reales — siempre precisas, nunca alucinadas."
+        "title": "Conocimiento con contexto",
+        "desc": "Killio entiende el contexto de tu workspace para que las respuestas de IA se apoyen en datos reales."
       },
       "scriptBadge": "Generador de Scripts IA"
     },
     "integrations": {
       "eyebrow": "Integraciones",
       "title": "Se lleva bien con todo tu stack.",
-      "sub": "Conecta Killio a las herramientas que tu equipo ya ama. Dispara automatizaciones, sincroniza datos y recibe notificaciones donde trabajas.",
+      "sub": "Conecta Killio con las herramientas que tu equipo ya usa y mantengan el trabajo alineado sin friccion.",
       "github": "GitHub",
       "notion": "Notion",
       "googledrive": "Google Drive",
@@ -323,7 +323,7 @@
       "slack": "Slack",
       "trello": "Trello",
       "whatsapp": "WhatsApp",
-      "webhooks": "Webhooks",
+      "webhooks": "Enlaces de eventos",
       "email": "Email",
       "zapier": "Zapier (pronto)"
     },

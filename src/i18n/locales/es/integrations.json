@@ -101,9 +101,9 @@
       "jiraTitle": "Jira",
       "jiraDescription": "La sincronización de issues y automatización bidireccional con Jira está planificada para la siguiente etapa.",
       "whatsappTitle": "WhatsApp",
-      "whatsappDescription": "Listo para automatizar con nodos Webhook + Enviar Mensaje WhatsApp. Usa llamadas API con token en la configuración del script, sin cambiar env del backend.",
+      "whatsappDescription": "Automatiza experiencias por WhatsApp con credenciales reutilizables para tu equipo.",
       "metaTitle": "Meta",
-      "metaDescription": "Usa un tutorial con trigger webhook para eventos de Meta mientras los nodos trigger nativos de Meta quedan pausados por ahora."
+      "metaDescription": "Usa el flujo rápido de Meta mientras vuelven los bloques nativos."
     },
     "github": {
       "title": "GitHub",
@@ -117,20 +117,20 @@
       "connectAutoHelp": "Usa el botón para instalar y conectar automáticamente la app de GitHub en tu workspace.",
       "activeInstallations": "Instalaciones activas",
       "noInstallations": "Aún no hay instalaciones activas.",
-      "connectHelp": "Instala la Killio GitHub App en tu repositorio y pega el installation_id aquí.",
-      "installationId": "Installation ID",
+      "connectHelp": "Instala la Killio GitHub App en tu repo y agrega aquí tu código de instalación.",
+      "installationId": "Codigo de instalacion",
       "installationIdPlaceholder": "Ej: 12345678",
-      "installationIdInvalid": "El Installation ID debe ser un número válido.",
+      "installationIdInvalid": "El codigo de instalacion debe ser un numero valido.",
       "installationFallback": "Installation",
       "accountTypeFallback": "Cuenta",
       "save": "Guardar conexión",
       "saved": "Integración guardada correctamente.",
       "disconnect": "Desconectar",
       "disconnectConfirm": "¿Desconectar la integración con GitHub?",
-      "callbackInvalidInstallationId": "installation_id inválido recibido desde GitHub.",
+      "callbackInvalidInstallationId": "Se recibio un codigo de instalacion invalido desde GitHub.",
       "callbackWrongWorkspace": "La instalación de GitHub corresponde a otro workspace.",
       "callbackAutoSaveError": "No se pudo guardar automáticamente la instalación de GitHub.",
-      "connectStartError": "No se pudo iniciar la conexión con GitHub. Revisa configuración de env en backend.",
+      "connectStartError": "No se pudo iniciar la conexión con GitHub. Inténtalo de nuevo.",
       "saveError": "Error al guardar la integración",
       "deleteError": "Error al desconectar la integración"
     },
@@ -155,8 +155,8 @@
       "connectModalTitle": "Conectar credenciales de WhatsApp"
     },
     "slack": {
-      "title": "Slack Webhook",
-      "description": "Guarda URLs de webhook entrante para reutilizarlas en nodos de scripts.",
+      "title": "Slack",
+      "description": "Guarda una vez tus URLs de Slack y reutilízalas en tus automatizaciones.",
       "fields": {
         "name": "Nombre de credencial",
         "webhookUrl": "Webhook URL"
@@ -170,8 +170,8 @@
       "loadError": "No se pudieron cargar las credenciales de webhook de Slack.",
       "saveError": "No se pudo guardar la credencial de webhook de Slack.",
       "deleteError": "No se pudo eliminar la credencial de webhook de Slack.",
-      "connect": "Conectar Slack Webhook",
-      "connectModalTitle": "Conectar webhook de Slack"
+      "connect": "Conectar Slack",
+      "connectModalTitle": "Conectar URL de Slack"
     },
     "notion": {
       "title": "Notion",
@@ -258,11 +258,11 @@
       "makePublicError": "No se pudo hacer el archivo público. El archivo se insertará con acceso limitado."
     },
     "metaTutorial": {
-      "title": "Tutorial de webhook para Meta",
-      "description": "Usa este flujo mientras los nodos trigger nativos de Meta están pausados.",
-      "step1": "Agrega un nodo Webhook Trigger en tu script y copia la URL del webhook.",
-      "step2": "Configura tu fuente de eventos de Meta para enviar payloads por POST a esa URL.",
-      "step3": "Mapea los campos entrantes y usa un nodo HTTP Request para llamar a Meta Graph API si hace falta."
+      "title": "Guía rápida de Meta",
+      "description": "Usa esta configuración mientras los bloques nativos de Meta están pausados.",
+      "step1": "Agrega un bloque de inicio y copia la URL de entrada.",
+      "step2": "Conecta tu origen de eventos de Meta a esa URL.",
+      "step3": "Mapea los campos clave y completa tu flujo de acción."
     }
   },
   "scripts": {
@@ -275,8 +275,8 @@
     "description": "Descripción",
     "descriptionPlaceholder": "Ej: Crea cards a partir de comentarios TODO en el repo",
     "creating": "Creando...",
-    "triggerType": "Tipo de trigger",
-    "triggerInCanvasHelp": "El trigger se define dentro del canvas. Arrastra exactamente un nodo trigger al grafo.",
+    "triggerType": "Cómo inicia",
+    "triggerInCanvasHelp": "Elige el bloque de inicio directamente en el canvas.",
     "triggers": {
       "github": {
         "commit": "GitHub: Commit"
@@ -375,15 +375,15 @@
     "save": "Guardar",
     "saving": "Guardando...",
     "nodeConfigTitle": "Configuración de nodo",
-    "nodeConfigHint": "Selecciona un nodo para editar sus ajustes y su JSON.",
+    "nodeConfigHint": "Selecciona un bloque para personalizar sus ajustes.",
     "noNodeSelected": "Selecciona un nodo del canvas para configurarlo.",
     "nodeType": "Tipo de nodo",
     "nodeLabel": "Etiqueta del nodo",
     "nodeLabelPlaceholder": "Etiqueta personalizada",
-    "rawConfig": "JSON de configuración",
+    "rawConfig": "Ajustes avanzados",
     "selectPlaceholder": "Selecciona una opción",
-    "invalidJson": "Formato JSON inválido.",
-    "applyJson": "Aplicar JSON",
+    "invalidJson": "No pudimos leer este formato.",
+    "applyJson": "Aplicar cambios",
     "addRow": "Agregar fila",
     "remove": "Eliminar",
     "noMappings": "Todavía no hay mapeos.",
@@ -394,16 +394,16 @@
     "webhookCopied": "Copiado",
     "previewOutput": "Preview output",
     "previewOutputHint": "Carga la salida persistida del ultimo run para el nodo seleccionado.",
-    "refreshPreview": "Ver JSON",
+    "refreshPreview": "Ver detalle",
     "refreshingPreview": "Cargando...",
-    "payloadPreview": "Payload preview",
+    "payloadPreview": "Vista previa",
     "addBrickGuide": {
-      "title": "Guía de Add Brick",
-      "description": "Los campos cambian dinámicamente según el target y el tipo de brick.",
-      "dslTitle": "DSL y Variables",
-      "dslBody": "Los campos de plantilla soportan placeholders como {todoText} y {filePath}. Los campos JSON también soportan placeholders antes de parsearse."
+      "title": "Guía de bloques",
+      "description": "Los campos se adaptan al bloque que elijas.",
+      "dslTitle": "Plantillas",
+      "dslBody": "Usa valores dinámicos para personalizar tu contenido."
     },
-    "triggerPayloadHint": "Vista previa del item que este trigger le entrega al siguiente nodo.",
+    "triggerPayloadHint": "Vista previa de lo que este bloque de inicio envía al siguiente paso.",
     "lastRunOutput": "Salida del ultimo run",
     "noOutputForNode": "Este nodo no tiene salida persistida en el ultimo run.",
     "noPreviewLoaded": "Todavia no cargaste un preview del ultimo run.",
@@ -804,43 +804,43 @@
   },
   "guide": {
     "title": "Killio-Scripts",
-    "description": "Cómo fluye la lógica dentro del script y cómo usar regex, remaps y acciones.",
+    "description": "Una vista rápida de cómo tu automatización avanza del inicio al resultado.",
     "yes": "sí",
     "no": "no",
     "steps": {
       "trigger": {
-        "title": "1. El trigger emite items",
-        "body": "Cada trigger crea uno o varios items. Un item es un objeto JSON con datos como todoText, filePath, branch, commitSha o cualquier payload manual."
+        "title": "1. El evento inicial entra al flujo",
+        "body": "Cada bloque de inicio envía uno o más elementos por tu automatización."
       },
       "regex": {
-        "title": "2. Regex Match decide la rama",
-        "body": "El nodo Regex Match lee un campo de item.data, por ejemplo todoText o filePath, ejecuta un patrón y marca __matched=true o false.",
-        "exampleField": "field: todoText",
-        "examplePattern": "pattern: fix|urgent|bug",
-        "exampleOutput": "salida: match_true o match_false",
-        "footer": "Usa el handle match_true para la ruta positiva y match_false para el resto."
+        "title": "2. Las reglas dividen el flujo",
+        "body": "Los bloques de reglas evalúan el contenido y envían cada elemento por la ruta correcta.",
+        "exampleField": "Campo de ejemplo: texto de tarea",
+        "examplePattern": "Regla de ejemplo: urgent|bug",
+        "exampleOutput": "Resultado: ruta A o ruta B",
+        "footer": "Usa la ruta positiva para coincidencias y la alternativa para el resto."
       },
       "map": {
-        "title": "3. JSON remap reorganiza el item",
-        "body": "JSON Map copia valores de una ruta a otra. Puedes mapear desde $.todoText o desde otra ruta anidada para preparar datos antes de una acción.",
-        "exampleTarget": "targetPath: card.payload.title",
-        "exampleSource": "sourcePath: todoText"
+        "title": "3. Los datos se organizan",
+        "body": "Los bloques de mapeo ordenan la información para que cada acción reciba justo lo que necesita.",
+        "exampleTarget": "Destino: título de tarjeta",
+        "exampleSource": "Origen: texto de tarea"
       },
       "template": {
-        "title": "4. Template crea texto derivado",
-        "body": "El nodo Template escribe texto usando placeholders. Soporta rutas con llaves, por ejemplo {todoText} o {repoFullName}.",
-        "exampleTemplate": "template: TODO {todoText} en {filePath}",
-        "exampleTarget": "targetPath: summary.generated"
+        "title": "4. Se construyen mensajes",
+        "body": "Los bloques de plantilla generan texto claro a partir de tus datos.",
+        "exampleTemplate": "Ejemplo: Tarea {todoText} en {filePath}",
+        "exampleTarget": "Destino: resumen"
       },
       "action": {
         "title": "5. La acción consume el item",
-        "body": "Las acciones Create/Update/Move/Assign usan el item transformado. Si llegas con un título o payload ya remapeado, la acción lo toma desde item.data."
+        "body": "Los bloques Create/Update/Move/Assign se ejecutan con la información ya preparada."
       }
     },
     "summary": {
       "title": "Lectura rápida del grafo actual",
-      "regex": "Regex Match presente: {{value}}",
-      "jsonMap": "JSON Map presente: {{value}}",
+      "regex": "Bloques de reglas: {{value}}",
+      "jsonMap": "Bloques de mapeo: {{value}}",
       "template": "Template presente: {{value}}",
       "nodes": "Nodos totales: {{count}}",
       "edges": "Conexiones totales: {{count}}"
@@ -873,19 +873,19 @@
       "newRowTitle": "Crear fila manual",
       "editRowTitle": "Editar fila",
       "externalKeyLabel": "Clave externa",
-      "rowDataJsonLabel": "Datos de la fila (objeto JSON)",
-      "rowDataJsonHelp": "Usa un objeto JSON válido. Ejemplo: {\"status\":\"open\"}",
+      "rowDataJsonLabel": "Detalle de la fila",
+      "rowDataJsonHelp": "Agrega la información que quieres guardar en esta fila.",
       "saveRow": "Guardar fila",
       "savingRow": "Guardando...",
-      "invalidRowJson": "Los datos de la fila deben ser un objeto JSON válido.",
+      "invalidRowJson": "El detalle de la fila no tiene un formato válido.",
       "upsertRowError": "No se pudo guardar la fila",
       "rowsCount": "Filas: {{count}}",
       "memoryUsed": "Memoria usada: {{size}}",
       "createTitle": "Crear KillioTable compartida",
       "namePlaceholder": "Ej: Pipeline de leads",
       "descriptionPlaceholder": "Descripción opcional para tu equipo",
-      "columnsLabel": "Columnas (key:label:type, una por línea)",
-      "columnsHelp": "Ejemplo: estado:Estado:text",
+      "columnsLabel": "Columnas (una por línea)",
+      "columnsHelp": "Ejemplo: estado:Estado",
       "noTables": "Sin tablas",
       "emptyTablesTitle": "Aún no hay KillioTables compartidas",
       "emptyTablesDescription": "Crea una tabla y reutilízala entre distintos scripts.",

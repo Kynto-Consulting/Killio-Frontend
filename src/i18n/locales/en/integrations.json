@@ -101,9 +101,9 @@
       "jiraTitle": "Jira",
       "jiraDescription": "Issue syncing and bidirectional workflow automation with Jira is planned next.",
       "whatsappTitle": "WhatsApp",
-      "whatsappDescription": "Ready to automate with Webhook + WhatsApp Send Message nodes. Uses token-based API calls in script config without backend env changes.",
+      "whatsappDescription": "Automate WhatsApp journeys with reusable credentials for your team.",
       "metaTitle": "Meta",
-      "metaDescription": "Use a webhook trigger tutorial for Meta events while native Meta trigger nodes are paused for now."
+      "metaDescription": "Use the Meta quick-start flow while native event blocks return."
     },
     "github": {
       "title": "GitHub",
@@ -117,20 +117,20 @@
       "connectAutoHelp": "Use the button to install and connect the GitHub app automatically in your workspace.",
       "activeInstallations": "Active installations",
       "noInstallations": "No active installations yet.",
-      "connectHelp": "Install the Killio GitHub App on your repository and paste the installation_id here.",
-      "installationId": "Installation ID",
+      "connectHelp": "Install the Killio GitHub App in your repo and add your installation code here.",
+      "installationId": "Installation code",
       "installationIdPlaceholder": "e.g. 12345678",
-      "installationIdInvalid": "Installation ID must be a valid number.",
+      "installationIdInvalid": "Installation code must be a valid number.",
       "installationFallback": "Installation",
       "accountTypeFallback": "Account",
       "save": "Save connection",
       "saved": "Integration saved successfully.",
       "disconnect": "Disconnect",
       "disconnectConfirm": "Disconnect the GitHub integration?",
-      "callbackInvalidInstallationId": "Invalid installation_id received from GitHub.",
+      "callbackInvalidInstallationId": "Invalid installation code received from GitHub.",
       "callbackWrongWorkspace": "The GitHub installation belongs to a different workspace.",
       "callbackAutoSaveError": "Could not auto-save the GitHub installation.",
-      "connectStartError": "Could not start GitHub connection. Check backend env configuration.",
+      "connectStartError": "Could not start GitHub connection. Please try again.",
       "saveError": "Failed to save integration",
       "deleteError": "Failed to disconnect integration"
     },
@@ -155,8 +155,8 @@
       "connectModalTitle": "Connect WhatsApp credentials"
     },
     "slack": {
-      "title": "Slack Webhook",
-      "description": "Save incoming webhook URLs to reuse in script nodes.",
+      "title": "Slack",
+      "description": "Save Slack connection URLs once and reuse them across automations.",
       "fields": {
         "name": "Credential name",
         "webhookUrl": "Webhook URL"
@@ -170,8 +170,8 @@
       "loadError": "Failed to load Slack webhook credentials.",
       "saveError": "Failed to save Slack webhook credential.",
       "deleteError": "Failed to delete Slack webhook credential.",
-      "connect": "Connect Slack Webhook",
-      "connectModalTitle": "Connect Slack webhook"
+      "connect": "Connect Slack",
+      "connectModalTitle": "Connect Slack URL"
     },
     "notion": {
       "title": "Notion",
@@ -258,11 +258,11 @@
       "makePublicError": "Could not make file public. The file will be inserted with limited access."
     },
     "metaTutorial": {
-      "title": "Meta webhook tutorial",
-      "description": "Use this flow while native Meta trigger nodes are paused.",
-      "step1": "Add a Webhook Trigger node in your script and copy the webhook URL.",
-      "step2": "Configure your Meta event source to POST payloads to that webhook URL.",
-      "step3": "Map incoming fields and use an HTTP Request node to call the Meta Graph API if needed."
+      "title": "Meta quick-start",
+      "description": "Use this setup while native Meta blocks are paused.",
+      "step1": "Add a start block and copy the incoming URL.",
+      "step2": "Point your Meta event source to that URL.",
+      "step3": "Map key fields and complete your action flow."
     }
   },
   "scripts": {
@@ -275,8 +275,8 @@
     "description": "Description",
     "descriptionPlaceholder": "e.g. Create cards from TODO comments in the repo",
     "creating": "Creating...",
-    "triggerType": "Trigger type",
-    "triggerInCanvasHelp": "Trigger is defined inside the canvas. Drag exactly one trigger node into the graph.",
+    "triggerType": "How it starts",
+    "triggerInCanvasHelp": "Choose the start block directly in the canvas.",
     "triggers": {
       "github": {
         "commit": "GitHub: Commit"
@@ -375,15 +375,15 @@
     "save": "Save",
     "saving": "Saving...",
     "nodeConfigTitle": "Node configuration",
-    "nodeConfigHint": "Select a node to edit its settings and JSON config.",
+    "nodeConfigHint": "Select a block to personalize its settings.",
     "noNodeSelected": "Select a node from the canvas to configure it.",
     "nodeType": "Node type",
     "nodeLabel": "Node label",
     "nodeLabelPlaceholder": "Custom node label",
-    "rawConfig": "Raw config JSON",
+    "rawConfig": "Advanced settings",
     "selectPlaceholder": "Select an option",
-    "invalidJson": "Invalid JSON format.",
-    "applyJson": "Apply JSON",
+    "invalidJson": "We couldn't read this format.",
+    "applyJson": "Apply changes",
     "addRow": "Add row",
     "remove": "Remove",
     "noMappings": "No mappings yet.",
@@ -394,16 +394,16 @@
     "webhookCopied": "Copied",
     "previewOutput": "Preview output",
     "previewOutputHint": "Load the persisted output from the latest run for the selected node.",
-    "refreshPreview": "View JSON",
+    "refreshPreview": "View details",
     "refreshingPreview": "Loading...",
-    "payloadPreview": "Payload preview",
+    "payloadPreview": "Live preview",
     "addBrickGuide": {
-      "title": "Add Brick Guide",
-      "description": "Fields below change dynamically based on target and brick type.",
-      "dslTitle": "DSL and Variables",
-      "dslBody": "Template fields support placeholders like {todoText} and {filePath}. JSON template fields also support placeholders before parsing."
+      "title": "Add Block Guide",
+      "description": "Fields adapt to the block you choose.",
+      "dslTitle": "Templates",
+      "dslBody": "Use dynamic values to personalize your content."
     },
-    "triggerPayloadHint": "Preview of the item this trigger sends to the next node.",
+    "triggerPayloadHint": "Preview of what this start block sends next.",
     "lastRunOutput": "Latest run output",
     "noOutputForNode": "This node has no persisted output in the latest run.",
     "noPreviewLoaded": "No latest-run preview has been loaded yet.",
@@ -804,43 +804,43 @@
   },
   "guide": {
     "title": "Killio-Scripts",
-    "description": "How logic flows through the script and how to use regex, remaps, and actions.",
+    "description": "A quick view of how your automation moves from start to outcome.",
     "yes": "yes",
     "no": "no",
     "steps": {
       "trigger": {
-        "title": "1. Trigger emits items",
-        "body": "Each trigger creates one or more items. An item is a JSON object with data such as todoText, filePath, branch, commitSha, or any manual payload."
+        "title": "1. Start event enters the flow",
+        "body": "Every start block sends one or more items through your automation."
       },
       "regex": {
-        "title": "2. Regex Match chooses the branch",
-        "body": "The Regex Match node reads a field from item.data, for example todoText or filePath, runs a pattern, and sets __matched=true or false.",
-        "exampleField": "field: todoText",
-        "examplePattern": "pattern: fix|urgent|bug",
-        "exampleOutput": "output: match_true or match_false",
-        "footer": "Use the match_true handle for the positive path and match_false for the rest."
+        "title": "2. Rules split the flow",
+        "body": "Rule blocks evaluate content and route each item to the right path.",
+        "exampleField": "Example field: task text",
+        "examplePattern": "Example rule: urgent|bug",
+        "exampleOutput": "Result: path A or path B",
+        "footer": "Use the positive path for matches and the fallback path for the rest."
       },
       "map": {
-        "title": "3. JSON remap reshapes the item",
-        "body": "JSON Map copies values from one path to another. You can map from $.todoText or another nested path to prepare data before an action.",
-        "exampleTarget": "targetPath: card.payload.title",
-        "exampleSource": "sourcePath: todoText"
+        "title": "3. Data is organized",
+        "body": "Mapping blocks reorder data so each action receives exactly what it needs.",
+        "exampleTarget": "Target: card title",
+        "exampleSource": "Source: task text"
       },
       "template": {
-        "title": "4. Template generates derived text",
-        "body": "The Template node writes text using placeholders. It supports braced paths, such as {todoText} or {repoFullName}.",
-        "exampleTemplate": "template: TODO {todoText} in {filePath}",
-        "exampleTarget": "targetPath: summary.generated"
+        "title": "4. Messages are crafted",
+        "body": "Template blocks generate clean text from your data.",
+        "exampleTemplate": "Example: Task {todoText} in {filePath}",
+        "exampleTarget": "Target: summary"
       },
       "action": {
         "title": "5. Action consumes the item",
-        "body": "Create/Update/Move/Assign actions use the transformed item. If you already mapped a title or payload, the action reads it from item.data."
+        "body": "Create/Update/Move/Assign blocks execute with the prepared data."
       }
     },
     "summary": {
       "title": "Quick read of current graph",
-      "regex": "Regex Match present: {{value}}",
-      "jsonMap": "JSON Map present: {{value}}",
+      "regex": "Rule blocks present: {{value}}",
+      "jsonMap": "Mapping blocks present: {{value}}",
       "template": "Template present: {{value}}",
       "nodes": "Total nodes: {{count}}",
       "edges": "Total connections: {{count}}"
@@ -873,19 +873,19 @@
       "newRowTitle": "Create manual row",
       "editRowTitle": "Edit row",
       "externalKeyLabel": "External key",
-      "rowDataJsonLabel": "Row data (JSON object)",
-      "rowDataJsonHelp": "Use a valid JSON object. Example: {\"status\":\"open\"}",
+      "rowDataJsonLabel": "Row details",
+      "rowDataJsonHelp": "Add the details you want to store for this row.",
       "saveRow": "Save row",
       "savingRow": "Saving...",
-      "invalidRowJson": "Row data must be a valid JSON object.",
+      "invalidRowJson": "Row details are not in a valid format.",
       "upsertRowError": "Failed to save row",
       "rowsCount": "Rows: {{count}}",
       "memoryUsed": "Memory used: {{size}}",
       "createTitle": "Create shared KillioTable",
       "namePlaceholder": "e.g. Leads Pipeline",
       "descriptionPlaceholder": "Optional description for your team",
-      "columnsLabel": "Columns (key:label:type, one per line)",
-      "columnsHelp": "Example: status:Status:text",
+      "columnsLabel": "Columns (one per line)",
+      "columnsHelp": "Example: status:Status",
       "noTables": "No tables",
       "emptyTablesTitle": "No shared KillioTables yet",
       "emptyTablesDescription": "Create one table and reuse it across different scripts.",

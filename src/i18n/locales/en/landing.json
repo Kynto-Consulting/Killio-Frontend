@@ -46,15 +46,15 @@
   },
   "integrations": {
     "title": "Integrations and automation that execute by themselves",
-    "description": "Connect GitHub and external tools, receive webhooks, and turn events into actions in your workspace.",
+    "description": "Connect GitHub and your favorite tools, then turn every update into action in your workspace.",
     "items": {
       "github": {
         "title": "GitHub commits",
-        "description": "Trigger flows from push events and route work automatically."
+        "description": "Start workflows from repository activity and route work automatically."
       },
       "webhook": {
-        "title": "Public webhooks",
-        "description": "Receive external payloads with secure script-specific URLs."
+        "title": "External event links",
+        "description": "Receive updates from external tools through secure links."
       },
       "conditions": {
         "title": "Smart routing",
@@ -62,7 +62,7 @@
       },
       "actions": {
         "title": "Killio actions",
-        "description": "Create, update, move, and assign cards from one automation graph."
+        "description": "Create, update, move, and assign cards from one visual flow."
       }
     }
   },
@@ -300,22 +300,22 @@
       "sub": "Automate the repetitive. Unlock the creative. Killio's AI layer works across every workspace feature.",
       "builder": {
         "title": "Visual Script Builder",
-        "desc": "Build automation workflows with a node-based canvas editor. Connect triggers, conditions, and actions — no code required."
+        "desc": "Design automations visually and connect starts, rules, and actions in minutes."
       },
       "chat": {
         "title": "AI Generation & Chat",
         "desc": "Ask AI to generate scripts, suggest improvements, summarize cards, or chat directly inside any board or document."
       },
       "rag": {
-        "title": "RAG Knowledge Base",
-        "desc": "Killio indexes your workspace into a vector store. AI answers are grounded in your actual data — always accurate, never hallucinated."
+        "title": "Knowledge that answers with context",
+        "desc": "Killio understands your workspace context so AI answers stay grounded in your real data."
       },
       "scriptBadge": "AI Script Generator"
     },
     "integrations": {
       "eyebrow": "Integrations",
       "title": "Plays well with your whole stack.",
-      "sub": "Connect Killio to the tools your team already loves. Trigger automations, sync data, and get notified where you work.",
+      "sub": "Connect Killio to the tools your team already loves. Keep work aligned and stay updated where you already collaborate.",
       "github": "GitHub",
       "notion": "Notion",
       "googledrive": "Google Drive",
@@ -323,7 +323,7 @@
       "slack": "Slack",
       "trello": "Trello",
       "whatsapp": "WhatsApp",
-      "webhooks": "Webhooks",
+      "webhooks": "Event links",
       "email": "Email",
       "zapier": "Zapier (soon)"
     },

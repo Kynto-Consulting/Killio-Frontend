@@ -1,16 +1,16 @@
 {
-  "eyebrow": "Pack Exchange",
+  "eyebrow": "MARKETPLACE",
   "title": "Marketplace",
-  "subtitle": "Publish private/public/link packs, snapshot versions, and import with locale + placeholder controls.",
+  "subtitle": "Discover, share and scale.",
   "actions": {
     "refresh": "Refresh",
     "createPack": "Create pack",
     "creating": "Creating...",
-    "saveSnapshot": "Create snapshot version",
+    "saveSnapshot": "Save snapshot",
     "savingSnapshot": "Saving snapshot...",
-    "configureImport": "Configure import",
+    "configureImport": "Install pack",
     "reloadVersion": "Reload version",
-    "import": "Import pack",
+    "import": "Install pack",
     "importing": "Importing...",
     "cancel": "Cancel"
   },
@@ -27,14 +27,14 @@
     "title": "Title",
     "titlePlaceholder": "Ops Automation Kit",
     "summary": "Summary",
-    "summaryPlaceholder": "One-line description for discoverability",
+    "summaryPlaceholder": "One-line description",
     "publishMode": "Publish mode"
   },
   "create": {
-    "title": "Create Marketplace Pack"
+    "title": "Create a new pack"
   },
   "myPacks": {
-    "title": "My Team Packs",
+    "title": "Your Team Packs",
     "count": "{{count}} packs"
   },
   "publicPacks": {
@@ -43,10 +43,10 @@
   },
   "snapshot": {
     "title": "Snapshot Version",
-    "version": "Version (e.g. v1, 2026.04.01)",
+    "version": "Version",
     "assetPicker": "Choose source assets",
     "selectedCount": "{{count}} selected",
-    "detectedPlaceholders": "Detected placeholders"
+    "detectedPlaceholders": "Detected fields"
   },
   "assetTypes": {
     "document": "Documents",
@@ -55,28 +55,28 @@
     "script": "Scripts"
   },
   "import": {
-    "destinationTeam": "Destination workspace id",
-    "selector": "Version selector (optional)",
+    "destinationTeam": "Destination workspace",
+    "selector": "Version (optional)",
     "locale": "Locale to import",
-    "modalEyebrow": "Guided import flow",
+    "modalEyebrow": "Install pack",
     "useDefault": "Use default value",
-    "jsonPlaceholder": "Valid JSON",
-    "requiredPlaceholder": "Required value",
-    "optionalPlaceholder": "Optional value",
+    "jsonPlaceholder": "Write a value",
+    "requiredPlaceholder": "Required field",
+    "optionalPlaceholder": "Optional field",
     "loadedVersion": "Loaded version: {{version}}",
     "requiredTitle": "Required fields",
-    "requiredDescription": "These placeholders do not have defaults or were marked as required.",
-    "noRequired": "This pack does not require mandatory placeholders.",
+    "requiredDescription": "Fill these before installing.",
+    "noRequired": "This pack has no required fields.",
     "optionalTitle": "Optional fields",
-    "optionalDescription": "They are ordered by namespace when the pack uses %%[NAMESPACE:KEY]%%.",
-    "noOptional": "There are no optional placeholders in this version.",
-    "placeholderCount": "{{count}} placeholders detected"
+    "optionalDescription": "Optional values.",
+    "noOptional": "This version has no optional fields.",
+    "placeholderCount": "{{count}} fields"
   },
   "feedback": {
     "modeUpdated": "Publish mode updated",
-    "snapshotOk": "Snapshot version created",
-    "snapshotWithIntelligence": "Snapshot created with {{auto}} detected placeholders and {{refs}} internal references",
-    "importOk": "Import completed with {{count}} mapped references"
+    "snapshotOk": "Snapshot ready",
+    "snapshotWithIntelligence": "Snapshot ready",
+    "importOk": "Pack installed"
   },
   "errors": {
     "loadPublic": "Could not load public marketplace packs",
@@ -91,7 +91,7 @@
   },
   "empty": {
     "noSummary": "No summary",
-    "noTeamPacks": "No team packs yet. Create your first pack above.",
-    "noPublicPacks": "No public packs available with current filters."
+    "noTeamPacks": "No packs yet. Create your first one.",
+    "noPublicPacks": "No public packs yet."
   }
 }

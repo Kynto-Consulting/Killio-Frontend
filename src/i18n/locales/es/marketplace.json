@@ -1,16 +1,16 @@
 {
-  "eyebrow": "Intercambio de Packs",
+  "eyebrow": "MARKETPLACE",
   "title": "Marketplace",
-  "subtitle": "Publica packs privados/publicos/con enlace, crea snapshots versionados e importa con idioma + placeholders.",
+  "subtitle": "Descubre, comparte y escala.",
   "actions": {
     "refresh": "Actualizar",
     "createPack": "Crear pack",
     "creating": "Creando...",
-    "saveSnapshot": "Crear version snapshot",
+    "saveSnapshot": "Guardar snapshot",
     "savingSnapshot": "Guardando snapshot...",
-    "configureImport": "Configurar importacion",
+    "configureImport": "Instalar pack",
     "reloadVersion": "Recargar version",
-    "import": "Importar pack",
+    "import": "Instalar pack",
     "importing": "Importando...",
     "cancel": "Cancelar"
   },
@@ -27,14 +27,14 @@
     "title": "Titulo",
     "titlePlaceholder": "Kit de automatizacion ops",
     "summary": "Resumen",
-    "summaryPlaceholder": "Descripcion corta para discovery",
+    "summaryPlaceholder": "Descripcion breve",
     "publishMode": "Modo de publicacion"
   },
   "create": {
-    "title": "Crear Marketplace Pack"
+    "title": "Crea un nuevo pack"
   },
   "myPacks": {
-    "title": "Packs de mi equipo",
+    "title": "Packs de tu equipo",
     "count": "{{count}} packs"
   },
   "publicPacks": {
@@ -43,10 +43,10 @@
   },
   "snapshot": {
     "title": "Version Snapshot",
-    "version": "Version (ej. v1, 2026.04.01)",
+    "version": "Version",
     "assetPicker": "Elegir assets origen",
     "selectedCount": "{{count}} seleccionados",
-    "detectedPlaceholders": "Placeholders detectados"
+    "detectedPlaceholders": "Campos detectados"
   },
   "assetTypes": {
     "document": "Documentos",
@@ -55,28 +55,28 @@
     "script": "Scripts"
   },
   "import": {
-    "destinationTeam": "Id del workspace destino",
-    "selector": "Selector de version (opcional)",
+    "destinationTeam": "Workspace de destino",
+    "selector": "Version (opcional)",
     "locale": "Idioma a importar",
-    "modalEyebrow": "Flujo guiado de importacion",
+    "modalEyebrow": "Instalar pack",
     "useDefault": "Usar valor por defecto",
-    "jsonPlaceholder": "JSON valido",
-    "requiredPlaceholder": "Valor obligatorio",
-    "optionalPlaceholder": "Valor opcional",
+    "jsonPlaceholder": "Escribe un valor",
+    "requiredPlaceholder": "Campo obligatorio",
+    "optionalPlaceholder": "Campo opcional",
     "loadedVersion": "Version cargada: {{version}}",
     "requiredTitle": "Campos obligatorios",
-    "requiredDescription": "Estos placeholders no tienen default o fueron marcados como requeridos.",
-    "noRequired": "Este pack no exige placeholders obligatorios.",
+    "requiredDescription": "Completa estos campos para instalar.",
+    "noRequired": "Este pack no tiene campos obligatorios.",
     "optionalTitle": "Campos opcionales",
-    "optionalDescription": "Se ordenan por namespace cuando el pack usa %%[NAMESPACE:KEY]%%.",
-    "noOptional": "No hay placeholders opcionales en esta version.",
-    "placeholderCount": "{{count}} placeholders detectados"
+    "optionalDescription": "Valores opcionales.",
+    "noOptional": "Esta version no tiene campos opcionales.",
+    "placeholderCount": "{{count}} campos"
   },
   "feedback": {
     "modeUpdated": "Modo de publicacion actualizado",
-    "snapshotOk": "Version snapshot creada",
-    "snapshotWithIntelligence": "Snapshot creada con {{auto}} placeholders detectados y {{refs}} referencias internas",
-    "importOk": "Importacion completa con {{count}} referencias mapeadas"
+    "snapshotOk": "Snapshot lista",
+    "snapshotWithIntelligence": "Snapshot lista",
+    "importOk": "Pack instalado"
   },
   "errors": {
     "loadPublic": "No se pudo cargar el marketplace publico",
@@ -91,7 +91,7 @@
   },
   "empty": {
     "noSummary": "Sin resumen",
-    "noTeamPacks": "Aun no hay packs del equipo. Crea el primero arriba.",
-    "noPublicPacks": "No hay packs publicos con los filtros actuales."
+    "noTeamPacks": "Aun no hay packs. Crea el primero.",
+    "noPublicPacks": "Aun no hay packs publicos."
   }
 }
