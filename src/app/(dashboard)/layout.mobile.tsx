@@ -281,6 +281,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
           <nav className="space-y-1 px-2">
             {navigationItems.map((item) => {
               const isActive = isPathActive(item.href);
+              const isMarketplaceMenu = item.href === "/marketplace";
 
               if (item.href === "/b") {
                 return (
@@ -330,17 +331,43 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
               }
 
               return (
-                <Link
-                  key={item.name}
-                  href={item.href}
-                  className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive
-                      ? "bg-accent/20 text-accent font-semibold"
-                      : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                    }`}
-                >
-                  <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
-                  <span>{item.name}</span>
-                </Link>
+                <div key={item.name} className="flex flex-col">
+                  <Link
+                    href={item.href}
+                    className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive
+                        ? isMarketplaceMenu ? "bg-accent/5 text-foreground font-semibold" : "bg-accent/20 text-accent font-semibold"
+                        : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                      }`}
+                  >
+                    <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
+                    <span>{item.name}</span>
+                  </Link>
+
+                  {isActive && isMarketplaceMenu && (
+                    <div className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3">
+                      <Link
+                        href="/marketplace"
+                        className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                          pathname === "/marketplace"
+                            ? "bg-accent/10 text-foreground"
+                            : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                        }`}
+                      >
+                        {tDashboard("nav.marketplaceHome")}
+                      </Link>
+                      <Link
+                        href="/marketplace/profile"
+                        className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                          pathname === "/marketplace/profile"
+                            ? "bg-accent/10 text-foreground"
+                            : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                        }`}
+                      >
+                        {tDashboard("nav.marketplaceSellerProfile")}
+                      </Link>
+                    </div>
+                  )}
+                </div>
               );
             })}
           </nav>

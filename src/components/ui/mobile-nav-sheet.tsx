@@ -232,6 +232,8 @@ export function MobileNavSheet({
               {navigation.map((item) => {
                 const isActive = isPathActive(item.href);
                 const isScriptsMenu = item.href === "/integrations";
+                const isMarketplaceMenu = item.href === "/marketplace";
+                const isNestedMenu = isScriptsMenu || isMarketplaceMenu;
 
                 if (item.href === "/b") {
                   return (
@@ -286,9 +288,9 @@ export function MobileNavSheet({
                       href={item.href}
                       onClick={() => setIsOpen(false)}
                       className={`flex items-center space-x-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors ${
-                        isActive && !isScriptsMenu
+                        isActive && !isNestedMenu
                           ? "bg-accent/10 text-accent font-semibold"
-                          : isActive && isScriptsMenu
+                          : isActive && isNestedMenu
                           ? "bg-accent/5 text-foreground font-semibold"
                           : "text-foreground/80 hover:bg-accent/5 hover:text-foreground"
                       }`}
@@ -301,6 +303,33 @@ export function MobileNavSheet({
                         id="sidebar-scripts-options-mobile"
                         className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
                       ></div>
+                    )}
+
+                    {isActive && isMarketplaceMenu && (
+                      <div className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3">
+                        <Link
+                          href="/marketplace"
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                            pathname === "/marketplace"
+                              ? "bg-accent/10 text-foreground"
+                              : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                          }`}
+                        >
+                          {tDashboard("nav.marketplaceHome")}
+                        </Link>
+                        <Link
+                          href="/marketplace/profile"
+                          onClick={() => setIsOpen(false)}
+                          className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                            pathname === "/marketplace/profile"
+                              ? "bg-accent/10 text-foreground"
+                              : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                          }`}
+                        >
+                          {tDashboard("nav.marketplaceSellerProfile")}
+                        </Link>
+                      </div>
                     )}
                   </div>
                 );

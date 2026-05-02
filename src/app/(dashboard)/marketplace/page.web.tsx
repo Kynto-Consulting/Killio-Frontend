@@ -11,8 +11,8 @@ import {
   createMarketplaceSnapshot,
   getMarketplacePackDetail,
   importMarketplacePack,
+  listMyMarketplacePacks,
   listPublicMarketplacePacks,
-  listTeamMarketplacePacks,
   MarketplaceAssetType,
   MarketplacePack,
   MarketplacePackDetail,
@@ -275,10 +275,18 @@ function PlaceholderField(props: {
   );
 }
 
-export function MarketplacePageView({ compact = false }: { compact?: boolean } = {}) {
+export function MarketplacePageView({
+  compact = false,
+  mode = "browse",
+}: {
+  compact?: boolean;
+  mode?: "browse" | "seller";
+} = {}) {
   const { locale } = useI18n();
   const t = useTranslations("marketplace");
   const { accessToken, activeTeamId } = useSession();
+  const isBrowseMode = mode === "browse";
+  const isSellerMode = mode === "seller";
 
   const [query, setQuery] = useState("");
   const [publicLoading, setPublicLoading] = useState(false);
@@ -359,14 +367,14 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   }, [locale, query, t]);
 
   const loadTeamPacks = useCallback(async () => {
-    if (!accessToken || !activeTeamId) {
+    if (!accessToken) {
       setTeamPacks([]);
       return;
     }
 
     setTeamLoading(true);
     try {
-      const items = await listTeamMarketplacePacks(activeTeamId, accessToken);
+      const items = await listMyMarketplacePacks(accessToken);
       setTeamPacks(items);
       setError(null);
     } catch (loadError) {
@@ -374,7 +382,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     } finally {
       setTeamLoading(false);
     }
-  }, [accessToken, activeTeamId, t]);
+  }, [accessToken, t]);
 
   const loadSourceAssets = useCallback(async () => {
     if (!accessToken || !activeTeamId) {
@@ -400,16 +408,19 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   }, [accessToken, activeTeamId, t]);
 
   useEffect(() => {
+    if (!isBrowseMode) return;
     loadPublicPacks().catch(() => undefined);
-  }, [loadPublicPacks]);
+  }, [isBrowseMode, loadPublicPacks]);
 
   useEffect(() => {
+    if (!isSellerMode) return;
     loadTeamPacks().catch(() => undefined);
-  }, [loadTeamPacks]);
+  }, [isSellerMode, loadTeamPacks]);
 
   useEffect(() => {
+    if (!isSellerMode) return;
     loadSourceAssets().catch(() => undefined);
-  }, [loadSourceAssets]);
+  }, [isSellerMode, loadSourceAssets]);
 
   useEffect(() => {
     if (!importModal || !activeTeamId || importModal.destinationTeamId) return;
@@ -743,9 +754,13 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             <button
               type="button"
               onClick={() => {
-                loadPublicPacks().catch(() => undefined);
-                loadTeamPacks().catch(() => undefined);
-                loadSourceAssets().catch(() => undefined);
+                if (isBrowseMode) {
+                  loadPublicPacks().catch(() => undefined);
+                }
+                if (isSellerMode) {
+                  loadTeamPacks().catch(() => undefined);
+                  loadSourceAssets().catch(() => undefined);
+                }
               }}
               className="inline-flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
             >
@@ -761,6 +776,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           ) : null}
         </div>
 
+        {isSellerMode ? (
         <section className="mt-6 rounded-2xl border border-border/70 bg-card/60 p-5">
           <div className="mb-4 flex items-center gap-2 text-base font-semibold text-foreground">
             <PlusCircle className="h-4 w-4" />
@@ -822,7 +838,9 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             {creatingPack ? t("actions.creating") : t("actions.createPack")}
           </button>
         </section>
+        ) : null}
 
+        {isSellerMode ? (
         <section className="mt-6">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="text-lg font-semibold text-foreground">{t("myPacks.title")}</h2>
@@ -1024,7 +1042,9 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             ) : null}
           </div>
         </section>
+        ) : null}
 
+        {isBrowseMode ? (
         <section className="mt-8">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-lg font-semibold text-foreground">{t("publicPacks.title")}</h2>
@@ -1074,9 +1094,10 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             ) : null}
           </div>
         </section>
+        ) : null}
       </div>
 
-      {importModal ? (
+      {isBrowseMode && importModal ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4 py-8">
           <div className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-border bg-card p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-3">

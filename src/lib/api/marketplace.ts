@@ -196,6 +196,12 @@ export async function listTeamMarketplacePacks(teamId: string, accessToken: stri
   });
 }
 
+export async function listMyMarketplacePacks(accessToken: string): Promise<MarketplacePack[]> {
+  return fetchApi<MarketplacePack[]>(`/marketplace/packs/me`, {
+    accessToken,
+  });
+}
+
 export async function getMarketplacePackDetail(
   packId: string,
   input: {

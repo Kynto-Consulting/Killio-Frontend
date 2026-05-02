@@ -9,6 +9,8 @@
     "statistics": "Metrics",
     "scripts": "Scripts",
     "marketplace": "Marketplace",
+    "marketplaceHome": "Marketplace",
+    "marketplaceSellerProfile": "Seller Profile",
     "recentBoards": "Recent Boards",
     "recentDocuments": "Recent Documents",
     "viewAll": "View all",
