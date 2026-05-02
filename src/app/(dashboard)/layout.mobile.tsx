@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch, Sparkles } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
@@ -32,6 +32,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
     { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
     { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
+    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
     { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];

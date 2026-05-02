@@ -1,0 +1,68 @@
+{
+  "eyebrow": "Pack Exchange",
+  "title": "Marketplace",
+  "subtitle": "Publish private/public/link packs, snapshot versions, and import with locale + placeholder controls.",
+  "actions": {
+    "refresh": "Refresh",
+    "createPack": "Create pack",
+    "creating": "Creating...",
+    "saveSnapshot": "Create snapshot version",
+    "savingSnapshot": "Saving snapshot...",
+    "import": "Import pack",
+    "importing": "Importing..."
+  },
+  "publish": {
+    "private": "Private",
+    "public": "Public",
+    "link": "Link"
+  },
+  "status": {
+    "loading": "Loading..."
+  },
+  "fields": {
+    "slug": "Slug",
+    "title": "Title",
+    "titlePlaceholder": "Ops Automation Kit",
+    "summary": "Summary",
+    "summaryPlaceholder": "One-line description for discoverability",
+    "publishMode": "Publish mode"
+  },
+  "create": {
+    "title": "Create Marketplace Pack"
+  },
+  "myPacks": {
+    "title": "My Team Packs",
+    "count": "{{count}} packs"
+  },
+  "publicPacks": {
+    "title": "Public Marketplace",
+    "search": "Search packs"
+  },
+  "snapshot": {
+    "title": "Snapshot Version",
+    "version": "Version (e.g. v1, 2026.04.01)"
+  },
+  "import": {
+    "destinationTeam": "Destination workspace id",
+    "selector": "Version selector (optional)"
+  },
+  "feedback": {
+    "modeUpdated": "Publish mode updated",
+    "snapshotOk": "Snapshot version created",
+    "importOk": "Import completed with {{count}} mapped references"
+  },
+  "errors": {
+    "loadPublic": "Could not load public marketplace packs",
+    "loadTeam": "Could not load team marketplace packs",
+    "createPack": "Could not create pack",
+    "updateMode": "Could not update publish mode",
+    "snapshot": "Could not create snapshot",
+    "import": "Could not import pack",
+    "noWorkspace": "You need an active workspace and a valid session"
+  },
+  "empty": {
+    "noSummary": "No summary",
+    "noTeamPacks": "No team packs yet. Create your first pack above.",
+    "noPublicPacks": "No public packs available with current filters."
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "eyebrow": "Intercambio de Packs",
+  "title": "Marketplace",
+  "subtitle": "Publica packs privados/publicos/con enlace, crea snapshots versionados e importa con idioma + placeholders.",
+  "actions": {
+    "refresh": "Actualizar",
+    "createPack": "Crear pack",
+    "creating": "Creando...",
+    "saveSnapshot": "Crear version snapshot",
+    "savingSnapshot": "Guardando snapshot...",
+    "import": "Importar pack",
+    "importing": "Importando..."
+  },
+  "publish": {
+    "private": "Privado",
+    "public": "Publico",
+    "link": "Enlace"
+  },
+  "status": {
+    "loading": "Cargando..."
+  },
+  "fields": {
+    "slug": "Slug",
+    "title": "Titulo",
+    "titlePlaceholder": "Kit de automatizacion ops",
+    "summary": "Resumen",
+    "summaryPlaceholder": "Descripcion corta para discovery",
+    "publishMode": "Modo de publicacion"
+  },
+  "create": {
+    "title": "Crear Marketplace Pack"
+  },
+  "myPacks": {
+    "title": "Packs de mi equipo",
+    "count": "{{count}} packs"
+  },
+  "publicPacks": {
+    "title": "Marketplace publico",
+    "search": "Buscar packs"
+  },
+  "snapshot": {
+    "title": "Version Snapshot",
+    "version": "Version (ej. v1, 2026.04.01)"
+  },
+  "import": {
+    "destinationTeam": "Id del workspace destino",
+    "selector": "Selector de version (opcional)"
+  },
+  "feedback": {
+    "modeUpdated": "Modo de publicacion actualizado",
+    "snapshotOk": "Version snapshot creada",
+    "importOk": "Importacion completa con {{count}} referencias mapeadas"
+  },
+  "errors": {
+    "loadPublic": "No se pudo cargar el marketplace publico",
+    "loadTeam": "No se pudieron cargar los packs del equipo",
+    "createPack": "No se pudo crear el pack",
+    "updateMode": "No se pudo actualizar el modo de publicacion",
+    "snapshot": "No se pudo crear el snapshot",
+    "import": "No se pudo importar el pack",
+    "noWorkspace": "Necesitas un workspace activo y sesion valida"
+  },
+  "empty": {
+    "noSummary": "Sin resumen",
+    "noTeamPacks": "Aun no hay packs del equipo. Crea el primero arriba.",
+    "noPublicPacks": "No hay packs publicos con los filtros actuales."
+  }
+}

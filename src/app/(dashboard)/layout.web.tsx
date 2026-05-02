@@ -31,6 +31,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
     { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
     { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
+    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
     { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];
