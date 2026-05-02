@@ -52,6 +52,7 @@ interface ReferencePickerProps {
   localScopeId?: string;
   docScopeId?: string;
   allowedTypes?: AllowedMentionType[];
+  onLoadDocumentsInFolder?: (folderId: string) => Promise<DocumentSummary[]>;
 }
 
 type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors";
@@ -205,6 +206,7 @@ export function ReferencePicker({
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
+  onLoadDocumentsInFolder,
 }: ReferencePickerProps) {
   const { accessToken } = useSession();
   const [query, setQuery] = useState("");
@@ -216,6 +218,35 @@ export function ReferencePicker({
   const [selectedSource, setSelectedSource] = useState<"local" | "document" | "mesh" | null>(null);
   const [documentBricks, setDocumentBricks] = useState<ActiveBrick[]>([]);
   const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
+
+  // Expand documents to include nested ones from folders
+  const expandedDocuments = useMemo(() => {
+    if (!documents || !folders || folders.length === 0) return documents;
+    
+    // Map folder docs by folderId for quick lookup
+    const docsInFolder = new Map<string, DocumentSummary[]>();
+    for (const doc of documents) {
+      if (doc.folderId) {
+        if (!docsInFolder.has(doc.folderId)) {
+          docsInFolder.set(doc.folderId, []);
+        }
+        docsInFolder.get(doc.folderId)!.push(doc);
+      }
+    }
+
+    // Collect all docs: root + nested in each folder
+    const result: DocumentSummary[] = [
+      ...documents.filter((d) => !d.folderId),
+    ];
+
+    // Add docs from each folder
+    for (const folder of folders) {
+      const folderDocs = docsInFolder.get(folder.id) || [];
+      result.push(...folderDocs);
+    }
+
+    return result;
+  }, [documents, folders]);
   const [isLoadingDocBricks, setIsLoadingDocBricks] = useState(false);
   const [isLoadingMeshBricks, setIsLoadingMeshBricks] = useState(false);
 
@@ -277,7 +308,7 @@ export function ReferencePicker({
         mentionType: "mesh" as const,
         search: `mesh board ${b.name} ${b.id}`.toLowerCase(),
       })),
-      ...documents.map((d) => ({
+      ...expandedDocuments.map((d) => ({
         token: `@[doc:${d.id}:${d.title}]`,
         label: d.title,
         category: "mention" as const,
@@ -352,8 +383,8 @@ export function ReferencePicker({
 
   const docsFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return documents.filter((d) => !q || d.title.toLowerCase().includes(q));
-  }, [documents, query]);
+    return expandedDocuments.filter((d) => !q || d.title.toLowerCase().includes(q));
+  }, [expandedDocuments, query]);
 
   const docBricksFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
