@@ -6,7 +6,7 @@ import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
 import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
-import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
+import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, listAllTeamDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, TeamMemberSummary, uploadFile } from "@/lib/api/contracts";
 import Link from "next/link";
@@ -82,7 +82,7 @@ export default function DocumentPage() {
 
       if (activeTeamId) {
         const [docs, boards, members, flds] = await Promise.all([
-          listDocuments(activeTeamId, accessToken),
+          listAllTeamDocuments(activeTeamId, accessToken),
           listTeamBoards(activeTeamId, accessToken),
           listTeamMembers(activeTeamId, accessToken),
           listFolders(activeTeamId, accessToken)

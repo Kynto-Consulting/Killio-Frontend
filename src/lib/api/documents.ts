@@ -79,6 +79,48 @@ export async function listDocuments(teamId: string, accessToken: string, folderI
   return fetchApi(url, { accessToken });
 }
 
+export async function listAllTeamDocuments(teamId: string, accessToken: string): Promise<DocumentSummary[]> {
+  try {
+    // Get root documents first
+    const rootDocs = await listDocuments(teamId, accessToken);
+    
+    // Get all folders
+    const folders = await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/folders?teamId=${teamId}`, {
+      headers: { authorization: `Bearer ${accessToken}` }
+    })).json();
+    
+    if (!Array.isArray(folders)) return rootDocs;
+    
+    // Get documents from each folder recursively
+    const allDocs = [...rootDocs];
+    const visited = new Set<string>();
+    
+    const loadFolderDocs = async (folderId: string) => {
+      if (visited.has(folderId)) return;
+      visited.add(folderId);
+      
+      try {
+        const folderDocs = await listDocuments(teamId, accessToken, folderId);
+        allDocs.push(...folderDocs);
+      } catch {
+        // Ignore folder loading errors
+      }
+    };
+    
+    await Promise.all(folders.map((f: any) => loadFolderDocs(f.id)));
+    
+    // Deduplicate by ID
+    const uniqueDocs = Array.from(
+      new Map(allDocs.map((doc) => [doc.id, doc])).values()
+    );
+    
+    return uniqueDocs;
+  } catch {
+    // Fallback to root documents only
+    return listDocuments(teamId, accessToken);
+  }
+}
+
 export async function createDocument(
   payload: { teamId: string; title: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string },
   accessToken: string
