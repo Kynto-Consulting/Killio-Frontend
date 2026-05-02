@@ -221,12 +221,12 @@ export function ReferencePicker({
 
   // Expand documents to include nested ones from folders
   const expandedDocuments = useMemo(() => {
-    if (!documents || !folders || folders.length === 0) return documents;
+    if (!documents || !folders || folders.length === 0) return documents.filter((d) => !d.isInlinePopup);
     
     // Map folder docs by folderId for quick lookup
     const docsInFolder = new Map<string, DocumentSummary[]>();
     for (const doc of documents) {
-      if (doc.folderId) {
+      if (doc.folderId && !doc.isInlinePopup) {
         if (!docsInFolder.has(doc.folderId)) {
           docsInFolder.set(doc.folderId, []);
         }
@@ -234,9 +234,9 @@ export function ReferencePicker({
       }
     }
 
-    // Collect all docs: root + nested in each folder
+    // Collect all docs: root + nested in each folder (excluding popups)
     const result: DocumentSummary[] = [
-      ...documents.filter((d) => !d.folderId),
+      ...documents.filter((d) => !d.folderId && !d.isInlinePopup),
     ];
 
     // Add docs from each folder

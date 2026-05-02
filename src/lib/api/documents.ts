@@ -81,18 +81,19 @@ export async function listDocuments(teamId: string, accessToken: string, folderI
 
 export async function listAllTeamDocuments(teamId: string, accessToken: string): Promise<DocumentSummary[]> {
   try {
-    // Get root documents first
+    // Get root documents first (excluding popups)
     const rootDocs = await listDocuments(teamId, accessToken);
+    const nonPopupRoot = rootDocs.filter((d) => !d.isInlinePopup);
     
     // Get all folders
     const folders = await (await fetch(`${process.env.NEXT_PUBLIC_API_URL || ''}/folders?teamId=${teamId}`, {
       headers: { authorization: `Bearer ${accessToken}` }
     })).json();
     
-    if (!Array.isArray(folders)) return rootDocs;
+    if (!Array.isArray(folders)) return nonPopupRoot;
     
     // Get documents from each folder recursively
-    const allDocs = [...rootDocs];
+    const allDocs = [...nonPopupRoot];
     const visited = new Set<string>();
     
     const loadFolderDocs = async (folderId: string) => {
@@ -101,7 +102,8 @@ export async function listAllTeamDocuments(teamId: string, accessToken: string):
       
       try {
         const folderDocs = await listDocuments(teamId, accessToken, folderId);
-        allDocs.push(...folderDocs);
+        // Filter out popup documents
+        allDocs.push(...folderDocs.filter((d) => !d.isInlinePopup));
       } catch {
         // Ignore folder loading errors
       }
@@ -117,7 +119,8 @@ export async function listAllTeamDocuments(teamId: string, accessToken: string):
     return uniqueDocs;
   } catch {
     // Fallback to root documents only
-    return listDocuments(teamId, accessToken);
+    const rootDocs = await listDocuments(teamId, accessToken);
+    return rootDocs.filter((d) => !d.isInlinePopup);
   }
 }
 
