@@ -8,8 +8,11 @@
     "creating": "Creating...",
     "saveSnapshot": "Create snapshot version",
     "savingSnapshot": "Saving snapshot...",
+    "configureImport": "Configure import",
+    "reloadVersion": "Reload version",
     "import": "Import pack",
-    "importing": "Importing..."
+    "importing": "Importing...",
+    "cancel": "Cancel"
   },
   "publish": {
     "private": "Private",
@@ -40,20 +43,46 @@
   },
   "snapshot": {
     "title": "Snapshot Version",
-    "version": "Version (e.g. v1, 2026.04.01)"
+    "version": "Version (e.g. v1, 2026.04.01)",
+    "assetPicker": "Choose source assets",
+    "selectedCount": "{{count}} selected",
+    "detectedPlaceholders": "Detected placeholders"
+  },
+  "assetTypes": {
+    "document": "Documents",
+    "board": "Kanban",
+    "mesh": "Mesh",
+    "script": "Scripts"
   },
   "import": {
     "destinationTeam": "Destination workspace id",
-    "selector": "Version selector (optional)"
+    "selector": "Version selector (optional)",
+    "locale": "Locale to import",
+    "modalEyebrow": "Guided import flow",
+    "useDefault": "Use default value",
+    "jsonPlaceholder": "Valid JSON",
+    "requiredPlaceholder": "Required value",
+    "optionalPlaceholder": "Optional value",
+    "loadedVersion": "Loaded version: {{version}}",
+    "requiredTitle": "Required fields",
+    "requiredDescription": "These placeholders do not have defaults or were marked as required.",
+    "noRequired": "This pack does not require mandatory placeholders.",
+    "optionalTitle": "Optional fields",
+    "optionalDescription": "They are ordered by namespace when the pack uses %%[NAMESPACE:KEY]%%.",
+    "noOptional": "There are no optional placeholders in this version.",
+    "placeholderCount": "{{count}} placeholders detected"
   },
   "feedback": {
     "modeUpdated": "Publish mode updated",
     "snapshotOk": "Snapshot version created",
+    "snapshotWithIntelligence": "Snapshot created with {{auto}} detected placeholders and {{refs}} internal references",
     "importOk": "Import completed with {{count}} mapped references"
   },
   "errors": {
     "loadPublic": "Could not load public marketplace packs",
     "loadTeam": "Could not load team marketplace packs",
+    "loadCatalog": "Could not load workspace catalog",
+    "loadPackDetail": "Could not load pack detail",
     "createPack": "Could not create pack",
     "updateMode": "Could not update publish mode",
     "snapshot": "Could not create snapshot",

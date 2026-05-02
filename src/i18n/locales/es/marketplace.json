@@ -8,8 +8,11 @@
     "creating": "Creando...",
     "saveSnapshot": "Crear version snapshot",
     "savingSnapshot": "Guardando snapshot...",
+    "configureImport": "Configurar importacion",
+    "reloadVersion": "Recargar version",
     "import": "Importar pack",
-    "importing": "Importando..."
+    "importing": "Importando...",
+    "cancel": "Cancelar"
   },
   "publish": {
     "private": "Privado",
@@ -40,20 +43,46 @@
   },
   "snapshot": {
     "title": "Version Snapshot",
-    "version": "Version (ej. v1, 2026.04.01)"
+    "version": "Version (ej. v1, 2026.04.01)",
+    "assetPicker": "Elegir assets origen",
+    "selectedCount": "{{count}} seleccionados",
+    "detectedPlaceholders": "Placeholders detectados"
+  },
+  "assetTypes": {
+    "document": "Documentos",
+    "board": "Kanban",
+    "mesh": "Mesh",
+    "script": "Scripts"
   },
   "import": {
     "destinationTeam": "Id del workspace destino",
-    "selector": "Selector de version (opcional)"
+    "selector": "Selector de version (opcional)",
+    "locale": "Idioma a importar",
+    "modalEyebrow": "Flujo guiado de importacion",
+    "useDefault": "Usar valor por defecto",
+    "jsonPlaceholder": "JSON valido",
+    "requiredPlaceholder": "Valor obligatorio",
+    "optionalPlaceholder": "Valor opcional",
+    "loadedVersion": "Version cargada: {{version}}",
+    "requiredTitle": "Campos obligatorios",
+    "requiredDescription": "Estos placeholders no tienen default o fueron marcados como requeridos.",
+    "noRequired": "Este pack no exige placeholders obligatorios.",
+    "optionalTitle": "Campos opcionales",
+    "optionalDescription": "Se ordenan por namespace cuando el pack usa %%[NAMESPACE:KEY]%%.",
+    "noOptional": "No hay placeholders opcionales en esta version.",
+    "placeholderCount": "{{count}} placeholders detectados"
   },
   "feedback": {
     "modeUpdated": "Modo de publicacion actualizado",
     "snapshotOk": "Version snapshot creada",
+    "snapshotWithIntelligence": "Snapshot creada con {{auto}} placeholders detectados y {{refs}} referencias internas",
     "importOk": "Importacion completa con {{count}} referencias mapeadas"
   },
   "errors": {
     "loadPublic": "No se pudo cargar el marketplace publico",
     "loadTeam": "No se pudieron cargar los packs del equipo",
+    "loadCatalog": "No se pudo cargar el catalogo del workspace",
+    "loadPackDetail": "No se pudo cargar el detalle del pack",
     "createPack": "No se pudo crear el pack",
     "updateMode": "No se pudo actualizar el modo de publicacion",
     "snapshot": "No se pudo crear el snapshot",

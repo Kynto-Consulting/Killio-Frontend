@@ -76,6 +76,94 @@ export type MarketplaceImportResult = {
   } | null;
 };
 
+export type MarketplaceSnapshotResult = {
+  version: {
+    id: string;
+    version: string;
+    status: string;
+  };
+  placeholders?: Array<{
+    placeholderKey: string;
+    valueType: "string" | "number" | "boolean" | "json" | "entity_ref";
+    isRequired: boolean;
+    defaultValue?: unknown;
+    description?: string | null;
+    orderIndex?: number;
+    validation?: Record<string, unknown>;
+  }>;
+  intelligence?: {
+    autoDetectedPlaceholders: string[];
+    referenceEdges: Array<{
+      fromLogicalKey: string;
+      toLogicalKey: string;
+      occurrence: "exact" | "embedded";
+      via: string;
+    }>;
+    unresolvedEntityIds: string[];
+  };
+};
+
+export type MarketplacePlaceholder = {
+  id: string;
+  packVersionId: string;
+  placeholderKey: string;
+  valueType: "string" | "number" | "boolean" | "json" | "entity_ref";
+  isRequired: boolean;
+  defaultValue: unknown;
+  description: string | null;
+  orderIndex: number;
+  validation: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type MarketplacePackDetail = {
+  pack: MarketplacePack;
+  version: {
+    id: string;
+    version: string;
+    status: string;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+  assets: Array<{
+    assetType: MarketplaceAssetType;
+    sourceEntityId: string;
+    logicalKey: string;
+    displayName: string | null;
+    orderIndex: number;
+  }>;
+  localizations: Array<{
+    id: string;
+    packVersionId: string;
+    locale: string;
+    title: string;
+    summary: string | null;
+    description: string | null;
+    changelog: string | null;
+    documentationMarkdown: string | null;
+    metadata: Record<string, unknown>;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt: string;
+  }>;
+  selectedLocalization: {
+    id: string;
+    packVersionId: string;
+    locale: string;
+    title: string;
+    summary: string | null;
+    description: string | null;
+    changelog: string | null;
+    documentationMarkdown: string | null;
+    metadata: Record<string, unknown>;
+    isDefault: boolean;
+    createdAt: string;
+    updatedAt: string;
+  } | null;
+  placeholders: MarketplacePlaceholder[];
+};
+
 function buildQuery(params: Record<string, string | number | undefined | null>): string {
   const q = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
@@ -108,6 +196,26 @@ export async function listTeamMarketplacePacks(teamId: string, accessToken: stri
   });
 }
 
+export async function getMarketplacePackDetail(
+  packId: string,
+  input: {
+    selector?: string;
+    locale?: string;
+    token?: string;
+  } = {},
+  accessToken?: string,
+): Promise<MarketplacePackDetail> {
+  const query = buildQuery({
+    selector: input.selector,
+    locale: input.locale,
+    token: input.token,
+  });
+
+  return fetchApi<MarketplacePackDetail>(`/marketplace/packs/${encodeURIComponent(packId)}${query}`, {
+    accessToken,
+  });
+}
+
 export async function createMarketplacePack(input: MarketplaceCreatePackInput, accessToken: string): Promise<MarketplacePack> {
   return fetchApi<MarketplacePack>(`/marketplace/packs`, {
     method: "POST",
@@ -132,8 +240,8 @@ export async function createMarketplaceSnapshot(
   packId: string,
   input: MarketplaceSnapshotInput,
   accessToken: string,
-): Promise<{ version: { id: string; version: string; status: string } }> {
-  return fetchApi<{ version: { id: string; version: string; status: string } }>(
+): Promise<MarketplaceSnapshotResult> {
+  return fetchApi<MarketplaceSnapshotResult>(
     `/marketplace/packs/${encodeURIComponent(packId)}/versions/snapshot`,
     {
       method: "POST",
