@@ -542,6 +542,13 @@ export type AuthResponse = {
   accessToken: string;
   refreshToken: string;
   expiresInSeconds: number;
+  otp_required?: false;
+};
+
+export type OtpRequiredResponse = {
+  otp_required: true;
+  userId: string;
+  email: string;
 };
 
 type RegisterPayload = {
@@ -551,8 +558,10 @@ type RegisterPayload = {
 };
 
 type LoginPayload = {
-  email: string;
+  identifier?: string;
+  email?: string;
   password: string;
+  rememberMe?: boolean;
 };
 
 export type OtpPurpose = 'login' | 'password_reset' | 'register';
@@ -792,8 +801,8 @@ export async function registerWithOtp(payload: RegisterWithOtpPayload): Promise<
   });
 }
 
-export async function login(payload: LoginPayload): Promise<AuthResponse> {
-  return request<AuthResponse>('/auth/login', {
+export async function login(payload: LoginPayload): Promise<AuthResponse | OtpRequiredResponse> {
+  return request<AuthResponse | OtpRequiredResponse>('/auth/login', {
     method: 'POST',
     body: JSON.stringify(payload),
   });

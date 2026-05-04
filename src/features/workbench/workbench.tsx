@@ -287,7 +287,12 @@ export function Workbench() {
 
       operation
         .then((result) => {
-          persistSession(result);
+          // Handle 2FA requirement
+          if ("otp_required" in result && result.otp_required) {
+            setAuthError("Two-factor authentication required. Please verify with OTP.");
+            return;
+          }
+          persistSession(result as AuthResponse);
           setPassword('');
           setWorkspaceError(null);
         })
