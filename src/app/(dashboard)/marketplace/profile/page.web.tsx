@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   ChevronRight,
+  ChevronDown,
   FileText,
   GitBranch,
   Globe,
@@ -176,6 +177,153 @@ function modeIcon(mode: MarketplacePublishMode) {
   if (mode === "public") return <Globe className="h-3 w-3" />;
   if (mode === "link")   return <Link2 className="h-3 w-3" />;
   return <Lock className="h-3 w-3" />;
+}
+
+/* ── custom dropdown components ── */
+function LocaleDropdown({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: string[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-colors hover:border-white/20 focus:border-[#d8ff72]/40 focus:outline-none"
+      >
+        <span className="truncate">{getLocaleLabel(value)}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+          {options.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => {
+                onChange(opt);
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-sm transition-colors ${
+                opt === value
+                  ? "bg-[#d8ff72]/15 text-[#d8ff72]"
+                  : "text-white hover:bg-white/5"
+              } first:rounded-t-lg last:rounded-b-lg`}
+            >
+              {getLocaleLabel(opt)}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StatusDropdown({
+  value,
+  options,
+  onChange,
+}: {
+  value: string;
+  options: { value: string; label: string }[];
+  onChange: (value: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const label = options.find((o) => o.value === value)?.label || value;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-colors hover:border-white/20 focus:border-[#d8ff72]/40 focus:outline-none"
+      >
+        <span className="truncate capitalize">{label}</span>
+        <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+          {options.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => {
+                onChange(opt.value);
+                setOpen(false);
+              }}
+              className={`w-full px-3 py-2 text-left text-sm capitalize transition-colors ${
+                opt.value === value
+                  ? "bg-[#d8ff72]/15 text-[#d8ff72]"
+                  : "text-white hover:bg-white/5"
+              } first:rounded-t-lg last:rounded-b-lg`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PublishModeDropdown({
+  value,
+  onChange,
+}: {
+  value: MarketplacePublishMode;
+  onChange: (value: MarketplacePublishMode) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const modes = [
+    { mode: "private" as const, label: "Private", icon: Lock },
+    { mode: "link" as const, label: "Link", icon: Link2 },
+    { mode: "public" as const, label: "Public", icon: Globe },
+  ];
+  const current = modes.find((m) => m.mode === value);
+  const CurrentIcon = current?.icon || Lock;
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${modeStyle(value)} hover:border-white/20`}
+      >
+        <CurrentIcon className="h-3 w-3" />
+        <span>{current?.label || "Select"}</span>
+        <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+          {modes.map((m) => {
+            const Icon = m.icon;
+            return (
+              <button
+                key={m.mode}
+                type="button"
+                onClick={() => {
+                  onChange(m.mode);
+                  setOpen(false);
+                }}
+                className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors ${
+                  m.mode === value
+                    ? "bg-[#d8ff72]/15 text-[#d8ff72]"
+                    : "text-white hover:bg-white/5"
+                } first:rounded-t-lg last:rounded-b-lg`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                <span>{m.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /* ── asset picker ── */
@@ -808,19 +956,10 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         </p>
                       </div>
                       {/* publish mode badge */}
-                      <label className={`inline-flex shrink-0 cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${modeStyle(pack.publishMode)}`}>
-                        {modeIcon(pack.publishMode)}
-                        <select
-                          value={pack.publishMode}
-                          onChange={(e) => handleModeChange(pack.id, e.target.value as MarketplacePublishMode)}
-                          disabled={busy}
-                          className="cursor-pointer bg-transparent text-[11px] font-bold outline-none"
-                        >
-                          <option value="private">Private</option>
-                          <option value="link">Link</option>
-                          <option value="public">Public</option>
-                        </select>
-                      </label>
+                      <PublishModeDropdown
+                        value={pack.publishMode}
+                        onChange={(mode) => handleModeChange(pack.id, mode)}
+                      />
                     </div>
 
                     {/* feedback */}
@@ -1005,26 +1144,22 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
-                        <select
+                        <LocaleDropdown
                           value={wizard.locale}
-                          onChange={(e) => setWizard((w) => (w ? { ...w, locale: sanitizeLocaleCode(e.target.value) } : w))}
-                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
-                        >
-                          {localeOptions.map((localeCode) => (
-                            <option key={localeCode} value={localeCode}>{getLocaleLabel(localeCode)}</option>
-                          ))}
-                        </select>
+                          options={localeOptions}
+                          onChange={(val) => setWizard((w) => (w ? { ...w, locale: sanitizeLocaleCode(val) } : w))}
+                        />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
-                        <select
+                        <StatusDropdown
                           value={wizard.snapshotStatus}
-                          onChange={(e) => setWizard((w) => w ? { ...w, snapshotStatus: e.target.value as MarketplaceVersionStatus } : w)}
-                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
-                        >
-                          <option value="published">Published</option>
-                          <option value="draft">Draft</option>
-                        </select>
+                          options={[
+                            { value: "published", label: "Published" },
+                            { value: "draft", label: "Draft" },
+                          ]}
+                          onChange={(val) => setWizard((w) => w ? { ...w, snapshotStatus: val as MarketplaceVersionStatus } : w)}
+                        />
                       </div>
                       <div>
                         <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>
@@ -1120,27 +1255,23 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
-                  <select
+                  <LocaleDropdown
                     value={snapModal.locale}
-                    onChange={(e) => setSnapModal((s) => s ? { ...s, locale: sanitizeLocaleCode(e.target.value) } : s)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
-                  >
-                    {localeOptions.map((localeCode) => (
-                      <option key={localeCode} value={localeCode}>{getLocaleLabel(localeCode)}</option>
-                    ))}
-                  </select>
+                    options={localeOptions}
+                    onChange={(val) => setSnapModal((s) => s ? { ...s, locale: sanitizeLocaleCode(val) } : s)}
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
-                  <select
+                  <StatusDropdown
                     value={snapModal.status}
-                    onChange={(e) => setSnapModal((s) => s ? { ...s, status: e.target.value as MarketplaceVersionStatus } : s)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
-                  >
-                    <option value="published">Published</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
-                  </select>
+                    options={[
+                      { value: "published", label: "Published" },
+                      { value: "draft", label: "Draft" },
+                      { value: "archived", label: "Archived" },
+                    ]}
+                    onChange={(val) => setSnapModal((s) => s ? { ...s, status: val as MarketplaceVersionStatus } : s)}
+                  />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>

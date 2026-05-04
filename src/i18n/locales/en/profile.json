@@ -6,6 +6,10 @@
   "changePhoto": "Change Profile Photo",
   "displayName": "Display Name",
   "displayNamePlaceholder": "e.g. Jane Doe",
+  "otpLogin": {
+    "title": "Enable optional login OTP (2FA)",
+    "description": "When enabled, you can use OTP/magic link for sign-in as an extra security layer."
+  },
   "saveChanges": "Save Changes",
   "updateError": "An error occurred while updating your profile."
 }

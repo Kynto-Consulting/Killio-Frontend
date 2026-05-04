@@ -324,6 +324,34 @@ export type ColumnsBrick = BrickBase & {
   content?: ContainerMeta & Record<string, unknown>;
 };
 
+export type PaymentBrick = BrickBase & {
+  kind: 'payment';
+  title: string;
+  description: string | null;
+  amount: number;
+  currency: string;
+  provider: 'stripe' | 'paypal' | 'mercadopago';
+  connectionId: string | null;
+  externalProductId: string | null;
+  checkoutUrl: string | null;
+  status: 'pending' | 'paid' | 'failed' | 'refunded';
+  paidAt: string | null;
+  payerEmail: string | null;
+  webhookEventId: string | null;
+  webhookUrl?: string | null;
+  scriptId?: string | null;
+  // Credentials (stored encrypted in DB)
+  stripeSecretKey?: string | null;
+  stripeWebhookSecret?: string | null;
+  paypalClientId?: string | null;
+  paypalClientSecret?: string | null;
+  paypalMode?: 'sandbox' | 'live';
+  mercadopagoAccessToken?: string | null;
+  mercadopagoMode?: 'sandbox' | 'live';
+  credentialsLocked?: boolean;
+  credentialsLastUpdatedAt?: string | null;
+};
+
 export type BoardBrick =
   | TextBrick
   | MediaBrick
@@ -333,7 +361,8 @@ export type BoardBrick =
   | ChecklistBrick
   | AccordionBrick
   | TabsBrick
-  | ColumnsBrick;
+  | ColumnsBrick
+  | PaymentBrick;
 
 export type BrickMutationInput =
   | {
@@ -390,6 +419,31 @@ export type BrickMutationInput =
     columns?: Array<{ id: string }>;
     columnsCount?: number;
     content?: ContainerMeta & Record<string, unknown>;
+  }
+  | {
+    kind: 'payment';
+    title: string;
+    description: string | null;
+    amount: number;
+    currency: string;
+    provider: 'stripe' | 'paypal' | 'mercadopago';
+    connectionId: string | null;
+    externalProductId?: string | null;
+    checkoutUrl?: string | null;
+    status?: 'pending' | 'paid' | 'failed' | 'refunded';
+    paidAt?: string | null;
+    payerEmail?: string | null;
+    webhookEventId?: string | null;
+    webhookUrl?: string | null;
+    scriptId?: string | null;
+    stripeSecretKey?: string | null;
+    stripeWebhookSecret?: string | null;
+    paypalClientId?: string | null;
+    paypalClientSecret?: string | null;
+    paypalMode?: 'sandbox' | 'live';
+    mercadopagoAccessToken?: string | null;
+    mercadopagoMode?: 'sandbox' | 'live';
+    credentialsLocked?: boolean;
   };
 
 export type TagView = {
@@ -499,6 +553,35 @@ type RegisterPayload = {
 type LoginPayload = {
   email: string;
   password: string;
+};
+
+export type OtpPurpose = 'login' | 'password_reset' | 'register';
+
+export type RequestOtpPayload = {
+  email: string;
+  useMagicLink?: boolean;
+  purpose?: OtpPurpose;
+};
+
+export type VerifyOtpPayload = {
+  email?: string;
+  code?: string;
+  token?: string;
+  rememberMe?: boolean;
+  purpose?: OtpPurpose;
+  autoRegister?: boolean;
+};
+
+export type ResetPasswordWithOtpPayload = {
+  email?: string;
+  code?: string;
+  token?: string;
+  newPassword: string;
+};
+
+export type RegisterWithOtpPayload = RegisterPayload & {
+  code?: string;
+  token?: string;
 };
 
 type CreateTeamPayload = {
@@ -702,6 +785,13 @@ export async function register(payload: RegisterPayload): Promise<AuthResponse> 
   });
 }
 
+export async function registerWithOtp(payload: RegisterWithOtpPayload): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/register-with-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function login(payload: LoginPayload): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/login', {
     method: 'POST',
@@ -720,6 +810,42 @@ export async function logout(refreshToken: string): Promise<void> {
   await request<void>('/auth/logout', {
     method: 'POST',
     body: JSON.stringify({ refreshToken }),
+  });
+}
+
+export async function requestOtp(payload: RequestOtpPayload): Promise<{ ok: true; expiresInMinutes: number; delivery: 'otp' | 'magic_link' }> {
+  return request<{ ok: true; expiresInMinutes: number; delivery: 'otp' | 'magic_link' }>('/auth/request-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function verifyOtp(payload: VerifyOtpPayload): Promise<AuthResponse | { ok: true; email: string }> {
+  return request<AuthResponse | { ok: true; email: string }>('/auth/verify-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetPasswordWithOtp(payload: ResetPasswordWithOtpPayload): Promise<{ ok: true }> {
+  return request<{ ok: true }>('/auth/reset-password-otp', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getOtpLoginPreference(accessToken: string): Promise<{ enabled: boolean }> {
+  return request<{ enabled: boolean }>('/auth/security/otp-login', {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function setOtpLoginPreference(accessToken: string, enabled: boolean): Promise<{ ok: true; enabled: boolean }> {
+  return request<{ ok: true; enabled: boolean }>('/auth/security/otp-login', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ enabled }),
   });
 }
 

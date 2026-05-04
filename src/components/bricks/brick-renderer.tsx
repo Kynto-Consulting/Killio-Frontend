@@ -13,6 +13,7 @@ import { UnifiedDividerBrick } from "./unified-divider-brick";
 import { UnifiedFormBrick } from './unified-form-brick';
 import { UnifiedFormFieldBrick, normalizeFormFieldConfig, useFormFieldRuntime } from "./unified-form-field-brick.web";
 import { UnifiedCalloutBrick } from "./unified-callout-brick";
+import { UnifiedPaymentBrick } from "./unified-payment-brick";
 import { UnifiedTabsBrick } from "./unified-tabs-brick";
 import { UnifiedColumnsBrick } from "./unified-columns-brick";
 import { UnifiedMediaBrick } from "./unified-media-brick";
@@ -417,6 +418,18 @@ export function UnifiedBrickRenderer({
           documents={documents}
           boards={boards}
           users={users}
+        />
+      );
+      break;
+
+    case 'payment':
+      brickBody = (
+        <UnifiedPaymentBrick
+          id={brick.id}
+          content={content as any}
+          canEdit={canEdit}
+          onUpdate={(nextContent) => onUpdate({ ...content, kind: 'payment', ...nextContent })}
+          readonly={false}
         />
       );
       break;

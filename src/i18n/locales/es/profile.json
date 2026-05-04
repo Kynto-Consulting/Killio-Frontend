@@ -6,6 +6,10 @@
   "changePhoto": "Cambiar foto de perfil",
   "displayName": "Nombre visible",
   "displayNamePlaceholder": "Ej: Jane Doe",
+  "otpLogin": {
+    "title": "Habilitar OTP opcional en login (2FA)",
+    "description": "Cuando este activo, podras usar OTP/magic link para iniciar sesion con una capa extra de seguridad."
+  },
   "saveChanges": "Guardar cambios",
   "updateError": "Ocurrio un error al actualizar tu perfil."
 }

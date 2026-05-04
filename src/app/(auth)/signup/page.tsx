@@ -7,12 +7,7 @@ import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-
-const API = (
-  process.env.NEXT_PUBLIC_API_BASE_URL ??
-  process.env.NEXT_PUBLIC_API_URL ??
-  "http://localhost:4000"
-).replace(/\/$/, "");
+import { requestOtp, registerWithOtp } from "@/lib/api/contracts";
 
 function SignupPageContent() {
   const router = useRouter();
@@ -30,7 +25,10 @@ function SignupPageContent() {
     allowCommunications: false,
   });
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [otpRequested, setOtpRequested] = useState(false);
+  const [otpCode, setOtpCode] = useState("");
 
   const from = searchParams.get("from");
   const safeFrom = from && from.startsWith("/") ? from : "/";
@@ -51,6 +49,7 @@ function SignupPageContent() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setNotice(null);
 
     if (form.password !== form.confirm) {
       setError(t("signup.passwordsMismatch"));
@@ -71,28 +70,29 @@ function SignupPageContent() {
       const normalizedUsername = form.username.trim().toLowerCase();
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      const res = await fetch(`${API}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // Keep compatibility while backend transitions from displayName/username to name.
-          name: normalizedDisplayName,
-          displayName: normalizedDisplayName,
-          username: normalizedUsername,
+      if (!otpRequested) {
+        const otpResult = await requestOtp({
           email: normalizedEmail,
-          password: form.password,
-          acceptedTerms: form.acceptedTerms,
-          allowCommunications: form.allowCommunications,
-        }),
-      });
+          purpose: "register",
+          useMagicLink: false,
+        });
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        setError(data?.message ?? t("signup.registrationFailed"));
+        setOtpRequested(true);
+        setNotice(t("signup.otpSent", { minutes: otpResult.expiresInMinutes }));
         return;
       }
 
-      const data = await res.json();
+      if (!otpCode.trim()) {
+        setError(t("signup.otpRequired"));
+        return;
+      }
+
+      const data = await registerWithOtp({
+        name: normalizedDisplayName,
+        email: normalizedEmail,
+        password: form.password,
+        code: otpCode.trim(),
+      });
       // Persist session exactly like the login page
       document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
       localStorage.setItem("killio_refresh", data.refreshToken);
@@ -100,8 +100,9 @@ function SignupPageContent() {
 
       login(data.user, data.accessToken, data.refreshToken);
       router.push(safeFrom);
-    } catch {
-      setError(t("signup.serverError"));
+    } catch (unknownError: unknown) {
+      const message = unknownError instanceof Error ? unknownError.message : t("signup.serverError");
+      setError(message || t("signup.serverError"));
     } finally {
       setIsLoading(false);
     }
@@ -130,6 +131,12 @@ function SignupPageContent() {
           <div className="mb-4 flex items-start gap-2 rounded-md bg-destructive/10 border border-destructive/30 p-3 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 mt-0.5 shrink-0" />
             {error}
+          </div>
+        )}
+
+        {notice && (
+          <div className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">
+            {notice}
           </div>
         )}
 
@@ -231,6 +238,32 @@ function SignupPageContent() {
             </div>
           </div>
 
+          {otpRequested && (
+            <div className="space-y-2 rounded-lg border border-border/70 bg-background/50 p-3">
+              <label className="text-sm font-medium" htmlFor="otpCode">{t("signup.otpLabel")}</label>
+              <input
+                id="otpCode"
+                type="text"
+                inputMode="numeric"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
+                placeholder={t("signup.otpPlaceholder")}
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpRequested(false);
+                  setOtpCode("");
+                  setNotice(null);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground"
+              >
+                {t("signup.changeEmail")}
+              </button>
+            </div>
+          )}
+
           <div className="space-y-3 rounded-xl border border-border/70 bg-background/60 p-4">
             <label className="flex items-start gap-3 text-sm text-muted-foreground" htmlFor="acceptedTerms">
               <input
@@ -281,7 +314,7 @@ function SignupPageContent() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {t("signup.submit")}
+                {otpRequested ? t("signup.verifyAndCreate") : t("signup.sendOtp")}
                 <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
               </>
             )}

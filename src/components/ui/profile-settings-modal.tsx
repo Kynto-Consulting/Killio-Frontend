@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { X, Loader2, UserCircle, Upload } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { getOtpLoginPreference, setOtpLoginPreference } from "@/lib/api/contracts";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -12,14 +13,58 @@ interface ProfileSettingsModalProps {
 }
 
 export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
-  const { user } = useSession();
+  const { user, accessToken } = useSession();
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const [name, setName] = useState(user?.displayName || "");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [isOtpSaving, setIsOtpSaving] = useState(false);
+  const [otpLoginEnabled, setOtpLoginEnabledState] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!isOpen || !accessToken) return;
+
+    let cancelled = false;
+    setIsOtpLoading(true);
+    getOtpLoginPreference(accessToken)
+      .then((result) => {
+        if (!cancelled) {
+          setOtpLoginEnabledState(Boolean(result.enabled));
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setOtpLoginEnabledState(false);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsOtpLoading(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, accessToken]);
+
   if (!isOpen) return null;
+
+  const handleToggleOtp = async (enabled: boolean) => {
+    if (!accessToken) return;
+    setIsOtpSaving(true);
+    setError(null);
+    try {
+      const result = await setOtpLoginPreference(accessToken, enabled);
+      setOtpLoginEnabledState(Boolean(result.enabled));
+    } catch (err: any) {
+      setError(err?.message || t("updateError"));
+    } finally {
+      setIsOtpSaving(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -99,6 +144,29 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             </div>
             
             {/* Email y mensajes ocultos temporalmente */}
+
+            <div className="rounded-xl border border-border/70 bg-background/60 p-4">
+              <label className="flex items-start gap-3 text-sm text-muted-foreground" htmlFor="otp-login-enabled">
+                <input
+                  id="otp-login-enabled"
+                  type="checkbox"
+                  checked={otpLoginEnabled}
+                  onChange={(e) => void handleToggleOtp(e.target.checked)}
+                  disabled={isOtpLoading || isOtpSaving || !accessToken}
+                  className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-white"
+                />
+                <span className="leading-6">
+                  <span className="block text-foreground">{t("otpLogin.title")}</span>
+                  <span className="block text-xs text-muted-foreground">{t("otpLogin.description")}</span>
+                </span>
+              </label>
+              {(isOtpLoading || isOtpSaving) && (
+                <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>{tCommon("actions.loading")}</span>
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
