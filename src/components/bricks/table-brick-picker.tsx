@@ -1,14 +1,14 @@
 /**
- * Table Brick Picker - Similar to ReferencePicker but filtered for bountiful_table bricks only
- * Allows selecting a table brick from local document, another document, or a mesh
+ * Table Brick Picker - Allows selecting a bountiful_table from local document,
+ * another document, a mesh, OR a kanban board list (to create cards via form).
  */
 
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
-import { ChevronRight, ArrowLeft, Loader2, Search } from "lucide-react";
+import { ChevronRight, ArrowLeft, Loader2, Search, LayoutDashboard, Table2, FileText, Layers } from "lucide-react";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
-import { BoardSummary, getMesh } from "@/lib/api/contracts";
+import { BoardSummary, BoardView, getMesh, getBoard } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -20,12 +20,14 @@ interface ActiveBrick {
 }
 
 export interface TableBrickPickerSelection {
-  token: string; // Format: #[local:brickId] or $[doc:docId:brickId] or $[mesh:meshId:brickId]
+  token: string;
   label: string;
-  brickId: string;
-  source: "local" | "document" | "mesh";
+  brickId: string; // brickId for tables; listId for board source
+  source: "local" | "document" | "mesh" | "board";
   documentId?: string;
   meshId?: string;
+  boardId?: string;   // only for board source
+  listId?: string;    // only for board source
   brickContent?: any;
 }
 
@@ -38,11 +40,16 @@ interface TableBrickPickerProps {
   localScopeId?: string;
 }
 
-type Mode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks";
+type Mode =
+  | "root"
+  | "local-bricks"
+  | "doc-list"
+  | "doc-bricks"
+  | "mesh-list"
+  | "mesh-bricks"
+  | "board-list"     // pick a kanban board
+  | "board-lists";   // pick a list within a board
 
-/**
- * Filters bricks to only include bountiful_table kind
- */
 function filterTableBricks(bricks: ActiveBrick[]): ActiveBrick[] {
   return bricks.filter((b) => {
     const kind = String(b.kind || "").toLowerCase();
@@ -79,23 +86,21 @@ export function TableBrickPicker({
   const [query, setQuery] = useState("");
   const [selectedDoc, setSelectedDoc] = useState<DocumentSummary | null>(null);
   const [selectedMesh, setSelectedMesh] = useState<BoardSummary | null>(null);
+  const [selectedBoard, setSelectedBoard] = useState<BoardSummary | null>(null);
   const [docBricks, setDocBricks] = useState<ActiveBrick[]>([]);
   const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
+  const [boardLists, setBoardLists] = useState<{ id: string; name: string }[]>([]);
   const [isLoadingDocBricks, setIsLoadingDocBricks] = useState(false);
   const [isLoadingMeshBricks, setIsLoadingMeshBricks] = useState(false);
+  const [isLoadingBoardLists, setIsLoadingBoardLists] = useState(false);
 
-  // Filter local bricks (only bountiful_table)
-  const localTableBricks = useMemo(() => {
-    return filterTableBricks(activeBricks);
-  }, [activeBricks]);
+  const localTableBricks = useMemo(() => filterTableBricks(activeBricks), [activeBricks]);
 
-  // Filter documents
   const docsFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return documents.filter((doc) => doc.title?.toLowerCase().includes(q));
   }, [documents, query]);
 
-  // Filter meshes
   const meshesFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return boards
@@ -103,24 +108,25 @@ export function TableBrickPicker({
       .filter((m) => m.name?.toLowerCase().includes(q));
   }, [boards, query]);
 
-  // Filter doc bricks (only bountiful_table)
-  const docBricksFiltered = useMemo(() => {
-    return filterTableBricks(docBricks);
-  }, [docBricks]);
+  const kanbanBoardsFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return boards
+      .filter((b) => b.boardType === "kanban")
+      .filter((b) => b.name?.toLowerCase().includes(q));
+  }, [boards, query]);
 
-  // Filter mesh bricks (only bountiful_table)
-  const meshBricksFiltered = useMemo(() => {
-    return filterTableBricks(meshBricks);
-  }, [meshBricks]);
+  const docBricksFiltered = useMemo(() => filterTableBricks(docBricks), [docBricks]);
+  const meshBricksFiltered = useMemo(() => filterTableBricks(meshBricks), [meshBricks]);
 
-  // Filter local bricks by query
   const localBricksFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
-    return localTableBricks.filter((brick) => {
-      const label = getBrickLabel(brick);
-      return label.toLowerCase().includes(q);
-    });
+    return localTableBricks.filter((brick) => getBrickLabel(brick).toLowerCase().includes(q));
   }, [localTableBricks, query]);
+
+  const boardListsFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return boardLists.filter((l) => l.name.toLowerCase().includes(q));
+  }, [boardLists, query]);
 
   const loadDocumentBricks = async (doc: DocumentSummary) => {
     setSelectedDoc(doc);
@@ -128,19 +134,10 @@ export function TableBrickPicker({
     setQuery("");
     setIsLoadingDocBricks(true);
     try {
-      if (!accessToken) {
-        setDocBricks([]);
-        setMode("doc-bricks");
-        return;
-      }
+      if (!accessToken) { setDocBricks([]); setMode("doc-bricks"); return; }
       const view = await getDocument(doc.id, accessToken);
       setDocBricks(
-        (view.bricks || []).map((b) => ({
-          id: b.id,
-          kind: b.kind,
-          content: b.content,
-          documentId: b.documentId,
-        }))
+        (view.bricks || []).map((b) => ({ id: b.id, kind: b.kind, content: b.content, documentId: b.documentId }))
       );
       setMode("doc-bricks");
     } catch {
@@ -157,11 +154,7 @@ export function TableBrickPicker({
     setQuery("");
     setIsLoadingMeshBricks(true);
     try {
-      if (!accessToken) {
-        setMeshBricks([]);
-        setMode("mesh-bricks");
-        return;
-      }
+      if (!accessToken) { setMeshBricks([]); setMode("mesh-bricks"); return; }
       const snapshot = await getMesh(mesh.id, accessToken);
       const bricks = Object.values(snapshot.state?.bricksById || {}).map((brick) => ({
         id: brick.id,
@@ -175,6 +168,23 @@ export function TableBrickPicker({
       setMode("mesh-bricks");
     } finally {
       setIsLoadingMeshBricks(false);
+    }
+  };
+
+  const loadBoardLists = async (board: BoardSummary) => {
+    setSelectedBoard(board);
+    setQuery("");
+    setIsLoadingBoardLists(true);
+    try {
+      if (!accessToken) { setBoardLists([]); setMode("board-lists"); return; }
+      const boardView = await getBoard(board.id, accessToken);
+      setBoardLists((boardView.lists || []).map((l) => ({ id: l.id, name: l.name })));
+      setMode("board-lists");
+    } catch {
+      setBoardLists([]);
+      setMode("board-lists");
+    } finally {
+      setIsLoadingBoardLists(false);
     }
   };
 
@@ -212,38 +222,37 @@ export function TableBrickPicker({
     });
   };
 
-  const handleBack = () => {
-    if (mode === "doc-bricks") {
-      setSelectedDoc(null);
-      setDocBricks([]);
-      setMode("doc-list");
-    } else if (mode === "mesh-bricks") {
-      setSelectedMesh(null);
-      setMeshBricks([]);
-      setMode("mesh-list");
-    } else {
-      setMode("root");
-    }
+  const selectBoardList = (list: { id: string; name: string }) => {
+    if (!selectedBoard) return;
+    onSelect({
+      token: `$[board:${selectedBoard.id}:${list.id}]`,
+      label: `${selectedBoard.name} · ${list.name} (Kanban)`,
+      brickId: list.id,   // brickId carries listId for board source
+      source: "board",
+      boardId: selectedBoard.id,
+      listId: list.id,
+    });
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onClose();
-    }
+  const handleBack = () => {
+    if (mode === "doc-bricks") { setSelectedDoc(null); setDocBricks([]); setMode("doc-list"); }
+    else if (mode === "mesh-bricks") { setSelectedMesh(null); setMeshBricks([]); setMode("mesh-list"); }
+    else if (mode === "board-lists") { setSelectedBoard(null); setBoardLists([]); setMode("board-list"); }
+    else setMode("root");
+    setQuery("");
   };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === "Escape") onClose(); };
 
   const modeTitle =
-    mode === "root"
-      ? "Selecciona tabla"
-      : mode === "local-bricks"
-        ? "Tablas locales"
-        : mode === "doc-list"
-          ? "Documentos"
-          : mode === "doc-bricks"
-            ? selectedDoc?.title || "Tablas del documento"
-            : mode === "mesh-list"
-              ? "Meshes"
-              : "Tablas del mesh";
+    mode === "root" ? "Conectar a base de datos" :
+    mode === "local-bricks" ? "Tablas locales" :
+    mode === "doc-list" ? "Documentos" :
+    mode === "doc-bricks" ? selectedDoc?.title || "Tablas del documento" :
+    mode === "mesh-list" ? "Meshes" :
+    mode === "mesh-bricks" ? selectedMesh?.name || "Tablas del mesh" :
+    mode === "board-list" ? "Tableros Kanban" :
+    selectedBoard?.name || "Listas del tablero";
 
   return (
     <div
@@ -258,21 +267,12 @@ export function TableBrickPicker({
         {/* Header */}
         <div className="flex items-center justify-between border-b border-border p-4">
           {mode !== "root" && (
-            <button
-              onClick={handleBack}
-              className="p-1 hover:bg-accent/10 rounded-md transition-colors"
-              title="Atrás"
-            >
+            <button onClick={handleBack} className="p-1 hover:bg-accent/10 rounded-md transition-colors" title="Atrás">
               <ArrowLeft className="h-4 w-4" />
             </button>
           )}
           <h3 className="text-sm font-semibold text-foreground flex-1 ml-2">{modeTitle}</h3>
-          <button
-            onClick={onClose}
-            className="text-muted-foreground hover:text-foreground transition-colors"
-          >
-            ✕
-          </button>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">✕</button>
         </div>
 
         {/* Search */}
@@ -294,43 +294,36 @@ export function TableBrickPicker({
         <div className="flex-1 overflow-y-auto">
           {mode === "root" && (
             <div className="space-y-1 p-2">
-              <button
-                onClick={() => setMode("local-bricks")}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm"
-              >
-                <span>Tablas locales</span>
-                <ChevronRight className="h-4 w-4 opacity-60" />
-              </button>
-              <button
-                onClick={() => setMode("doc-list")}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm"
-              >
-                <span>En documentos</span>
-                <ChevronRight className="h-4 w-4 opacity-60" />
-              </button>
-              <button
-                onClick={() => setMode("mesh-list")}
-                className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm"
-              >
-                <span>En meshes</span>
-                <ChevronRight className="h-4 w-4 opacity-60" />
-              </button>
+              {[
+                { label: "Tablas locales", icon: <Table2 className="h-4 w-4 text-muted-foreground" />, action: () => setMode("local-bricks"), desc: "Bountiful Tables en este documento" },
+                { label: "En documentos", icon: <FileText className="h-4 w-4 text-muted-foreground" />, action: () => setMode("doc-list"), desc: "Tablas en otros documentos" },
+                { label: "En meshes", icon: <Layers className="h-4 w-4 text-muted-foreground" />, action: () => setMode("mesh-list"), desc: "Tablas en tableros mesh" },
+                { label: "Lista Kanban", icon: <LayoutDashboard className="h-4 w-4 text-muted-foreground" />, action: () => setMode("board-list"), desc: "Crear cards en un tablero Kanban" },
+              ].map((item) => (
+                <button
+                  key={item.label}
+                  onClick={item.action}
+                  className="w-full text-left px-3 py-2.5 rounded-lg hover:bg-accent/10 transition-colors flex items-center gap-3 text-sm"
+                >
+                  {item.icon}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium">{item.label}</div>
+                    <div className="text-xs text-muted-foreground truncate">{item.desc}</div>
+                  </div>
+                  <ChevronRight className="h-4 w-4 opacity-60 shrink-0" />
+                </button>
+              ))}
             </div>
           )}
 
           {mode === "local-bricks" && (
             <div className="space-y-1 p-2">
               {localBricksFiltered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No hay tablas en este documento
-                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay tablas en este documento</div>
               ) : (
                 localBricksFiltered.map((brick) => (
-                  <button
-                    key={brick.id}
-                    onClick={() => selectLocalBrick(brick)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm"
-                  >
+                  <button key={brick.id} onClick={() => selectLocalBrick(brick)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm">
                     {getBrickLabel(brick)}
                   </button>
                 ))
@@ -341,16 +334,11 @@ export function TableBrickPicker({
           {mode === "doc-list" && (
             <div className="space-y-1 p-2">
               {docsFiltered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No hay documentos
-                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay documentos</div>
               ) : (
                 docsFiltered.map((doc) => (
-                  <button
-                    key={doc.id}
-                    onClick={() => loadDocumentBricks(doc)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm"
-                  >
+                  <button key={doc.id} onClick={() => loadDocumentBricks(doc)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm">
                     <span>{doc.title}</span>
                     <ChevronRight className="h-4 w-4 opacity-60" />
                   </button>
@@ -367,16 +355,11 @@ export function TableBrickPicker({
                   <span className="text-sm text-muted-foreground">Cargando...</span>
                 </div>
               ) : docBricksFiltered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No hay tablas en este documento
-                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay tablas en este documento</div>
               ) : (
                 docBricksFiltered.map((brick) => (
-                  <button
-                    key={brick.id}
-                    onClick={() => selectDocBrick(brick)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm"
-                  >
+                  <button key={brick.id} onClick={() => selectDocBrick(brick)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm">
                     {getBrickLabel(brick)}
                   </button>
                 ))
@@ -387,16 +370,11 @@ export function TableBrickPicker({
           {mode === "mesh-list" && (
             <div className="space-y-1 p-2">
               {meshesFiltered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No hay meshes
-                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay meshes</div>
               ) : (
                 meshesFiltered.map((mesh) => (
-                  <button
-                    key={mesh.id}
-                    onClick={() => loadMeshBricks(mesh)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm"
-                  >
+                  <button key={mesh.id} onClick={() => loadMeshBricks(mesh)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm">
                     <span>{mesh.name}</span>
                     <ChevronRight className="h-4 w-4 opacity-60" />
                   </button>
@@ -413,19 +391,57 @@ export function TableBrickPicker({
                   <span className="text-sm text-muted-foreground">Cargando...</span>
                 </div>
               ) : meshBricksFiltered.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No hay tablas en este mesh
-                </div>
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay tablas en este mesh</div>
               ) : (
                 meshBricksFiltered.map((brick) => (
-                  <button
-                    key={brick.id}
-                    onClick={() => selectMeshBrick(brick)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm"
-                  >
+                  <button key={brick.id} onClick={() => selectMeshBrick(brick)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm">
                     {getBrickLabel(brick)}
                   </button>
                 ))
+              )}
+            </div>
+          )}
+
+          {mode === "board-list" && (
+            <div className="space-y-1 p-2">
+              {kanbanBoardsFiltered.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay tableros Kanban</div>
+              ) : (
+                kanbanBoardsFiltered.map((board) => (
+                  <button key={board.id} onClick={() => loadBoardLists(board)}
+                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors flex items-center justify-between text-sm">
+                    <div className="flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />
+                      <span>{board.name}</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 opacity-60" />
+                  </button>
+                ))
+              )}
+            </div>
+          )}
+
+          {mode === "board-lists" && (
+            <div className="space-y-1 p-2">
+              {isLoadingBoardLists ? (
+                <div className="p-8 text-center flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm text-muted-foreground">Cargando listas...</span>
+                </div>
+              ) : boardListsFiltered.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">No hay listas en este tablero</div>
+              ) : (
+                <>
+                  <p className="px-3 py-1 text-xs text-muted-foreground">Las respuestas del formulario crearán cards en la lista seleccionada.</p>
+                  {boardListsFiltered.map((list) => (
+                    <button key={list.id} onClick={() => selectBoardList(list)}
+                      className="w-full text-left px-3 py-2 rounded-lg hover:bg-accent/10 transition-colors text-sm flex items-center gap-2">
+                      <LayoutDashboard className="h-4 w-4 text-muted-foreground shrink-0" />
+                      {list.name}
+                    </button>
+                  ))}
+                </>
               )}
             </div>
           )}
