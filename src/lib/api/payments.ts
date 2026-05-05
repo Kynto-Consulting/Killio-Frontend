@@ -9,13 +9,6 @@ export type CreatePaymentLinkPayload = {
   currency: string;
   provider: 'stripe' | 'paypal' | 'mercadopago';
   connectionId?: string;
-  stripeSecretKey?: string;
-  stripeWebhookSecret?: string;
-  paypalClientId?: string;
-  paypalClientSecret?: string;
-  paypalMode?: 'sandbox' | 'live';
-  mercadopagoAccessToken?: string;
-  mercadopagoMode?: 'sandbox' | 'live';
 };
 
 export type PaymentLinkResponse = {

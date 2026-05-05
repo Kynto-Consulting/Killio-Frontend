@@ -715,3 +715,129 @@ export async function makeOneDriveFilePublic(
   if (!res.ok) return parseApiError(res, 'Failed to make OneDrive file public');
   return res.json();
 }
+
+// ─── Payments (Stripe / PayPal / MercadoPago) ─────────────────────────────────
+
+export interface StripeIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: 'stripe';
+  name: string;
+  publishableKey?: string;
+  secretKeyMasked: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface PaypalIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: 'paypal';
+  name: string;
+  clientId?: string;
+  clientSecretMasked: string;
+  mode?: 'sandbox' | 'live';
+  isActive: boolean;
+  createdAt: string;
+}
+
+export interface MercadopagoIntegrationCredential {
+  id: string;
+  teamId: string;
+  providerType: 'mercadopago';
+  name: string;
+  accessTokenMasked: string;
+  mode?: 'sandbox' | 'live';
+  isActive: boolean;
+  createdAt: string;
+}
+
+export async function listStripeCredentials(teamId: string, accessToken: string): Promise<StripeIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/stripe/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch Stripe credentials');
+  return res.json();
+}
+
+export async function saveStripeCredential(
+  teamId: string,
+  payload: { credentialId?: string; name: string; publishableKey?: string; secretKey: string },
+  accessToken: string,
+): Promise<StripeIntegrationCredential> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/stripe/credentials`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to save Stripe credential');
+  return res.json();
+}
+
+export async function deleteStripeCredential(teamId: string, credentialId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/stripe/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete Stripe credential');
+}
+
+export async function listPaypalCredentials(teamId: string, accessToken: string): Promise<PaypalIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/paypal/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch PayPal credentials');
+  return res.json();
+}
+
+export async function savePaypalCredential(
+  teamId: string,
+  payload: { credentialId?: string; name: string; clientId?: string; clientSecret: string; mode?: 'sandbox' | 'live' },
+  accessToken: string,
+): Promise<PaypalIntegrationCredential> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/paypal/credentials`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to save PayPal credential');
+  return res.json();
+}
+
+export async function deletePaypalCredential(teamId: string, credentialId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/paypal/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete PayPal credential');
+}
+
+export async function listMercadopagoCredentials(teamId: string, accessToken: string): Promise<MercadopagoIntegrationCredential[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/mercadopago/credentials`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch MercadoPago credentials');
+  return res.json();
+}
+
+export async function saveMercadopagoCredential(
+  teamId: string,
+  payload: { credentialId?: string; name: string; accessToken: string; mode?: 'sandbox' | 'live' },
+  accessToken: string,
+): Promise<MercadopagoIntegrationCredential> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/mercadopago/credentials`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to save MercadoPago credential');
+  return res.json();
+}
+
+export async function deleteMercadopagoCredential(teamId: string, credentialId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/payments/mercadopago/credentials/${credentialId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete MercadoPago credential');
+}

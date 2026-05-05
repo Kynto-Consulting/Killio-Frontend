@@ -257,6 +257,71 @@
       "makePublicSkip": "Insertar de forma privada",
       "makePublicError": "No se pudo hacer el archivo público. El archivo se insertará con acceso limitado."
     },
+    "payments": {
+      "stripe": {
+        "title": "Stripe",
+        "description": "Guarda tu secret key a nivel workspace para generar links seguros.",
+        "connect": "Conectar Stripe",
+        "connectModalTitle": "Conectar Stripe",
+        "save": "Guardar credencial",
+        "saved": "Credencial de Stripe guardada",
+        "savedCredentials": "Credenciales guardadas",
+        "noCredentials": "No hay credenciales de Stripe configuradas.",
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar esta credencial de Stripe?",
+        "loadError": "No se pudieron cargar las credenciales de Stripe.",
+        "saveError": "No se pudo guardar la credencial de Stripe.",
+        "deleteError": "No se pudo eliminar la credencial de Stripe.",
+        "fields": {
+          "name": "Nombre de la credencial",
+          "publishableKey": "Publishable key (opcional)",
+          "secretKey": "Secret key"
+        }
+      },
+      "paypal": {
+        "title": "PayPal",
+        "description": "Guarda Client ID y Secret en Integrations para pagos por workspace.",
+        "connect": "Conectar PayPal",
+        "connectModalTitle": "Conectar PayPal",
+        "save": "Guardar credencial",
+        "saved": "Credencial de PayPal guardada",
+        "savedCredentials": "Credenciales guardadas",
+        "noCredentials": "No hay credenciales de PayPal configuradas.",
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar esta credencial de PayPal?",
+        "loadError": "No se pudieron cargar las credenciales de PayPal.",
+        "saveError": "No se pudo guardar la credencial de PayPal.",
+        "deleteError": "No se pudo eliminar la credencial de PayPal.",
+        "fields": {
+          "name": "Nombre de la credencial",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "modeSandbox": "Sandbox",
+          "modeLive": "Live"
+        }
+      },
+      "mercadopago": {
+        "title": "MercadoPago",
+        "description": "Configura access token seguro por equipo para links de pago.",
+        "connect": "Conectar MercadoPago",
+        "connectModalTitle": "Conectar MercadoPago",
+        "save": "Guardar credencial",
+        "saved": "Credencial de MercadoPago guardada",
+        "savedCredentials": "Credenciales guardadas",
+        "noCredentials": "No hay credenciales de MercadoPago configuradas.",
+        "delete": "Eliminar",
+        "deleteConfirm": "¿Eliminar esta credencial de MercadoPago?",
+        "loadError": "No se pudieron cargar las credenciales de MercadoPago.",
+        "saveError": "No se pudo guardar la credencial de MercadoPago.",
+        "deleteError": "No se pudo eliminar la credencial de MercadoPago.",
+        "fields": {
+          "name": "Nombre de la credencial",
+          "accessToken": "Access token",
+          "modeSandbox": "Sandbox",
+          "modeLive": "Live"
+        }
+      }
+    },
     "metaTutorial": {
       "title": "Guía rápida de Meta",
       "description": "Usa esta configuración mientras los bloques nativos de Meta están pausados.",

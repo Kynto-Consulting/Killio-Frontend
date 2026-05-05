@@ -49,6 +49,9 @@ import { NotionIntegrationPanel } from "@/components/scripts/NotionIntegrationPa
 import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPanel";
 import { GoogleDriveIntegrationPanel } from "@/components/scripts/GoogleDriveIntegrationPanel";
 import { OneDriveIntegrationPanel } from "@/components/scripts/OneDriveIntegrationPanel";
+import { StripeIntegrationPanel } from "@/components/scripts/StripeIntegrationPanel";
+import { PaypalIntegrationPanel } from "@/components/scripts/PaypalIntegrationPanel";
+import { MercadopagoIntegrationPanel } from "@/components/scripts/MercadopagoIntegrationPanel";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
@@ -922,11 +925,11 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
               {/* Stat row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>5</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>10</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Available</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>3</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>2</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Coming soon</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
@@ -950,6 +953,9 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                   <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                   <GoogleDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                   <OneDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <StripeIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <PaypalIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
+                  <MercadopagoIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
                 </div>
               </div>
 

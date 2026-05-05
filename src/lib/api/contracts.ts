@@ -340,14 +340,6 @@ export type PaymentBrick = BrickBase & {
   webhookEventId: string | null;
   webhookUrl?: string | null;
   scriptId?: string | null;
-  // Credentials (stored encrypted in DB)
-  stripeSecretKey?: string | null;
-  stripeWebhookSecret?: string | null;
-  paypalClientId?: string | null;
-  paypalClientSecret?: string | null;
-  paypalMode?: 'sandbox' | 'live';
-  mercadopagoAccessToken?: string | null;
-  mercadopagoMode?: 'sandbox' | 'live';
   credentialsLocked?: boolean;
   credentialsLastUpdatedAt?: string | null;
 };
@@ -436,13 +428,6 @@ export type BrickMutationInput =
     webhookEventId?: string | null;
     webhookUrl?: string | null;
     scriptId?: string | null;
-    stripeSecretKey?: string | null;
-    stripeWebhookSecret?: string | null;
-    paypalClientId?: string | null;
-    paypalClientSecret?: string | null;
-    paypalMode?: 'sandbox' | 'live';
-    mercadopagoAccessToken?: string | null;
-    mercadopagoMode?: 'sandbox' | 'live';
     credentialsLocked?: boolean;
   };
 

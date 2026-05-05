@@ -257,6 +257,71 @@
       "makePublicSkip": "Insert privately",
       "makePublicError": "Could not make file public. The file will be inserted with limited access."
     },
+    "payments": {
+      "stripe": {
+        "title": "Stripe",
+        "description": "Save your secret key at workspace level to generate secure checkout links.",
+        "connect": "Connect Stripe",
+        "connectModalTitle": "Connect Stripe",
+        "save": "Save credential",
+        "saved": "Stripe credential saved",
+        "savedCredentials": "Saved credentials",
+        "noCredentials": "No Stripe credentials configured yet.",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this Stripe credential?",
+        "loadError": "Failed to load Stripe credentials.",
+        "saveError": "Failed to save Stripe credential.",
+        "deleteError": "Failed to delete Stripe credential.",
+        "fields": {
+          "name": "Credential name",
+          "publishableKey": "Publishable key (optional)",
+          "secretKey": "Secret key"
+        }
+      },
+      "paypal": {
+        "title": "PayPal",
+        "description": "Save Client ID and Secret in Integrations for workspace-level payments.",
+        "connect": "Connect PayPal",
+        "connectModalTitle": "Connect PayPal",
+        "save": "Save credential",
+        "saved": "PayPal credential saved",
+        "savedCredentials": "Saved credentials",
+        "noCredentials": "No PayPal credentials configured yet.",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this PayPal credential?",
+        "loadError": "Failed to load PayPal credentials.",
+        "saveError": "Failed to save PayPal credential.",
+        "deleteError": "Failed to delete PayPal credential.",
+        "fields": {
+          "name": "Credential name",
+          "clientId": "Client ID",
+          "clientSecret": "Client Secret",
+          "modeSandbox": "Sandbox",
+          "modeLive": "Live"
+        }
+      },
+      "mercadopago": {
+        "title": "MercadoPago",
+        "description": "Configure secure team access token for payment links.",
+        "connect": "Connect MercadoPago",
+        "connectModalTitle": "Connect MercadoPago",
+        "save": "Save credential",
+        "saved": "MercadoPago credential saved",
+        "savedCredentials": "Saved credentials",
+        "noCredentials": "No MercadoPago credentials configured yet.",
+        "delete": "Delete",
+        "deleteConfirm": "Delete this MercadoPago credential?",
+        "loadError": "Failed to load MercadoPago credentials.",
+        "saveError": "Failed to save MercadoPago credential.",
+        "deleteError": "Failed to delete MercadoPago credential.",
+        "fields": {
+          "name": "Credential name",
+          "accessToken": "Access token",
+          "modeSandbox": "Sandbox",
+          "modeLive": "Live"
+        }
+      }
+    },
     "metaTutorial": {
       "title": "Meta quick-start",
       "description": "Use this setup while native Meta blocks are paused.",

@@ -61,7 +61,6 @@ export function UnifiedPaymentBrick({
   
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
-  const [overrideCredentials, setOverrideCredentials] = useState(false);
   const [teamScripts, setTeamScripts] = useState<ScriptSummary[]>([]);
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -75,13 +74,6 @@ export function UnifiedPaymentBrick({
     provider: content.provider || 'stripe',
     connectionId: content.connectionId || '',
     checkoutUrl: content.checkoutUrl || '',
-    stripeSecretKey: '',
-    stripeWebhookSecret: '',
-    paypalClientId: '',
-    paypalClientSecret: '',
-    paypalMode: 'sandbox' as 'sandbox' | 'live',
-    mercadopagoAccessToken: '',
-    mercadopagoMode: 'sandbox' as 'sandbox' | 'live',
   });
 
   const webhookBase = useMemo(() => {
@@ -131,16 +123,8 @@ export function UnifiedPaymentBrick({
           connectionId: formData.connectionId || undefined,
         };
 
-        if (overrideCredentials) {
-          // Only send credentials when user explicitly overrides them in edit mode
-          (payload as any).stripeSecretKey = formData.stripeSecretKey || undefined;
-          (payload as any).stripeWebhookSecret = formData.stripeWebhookSecret || undefined;
-          (payload as any).paypalClientId = formData.paypalClientId || undefined;
-          (payload as any).paypalClientSecret = formData.paypalClientSecret || undefined;
-          (payload as any).paypalMode = formData.paypalMode || undefined;
-          (payload as any).mercadopagoAccessToken = formData.mercadopagoAccessToken || undefined;
-          (payload as any).mercadopagoMode = formData.mercadopagoMode || undefined;
-        }
+        // IMPORTANT: credentials must never travel from client to server.
+        // The workspace/team secrets are managed in Integrations (server-side).
 
         const paymentLink = await createPaymentLink(payload, accessToken);
 
@@ -167,7 +151,6 @@ export function UnifiedPaymentBrick({
       credentialsLastUpdatedAt: new Date().toISOString(),
     });
     setIsEditing(false);
-    setOverrideCredentials(false);
     setIsSaving(false);
   };
 
@@ -346,103 +329,27 @@ export function UnifiedPaymentBrick({
           </div>
         </div>
 
-        {/* CREDENCIALES - Solo en override mode */}
-        {overrideCredentials && (
-          <div className="space-y-3 pt-4 border-t border-border">
-            <div className="bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/20 rounded p-3">
-              <p className="text-xs text-red-700 dark:text-red-300 font-medium">
-                ⚠️ {t('payment.form.credentialsOverrideWarning')}
-              </p>
-            </div>
+        {/* CREDENCIALES - Solo se administran en Integrations (server-side secrets). */}
+        <div className="space-y-3 pt-4 border-t border-border">
+          <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded p-3">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
+              Los secretos de pago se guardan a nivel workspace en Integrations. Este brick no acepta credenciales.
+            </p>
+          </div>
 
-            <div className="space-y-1">
-              <p className="text-sm font-semibold">{t('payment.form.secretsTitle')}</p>
-              <p className="text-xs text-muted-foreground">{t('payment.form.secretsHint')}</p>
-            </div>
-
-            {/* Stripe */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.stripeSecretKey')}</label>
-              <input
-                type="password"
-                value={formData.stripeSecretKey}
-                onChange={(e) => setFormData({ ...formData, stripeSecretKey: e.target.value })}
-                placeholder="sk_live_xxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.stripeWebhookSecret')}</label>
-              <input
-                type="password"
-                value={formData.stripeWebhookSecret}
-                onChange={(e) => setFormData({ ...formData, stripeWebhookSecret: e.target.value })}
-                placeholder="whsec_xxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              />
-            </div>
-
-            {/* PayPal */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.paypalClientId')}</label>
-              <input
-                type="password"
-                value={formData.paypalClientId}
-                onChange={(e) => setFormData({ ...formData, paypalClientId: e.target.value })}
-                placeholder="xxxxxxxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.paypalClientSecret')}</label>
-              <input
-                type="password"
-                value={formData.paypalClientSecret}
-                onChange={(e) => setFormData({ ...formData, paypalClientSecret: e.target.value })}
-                placeholder="xxxxxxxxxxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.paypalMode')}</label>
-              <select
-                value={formData.paypalMode}
-                onChange={(e) => setFormData({ ...formData, paypalMode: e.target.value as any })}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">{t('payment.form.secretsTitle') ?? 'Gestionar credenciales'}</p>
+            <p className="text-xs text-muted-foreground">Configura Stripe, PayPal o MercadoPago desde Integrations y selecciona la conexión en este brick.</p>
+            <div>
+              <Button
+                variant="outline"
+                onClick={() => window.open('/integrations', '_blank')}
               >
-                <option value="sandbox">Sandbox</option>
-                <option value="live">Live</option>
-              </select>
-            </div>
-
-            {/* MercadoPago */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.mercadopagoAccessToken')}</label>
-              <input
-                type="password"
-                value={formData.mercadopagoAccessToken}
-                onChange={(e) => setFormData({ ...formData, mercadopagoAccessToken: e.target.value })}
-                placeholder="xxxxxxxxxxxxxxxxxxxxx"
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">{t('payment.form.mercadopagoMode')}</label>
-              <select
-                value={formData.mercadopagoMode}
-                onChange={(e) => setFormData({ ...formData, mercadopagoMode: e.target.value as any })}
-                className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
-              >
-                <option value="sandbox">Sandbox</option>
-                <option value="live">Live</option>
-              </select>
+                {t('payment.form.openIntegrations') ?? 'Ir a Integrations'}
+              </Button>
             </div>
           </div>
-        )}
+        </div>
 
         {/* Botones */}
         <div className="flex gap-2 pt-4 border-t border-border">
@@ -452,20 +359,19 @@ export function UnifiedPaymentBrick({
           <Button
             onClick={() => {
               setIsEditing(false);
-              setOverrideCredentials(false);
             }}
             className="flex-1"
             variant="outline"
           >
             {t('payment.form.cancel')}
           </Button>
-          {content.credentialsLocked && !overrideCredentials && (
+          {content.credentialsLocked && (
             <Button
-              onClick={() => setOverrideCredentials(true)}
+              onClick={() => window.open('/integrations', '_blank')}
               className="flex-1"
               variant="outline"
             >
-              {t('payment.form.overrideCredentials')}
+              {t('payment.form.openIntegrations') ?? 'Configurar credenciales en Integrations'}
             </Button>
           )}
         </div>
@@ -614,15 +520,7 @@ export function UnifiedPaymentBrick({
                   provider: content.provider || 'stripe',
                   connectionId: content.connectionId || '',
                   checkoutUrl: content.checkoutUrl || '',
-                  stripeSecretKey: '',
-                  stripeWebhookSecret: '',
-                  paypalClientId: '',
-                  paypalClientSecret: '',
-                  paypalMode: 'sandbox',
-                  mercadopagoAccessToken: '',
-                  mercadopagoMode: 'sandbox',
                 });
-                setOverrideCredentials(false);
                 setIsEditing(true);
               }}
               className="px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted/50 transition"
