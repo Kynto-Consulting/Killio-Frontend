@@ -136,3 +136,47 @@ export function getColumnTypeLabel(columnType: string): string {
 
   return labels[columnType.toLowerCase()] || columnType;
 }
+
+/**
+ * Generates the standard form fields for a Kanban card intake form.
+ * When a form is connected to a board list, submissions create new cards.
+ * If boardTags are provided, a multi_select field is added so users can tag the card.
+ */
+export function generateCardFormFields(boardTags?: { id: string; name: string; color?: string }[]): any[] {
+  const fields: any[] = [
+    {
+      id: "field_title",
+      label: "Título",
+      type: "text" as const,
+      placeholder: "Título de la tarjeta",
+      required: true,
+    },
+    {
+      id: "field_description",
+      label: "Descripción",
+      type: "textarea" as const,
+      placeholder: "Describe el contenido de la tarjeta (opcional)",
+      required: false,
+    },
+    {
+      id: "field_dueAt",
+      label: "Fecha de vencimiento",
+      type: "date" as const,
+      placeholder: "",
+      required: false,
+    },
+  ];
+
+  if (boardTags && boardTags.length > 0) {
+    fields.push({
+      id: "field_tags",
+      label: "Etiquetas",
+      type: "select" as const, // multi_select renders as select for now; backend accepts comma-separated
+      placeholder: "Seleccionar etiqueta(s)",
+      required: false,
+      options: boardTags.map((t) => t.name),
+    });
+  }
+
+  return fields;
+}

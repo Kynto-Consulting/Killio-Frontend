@@ -8,7 +8,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { ChevronRight, ArrowLeft, Loader2, Search, LayoutDashboard, Table2, FileText, Layers } from "lucide-react";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
-import { BoardSummary, BoardView, getMesh, getBoard } from "@/lib/api/contracts";
+import { BoardSummary, BoardView, getMesh, getBoard, getTagsByScope } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -28,6 +28,7 @@ export interface TableBrickPickerSelection {
   meshId?: string;
   boardId?: string;   // only for board source
   listId?: string;    // only for board source
+  boardTags?: { id: string; name: string; color?: string }[]; // fetched board tags for tag field
   brickContent?: any;
 }
 
@@ -90,6 +91,7 @@ export function TableBrickPicker({
   const [docBricks, setDocBricks] = useState<ActiveBrick[]>([]);
   const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
   const [boardLists, setBoardLists] = useState<{ id: string; name: string }[]>([]);
+  const [boardTags, setBoardTags] = useState<{ id: string; name: string; color?: string }[]>([]);
   const [isLoadingDocBricks, setIsLoadingDocBricks] = useState(false);
   const [isLoadingMeshBricks, setIsLoadingMeshBricks] = useState(false);
   const [isLoadingBoardLists, setIsLoadingBoardLists] = useState(false);
@@ -176,12 +178,17 @@ export function TableBrickPicker({
     setQuery("");
     setIsLoadingBoardLists(true);
     try {
-      if (!accessToken) { setBoardLists([]); setMode("board-lists"); return; }
-      const boardView = await getBoard(board.id, accessToken);
+      if (!accessToken) { setBoardLists([]); setBoardTags([]); setMode("board-lists"); return; }
+      const [boardView, tags] = await Promise.all([
+        getBoard(board.id, accessToken),
+        getTagsByScope('board', board.id, accessToken).catch(() => []),
+      ]);
       setBoardLists((boardView.lists || []).map((l) => ({ id: l.id, name: l.name })));
+      setBoardTags((tags || []).map((t: any) => ({ id: t.id, name: t.name, color: t.color })));
       setMode("board-lists");
     } catch {
       setBoardLists([]);
+      setBoardTags([]);
       setMode("board-lists");
     } finally {
       setIsLoadingBoardLists(false);
@@ -227,17 +234,18 @@ export function TableBrickPicker({
     onSelect({
       token: `$[board:${selectedBoard.id}:${list.id}]`,
       label: `${selectedBoard.name} · ${list.name} (Kanban)`,
-      brickId: list.id,   // brickId carries listId for board source
+      brickId: list.id,
       source: "board",
       boardId: selectedBoard.id,
       listId: list.id,
+      boardTags: boardTags.length > 0 ? boardTags : undefined,
     });
   };
 
   const handleBack = () => {
     if (mode === "doc-bricks") { setSelectedDoc(null); setDocBricks([]); setMode("doc-list"); }
     else if (mode === "mesh-bricks") { setSelectedMesh(null); setMeshBricks([]); setMode("mesh-list"); }
-    else if (mode === "board-lists") { setSelectedBoard(null); setBoardLists([]); setMode("board-list"); }
+    else if (mode === "board-lists") { setSelectedBoard(null); setBoardLists([]); setBoardTags([]); setMode("board-list"); }
     else setMode("root");
     setQuery("");
   };

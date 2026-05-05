@@ -19,7 +19,7 @@ import {
 } from "./unified-form-field-brick.web";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { TableBrickPicker, type TableBrickPickerSelection } from "./table-brick-picker";
-import { generateFormFieldsFromColumns } from "@/lib/form-brick-table-mapper";
+import { generateFormFieldsFromColumns, generateCardFormFields } from "@/lib/form-brick-table-mapper";
 type LegacyFormField = {
   id: string;
   label: string;
@@ -397,9 +397,12 @@ export function UnifiedFormBrick({
       return;
     }
 
-    // For table bricks: auto-generate form fields from column definitions
+    // Auto-generate form fields from the target structure
     let newFields = legacyFields;
-    if (selection.source !== "board" && selection.brickContent?.columns && Array.isArray(selection.brickContent.columns)) {
+    if (selection.source === "board") {
+      // Kanban intake form: title + description + dueAt + tags (if the board has any)
+      newFields = generateCardFormFields(selection.boardTags);
+    } else if (selection.brickContent?.columns && Array.isArray(selection.brickContent.columns)) {
       newFields = generateFormFieldsFromColumns(selection.brickContent.columns);
     }
 
@@ -741,7 +744,7 @@ export function UnifiedFormBrick({
                   endpointType === "database" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                Database
+                Objeto
               </button>
             </div>
           </div>
@@ -818,9 +821,9 @@ export function UnifiedFormBrick({
           ) : (
             <div className="rounded-md border border-border/60 bg-muted/20 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-semibold text-foreground">Conectar a Base de Datos</p>
+                <p className="text-sm font-semibold text-foreground">Conectar a Objeto</p>
                 <Button type="button" variant="outline" size="sm" onClick={() => setShowTablePicker(true)}>
-                  Seleccionar Tabla
+                  Seleccionar Objeto
                 </Button>
               </div>
               
@@ -845,7 +848,7 @@ export function UnifiedFormBrick({
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground text-center py-2">
-                  Selecciona un bountiful table para mapear sus columnas como preguntas de este formulario y guardar las respuestas directamente como filas.
+                  Selecciona una tabla, mesh o lista Kanban para conectar este formulario. Las respuestas se guardarán como filas (tabla) o cards (Kanban).
                 </p>
               )}
             </div>
