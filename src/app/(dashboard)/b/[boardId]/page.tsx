@@ -801,6 +801,7 @@ export default function BoardPage() {
   const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
   const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
   const [ganttWeekBase] = useState(() => startOfWeek(new Date()));
+  const [expandedGanttLists, setExpandedGanttLists] = useState<Set<string>>(new Set());
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
@@ -1215,12 +1216,28 @@ export default function BoardPage() {
   }, [filteredLists, ganttWeekDurationMs, ganttWeekEndExclusive, ganttWeekStartMs]);
 
   const ganttWeekDayLabels = useMemo(() => {
+    if (ganttViewMode === "day") {
+      // Day view: show full day format
+      return ganttWeekDays.map((date) => ({
+        key: formatDateKey(date),
+        label: new Intl.DateTimeFormat(locale, { weekday: "long" }).format(date),
+        dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date),
+      }));
+    } else if (ganttViewMode === "month") {
+      // Month view: show week numbers
+      return ganttWeekDays.map((date, index) => ({
+        key: formatDateKey(date),
+        label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date),
+        dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date),
+      }));
+    }
+    // Week view (default): short weekday + date
     return ganttWeekDays.map((date) => ({
       key: formatDateKey(date),
       label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date),
       dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date),
     }));
-  }, [ganttWeekDays, locale]);
+  }, [ganttWeekDays, locale, ganttViewMode]);
 
   const formatGanttDateTime = useCallback((value: string) => {
     return new Intl.DateTimeFormat(locale, {
@@ -1765,16 +1782,54 @@ export default function BoardPage() {
                   </div>
 
                   {/* Table Rows (one row per list) */}
-                  {filteredLists.map((list) => (
+                  {filteredLists.map((list) => {
+                    const isExpanded = expandedGanttLists.has(list.id);
+                    const toggleExpand = () => {
+                      setExpandedGanttLists((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(list.id)) {
+                          next.delete(list.id);
+                        } else {
+                          next.add(list.id);
+                        }
+                        return next;
+                      });
+                    };
+
+                    return (
                     <div key={list.id} className="flex border-b border-border/40 last:border-b-0 hover:bg-accent/5 transition-colors">
-                      {/* List name */}
-                      <div className="w-48 shrink-0 px-4 py-4 border-r border-border/60 flex items-center bg-background/40">
-                        <div>
-                          <h4 className="text-sm font-semibold text-foreground">{list.title}</h4>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {t("gantt.cardsInList", { count: (list.cards || []).length })}
-                          </p>
+                      {/* List name with expandable toggle */}
+                      <div className="w-48 shrink-0 px-4 py-4 border-r border-border/60 flex flex-col gap-2 bg-background/40">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-foreground">{list.title}</h4>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                              {t("gantt.cardsInList", { count: (list.cards || []).length })}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={toggleExpand}
+                            className="mt-0.5 p-1 rounded hover:bg-muted/50 transition-colors"
+                            title={isExpanded ? "Collapse cards" : "Expand cards"}
+                          >
+                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                          </button>
                         </div>
+                        {isExpanded && (list.cards || []).length > 0 && (
+                          <div className="space-y-1 pt-2 border-t border-border/40">
+                            {(list.cards || []).map((card: any) => (
+                              <div
+                                key={card.id}
+                                className="text-[11px] text-muted-foreground truncate px-2 py-1 rounded bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer"
+                                onClick={() => setSelectedGanttCard({ card, listId: list.id, listName: list.title })}
+                                title={card.title}
+                              >
+                                {card.title}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
 
                       {/* Day cells with cards */}
@@ -1846,7 +1901,8 @@ export default function BoardPage() {
                         })}
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
