@@ -24,11 +24,14 @@
     "dropHere": "Suelta aquí"
   },
   "gantt": {
-    "title": "Gantt semanal",
+    "title": "Vista Gantt",
     "thisWeek": "Esta semana",
+    "dayView": "Día",
+    "weekView": "Semana",
+    "monthView": "Mes",
     "lists": "Listas",
-    "emptyTitle": "No hay cards en esta semana",
-    "emptyDescription": "Aparecerán aquí las cards con fecha de inicio o vencimiento que caigan dentro de este rango semanal.",
+    "emptyTitle": "Sin tarjetas en este período",
+    "emptyDescription": "Aparecerán aquí las cards con fecha de inicio o vencimiento que caigan dentro de este rango.",
     "cardsInList": "{{count}} cards",
     "start": "Inicio",
     "due": "Vence"

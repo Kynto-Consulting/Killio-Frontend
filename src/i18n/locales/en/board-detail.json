@@ -24,11 +24,14 @@
     "dropHere": "Drop here"
   },
   "gantt": {
-    "title": "Weekly Gantt",
+    "title": "Gantt View",
     "thisWeek": "This week",
+    "dayView": "Day",
+    "weekView": "Week",
+    "monthView": "Month",
     "lists": "Lists",
-    "emptyTitle": "No cards in this week",
-    "emptyDescription": "Cards with a start or due date that overlap this weekly range will appear here.",
+    "emptyTitle": "No cards in this period",
+    "emptyDescription": "Cards with a start or due date that overlap this range will appear here.",
     "cardsInList": "{{count}} cards",
     "start": "Start",
     "due": "Due"

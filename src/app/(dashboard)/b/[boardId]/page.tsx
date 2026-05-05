@@ -797,6 +797,7 @@ export default function BoardPage() {
     backgroundValue: "bg-background",
   });
   const [boardView, setBoardView] = useState<BoardViewMode>("kanban");
+  const [ganttViewMode, setGanttViewMode] = useState<"day" | "week" | "month">("week");
   const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
   const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
   const [ganttWeekBase] = useState(() => startOfWeek(new Date()));
@@ -805,20 +806,27 @@ export default function BoardPage() {
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
 
-  const ganttWeekStart = useMemo(() => addDays(ganttWeekBase, ganttWeekOffset * 7), [ganttWeekBase, ganttWeekOffset]);
+  // Calculate days count based on view mode
+  const ganttDaysCount = ganttViewMode === "day" ? 1 : ganttViewMode === "week" ? 7 : 30;
+  const ganttOffsetMultiplier = ganttViewMode === "day" ? 1 : ganttViewMode === "week" ? 7 : 30;
+
+  const ganttWeekStart = useMemo(() => addDays(ganttWeekBase, ganttWeekOffset * ganttOffsetMultiplier), [ganttWeekBase, ganttWeekOffset, ganttOffsetMultiplier]);
   const ganttWeekEnd = useMemo(() => {
-    const end = addDays(ganttWeekStart, 6);
+    const end = addDays(ganttWeekStart, ganttDaysCount - 1);
     end.setHours(23, 59, 59, 999);
     return end;
-  }, [ganttWeekStart]);
-  const ganttWeekEndExclusive = useMemo(() => addDays(ganttWeekStart, 7).getTime(), [ganttWeekStart]);
+  }, [ganttWeekStart, ganttDaysCount]);
+  const ganttWeekEndExclusive = useMemo(() => addDays(ganttWeekStart, ganttDaysCount).getTime(), [ganttWeekStart, ganttDaysCount]);
   const ganttWeekStartMs = ganttWeekStart.getTime();
   const ganttWeekDurationMs = ganttWeekEndExclusive - ganttWeekStartMs;
-  const ganttWeekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(ganttWeekStart, index)), [ganttWeekStart]);
+  const ganttWeekDays = useMemo(() => Array.from({ length: ganttDaysCount }, (_, index) => addDays(ganttWeekStart, index)), [ganttWeekStart, ganttDaysCount]);
   const ganttWeekLabel = useMemo(() => {
     const formatter = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
+    if (ganttViewMode === "day") {
+      return formatter.format(ganttWeekStart);
+    }
     return `${formatter.format(ganttWeekStart)} - ${formatter.format(ganttWeekEnd)}`;
-  }, [ganttWeekEnd, ganttWeekStart, locale]);
+  }, [ganttWeekEnd, ganttWeekStart, locale, ganttViewMode]);
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1634,35 +1642,87 @@ export default function BoardPage() {
                 <h2 className="text-lg font-semibold text-foreground">{ganttWeekLabel}</h2>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setGanttWeekOffset((current) => current - 1)}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
-              >
-                <ChevronLeft className="h-4 w-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => setGanttWeekOffset(0)}
-                className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary/90 px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary"
-              >
-                <CalendarDays className="h-4 w-4" />
-                {t("gantt.thisWeek")}
-              </button>
-              <button
-                type="button"
-                onClick={() => setGanttWeekOffset((current) => current + 1)}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
-              >
-                <ChevronRight className="h-4 w-4" />
-              </button>
+            <div className="flex items-center gap-3">
+              {/* View mode selector */}
+              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGanttViewMode("day");
+                    setGanttWeekOffset(0);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    ganttViewMode === "day"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t("gantt.dayView")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGanttViewMode("week");
+                    setGanttWeekOffset(0);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    ganttViewMode === "week"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t("gantt.weekView")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setGanttViewMode("month");
+                    setGanttWeekOffset(0);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                    ganttViewMode === "month"
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {t("gantt.monthView")}
+                </button>
+              </div>
+
+              {/* Navigation buttons */}
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setGanttWeekOffset((current) => current - 1)}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+                >
+                  <ChevronLeft className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGanttWeekOffset(0)}
+                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary/90 px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary"
+                >
+                  <CalendarDays className="h-4 w-4" />
+                  {t("gantt.thisWeek")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGanttWeekOffset((current) => current + 1)}
+                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+                >
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
 
           <div className="mb-4 overflow-x-auto pb-2">
-            <div className="min-w-[1040px]">
-              <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-border/60 bg-card/70 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm">
+            <div style={{ minWidth: `${Math.max(1040, ganttDaysCount * 140)}px` }}>
+              <div 
+                className="overflow-hidden rounded-xl border border-border/60 bg-card/70 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm"
+                style={{ display: "grid", gridTemplateColumns: `repeat(${ganttDaysCount}, 1fr)` }}
+              >
                 {ganttWeekDayLabels.map((day, index) => (
                   <div key={day.key} className={`px-3 py-3 ${index > 0 ? "border-l border-border/60" : ""}`}>
                     <div className="flex items-center justify-between gap-2">
