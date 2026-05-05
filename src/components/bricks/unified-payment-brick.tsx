@@ -5,6 +5,7 @@ import { CreditCard, AlertCircle, CheckCircle2, Copy, ExternalLink, Lock, Refres
 import { useTranslations } from '@/components/providers/i18n-provider';
 import { useSession } from '@/components/providers/session-provider';
 import { listScripts, type ScriptSummary } from '@/lib/api/scripts';
+import { createPaymentLink, type CreatePaymentLinkPayload } from '@/lib/api/payments';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
@@ -18,6 +19,7 @@ interface UnifiedPaymentBrickProps {
     currency?: string;
     provider?: 'stripe' | 'paypal' | 'mercadopago';
     connectionId?: string | null;
+    externalProductId?: string | null;
     checkoutUrl?: string | null;
     status?: 'pending' | 'paid' | 'failed' | 'refunded';
     paidAt?: string | null;
@@ -62,6 +64,7 @@ export function UnifiedPaymentBrick({
   const [overrideCredentials, setOverrideCredentials] = useState(false);
   const [teamScripts, setTeamScripts] = useState<ScriptSummary[]>([]);
   const [isLoadingScripts, setIsLoadingScripts] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Credenciales SOLO en formData cuando está en edit+override mode
   const [formData, setFormData] = useState({
@@ -71,6 +74,7 @@ export function UnifiedPaymentBrick({
     currency: content.currency || 'USD',
     provider: content.provider || 'stripe',
     connectionId: content.connectionId || '',
+    checkoutUrl: content.checkoutUrl || '',
     stripeSecretKey: '',
     stripeWebhookSecret: '',
     paypalClientId: '',
@@ -108,7 +112,46 @@ export function UnifiedPaymentBrick({
     }
   }, [isEditing, activeTeamId, accessToken]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    setIsSaving(true);
+
+    let checkoutUrl = formData.checkoutUrl.trim();
+    let externalProductId = content.externalProductId ?? null;
+
+    if (!checkoutUrl && formData.amount > 0 && accessToken) {
+      try {
+        const payload: CreatePaymentLinkPayload = {
+          cardId: id,
+          brickId: id,
+          title: formData.title,
+          description: formData.description || undefined,
+          amount: formData.amount,
+          currency: formData.currency,
+          provider: formData.provider,
+          connectionId: formData.connectionId || undefined,
+        };
+
+        if (overrideCredentials) {
+          // Only send credentials when user explicitly overrides them in edit mode
+          (payload as any).stripeSecretKey = formData.stripeSecretKey || undefined;
+          (payload as any).stripeWebhookSecret = formData.stripeWebhookSecret || undefined;
+          (payload as any).paypalClientId = formData.paypalClientId || undefined;
+          (payload as any).paypalClientSecret = formData.paypalClientSecret || undefined;
+          (payload as any).paypalMode = formData.paypalMode || undefined;
+          (payload as any).mercadopagoAccessToken = formData.mercadopagoAccessToken || undefined;
+          (payload as any).mercadopagoMode = formData.mercadopagoMode || undefined;
+        }
+
+        const paymentLink = await createPaymentLink(payload, accessToken);
+
+        checkoutUrl = paymentLink.checkoutUrl;
+        externalProductId = paymentLink.externalProductId ?? null;
+      } catch (error) {
+        console.error('Error generating payment link:', error);
+        toast(t('payment.form.linkError'), 'error');
+      }
+    }
+
     onUpdate({
       ...content,
       title: formData.title,
@@ -117,11 +160,15 @@ export function UnifiedPaymentBrick({
       currency: formData.currency,
       provider: formData.provider,
       connectionId: formData.connectionId,
+      checkoutUrl: checkoutUrl || content.checkoutUrl || null,
+      externalProductId,
+      status: content.status || 'pending',
       credentialsLocked: true,
       credentialsLastUpdatedAt: new Date().toISOString(),
     });
     setIsEditing(false);
     setOverrideCredentials(false);
+    setIsSaving(false);
   };
 
   const handleCopyUrl = () => {
@@ -148,6 +195,11 @@ export function UnifiedPaymentBrick({
   };
 
   const currentStatus = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+  const providerLabels = {
+    stripe: t('payment.form.providerStripe'),
+    paypal: t('payment.form.providerPaypal'),
+    mercadopago: t('payment.form.providerMercadoPago'),
+  };
 
   // ═══════════════════════════════════════════════════════════════════
   // EDIT MODE
@@ -214,10 +266,21 @@ export function UnifiedPaymentBrick({
             onChange={(e) => setFormData({ ...formData, provider: e.target.value as any })}
             className="w-full px-3 py-2 border border-border rounded-md bg-background text-sm"
           >
-            <option value="stripe">Stripe</option>
-            <option value="paypal">PayPal</option>
-            <option value="mercadopago">MercadoPago</option>
+            <option value="stripe">{providerLabels.stripe}</option>
+            <option value="paypal">{providerLabels.paypal}</option>
+            <option value="mercadopago">{providerLabels.mercadopago}</option>
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <label className="text-sm font-medium">{t('payment.form.checkoutUrl')}</label>
+          <Input
+            value={formData.checkoutUrl}
+            onChange={(e) => setFormData({ ...formData, checkoutUrl: e.target.value })}
+            placeholder={t('payment.form.checkoutUrlPlaceholder')}
+            className="text-sm"
+          />
+          <p className="text-xs text-muted-foreground">{t('payment.form.checkoutUrlHint')}</p>
         </div>
 
         {/* Webhooks */}
@@ -292,9 +355,14 @@ export function UnifiedPaymentBrick({
               </p>
             </div>
 
+            <div className="space-y-1">
+              <p className="text-sm font-semibold">{t('payment.form.secretsTitle')}</p>
+              <p className="text-xs text-muted-foreground">{t('payment.form.secretsHint')}</p>
+            </div>
+
             {/* Stripe */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Stripe Secret Key</label>
+              <label className="text-sm font-medium">{t('payment.form.stripeSecretKey')}</label>
               <input
                 type="password"
                 value={formData.stripeSecretKey}
@@ -305,7 +373,7 @@ export function UnifiedPaymentBrick({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Stripe Webhook Secret</label>
+              <label className="text-sm font-medium">{t('payment.form.stripeWebhookSecret')}</label>
               <input
                 type="password"
                 value={formData.stripeWebhookSecret}
@@ -317,7 +385,7 @@ export function UnifiedPaymentBrick({
 
             {/* PayPal */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">PayPal Client ID</label>
+              <label className="text-sm font-medium">{t('payment.form.paypalClientId')}</label>
               <input
                 type="password"
                 value={formData.paypalClientId}
@@ -328,7 +396,7 @@ export function UnifiedPaymentBrick({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">PayPal Client Secret</label>
+              <label className="text-sm font-medium">{t('payment.form.paypalClientSecret')}</label>
               <input
                 type="password"
                 value={formData.paypalClientSecret}
@@ -339,7 +407,7 @@ export function UnifiedPaymentBrick({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">PayPal Mode</label>
+              <label className="text-sm font-medium">{t('payment.form.paypalMode')}</label>
               <select
                 value={formData.paypalMode}
                 onChange={(e) => setFormData({ ...formData, paypalMode: e.target.value as any })}
@@ -352,7 +420,7 @@ export function UnifiedPaymentBrick({
 
             {/* MercadoPago */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">MercadoPago Access Token</label>
+              <label className="text-sm font-medium">{t('payment.form.mercadopagoAccessToken')}</label>
               <input
                 type="password"
                 value={formData.mercadopagoAccessToken}
@@ -363,7 +431,7 @@ export function UnifiedPaymentBrick({
             </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">MercadoPago Mode</label>
+              <label className="text-sm font-medium">{t('payment.form.mercadopagoMode')}</label>
               <select
                 value={formData.mercadopagoMode}
                 onChange={(e) => setFormData({ ...formData, mercadopagoMode: e.target.value as any })}
@@ -378,8 +446,8 @@ export function UnifiedPaymentBrick({
 
         {/* Botones */}
         <div className="flex gap-2 pt-4 border-t border-border">
-          <Button onClick={handleSave} className="flex-1" variant="default">
-            {t('payment.form.save')}
+          <Button onClick={handleSave} className="flex-1" variant="default" disabled={isSaving}>
+            {isSaving ? t('payment.form.saving') : t('payment.form.save')}
           </Button>
           <Button
             onClick={() => {
@@ -500,24 +568,38 @@ export function UnifiedPaymentBrick({
 
         {/* Botones de acción */}
         <div className="flex flex-col gap-2 pt-2">
-          {status === 'pending' && checkoutUrl && !readonly ? (
+          {status === 'pending' ? (
             <>
-              <a
-                href={checkoutUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium text-center flex items-center justify-center gap-2 group"
-              >
-                {t('payment.payNow')}
-                <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition" />
-              </a>
-              <button
-                onClick={handleCopyUrl}
-                className="flex items-center justify-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted/50 transition"
-              >
-                <Copy className="w-4 h-4" />
-                {isCopied ? t('payment.copied') : t('payment.copyLink')}
-              </button>
+              {checkoutUrl && !readonly ? (
+                <a
+                  href={checkoutUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full px-4 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium text-center flex items-center justify-center gap-2 group"
+                >
+                  {t('payment.payNow')}
+                  <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition" />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  disabled
+                  className="w-full px-4 py-3 bg-muted text-muted-foreground rounded-lg transition font-medium text-center flex items-center justify-center gap-2 opacity-70 cursor-not-allowed"
+                >
+                  {t('payment.noCheckoutUrl')}
+                </button>
+              )}
+              {checkoutUrl ? (
+                <button
+                  onClick={handleCopyUrl}
+                  className="flex items-center justify-center gap-2 px-4 py-2 text-sm border border-border rounded-lg hover:bg-muted/50 transition"
+                >
+                  <Copy className="w-4 h-4" />
+                  {isCopied ? t('payment.copied') : t('payment.copyLink')}
+                </button>
+              ) : (
+                <p className="text-xs text-muted-foreground">{t('payment.noCheckoutUrlHint')}</p>
+              )}
             </>
           ) : null}
 
@@ -531,6 +613,7 @@ export function UnifiedPaymentBrick({
                   currency: content.currency || 'USD',
                   provider: content.provider || 'stripe',
                   connectionId: content.connectionId || '',
+                  checkoutUrl: content.checkoutUrl || '',
                   stripeSecretKey: '',
                   stripeWebhookSecret: '',
                   paypalClientId: '',
