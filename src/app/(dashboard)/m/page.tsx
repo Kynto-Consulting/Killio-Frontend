@@ -9,6 +9,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ApiError, BoardSummary, createBoard, listTeamBoards } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
+import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 
 function slugifyMeshName(name: string): string {
   return (
@@ -29,6 +30,7 @@ export default function MeshBoardsPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
+  const [isCreateMeshModalOpen, setIsCreateMeshModalOpen] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -50,13 +52,25 @@ export default function MeshBoardsPage() {
     [meshes, search],
   );
 
-  const handleCreateMesh = async () => {
+  const handleCreateMeshClick = () => {
+    if (!accessToken) {
+      return;
+    }
+
+    if (!activeTeamId) {
+      toast(t("noActiveWorkspace"), "info");
+      return;
+    }
+
+    setIsCreateMeshModalOpen(true);
+  };
+
+  const handleCreateMeshSubmit = async (payload: CreateBoardSubmitPayload) => {
     if (!accessToken || !activeTeamId || isCreating) {
       return;
     }
 
-    const inputName = window.prompt(t("mesh.createPrompt"), t("mesh.createPromptDefault"));
-    const meshName = inputName?.trim();
+    const meshName = payload.name.trim();
 
     if (!meshName) {
       return;
@@ -66,6 +80,7 @@ export default function MeshBoardsPage() {
     try {
       const created = await createBoard(
         {
+          ...payload,
           name: meshName,
           slug: slugifyMeshName(meshName),
           boardType: "mesh",
@@ -91,6 +106,11 @@ export default function MeshBoardsPage() {
 
   return (
     <div className="container mx-auto max-w-6xl p-6 lg:p-10">
+      <CreateBoardModal
+        isOpen={isCreateMeshModalOpen}
+        onClose={() => setIsCreateMeshModalOpen(false)}
+        onSubmit={handleCreateMeshSubmit}
+      />
       <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">{t("mesh.title")}</h1>
@@ -110,7 +130,7 @@ export default function MeshBoardsPage() {
 
           <button
             type="button"
-            onClick={handleCreateMesh}
+            onClick={handleCreateMeshClick}
             disabled={isCreating}
             className="inline-flex h-9 items-center justify-center rounded-md bg-primary/90 px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary disabled:opacity-60"
           >
@@ -151,7 +171,7 @@ export default function MeshBoardsPage() {
           <p className="mt-2 text-muted-foreground">{t("mesh.noMeshDescription")}</p>
           <button
             type="button"
-            onClick={handleCreateMesh}
+            onClick={handleCreateMeshClick}
             disabled={isCreating}
             className="mt-6 inline-flex h-9 items-center justify-center rounded-md bg-accent/10 px-4 text-sm font-medium text-accent transition-colors hover:bg-accent/20 disabled:opacity-60"
           >

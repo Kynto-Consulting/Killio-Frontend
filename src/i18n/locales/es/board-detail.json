@@ -7,6 +7,8 @@
     "live": "En vivo",
     "copilot": "Copilot",
     "teamChat": "Chat de equipo",
+    "kanbanView": "Kanban",
+    "ganttView": "Gantt",
     "activity": "Actividad",
     "filter": "Filtrar",
     "filterByTags": "Filtrar por etiquetas",
@@ -20,6 +22,15 @@
     "movingCard": "Moviendo tarjeta",
     "card": "Tarjeta",
     "dropHere": "Suelta aquí"
+  },
+  "gantt": {
+    "title": "Gantt semanal",
+    "thisWeek": "Esta semana",
+    "emptyTitle": "No hay cards en esta semana",
+    "emptyDescription": "Aparecerán aquí las cards con fecha de inicio o vencimiento que caigan dentro de este rango semanal.",
+    "cardsInList": "{{count}} cards",
+    "start": "Inicio",
+    "due": "Vence"
   },
   "list": {
     "addCard": "Agregar tarjeta",
@@ -45,11 +56,18 @@
   "cardModal": {
     "archiveCard": "Archivar tarjeta",
     "unarchiveCard": "Desarchivar tarjeta",
+    "dueDateEditor": {
+      "title": "Fecha límite",
+      "description": "Configura la fecha y hora exactas para esta tarjeta.",
+      "inputLabel": "Fecha y hora",
+      "save": "Guardar fecha",
+      "clear": "Borrar"
+    },
     "timer": {
       "remaining": "Faltan {{duration}}",
       "overdue": "Vencida hace {{duration}}",
       "durationTitle": "Duración",
-      "durationDescription": "Configura horas y minutos. Máximo 72h.",
+      "durationDescription": "Configura horas y minutos para el temporizador activo.",
       "hours": "Horas",
       "minutes": "Minutos",
       "startTask": "Iniciar temporizador",
@@ -64,7 +82,7 @@
       "cancel": "Cancelar",
       "finish": "Terminar",
       "durationRequired": "Define una duración mayor a 0 minutos.",
-      "maxDuration": "La duración máxima es de 72 horas.",
+      "maxDuration": "El temporizador puede durar más de 72 horas.",
       "startedSuccess": "Temporizador iniciado por {{duration}}.",
       "startedError": "No se pudo iniciar el temporizador.",
       "cancelledSuccess": "Temporizador cancelado.",

@@ -7,6 +7,8 @@
     "live": "Live",
     "copilot": "Copilot",
     "teamChat": "Team Chat",
+    "kanbanView": "Kanban",
+    "ganttView": "Gantt",
     "activity": "Activity",
     "filter": "Filter",
     "filterByTags": "Filter by Tags",
@@ -20,6 +22,15 @@
     "movingCard": "Moving card",
     "card": "Card",
     "dropHere": "Drop here"
+  },
+  "gantt": {
+    "title": "Weekly Gantt",
+    "thisWeek": "This week",
+    "emptyTitle": "No cards in this week",
+    "emptyDescription": "Cards with a start or due date that overlap this weekly range will appear here.",
+    "cardsInList": "{{count}} cards",
+    "start": "Start",
+    "due": "Due"
   },
   "list": {
     "addCard": "Add a card",
@@ -45,11 +56,18 @@
   "cardModal": {
     "archiveCard": "Archive card",
     "unarchiveCard": "Restore card",
+    "dueDateEditor": {
+      "title": "Due date",
+      "description": "Set the exact date and time for this card.",
+      "inputLabel": "Date and time",
+      "save": "Save due date",
+      "clear": "Clear"
+    },
     "timer": {
       "remaining": "{{duration}} left",
       "overdue": "Overdue by {{duration}}",
       "durationTitle": "Duration",
-      "durationDescription": "Set hours and minutes. Maximum 72h.",
+      "durationDescription": "Set hours and minutes for the active timer.",
       "hours": "Hours",
       "minutes": "Minutes",
       "startTask": "Start timer",
@@ -64,7 +82,7 @@
       "cancel": "Cancel",
       "finish": "Finish",
       "durationRequired": "Set a duration longer than 0 minutes.",
-      "maxDuration": "The maximum duration is 72 hours.",
+      "maxDuration": "The timer can run longer than 72 hours.",
       "startedSuccess": "Timer started for {{duration}}.",
       "startedError": "The timer could not be started.",
       "cancelledSuccess": "Timer cancelled.",

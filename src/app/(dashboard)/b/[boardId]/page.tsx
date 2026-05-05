@@ -1,13 +1,14 @@
 "use client";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
-import { useRef, useState, useCallback, type CSSProperties } from "react";
-import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings, Pencil } from "lucide-react";
+import { useRef, useState, useCallback, useMemo, type CSSProperties } from "react";
+import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings, Pencil, ChartGantt, SquareKanban, ChevronLeft, ChevronRight, CalendarDays, Clock3 } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { ShareModal } from "@/components/ui/share-modal";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { MessageSquare } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
 import { useBoardPresence } from "@/hooks/useBoardPresence";
@@ -40,6 +41,19 @@ type BoardAppearanceState = {
   themeKind?: "preset" | "custom";
   themePreset?: string | null;
   themeCustom?: Record<string, unknown>;
+};
+
+type BoardViewMode = "kanban" | "gantt";
+
+type GanttCardRow = {
+  card: any;
+  listId: string;
+  listName: string;
+  startAt: string;
+  dueAt: string;
+  leftPct: number;
+  widthPct: number;
+  isOverdue: boolean;
 };
 
 type ApplyEventResult = {
@@ -144,6 +158,31 @@ function asString(value: unknown): string | null {
 
 function asFiniteNumber(value: unknown): number | null {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function startOfWeek(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  const mondayOffset = (result.getDay() + 6) % 7;
+  result.setDate(result.getDate() - mondayOffset);
+  return result;
+}
+
+function addDays(date: Date, days: number): Date {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+}
+
+function formatDateKey(date: Date): string {
+  return date.toISOString().slice(0, 10);
+}
+
+function parseDateTimeValue(value?: string | null): number | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  const time = parsed.getTime();
+  return Number.isNaN(time) ? null : time;
 }
 
 function findCardLocation(lists: BoardListState[], cardId: string): { listIndex: number; cardIndex: number } | null {
@@ -757,10 +796,29 @@ export default function BoardPage() {
     backgroundKind: "preset",
     backgroundValue: "bg-background",
   });
+  const [boardView, setBoardView] = useState<BoardViewMode>("kanban");
+  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
+  const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
+  const [ganttWeekBase] = useState(() => startOfWeek(new Date()));
 
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
+
+  const ganttWeekStart = useMemo(() => addDays(ganttWeekBase, ganttWeekOffset * 7), [ganttWeekBase, ganttWeekOffset]);
+  const ganttWeekEnd = useMemo(() => {
+    const end = addDays(ganttWeekStart, 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  }, [ganttWeekStart]);
+  const ganttWeekEndExclusive = useMemo(() => addDays(ganttWeekStart, 7).getTime(), [ganttWeekStart]);
+  const ganttWeekStartMs = ganttWeekStart.getTime();
+  const ganttWeekDurationMs = ganttWeekEndExclusive - ganttWeekStartMs;
+  const ganttWeekDays = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(ganttWeekStart, index)), [ganttWeekStart]);
+  const ganttWeekLabel = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
+    return `${formatter.format(ganttWeekStart)} - ${formatter.format(ganttWeekEnd)}`;
+  }, [ganttWeekEnd, ganttWeekStart, locale]);
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1097,6 +1155,75 @@ export default function BoardPage() {
     })
   }));
 
+  const ganttSections = useMemo<Array<{ listId: string; listName: string; cards: GanttCardRow[] }>>(() => {
+    return filteredLists
+      .map((list: { id: string; title: string; cards: any[] }) => {
+        const cards: GanttCardRow[] = (list.cards || [])
+          .map((card: any): GanttCardRow | null => {
+            const startAt = typeof card?.startAt === "string" ? card.startAt : null;
+            const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
+            const startMs = parseDateTimeValue(startAt || dueAt);
+            const dueMs = parseDateTimeValue(dueAt || startAt);
+
+            if (startMs === null || dueMs === null) {
+              return null;
+            }
+
+            const windowStart = Math.min(startMs, dueMs);
+            const windowEnd = Math.max(startMs, dueMs);
+            if (windowEnd < ganttWeekStartMs || windowStart > ganttWeekEndExclusive) {
+              return null;
+            }
+
+            const clippedStart = Math.max(windowStart, ganttWeekStartMs);
+            const clippedEnd = Math.min(windowEnd, ganttWeekEndExclusive);
+            const leftPct = ((clippedStart - ganttWeekStartMs) / ganttWeekDurationMs) * 100;
+            const widthPct = Math.max(3.5, ((clippedEnd - clippedStart) / ganttWeekDurationMs) * 100);
+
+            return {
+              card,
+              listId: list.id,
+              listName: list.title,
+              startAt: startAt || dueAt || "",
+              dueAt: dueAt || startAt || "",
+              leftPct,
+              widthPct,
+              isOverdue: Boolean(dueMs < Date.now()),
+            };
+          })
+          .filter((row): row is GanttCardRow => Boolean(row))
+          .sort((left, right) => {
+            if (left.leftPct !== right.leftPct) return left.leftPct - right.leftPct;
+            return left.widthPct - right.widthPct;
+          });
+
+        return {
+          listId: list.id,
+          listName: list.title,
+          cards,
+        };
+      })
+      .filter((section) => section.cards.length > 0);
+  }, [filteredLists, ganttWeekDurationMs, ganttWeekEndExclusive, ganttWeekStartMs]);
+
+  const ganttWeekDayLabels = useMemo(() => {
+    return ganttWeekDays.map((date) => ({
+      key: formatDateKey(date),
+      label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date),
+      dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date),
+    }));
+  }, [ganttWeekDays, locale]);
+
+  const formatGanttDateTime = useCallback((value: string) => {
+    return new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      day: "numeric",
+      month: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(new Date(value));
+  }, [locale]);
+
   const resolveBoardBackground = (appearance: BoardAppearanceState): { className: string; style?: CSSProperties } => {
     if (appearance.backgroundKind === "image" && appearance.backgroundImageUrl) {
       return {
@@ -1169,6 +1296,24 @@ export default function BoardPage() {
             <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
             {t("header.live")}
           </button>
+          <div className="flex items-center rounded-full border border-border/70 bg-background/60 p-1 shadow-sm backdrop-blur-sm">
+            <button
+              type="button"
+              onClick={() => setBoardView("kanban")}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${boardView === "kanban" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <SquareKanban className="h-3.5 w-3.5" />
+              {t("header.kanbanView")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setBoardView("gantt")}
+              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${boardView === "gantt" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              <ChartGantt className="h-3.5 w-3.5" />
+              {t("header.ganttView")}
+            </button>
+          </div>
         </div>
 
         <div className="flex items-center space-x-2">
@@ -1358,6 +1503,8 @@ export default function BoardPage() {
         </div>
       </header>
 
+      {boardView === "kanban" ? (
+      <>
       {/* Kanban Canvas */}
       <main className="flex-1 overflow-x-auto overflow-y-hidden">
         <div className="h-full p-6 inline-flex items-start space-x-4">
@@ -1447,6 +1594,142 @@ export default function BoardPage() {
           )}
         </div>
       </main>
+      </>
+      ) : (
+      <main className="flex-1 overflow-hidden">
+        <div className="flex h-full flex-col overflow-y-auto px-6 py-5">
+          <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-sm">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{t("gantt.title")}</p>
+              <div className="mt-1 flex items-center gap-2">
+                <ChartGantt className="h-4 w-4 text-accent" />
+                <h2 className="text-lg font-semibold text-foreground">{ganttWeekLabel}</h2>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setGanttWeekOffset((current) => current - 1)}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={() => setGanttWeekOffset(0)}
+                className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary/90 px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary"
+              >
+                <CalendarDays className="h-4 w-4" />
+                {t("gantt.thisWeek")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setGanttWeekOffset((current) => current + 1)}
+                className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="mb-4 overflow-x-auto pb-2">
+            <div className="min-w-[1040px]">
+              <div className="grid grid-cols-7 overflow-hidden rounded-xl border border-border/60 bg-card/70 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm">
+                {ganttWeekDayLabels.map((day, index) => (
+                  <div key={day.key} className={`px-3 py-3 ${index > 0 ? "border-l border-border/60" : ""}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <span>{day.label}</span>
+                      <span className="text-[10px] tracking-normal text-muted-foreground/80">{day.dateLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 overflow-x-auto pb-4">
+            <div className="min-w-[1040px] space-y-4">
+              {ganttSections.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-16 text-center shadow-sm">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
+                    <ChartGantt className="h-6 w-6" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-foreground">{t("gantt.emptyTitle")}</h3>
+                  <p className="mt-2 text-sm text-muted-foreground">{t("gantt.emptyDescription")}</p>
+                </div>
+              ) : (
+                ganttSections.map((section) => (
+                  <section key={section.listId} className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-sm">
+                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/60 pb-3">
+                      <div>
+                        <h3 className="text-base font-semibold text-foreground">{section.listName}</h3>
+                        <p className="text-xs text-muted-foreground">{t("gantt.cardsInList", { count: section.cards.length })}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {section.cards.map((row: GanttCardRow) => (
+                        <button
+                          key={row.card.id}
+                          type="button"
+                          onClick={() => setSelectedGanttCard({ card: row.card, listId: row.listId, listName: row.listName })}
+                          className="group w-full rounded-xl border border-border/60 bg-background/80 p-3 text-left transition-all hover:border-accent/40 hover:bg-accent/5"
+                        >
+                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+                            <div className="min-w-0 lg:w-72">
+                              <div className="flex items-center gap-2">
+                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.isOverdue ? "#f43f5e" : boardTheme.accent }} />
+                                <h4 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-accent">{row.card.title}</h4>
+                              </div>
+                              <p className="mt-1 truncate text-xs text-muted-foreground">{row.listName}</p>
+                              <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
+                                <div className="flex items-center gap-1.5">
+                                  <Clock3 className="h-3.5 w-3.5" />
+                                  <span>{t("gantt.start")}: {formatGanttDateTime(row.startAt)}</span>
+                                </div>
+                                <div className="flex items-center gap-1.5">
+                                  <CalendarDays className="h-3.5 w-3.5" />
+                                  <span>{t("gantt.due")}: {formatGanttDateTime(row.dueAt)}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="flex-1">
+                              <div className="relative h-18 overflow-hidden rounded-xl border border-border/60 bg-card/50">
+                                <div className="absolute inset-0 grid grid-cols-7">
+                                  {ganttWeekDayLabels.map((day, index) => (
+                                    <div key={`${row.card.id}-${day.key}`} className={`h-full border-l border-dashed border-border/50 ${index === 0 ? "border-l-0" : ""}`} />
+                                  ))}
+                                </div>
+
+                                <div
+                                  className="absolute top-1/2 h-8 -translate-y-1/2 rounded-lg border border-current/20 px-3 py-2 shadow-sm transition-all group-hover:shadow-md"
+                                  style={{
+                                    left: `${row.leftPct}%`,
+                                    width: `${row.widthPct}%`,
+                                    backgroundColor: row.isOverdue ? "rgba(244,63,94,0.82)" : boardTheme.accent,
+                                    color: boardTheme.accentForeground,
+                                  }}
+                                >
+                                  <div className="flex h-full items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.18em]">
+                                    <span className="truncate">{row.card.title}</span>
+                                    <span className="hidden shrink-0 md:inline">{row.listName}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </main>
+      )}
 
       <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} />
 
@@ -1481,6 +1764,22 @@ export default function BoardPage() {
         title={t("confirmDelete.title")}
         description={t("confirmDelete.description")}
       />
+
+      {selectedGanttCard ? (
+        <CardDetailModal
+          isOpen={Boolean(selectedGanttCard)}
+          onClose={() => setSelectedGanttCard(null)}
+          card={selectedGanttCard.card}
+          listId={selectedGanttCard.listId}
+          listName={selectedGanttCard.listName}
+          boardName={boardName}
+          boardId={boardId}
+          readonly={!permissions.canEdit}
+          canComment={permissions.canComment}
+          teamDocs={teamDocs}
+          teamBoards={teamBoards}
+        />
+      ) : null}
     </div>
   );
 }

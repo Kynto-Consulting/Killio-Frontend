@@ -64,12 +64,20 @@ import { Edit2 } from "lucide-react";
 
 function normalizeDueDateInputValue(value?: string | null): string {
   if (!value) return "";
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
-  if (value.includes('T')) return value.split('T')[0];
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`;
 
   const parsed = new Date(value);
   if (Number.isNaN(parsed.getTime())) return "";
-  return parsed.toISOString().split('T')[0];
+  const pad = (input: number) => String(input).padStart(2, "0");
+  return `${parsed.getFullYear()}-${pad(parsed.getMonth() + 1)}-${pad(parsed.getDate())}T${pad(parsed.getHours())}:${pad(parsed.getMinutes())}`;
+}
+
+function toIsoDateTimeValue(value: string): string | null {
+  if (!value) return null;
+  const parsed = new Date(value);
+  const time = parsed.getTime();
+  if (Number.isNaN(time)) return null;
+  return parsed.toISOString();
 }
 
 function formatDurationParts(totalMs: number): string {
@@ -1865,11 +1873,6 @@ export function CardDetailModal({
       return;
     }
 
-    if (totalMinutes > 72 * 60) {
-      toast(t('cardModal.timer.maxDuration'), 'info');
-      return;
-    }
-
     const startAt = new Date();
     const dueAt = new Date(startAt.getTime() + totalMinutes * 60_000);
 
@@ -1975,7 +1978,7 @@ export function CardDetailModal({
   const handleUpdateField = useCallback((field: string, value: any, instant: boolean = true) => {
     if (field === 'title') setLocalTitle(value);
     if (field === 'due_at') {
-      setLocalDueAt(value);
+      setLocalDueAt(normalizeDueDateInputValue(value));
       setLocalDueAtTimestamp(value || null);
     }
     if (field === 'start_at') setLocalStartAt(value || null);
@@ -2005,7 +2008,7 @@ export function CardDetailModal({
       const createdCard = await createCard({
         listId,
         title: localTitle || "New Card",
-        dueAt: localDueAt || undefined,
+        dueAt: localDueAtTimestamp || undefined,
         tags: localTags.map(t => t.id),
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
@@ -2326,6 +2329,7 @@ export function CardDetailModal({
 
                         {filteredAvailableTags.length > 0 && (
                           <div className="space-y-1">
+                          <div className="space-y-1">
                             <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
                             <div className="max-h-32 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
                               {filteredAvailableTags.map(tag => (
@@ -2345,6 +2349,7 @@ export function CardDetailModal({
                                 </button>
                               ))}
                             </div>
+                          </div>
                           </div>
                         )}
 
@@ -2470,9 +2475,9 @@ export function CardDetailModal({
                             <input
                               type="number"
                               min={0}
-                              max={72}
+                              max={9999}
                               value={timerHoursInput}
-                              onChange={(event) => setTimerHoursInput(clampTimerValue(event.target.value, 72))}
+                              onChange={(event) => setTimerHoursInput(clampTimerValue(event.target.value, 9999))}
                               disabled={readonly}
                               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
                             />
@@ -2498,6 +2503,61 @@ export function CardDetailModal({
                         </div>
                       </div>
                     ) : null}
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-sm">
+                  <div className="flex items-start justify-between gap-4">
+                    <div>
+                      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t('cardModal.dueDateEditor.title')}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">{t('cardModal.dueDateEditor.description')}</p>
+                    </div>
+                    {localDueAtTimestamp ? (
+                      <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground">
+                        {formatUiDateTime(localDueAtTimestamp)}
+                      </span>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
+                    <label className="space-y-1 text-xs text-muted-foreground">
+                      <span>{t('cardModal.dueDateEditor.inputLabel')}</span>
+                      <input
+                        type="datetime-local"
+                        value={localDueAt}
+                        onChange={(event) => {
+                          const nextValue = event.target.value;
+                          setLocalDueAt(nextValue);
+                          setLocalDueAtTimestamp(nextValue ? toIsoDateTimeValue(nextValue) : null);
+                        }}
+                        disabled={readonly}
+                        step={60}
+                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                      />
+                    </label>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleUpdateField('due_at', localDueAtTimestamp)}
+                        disabled={readonly || !localDueAtTimestamp}
+                        className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
+                      >
+                        {t('cardModal.dueDateEditor.save')}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setLocalDueAt('');
+                          setLocalDueAtTimestamp(null);
+                          void handleUpdateField('due_at', null);
+                        }}
+                        disabled={readonly}
+                        className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
+                      >
+                        {t('cardModal.dueDateEditor.clear')}
+                      </button>
+                    </div>
                   </div>
                 </div>
 
