@@ -84,6 +84,8 @@
       "finish": "Finish",
       "durationRequired": "Set a duration longer than 0 minutes.",
       "maxDuration": "The timer can run longer than 72 hours.",
+      "dueDateRequired": "Please select a due date.",
+      "invalidDueDate": "Invalid due date format.",
       "startedSuccess": "Timer started for {{duration}}.",
       "startedError": "The timer could not be started.",
       "cancelledSuccess": "Timer cancelled.",

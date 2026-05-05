@@ -84,6 +84,8 @@
       "finish": "Terminar",
       "durationRequired": "Define una duración mayor a 0 minutos.",
       "maxDuration": "El temporizador puede durar más de 72 horas.",
+      "dueDateRequired": "Por favor selecciona una fecha de vencimiento.",
+      "invalidDueDate": "Formato de fecha de vencimiento inválido.",
       "startedSuccess": "Temporizador iniciado por {{duration}}.",
       "startedError": "No se pudo iniciar el temporizador.",
       "cancelledSuccess": "Temporizador cancelado.",

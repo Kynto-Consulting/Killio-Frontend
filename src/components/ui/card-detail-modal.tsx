@@ -158,8 +158,10 @@ export function CardDetailModal({
   const [areTagsExpanded, setAreTagsExpanded] = useState(false);
   const [isAssigneeDropdownOpen, setIsAssigneeDropdownOpen] = useState(false);
   const [isTimerDropdownOpen, setIsTimerDropdownOpen] = useState(false);
+  const [timerMode, setTimerMode] = useState<"timer" | "dueDate">("timer");
   const [timerHoursInput, setTimerHoursInput] = useState("1");
   const [timerMinutesInput, setTimerMinutesInput] = useState("0");
+  const [timerDueAtInput, setTimerDueAtInput] = useState("");
   const [isTimerSubmitting, setIsTimerSubmitting] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
@@ -1864,17 +1866,33 @@ export function CardDetailModal({
   const handleStartTask = useCallback(async () => {
     if (readonly || !card?.id || !accessToken || localAssignees.length === 0 || !isCurrentUserAssigned || isTimerSubmitting) return;
 
-    const hours = Number.parseInt(timerHoursInput || '0', 10) || 0;
-    const minutes = Number.parseInt(timerMinutesInput || '0', 10) || 0;
-    const totalMinutes = hours * 60 + minutes;
-
-    if (totalMinutes <= 0) {
-      toast(t('cardModal.timer.durationRequired'), 'info');
-      return;
-    }
-
     const startAt = new Date();
-    const dueAt = new Date(startAt.getTime() + totalMinutes * 60_000);
+    let dueAt: Date;
+
+    if (timerMode === "timer") {
+      const hours = Number.parseInt(timerHoursInput || '0', 10) || 0;
+      const minutes = Number.parseInt(timerMinutesInput || '0', 10) || 0;
+      const totalMinutes = hours * 60 + minutes;
+
+      if (totalMinutes <= 0) {
+        toast(t('cardModal.timer.durationRequired'), 'info');
+        return;
+      }
+
+      dueAt = new Date(startAt.getTime() + totalMinutes * 60_000);
+    } else {
+      // Mode: dueDate
+      if (!timerDueAtInput) {
+        toast(t('cardModal.timer.dueDateRequired'), 'info');
+        return;
+      }
+      const parsedDueAt = new Date(timerDueAtInput);
+      if (Number.isNaN(parsedDueAt.getTime())) {
+        toast(t('cardModal.timer.invalidDueDate'), 'error');
+        return;
+      }
+      dueAt = parsedDueAt;
+    }
 
     setIsTimerSubmitting(true);
     try {
@@ -1889,14 +1907,15 @@ export function CardDetailModal({
       setLocalDueAt(normalizeDueDateInputValue(dueAt.toISOString()));
       setLocalCompletedAt(null);
       setIsTimerDropdownOpen(false);
-      toast(t('cardModal.timer.startedSuccess', { duration: formatDurationParts(totalMinutes * 60_000) }), 'success');
+      const durationMs = dueAt.getTime() - startAt.getTime();
+      toast(t('cardModal.timer.startedSuccess', { duration: formatDurationParts(durationMs) }), 'success');
     } catch (err) {
       console.error('Failed to start task timer', err);
       toast(t('cardModal.timer.startedError'), 'error');
     } finally {
       setIsTimerSubmitting(false);
     }
-  }, [accessToken, applyCardPatch, card?.id, isCurrentUserAssigned, isTimerSubmitting, localAssignees.length, readonly, timerHoursInput, timerMinutesInput]);
+  }, [accessToken, applyCardPatch, card?.id, isCurrentUserAssigned, isTimerSubmitting, localAssignees.length, readonly, timerHoursInput, timerMinutesInput, timerMode, timerDueAtInput, t]);
 
   const handleCancelTask = useCallback(async () => {
     if (readonly || !card?.id || !accessToken || !isCurrentUserAssigned || isTimerSubmitting) return;
@@ -2464,38 +2483,84 @@ export function CardDetailModal({
                       </div>
                     )}
                     {isTimerDropdownOpen && card?.id ? (
-                      <div className="absolute right-0 top-9 z-30 w-72 rounded-xl border border-border/80 bg-card shadow-2xl p-3 space-y-3">
+                      <div className="absolute right-0 top-9 z-30 w-80 rounded-xl border border-border/80 bg-card shadow-2xl p-4 space-y-4">
                         <div>
                           <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t('cardModal.timer.durationTitle')}</p>
                           <p className="text-xs text-muted-foreground mt-1">{t('cardModal.timer.durationDescription')}</p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          <label className="space-y-1 text-xs text-muted-foreground">
-                            <span>{t('cardModal.timer.hours')}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={9999}
-                              value={timerHoursInput}
-                              onChange={(event) => setTimerHoursInput(clampTimerValue(event.target.value, 9999))}
-                              disabled={readonly}
-                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
-                            />
-                          </label>
-                          <label className="space-y-1 text-xs text-muted-foreground">
-                            <span>{t('cardModal.timer.minutes')}</span>
-                            <input
-                              type="number"
-                              min={0}
-                              max={59}
-                              value={timerMinutesInput}
-                              onChange={(event) => setTimerMinutesInput(clampTimerValue(event.target.value, 59))}
-                              disabled={readonly}
-                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
-                            />
-                          </label>
+
+                        {/* Mode Selector: Timer or Due Date */}
+                        <div className="flex items-center gap-2 bg-muted/50 rounded-lg p-1.5">
+                          <button
+                            type="button"
+                            onClick={() => setTimerMode("timer")}
+                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                              timerMode === "timer"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            Duration
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setTimerMode("dueDate")}
+                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                              timerMode === "dueDate"
+                                ? "bg-primary text-primary-foreground"
+                                : "text-muted-foreground hover:text-foreground"
+                            }`}
+                          >
+                            Due Date
+                          </button>
                         </div>
-                        <div className="flex items-center justify-end gap-2">
+
+                        {/* Timer Mode: Hours and Minutes */}
+                        {timerMode === "timer" && (
+                          <div className="grid grid-cols-2 gap-3">
+                            <label className="space-y-1.5 text-xs text-muted-foreground">
+                              <span className="block font-medium">{t('cardModal.timer.hours')}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={9999}
+                                value={timerHoursInput}
+                                onChange={(event) => setTimerHoursInput(clampTimerValue(event.target.value, 9999))}
+                                disabled={readonly}
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                              />
+                            </label>
+                            <label className="space-y-1.5 text-xs text-muted-foreground">
+                              <span className="block font-medium">{t('cardModal.timer.minutes')}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                max={59}
+                                value={timerMinutesInput}
+                                onChange={(event) => setTimerMinutesInput(clampTimerValue(event.target.value, 59))}
+                                disabled={readonly}
+                                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                              />
+                            </label>
+                          </div>
+                        )}
+
+                        {/* Due Date Mode: Date and Time Picker */}
+                        {timerMode === "dueDate" && (
+                          <label className="space-y-1.5 text-xs text-muted-foreground">
+                            <span className="block font-medium">Due Date & Time</span>
+                            <input
+                              type="datetime-local"
+                              value={timerDueAtInput}
+                              onChange={(event) => setTimerDueAtInput(event.target.value)}
+                              disabled={readonly}
+                              step={60}
+                              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
+                            />
+                          </label>
+                        )}
+
+                        <div className="flex items-center justify-end gap-2 pt-2">
                           <button type="button" onClick={() => setIsTimerDropdownOpen(false)} className="px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground">{t('cardModal.timer.cancel')}</button>
                           <button type="button" onClick={() => void handleStartTask()} disabled={isTimerSubmitting || isCardArchived || readonly || !isCurrentUserAssigned} className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50">
                             {isTimerSubmitting ? t('cardModal.timer.starting') : t('cardModal.timer.startTimer')}
