@@ -26,6 +26,7 @@
   "gantt": {
     "title": "Gantt semanal",
     "thisWeek": "Esta semana",
+    "lists": "Listas",
     "emptyTitle": "No hay cards en esta semana",
     "emptyDescription": "Aparecerán aquí las cards con fecha de inicio o vencimiento que caigan dentro de este rango semanal.",
     "cardsInList": "{{count}} cards",

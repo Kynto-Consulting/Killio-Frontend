@@ -26,6 +26,7 @@
   "gantt": {
     "title": "Weekly Gantt",
     "thisWeek": "This week",
+    "lists": "Lists",
     "emptyTitle": "No cards in this week",
     "emptyDescription": "Cards with a start or due date that overlap this weekly range will appear here.",
     "cardsInList": "{{count}} cards",

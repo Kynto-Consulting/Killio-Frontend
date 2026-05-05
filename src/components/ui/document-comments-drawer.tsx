@@ -758,7 +758,7 @@ export function DocumentCommentsDrawer({
                   <div className={`flex gap-3 ${isMe ? 'flex-row-reverse' : ''}`}>
                     <div className="h-8 w-8 shrink-0 rounded overflow-hidden border shadow-sm">
                       <img
-                        src={getUserAvatarUrl(normalizedMember?.avatarUrl, normalizedMember?.primaryEmail || 'user@killio.app', 32)}
+                        src={getUserAvatarUrl(normalizedMember?.avatarUrl, normalizedMember?.primaryEmail || 'user@killio.dev', 32)}
                         className="h-full w-full object-cover bg-muted"
                         alt={getWorkspaceMemberLabel(member, 'User')}
                       />

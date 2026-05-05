@@ -1224,6 +1224,34 @@ export default function BoardPage() {
     }).format(new Date(value));
   }, [locale]);
 
+  const getCardBarColor = useCallback((card: any): string => {
+    // If card has a background color, use it
+    if (card.backgroundColor && typeof card.backgroundColor === "string") {
+      return card.backgroundColor;
+    }
+
+    // If completed, blue
+    if (card.completedAt || card.status === "done") {
+      return "#3b82f6"; // blue
+    }
+
+    // If overdue, red
+    if (card.dueAt) {
+      const dueMs = parseDateTimeValue(card.dueAt);
+      if (dueMs && dueMs < Date.now()) {
+        return "#ef4444"; // red
+      }
+    }
+
+    // If active and not completed, orange
+    if (card.status === "active") {
+      return "#f97316"; // orange
+    }
+
+    // Default blue
+    return "#3b82f6";
+  }, []);
+
   const resolveBoardBackground = (appearance: BoardAppearanceState): { className: string; style?: CSSProperties } => {
     if (appearance.backgroundKind === "image" && appearance.backgroundImageUrl) {
       return {
@@ -1648,7 +1676,7 @@ export default function BoardPage() {
           </div>
 
           <div className="space-y-4 overflow-x-auto pb-4">
-            <div className="min-w-[1040px] space-y-4">
+            <div className="min-w-[1200px]">
               {ganttSections.length === 0 ? (
                 <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-16 text-center shadow-sm">
                   <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
@@ -1658,72 +1686,108 @@ export default function BoardPage() {
                   <p className="mt-2 text-sm text-muted-foreground">{t("gantt.emptyDescription")}</p>
                 </div>
               ) : (
-                ganttSections.map((section) => (
-                  <section key={section.listId} className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-sm">
-                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-border/60 pb-3">
-                      <div>
-                        <h3 className="text-base font-semibold text-foreground">{section.listName}</h3>
-                        <p className="text-xs text-muted-foreground">{t("gantt.cardsInList", { count: section.cards.length })}</p>
-                      </div>
+                <div className="rounded-2xl border border-border/60 bg-card/60 shadow-sm overflow-hidden">
+                  {/* Table Header */}
+                  <div className="flex border-b border-border/60 bg-muted/30">
+                    {/* List column header */}
+                    <div className="w-48 shrink-0 px-4 py-3 border-r border-border/60">
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("gantt.lists")}</p>
                     </div>
-
-                    <div className="space-y-3">
-                      {section.cards.map((row: GanttCardRow) => (
-                        <button
-                          key={row.card.id}
-                          type="button"
-                          onClick={() => setSelectedGanttCard({ card: row.card, listId: row.listId, listName: row.listName })}
-                          className="group w-full rounded-xl border border-border/60 bg-background/80 p-3 text-left transition-all hover:border-accent/40 hover:bg-accent/5"
-                        >
-                          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
-                            <div className="min-w-0 lg:w-72">
-                              <div className="flex items-center gap-2">
-                                <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: row.isOverdue ? "#f43f5e" : boardTheme.accent }} />
-                                <h4 className="truncate text-sm font-semibold text-foreground transition-colors group-hover:text-accent">{row.card.title}</h4>
-                              </div>
-                              <p className="mt-1 truncate text-xs text-muted-foreground">{row.listName}</p>
-                              <div className="mt-2 space-y-1 text-[11px] text-muted-foreground">
-                                <div className="flex items-center gap-1.5">
-                                  <Clock3 className="h-3.5 w-3.5" />
-                                  <span>{t("gantt.start")}: {formatGanttDateTime(row.startAt)}</span>
-                                </div>
-                                <div className="flex items-center gap-1.5">
-                                  <CalendarDays className="h-3.5 w-3.5" />
-                                  <span>{t("gantt.due")}: {formatGanttDateTime(row.dueAt)}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="flex-1">
-                              <div className="relative h-18 overflow-hidden rounded-xl border border-border/60 bg-card/50">
-                                <div className="absolute inset-0 grid grid-cols-7">
-                                  {ganttWeekDayLabels.map((day, index) => (
-                                    <div key={`${row.card.id}-${day.key}`} className={`h-full border-l border-dashed border-border/50 ${index === 0 ? "border-l-0" : ""}`} />
-                                  ))}
-                                </div>
-
-                                <div
-                                  className="absolute top-1/2 h-8 -translate-y-1/2 rounded-lg border border-current/20 px-3 py-2 shadow-sm transition-all group-hover:shadow-md"
-                                  style={{
-                                    left: `${row.leftPct}%`,
-                                    width: `${row.widthPct}%`,
-                                    backgroundColor: row.isOverdue ? "rgba(244,63,94,0.82)" : boardTheme.accent,
-                                    color: boardTheme.accentForeground,
-                                  }}
-                                >
-                                  <div className="flex h-full items-center justify-between gap-2 text-[10px] font-semibold uppercase tracking-[0.18em]">
-                                    <span className="truncate">{row.card.title}</span>
-                                    <span className="hidden shrink-0 md:inline">{row.listName}</span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </button>
+                    {/* Day headers */}
+                    <div className="flex flex-1">
+                      {ganttWeekDayLabels.map((day, index) => (
+                        <div key={day.key} className={`flex-1 px-3 py-3 text-center ${index > 0 ? "border-l border-border/60" : ""}`}>
+                          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{day.label}</div>
+                          <div className="text-[10px] text-muted-foreground/70 mt-1">{day.dateLabel}</div>
+                        </div>
                       ))}
                     </div>
-                  </section>
-                ))
+                  </div>
+
+                  {/* Table Rows (one row per list) */}
+                  {filteredLists.map((list) => (
+                    <div key={list.id} className="flex border-b border-border/40 last:border-b-0 hover:bg-accent/5 transition-colors">
+                      {/* List name */}
+                      <div className="w-48 shrink-0 px-4 py-4 border-r border-border/60 flex items-center bg-background/40">
+                        <div>
+                          <h4 className="text-sm font-semibold text-foreground">{list.title}</h4>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {t("gantt.cardsInList", { count: (list.cards || []).length })}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Day cells with cards */}
+                      <div className="flex flex-1">
+                        {ganttWeekDayLabels.map((dayLabel, dayIndex) => {
+                          const dayDate = ganttWeekDays[dayIndex];
+                          const dayStartMs = dayDate.getTime();
+                          const dayEndMs = addDays(dayDate, 1).getTime();
+
+                          // Filter cards that fall within this day
+                          const cardsInDay = (list.cards || []).filter((card: any) => {
+                            const startAt = typeof card?.startAt === "string" ? card.startAt : null;
+                            const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
+                            const startMs = parseDateTimeValue(startAt || dueAt);
+                            const dueMs = parseDateTimeValue(dueAt || startAt);
+
+                            if (startMs === null || dueMs === null) return false;
+
+                            const windowStart = Math.min(startMs, dueMs);
+                            const windowEnd = Math.max(startMs, dueMs);
+                            return windowEnd > dayStartMs && windowStart < dayEndMs;
+                          });
+
+                          return (
+                            <div
+                              key={`${list.id}-${dayLabel.key}`}
+                              className={`flex-1 relative px-2 py-3 ${dayIndex > 0 ? "border-l border-border/60" : ""} min-h-[100px]`}
+                            >
+                              {cardsInDay.map((card: any) => {
+                                const startAt = typeof card?.startAt === "string" ? card.startAt : null;
+                                const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
+                                const startMs = parseDateTimeValue(startAt || dueAt);
+                                const dueMs = parseDateTimeValue(dueAt || startAt);
+
+                                const windowStart = Math.min(startMs!, dueMs!);
+                                const windowEnd = Math.max(startMs!, dueMs!);
+
+                                // Clip to this day
+                                const clippedStart = Math.max(windowStart, dayStartMs);
+                                const clippedEnd = Math.min(windowEnd, dayEndMs);
+
+                                // Calculate position and width within the 24-hour day
+                                const dayDurationMs = dayEndMs - dayStartMs;
+                                const leftPct = ((clippedStart - dayStartMs) / dayDurationMs) * 100;
+                                const widthPct = Math.max(5, ((clippedEnd - clippedStart) / dayDurationMs) * 100);
+
+                                const barColor = getCardBarColor(card);
+
+                                return (
+                                  <button
+                                    key={card.id}
+                                    type="button"
+                                    onClick={() => setSelectedGanttCard({ card, listId: list.id, listName: list.title })}
+                                    className="absolute top-1 rounded-md px-2 py-1 text-[10px] font-medium text-white shadow-sm hover:shadow-md transition-all overflow-hidden text-ellipsis whitespace-nowrap"
+                                    style={{
+                                      left: `${leftPct}%`,
+                                      width: `${widthPct}%`,
+                                      backgroundColor: barColor,
+                                      opacity: 0.85,
+                                    }}
+                                    title={card.title}
+                                  >
+                                    {card.title}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </div>
