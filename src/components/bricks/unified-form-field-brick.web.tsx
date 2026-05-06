@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext } from "react";
 import { Input } from "@/components/ui/input";
+import { translateNativeTagName } from "@/lib/native-tags";
 
 export type FormFieldType =
   | "text"
@@ -230,20 +231,27 @@ export function UnifiedFormFieldBrick({
         </div>
 
         {(config.type === "select" || config.type === "radio") && (
-          <Input
-            value={config.options?.join(", ") || ""}
-            onChange={(event) =>
-              onUpdate({
-                ...config,
-                options: event.target.value
-                  .split(",")
-                  .map((entry) => entry.trim())
-                  .filter(Boolean),
-              })
-            }
-            placeholder="Opciones separadas por coma"
-            className="h-9 bg-background"
-          />
+          <div className="space-y-1.5">
+            <Input
+              value={config.options?.join(", ") || ""}
+              onChange={(event) =>
+                onUpdate({
+                  ...config,
+                  options: event.target.value
+                    .split(",")
+                    .map((entry) => entry.trim())
+                    .filter(Boolean),
+                })
+              }
+              placeholder="Opciones separadas por coma"
+              className="h-9 bg-background"
+            />
+            {config.options?.some(o => o.startsWith("tag.native.")) && (
+              <p className="text-[10px] text-muted-foreground leading-tight">
+                Nota: Las etiquetas nativas se traducirán automáticamente para los usuarios que llenen el formulario.
+              </p>
+            )}
+          </div>
         )}
 
         <div className="rounded-md border border-border/70 bg-background p-3 space-y-2">
@@ -379,7 +387,7 @@ export function UnifiedFormFieldBrick({
           </option>
           {(config.options || []).map((option, index) => (
             <option key={index} value={option}>
-              {option}
+              {translateNativeTagName(option)}
             </option>
           ))}
         </select>
@@ -402,7 +410,7 @@ export function UnifiedFormFieldBrick({
                 onChange={(event) => onRuntimeValueChange(event.target.value)}
                 className="h-4 w-4 text-accent border-input focus:ring-accent"
               />
-              {option}
+              {translateNativeTagName(option)}
             </label>
           ))}
         </div>
