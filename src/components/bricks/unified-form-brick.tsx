@@ -635,6 +635,8 @@ export function UnifiedFormBrick({
       setSubmitState("success");
       toast(successMessage, "success");
       setValues({});
+      setActivePage(navigablePages[0]?.id || DEFAULT_PAGE_ID);
+      setTimeout(() => setSubmitState("idle"), 8000);
     } catch (error) {
       console.error("Failed to submit form brick", error);
       setSubmitState("error");
@@ -966,30 +968,45 @@ export function UnifiedFormBrick({
             />
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1">
-            <Button type="button" variant="outline" onClick={goToPreviousPage} disabled={activePageIndex <= 0} className="gap-2">
-              <ChevronLeft className="h-4 w-4" />
-              Anterior
-            </Button>
-
-            {!isLastPage ? (
-              <Button type="button" onClick={goToNextPage} className="gap-2">
-                Siguiente
-                <ChevronRight className="h-4 w-4" />
+          {navigablePages.length > 1 ? (
+            <div className="flex items-center justify-between gap-2 pt-1">
+              <Button type="button" variant="outline" onClick={goToPreviousPage} disabled={activePageIndex <= 0} className="gap-2">
+                <ChevronLeft className="h-4 w-4" />
+                Anterior
               </Button>
-            ) : (
+              {!isLastPage ? (
+                <Button type="button" onClick={goToNextPage} className="gap-2">
+                  Siguiente
+                  <ChevronRight className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button type="submit" className="gap-2" disabled={isSubmitting}>
+                  {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                  {submitLabel}
+                </Button>
+              )}
+            </div>
+          ) : (
+            <div className="flex justify-end pt-1">
               <Button type="submit" className="gap-2" disabled={isSubmitting}>
                 {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 {submitLabel}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </form>
       </FormFieldRuntimeProvider>
 
       {submitState === "success" ? (
-        <div className="rounded-md bg-emerald-50 dark:bg-emerald-500/10 p-3 border border-emerald-200 dark:border-emerald-500/20">
+        <div className="rounded-md bg-emerald-50 dark:bg-emerald-500/10 p-4 border border-emerald-200 dark:border-emerald-500/20 flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-emerald-600 dark:text-emerald-400">{successMessage}</p>
+          <button
+            type="button"
+            onClick={() => setSubmitState("idle")}
+            className="text-xs font-medium text-emerald-600 dark:text-emerald-400 underline underline-offset-2 hover:no-underline whitespace-nowrap shrink-0"
+          >
+            Enviar otra
+          </button>
         </div>
       ) : null}
       {submitState === "error" ? (

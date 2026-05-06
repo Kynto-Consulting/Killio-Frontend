@@ -35,6 +35,7 @@ export type FormFieldCondition = {
 
 export type FormFieldConfig = {
   fieldId: string;
+  label?: string;
   type: FormFieldType;
   placeholder?: string;
   required?: boolean;
@@ -73,6 +74,7 @@ export function createDefaultFormFieldConfig(overrides?: Partial<FormFieldConfig
   const seed = Math.random().toString(36).slice(2, 7);
   return {
     fieldId: `field_${seed}`,
+    label: "",
     type: "text",
     placeholder: "",
     required: false,
@@ -96,6 +98,7 @@ export function normalizeFormFieldConfig(raw: unknown): FormFieldConfig | null {
   const allowedTypes: FormFieldType[] = ["text", "email", "textarea", "number", "date", "tel", "url", "checkbox", "radio", "select"];
   const safeType = allowedTypes.includes(type) ? type : "text";
 
+  const label = typeof input.label === "string" ? input.label.trim() : "";
   const placeholder = typeof input.placeholder === "string" ? input.placeholder : "";
   const required = Boolean(input.required);
   const options = Array.isArray(input.options)
@@ -134,6 +137,7 @@ export function normalizeFormFieldConfig(raw: unknown): FormFieldConfig | null {
 
   return {
     fieldId: slugifyFieldId(rawFieldId),
+    label,
     type: safeType,
     placeholder,
     required,
@@ -180,10 +184,10 @@ export function UnifiedFormFieldBrick({
 
         <div className="grid gap-2 md:grid-cols-3">
           <Input
-            value={config.fieldId}
-            onChange={(event) => onUpdate({ ...config, fieldId: slugifyFieldId(event.target.value) })}
-            placeholder="field_id"
-            className="h-9 font-mono"
+            value={config.label || ""}
+            onChange={(event) => onUpdate({ ...config, label: event.target.value })}
+            placeholder="Etiqueta del campo"
+            className="h-9"
           />
 
           <select
@@ -218,7 +222,7 @@ export function UnifiedFormFieldBrick({
           />
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <label className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm text-muted-foreground cursor-pointer hover:bg-muted/50">
             <input
               type="checkbox"
@@ -228,6 +232,10 @@ export function UnifiedFormFieldBrick({
             />
             Obligatorio
           </label>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className="font-mono text-[10px] bg-muted px-1.5 py-0.5 rounded">{config.fieldId}</span>
+            <span className="text-muted-foreground/50">clave del campo</span>
+          </div>
         </div>
 
         {(config.type === "select" || config.type === "radio") && (
@@ -357,93 +365,85 @@ export function UnifiedFormFieldBrick({
     );
   }
 
+  const isRequired = config.required;
+
   if (config.type === "textarea") {
     return (
-      <div className="block space-y-1.5">
-        <textarea
-          id={id}
-          className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
-          placeholder={config.placeholder || ""}
-          required={config.required}
-          value={(value as string) || ""}
-          onChange={(event) => onRuntimeValueChange(event.target.value)}
-        />
-      </div>
+      <textarea
+        id={id}
+        className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+        placeholder={config.placeholder || ""}
+        required={isRequired}
+        value={(value as string) || ""}
+        onChange={(event) => onRuntimeValueChange(event.target.value)}
+      />
     );
   }
 
   if (config.type === "select") {
     return (
-      <div className="block space-y-1.5">
-        <select
-          id={id}
-          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30"
-          required={config.required}
-          value={(value as string) || ""}
-          onChange={(event) => onRuntimeValueChange(event.target.value)}
-        >
-          <option value="" disabled>
-            {config.placeholder || "Selecciona una opcion"}
+      <select
+        id={id}
+        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+        required={isRequired}
+        value={(value as string) || ""}
+        onChange={(event) => onRuntimeValueChange(event.target.value)}
+      >
+        <option value="" disabled>
+          {config.placeholder || "Selecciona una opcion"}
+        </option>
+        {(config.options || []).map((option, index) => (
+          <option key={index} value={option}>
+            {translateNativeTagName(option)}
           </option>
-          {(config.options || []).map((option, index) => (
-            <option key={index} value={option}>
-              {translateNativeTagName(option)}
-            </option>
-          ))}
-        </select>
-      </div>
+        ))}
+      </select>
     );
   }
 
   if (config.type === "radio") {
     return (
-      <div className="block space-y-1.5">
-        <div className="space-y-2 mt-1">
-          {(config.options || []).map((option, index) => (
-            <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-              <input
-                type="radio"
-                name={id}
-                value={option}
-                required={config.required}
-                checked={value === option}
-                onChange={(event) => onRuntimeValueChange(event.target.value)}
-                className="h-4 w-4 text-accent border-input focus:ring-accent"
-              />
-              {translateNativeTagName(option)}
-            </label>
-          ))}
-        </div>
+      <div className="space-y-2">
+        {(config.options || []).map((option, index) => (
+          <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <input
+              type="radio"
+              name={id}
+              value={option}
+              required={isRequired}
+              checked={value === option}
+              onChange={(event) => onRuntimeValueChange(event.target.value)}
+              className="h-4 w-4 text-accent border-input focus:ring-accent"
+            />
+            {translateNativeTagName(option)}
+          </label>
+        ))}
       </div>
     );
   }
 
   if (config.type === "checkbox") {
     return (
-      <label className="flex items-start gap-2 text-sm text-foreground cursor-pointer">
-        <input
-          type="checkbox"
-          id={id}
-          required={config.required}
-          checked={!!value}
-          onChange={(event) => onRuntimeValueChange(event.target.checked)}
-          className="mt-1 h-4 w-4 rounded border-input text-accent focus:ring-accent"
-        />
-        <span className="leading-tight font-mono text-xs text-muted-foreground">{config.fieldId}</span>
-      </label>
-    );
-  } 
-  return (
-    <div className="block space-y-1.5">
-      <Input
+      <input
+        type="checkbox"
         id={id}
-        type={config.type}
-        placeholder={config.placeholder || ""}
-        required={config.required}
-        value={(value as string) || ""}
-        onChange={(event) => onRuntimeValueChange(event.target.value)}
-        className="w-full"
+        required={isRequired}
+        checked={!!value}
+        onChange={(event) => onRuntimeValueChange(event.target.checked)}
+        className="mt-0.5 h-4 w-4 rounded border-input text-accent focus:ring-accent cursor-pointer"
       />
-    </div>
+    );
+  }
+
+  return (
+    <Input
+      id={id}
+      type={config.type}
+      placeholder={config.placeholder || ""}
+      required={isRequired}
+      value={(value as string) || ""}
+      onChange={(event) => onRuntimeValueChange(event.target.value)}
+      className="w-full"
+    />
   );
 }
