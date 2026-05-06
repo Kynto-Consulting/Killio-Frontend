@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
 import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
@@ -97,7 +97,7 @@ export default function DocumentPage() {
         setTeamDocs(docs);
         setTeamBoards(boards);
         setTeamMembers(members);
-        
+
         let parsedFlds = [];
         if (Array.isArray(flds)) parsedFlds = flds;
         else if (flds && typeof flds === 'object' && Array.isArray((flds as any).data)) parsedFlds = (flds as any).data;
@@ -134,10 +134,10 @@ export default function DocumentPage() {
             bricks: prev.bricks.map((b) =>
               b.id === event.payload.id
                 ? {
-                    ...b,
-                    content: { ...(b.content || {}), ...(event.payload.contentPatch || {}) },
-                    updatedAt: event.payload.updatedAt || b.updatedAt,
-                  }
+                  ...b,
+                  content: { ...(b.content || {}), ...(event.payload.contentPatch || {}) },
+                  updatedAt: event.payload.updatedAt || b.updatedAt,
+                }
                 : b
             ),
           };
@@ -271,13 +271,13 @@ export default function DocumentPage() {
   const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
     if (!accessToken || !document) return;
-    
+
     const parentBrick = parentProps ? document.bricks.find((b) => b.id === parentProps.parentId) : null;
     const contextBricks = parentProps && parentBrick
       ? (resolveNestedBricks(parentBrick.content, parentProps.containerId, document.bricks as any[]) as DocumentBrick[])
       : document.bricks
-          .filter((b) => getTopLevelBrickIds(document.bricks).has(b.id))
-          .sort((a, b) => a.position - b.position);
+        .filter((b) => getTopLevelBrickIds(document.bricks).has(b.id))
+        .sort((a, b) => a.position - b.position);
 
     let position = 1000;
     if (afterBrickId) {
@@ -294,68 +294,68 @@ export default function DocumentPage() {
     }
 
     // Default empty content based on kind
-    let content: any = initialContent || {}; if(!initialContent) {
-    if (kind === 'text') content = { text: '' };
-    if (kind === 'checklist') content = { items: [] };
-    if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
-    if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true, childrenByContainer: { body: [] } };
-    if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
-    if (kind === 'database' || kind === 'beautiful_table' || kind === 'bountiful') {
-      const colNameId = 'col-name';
-      const colStatusId = 'col-status';
-      const now = Date.now();
-      const isonow = new Date(now).toISOString();
-      content = {
-        title: 'Database',
-        columns: [
-          { id: colNameId, name: 'Nombre', type: 'title' },
-          {
-            id: colStatusId,
-            name: 'Estado',
-            type: 'status',
-            options: [
-              { id: 'opt-pendiente', name: 'Pendiente', color: 'yellow' },
-              { id: 'opt-activo', name: 'Activo', color: 'green' },
-              { id: 'opt-cerrado', name: 'Cerrado', color: 'gray' },
-            ],
-          },
-        ],
-        rows: [
-          {
-            id: `row-${now}`,
-            cells: {
-              [colNameId]: { type: 'text', text: '' },
-              [colStatusId]: { type: 'select', name: '', color: 'default' },
+    let content: any = initialContent || {}; if (!initialContent) {
+      if (kind === 'text') content = { text: '' };
+      if (kind === 'checklist') content = { items: [] };
+      if (kind === 'graph') content = { type: 'line', data: [{ name: 'Jan', value: 400 }, { name: 'Feb', value: 300 }], title: 'New Chart' };
+      if (kind === 'accordion') content = { title: 'Toggle Header', isExpanded: true, childrenByContainer: { body: [] } };
+      if (kind === 'table') content = { rows: [['Header 1', 'Header 2'], ['Row 1 Cell 1', 'Row 1 Cell 2']] };
+      if (kind === 'database' || kind === 'beautiful_table' || kind === 'bountiful') {
+        const colNameId = 'col-name';
+        const colStatusId = 'col-status';
+        const now = Date.now();
+        const isonow = new Date(now).toISOString();
+        content = {
+          title: 'Database',
+          columns: [
+            { id: colNameId, name: 'Nombre', type: 'title' },
+            {
+              id: colStatusId,
+              name: 'Estado',
+              type: 'status',
+              options: [
+                { id: 'opt-pendiente', name: 'Pendiente', color: 'yellow' },
+                { id: 'opt-activo', name: 'Activo', color: 'green' },
+                { id: 'opt-cerrado', name: 'Cerrado', color: 'gray' },
+              ],
             },
-      _createdAt: isonow,
-      _lastEditedAt: isonow,
-      _createdBy: user?.id ||'',
-      _lastEditedBy: user?.id ||'',
-          },
-        ],
-      };
+          ],
+          rows: [
+            {
+              id: `row-${now}`,
+              cells: {
+                [colNameId]: { type: 'text', text: '' },
+                [colStatusId]: { type: 'select', name: '', color: 'default' },
+              },
+              _createdAt: isonow,
+              _lastEditedAt: isonow,
+              _createdBy: user?.id || '',
+              _lastEditedBy: user?.id || '',
+            },
+          ],
+        };
+      }
+      if (kind === 'image') content = { url: '', mediaType: 'image' };
+      if (kind === 'video') content = { url: '', mediaType: 'video' };
+      if (kind === 'audio') content = { url: '', mediaType: 'audio' };
+      if (kind === 'file') content = { url: '', mediaType: 'file' };
+      if (kind === 'bookmark') content = { url: '', mediaType: 'bookmark' };
+      if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
+      if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
+      if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }], childrenByContainer: { '1': [] } };
+      if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }], childrenByContainer: { '1': [], '2': [] } };
+      if (kind === 'form' && !initialContent) {
+        content = {
+          title: 'Formulario',
+          description: '',
+          webhookUrl: '',
+          submitLabel: 'Enviar',
+          successMessage: 'Enviado correctamente.',
+          pages: [{ id: 'page-1', label: 'Paso 1' }],
+          childrenByContainer: { 'page-1': [] },
+        };
+      }
     }
-    if (kind === 'image') content = { url: '', mediaType: 'image' };
-    if (kind === 'video') content = { url: '', mediaType: 'video' };
-    if (kind === 'audio') content = { url: '', mediaType: 'audio' };
-    if (kind === 'file') content = { url: '', mediaType: 'file' };
-    if (kind === 'bookmark') content = { url: '', mediaType: 'bookmark' };
-    if (kind === 'code') content = { text: '```\n// Ingresa tu código aquí\n```', markdown: '```\n// Ingresa tu código aquí\n```' };
-    if (kind === 'math') content = { text: '$$ \n\\int_0^T f(t) dt \n$$', markdown: '$$ \n\\int_0^T f(t) dt \n$$' };
-    if (kind === 'tabs') content = { tabs: [{ id: '1', label: 'Tab 1' }], childrenByContainer: { '1': [] } };
-    if (kind === 'columns') content = { columns: [{ id: '1' }, { id: '2' }], childrenByContainer: { '1': [], '2': [] } };
-    if (kind === 'form' && !initialContent) {
-      content = {
-        title: 'Formulario',
-        description: '',
-        webhookUrl: '',
-        submitLabel: 'Enviar',
-        successMessage: 'Enviado correctamente.',
-        pages: [{ id: 'page-1', label: 'Paso 1' }],
-        childrenByContainer: { 'page-1': [] },
-      };
-    }
-  }
     let finalKind = kind;
     if (['video', 'audio', 'file', 'bookmark'].includes(kind)) finalKind = 'media';
     if (kind === 'code' || kind === 'math') finalKind = 'text';
@@ -414,23 +414,23 @@ export default function DocumentPage() {
       }
 
       if (parentProps) {
-        const parent = currentBricks.find((b) => b.id === parentProps.parentId);
+        const parent = currentBricks.find((b: any) => b.id === parentProps.parentId);
         if (parent) {
           const siblings = resolveNestedBricks(parent.content, parentProps.containerId, currentBricks as any[]) as DocumentBrick[];
           const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
           const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
           const nextParentContent = insertChildId(parent.content || {}, parentProps.containerId, optimisticId, insertIndex);
-          currentBricks = currentBricks.map((b) => (b.id === parent.id ? { ...b, content: nextParentContent } : b));
+          currentBricks = currentBricks.map((b: any) => (b.id === parent.id ? { ...b, content: nextParentContent } : b));
         }
       }
 
       documentBricksRef.current = currentBricks;
       setDocument((prev) => prev ? { ...prev, bricks: currentBricks } : prev);
     }
-    
+
     try {
       const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
-      
+
       currentBricks = documentBricksRef.current;
 
       if (optimisticId && currentBricks.some((b) => b.id === optimisticId)) {
@@ -466,7 +466,7 @@ export default function DocumentPage() {
           fetchDoc();
         }
       }
-      
+
       // If we just created a container block, scaffold initial inner content.
       if (['tabs', 'accordion', 'columns', 'form'].includes(kind)) {
         const defaultContainerId = kind === 'tabs'
@@ -478,19 +478,19 @@ export default function DocumentPage() {
               : 'body';
         const textContent = kind === 'form'
           ? {
-              text: '',
-              markdown: '',
-              formField: {
-                fieldId: 'field_nombre',
-                type: 'text',
-                placeholder: 'Escribe tu nombre',
-                required: true,
-                options: [],
-              },
-            }
+            text: '',
+            markdown: '',
+            formField: {
+              fieldId: 'field_nombre',
+              type: 'text',
+              placeholder: 'Escribe tu nombre',
+              required: true,
+              options: [],
+            },
+          }
           : { text: '' };
         const innerBrick = await createDocumentBrick(docId, { kind: 'text', position: 1000, content: textContent }, accessToken);
-        
+
         // For columns, scaffold a second one immediately
         let innerBrick2: any = null;
         if (kind === 'columns') {
@@ -1125,10 +1125,10 @@ export default function DocumentPage() {
 
         const afterBrick = afterText.length > 0
           ? await createDocumentBrick(docId, {
-              kind: 'text',
-              position: target.position + 1,
-              content: { text: afterText, markdown: afterText },
-            }, accessToken)
+            kind: 'text',
+            position: target.position + 1,
+            content: { text: afterText, markdown: afterText },
+          }, accessToken)
           : null;
 
         setDocument((current) => {
@@ -1193,7 +1193,7 @@ export default function DocumentPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
-      
+
       toast("Exportación completada", "success");
       setIsExportModalOpen(false);
     } catch (e: any) {
@@ -1264,51 +1264,51 @@ export default function DocumentPage() {
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 backdrop-blur-md z-40 shrink-0 shadow-sm sticky top-0">
-<div className="flex items-center space-x-2">
-            <Link href={`/d${document.folderId ? `?folderId=${document.folderId}` : ''}`} className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
-              <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+        <div className="flex items-center space-x-2">
+          <Link href={`/d${document.folderId ? `?folderId=${document.folderId}` : ''}`} className="text-muted-foreground hover:text-foreground hover:bg-accent/10 p-1.5 rounded-md transition-colors group">
+            <ArrowLeft className="h-4 w-4 group-hover:-translate-x-1 transition-transform" />
+          </Link>
+          <div className="h-4 w-px bg-border/80 mx-2"></div>
+
+          <div className="flex items-center text-sm">
+            <Link href="/d" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
+              <FolderIcon className="h-4 w-4 opacity-70" />
+              <span className="hidden sm:inline">{t("allDocuments") || "Todos los documentos"}</span>
             </Link>
-            <div className="h-4 w-px bg-border/80 mx-2"></div>
 
-            <div className="flex items-center text-sm">
-              <Link href="/d" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
-                 <FolderIcon className="h-4 w-4 opacity-70" />
-                 <span className="hidden sm:inline">{t("allDocuments") || "Todos los documentos"}</span>
-              </Link>
+            {parentDoc && (
+              <>
+                <span className="text-muted-foreground/40 mx-1">/</span>
+                <Link
+                  href={`/d/${parentDoc.id}`}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors"
+                  title={parentDoc.title}
+                >
+                  <FileText className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline max-w-[120px] truncate">{parentDoc.title}</span>
+                </Link>
+              </>
+            )}
 
-              {parentDoc && (
-                <>
-                  <span className="text-muted-foreground/40 mx-1">/</span>
-                  <Link
-                    href={`/d/${parentDoc.id}`}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors"
-                    title={parentDoc.title}
-                  >
-                    <FileText className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline max-w-[120px] truncate">{parentDoc.title}</span>
-                  </Link>
-                </>
-              )}
-
-              {docBreadcrumbs && docBreadcrumbs.map((f, i) => (
-                <div key={f.id} className="flex items-center">
-                  <span className="text-muted-foreground/40 mx-1">/</span>
-                  <Link 
-                    href={`/d?folderId=${f.id}`}
-                    className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors" 
-                    title={f.name}
-                  >
-                    <FolderIconDisplay icon={f.icon} color={f.color} className="h-3.5 w-3.5" isTextFallback />
-                    <span className="hidden sm:inline max-w-[100px] truncate">{f.name}</span>
-                  </Link>
-                </div>
-              ))}
-
-              <span className="text-muted-foreground/40 mx-2.5">/</span>
-              <div className="flex items-center gap-1.5 text-foreground bg-accent/5 px-2 py-1 rounded-md">
-                <FileText className="h-4 w-4 text-accent" />
-                <h1 className="font-semibold tracking-tight truncate max-w-[150px] sm:max-w-[200px]">{document.title}</h1>
+            {docBreadcrumbs && docBreadcrumbs.map((f, i) => (
+              <div key={f.id} className="flex items-center">
+                <span className="text-muted-foreground/40 mx-1">/</span>
+                <Link
+                  href={`/d?folderId=${f.id}`}
+                  className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground hover:bg-accent/10 px-1.5 py-1 rounded-md transition-colors"
+                  title={f.name}
+                >
+                  <FolderIconDisplay icon={f.icon} color={f.color} className="h-3.5 w-3.5" isTextFallback />
+                  <span className="hidden sm:inline max-w-[100px] truncate">{f.name}</span>
+                </Link>
               </div>
+            ))}
+
+            <span className="text-muted-foreground/40 mx-2.5">/</span>
+            <div className="flex items-center gap-1.5 text-foreground bg-accent/5 px-2 py-1 rounded-md">
+              <FileText className="h-4 w-4 text-accent" />
+              <h1 className="font-semibold tracking-tight truncate max-w-[150px] sm:max-w-[200px]">{document.title}</h1>
+            </div>
           </div>
         </div>
 
