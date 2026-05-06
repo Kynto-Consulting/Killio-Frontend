@@ -464,7 +464,9 @@ export function UnifiedFormBrick({
           }
         }
         for (const field of newFields) {
-          onAddBrick("form-field", undefined, { parentId: id, containerId: safePages[0].id }, {
+          onAddBrick("text", undefined, { parentId: id, containerId: safePages[0].id }, {
+            markdown: "",
+            displayStyle: "paragraph",
             formField: {
               fieldId: field.id,
               type: field.type,
