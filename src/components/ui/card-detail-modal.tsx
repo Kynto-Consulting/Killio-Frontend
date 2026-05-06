@@ -82,10 +82,17 @@ function toIsoDateTimeValue(value: string): string | null {
 
 function formatDurationParts(totalMs: number): string {
   const totalMinutes = Math.max(0, Math.floor(totalMs / 60000));
-  const hours = Math.floor(totalMinutes / 60);
+  const totalHours = Math.floor(totalMinutes / 60);
   const minutes = totalMinutes % 60;
-  if (hours > 0 && minutes > 0) return `${hours}h ${minutes}m`;
-  if (hours > 0) return `${hours}h`;
+  if (totalHours >= 24) {
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    if (hours > 0 && minutes > 0) return `${days}d ${hours}h ${minutes}m`;
+    if (hours > 0) return `${days}d ${hours}h`;
+    return `${days}d`;
+  }
+  if (totalHours > 0 && minutes > 0) return `${totalHours}h ${minutes}m`;
+  if (totalHours > 0) return `${totalHours}h`;
   return `${minutes}m`;
 }
 

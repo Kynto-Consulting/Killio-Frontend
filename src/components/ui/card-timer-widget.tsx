@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Check, Clock3, Expand, Loader2, Square } from "lucide-react";
+import { Check, ChevronDown, ChevronUp, Clock3, Expand, Loader2, Square } from "lucide-react";
 
 import { getActiveCardTimers, getCard, updateCard, type ActiveCardTimer, type CardView } from "@/lib/api/contracts";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
@@ -11,12 +11,18 @@ import { toast } from "@/lib/toast";
 
 function formatCountdown(totalMs: number): string {
   const totalSeconds = Math.max(0, Math.floor(totalMs / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
+  const totalHours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
 
-  if (hours > 0) {
-    return `${hours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  if (totalHours >= 24) {
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    return `${days}d ${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
+
+  if (totalHours > 0) {
+    return `${totalHours}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
   }
 
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
@@ -32,6 +38,7 @@ export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards
   const [isUpdating, setIsUpdating] = useState<"cancel" | "finish" | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
+  const [isMinimized, setIsMinimized] = useState(false);
   const [toastOffset, setToastOffset] = useState(0);
   const [detailCard, setDetailCard] = useState<CardView | undefined>(undefined);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
@@ -183,87 +190,121 @@ export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards
   const stacked = timers.filter((item) => item.cardId !== activeTimer?.cardId).slice(0, 2);
   const overflowCount = Math.max(0, timers.length - 1 - stacked.length);
 
+  const countdownDisplay = remainingMs !== null
+    ? (remainingMs >= 0 ? formatCountdown(remainingMs) : `-${formatCountdown(Math.abs(remainingMs))}`)
+    : null;
+
   return (
     <>
       <div
-        className="pointer-events-auto fixed right-6 z-40 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-border/80 bg-background/95 p-4 shadow-2xl backdrop-blur-xl"
+        className="pointer-events-auto fixed right-6 z-40 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-border/80 bg-background/95 shadow-2xl backdrop-blur-xl"
         style={{ bottom: 24 + toastOffset }}
       >
-        <div className="flex items-start gap-4">
-          <div className="mt-0.5 rounded-xl border border-border/80 bg-muted/40 p-2 text-muted-foreground">
-            {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clock3 className="h-5 w-5" />}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t("cardModal.widget.activeTask")}</p>
-            <p className="mt-1 truncate text-base font-semibold text-foreground">{activeTimer?.title}</p>
-            {activeTimer?.boardName || activeTimer?.listName ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                {activeTimer?.boardName || ""}
-                {activeTimer?.boardName && activeTimer?.listName ? " / " : ""}
-                {activeTimer?.listName || ""}
-              </p>
+        {isMinimized ? (
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="rounded-lg border border-border/80 bg-muted/40 p-1.5 text-muted-foreground">
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock3 className="h-4 w-4" />}
+            </div>
+            <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{activeTimer?.title}</p>
+            {countdownDisplay !== null ? (
+              <span className={`shrink-0 text-sm font-semibold tabular-nums ${remainingMs !== null && remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
+                {countdownDisplay}
+              </span>
             ) : null}
-            {dueAtLabel ? <p className="mt-2 text-[11px] text-muted-foreground">{t("cardModal.widget.dueAt", { value: dueAtLabel })}</p> : null}
-            {remainingMs !== null ? (
-              <p className={`mt-3 text-3xl font-semibold tabular-nums ${remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
-                {remainingMs >= 0 ? formatCountdown(remainingMs) : `-${formatCountdown(Math.abs(remainingMs))}`}
-              </p>
-            ) : null}
+            <button
+              type="button"
+              onClick={() => setIsMinimized(false)}
+              className="ml-1 shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+            >
+              <ChevronUp className="h-4 w-4" />
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="p-4">
+            <div className="flex items-start gap-4">
+              <div className="mt-0.5 rounded-xl border border-border/80 bg-muted/40 p-2 text-muted-foreground">
+                {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clock3 className="h-5 w-5" />}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">{t("cardModal.widget.activeTask")}</p>
+                <p className="mt-1 truncate text-base font-semibold text-foreground">{activeTimer?.title}</p>
+                {activeTimer?.boardName || activeTimer?.listName ? (
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {activeTimer?.boardName || ""}
+                    {activeTimer?.boardName && activeTimer?.listName ? " / " : ""}
+                    {activeTimer?.listName || ""}
+                  </p>
+                ) : null}
+                {dueAtLabel ? <p className="mt-2 text-[11px] text-muted-foreground">{t("cardModal.widget.dueAt", { value: dueAtLabel })}</p> : null}
+                {remainingMs !== null ? (
+                  <p className={`mt-3 text-3xl font-semibold tabular-nums ${remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
+                    {remainingMs >= 0 ? formatCountdown(remainingMs) : `-${formatCountdown(Math.abs(remainingMs))}`}
+                  </p>
+                ) : null}
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMinimized(true)}
+                className="shrink-0 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground"
+              >
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
 
-        <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
-          <button
-            type="button"
-            onClick={() => void handleCancel()}
-            disabled={!activeTimer || isUpdating !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground disabled:opacity-50"
-          >
-            {isUpdating === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
-            {t("cardModal.widget.cancelTimer")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleFinish()}
-            disabled={!activeTimer || isUpdating !== null}
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50"
-          >
-            {isUpdating === "finish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-            {t("cardModal.widget.finishTask")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleOpenDetail()}
-            disabled={!activeTimer || isOpening || isUpdating !== null}
-            className="inline-flex items-center justify-center rounded-xl border border-border/70 px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/10 disabled:opacity-50"
-          >
-            {isOpening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Expand className="h-4 w-4" />}
-          </button>
-        </div>
+            <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
+              <button
+                type="button"
+                onClick={() => void handleCancel()}
+                disabled={!activeTimer || isUpdating !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground disabled:opacity-50"
+              >
+                {isUpdating === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
+                {t("cardModal.widget.cancelTimer")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleFinish()}
+                disabled={!activeTimer || isUpdating !== null}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50"
+              >
+                {isUpdating === "finish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {t("cardModal.widget.finishTask")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleOpenDetail()}
+                disabled={!activeTimer || isOpening || isUpdating !== null}
+                className="inline-flex items-center justify-center rounded-xl border border-border/70 px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/10 disabled:opacity-50"
+              >
+                {isOpening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Expand className="h-4 w-4" />}
+              </button>
+            </div>
 
-        {stacked.length > 0 ? (
-          <div className="mt-3 space-y-2">
-            {stacked.map((item) => {
-              const ms = new Date(item.dueAt).getTime() - now;
-              return (
-                <button
-                  key={item.cardId}
-                  type="button"
-                  onClick={() => setActiveTimerId(item.cardId)}
-                  className="flex w-full items-center justify-between rounded-xl border border-border/60 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/10"
-                >
-                  <span className="truncate font-medium text-foreground">{item.title}</span>
-                  <span className={`ml-3 shrink-0 font-semibold tabular-nums ${ms >= 0 ? "text-foreground" : "text-red-400"}`}>
-                    {ms >= 0 ? formatCountdown(ms) : `-${formatCountdown(Math.abs(ms))}`}
-                  </span>
-                </button>
-              );
-            })}
-            {overflowCount > 0 ? (
-              <div className="text-[11px] text-muted-foreground">{t("cardModal.widget.otherTasks", { count: overflowCount })}</div>
+            {stacked.length > 0 ? (
+              <div className="mt-3 space-y-2">
+                {stacked.map((item) => {
+                  const ms = new Date(item.dueAt).getTime() - now;
+                  return (
+                    <button
+                      key={item.cardId}
+                      type="button"
+                      onClick={() => setActiveTimerId(item.cardId)}
+                      className="flex w-full items-center justify-between rounded-xl border border-border/60 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/10"
+                    >
+                      <span className="truncate font-medium text-foreground">{item.title}</span>
+                      <span className={`ml-3 shrink-0 font-semibold tabular-nums ${ms >= 0 ? "text-foreground" : "text-red-400"}`}>
+                        {ms >= 0 ? formatCountdown(ms) : `-${formatCountdown(Math.abs(ms))}`}
+                      </span>
+                    </button>
+                  );
+                })}
+                {overflowCount > 0 ? (
+                  <div className="text-[11px] text-muted-foreground">{t("cardModal.widget.otherTasks", { count: overflowCount })}</div>
+                ) : null}
+              </div>
             ) : null}
           </div>
-        ) : null}
+        )}
       </div>
 
       <CardDetailModal
