@@ -20,6 +20,7 @@ import {
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { TableBrickPicker, type TableBrickPickerSelection } from "./table-brick-picker";
 import { generateFormFieldsFromColumns, generateCardFormFields } from "@/lib/form-brick-table-mapper";
+import { listTeamBoards } from "@/lib/api/contracts";
 type FormPage = {
   id: string;
   label: string;
@@ -156,6 +157,25 @@ export function UnifiedFormBrick({
   const [scriptsLoadError, setScriptsLoadError] = useState<string | null>(null);
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [endpointType, setEndpointType] = useState<"webhook" | "database">(content.tableConnectorId ? "database" : "webhook");
+  const [localBoards, setLocalBoards] = useState<any[]>(boards || []);
+  const [isPrefetchingBoards, setIsPrefetchingBoards] = useState(false);
+
+  useEffect(() => {
+    setLocalBoards(boards || []);
+  }, [boards]);
+
+  const prefetchBoards = async () => {
+    if (!activeTeamId || !accessToken || isPrefetchingBoards) return;
+    setIsPrefetchingBoards(true);
+    try {
+      const freshBoards = await listTeamBoards(activeTeamId, accessToken);
+      setLocalBoards(freshBoards);
+    } catch (e) {
+      console.error("Failed to prefetch boards:", e);
+    } finally {
+      setIsPrefetchingBoards(false);
+    }
+  };
 
   const childrenByContainer = useMemo(() => {
     const raw = content.childrenByContainer;
@@ -732,7 +752,7 @@ export function UnifiedFormBrick({
             <div className="rounded-md border border-border/60 bg-muted/20 p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-sm font-semibold text-foreground">Conectar a Objeto</p>
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowTablePicker(true)}>
+                <Button type="button" variant="outline" size="sm" onClick={() => setShowTablePicker(true)} onMouseEnter={prefetchBoards}>
                   Seleccionar Objeto
                 </Button>
               </div>
@@ -876,7 +896,7 @@ export function UnifiedFormBrick({
             onSelect={handleTableSelection}
             onClose={() => setShowTablePicker(false)}
             documents={documents || []}
-            boards={boards || []}
+            boards={localBoards}
             activeBricks={activeBricks || []}
           />
         )}

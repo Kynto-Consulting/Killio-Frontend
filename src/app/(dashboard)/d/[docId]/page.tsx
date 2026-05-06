@@ -449,24 +449,29 @@ export default function DocumentPage() {
       });
 
       if (parentProps && parentBrick) {
-        const parentInLatest = (document.bricks.find((b) => b.id === parentBrick.id) || parentBrick) as DocumentBrick;
-        const siblings = resolveNestedBricks(parentInLatest.content, parentProps.containerId, document.bricks as any[]) as DocumentBrick[];
-        const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
-        const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
-        const updatedParentContent = insertChildId(parentInLatest.content || {}, parentProps.containerId, newBrick.id, insertIndex);
+        let latestParentContent: any = null;
 
         setDocument((prev) => {
           if (!prev) return prev;
+          const currentParent = prev.bricks.find((b) => b.id === parentBrick.id) || parentBrick;
+          const siblings = resolveNestedBricks(currentParent.content, parentProps.containerId, prev.bricks as any[]) as DocumentBrick[];
+          const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
+          const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
+          
+          latestParentContent = insertChildId(currentParent.content || {}, parentProps.containerId, newBrick.id, insertIndex);
+
           return {
             ...prev,
-            bricks: prev.bricks.map((b) => (b.id === parentInLatest.id ? { ...b, content: updatedParentContent } : b)),
+            bricks: prev.bricks.map((b) => (b.id === currentParent.id ? { ...b, content: latestParentContent } : b)),
           };
         });
 
-        try {
-          await updateDocumentBrick(docId, parentInLatest.id, updatedParentContent, accessToken);
-        } catch {
-          fetchDoc();
+        if (latestParentContent) {
+          try {
+            await updateDocumentBrick(docId, parentBrick.id, latestParentContent, accessToken);
+          } catch {
+            fetchDoc();
+          }
         }
       }
       
