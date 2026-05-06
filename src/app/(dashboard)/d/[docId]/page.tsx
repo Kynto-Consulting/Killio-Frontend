@@ -52,6 +52,13 @@ export default function DocumentPage() {
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'comments' | 'activity'>('comments');
   const [parentDoc, setParentDoc] = useState<DocumentSummary | null>(null);
 
+  const documentBricksRef = useRef<DocumentBrick[]>([]);
+  useEffect(() => {
+    if (document?.bricks) {
+      documentBricksRef.current = document.bricks;
+    }
+  }, [document?.bricks]);
+
   const { activeTeamId } = useSession();
   const presenceMembers = useDocumentPresence(docId, user, accessToken);
 
@@ -387,6 +394,8 @@ export default function DocumentPage() {
       ? `tmp-text-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
       : null;
 
+    let currentBricks = documentBricksRef.current;
+
     if (optimisticId) {
       const nowIso = new Date().toISOString();
       const optimisticBrick: DocumentBrick = {
@@ -395,83 +404,66 @@ export default function DocumentPage() {
         kind: finalKind,
         position,
         content,
-        createdByUserId: user?.id || document.createdByUserId,
+        createdByUserId: user?.id || document?.createdByUserId || "",
         createdAt: nowIso,
         updatedAt: nowIso,
       };
 
-      setDocument((prev) => {
-        if (!prev) return prev;
+      if (!currentBricks.some((b) => b.id === optimisticId)) {
+        currentBricks = [...currentBricks, optimisticBrick].sort((a, b) => a.position - b.position);
+      }
 
-        let nextBricks = prev.bricks;
-        if (!nextBricks.some((b) => b.id === optimisticId)) {
-          nextBricks = [...nextBricks, optimisticBrick].sort((a, b) => a.position - b.position);
-        }
-
-        if (parentProps) {
-          const parent = nextBricks.find((b) => b.id === parentProps.parentId);
-          if (!parent) {
-            return { ...prev, bricks: nextBricks };
-          }
-
-          const siblings = resolveNestedBricks(parent.content, parentProps.containerId, nextBricks as any[]) as DocumentBrick[];
+      if (parentProps) {
+        const parent = currentBricks.find((b) => b.id === parentProps.parentId);
+        if (parent) {
+          const siblings = resolveNestedBricks(parent.content, parentProps.containerId, currentBricks as any[]) as DocumentBrick[];
           const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
           const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
           const nextParentContent = insertChildId(parent.content || {}, parentProps.containerId, optimisticId, insertIndex);
-          nextBricks = nextBricks.map((b) => (b.id === parent.id ? { ...b, content: nextParentContent } : b));
+          currentBricks = currentBricks.map((b) => (b.id === parent.id ? { ...b, content: nextParentContent } : b));
         }
+      }
 
-        return { ...prev, bricks: nextBricks };
-      });
+      documentBricksRef.current = currentBricks;
+      setDocument((prev) => prev ? { ...prev, bricks: currentBricks } : prev);
     }
     
     try {
       const newBrick = await createDocumentBrick(docId, { kind: finalKind, position, content }, accessToken);
-      // Wait for WS OR optimistic update:
-      setDocument((prev) => {
-        if (!prev) return prev;
-        let nextBricks = prev.bricks;
+      
+      currentBricks = documentBricksRef.current;
 
-        if (optimisticId && nextBricks.some((b) => b.id === optimisticId)) {
-          nextBricks = nextBricks.map((b) => {
-            if (b.id === optimisticId) {
-              return newBrick;
-            }
+      if (optimisticId && currentBricks.some((b) => b.id === optimisticId)) {
+        currentBricks = currentBricks.map((b) => {
+          if (b.id === optimisticId) return newBrick;
+          const nextContent = replaceChildRefId(b.content, optimisticId, newBrick.id);
+          return nextContent !== b.content ? { ...b, content: nextContent } : b;
+        });
+      } else if (!currentBricks.some((b) => b.id === newBrick.id)) {
+        currentBricks = [...currentBricks, newBrick].sort((a, b) => a.position - b.position);
+      }
 
-            const nextContent = replaceChildRefId(b.content, optimisticId, newBrick.id);
-            return nextContent !== b.content ? { ...b, content: nextContent } : b;
-          });
-        } else if (!nextBricks.some((b) => b.id === newBrick.id)) {
-          nextBricks = [...nextBricks, newBrick].sort((a, b) => a.position - b.position);
-        }
-
-        return { ...prev, bricks: sanitizeDocumentBricks(nextBricks) };
-      });
-
-      if (parentProps && parentBrick) {
-        let latestParentContent: any = null;
-
-        setDocument((prev) => {
-          if (!prev) return prev;
-          const currentParent = prev.bricks.find((b) => b.id === parentBrick.id) || parentBrick;
-          const siblings = resolveNestedBricks(currentParent.content, parentProps.containerId, prev.bricks as any[]) as DocumentBrick[];
+      let latestParentContent: any = null;
+      if (parentProps) {
+        const currentParent = currentBricks.find((b) => b.id === parentProps.parentId);
+        if (currentParent) {
+          const siblings = resolveNestedBricks(currentParent.content, parentProps.containerId, currentBricks as any[]) as DocumentBrick[];
           const afterIndex = afterBrickId ? siblings.findIndex((b) => b.id === afterBrickId) : -1;
           const insertIndex = afterIndex >= 0 ? afterIndex + 1 : siblings.length;
-          
           latestParentContent = insertChildId(currentParent.content || {}, parentProps.containerId, newBrick.id, insertIndex);
+          currentBricks = currentBricks.map((b) => (b.id === currentParent.id ? { ...b, content: latestParentContent } : b));
+        }
+      }
 
-          return {
-            ...prev,
-            bricks: prev.bricks.map((b) => (b.id === currentParent.id ? { ...b, content: latestParentContent } : b)),
-          };
-        });
+      currentBricks = sanitizeDocumentBricks(currentBricks);
+      documentBricksRef.current = currentBricks;
+      setDocument((prev) => prev ? { ...prev, bricks: currentBricks } : prev);
 
-        if (latestParentContent) {
-          try {
-            await updateDocumentBrick(docId, parentBrick.id, latestParentContent, accessToken);
-          } catch {
-            fetchDoc();
-          }
+      if (parentProps && latestParentContent) {
+        try {
+          await updateDocumentBrick(docId, parentProps.parentId, latestParentContent, accessToken);
+        } catch {
+          fetchDoc();
         }
       }
       
