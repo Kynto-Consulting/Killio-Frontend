@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import {
-  AlertTriangle, BarChart2, CheckSquare, ChevronDown, Code2,
+  AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
@@ -48,7 +48,21 @@ type Port = "top" | "right" | "bottom" | "left";
 type ShapePreset =
   | "rect" | "rounded-rect" | "circle" | "ellipse" | "diamond"
   | "triangle" | "hexagon" | "star" | "arrow" | "note" | "frame-vector" | "flow-terminator"
-  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon";
+  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon"
+  // Basic geometric
+  | "trapezoid" | "trapezoid-inv" | "octagon" | "stadium" | "half-circle" | "bevel"
+  | "triangle-rt" | "diamond-wide" | "kite" | "wedge"
+  // Flow / diagramming
+  | "hexagon-v" | "parallelogram-rev" | "prep-hex" | "data-io" | "off-page" | "collate"
+  | "predefined-process" | "manual-input" | "delay-shape"
+  // Arrows
+  | "arrow-left" | "arrow-up" | "arrow-down" | "double-arrow-h" | "double-arrow-v"
+  // Figures & symbols
+  | "heart" | "shield" | "lightning" | "house" | "cloud" | "star-6" | "star-4" | "star-8"
+  | "starburst" | "cross-x" | "tag" | "ribbon" | "callout" | "banner" | "gem"
+  | "location-pin" | "thought-bubble"
+  // Frames & containers
+  | "bracket-left" | "bracket-right";
 
 type ConnStyle = "technical" | "dashed" | "handdrawn" | "bezier" | "curved";
 
@@ -98,38 +112,91 @@ const SHAPE_CATEGORIES: ShapeCategory[] = [
   {
     label: "Básicas", icon: <Square className="h-3 w-3" />,
     shapes: [
-      { preset: "rect",         label: "Rect"    },
-      { preset: "rounded-rect", label: "Round"   },
-      { preset: "circle",       label: "Círculo" },
-      { preset: "ellipse",      label: "Elipse"  },
-      { preset: "triangle",     label: "Triáng"  },
+      { preset: "rect",          label: "Rect"     },
+      { preset: "rounded-rect",  label: "Round"    },
+      { preset: "circle",        label: "Círculo"  },
+      { preset: "ellipse",       label: "Elipse"   },
+      { preset: "triangle",      label: "Triáng"   },
+      { preset: "triangle-rt",   label: "Tri-rect" },
+      { preset: "trapezoid",     label: "Trapecio" },
+      { preset: "trapezoid-inv", label: "Trap-inv" },
+      { preset: "octagon",       label: "Octágono" },
+      { preset: "bevel",         label: "Bisel"    },
+      { preset: "diamond-wide",  label: "Rombo"    },
+      { preset: "stadium",       label: "Cápsula"  },
+      { preset: "half-circle",   label: "Semicírc" },
+      { preset: "kite",          label: "Cometa"   },
+      { preset: "wedge",         label: "Cuña"     },
+      { preset: "gem",           label: "Gema"     },
     ],
   },
   {
     label: "Flujo", icon: <GitBranch className="h-3 w-3" />,
     shapes: [
-      { preset: "diamond",         label: "Decisión" },
-      { preset: "parallelogram",   label: "Datos"    },
-      { preset: "flow-terminator", label: "Terminar" },
-      { preset: "hexagon",         label: "Preparar" },
-      { preset: "pentagon",        label: "Paso"     },
+      { preset: "diamond",            label: "Decisión"  },
+      { preset: "parallelogram",      label: "E/S Datos" },
+      { preset: "parallelogram-rev",  label: "E/S Rev"   },
+      { preset: "flow-terminator",    label: "Terminar"  },
+      { preset: "hexagon",            label: "Preparar"  },
+      { preset: "hexagon-v",          label: "Hex-V"     },
+      { preset: "pentagon",           label: "Paso"      },
+      { preset: "prep-hex",           label: "Elongado"  },
+      { preset: "data-io",            label: "Datos IO"  },
+      { preset: "off-page",           label: "Off-Page"  },
+      { preset: "collate",            label: "Colar"     },
+      { preset: "predefined-process", label: "Subproc"   },
+      { preset: "manual-input",       label: "Manual"    },
+      { preset: "delay-shape",        label: "Demora"    },
     ],
   },
   {
     label: "Figuras", icon: <Star className="h-3 w-3" />,
     shapes: [
-      { preset: "star",    label: "Estrella" },
-      { preset: "cross",   label: "Cruz"     },
-      { preset: "chevron", label: "Chevron"  },
-      { preset: "arrow",   label: "Flecha"   },
-      { preset: "cylinder", label: "BD"      },
+      { preset: "star",      label: "Estrella" },
+      { preset: "star-6",    label: "Hexagr"   },
+      { preset: "star-4",    label: "Destello" },
+      { preset: "star-8",    label: "Octogr"   },
+      { preset: "starburst", label: "Rafaga"   },
+      { preset: "cross",     label: "Cruz"     },
+      { preset: "cross-x",   label: "X Mark"   },
+      { preset: "heart",     label: "Corazón"  },
+      { preset: "shield",    label: "Escudo"   },
+      { preset: "lightning", label: "Rayo"     },
+      { preset: "house",     label: "Casa"     },
+      { preset: "cloud",     label: "Nube"     },
+      { preset: "tag",       label: "Etiqueta" },
+      { preset: "ribbon",    label: "Cinta"    },
+      { preset: "banner",    label: "Banner"   },
+      { preset: "location-pin", label: "Pin"   },
+    ],
+  },
+  {
+    label: "Flechas", icon: <ChevronRight className="h-3 w-3" />,
+    shapes: [
+      { preset: "arrow",          label: "→ Derecha" },
+      { preset: "arrow-left",     label: "← Izq"     },
+      { preset: "arrow-up",       label: "↑ Arriba"  },
+      { preset: "arrow-down",     label: "↓ Abajo"   },
+      { preset: "double-arrow-h", label: "↔ Horiz"   },
+      { preset: "double-arrow-v", label: "↕ Vert"    },
+      { preset: "chevron",        label: "Chevron"   },
+    ],
+  },
+  {
+    label: "Globos", icon: <MessageSquare className="h-3 w-3" />,
+    shapes: [
+      { preset: "callout",       label: "Globo rect" },
+      { preset: "thought-bubble", label: "Pensam"    },
+      { preset: "bracket-left",  label: "[ Bracket"  },
+      { preset: "bracket-right", label: "] Bracket"  },
     ],
   },
   {
     label: "Marcos", icon: <FileText className="h-3 w-3" />,
     shapes: [
-      { preset: "note",         label: "Nota"  },
-      { preset: "frame-vector", label: "Marco" },
+      { preset: "note",         label: "Nota"   },
+      { preset: "frame-vector", label: "Marco"  },
+      { preset: "cylinder",     label: "BD"     },
     ],
   },
 ];
@@ -844,7 +911,19 @@ function pentPts() {
   });
 }
 
+function nStarPts(n: number, outer = 0.5, inner = 0.22) {
+  const pts: { x: number; y: number }[] = [];
+  const step = Math.PI / n;
+  for (let i = 0; i < n * 2; i++) {
+    const a = i * step - Math.PI / 2;
+    const r = i % 2 === 0 ? outer : inner;
+    pts.push({ x: +(0.5 + r * Math.cos(a)).toFixed(4), y: +(0.5 + r * Math.sin(a)).toFixed(4) });
+  }
+  return pts;
+}
+
 const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
+  // ── Existing ──
   diamond:        [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }],
   triangle:       [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
   hexagon:        hexPts(),
@@ -855,6 +934,55 @@ const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
   parallelogram:  [{ x: 0.15, y: 0 }, { x: 1, y: 0 }, { x: 0.85, y: 1 }, { x: 0, y: 1 }],
   cross:          [{ x: 0.33, y: 0 }, { x: 0.67, y: 0 }, { x: 0.67, y: 0.33 }, { x: 1, y: 0.33 }, { x: 1, y: 0.67 }, { x: 0.67, y: 0.67 }, { x: 0.67, y: 1 }, { x: 0.33, y: 1 }, { x: 0.33, y: 0.67 }, { x: 0, y: 0.67 }, { x: 0, y: 0.33 }, { x: 0.33, y: 0.33 }],
   chevron:        [{ x: 0, y: 0 }, { x: 0.72, y: 0 }, { x: 1, y: 0.5 }, { x: 0.72, y: 1 }, { x: 0, y: 1 }, { x: 0.28, y: 0.5 }],
+  pentagon:       pentPts(),
+
+  // ── Basic geometric ──
+  trapezoid:         [{ x: 0.15, y: 0 }, { x: 0.85, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  "trapezoid-inv":   [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0.85, y: 1 }, { x: 0.15, y: 1 }],
+  octagon:           [{ x: 0.29, y: 0 }, { x: 0.71, y: 0 }, { x: 1, y: 0.29 }, { x: 1, y: 0.71 }, { x: 0.71, y: 1 }, { x: 0.29, y: 1 }, { x: 0, y: 0.71 }, { x: 0, y: 0.29 }],
+  bevel:             [{ x: 0.12, y: 0 }, { x: 0.88, y: 0 }, { x: 1, y: 0.12 }, { x: 1, y: 0.88 }, { x: 0.88, y: 1 }, { x: 0.12, y: 1 }, { x: 0, y: 0.88 }, { x: 0, y: 0.12 }],
+  "triangle-rt":     [{ x: 0, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  "diamond-wide":    [{ x: 0.5, y: 0.12 }, { x: 1, y: 0.5 }, { x: 0.5, y: 0.88 }, { x: 0, y: 0.5 }],
+  kite:              [{ x: 0.5, y: 0 }, { x: 1, y: 0.62 }, { x: 0.5, y: 1 }, { x: 0, y: 0.62 }],
+  wedge:             [{ x: 0.5, y: 0.5 }, { x: 1, y: 0 }, { x: 1, y: 1 }],
+  gem:               [{ x: 0.5, y: 0 }, { x: 1, y: 0.32 }, { x: 0.72, y: 1 }, { x: 0.28, y: 1 }, { x: 0, y: 0.32 }],
+
+  // ── Flow / diagramming ──
+  "hexagon-v":          [{ x: 0.5, y: 0 }, { x: 1, y: 0.25 }, { x: 1, y: 0.75 }, { x: 0.5, y: 1 }, { x: 0, y: 0.75 }, { x: 0, y: 0.25 }],
+  "parallelogram-rev":  [{ x: 0, y: 0 }, { x: 0.85, y: 0 }, { x: 1, y: 1 }, { x: 0.15, y: 1 }],
+  "prep-hex":           [{ x: 0.12, y: 0 }, { x: 0.88, y: 0 }, { x: 1, y: 0.5 }, { x: 0.88, y: 1 }, { x: 0.12, y: 1 }, { x: 0, y: 0.5 }],
+  "data-io":            [{ x: 0.2, y: 0 }, { x: 1, y: 0 }, { x: 0.8, y: 1 }, { x: 0, y: 1 }],
+  "off-page":           [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 0.65 }, { x: 0.5, y: 1 }, { x: 0, y: 0.65 }],
+  collate:              [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 0.5, y: 0.5 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: 0.5, y: 0.5 }],
+  "manual-input":       [{ x: 0, y: 0.22 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  "delay-shape":        [{ x: 0, y: 0 }, { x: 0.65, y: 0 }, { x: 1, y: 0.5 }, { x: 0.65, y: 1 }, { x: 0, y: 1 }],
+
+  // ── Arrows ──
+  "arrow-left":     [{ x: 0, y: 0.5 }, { x: 0.38, y: 0 }, { x: 0.38, y: 0.28 }, { x: 1, y: 0.28 }, { x: 1, y: 0.72 }, { x: 0.38, y: 0.72 }, { x: 0.38, y: 1 }],
+  "arrow-up":       [{ x: 0.5, y: 0 }, { x: 1, y: 0.38 }, { x: 0.72, y: 0.38 }, { x: 0.72, y: 1 }, { x: 0.28, y: 1 }, { x: 0.28, y: 0.38 }, { x: 0, y: 0.38 }],
+  "arrow-down":     [{ x: 0.5, y: 1 }, { x: 1, y: 0.62 }, { x: 0.72, y: 0.62 }, { x: 0.72, y: 0 }, { x: 0.28, y: 0 }, { x: 0.28, y: 0.62 }, { x: 0, y: 0.62 }],
+  "double-arrow-h": [{ x: 0, y: 0.5 }, { x: 0.28, y: 0 }, { x: 0.28, y: 0.28 }, { x: 0.72, y: 0.28 }, { x: 0.72, y: 0 }, { x: 1, y: 0.5 }, { x: 0.72, y: 1 }, { x: 0.72, y: 0.72 }, { x: 0.28, y: 0.72 }, { x: 0.28, y: 1 }],
+  "double-arrow-v": [{ x: 0.5, y: 0 }, { x: 1, y: 0.28 }, { x: 0.72, y: 0.28 }, { x: 0.72, y: 0.72 }, { x: 1, y: 0.72 }, { x: 0.5, y: 1 }, { x: 0, y: 0.72 }, { x: 0.28, y: 0.72 }, { x: 0.28, y: 0.28 }, { x: 0, y: 0.28 }],
+
+  // ── Figures & symbols ──
+  heart:          [{ x: 0.5, y: 0.28 }, { x: 0.73, y: 0 }, { x: 1, y: 0.22 }, { x: 1, y: 0.52 }, { x: 0.5, y: 1 }, { x: 0, y: 0.52 }, { x: 0, y: 0.22 }, { x: 0.27, y: 0 }],
+  shield:         [{ x: 0.5, y: 0 }, { x: 1, y: 0.12 }, { x: 1, y: 0.58 }, { x: 0.5, y: 1 }, { x: 0, y: 0.58 }, { x: 0, y: 0.12 }],
+  lightning:      [{ x: 0.6, y: 0 }, { x: 0.12, y: 0.52 }, { x: 0.45, y: 0.52 }, { x: 0.4, y: 1 }, { x: 0.88, y: 0.48 }, { x: 0.55, y: 0.48 }],
+  house:          [{ x: 0.5, y: 0 }, { x: 1, y: 0.42 }, { x: 1, y: 1 }, { x: 0, y: 1 }, { x: 0, y: 0.42 }],
+  "star-6":       nStarPts(6, 0.5, 0.26),
+  "star-4":       nStarPts(4, 0.5, 0.18),
+  "star-8":       nStarPts(8, 0.5, 0.22),
+  starburst:      nStarPts(12, 0.5, 0.32),
+  "cross-x":      [{ x: 0.15, y: 0 }, { x: 0.5, y: 0.35 }, { x: 0.85, y: 0 }, { x: 1, y: 0.15 }, { x: 0.65, y: 0.5 }, { x: 1, y: 0.85 }, { x: 0.85, y: 1 }, { x: 0.5, y: 0.65 }, { x: 0.15, y: 1 }, { x: 0, y: 0.85 }, { x: 0.35, y: 0.5 }, { x: 0, y: 0.15 }],
+  tag:            [{ x: 0, y: 0 }, { x: 0.78, y: 0 }, { x: 1, y: 0.5 }, { x: 0.78, y: 1 }, { x: 0, y: 1 }],
+  ribbon:         [{ x: 0.1, y: 0 }, { x: 0.9, y: 0 }, { x: 1, y: 0.5 }, { x: 0.9, y: 1 }, { x: 0.1, y: 1 }, { x: 0, y: 0.5 }],
+  callout:        [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 0.68 }, { x: 0.38, y: 0.68 }, { x: 0.2, y: 1 }, { x: 0.14, y: 0.68 }, { x: 0, y: 0.68 }],
+  banner:         [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0.85, y: 0.66 }, { x: 0.5, y: 0.8 }, { x: 0.15, y: 0.66 }, { x: 0, y: 1 }],
+  "location-pin": [{ x: 0.5, y: 0 }, { x: 1, y: 0.38 }, { x: 0.5, y: 1 }, { x: 0, y: 0.38 }],
+
+  // ── Frames / containers ──
+  "bracket-left":  [{ x: 0.6, y: 0 }, { x: 0.3, y: 0 }, { x: 0.3, y: 1 }, { x: 0.6, y: 1 }],
+  "bracket-right": [{ x: 0.4, y: 0 }, { x: 0.7, y: 0 }, { x: 0.7, y: 1 }, { x: 0.4, y: 1 }],
 };
 
 /** Analytical ellipse exit: ray from (cx,cy) in direction (dx,dy) hitting ellipse with semi-axes (a,b). */
