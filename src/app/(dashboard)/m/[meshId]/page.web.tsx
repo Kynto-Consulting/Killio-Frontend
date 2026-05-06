@@ -934,7 +934,6 @@ const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
   parallelogram:  [{ x: 0.15, y: 0 }, { x: 1, y: 0 }, { x: 0.85, y: 1 }, { x: 0, y: 1 }],
   cross:          [{ x: 0.33, y: 0 }, { x: 0.67, y: 0 }, { x: 0.67, y: 0.33 }, { x: 1, y: 0.33 }, { x: 1, y: 0.67 }, { x: 0.67, y: 0.67 }, { x: 0.67, y: 1 }, { x: 0.33, y: 1 }, { x: 0.33, y: 0.67 }, { x: 0, y: 0.67 }, { x: 0, y: 0.33 }, { x: 0.33, y: 0.33 }],
   chevron:        [{ x: 0, y: 0 }, { x: 0.72, y: 0 }, { x: 1, y: 0.5 }, { x: 0.72, y: 1 }, { x: 0, y: 1 }, { x: 0.28, y: 0.5 }],
-  pentagon:       pentPts(),
 
   // ── Basic geometric ──
   trapezoid:         [{ x: 0.15, y: 0 }, { x: 0.85, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
