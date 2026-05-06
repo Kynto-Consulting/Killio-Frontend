@@ -135,6 +135,95 @@ const SHAPE_CATEGORIES: ShapeCategory[] = [
 ];
 const SHAPES = SHAPE_CATEGORIES.flatMap((c) => c.shapes);
 
+// ─── Custom cursors ──────────────────────────────────────────────────────────
+// Double-layer SVG: dark thick stroke behind + white/accent stroke in front
+// gives contrast on both light and dark backgrounds.
+
+function svgCursor(svg: string, hx: number, hy: number): string {
+  return `url("data:image/svg+xml,${encodeURIComponent(svg)}") ${hx} ${hy}, auto`;
+}
+
+const CURSOR = {
+  // Arrow pointer (select mode)
+  select: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="20" viewBox="0 0 16 20">
+      <path d="M2 1.5v15.5l3.2-3.8 2.8 6 2.2-1-2.8-6H15Z" stroke="#0f172a" stroke-width="2.2" stroke-linejoin="round" fill="#0f172a"/>
+      <path d="M2 1.5v15.5l3.2-3.8 2.8 6 2.2-1-2.8-6H15Z" stroke="white" stroke-width="1" stroke-linejoin="round" fill="white"/>
+    </svg>`, 2, 1
+  ),
+  // Open hand (pan mode)
+  grab: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <g stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" fill="none">
+        <path d="M8 10V5a1.5 1.5 0 0 1 3 0v5M11 10V4a1.5 1.5 0 0 1 3 0v6M14 10V5.5a1.5 1.5 0 0 1 3 0V11M8 10V8.5a1.5 1.5 0 0 0-3 0V13c0 3.5 2.5 6 5.5 6s5.5-2.5 5.5-6V11"/>
+      </g>
+      <g stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none">
+        <path d="M8 10V5a1.5 1.5 0 0 1 3 0v5M11 10V4a1.5 1.5 0 0 1 3 0v6M14 10V5.5a1.5 1.5 0 0 1 3 0V11M8 10V8.5a1.5 1.5 0 0 0-3 0V13c0 3.5 2.5 6 5.5 6s5.5-2.5 5.5-6V11"/>
+      </g>
+    </svg>`, 10, 4
+  ),
+  // Closed fist (mid-drag)
+  grabbing: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <g stroke="#0f172a" stroke-width="2.5" stroke-linecap="round" fill="none">
+        <path d="M7 12.5V9.5a1.5 1.5 0 0 1 3 0M10 9.5V8.5a1.5 1.5 0 0 1 3 0v1M13 9.5V9a1.5 1.5 0 0 1 3 0V10.5M7 12.5v-1a1.5 1.5 0 0 0-3 0V14c0 3.5 2.5 6 5.5 6s5.5-2.5 5.5-6v-3.5"/>
+      </g>
+      <g stroke="white" stroke-width="1.5" stroke-linecap="round" fill="none">
+        <path d="M7 12.5V9.5a1.5 1.5 0 0 1 3 0M10 9.5V8.5a1.5 1.5 0 0 1 3 0v1M13 9.5V9a1.5 1.5 0 0 1 3 0V10.5M7 12.5v-1a1.5 1.5 0 0 0-3 0V14c0 3.5 2.5 6 5.5 6s5.5-2.5 5.5-6v-3.5"/>
+      </g>
+    </svg>`, 10, 11
+  ),
+  // Pencil at 45° angle (pen/draw mode) — tip at bottom-left
+  pen: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <path d="M3 19L6 12L17.5 1L21 5L9.5 16Z" stroke="#0f172a" stroke-width="2" stroke-linejoin="round" fill="#0f172a"/>
+      <path d="M3 19L6 12L9.5 16Z" stroke="#0f172a" stroke-width="2" stroke-linejoin="round" fill="#334155"/>
+      <path d="M3 19L6 12L17.5 1L21 5L9.5 16Z" stroke="white" stroke-width="1" stroke-linejoin="round" fill="white"/>
+      <path d="M3 19L6 12L9.5 16Z" stroke="white" stroke-width="0.5" stroke-linejoin="round" fill="#94a3b8"/>
+      <line x1="15" y1="3.5" x2="19" y2="7.5" stroke="white" stroke-width="0.75"/>
+    </svg>`, 3, 19
+  ),
+  // Cyan crosshair with center dot (connector mode)
+  conn: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <circle cx="11" cy="11" r="4" fill="none" stroke="#0f172a" stroke-width="3"/>
+      <line x1="11" y1="1" x2="11" y2="6" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="11" y1="16" x2="11" y2="21" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="1" y1="11" x2="6" y2="11" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="16" y1="11" x2="21" y2="11" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="4" fill="none" stroke="#22d3ee" stroke-width="1.5"/>
+      <line x1="11" y1="1" x2="11" y2="6" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="11" y1="16" x2="11" y2="21" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="1" y1="11" x2="6" y2="11" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="16" y1="11" x2="21" y2="11" stroke="#22d3ee" stroke-width="1.5" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="1.8" fill="#22d3ee"/>
+    </svg>`, 11, 11
+  ),
+  // Arrow with cyan bezier node dot (vec/edit mode)
+  vec: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20">
+      <path d="M2.5 19L8 3L17.5 17.5H12L9 10Z" stroke="#0f172a" stroke-width="2.2" stroke-linejoin="round" fill="#0f172a"/>
+      <path d="M2.5 19L8 3L17.5 17.5H12L9 10Z" stroke="white" stroke-width="1" stroke-linejoin="round" fill="white"/>
+      <circle cx="8" cy="3" r="2.2" fill="#22d3ee" stroke="#0f172a" stroke-width="1"/>
+    </svg>`, 8, 3
+  ),
+  // Crosshair without dot (selection rect / eraser)
+  crosshair: svgCursor(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 22 22">
+      <circle cx="11" cy="11" r="4" fill="none" stroke="#0f172a" stroke-width="3"/>
+      <line x1="11" y1="1" x2="11" y2="6" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="11" y1="16" x2="11" y2="21" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="1" y1="11" x2="6" y2="11" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <line x1="16" y1="11" x2="21" y2="11" stroke="#0f172a" stroke-width="3" stroke-linecap="round"/>
+      <circle cx="11" cy="11" r="4" fill="none" stroke="white" stroke-width="1.5"/>
+      <line x1="11" y1="1" x2="11" y2="6" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="11" y1="16" x2="11" y2="21" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="1" y1="11" x2="6" y2="11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="16" y1="11" x2="21" y2="11" stroke="white" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>`, 11, 11
+  ),
+};
+
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
 const BRICK_SIZE: Record<MeshBrickKind, { w: number; h: number }> = {
@@ -2788,7 +2877,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: boardH,
             borderColor: bStroke, borderWidth: 2,
             backgroundColor: bFill ?? undefined,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: collapsed ? "hidden" : "visible" }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: collapsed ? "hidden" : "visible" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
         >
@@ -2855,7 +2944,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         <div key={brick.id}
           className={`group absolute${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: "visible" }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "visible" }}
           onClick={(e) => { if (e.altKey && toolMode === "vec" && isSel) { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); addCustomPort(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } onBrickClick(e, brick.id); }}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
@@ -2984,7 +3073,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             top: brick.position.y,
             width: brick.size.w,
             height: brick.size.h,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab",
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab,
             outline: rawOutline,
             borderRadius: 10,
             background: "transparent",
@@ -3061,7 +3150,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
             borderColor: isSel ? "rgba(255,255,255,0.5)" : "rgba(59,130,246,0.55)",
             background: "rgba(15,23,42,0.92)",
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab" }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => {
@@ -3199,7 +3288,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
             borderColor: isSel ? "rgba(255,255,255,0.45)" : "rgba(168,85,247,0.35)",
             background: "transparent",
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab" }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
@@ -3270,7 +3359,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           key={brick.id}
           className={`group absolute overflow-hidden transition-[outline-color] duration-100${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
-            cursor: dragState?.brickId === brick.id ? "grabbing" : "grab",
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab,
             outline: (isSel || isMultiSel) ? "2px solid rgba(255,255,255,0.5)" : isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
             borderRadius: 6 }}
           onMouseEnter={(e) => { if (!isSel && !isMultiSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "rgba(34,211,238,0.35)"; }}
@@ -3304,7 +3393,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         className={`absolute rounded-md border bg-slate-900/70${ring}`}
         style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
           borderColor: "rgba(100,180,255,0.25)", borderWidth: 1,
-          cursor: dragState?.brickId === brick.id ? "grabbing" : "grab" }}
+          cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
         onClick={(e) => onBrickClick(e, brick.id)}
         onMouseDown={(e) => startDrag(e, brick.id)}
       >
@@ -3657,8 +3746,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           ) : (
             <div
               ref={canvasRef}
-              className={`absolute inset-0 overflow-hidden touch-none ${toolMode === "pan" ? "cursor-grab" : toolMode === "pen" || toolMode === "conn" ? "cursor-crosshair" : selRect ? "cursor-crosshair" : ""}`}
+              className="absolute inset-0 overflow-hidden touch-none"
               style={{
+                cursor: panDragState ? CURSOR.grabbing
+                  : toolMode === "pan" ? CURSOR.grab
+                  : toolMode === "pen" ? CURSOR.pen
+                  : toolMode === "conn" ? CURSOR.conn
+                  : toolMode === "vec" ? CURSOR.vec
+                  : selRect ? CURSOR.crosshair
+                  : CURSOR.select,
                 backgroundImage: showGrid
                   ? "linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px)"
                   : "none",
