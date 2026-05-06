@@ -11,7 +11,7 @@ import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
-  Minus, MoreHorizontal, MousePointer, Pencil, Save, Send, Sparkles, Square, Trash2, Type, Wand2, X,
+  Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
   Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2,
 } from "lucide-react";
 
@@ -47,7 +47,8 @@ type Port = "top" | "right" | "bottom" | "left";
 
 type ShapePreset =
   | "rect" | "rounded-rect" | "circle" | "ellipse" | "diamond"
-  | "triangle" | "hexagon" | "star" | "arrow" | "note" | "frame-vector" | "flow-terminator";
+  | "triangle" | "hexagon" | "star" | "arrow" | "note" | "frame-vector" | "flow-terminator"
+  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon";
 
 type ConnStyle = "technical" | "dashed" | "handdrawn" | "bezier" | "curved";
 
@@ -92,20 +93,47 @@ const CONTENT_BRICKS: MetaEntry[] = [
   { kind: "portal",  label: "Divider",  unifierKind: "divider",   icon: <Minus         className="h-4 w-4" /> },
 ];
 
-const SHAPES: { preset: ShapePreset; label: string }[] = [
-  { preset: "rect",            label: "Rect"     },
-  { preset: "rounded-rect",    label: "Round"    },
-  { preset: "circle",          label: "Circle"   },
-  { preset: "ellipse",         label: "Ellipse"  },
-  { preset: "diamond",         label: "Diamond"  },
-  { preset: "triangle",        label: "Triangle" },
-  { preset: "hexagon",         label: "Hexagon"  },
-  { preset: "star",            label: "Star"     },
-  { preset: "arrow",           label: "Arrow"    },
-  { preset: "note",            label: "Note"     },
-  { preset: "frame-vector",    label: "Frame"    },
-  { preset: "flow-terminator", label: "Pill"     },
+type ShapeCategory = { label: string; icon: React.ReactNode; shapes: { preset: ShapePreset; label: string }[] };
+const SHAPE_CATEGORIES: ShapeCategory[] = [
+  {
+    label: "Básicas", icon: <Square className="h-3 w-3" />,
+    shapes: [
+      { preset: "rect",         label: "Rect"    },
+      { preset: "rounded-rect", label: "Round"   },
+      { preset: "circle",       label: "Círculo" },
+      { preset: "ellipse",      label: "Elipse"  },
+      { preset: "triangle",     label: "Triáng"  },
+    ],
+  },
+  {
+    label: "Flujo", icon: <GitBranch className="h-3 w-3" />,
+    shapes: [
+      { preset: "diamond",         label: "Decisión" },
+      { preset: "parallelogram",   label: "Datos"    },
+      { preset: "flow-terminator", label: "Terminar" },
+      { preset: "hexagon",         label: "Preparar" },
+      { preset: "pentagon",        label: "Paso"     },
+    ],
+  },
+  {
+    label: "Figuras", icon: <Star className="h-3 w-3" />,
+    shapes: [
+      { preset: "star",    label: "Estrella" },
+      { preset: "cross",   label: "Cruz"     },
+      { preset: "chevron", label: "Chevron"  },
+      { preset: "arrow",   label: "Flecha"   },
+      { preset: "cylinder", label: "BD"      },
+    ],
+  },
+  {
+    label: "Marcos", icon: <FileText className="h-3 w-3" />,
+    shapes: [
+      { preset: "note",         label: "Nota"  },
+      { preset: "frame-vector", label: "Marco" },
+    ],
+  },
 ];
+const SHAPES = SHAPE_CATEGORIES.flatMap((c) => c.shapes);
 
 // ─── Defaults ─────────────────────────────────────────────────────────────────
 
@@ -627,6 +655,8 @@ function mkBrick(
       vectorPoints: defaultPts ? JSON.parse(JSON.stringify(defaultPts)) : undefined,
       style: { stroke: "#22d3ee", fill: "rgba(34,211,238,0.08)", strokeWidth: 2 },
     };
+  } else if (kind === "draw") {
+    content = { isContainer: true, childOrder: [] };
   } else {
     content = {};
   }
@@ -718,13 +748,24 @@ function starPts() {
   return pts;
 }
 
+function pentPts() {
+  return Array.from({ length: 5 }, (_, i) => {
+    const a = ((i * 72 - 90) * Math.PI) / 180;
+    return { x: +(0.5 + 0.5 * Math.cos(a)).toFixed(4), y: +(0.5 + 0.5 * Math.sin(a)).toFixed(4) };
+  });
+}
+
 const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
   diamond:        [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }],
   triangle:       [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
   hexagon:        hexPts(),
+  pentagon:       pentPts(),
   star:           starPts(),
   arrow:          [{ x: 0, y: 0.35 }, { x: 0.6, y: 0.35 }, { x: 0.6, y: 0.1 }, { x: 1, y: 0.5 }, { x: 0.6, y: 0.9 }, { x: 0.6, y: 0.65 }, { x: 0, y: 0.65 }],
   "frame-vector": [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  parallelogram:  [{ x: 0.15, y: 0 }, { x: 1, y: 0 }, { x: 0.85, y: 1 }, { x: 0, y: 1 }],
+  cross:          [{ x: 0.33, y: 0 }, { x: 0.67, y: 0 }, { x: 0.67, y: 0.33 }, { x: 1, y: 0.33 }, { x: 1, y: 0.67 }, { x: 0.67, y: 0.67 }, { x: 0.67, y: 1 }, { x: 0.33, y: 1 }, { x: 0.33, y: 0.67 }, { x: 0, y: 0.67 }, { x: 0, y: 0.33 }, { x: 0.33, y: 0.33 }],
+  chevron:        [{ x: 0, y: 0 }, { x: 0.72, y: 0 }, { x: 1, y: 0.5 }, { x: 0.72, y: 1 }, { x: 0, y: 1 }, { x: 0.28, y: 0.5 }],
 };
 
 /** Analytical ellipse exit: ray from (cx,cy) in direction (dx,dy) hitting ellipse with semi-axes (a,b). */
@@ -854,6 +895,18 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
         <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} />
         <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} />
+      </svg>
+    );
+  }
+  if (preset === "cylinder") {
+    const ry = Math.max(5, h * 0.14);
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
+        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
       </svg>
     );
   }
@@ -1025,7 +1078,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
   const [connSrcAnchor,  setConnSrcAnchor]  = useState<AnchorNorm | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
-  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | null>(null);
+  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | "style" | null>(null);
 
   // drag state
   const [dragState,    setDragState]    = useState<DragState | null>(null);
@@ -2725,12 +2778,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           return next;
         });
       };
+      const bSR   = asRec(asRec(brick.content).style);
+      const bStroke = typeof bSR.stroke === "string" ? bSR.stroke : (isSel ? "rgba(255,255,255,0.5)" : "rgba(34,211,238,0.6)");
+      const bFill   = typeof bSR.fill   === "string" ? bSR.fill   : undefined;
       return (
         <div
           key={brick.id}
-          className={`group/board absolute rounded-xl border bg-cyan-950/10 transition-[height] duration-150${ring}`}
+          className={`group/board absolute rounded-xl border transition-[height] duration-150${ring}${bFill ? "" : " bg-cyan-950/10"}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: boardH,
-            borderColor: isSel ? "rgba(255,255,255,0.5)" : "rgba(34,211,238,0.6)", borderWidth: 2,
+            borderColor: bStroke, borderWidth: 2,
+            backgroundColor: bFill ?? undefined,
             cursor: dragState?.brickId === brick.id ? "grabbing" : "grab", overflow: collapsed ? "hidden" : "visible" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onMouseDown={(e) => startDrag(e, brick.id)}
@@ -2788,7 +2845,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const shapeH       = collapsed ? 28 : brick.size.h;
       const shapeLabel   = typeof c.label === "string" ? c.label : "";
       const shapeStroke = sStroke;
-      const shapeFill = isDrawBrick ? "rgba(0,0,0,0)" : sFill;
+      const hasFillOverride = typeof asRec(c.style).fill === "string";
+      const shapeFill = isDrawBrick && !hasFillOverride ? "rgba(0,0,0,0)" : sFill;
       const toggleCollapse = (e: React.MouseEvent) => {
         e.stopPropagation();
         setCollapsedBoards((prev) => { const n = new Set(prev); n.has(brick.id) ? n.delete(brick.id) : n.add(brick.id); return n; });
@@ -2960,6 +3018,21 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 );
               })}
             </svg>
+          )}
+          {/* Children when this raw draw is a container */}
+          {isCont && kids.map((child) => renderBrick(child))}
+          {isSel && isCont && (
+            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
+              onMouseDown={(e) => e.stopPropagation()}>
+              <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
+              {BASIC_BRICKS.slice(0, 3).map((entry) => (
+                <button key={entry.kind} type="button" title={entry.label}
+                  className="flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] text-muted-foreground hover:bg-accent/20 hover:text-foreground"
+                  onClick={(e) => { e.stopPropagation(); addMeta(entry, { x: resolveGlobal(state.bricksById, brick.id).x + 20, y: resolveGlobal(state.bricksById, brick.id).y + 36 }); }}>
+                  {entry.icon}<span className="ml-0.5">{entry.label}</span>
+                </button>
+              ))}
+            </div>
           )}
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {vecCustomPortDots}
@@ -3544,19 +3617,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {/* Formas */}
           <section className="px-2 pb-2">
             <p className="mb-1 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">Formas</p>
-            <div className="grid grid-cols-3 gap-1">
-              {SHAPES.map(({ preset, label }) => (
-                <button key={preset} type="button" title={label} draggable
-                  onClick={() => addShape(preset)}
-                  onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
-                  className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                  <div className="h-[18px] w-[32px] relative">
-                    <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
-                  </div>
-                  <span className="text-[7px] leading-none truncate max-w-[36px]">{label}</span>
-                </button>
-              ))}
-            </div>
+            {SHAPE_CATEGORIES.map((cat) => (
+              <div key={cat.label} className="mb-2">
+                <div className="mb-1 flex items-center gap-1 text-[7px] text-muted-foreground/60">
+                  {cat.icon}<span className="uppercase tracking-wider">{cat.label}</span>
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  {cat.shapes.map(({ preset, label }) => (
+                    <button key={preset} type="button" title={label} draggable
+                      onClick={() => addShape(preset)}
+                      onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
+                      className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
+                      <div className="h-[18px] w-[32px] relative">
+                        <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
+                      </div>
+                      <span className="text-[7px] leading-none truncate max-w-[36px]">{label}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </section>
 
           {/* Pen status */}
@@ -4001,23 +4081,100 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   )}
 
                   {toolbarPanel === "shapes" && (
-                    <div>
-                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Formas</p>
-                      <div className="grid grid-cols-5 gap-1">
-                        {SHAPES.map(({ preset, label }) => (
-                          <button key={preset} type="button" title={label} draggable
-                            onClick={() => { addShape(preset); setToolbarPanel(null); }}
-                            onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
-                            className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                            <div className="relative h-[18px] w-[32px]">
-                              <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
-                            </div>
-                            <span className="max-w-[40px] truncate text-[7px] leading-none">{label}</span>
-                          </button>
-                        ))}
-                      </div>
+                    <div className="space-y-3">
+                      {SHAPE_CATEGORIES.map((cat) => (
+                        <div key={cat.label}>
+                          <div className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-cyan-200/60">
+                            {cat.icon}<span>{cat.label}</span>
+                          </div>
+                          <div className="grid grid-cols-5 gap-1">
+                            {cat.shapes.map(({ preset, label }) => (
+                              <button key={preset} type="button" title={label} draggable
+                                onClick={() => { addShape(preset); setToolbarPanel(null); }}
+                                onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
+                                className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
+                                <div className="relative h-[18px] w-[32px]">
+                                  <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
+                                </div>
+                                <span className="max-w-[40px] truncate text-[7px] leading-none">{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
+
+                  {toolbarPanel === "style" && (() => {
+                    const sb = selectedId ? state.bricksById[selectedId] : null;
+                    const isStyleable = sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame");
+                    if (!isStyleable || !sb) return (
+                      <div className="text-[10px] text-slate-400">Selecciona un board, figura o draw para editar el estilo.</div>
+                    );
+                    const sbStyle = asRec(asRec(sb.content).style);
+                    const curStroke = typeof sbStyle.stroke === "string" ? sbStyle.stroke : (sb.kind === "board_empty" ? "rgba(34,211,238,0.6)" : "#22d3ee");
+                    const curFill   = typeof sbStyle.fill   === "string" ? sbStyle.fill   : (sb.kind === "board_empty" ? "" : "rgba(34,211,238,0.08)");
+                    const curSW     = typeof sbStyle.strokeWidth === "number" ? sbStyle.strokeWidth : 2;
+                    const patchStyle = (patch: Record<string, unknown>) => {
+                      setState((cur) => {
+                        const b = cur.bricksById[selectedId!];
+                        if (!b) return cur;
+                        const newContent = { ...asRec(b.content), style: { ...asRec(asRec(b.content).style), ...patch } };
+                        return { ...cur, bricksById: { ...cur.bricksById, [selectedId!]: { ...b, content: newContent } } };
+                      });
+                    };
+                    return (
+                      <div className="space-y-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Estilo</p>
+                        <div className="grid grid-cols-3 gap-3 text-[10px] text-slate-300">
+                          <label className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Borde</span>
+                            <div className="flex items-center gap-1.5">
+                              <input type="color" value={curStroke.startsWith("#") ? curStroke : "#22d3ee"}
+                                onChange={(e) => patchStyle({ stroke: e.target.value })}
+                                className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+                              <input type="text" value={curStroke}
+                                onChange={(e) => patchStyle({ stroke: e.target.value })}
+                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                            </div>
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Fondo</span>
+                            <div className="flex items-center gap-1.5">
+                              <input type="color" value={curFill.startsWith("#") ? curFill : "#000000"}
+                                onChange={(e) => patchStyle({ fill: e.target.value })}
+                                className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+                              <input type="text" value={curFill}
+                                onChange={(e) => patchStyle({ fill: e.target.value })}
+                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                            </div>
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Grosor</span>
+                            <input type="number" min={0.5} max={10} step={0.5} value={curSW}
+                              onChange={(e) => patchStyle({ strokeWidth: Number(e.target.value) })}
+                              className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                          </label>
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {[["transparent","Transparente"],["rgba(34,211,238,0.08)","Cyan sutil"],["rgba(99,102,241,0.15)","Violeta"],["rgba(234,179,8,0.15)","Ambar"],["rgba(239,68,68,0.15)","Rojo"],["rgba(34,197,94,0.15)","Verde"],["#1e293b","Azul oscuro"],["#0f172a","Negro"]]
+                            .map(([v, n]) => (
+                              <button key={v} title={n} onClick={() => patchStyle({ fill: v })}
+                                className="h-5 w-5 rounded border border-white/20 transition-transform hover:scale-110"
+                                style={{ background: v === "transparent" ? "repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 0 0 / 8px 8px" : v }} />
+                            ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {[["#22d3ee","Cyan"],["#818cf8","Indigo"],["#fb7185","Rosa"],["#4ade80","Verde"],["#fbbf24","Ambar"],["#f472b6","Fucsia"],["#94a3b8","Gris"],["#ffffff","Blanco"]]
+                            .map(([v, n]) => (
+                              <button key={v} title={`Borde: ${n}`} onClick={() => patchStyle({ stroke: v })}
+                                className="h-5 w-5 rounded border-2 transition-transform hover:scale-110"
+                                style={{ borderColor: v, background: "transparent" }} />
+                            ))}
+                        </div>
+                      </div>
+                    );
+                  })()}
 
                   {toolbarPanel === "status" && (
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 sm:grid-cols-4">
@@ -4043,6 +4200,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <button type="button" title="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
                 <button type="button" title="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
                 <button type="button" title="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
+                {selectedId && (() => {
+                  const sb = state.bricksById[selectedId];
+                  return sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame") ? (
+                    <button type="button" title="Estilo" onClick={() => setToolbarPanel((current) => current === "style" ? null : "style")} className={dockBtnClass(toolbarPanel === "style")}><Palette className="h-4 w-4" /></button>
+                  ) : null;
+                })()}
                 <button type="button" title="Más" onClick={() => setToolbarPanel((current) => current === "status" ? null : "status")} className={dockBtnClass(toolbarPanel === "status")}><MoreHorizontal className="h-4 w-4" /></button>
               </div>
             </div>

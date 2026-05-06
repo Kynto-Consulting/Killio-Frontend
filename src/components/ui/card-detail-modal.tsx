@@ -729,20 +729,20 @@ export function CardDetailModal({
         return logs
           .filter((entry) => entry.action === 'card.commented')
           .slice(0, 25)
-            .map((entry) => {
-              const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-              const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
-              return `- [${entry.createdAt}] ${actorName} in ${boardCard.title}: ${String((entry.payload as any)?.text || '')}`;
-            });
-        }).slice(0, 220);
-
-        const activityLines = [...boardActivity, ...cardActivityByCard.flatMap((entry) => entry.logs)]
-          .slice(0, 260)
           .map((entry) => {
-              const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-              const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
-              return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId})`;
+            const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+            const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
+            return `- [${entry.createdAt}] ${actorName} in ${boardCard.title}: ${String((entry.payload as any)?.text || '')}`;
           });
+      }).slice(0, 220);
+
+      const activityLines = [...boardActivity, ...cardActivityByCard.flatMap((entry) => entry.logs)]
+        .slice(0, 260)
+        .map((entry) => {
+          const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
+          const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
+          return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId})`;
+        });
 
       const contextSummary = [
         `Board/Card context: ${boardLabel}`,
@@ -1307,7 +1307,7 @@ export function CardDetailModal({
       console.log('[UpdateBrick] early exit: missing accessToken');
       return;
     }
-    
+
     console.log('[UpdateBrick] updating brick', { brickId, input });
 
     // Handle legacy summary fallback: dynamically convert to a real database brick
@@ -1328,7 +1328,7 @@ export function CardDetailModal({
         return;
       }
     }
-    
+
     // Always update locally (optimistic update)
     setLocalBlocks(prev => prev.map(b => {
       if (b.id !== brickId) return b;
@@ -1342,15 +1342,15 @@ export function CardDetailModal({
       // For other brick types, merge normally
       return { ...b, ...input };
     }) as BoardBrick[]);
-    
+
     console.log('[UpdateBrick] local update complete');
-    
+
     // If we have card.id, also sync with server
     if (!card?.id) {
       console.log('[UpdateBrick] no card.id, updated locally only (optimistic)');
       return;
     }
-    
+
     try {
       await updateCardBrick(card.id, brickId, input as any, accessToken);
       console.log('[UpdateBrick] server update complete');
@@ -1567,12 +1567,12 @@ export function CardDetailModal({
 
     const sourceMarkdown = typeof markdown === 'string' ? markdown : (target.markdown || '');
     const safeCursor = Math.max(0, Math.min(cursorOffset, sourceMarkdown.length));
-    
+
     // Determine position: start, end, or middle
     const isAtStart = safeCursor === 0;
     const isAtEnd = safeCursor >= sourceMarkdown.length;
     const isAtMiddle = !isAtStart && !isAtEnd;
-    
+
     console.log('[CardTextPaste] cursor position', {
       cursorOffset: safeCursor,
       textLength: sourceMarkdown.length,
@@ -1630,7 +1630,7 @@ export function CardDetailModal({
       };
 
       const newBlocks: BoardBrick[] = [...localBlocks];
-      
+
       if (isAtStart) {
         // Insert media brick BEFORE text brick
         console.log('[CardTextPaste] inserting media brick at start');
@@ -1680,7 +1680,7 @@ export function CardDetailModal({
       // If card has an ID, persist to server
       if (card?.id && accessToken && uploadedToServer) {
         console.log('[CardTextPaste] persisting to server...');
-        
+
         // Create or update each brick on server
         for (const block of newBlocks) {
           if (block.id.startsWith('temp-')) {
@@ -1703,7 +1703,7 @@ export function CardDetailModal({
             } as BrickMutationInput, accessToken);
           }
         }
-        
+
         // Reorder all bricks
         await reorderCardBricks(
           card.id,
@@ -2348,27 +2348,27 @@ export function CardDetailModal({
 
                         {filteredAvailableTags.length > 0 && (
                           <div className="space-y-1">
-                          <div className="space-y-1">
-                            <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
-                            <div className="max-h-32 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                              {filteredAvailableTags.map(tag => (
-                                <button
-                                  key={tag.id}
-                                  onClick={() => {
-                                    handleAddTag(tag);
-                                    setTagSearch("");
-                                  }}
-                                  className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded-md flex items-center justify-between group transition-colors"
-                                >
-                                  <div className="flex items-center space-x-2">
-                                    <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: normalizeColor(tag.color) }} />
-                                    <span className="font-medium">{getTagLabel(tag)}</span>
-                                  </div>
-                                  <Plus className="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />
-                                </button>
-                              ))}
+                            <div className="space-y-1">
+                              <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
+                              <div className="max-h-32 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
+                                {filteredAvailableTags.map(tag => (
+                                  <button
+                                    key={tag.id}
+                                    onClick={() => {
+                                      handleAddTag(tag);
+                                      setTagSearch("");
+                                    }}
+                                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded-md flex items-center justify-between group transition-colors"
+                                  >
+                                    <div className="flex items-center space-x-2">
+                                      <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: normalizeColor(tag.color) }} />
+                                      <span className="font-medium">{getTagLabel(tag)}</span>
+                                    </div>
+                                    <Plus className="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                          </div>
                           </div>
                         )}
 
@@ -2494,22 +2494,20 @@ export function CardDetailModal({
                           <button
                             type="button"
                             onClick={() => setTimerMode("timer")}
-                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                              timerMode === "timer"
+                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${timerMode === "timer"
                                 ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground"
-                            }`}
+                              }`}
                           >
                             Duration
                           </button>
                           <button
                             type="button"
                             onClick={() => setTimerMode("dueDate")}
-                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                              timerMode === "dueDate"
+                            className={`flex-1 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${timerMode === "dueDate"
                                 ? "bg-primary text-primary-foreground"
                                 : "text-muted-foreground hover:text-foreground"
-                            }`}
+                              }`}
                           >
                             Due Date
                           </button>
@@ -2571,60 +2569,6 @@ export function CardDetailModal({
                   </div>
                 </div>
 
-                <div className="rounded-xl border border-border/70 bg-card/70 p-4 shadow-sm">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t('cardModal.dueDateEditor.title')}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">{t('cardModal.dueDateEditor.description')}</p>
-                    </div>
-                    {localDueAtTimestamp ? (
-                      <span className="rounded-full border border-border/60 bg-background px-3 py-1 text-[11px] font-medium text-muted-foreground">
-                        {formatUiDateTime(localDueAtTimestamp)}
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
-                    <label className="space-y-1 text-xs text-muted-foreground">
-                      <span>{t('cardModal.dueDateEditor.inputLabel')}</span>
-                      <input
-                        type="datetime-local"
-                        value={localDueAt}
-                        onChange={(event) => {
-                          const nextValue = event.target.value;
-                          setLocalDueAt(nextValue);
-                          setLocalDueAtTimestamp(nextValue ? toIsoDateTimeValue(nextValue) : null);
-                        }}
-                        disabled={readonly}
-                        step={60}
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-accent disabled:opacity-60"
-                      />
-                    </label>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleUpdateField('due_at', localDueAtTimestamp)}
-                        disabled={readonly || !localDueAtTimestamp}
-                        className="rounded-md bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground disabled:opacity-50"
-                      >
-                        {t('cardModal.dueDateEditor.save')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setLocalDueAt('');
-                          setLocalDueAtTimestamp(null);
-                          void handleUpdateField('due_at', null);
-                        }}
-                        disabled={readonly}
-                        className="rounded-md border border-border px-3 py-2 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground disabled:opacity-50"
-                      >
-                        {t('cardModal.dueDateEditor.clear')}
-                      </button>
-                    </div>
-                  </div>
-                </div>
 
                 <div className="mt-8">
                   <h3 className="font-semibold text-lg text-foreground">Content</h3>
@@ -2639,31 +2583,31 @@ export function CardDetailModal({
                     documents={contextDocs}
                     boards={teamBoards}
                     users={boardMembers}
-                      addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
+                    addableKinds={['text', 'table', 'graph', 'checklist', 'accordion', 'image']}
                     onAddBrick={async (kind, afterBrickId, parentProps, initContent) => {
                       let input: BrickMutationInput;
                       if (kind === 'checklist') {
                         input = { kind: 'checklist', items: [{ id: crypto.randomUUID(), label: 'Nueva tarea', checked: false }] };
                       } else if (kind === 'table') {
                         input = { kind: 'table', rows: [['Encabezado 1', 'Encabezado 2'], ['', '']] };
-                        } else if (kind === 'graph') {
-                          input = {
-                            kind: 'graph',
-                            type: 'line',
-                            title: 'Análisis de datos',
-                            data: [
-                              { name: 'A', value: 10 },
-                              { name: 'B', value: 20 },
-                              { name: 'C', value: 15 },
-                            ],
-                          };
-                        } else if (kind === 'accordion') {
-                          input = {
-                            kind: 'accordion',
-                            title: 'Nuevo acordeón',
-                            body: '',
-                            isExpanded: true,
-                          };
+                      } else if (kind === 'graph') {
+                        input = {
+                          kind: 'graph',
+                          type: 'line',
+                          title: 'Análisis de datos',
+                          data: [
+                            { name: 'A', value: 10 },
+                            { name: 'B', value: 20 },
+                            { name: 'C', value: 15 },
+                          ],
+                        };
+                      } else if (kind === 'accordion') {
+                        input = {
+                          kind: 'accordion',
+                          title: 'Nuevo acordeón',
+                          body: '',
+                          isExpanded: true,
+                        };
                       } else if (kind === 'text' && initContent) { input = { kind: 'text', markdown: initContent.markdown, displayStyle: 'paragraph' }; } else if (kind === 'image') {
                         input = {
                           kind: 'media',
@@ -2678,7 +2622,7 @@ export function CardDetailModal({
                       } else {
                         input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };
                       }
-                      
+
                       if (kind === 'accordion') {
                         (input as any).content = { childrenByContainer: { body: [] } };
                       }
@@ -2746,24 +2690,24 @@ export function CardDetailModal({
                           </div>
 
                           {actions.map((action, actionIdx) => (
-                      <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
-                        </div>
-                        
-                        <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
-                        </div>
+                            <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
+                              <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
+                              </div>
 
-                        <button
-                          onClick={() => handleAiAction(action)}
-                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
-                        >
-                          Confirmar y Ejecutar
-                        </button>
-                      </div>
-                    ))}
+                              <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
+                                <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
+                              </div>
+
+                              <button
+                                onClick={() => handleAiAction(action)}
+                                className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
+                              >
+                                Confirmar y Ejecutar
+                              </button>
+                            </div>
+                          ))}
                         </div>
                       );
                     })}

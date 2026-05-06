@@ -39,7 +39,8 @@ export type MeshState = {
 type ShapePreset =
   | "rect" | "rounded-rect" | "circle" | "ellipse" | "diamond"
   | "triangle" | "hexagon" | "star" | "arrow" | "note"
-  | "frame-vector" | "flow-terminator";
+  | "frame-vector" | "flow-terminator"
+  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon";
 
 type Port = "top" | "right" | "bottom" | "left";
 type AnchorNorm = { x: number; y: number };
@@ -172,13 +173,24 @@ function starPts() {
   return pts;
 }
 
+function pentPts() {
+  return Array.from({ length: 5 }, (_, i) => {
+    const a = ((i * 72 - 90) * Math.PI) / 180;
+    return { x: +(0.5 + 0.5 * Math.cos(a)).toFixed(4), y: +(0.5 + 0.5 * Math.sin(a)).toFixed(4) };
+  });
+}
+
 const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
   diamond:        [{ x: 0.5, y: 0 }, { x: 1, y: 0.5 }, { x: 0.5, y: 1 }, { x: 0, y: 0.5 }],
   triangle:       [{ x: 0.5, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
   hexagon:        hexPts(),
+  pentagon:       pentPts(),
   star:           starPts(),
   arrow:          [{ x: 0, y: 0.35 }, { x: 0.6, y: 0.35 }, { x: 0.6, y: 0.1 }, { x: 1, y: 0.5 }, { x: 0.6, y: 0.9 }, { x: 0.6, y: 0.65 }, { x: 0, y: 0.65 }],
   "frame-vector": [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }],
+  parallelogram:  [{ x: 0.15, y: 0 }, { x: 1, y: 0 }, { x: 0.85, y: 1 }, { x: 0, y: 1 }],
+  cross:          [{ x: 0.33, y: 0 }, { x: 0.67, y: 0 }, { x: 0.67, y: 0.33 }, { x: 1, y: 0.33 }, { x: 1, y: 0.67 }, { x: 0.67, y: 0.67 }, { x: 0.67, y: 1 }, { x: 0.33, y: 1 }, { x: 0.33, y: 0.67 }, { x: 0, y: 0.67 }, { x: 0, y: 0.33 }, { x: 0.33, y: 0.33 }],
+  chevron:        [{ x: 0, y: 0 }, { x: 0.72, y: 0 }, { x: 1, y: 0.5 }, { x: 0.72, y: 1 }, { x: 0, y: 1 }, { x: 0.28, y: 0.5 }],
 };
 
 // ─── ShapeSvg ─────────────────────────────────────────────────────────────────
@@ -221,6 +233,18 @@ function ShapeSvg({
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
         <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} />
         <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} />
+      </svg>
+    );
+  }
+  if (preset === "cylinder") {
+    const ry = Math.max(5, h * 0.14);
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
+        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
       </svg>
     );
   }
@@ -769,9 +793,9 @@ function RenderBrick({
           top: g.y,
           width: brick.size.w,
           height: brick.size.h,
-          borderColor: "rgba(34,211,238,0.6)",
+          borderColor: typeof asRec(c.style).stroke === "string" ? (asRec(c.style).stroke as string) : "rgba(34,211,238,0.6)",
           borderWidth: 2,
-          background: "rgba(15,23,42,0.35)",
+          background: typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(15,23,42,0.35)",
         }}
       >
         <div
@@ -902,7 +926,7 @@ function RenderBrick({
           h={brick.size.h}
           pts={vecPts}
           stroke={sStroke}
-          fill="rgba(0,0,0,0)"
+          fill={typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(0,0,0,0)"}
           sw={sSW}
         />
 

@@ -120,7 +120,6 @@ export default function PublicDocumentPage() {
         <div className="max-w-4xl w-full">
           <div className="mb-8 border-b border-border/50 pb-5">
             <h2 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">{document.title}</h2>
-            <p className="mt-3 text-sm text-muted-foreground">{t("publicView.sharedDescription")}</p>
           </div>
 
           <div className="pb-32 space-y-2">
