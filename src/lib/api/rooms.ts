@@ -226,7 +226,7 @@ export async function removeMember(roomId: string, userId: string, accessToken: 
 }
 
 export async function getMyRoomPermissions(roomId: string, accessToken: string): Promise<RoomPermissions> {
-  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/my-permissions`, { headers: authHeader(accessToken) });
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/permissions/me`, { headers: authHeader(accessToken) });
   if (!res.ok) {
     // Fallback: grant member-level permissions so UI is functional before backend is ready
     return { canPost: true, canCall: true, canInvite: false, canManage: false, canRecord: true };
