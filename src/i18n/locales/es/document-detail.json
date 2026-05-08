@@ -179,7 +179,16 @@
     "tabsSearch": "pestañas tabs",
     "colsLabel": "Columnas",
     "colsDesc": "Crea un diseño de varias columnas",
-    "colsSearch": "columnas cols grid"
+    "colsSearch": "columnas cols grid",
+    "aiImproveLabel": "Mejorar texto",
+    "aiImproveDesc": "Reescribe el bloque con mejor redacción",
+    "aiImproveSearch": "ai mejorar reescribir texto",
+    "aiFixLabel": "Corregir ortografía",
+    "aiFixDesc": "Corrige errores ortográficos y gramaticales",
+    "aiFixSearch": "ai corregir ortografía gramática",
+    "aiAskLabel": "Preguntar a la IA",
+    "aiAskDesc": "Abre el chat de IA con este bloque como contexto",
+    "aiAskSearch": "ai preguntar chat asistente"
   },
   "slashPreviews": {
     "text": "Texto simple",

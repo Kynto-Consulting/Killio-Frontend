@@ -2,9 +2,9 @@
 import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Sparkles, Loader2, Bot, Info, History as HistoryIcon, RefreshCcw, Trash2, Layout, CheckCircle2, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
+import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, improveCardWithAi, updateList, uploadFile, getBoard, listTeamActivity, generateReportDocumentWithAi, ApiError } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, updateList, uploadFile, ApiError } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -12,23 +12,20 @@ import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { getUserAvatarUrl } from "../../lib/gravatar";
 import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KEY, translateNativeTagName } from "../../lib/native-tags";
-import { BrickDiff } from "../bricks/brick-diff";
 import * as jsdiff from "diff";
 import { ReferenceResolver } from "@/lib/reference-resolver";
-import { listDocuments, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { listTeamMembers } from "@/lib/api/contracts";
 import { Fragment, type ReactNode, useMemo } from "react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { RefPill } from "./ref-pill";
-import { extractDocumentReferenceIds, formatDateRangeLabel, GENERATE_REPORT_INTENT_REGEX, isTimestampInDateRange, resolveReportDateRange, toDocumentMentionToken } from "@/lib/ai-report";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } from "@/lib/workspace-members";
-import { buildBricksContextText } from "@/lib/brick-context";
+import { AgentChatPanel } from "@/components/agent";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -173,7 +170,6 @@ export function CardDetailModal({
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity' | 'copilot'>('details');
-  const [aiMessages, setAiMessages] = useState<Array<{ role: 'user' | 'assistant', content: string }>>([]);
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
@@ -182,22 +178,10 @@ export function CardDetailModal({
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [boardMembers, setBoardMembers] = useState<any[]>([]);
   const [isCreating, setIsCreating] = useState(false);
-  const [isImprovingDescription, setIsImprovingDescription] = useState(false);
-  const [improveError, setImproveError] = useState<string | null>(null);
-  const [pendingImprovement, setPendingImprovement] = useState<{
-    title: string;
-    bricks: Array<{ kind: 'text' | 'checklist', content: any }>;
-    diffText: string;
-    originalText: string;
-    explanation?: string;
-  } | null>(null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
   const [hideNativeTagSuggestions, setHideNativeTagSuggestions] = useState(false);
-  const [reportFromDate, setReportFromDate] = useState("");
-  const [reportToDate, setReportToDate] = useState("");
-  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
   const [selectedActivityGroup, setSelectedActivityGroup] = useState<ActivityLogEntry[] | null>(null);
   const [isActivityModalOpen, setIsActivityModalOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -256,568 +240,7 @@ export function CardDetailModal({
       .replace(/'/g, "&#39;");
   };
 
-  const resolveAiScope = (): { scope: 'personal' | 'team' | 'board' | 'list'; scopeId: string } => {
-    if (boardId) return { scope: 'board', scopeId: boardId };
-    if (listId) return { scope: 'list', scopeId: listId };
-    return { scope: 'personal', scopeId: 'personal' };
-  };
 
-  const normalizeAiText = (value: unknown): string => {
-    if (typeof value === "string") return value;
-    if (value === null || value === undefined) return "";
-    if (Array.isArray(value)) {
-      return value
-        .map((item) => (typeof item === "string" ? item : String(item ?? "")))
-        .join("\n")
-        .trim();
-    }
-    if (typeof value === "object") {
-      try {
-        return JSON.stringify(value);
-      } catch {
-        return "";
-      }
-    }
-    return String(value);
-  };
-
-  const handleImproveDescriptionWithAi = async () => {
-    if (!accessToken || isImprovingDescription) return;
-
-    const sourceTitle = readCurrentTitle();
-    const textBricks = localBlocks.filter(b => b.kind === 'text');
-    const sourceSummaryText = textBricks.map(b => b.markdown).join("\n\n");
-
-    if (!sourceTitle && !sourceSummaryText) {
-      setImproveError("Escribe un título o una descripción antes de mejorar con IA.");
-      return;
-    }
-
-    setImproveError(null);
-    setPendingImprovement(null);
-    setIsImprovingDescription(true);
-
-    // Add user message to history
-    setAiMessages(prev => [...prev, { role: 'user', content: 'Mejorar contenido de la tarjeta con IA' }]);
-
-    try {
-      const { scope, scopeId } = resolveAiScope();
-      const improved = await improveCardWithAi(
-        {
-          scope,
-          scopeId,
-          currentTitle: sourceTitle,
-          currentDescription: sourceSummaryText || undefined,
-          currentBricks: localBlocks,
-        },
-        accessToken,
-      );
-
-      const improvedTitle = (normalizeAiText(improved?.title) || sourceTitle || "").trim() || "New Card";
-      const improvedBricks = improved.bricks || [{ kind: 'text', content: { markdown: sourceSummaryText } }];
-      const improvedText = improvedBricks.map((b: any) => b.kind === 'text' ? b.content.markdown : `[Checklist: ${b.content.items?.length || 0} ítems]`).join('\n\n');
-
-      setPendingImprovement({
-        title: improvedTitle,
-        bricks: improvedBricks,
-        diffText: improvedText,
-        originalText: sourceSummaryText,
-        explanation: improved.explanation
-      });
-
-      setAiMessages(prev => [...prev, { role: 'assistant', content: 'He analizado la tarjeta y tengo algunas sugerencias interesantes para mejorarla. ¿Quieres revisarlas?' }]);
-    } catch (err) {
-      console.error("Failed to improve card with AI", err);
-      setImproveError("No se pudo mejorar el texto con IA en este momento.");
-      setAiMessages(prev => [...prev, { role: 'assistant', content: 'Lo siento, hubo un error al intentar mejorar la tarjeta. Por favor intenta de nuevo.' }]);
-    } finally {
-      setIsImprovingDescription(false);
-    }
-  };
-
-  const applyImprovement = async () => {
-    if (!pendingImprovement || !accessToken) return;
-
-    setLocalTitle(pendingImprovement.title);
-    if (titleRef.current) {
-      titleRef.current.textContent = pendingImprovement.title;
-    }
-
-    if (pendingImprovement.bricks) {
-      // Precise mutation logic:
-      // 1. Identify which ones to Update
-      // 2. Identify which ones to Create
-      // 3. Identify which ones to Delete
-
-      const newBricks = pendingImprovement.bricks;
-      const oldBrickIds = localBlocks.map(b => b.id);
-      const suggestedBrickIds = newBricks.filter((b: any) => b.id).map((b: any) => b.id);
-
-      // Deletions: in local but NOT in suggested
-      const toDelete = oldBrickIds.filter(id => !suggestedBrickIds.includes(id));
-      for (const id of toDelete) {
-        await handleDeleteBrick(id);
-      }
-
-      // Updates and Creates
-      for (const b of newBricks as any[]) {
-        if (b.id && oldBrickIds.includes(b.id)) {
-          // Update
-          await handleUpdateBrick(b.id, {
-            kind: b.kind,
-            markdown: b.content?.markdown || '',
-            items: b.content?.items || [],
-          });
-        } else {
-          // Create
-          await handleCreateBrick({
-            kind: b.kind,
-            markdown: b.content?.markdown || '',
-            items: b.content?.items || [],
-            displayStyle: 'paragraph'
-          });
-        }
-      }
-    }
-
-    setPendingImprovement(null);
-    setImproveError(null);
-
-    if (card?.id) {
-      try {
-        const payload = withListContext({ title: pendingImprovement.title });
-        await updateCard(card.id, payload, accessToken);
-        router.refresh();
-        window.dispatchEvent(new Event('board:refresh'));
-      } catch (err) {
-        console.error("Failed to apply title improvement", err);
-      }
-    }
-  };
-  const rejectImprovement = () => {
-    setPendingImprovement(null);
-    setImproveError(null);
-  };
-
-  const handleAiAction = async (actionData: any) => {
-    if (!accessToken) return;
-
-    const action = String(actionData?.action || actionData?.type || '').toUpperCase();
-    const payload = (actionData?.payload && typeof actionData.payload === 'object') ? actionData.payload : actionData;
-    const entityId = String(actionData?.id || payload?.id || payload?.entityId || '').trim();
-
-    try {
-      if (action === 'CARD_RENAME') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        const title = String(payload?.title || '').trim();
-        if (!cardId || !title) throw new Error('CARD_RENAME requiere cardId y title');
-
-        if (card?.id && cardId === card.id) {
-          await handleUpdateField('title', title);
-        } else {
-          await updateCard(cardId, { title }, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'TAG_ADD') {
-        if (!boardId) throw new Error('TAG_ADD requiere contexto de board');
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        const tagName = String(payload?.tagName || '').trim();
-        if (!cardId || !tagName) throw new Error('TAG_ADD requiere cardId y tagName');
-
-        let tag = availableTags.find(t => String(t.name || '').toLowerCase() === tagName.toLowerCase());
-        if (!tag) {
-          tag = await createTag({
-            scopeType: 'board',
-            scopeId: boardId,
-            name: tagName,
-            color: payload?.color || '#3b82f6',
-            tagKind: 'custom'
-          }, accessToken);
-          setAvailableTags(prev => [...prev, tag]);
-        }
-
-        if (card?.id && cardId === card.id) {
-          await handleAddTag(tag);
-        } else {
-          const { addCardTag } = await import("@/lib/api/contracts");
-          await addCardTag(cardId, tag.id, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'CARD_MOVE') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        const targetListId = String(payload?.targetListId || payload?.listId || '').trim();
-        if (!cardId || !targetListId) throw new Error('CARD_MOVE requiere cardId y targetListId');
-
-        if (card?.id && cardId === card.id) {
-          await handleUpdateField('list_id', targetListId);
-        } else {
-          await updateCard(cardId, { list_id: targetListId }, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'CARD_UPDATE') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        if (!cardId) throw new Error('CARD_UPDATE requiere cardId');
-
-        const updates: Record<string, any> = {};
-        if (payload?.title !== undefined) updates.title = payload.title;
-        if (payload?.summary !== undefined) updates.summary = payload.summary;
-        if (payload?.status !== undefined) updates.status = payload.status;
-        if (payload?.start_at !== undefined) updates.start_at = payload.start_at;
-        if (payload?.due_at !== undefined) updates.due_at = payload.due_at;
-        if (payload?.completed_at !== undefined) updates.completed_at = payload.completed_at;
-        if (payload?.archived_at !== undefined) updates.archived_at = payload.archived_at;
-        if (payload?.targetListId !== undefined || payload?.list_id !== undefined) {
-          updates.list_id = payload?.list_id ?? payload?.targetListId;
-        }
-        if (Object.keys(updates).length === 0) throw new Error('CARD_UPDATE no contiene campos a actualizar');
-
-        if (card?.id && cardId === card.id && updates.title !== undefined) {
-          await handleUpdateField('title', updates.title);
-          delete updates.title;
-        }
-
-        if (Object.keys(updates).length > 0) {
-          if (card?.id && cardId === card.id && updates.list_id !== undefined) {
-            await handleUpdateField('list_id', updates.list_id);
-            delete updates.list_id;
-          }
-        }
-
-        if (Object.keys(updates).length > 0) {
-          await updateCard(cardId, updates, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'CARD_BRICK_INSERT' || action === 'CARD_BRICK_APPEND') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        if (!cardId) throw new Error('CARD_BRICK_INSERT requiere cardId');
-
-        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
-        const draftBrick = buildDraftBrick({ ...(payload?.content || {}), kind } as BrickMutationInput, (localBlocks[localBlocks.length - 1]?.position ?? 0) + 1000);
-        const input = brickToMutationInput(draftBrick);
-        if (!input) throw new Error(`Tipo de brick no soportado: ${kind}`);
-
-        if (card?.id && cardId === card.id) {
-          await handleCreateBrick(input);
-        } else {
-          await createCardBrick(cardId, input, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'CARD_BRICK_REPLACE') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        const brickId = String(payload?.brickId || '').trim();
-        const kind = String(payload?.kind || payload?.content?.kind || 'text').trim();
-        if (!cardId || !brickId) throw new Error('CARD_BRICK_REPLACE requiere cardId y brickId');
-
-        const draftBrick = buildDraftBrick({ ...(payload?.content || {}), kind } as BrickMutationInput, 1000);
-        const input = brickToMutationInput({ ...draftBrick, id: brickId } as BoardBrick);
-        if (!input) throw new Error(`Tipo de brick no soportado: ${kind}`);
-
-        if (card?.id && cardId === card.id) {
-          await handleUpdateBrick(brickId, input as Partial<BrickMutationInput>);
-        } else {
-          await updateCardBrick(cardId, brickId, input, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'CARD_BRICK_DELETE') {
-        const cardId = entityId || String(payload?.cardId || card?.id || '').trim();
-        const brickId = String(payload?.brickId || '').trim();
-        if (!cardId || !brickId) throw new Error('CARD_BRICK_DELETE requiere cardId y brickId');
-
-        if (card?.id && cardId === card.id) {
-          await handleDeleteBrick(brickId);
-        } else {
-          await deleteCardBrick(cardId, brickId, accessToken);
-          window.dispatchEvent(new Event('board:refresh'));
-        }
-      } else if (action === 'LIST_RENAME') {
-        if (!boardId) throw new Error('LIST_RENAME requiere contexto de board');
-        const listId = entityId || String(payload?.listId || (card as any)?.listId || '').trim();
-        const name = String(payload?.title || payload?.name || '').trim();
-        if (!listId || !name) throw new Error('LIST_RENAME requiere listId y title/name');
-        await updateList(boardId, listId, { name }, accessToken);
-        window.dispatchEvent(new Event('board:refresh'));
-      } else if (action === 'REPORT_GENERATE') {
-        const prompt = String(payload?.prompt || 'Generar reporte técnico').trim();
-        await generateReportFromCardContext(prompt);
-      } else {
-        throw new Error(`Accion no soportada: ${action || 'UNKNOWN'}`);
-      }
-
-      if (action !== 'REPORT_GENERATE') {
-        setAiMessages(prev => [...prev, { role: 'assistant', content: `He ejecutado la acción: ${action}.` }]);
-      }
-    } catch (err) {
-      console.error("Failed to execute AI action", err);
-      setAiMessages(prev => [...prev, { role: 'assistant', content: `No pude ejecutar la acción ${action || 'UNKNOWN'}. Verifica IDs y permisos.` }]);
-    }
-  };
-
-  const parseAiActions = (text: string) => {
-    const actions: any[] = [];
-    let cleanText = text;
-
-    const processMatch = (declaredType: string, jsonStr: string, fullMatch: string) => {
-      try {
-        const raw = JSON.parse(jsonStr);
-        const action = String(raw?.action || raw?.type || declaredType).trim().toUpperCase();
-        const explanation = String(raw?.explanation || '').trim();
-        const id = String(raw?.id || raw?.entityId || raw?.cardId || raw?.listId || '').trim();
-
-        let payload = raw?.payload;
-        if (!payload || typeof payload !== 'object') {
-          payload = { ...raw };
-          delete payload.action;
-          delete payload.type;
-          delete payload.id;
-          delete payload.entityId;
-          delete payload.explanation;
-        }
-
-        actions.push({
-          type: declaredType,
-          action,
-          id,
-          payload,
-          explanation,
-        });
-        cleanText = cleanText.replace(fullMatch, ''); if (explanation && !cleanText.includes(explanation)) cleanText = cleanText.trim() + '\n\n' + explanation;
-      } catch (e) {
-        console.error("Failed to parse AI action JSON", e);
-      }
-    };
-
-    const regex = /\[ACTION:([^\]]+)\]\s*([\s\S]*?)\s*\[\/ACTION\]/g;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      processMatch(match[1], match[2], match[0]);
-    }
-
-    const fallbackRegex = /\[([A-Z_]+)\]\s*(\{[\s\S]*?\})\s*\[\/\1\]/g;
-    while ((match = fallbackRegex.exec(text)) !== null) {
-      if (match[1] === 'ACTION') continue;
-      processMatch(match[1], match[2], match[0]);
-    }
-
-    return { cleanText: cleanText.trim(), actions };
-  };
-
-  const clipAiContext = (value: unknown, max = 140) => {
-    const normalized = String(value ?? "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-    if (!normalized) return "";
-    if (normalized.length <= max) return normalized;
-    return `${normalized.slice(0, max)}...`;
-  };
-
-  const toAiContextBrick = (brick: any): { kind: string; content: Record<string, unknown> } => {
-    const kind = String(brick?.kind || 'text').toLowerCase();
-    if (brick?.content && typeof brick.content === 'object') {
-      return { kind, content: brick.content as Record<string, unknown> };
-    }
-    if (kind === 'text') {
-      const markdown = String(brick?.markdown || '');
-      return { kind: 'text', content: { kind: 'text', markdown, text: markdown, displayStyle: brick?.displayStyle || 'paragraph' } };
-    }
-    if (kind === 'table') return { kind: 'table', content: { kind: 'table', rows: Array.isArray(brick?.rows) ? brick.rows : [] } };
-    if (kind === 'checklist') return { kind: 'checklist', content: { kind: 'checklist', items: Array.isArray(brick?.items) ? brick.items : [] } };
-    if (kind === 'media') return { kind: 'media', content: { kind: 'media', mediaType: brick?.mediaType, title: brick?.title, url: brick?.url, caption: brick?.caption } };
-    if (kind === 'graph') return { kind: 'graph', content: { kind: 'graph', type: brick?.type, data: Array.isArray(brick?.data) ? brick.data : [], title: brick?.title } };
-    if (kind === 'accordion') return { kind: 'accordion', content: { ...(brick?.content || {}), kind: 'accordion', title: brick?.title || '', body: brick?.body || '', isExpanded: !!brick?.isExpanded } };
-    if (kind === 'tabs') return { kind: 'tabs', content: { ...(brick?.content || {}), kind: 'tabs', tabs: Array.isArray(brick?.tabs) ? brick.tabs : [] } };
-    if (kind === 'columns') return { kind: 'columns', content: { ...(brick?.content || {}), kind: 'columns', columns: Array.isArray(brick?.columns) ? brick.columns : [] } };
-    if (kind === 'ai') {
-      const markdown = [brick?.title, brick?.prompt, brick?.response].filter(Boolean).join('\n\n');
-      return { kind: 'text', content: { kind: 'text', markdown, text: markdown } };
-    }
-    const fallback = JSON.stringify(brick || {});
-    return { kind: 'text', content: { kind: 'text', markdown: fallback, text: fallback } };
-  };
-
-  const summarizeBrickForAi = (brick: any) => {
-    const kind = String(brick?.kind || 'unknown');
-    const summary = buildBricksContextText([toAiContextBrick(brick)], 520).replace(/\n+/g, ' || ').trim();
-    return `${kind}(${clipAiContext(summary || 'empty', 220) || 'empty'})`;
-  };
-
-  const summarizeCardForAi = (cardData: any, listLabel?: string) => {
-    const tags = (cardData?.tags || []).map((tag: any) => tag?.name).filter(Boolean).join(', ') || 'none';
-    const assignees = (cardData?.assignees || []).map((member: any) => member?.name || member?.email).filter(Boolean).join(', ') || 'none';
-    const bricks = Array.isArray(cardData?.blocks) ? cardData.blocks : [];
-    const brickIds = bricks.slice(0, 12).map((brick: any) => `${brick.kind}[${brick.id}]`).join(', ') || 'none';
-    const brickDetails = bricks.slice(0, 12).map((brick: any, index: number) => `[${index + 1}] ${summarizeBrickForAi(brick)}`).join(' || ') || 'none';
-    return [
-      listLabel ? `[${listLabel}]` : null,
-      `Card: ${cardData?.title || 'Untitled'}`,
-      `status: ${cardData?.status || 'active'}`,
-      `due: ${cardData?.dueAt || 'none'}`,
-      `tags: ${tags}`,
-      `assignees: ${assignees}`,
-      `bricks: ${bricks.length}`,
-      `brickIds: ${brickIds}`,
-      `brickDetails: ${brickDetails}`,
-    ].filter(Boolean).join(' | ');
-  };
-
-  const generateReportFromCardContext = async (sourcePrompt: string) => {
-    if (!accessToken || !activeTeamId || isGeneratingReport) return;
-
-    const effectiveRange = resolveReportDateRange(sourcePrompt, {
-      from: reportFromDate || undefined,
-      to: reportToDate || undefined,
-    });
-    const dateRangeLabel = formatDateRangeLabel(effectiveRange);
-
-    setIsGeneratingReport(true);
-    setAiMessages((prev) => [...prev, { role: 'assistant', content: 'Generando reporte técnico con el contexto de tablero y tarjetas...' }]);
-
-    try {
-      const docsCatalog = await listDocuments(activeTeamId, accessToken);
-      let boardCards: Array<{ listName: string; card: any }> = [];
-      let boardActivity: ActivityLogEntry[] = [];
-      let cardActivityByCard: Array<{ cardId: string; logs: ActivityLogEntry[] }> = [];
-      let scope: 'personal' | 'team' | 'board' | 'list' | 'document' = 'list';
-      let scopeId = listId || 'personal';
-      let boardLabel = boardName || 'Board';
-
-      if (boardId) {
-        const [boardData, teamActivity] = await Promise.all([
-          getBoard(boardId, accessToken),
-          listTeamActivity(activeTeamId, accessToken),
-        ]);
-
-        boardLabel = boardData.name;
-        boardCards = boardData.lists.flatMap((list) => list.cards.map((entry) => ({ listName: list.name, card: entry })));
-        cardActivityByCard = await Promise.all(
-          boardCards.map(async ({ card: boardCard }) => {
-            try {
-              const logs = await getCardActivity(boardCard.id, accessToken);
-              return { cardId: boardCard.id, logs: (logs || []) as ActivityLogEntry[] };
-            } catch {
-              return { cardId: boardCard.id, logs: [] as ActivityLogEntry[] };
-            }
-          }),
-        );
-
-        boardActivity = teamActivity.filter((entry) => {
-          const payloadBoardId = (entry.payload as Record<string, unknown> | undefined)?.boardId;
-          const matchesBoard = (entry.scope === 'board' && entry.scopeId === boardId) || payloadBoardId === boardId;
-          return matchesBoard && isTimestampInDateRange(entry.createdAt, effectiveRange);
-        });
-
-        cardActivityByCard = cardActivityByCard.map((entry) => ({
-          cardId: entry.cardId,
-          logs: entry.logs.filter((log) => isTimestampInDateRange(log.createdAt, effectiveRange)),
-        }));
-
-        scope = 'board';
-        scopeId = boardId;
-      } else if (card?.id) {
-        const selfLogs = await getCardActivity(card.id, accessToken);
-        boardCards = [{ listName: listName || 'List', card: { ...card, blocks: localBlocks } }];
-        cardActivityByCard = [{
-          cardId: card.id,
-          logs: (selfLogs || []).filter((log: ActivityLogEntry) => isTimestampInDateRange(log.createdAt, effectiveRange)),
-        }];
-      }
-
-      const referencedDocIds = new Set<string>();
-      boardCards.forEach(({ card: boardCard }) => extractDocumentReferenceIds(boardCard, referencedDocIds));
-      boardActivity.forEach((entry) => extractDocumentReferenceIds(entry, referencedDocIds));
-      cardActivityByCard.forEach((entry) => extractDocumentReferenceIds(entry.logs, referencedDocIds));
-
-      const referencedDocs = docsCatalog.filter((doc) => referencedDocIds.has(doc.id));
-      const referencedDocTokens = referencedDocs.map((doc) => toDocumentMentionToken(doc.id, doc.title));
-
-      const cardLines = boardCards
-        .slice(0, 80)
-        .map(({ listName: sourceListName, card: boardCard }) => `- ${summarizeCardForAi(boardCard, sourceListName)}`);
-
-      const cardChatLines = boardCards.flatMap(({ card: boardCard }) => {
-        const logs = cardActivityByCard.find((entry) => entry.cardId === boardCard.id)?.logs || [];
-        return logs
-          .filter((entry) => entry.action === 'card.commented')
-          .slice(0, 25)
-          .map((entry) => {
-            const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-            const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
-            return `- [${entry.createdAt}] ${actorName} in ${boardCard.title}: ${String((entry.payload as any)?.text || '')}`;
-          });
-      }).slice(0, 220);
-
-      const activityLines = [...boardActivity, ...cardActivityByCard.flatMap((entry) => entry.logs)]
-        .slice(0, 260)
-        .map((entry) => {
-          const actor = boardMembers.find(m => m.id === entry.actorId || m.userId === entry.actorId);
-          const actorName = getWorkspaceMemberLabel(actor, entry.actorId || "User");
-          return `- [${entry.createdAt}] ${actorName} did ${entry.action} (${entry.scope}:${entry.scopeId})`;
-        });
-
-      const contextSummary = [
-        `Board/Card context: ${boardLabel}`,
-        `Date range: ${dateRangeLabel}`,
-        `Cards in scope: ${boardCards.length}`,
-        '',
-        'Cards snapshot:',
-        ...(cardLines.length > 0 ? cardLines : ['- none']),
-        '',
-        'Card conversations:',
-        ...(cardChatLines.length > 0 ? cardChatLines : ['- none']),
-        '',
-        'Activity timeline:',
-        ...(activityLines.length > 0 ? activityLines : ['- none']),
-        '',
-        'Referenced docs:',
-        ...(referencedDocTokens.length > 0 ? referencedDocTokens.map((token) => `- ${token}`) : ['- none']),
-      ].join('\n').slice(0, 16000);
-
-      const reportResult = await generateReportDocumentWithAi(
-        {
-          scope,
-          scopeId,
-          contextSummary,
-          dateRangeLabel,
-          userPrompt: sourcePrompt,
-          referencedDocuments: referencedDocs.map((doc) => ({ id: doc.id, title: doc.title })),
-        },
-        accessToken,
-      );
-
-      const reportTitle = reportResult.title?.trim() || `Tech Report · ${boardLabel} · ${dateRangeLabel}`;
-      const createdDoc = await createDocument({ teamId: activeTeamId, title: reportTitle }, accessToken);
-
-      const reportBricks = Array.isArray(reportResult.bricks) && reportResult.bricks.length > 0
-        ? reportResult.bricks
-        : [
-          {
-            kind: 'text' as const,
-            content: { markdown: `# Technical Report\n\n- Context: ${boardLabel}\n- Date range: ${dateRangeLabel}` },
-          },
-        ];
-
-      for (let i = 0; i < reportBricks.length; i += 1) {
-        const brick = reportBricks[i];
-        await createDocumentBrick(
-          createdDoc.id,
-          {
-            kind: brick.kind,
-            position: i,
-            content: brick.content,
-          },
-          accessToken,
-        );
-      }
-
-      setContextDocs((prev) => (prev.some((doc) => doc.id === createdDoc.id) ? prev : [createdDoc, ...prev]));
-      setAiMessages((prev) => [
-        ...prev,
-        { role: 'assistant', content: `Reporte técnico generado: ${toDocumentMentionToken(createdDoc.id, createdDoc.title)}` },
-      ]);
-    } catch (error) {
-      console.error('Failed to generate technical report from card context', error);
-      setAiMessages((prev) => [...prev, { role: 'assistant', content: 'No pude generar el reporte técnico. Intenta de nuevo.' }]);
-    } finally {
-      setIsGeneratingReport(false);
-    }
-  };
 
   useEffect(() => {
     setContextDocs(teamDocs);
@@ -881,8 +304,6 @@ export function CardDetailModal({
         setLocalAssignees([]);
         setLocalBlocks([createEmptyTextBrick()]);
       }
-      setPendingImprovement(null);
-      setImproveError(null);
       setTagSearch("");
       setNewTagColor('#3b82f6');
       setAreTagsExpanded(false);
@@ -1789,56 +1210,6 @@ export function CardDetailModal({
     if (!newComment.trim() || !card?.id || !accessToken || isSubmittingComment) return;
     setIsSubmittingComment(true);
 
-    if (activeTab === 'copilot') {
-      try {
-        const userMsg = newComment.trim();
-        setAiMessages(prev => [...prev, { role: 'user', content: userMsg }]);
-        setNewComment("");
-
-        if (GENERATE_REPORT_INTENT_REGEX.test(userMsg)) {
-          await generateReportFromCardContext(userMsg);
-          return;
-        }
-
-        setIsImprovingDescription(true);
-        try {
-          const { scope, scopeId } = resolveAiScope();
-          const response = await improveCardWithAi(
-            {
-              scope,
-              scopeId,
-              currentTitle: card.title,
-              currentDescription: card.summary || '',
-              currentBricks: localBlocks,
-              userPrompt: userMsg
-            },
-            accessToken
-          );
-
-          const assistantMsg = response.explanation || "He analizado tu solicitud. ¿Deseas aplicar los cambios sugeridos?";
-          setAiMessages(prev => [...prev, { role: 'assistant', content: assistantMsg }]);
-
-          if (response.title || response.bricks) {
-            setPendingImprovement({
-              title: response.title || (card?.title || ""),
-              bricks: response.bricks || [],
-              diffText: response.bricks?.filter((b: any) => b.kind === 'text').map((b: any) => b.content.markdown).join('\n\n') || "",
-              originalText: localBlocks.filter(b => b.kind === 'text').map(b => b.markdown).join("\n\n"),
-              explanation: response.explanation
-            });
-          }
-        } catch (err) {
-          console.error("AI Chat failed", err);
-          setAiMessages(prev => [...prev, { role: 'assistant', content: "Lo siento, hubo un error al procesar tu solicitud." }]);
-        } finally {
-          setIsImprovingDescription(false);
-        }
-      } finally {
-        setIsSubmittingComment(false);
-      }
-      return;
-    }
-
     if (!canComment) {
       toast("No tienes permisos para comentar en esta tarjeta.", "error");
       setIsSubmittingComment(false);
@@ -2659,166 +2030,20 @@ export function CardDetailModal({
           </div>
 
           <div className={`w-full flex-1 flex flex-col bg-card/20 border-t md:border-t-0 z-10 ${activeTab !== 'details' ? 'flex' : 'hidden'}`}>
+            {activeTab === 'copilot' && activeTeamId ? (
+              <AgentChatPanel
+                teamId={activeTeamId}
+                entityType="board"
+                entityId={boardId ?? undefined}
+                documents={contextDocs as any}
+                boards={teamBoards as any}
+                users={boardMembers}
+                className="h-full"
+              />
+            ) : (
+            <>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {activeTab === 'copilot' ? (
-                <div className="flex flex-col h-full space-y-4">
-                  <div className="flex-1 space-y-4">
-                    <div className="flex gap-3">
-                      <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
-                        <Bot className="h-4 w-4" />
-                      </div>
-                      <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
-                        <p>¡Hola! Soy tu asistente de IA. Puedo ayudarte a mejorar el contenido de esta tarjeta, resumir información o resolver dudas. ¿En qué puedo ayudarte hoy?</p>
-                      </div>
-                    </div>
-
-                    {aiMessages.map((msg, i) => {
-                      const { cleanText, actions } = parseAiActions(msg.content);
-                      const userTint = getUserTintStyles(user?.id || user?.name || "user");
-
-                      return (
-                        <div key={i} className="space-y-3">
-                          <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                            <div className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center ${msg.role === 'assistant'
-                              ? 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                              : 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
-                              }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}>
-                              {msg.role === 'assistant' ? <Bot className="h-4 w-4" /> : (user?.name?.[0] || 'U')}
-                            </div>
-                            <div className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border ${msg.role === 'user'
-                              ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
-                              : 'bg-muted/50 border-border/50 rounded-tl-none'
-                              }`} style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}>
-                              <RichText
-                                content={cleanText}
-                                context={getResolverContext(contextDocs, teamBoards, boardMembers) as any}
-                              />
-                            </div>
-                          </div>
-
-                          {actions.map((action, actionIdx) => (
-                            <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                              <div className="flex items-center gap-2 mb-1">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                                <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">Acción Sugerida</span>
-                              </div>
-
-                              <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                                <span className="text-sm font-bold text-emerald-800">{String(action.action || "").replace(/_/g, " ")}</span>
-                              </div>
-
-                              <button
-                                onClick={() => handleAiAction(action)}
-                                className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98]"
-                              >
-                                Confirmar y Ejecutar
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      );
-                    })}
-
-                    {!pendingImprovement && (
-                      <div className="space-y-3 pt-2">
-                        <div className="flex flex-wrap gap-2">
-                          <button
-                            onClick={handleImproveDescriptionWithAi}
-                            disabled={isImprovingDescription}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
-                          >
-                            {isImprovingDescription ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
-                            Mejorar con IA
-                          </button>
-                          <button
-                            onClick={() => {
-                              setAiMessages(prev => [...prev, { role: 'user', content: 'Resume esta tarjeta' }]);
-                              setAiMessages(prev => [...prev, { role: 'assistant', content: 'Esta tarjeta trata sobre: ' + localTitle + '. Contiene ' + localBlocks.length + ' bloques de contenido.' }]);
-                            }}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 text-primary border border-primary/10 rounded-full text-[11px] font-bold hover:bg-primary/10 transition-all"
-                          >
-                            <FileText className="w-3 h-3" />
-                            Resumir
-                          </button>
-                          <button
-                            onClick={() => {
-                              const prompt = 'Generar reporte técnico con el contexto de este tablero y tarjeta.';
-                              setAiMessages(prev => [...prev, { role: 'user', content: prompt }]);
-                              void generateReportFromCardContext(prompt);
-                            }}
-                            disabled={isGeneratingReport || isImprovingDescription}
-                            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
-                          >
-                            {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                            Generar reporte
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {pendingImprovement && (
-                      <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                        <div className="flex gap-3">
-                          <div className="h-8 w-8 shrink-0 rounded bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-500 border shadow-sm">
-                            <Bot className="h-4 w-4" />
-                          </div>
-                          <div className="flex-1 rounded-xl border border-amber-500/30 bg-amber-500/5 p-4 space-y-3 shadow-sm rounded-tl-none">
-                            <div className="flex items-center justify-between">
-                              <p className="text-[10px] uppercase font-bold text-amber-500/80 tracking-widest">Mejora sugerida</p>
-                            </div>
-                            <div className="space-y-3">
-                              <div>
-                                <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Título</p>
-                                <BrickDiff kind="text" oldContent={{ markdown: localTitle }} newContent={{ markdown: pendingImprovement.title }} />
-                              </div>
-                              <div>
-                                <p className="text-[10px] uppercase text-muted-foreground/60 font-bold mb-1">Cambios en Bloques</p>
-                                <div className="space-y-3 rounded-lg border bg-background/30 p-3">
-                                  {pendingImprovement.bricks.map((brick: any, idx: number) => {
-                                    const oldBrick = localBlocks.find(b => b.id === brick.id) as any;
-
-                                    return (
-                                      <div key={idx} className="space-y-1">
-                                        <div className="flex items-center gap-2">
-                                          <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{brick.kind}</span>
-                                          {!oldBrick && <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-tighter">[Nuevo]</span>}
-                                        </div>
-                                        <BrickDiff
-                                          kind={brick.kind}
-                                          oldContent={oldBrick ? { ...oldBrick, ...oldBrick.content, markdown: oldBrick.markdown } : null}
-                                          newContent={{ ...brick, ...brick.content, markdown: brick.markdown || brick.content?.markdown }}
-                                        />
-                                      </div>
-                                    );
-                                  })}
-                                  {/* Show deletions if any */}
-                                  {localBlocks.filter((ob: any) => !pendingImprovement.bricks.some((nb: any) => nb.id === ob.id)).map((ob: any) => (
-                                    <div key={ob.id} className="space-y-1 opacity-50 grayscale">
-                                      <div className="flex items-center gap-2">
-                                        <span className="px-1.5 py-0.5 rounded bg-muted text-[9px] font-black uppercase text-muted-foreground border border-border/50">{ob.kind}</span>
-                                        <span className="text-[8px] text-rose-500 font-bold uppercase tracking-tighter">[Eliminado]</span>
-                                      </div>
-                                      <BrickDiff
-                                        kind={ob.kind}
-                                        oldContent={{ ...ob, ...ob.content, markdown: ob.markdown }}
-                                        newContent={null}
-                                      />
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-2 justify-end pt-1">
-                              <button onClick={rejectImprovement} className="px-2 py-1 text-[11px] rounded-md border bg-background hover:bg-muted font-bold transition-colors">Rechazar</button>
-                              <button onClick={applyImprovement} className="px-2 py-1 text-[11px] rounded-md bg-amber-500 text-white hover:bg-amber-600 font-bold shadow-sm transition-colors">Aplicar</button>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : activeTab === 'comments' ? (
+              {activeTab === 'comments' ? (
                 (() => {
                   const commentLogs = activities.filter((a) => a.action === 'card.commented');
                   if (commentLogs.length === 0) {
@@ -2939,25 +2164,27 @@ export function CardDetailModal({
             <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
                 <ReferenceTokenInput
-                  placeholder={activeTab === 'copilot' ? "Pregunta algo a la IA o usa @..." : (canComment ? "Escribe un comentario o menciona con @..." : "No tienes permiso para comentar")}
+                  placeholder={canComment ? "Escribe un comentario o menciona con @..." : "No tienes permiso para comentar"}
                   value={newComment}
                   onChange={setNewComment}
                   onSubmit={() => {
                     void handleAddComment();
                   }}
-                  disabled={activeTab !== 'copilot' && !canComment}
+                  disabled={!canComment}
                   documents={contextDocs as any}
                   boards={teamBoards as any}
                   users={boardMembers}
                   activeBricks={localBlocks as any}
                   className="w-full"
-                  inputClassName={`rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : 'focus:border-primary/50'}`}
+                  inputClassName="rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed focus:border-primary/50"
                 />
-                <button onClick={handleAddComment} disabled={!newComment.trim() || isImprovingDescription || isSubmittingComment || (activeTab !== 'copilot' && !canComment)} className={`absolute right-2 bottom-2 p-1.5 rounded-md transition-colors ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-primary text-primary-foreground hover:bg-primary/90'}`}>
-                  {(isImprovingDescription || isSubmittingComment) ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
+                <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment || !canComment} className="absolute right-2 bottom-2 p-1.5 rounded-md transition-colors bg-primary text-primary-foreground hover:bg-primary/90">
+                  {isSubmittingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>
+            </>
+            )}
           </div>
         </div>
       </div>

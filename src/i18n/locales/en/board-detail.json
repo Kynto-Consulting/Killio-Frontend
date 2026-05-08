@@ -220,6 +220,7 @@
     "fields": "Fields:",
     "someone": "Someone",
     "inputPlaceholderAI": "Ask the AI something or use @...",
-    "inputPlaceholderChat": "Ask or mention with @..."
+    "inputPlaceholderChat": "Ask or mention with @...",
+    "openInRooms": "Open in Rooms"
   }
 }

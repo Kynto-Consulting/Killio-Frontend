@@ -885,6 +885,10 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
         await addBoardComment(boardId, userMsg.content, accessToken);
       } catch (err) {
         console.error("Failed to send board comment", err);
+        setRawChatMessages(prev => [
+          ...prev,
+          { id: Date.now(), role: 'bot', content: `⚠️ Error al enviar mensaje: ${String((err as any)?.message || err)}` },
+        ]);
       } finally {
         setIsSendingMessage(false);
       }
@@ -942,7 +946,8 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
             setIsLoading(false);
             setIsSendingMessage(false);
           } else if (event.type === 'error') {
-            const errMsg: Message = { id: streamingId, role: "bot", content: "⚠️ AI no disponible ahora." };
+            const content = (event as any).message ? `⚠️ AI no disponible: ${String((event as any).message)}` : "⚠️ AI no disponible ahora.";
+            const errMsg: Message = { id: streamingId, role: "bot", content };
             setAiMessages((prev) => prev.map((m) => m.id === streamingId ? errMsg : m));
             activeAiStreamAbortRef.current = null;
             setIsLoading(false);

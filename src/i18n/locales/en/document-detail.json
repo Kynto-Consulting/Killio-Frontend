@@ -179,7 +179,16 @@
     "tabsSearch": "tabs layout",
     "colsLabel": "Columns",
     "colsDesc": "Create a multi-column layout",
-    "colsSearch": "columns layout grid"
+    "colsSearch": "columns layout grid",
+    "aiImproveLabel": "Improve text",
+    "aiImproveDesc": "Rewrite the block with better writing",
+    "aiImproveSearch": "ai improve rewrite text",
+    "aiFixLabel": "Fix spelling",
+    "aiFixDesc": "Fix spelling and grammar errors",
+    "aiFixSearch": "ai fix spelling grammar",
+    "aiAskLabel": "Ask AI",
+    "aiAskDesc": "Open AI chat with this block as context",
+    "aiAskSearch": "ai ask chat assistant"
   },
   "slashPreviews": {
     "text": "Simple text",

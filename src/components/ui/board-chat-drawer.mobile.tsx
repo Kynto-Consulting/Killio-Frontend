@@ -71,7 +71,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
       />
       <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-card rounded-t-3xl border-t border-border/60 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col z-[100] transform transition-transform animate-in slide-in-from-bottom duration-300">
         {/* Mobile Handle */}
-        <div className="flex justify-center p-2 shrink-0 touch-none" onTouchMove={onClose}>
+        <div className="flex justify-center p-2 shrink-0 touch-none">
           <div className="w-12 h-1.5 bg-muted rounded-full opacity-60" />
         </div>
 
@@ -105,7 +105,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
+      <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
         {activeTab === 'copilot' && (
           <div className="flex flex-col h-full space-y-4">
             <div className="flex-1 space-y-4">

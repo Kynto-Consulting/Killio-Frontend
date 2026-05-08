@@ -56,5 +56,164 @@
   "agentTools": {
     "search": "Searches for information in docs, cards and context",
     "investigate": "Analyzes metrics and workspace status"
+  },
+  "agent": {
+    "name": "Killio AI",
+    "header": {
+      "thinking": "thinking…",
+      "running": "running…",
+      "historyLabel": "History",
+      "historyButton": "Conversation history",
+      "newConversation": "New conversation",
+      "clearConversation": "Clear conversation"
+    },
+    "history": {
+      "noConversations": "No saved conversations",
+      "untitled": "Untitled conversation"
+    },
+    "messages": {
+      "copy": "Copy response",
+      "thumbsUp": "Good response",
+      "thumbsDown": "Room for improvement",
+      "retry": "Regenerate response",
+      "actionCount_one": "1 action executed",
+      "actionCount_other": "{{count}} actions executed"
+    },
+    "input": {
+      "placeholder": "Ask something or request an action…",
+      "hint": "Enter to send · Shift+Enter for new line · @ to mention"
+    },
+    "emptyState": {
+      "title": "How can I help you?",
+      "fullAccess": "I have full access to this {{entity}}",
+      "teamAccess": "I have access to your entire workspace"
+    },
+    "entity": {
+      "board": "Board",
+      "document": "Document",
+      "mesh": "Canvas",
+      "script": "Script",
+      "team": "Team"
+    },
+    "capabilities": {
+      "board": {
+        "0": "Create, move and edit cards",
+        "1": "Manage lists and statuses",
+        "2": "Search and filter cards",
+        "3": "Generate sprint reports"
+      },
+      "document": {
+        "0": "Create and edit content blocks",
+        "1": "Add checklists, tables and code",
+        "2": "Improve writing and formatting",
+        "3": "Summarize and reorganize sections"
+      },
+      "mesh": {
+        "0": "Create and connect bricks",
+        "1": "Update block content",
+        "2": "Analyze canvas structure",
+        "3": "Generate layouts and diagrams"
+      },
+      "script": {
+        "0": "Add and configure nodes",
+        "1": "Run and test scripts",
+        "2": "Explain the flow logic",
+        "3": "Add error handling"
+      },
+      "team": {
+        "0": "Explore boards and documents",
+        "1": "Create any type of content",
+        "2": "Search across the entire workspace",
+        "3": "Analyze team activity"
+      }
+    },
+    "suggestions": {
+      "board": {
+        "0": "How many cards are unassigned?",
+        "1": "Create a card to review the design",
+        "2": "Move all cards from 'Doing' to 'Review'"
+      },
+      "document": {
+        "0": "Add an executive summary section",
+        "1": "What is the content of this document?",
+        "2": "Improve the document's writing"
+      },
+      "mesh": {
+        "0": "Add a text block with the project title",
+        "1": "Connect the architecture block with deployment",
+        "2": "How many bricks are in the canvas?"
+      },
+      "script": {
+        "0": "How many nodes does this script have?",
+        "1": "Execute this script",
+        "2": "Add a JSON transformation node"
+      },
+      "team": {
+        "0": "What boards does the team have?",
+        "1": "Find documents about architecture",
+        "2": "Create a new automation script"
+      }
+    },
+    "followUps": {
+      "cardCreated": {
+        "0": "Should I assign these cards to someone?",
+        "1": "Should I move them to another list?",
+        "2": "Show me the board status"
+      },
+      "cardMoved": {
+        "0": "Are there more cards to move?",
+        "1": "Show me blocked cards",
+        "2": "Generate a sprint summary"
+      },
+      "document": {
+        "0": "Can you improve the writing?",
+        "1": "Add a table of contents",
+        "2": "Summarize the document in 3 points"
+      },
+      "search": {
+        "0": "Can you group these results?",
+        "1": "Create a card with this analysis",
+        "2": "Export this to a document"
+      },
+      "board": {
+        "0": "What is blocked?",
+        "1": "Move completed to 'Done'",
+        "2": "Who has the most workload?"
+      },
+      "documentDefault": {
+        "0": "Summarize the document",
+        "1": "Are there sections to improve?",
+        "2": "Add a conclusion"
+      },
+      "mesh": {
+        "0": "Connect the related blocks",
+        "1": "Add an architecture block",
+        "2": "How many bricks are there?"
+      },
+      "script": {
+        "0": "Explain each node",
+        "1": "Add error handling",
+        "2": "Can I test it now?"
+      },
+      "team": {
+        "0": "What boards does the team have?",
+        "1": "Create a new document",
+        "2": "What is in progress?"
+      }
+    },
+    "tools": {
+      "cardCreated": "Card created",
+      "cardUpdated": "Card updated",
+      "cardMoved": "Card moved",
+      "cardDeleted": "Card deleted",
+      "documentCreated": "Document created",
+      "documentUpdated": "Document updated",
+      "blockCreated": "Block created",
+      "boardCreated": "Board created",
+      "scriptExecuted": "Script executed",
+      "searching": "Searching",
+      "querying": "Querying",
+      "canvas": "Canvas"
+    }
   }
 }

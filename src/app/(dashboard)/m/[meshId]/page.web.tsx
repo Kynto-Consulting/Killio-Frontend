@@ -26,11 +26,12 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import { EntitySelectorModal, type EntitySelectorResult } from "@/components/ui/entity-selector-modal";
 import { PenToolbar } from "@/components/ui/pen-toolbar";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
+import { AgentChatPanel } from "@/components/agent";
 import { MeshShareModal } from "@/components/ui/mesh-share-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
-  getBoard, getMesh, updateMeshState, buildMeshAiContext, streamAiChat,
+  getBoard, getMesh, updateMeshState,
 } from "@/lib/api/contracts";
 import { getAblyClient } from "@/lib/ably";
 import { getDocument } from "@/lib/api/documents";
@@ -1585,22 +1586,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     activeBricks: [],
   }), []);
 
-  // Phase 2: Build AI context summary from mesh state
-  const meshAiContext = useMemo(() => buildMeshAiContext(state), [state]);
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
-  const [meshAiTab, setMeshAiTab] = useState<"copilot" | "history">("copilot");
-  const [meshAiInput, setMeshAiInput] = useState("");
-  const [meshAiLoading, setMeshAiLoading] = useState(false);
-  const [meshAiMessages, setMeshAiMessages] = useState<Array<{
-    id: number;
-    role: "user" | "bot";
-    content: string;
-    loading?: boolean;
-    timestamp: string;
-  }>>([]);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
-  const aiAbortRef = useRef<(() => void) | null>(null);
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
@@ -2202,63 +2190,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     };
   }, [meshId, accessToken, isLoading, state, saveMeshState]);
 
-  useEffect(() => {
-    return () => {
-      aiAbortRef.current?.();
-      aiAbortRef.current = null;
-    };
-  }, []);
-
-  const handleMeshAiSubmit = useCallback((e?: React.FormEvent) => {
-    e?.preventDefault();
-    const prompt = meshAiInput.trim();
-    if (!prompt || meshAiLoading || !accessToken || !activeTeamId || !meshId) return;
-
-    const userMsg = { id: Date.now(), role: "user" as const, content: prompt, timestamp: new Date().toISOString() };
-    const loadingId = Date.now() + 1;
-    setMeshAiMessages((prev) => [
-      ...prev,
-      userMsg,
-      { id: loadingId, role: "bot", content: "", loading: true, timestamp: new Date().toISOString() },
-    ]);
-    setMeshAiInput("");
-    setMeshAiLoading(true);
-
-    let acc = "";
-    aiAbortRef.current?.();
-    aiAbortRef.current = streamAiChat(
-      {
-        scope: "team",
-        scopeId: activeTeamId,
-        message: `Mesh ${meshId}: ${prompt}`,
-        contextSummary: meshAiContext,
-        history: meshAiMessages
-          .filter((m) => !m.loading)
-          .slice(-16)
-          .map((m) => ({ role: m.role === "bot" ? "assistant" as const : "user" as const, content: m.content })),
-      },
-      accessToken,
-      (event) => {
-        if (event.type === "delta") {
-          acc += event.text;
-          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: acc } : m));
-          return;
-        }
-        if (event.type === "done") {
-          const finalText = event.text || acc || "No hubo respuesta de IA.";
-          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: finalText } : m));
-          aiAbortRef.current = null;
-          setMeshAiLoading(false);
-          return;
-        }
-        if (event.type === "error") {
-          setMeshAiMessages((prev) => prev.map((m) => m.id === loadingId ? { ...m, loading: false, content: "Error al consultar IA." } : m));
-          aiAbortRef.current = null;
-          setMeshAiLoading(false);
-        }
-      },
-    );
-  }, [meshAiInput, meshAiLoading, accessToken, activeTeamId, meshId, meshAiContext, meshAiMessages]);
 
   // ── Inline editing ────────────────────────────────────────────────────────────
   const startEdit = useCallback((brickId: string) => {
@@ -3549,80 +3480,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         />
       )}
 
-      {isAiDrawerOpen && (
-        <div className={`absolute right-0 top-0 z-40 h-full ${mobileMode ? "w-full max-w-full" : "w-[360px] max-w-[90vw]"} border-l border-border/60 bg-card shadow-2xl`}>
-          <div className="flex h-full flex-col">
-            <div className="flex items-center justify-between border-b border-border/50 px-3 py-2">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Mesh Copilot</span>
-              <button type="button" onClick={() => setIsAiDrawerOpen(false)} className="rounded p-1 text-muted-foreground hover:bg-accent/15 hover:text-foreground">
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-
-            <div className="flex border-b border-border/40 px-2 pt-1">
-              <button
-                type="button"
-                onClick={() => setMeshAiTab("copilot")}
-                className={`flex-1 rounded-t-md px-2 py-2 text-[10px] font-bold uppercase tracking-wide ${meshAiTab === "copilot" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <span className="inline-flex items-center gap-1"><Bot className="h-3 w-3" /> Copilot</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setMeshAiTab("history")}
-                className={`flex-1 rounded-t-md px-2 py-2 text-[10px] font-bold uppercase tracking-wide ${meshAiTab === "history" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground"}`}
-              >
-                <span className="inline-flex items-center gap-1"><History className="h-3 w-3" /> History</span>
-              </button>
-            </div>
-
-            <div className="flex-1 overflow-y-auto p-3">
-              {meshAiTab === "copilot" ? (
-                <div className="space-y-3">
-                  {meshAiMessages.length === 0 && (
-                    <div className="rounded border border-border/60 bg-muted/20 p-2 text-[11px] text-muted-foreground">
-                      Pregunta sobre esta mesh. El contexto actual de bricks y conexiones se envia automaticamente.
-                    </div>
-                  )}
-                  {meshAiMessages.map((msg) => (
-                    <div key={msg.id} className={`rounded-lg border p-2 text-[12px] ${msg.role === "user" ? "border-blue-500/40 bg-blue-500/10 text-blue-100" : "border-border/60 bg-muted/20 text-foreground"}`}>
-                      <div className="mb-1 text-[9px] uppercase tracking-wider opacity-60">{msg.role === "user" ? "Tu" : "Copilot"}</div>
-                      <div className="whitespace-pre-wrap">{msg.loading ? "..." : msg.content}</div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {meshAiMessages.length === 0 ? (
-                    <p className="text-[11px] text-muted-foreground">Sin historial todavia.</p>
-                  ) : (
-                    meshAiMessages.map((msg) => (
-                      <div key={`h-${msg.id}`} className="rounded border border-border/60 bg-muted/10 px-2 py-1.5 text-[11px]">
-                        <div className="text-[9px] uppercase tracking-wide text-muted-foreground">{msg.role} • {new Date(msg.timestamp).toLocaleTimeString()}</div>
-                        <div className="truncate">{msg.content || "..."}</div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-
-            {meshAiTab === "copilot" && (
-              <form onSubmit={handleMeshAiSubmit} className="border-t border-border/50 p-2">
-                <div className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1.5">
-                  <input
-                    value={meshAiInput}
-                    onChange={(e) => setMeshAiInput(e.target.value)}
-                    placeholder="Pregunta a IA sobre esta mesh..."
-                    className="w-full bg-transparent text-[12px] text-foreground outline-none placeholder:text-muted-foreground"
-                  />
-                  <button type="submit" disabled={meshAiLoading || !meshAiInput.trim()} className="rounded bg-blue-600 p-1 text-white disabled:opacity-40">
-                    {meshAiLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
+      {isAiDrawerOpen && activeTeamId && (
+        <div className={`absolute right-0 top-0 z-40 h-full ${mobileMode ? "w-full max-w-full" : "w-[360px] max-w-[90vw]"} shadow-2xl`}>
+          <AgentChatPanel
+            teamId={activeTeamId}
+            entityType="mesh"
+            entityId={meshId ?? undefined}
+            onClose={() => setIsAiDrawerOpen(false)}
+            className="h-full border-l border-border/60"
+          />
         </div>
       )}
       {!mobileMode && (
@@ -4458,6 +4324,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         onClose={() => setIsCommentsOpen(false)}
         boardId={meshId}
         initialTab={sidebarTab}
+        entityType="mesh"
       />
     </div>
 
