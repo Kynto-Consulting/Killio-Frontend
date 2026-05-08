@@ -851,6 +851,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         closeSlashMenu();
         setTimeout(() => setIsPickerOpen(true), 50);
         return;
+      } else if (command.id.startsWith("ai-")) {
+        const fullText = revertToMarkdown(contentRef.current.innerHTML || "");
+        const stripped = `${before}${after}`;
+        onUpdate(stripped);
+        contentRef.current.innerHTML = processMarkdownWithPills(stripped);
+        closeSlashMenu();
+        onAiAction?.(command.id, fullText);
+        return;
       }
     } else if (command.blockKind && onAddBrick) {
       const nextMarkdown = `${before}${after}`;

@@ -1911,7 +1911,7 @@ export default function BoardPage() {
       </main>
       )}
 
-      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} />
+      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} entityType="board" />
 
       <BoardSettingsModal
         isOpen={isBoardSettingsOpen}

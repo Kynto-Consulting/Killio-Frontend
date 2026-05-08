@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -34,6 +34,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
     { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
+    { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();

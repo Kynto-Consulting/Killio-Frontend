@@ -1,0 +1,140 @@
+{
+  "title": "Rooms",
+  "emptyState": {
+    "title": "No rooms yet",
+    "description": "Create a channel to start collaborating with your team in real time.",
+    "createButton": "Create Room"
+  },
+  "sidebar": {
+    "channels": "Channels",
+    "linked": "Linked",
+    "directMessages": "Direct Messages",
+    "createChannel": "New channel",
+    "createDM": "New direct message",
+    "createGroup": "New category",
+    "noChannels": "No channels yet",
+    "noLinked": "No linked threads",
+    "noDMs": "No direct messages"
+  },
+  "header": {
+    "call": "Start call",
+    "leaveCall": "Leave call",
+    "copilot": "Copilot",
+    "members": "Members",
+    "permissions": "Permissions",
+    "linkedTo": "Linked to"
+  },
+  "chat": {
+    "inputPlaceholder": "Message {roomName}... (@AI for copilot)",
+    "loadMore": "Load older messages",
+    "noMessages": "No messages yet. Be the first to say something!",
+    "typing_one": "{name} is typing...",
+    "typing_two": "{name1} and {name2} are typing...",
+    "typing_many": "Several people are typing...",
+    "readOnly": "This channel is read-only for you",
+    "reactions": {
+      "add": "Add reaction"
+    }
+  },
+  "call": {
+    "joining": "Joining call...",
+    "inCall": "In call",
+    "you": "You",
+    "participants": "{count} participants",
+    "full": "Call is full (max 6 participants)",
+    "muted": "Muted",
+    "videoOff": "Camera off",
+    "sharing": "Sharing screen",
+    "filters": {
+      "label": "Video filter",
+      "none": "No filter",
+      "blur": "Background blur",
+      "grayscale": "Grayscale",
+      "warm": "Warm tone"
+    },
+    "controls": {
+      "mic": "Microphone",
+      "camera": "Camera",
+      "filter": "Filter",
+      "screen": "Share screen",
+      "stopScreen": "Stop sharing",
+      "record": "Record",
+      "stopRecord": "Stop recording",
+      "hangUp": "Leave call",
+      "toggleMic": "Toggle microphone",
+      "toggleCamera": "Toggle camera"
+    },
+    "recording": {
+      "active": "Recording {time}",
+      "saved": "Recording saved"
+    },
+    "transcript": {
+      "submitted": "Transcript submitted",
+      "unavailable": "No transcript available",
+      "view": "View transcript",
+      "download": "Download",
+      "timeline": "Call transcript"
+    }
+  },
+  "callHistory": {
+    "started": "Call started",
+    "inProgress": "Call in progress",
+    "ended": "Call · {duration}",
+    "participants": "{count} participants",
+    "viewTranscript": "View transcript",
+    "noTranscript": "No transcript"
+  },
+  "permissions": {
+    "title": "Channel permissions",
+    "defaultRole": "Default member role",
+    "membersTab": "Members",
+    "channelTab": "Channel",
+    "canPost": "Can post messages",
+    "canCall": "Can start / join calls",
+    "canRecord": "Can record calls",
+    "canInvite": "Can invite members",
+    "canManage": "Can manage channel",
+    "roles": {
+      "admin": "Admin",
+      "member": "Member",
+      "readonly": "Read-only"
+    },
+    "removeConfirm": "Remove {name} from this channel?",
+    "save": "Save",
+    "saved": "Saved"
+  },
+  "createRoom": {
+    "title": "Create Room",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. general",
+    "typeLabel": "Type",
+    "channel": "Channel",
+    "dm": "Direct message",
+    "groupLabel": "Category",
+    "noGroup": "No category",
+    "descriptionLabel": "Description",
+    "descriptionPlaceholder": "What is this channel about?",
+    "submitButton": "Create",
+    "cancel": "Cancel"
+  },
+  "createGroup": {
+    "title": "New Category",
+    "nameLabel": "Name",
+    "namePlaceholder": "e.g. Engineering",
+    "emojiLabel": "Icon"
+  },
+  "members": {
+    "title": "Members",
+    "online": "Online",
+    "offline": "Offline",
+    "inCall": "In call",
+    "you": "(you)"
+  },
+  "errors": {
+    "loadFailed": "Could not load rooms.",
+    "sendFailed": "Failed to send message.",
+    "callFailed": "Could not start call. Check camera and microphone permissions.",
+    "transcriptFailed": "Could not submit transcript.",
+    "recordFailed": "Recording is not supported in this browser."
+  }
+}

@@ -220,6 +220,7 @@
     "fields": "Campos:",
     "someone": "Alguien",
     "inputPlaceholderAI": "Pregunta algo a la IA o usa @...",
-    "inputPlaceholderChat": "Pregunta o menciona con @..."
+    "inputPlaceholderChat": "Pregunta o menciona con @...",
+    "openInRooms": "Abrir en Salas"
   }
 }

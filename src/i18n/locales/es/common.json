@@ -56,5 +56,164 @@
   "agentTools": {
     "search": "Busca información en docs, cards y contexto",
     "investigate": "Analiza métricas y estado del workspace"
+  },
+  "agent": {
+    "name": "Killio AI",
+    "header": {
+      "thinking": "pensando…",
+      "running": "ejecutando…",
+      "historyLabel": "Historial",
+      "historyButton": "Historial de conversaciones",
+      "newConversation": "Nueva conversación",
+      "clearConversation": "Nueva conversación"
+    },
+    "history": {
+      "noConversations": "No hay conversaciones guardadas",
+      "untitled": "Conversación sin título"
+    },
+    "messages": {
+      "copy": "Copiar respuesta",
+      "thumbsUp": "Buena respuesta",
+      "thumbsDown": "Respuesta mejorable",
+      "retry": "Regenerar respuesta",
+      "actionCount_one": "1 acción ejecutada",
+      "actionCount_other": "{{count}} acciones ejecutadas"
+    },
+    "input": {
+      "placeholder": "Pregunta algo o pide una acción…",
+      "hint": "Enter para enviar · Shift+Enter para nueva línea · @ para mencionar"
+    },
+    "emptyState": {
+      "title": "¿En qué puedo ayudarte?",
+      "fullAccess": "Tengo acceso completo a este {{entity}}",
+      "teamAccess": "Tengo acceso a todo tu workspace"
+    },
+    "entity": {
+      "board": "Tablero",
+      "document": "Documento",
+      "mesh": "Canvas",
+      "script": "Script",
+      "team": "Equipo"
+    },
+    "capabilities": {
+      "board": {
+        "0": "Crear, mover y editar tarjetas",
+        "1": "Gestionar listas y estados",
+        "2": "Buscar y filtrar tarjetas",
+        "3": "Generar reportes del sprint"
+      },
+      "document": {
+        "0": "Crear y editar bloques de contenido",
+        "1": "Agregar checklists, tablas y código",
+        "2": "Mejorar redacción y formato",
+        "3": "Resumir y reorganizar secciones"
+      },
+      "mesh": {
+        "0": "Crear y conectar bricks",
+        "1": "Actualizar contenido de bloques",
+        "2": "Analizar estructura del canvas",
+        "3": "Generar layouts y diagramas"
+      },
+      "script": {
+        "0": "Agregar y configurar nodos",
+        "1": "Ejecutar y probar scripts",
+        "2": "Explicar la lógica del flujo",
+        "3": "Agregar manejo de errores"
+      },
+      "team": {
+        "0": "Explorar tableros y documentos",
+        "1": "Crear cualquier tipo de contenido",
+        "2": "Buscar en todo el workspace",
+        "3": "Analizar actividad del equipo"
+      }
+    },
+    "suggestions": {
+      "board": {
+        "0": "¿Cuántas tarjetas hay sin asignar?",
+        "1": "Crea una tarjeta para revisar el diseño",
+        "2": "Mueve todas las tarjetas de 'Doing' a 'Review'"
+      },
+      "document": {
+        "0": "Agrega una sección de resumen ejecutivo",
+        "1": "¿Cuál es el contenido de este documento?",
+        "2": "Mejora la redacción del documento"
+      },
+      "mesh": {
+        "0": "Agrega un bloque de texto con el título del proyecto",
+        "1": "Conecta el bloque de arquitectura con el de despliegue",
+        "2": "¿Cuántos bricks hay en el canvas?"
+      },
+      "script": {
+        "0": "¿Cuántos nodos tiene este script?",
+        "1": "Ejecuta este script",
+        "2": "Agrega un nodo de transformación JSON"
+      },
+      "team": {
+        "0": "¿Qué tableros tiene el equipo?",
+        "1": "Busca documentos sobre arquitectura",
+        "2": "Crea un nuevo script de automatización"
+      }
+    },
+    "followUps": {
+      "cardCreated": {
+        "0": "¿Le asigno estas tarjetas a alguien?",
+        "1": "¿Las muevo a otra lista?",
+        "2": "Muéstrame el estado del tablero"
+      },
+      "cardMoved": {
+        "0": "¿Hay más tarjetas que mover?",
+        "1": "Muéstrame las tarjetas bloqueadas",
+        "2": "Genera un resumen del sprint"
+      },
+      "document": {
+        "0": "¿Puedes mejorar la redacción?",
+        "1": "Agrega una tabla de contenidos",
+        "2": "Resume el documento en 3 puntos"
+      },
+      "search": {
+        "0": "¿Puedes agrupar estos resultados?",
+        "1": "Crea una tarjeta con este análisis",
+        "2": "Exporta esto a un documento"
+      },
+      "board": {
+        "0": "¿Qué está bloqueado?",
+        "1": "Mueve completadas a 'Done'",
+        "2": "¿Quién tiene más carga de trabajo?"
+      },
+      "documentDefault": {
+        "0": "Resume el documento",
+        "1": "¿Hay secciones que mejorar?",
+        "2": "Agrega una conclusión"
+      },
+      "mesh": {
+        "0": "¿Conecta los bloques relacionados?",
+        "1": "Agrega un bloque de arquitectura",
+        "2": "¿Cuántos bricks hay?"
+      },
+      "script": {
+        "0": "Explica cada nodo",
+        "1": "Agrega manejo de errores",
+        "2": "¿Puedo probarlo ahora?"
+      },
+      "team": {
+        "0": "¿Qué tableros tiene el equipo?",
+        "1": "Crea un nuevo documento",
+        "2": "¿Qué está en progreso?"
+      }
+    },
+    "tools": {
+      "cardCreated": "Tarjeta creada",
+      "cardUpdated": "Tarjeta actualizada",
+      "cardMoved": "Tarjeta movida",
+      "cardDeleted": "Tarjeta eliminada",
+      "documentCreated": "Documento creado",
+      "documentUpdated": "Documento actualizado",
+      "blockCreated": "Bloque creado",
+      "boardCreated": "Tablero creado",
+      "scriptExecuted": "Script ejecutado",
+      "searching": "Buscando",
+      "querying": "Consultando",
+      "canvas": "Canvas"
+    }
   }
 }

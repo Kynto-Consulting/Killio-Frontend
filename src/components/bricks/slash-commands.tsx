@@ -1,5 +1,5 @@
 ﻿import React from "react";
-import { Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Video, Music, FileText, Table, BarChart2, Quote, Minus, Lightbulb, Columns, LayoutTemplate, Code, Bookmark, Sigma, HelpCircle, AtSign, Calendar, Smile, Link as LinkIcon, LayoutGrid, CreditCard } from "lucide-react";
+import { Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Video, Music, FileText, Table, BarChart2, Quote, Minus, Lightbulb, Columns, LayoutTemplate, Code, Bookmark, Sigma, HelpCircle, AtSign, Calendar, Smile, Link as LinkIcon, LayoutGrid, CreditCard, Sparkles, Wand2, MessageSquare } from "lucide-react";
 
 export type SlashCommand = {
   id: string;
@@ -46,5 +46,10 @@ export const getSlashCommands = (t: (key: string) => string): SlashCommand[] => 
 
     // Elementos integrados
     { id: "mention-person", category: "inline", label: t("slashCommands.mentionPersonLabel"), description: t("slashCommands.mentionPersonDesc"), search: t("slashCommands.mentionPersonSearch"), kind: "inline", insertText: "@", icon: <AtSign className="w-5 h-5 text-muted-foreground" />, preview: <div className="p-4 bg-muted/20 border border-border rounded-md"><span className="bg-primary/20 text-primary px-1 rounded">{t("slashPreviews.mentionPerson")}</span></div> },
-    { id: "mention-page", category: "inline", label: t("slashCommands.mentionPageLabel"), description: t("slashCommands.mentionPageDesc"), search: t("slashCommands.mentionPageSearch"), kind: "inline", insertText: "+", icon: <LinkIcon className="w-5 h-5 text-muted-foreground" />, preview: <div className="p-4 bg-muted/20 border border-border rounded-md"><span className="bg-accent/20 text-accent px-1 rounded">{t("slashPreviews.mentionPage")}</span></div> }
+    { id: "mention-page", category: "inline", label: t("slashCommands.mentionPageLabel"), description: t("slashCommands.mentionPageDesc"), search: t("slashCommands.mentionPageSearch"), kind: "inline", insertText: "+", icon: <LinkIcon className="w-5 h-5 text-muted-foreground" />, preview: <div className="p-4 bg-muted/20 border border-border rounded-md"><span className="bg-accent/20 text-accent px-1 rounded">{t("slashPreviews.mentionPage")}</span></div> },
+
+    // AI commands
+    { id: "ai-improve", category: "ai", label: t("slashCommands.aiImproveLabel"), description: t("slashCommands.aiImproveDesc"), search: t("slashCommands.aiImproveSearch"), kind: "inline", icon: <Sparkles className="w-5 h-5 text-violet-500" />, preview: <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-md text-sm text-muted-foreground">{t("slashCommands.aiImproveDesc")}</div> },
+    { id: "ai-fix", category: "ai", label: t("slashCommands.aiFixLabel"), description: t("slashCommands.aiFixDesc"), search: t("slashCommands.aiFixSearch"), kind: "inline", icon: <Wand2 className="w-5 h-5 text-violet-500" />, preview: <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-md text-sm text-muted-foreground">{t("slashCommands.aiFixDesc")}</div> },
+    { id: "ai-ask", category: "ai", label: t("slashCommands.aiAskLabel"), description: t("slashCommands.aiAskDesc"), search: t("slashCommands.aiAskSearch"), kind: "inline", icon: <MessageSquare className="w-5 h-5 text-violet-500" />, preview: <div className="p-4 bg-violet-500/5 border border-violet-500/20 rounded-md text-sm text-muted-foreground">{t("slashCommands.aiAskDesc")}</div> },
 ];

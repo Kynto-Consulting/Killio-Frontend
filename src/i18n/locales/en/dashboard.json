@@ -16,7 +16,9 @@
     "viewAll": "View all",
     "noBoardsYet": "No boards yet",
     "noDocumentsYet": "No documents yet",
-    "nomeshsYet": "No Meshs yet"
+    "nomeshsYet": "No Meshs yet",
+    "rooms": "Rooms",
+    "noRoomsYet": "No rooms yet"
   },
   "metrics": {
     "title": "Workspace Metrics",

@@ -13,6 +13,7 @@ import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { createScript, saveScriptGraph } from "@/lib/api/scripts";
+import { AgentChatPanel } from "@/components/agent";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 //comentario para forzar deploy
@@ -35,7 +36,7 @@ interface ToastMessage {
 }
 
 type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "text";
-type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents';
+type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents' | 'chat';
 type AgentToolId = 'search' | 'edit' | 'investigate' | 'docs' | 'boards' | 'scripts';
 
 interface GeneratedScriptDraft {
@@ -1070,7 +1071,7 @@ ${finalContent}
               </div>
 
               {/* Generate Action */}
-              <div className="mt-6">
+              <div className={`mt-6${generationType === 'chat' ? ' hidden' : ''}`}>
                 {isGenerating ? (
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs font-medium text-muted-foreground">
@@ -1129,6 +1130,9 @@ ${finalContent}
                           <button onClick={() => { setGenerationType('agents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'agents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
                             <Bot className="h-3.5 w-3.5" /> Modo Agente
                           </button>
+                          <button onClick={() => { setGenerationType('chat'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'chat' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
+                            <Bot className="h-3.5 w-3.5" /> Chat con IA
+                          </button>
                         </div>
                         )}
                       </div>
@@ -1180,7 +1184,18 @@ ${finalContent}
               </button>
             </div>
 
-            <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
+            {generationType === 'chat' && activeTeamId ? (
+              <AgentChatPanel
+                teamId={activeTeamId}
+                entityType="team"
+                documents={teamDocs}
+                boards={boards}
+                users={teamMembers}
+                className="h-full"
+              />
+            ) : null}
+
+            <div className={`p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar${generationType === 'chat' ? ' hidden' : ''}`}>
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-lg text-foreground">
                   {generationType === 'cards'
