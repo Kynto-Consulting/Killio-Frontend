@@ -18,6 +18,7 @@ import {
   updateTeamMemberRole,
 } from "@/lib/api/contracts";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
+import { UserProfileCard } from "@/components/rooms/UserProfileCard";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -59,6 +60,7 @@ export default function TeamsPage() {
   const [isMutatingInvite, setIsMutatingInvite] = useState<string | null>(null);
   const [editingAliasMemberId, setEditingAliasMemberId] = useState<string | null>(null);
   const [aliasDraft, setAliasDraft] = useState("");
+  const [profileCard, setProfileCard] = useState<{ member: TeamMemberSummary; anchor: { x: number; y: number } } | null>(null);
 
   const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
@@ -328,7 +330,13 @@ export default function TeamsPage() {
 
                     {/* Avatar + name + email */}
                     <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, paddingRight: 60 }}>
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, border: `1.5px solid ${color}44`, background: `${color}18`, color, flexShrink: 0, overflow: "hidden" }}>
+                      <div
+                        onClick={!isMe && activeTeamId ? (e) => {
+                          const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          setProfileCard({ member, anchor: { x: Math.min(rect.right + 8, window.innerWidth - 270), y: Math.min(rect.top, window.innerHeight - 300) } });
+                        } : undefined}
+                        style={{ width: 40, height: 40, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, border: `1.5px solid ${color}44`, background: `${color}18`, color, flexShrink: 0, overflow: "hidden", cursor: !isMe && activeTeamId ? "pointer" : "default" }}
+                      >
                         {member.avatarUrl
                           ? <img src={getUserAvatarUrl(member.avatarUrl, member.primaryEmail, 40)} alt={member.alias || member.name} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
                           : (member.alias || member.name).slice(0, 1).toUpperCase()}
@@ -548,6 +556,18 @@ export default function TeamsPage() {
         inviterRole={myRole}
         onInvited={reloadInvites}
       />
+
+      {profileCard && activeTeamId && (
+        <UserProfileCard
+          userId={profileCard.member.id}
+          displayName={profileCard.member.alias || profileCard.member.name}
+          email={profileCard.member.primaryEmail}
+          avatarUrl={profileCard.member.avatarUrl ? getUserAvatarUrl(profileCard.member.avatarUrl, profileCard.member.primaryEmail, 48) : undefined}
+          teamId={activeTeamId}
+          anchor={profileCard.anchor}
+          onClose={() => setProfileCard(null)}
+        />
+      )}
     </div>
   );
 }

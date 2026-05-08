@@ -17,7 +17,7 @@ interface TypingUser {
 export function useRoomChat(
   roomId: string | null | undefined,
   accessToken: string | null | undefined,
-  currentUser?: { id?: string; displayName?: string; name?: string; username?: string } | null
+  currentUser?: { id?: string; displayName?: string | null; name?: string | null; username?: string | null } | null
 ) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);

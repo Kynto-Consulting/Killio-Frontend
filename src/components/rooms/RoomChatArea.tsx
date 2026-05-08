@@ -28,6 +28,7 @@ interface RoomChatAreaProps {
   onViewTranscript: (callId: string) => void;
   onAiTrigger: (content: string) => void;
   currentUserId: string;
+  teamId?: string;
   canPost: boolean;
   roomName?: string;
   documents?: DocumentSummary[];
@@ -74,6 +75,7 @@ export function RoomChatArea({
   onViewTranscript,
   onAiTrigger,
   currentUserId,
+  teamId,
   canPost,
   roomName,
   documents,
@@ -148,6 +150,8 @@ export function RoomChatArea({
               linkedCall={linkedCall}
               resolverContext={resolverContext}
               availableTags={availableTags}
+              teamId={teamId}
+              currentUserId={currentUserId}
               t={t}
             />
           );

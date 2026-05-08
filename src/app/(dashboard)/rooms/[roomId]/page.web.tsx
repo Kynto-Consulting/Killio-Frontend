@@ -168,6 +168,7 @@ export default function RoomDetailWeb() {
               onViewTranscript={callHistoryHook.getTranscript}
               onAiTrigger={handleAiTrigger}
               currentUserId={user?.id ?? ""}
+              teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}
               t={t}
             />
