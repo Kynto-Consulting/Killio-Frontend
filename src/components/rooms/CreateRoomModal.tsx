@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { X, Loader2, Hash, MessageSquare, ChevronDown } from "lucide-react";
-import { createRoom, type RoomType, type CreateRoomInput, type RoomGroup } from "@/lib/api/rooms";
+import { X, Loader2, ChevronDown, Hash } from "lucide-react";
+import { createRoom, type CreateRoomInput, type RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
 
@@ -28,7 +28,6 @@ export function CreateRoomModal({
   t,
 }: CreateRoomModalProps) {
   const [name, setName] = useState("");
-  const [type, setType] = useState<RoomType>("channel");
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState<string | undefined>(initialGroupId);
   const [isCreating, setIsCreating] = useState(false);
@@ -40,14 +39,13 @@ export function CreateRoomModal({
     try {
       const input: CreateRoomInput = {
         name: name.trim().toLowerCase().replace(/\s+/g, "-"),
-        type,
-        groupId: type === "channel" ? groupId : undefined,
+        type: "channel",
+        groupId,
         description: description.trim() || undefined,
       };
       const room = await createRoom(teamId, input, accessToken);
       setName("");
       setDescription("");
-      setType("channel");
       setGroupId(initialGroupId);
       onCreated(room.id);
     } catch (e) {
@@ -63,39 +61,18 @@ export function CreateRoomModal({
     <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="text-sm font-semibold">{t("createRoom.title")}</h3>
+          <div className="flex items-center gap-2">
+            <Hash className="w-4 h-4 text-accent" />
+            <h3 className="text-sm font-semibold">{t("createRoom.title")}</h3>
+          </div>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-accent/10 text-muted-foreground">
             <X className="w-4 h-4" />
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="p-4 space-y-4">
-          {/* Type */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-              {t("createRoom.typeLabel")}
-            </label>
-            <div className="flex gap-2">
-              {(["channel", "dm"] as const).map((rType) => (
-                <button
-                  key={rType}
-                  type="button"
-                  onClick={() => setType(rType)}
-                  className={`flex items-center gap-2 flex-1 py-2 px-3 rounded-xl border text-sm transition-colors ${
-                    type === rType
-                      ? "border-accent bg-accent/10 text-accent font-medium"
-                      : "border-border text-muted-foreground hover:border-accent/40"
-                  }`}
-                >
-                  {rType === "channel" ? <Hash className="w-4 h-4" /> : <MessageSquare className="w-4 h-4" />}
-                  {t(`createRoom.${rType}`)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Group selector (channels only) */}
-          {type === "channel" && groups.length > 0 && (
+          {/* Group selector */}
+          {groups.length > 0 && (
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 {t("createRoom.groupLabel")}

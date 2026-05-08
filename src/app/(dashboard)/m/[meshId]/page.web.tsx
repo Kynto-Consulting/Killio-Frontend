@@ -6,7 +6,7 @@
 //   reparent drag-drop, resize, vector edit, connections, realtime (Ably).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { useParams } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, Code2,

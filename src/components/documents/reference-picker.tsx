@@ -17,7 +17,7 @@ import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
-type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread";
 type AllowedMentionType = MentionType | "document";
 
 type ActiveBrick = {
@@ -48,6 +48,7 @@ interface ReferencePickerProps {
   folders?: any[];
   users: WorkspaceMemberLike[];
   cards?: Array<{ id: string; title: string }>;
+  rooms?: Array<{ id: string; name: string; type: string }>;
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
@@ -203,6 +204,7 @@ export function ReferencePicker({
   folders,
   users,
   cards = [],
+  rooms = [],
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
@@ -337,6 +339,20 @@ export function ReferencePicker({
           mentionType: "folder" as const,
           search: `folder ${f.name} ${f.id}`.toLowerCase(),
         })),
+        ...(rooms || []).filter((r) => r.type !== 'thread').map((r) => ({
+          token: `@[room:${r.id}:${r.name}]`,
+          label: r.name,
+          category: "mention" as const,
+          mentionType: "room" as const,
+          search: `room channel ${r.name} ${r.id}`.toLowerCase(),
+        })),
+        ...(rooms || []).filter((r) => r.type === 'thread').map((r) => ({
+          token: `@[thread:${r.id}:${r.name}]`,
+          label: r.name,
+          category: "mention" as const,
+          mentionType: "thread" as const,
+          search: `thread ${r.name} ${r.id}`.toLowerCase(),
+        })),
     ];
 
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
@@ -364,7 +380,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, cards, folders, query, normalizedAllowedTypes]);
+  }, [boards, meshBoards, documents, users, cards, folders, rooms, query, normalizedAllowedTypes]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];

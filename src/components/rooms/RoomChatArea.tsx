@@ -95,7 +95,7 @@ export function RoomChatArea({
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-h-0">
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-0.5">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
         {isLoading && (
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />

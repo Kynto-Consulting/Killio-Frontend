@@ -16,7 +16,8 @@ interface TypingUser {
 
 export function useRoomChat(
   roomId: string | null | undefined,
-  accessToken: string | null | undefined
+  accessToken: string | null | undefined,
+  currentUser?: { id?: string; displayName?: string; name?: string; username?: string } | null
 ) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -167,7 +168,8 @@ export function useRoomChat(
 
       if (isTyping && !isTypingRef.current) {
         isTypingRef.current = true;
-        channel.publish("room.typing.start", {}).catch(() => {});
+        const displayName = currentUser?.displayName ?? currentUser?.name ?? currentUser?.username ?? "Someone";
+        channel.publish("room.typing.start", { userId: currentUser?.id ?? "", displayName }).catch(() => {});
       }
 
       // Auto-stop after 2s of no keystrokes

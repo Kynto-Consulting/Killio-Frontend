@@ -84,7 +84,7 @@ export function RoomMessageItem({
   const hasReactions = Object.keys(reactions).length > 0;
 
   const msgBubble = (
-    <div className={`group relative flex gap-2 ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+    <div className={`group relative flex gap-2 ${showAvatar ? "mt-3" : "mt-0.5"} ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
       {/* Avatar */}
       {showAvatar ? (
         <div className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50">

@@ -57,7 +57,7 @@ export default function RoomDetailWeb() {
       }
     : null;
 
-  const chatHook = useRoomChat(roomId, accessToken);
+  const chatHook = useRoomChat(roomId, accessToken, user);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
   const callHook = useRoomCall(roomId, userInfo, accessToken);
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);

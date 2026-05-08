@@ -132,6 +132,14 @@ export async function createRoom(teamId: string, input: CreateRoomInput, accessT
   return res.json();
 }
 
+export async function findOrCreateDm(teamId: string, targetUserId: string, accessToken: string): Promise<Room> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/rooms/dm?userId=${encodeURIComponent(targetUserId)}`, {
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw new Error('Failed to open DM');
+  return res.json();
+}
+
 export async function findRoomByEntity(
   teamId: string,
   entityType: LinkedEntityType,

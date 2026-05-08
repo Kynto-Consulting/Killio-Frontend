@@ -2,9 +2,10 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink } from "lucide-react";
+import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getCardContext, listTeamMembers } from "@/lib/api/contracts";
+import { findOrCreateDm } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { Portal } from "./portal";
 import {
@@ -14,13 +15,14 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread';
   id: string;
   name: string;
   label?: string;
   onClick?: () => void;
   workspaceUsers?: WorkspaceMemberLike[];
   workspaceName?: string;
+  teamId?: string;
 }
 
 function normalizeRoleLabel(role: string | null): string {
@@ -87,6 +89,7 @@ export function RefPill({
   onClick,
   workspaceUsers = [],
   workspaceName,
+  teamId,
 }: RefPillProps) {
   const t = useTranslations("common");
   const router = useRouter();
@@ -97,6 +100,8 @@ export function RefPill({
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const [resolvedUser, setResolvedUser] = useState<WorkspaceMember | null>(null);
   const [isLoadingUser, setIsLoadingUser] = useState(false);
+  const [isOpeningDm, setIsOpeningDm] = useState(false);
+  const effectiveTeamId = teamId ?? activeTeamId;
 
   const normalizedWorkspaceUsers = useMemo(
     () => workspaceUsers.map((member) => normalizeWorkspaceMember(member)),
@@ -141,6 +146,7 @@ export function RefPill({
     if (type === 'doc') router.push(`/d/${id}`);
     if (type === 'board') router.push(`/b/${id}`);
     if (type === 'mesh') router.push(`/m/${id}`);
+    if (type === 'room' || type === 'thread') { router.push(`/rooms/${id}`); return; }
     if (type === 'card' || (type as string) === 'mention' && id.startsWith('card:')) {
       const cardId = id.replace('card:', '');
       try {
@@ -255,6 +261,8 @@ export function RefPill({
     user: "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20",
     deep: "bg-amber-500/10 border-amber-500/20 text-amber-600 hover:bg-amber-500/20",
     mention: "bg-accent/10 border-accent/20 text-accent hover:bg-accent/20",
+    room: "bg-teal-500/10 border-teal-500/20 text-teal-600 hover:bg-teal-500/20",
+    thread: "bg-cyan-500/10 border-cyan-500/20 text-cyan-600 hover:bg-cyan-500/20",
   };
 
   const Icons: Record<string, any> = {
@@ -264,7 +272,9 @@ export function RefPill({
     card: Hash,
     user: User,
     deep: Database,
-    mention: Hash
+    mention: Hash,
+    room: MessageSquare,
+    thread: GitBranch,
   };
 
   const Icon = Icons[type] || Database;
@@ -343,6 +353,28 @@ export function RefPill({
                   </div>
                 ) : (
                   <div className="text-xs text-muted-foreground">{t("noUserInfo")}</div>
+                )}
+
+                {effectiveTeamId && accessToken && (
+                  <button
+                    onClick={async () => {
+                      setIsOpeningDm(true);
+                      try {
+                        const dm = await findOrCreateDm(effectiveTeamId, id, accessToken);
+                        router.push(`/rooms/${dm.id}`);
+                        setIsUserMenuOpen(false);
+                      } catch (e) {
+                        console.error(e);
+                      } finally {
+                        setIsOpeningDm(false);
+                      }
+                    }}
+                    disabled={isOpeningDm}
+                    className="mt-1 w-full flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg bg-accent text-accent-foreground text-xs font-medium hover:bg-accent/90 disabled:opacity-50 transition-colors"
+                  >
+                    {isOpeningDm ? <Loader2 className="h-3 w-3 animate-spin" /> : <MessageSquare className="h-3 w-3" />}
+                    Send message
+                  </button>
                 )}
               </div>
             )}
