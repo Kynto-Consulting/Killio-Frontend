@@ -3,40 +3,68 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActionTheme } from "@/hooks/use-action-theme";
 import { useEffect, useState } from "react";
 
-import { X, Send, Bot, Loader2, MessageSquare, History, Tag, Edit2, Sparkles, Trash2, RefreshCcw, Layout, Info, CheckCircle2, CheckCheck, FileText } from "lucide-react";
+import { X, Send, Bot, MessageSquare, History, Info, ExternalLink, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { getUserAvatarUrl } from "@/lib/gravatar";
-import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles, parseAiActions } from "@/hooks/use-board-chat-drawer";
-import { getWorkspaceMemberLabel, toReferenceUsers } from "@/lib/workspace-members";
+import { AgentChatPanel } from "@/components/agent";
+import { useSession } from "@/components/providers/session-provider";
+import { AgentEntityScope } from "@/lib/api/agent";
+import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles } from "@/hooks/use-board-chat-drawer";
+import { getWorkspaceMemberLabel } from "@/lib/workspace-members";
+import { useLinkedRoom } from "@/hooks/use-linked-room";
+import { useRoomChat } from "@/hooks/use-room-chat";
+import { RoomMessageItem } from "@/components/rooms/RoomMessageItem";
+import type { LinkedEntityType } from "@/lib/api/rooms";
 
 export interface BoardChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   boardId?: string;
   initialTab?: 'copilot' | 'chat' | 'activity';
+  entityType?: AgentEntityScope;
+  linkedRoomId?: string;
 }
 
 
 
 
-export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'chat' }: BoardChatDrawerProps) {
+export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'chat', entityType, linkedRoomId: linkedRoomIdProp }: BoardChatDrawerProps) {
   const t = useTranslations("board-detail");
+  const tRooms = useTranslations("rooms");
   const getActionTheme = useActionTheme();
+  const { activeTeamId, accessToken, user: sessionUser } = useSession();
   const {
     state: {
-      activeTab, setActiveTab, aiMessages, setAiMessages, chatMessages, inputVal, setInputVal,
-      isLoading, isSendingMessage, allAvailableTags, teamDocs, teamMembers, teamBoardsForMentions,
-      boardCardsForMentions, isGeneratingReport, selectedActivityGroup, setSelectedActivityGroup,
+      activeTab, setActiveTab, allAvailableTags, teamDocs, teamMembers, teamBoardsForMentions,
+      boardCardsForMentions, selectedActivityGroup, setSelectedActivityGroup,
       isActivityModalOpen, setIsActivityModalOpen, bottomRef, groupedActivities, aiUsage, user
     },
-    actions: { sendMessage, handleAiAction }
+    actions: {}
   } = useBoardChatDrawer(boardId, initialTab, isOpen);
 
+  // Map AgentEntityScope → LinkedEntityType (ignore 'team' which has no linked room)
+  const linkedEntityType = (
+    entityType === 'board' || entityType === 'mesh' || entityType === 'document'
+  ) ? entityType as LinkedEntityType : null;
+
+  const { roomId: autoLinkedRoomId } = useLinkedRoom(
+    activeTeamId,
+    linkedEntityType,
+    boardId,
+    accessToken,
+    !!boardId && !!linkedEntityType
+  );
+  const effectiveRoomId = linkedRoomIdProp ?? autoLinkedRoomId;
+
+  const roomChat = useRoomChat(effectiveRoomId, accessToken);
+  const [roomInput, setRoomInput] = useState("");
+
+  const router = useRouter();
   const [drawerWidth, setDrawerWidth] = useState(384);
   const [isResizingDrawer, setIsResizingDrawer] = useState(false);
-  const [applyingAllMessageId, setApplyingAllMessageId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!isResizingDrawer) return;
@@ -63,30 +91,6 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
     };
   }, [isResizingDrawer]);
 
-  const applyAllActions = async (messageId: number, actions: any[]) => {
-    if (actions.length === 0 || applyingAllMessageId !== null) return;
-
-    setApplyingAllMessageId(messageId);
-    let appliedCount = 0;
-
-    for (const action of actions) {
-      const success = await handleAiAction(action, { silent: true });
-      if (success) appliedCount += 1;
-    }
-
-    setAiMessages((prev) => [
-      ...prev,
-      {
-        id: Date.now(),
-        role: "bot",
-        content: appliedCount > 0
-          ? t("chatDrawer.appliedChanges", { applied: appliedCount, total: actions.length })
-          : t("chatDrawer.applyFailed"),
-      },
-    ]);
-    setApplyingAllMessageId(null);
-  };
-
   if (!isOpen) return null;
 
 
@@ -110,9 +114,18 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
       <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
         <div className="flex items-center justify-between p-4 pb-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</h3>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
-            <X className="h-4 w-4" />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
+              title={t("chatDrawer.openInRooms")}
+              className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+            >
+              <ExternalLink className="h-4 w-4" />
+            </button>
+            <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
+              <X className="h-4 w-4" />
+            </button>
+          </div>
         </div>
 
         <div className="flex px-2 pb-0.5 gap-1">
@@ -160,197 +173,41 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 hide-scrollbar">
-        {activeTab === 'copilot' && (
-          <div className="flex flex-col h-full space-y-4">
-            <div className="flex-1 space-y-4">
-              <div className="flex gap-3">
-                <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
-                  <p>{t("chatDrawer.aiWelcome")}</p>
-                </div>
-              </div>
-
-              {aiMessages.map((msg) => {
-                const userTint = getUserTintStyles(user?.id || user?.email || msg.avatar || "user");
-                const { cleanText, actions } = msg.loading ? { cleanText: "", actions: [] as any[] } : parseAiActions(msg.content);
-
-                return (
-                  <div key={msg.id} className="space-y-3">
-                    <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div
-                        className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center overflow-hidden ${msg.role === 'user'
-                          ? 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
-                          : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                          }`}
-                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}
-                      >
-                        {msg.role === 'user' ? (
-                          (msg.avatarUrl || msg.email) ? (
-                            <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
-                          ) : (msg.avatar || (user?.displayName?.[0] || 'U'))
-                        ) : <Bot className="h-4 w-4" />}
-                      </div>
-                      <div
-                        className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border whitespace-pre-wrap break-words ${msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
-                          : 'bg-muted/50 border-border/50 rounded-tl-none'
-                          }`}
-                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}
-                      >
-                        {msg.loading ? (
-                          <div className="flex gap-1.5 items-center px-1 py-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        ) : (
-                          <RichText
-                            content={cleanText}
-                            context={getResolverContext(teamDocs, [], teamMembers)}
-                            availableTags={allAvailableTags}
-                            onSuggestionApply={() => {
-                              setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: t("chatDrawer.actionDone") }]);
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {actions.map((action, actionIdx) => (
-                      <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">{t("chatDrawer.suggestedAction")}</span>
-                        </div>
-                        
-                        <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm font-bold text-emerald-800">{String(action.action || action.type || "").replace(/_/g, " ")}</span>
-                        </div>
-
-                        <button
-                          onClick={() => handleAiAction(action)}
-                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {t("chatDrawer.applyOne")}
-                        </button>
-                      </div>
-                    ))}
-
-                    {actions.length > 1 && (
-                      <div className="ml-11 mr-4 mt-1">
-                        <button
-                          onClick={() => {
-                            void applyAllActions(msg.id, actions);
-                          }}
-                          disabled={applyingAllMessageId === msg.id}
-                          className="w-full py-2 px-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 text-emerald-700 text-xs font-bold hover:bg-emerald-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 flex-wrap"
-                        >
-                          {applyingAllMessageId === msg.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCheck className="h-3.5 w-3.5" />
-                          )}
-                          <span>{t("chatDrawer.applyAll")}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    void sendMessage(undefined, t("chatDrawer.summarizeBoardPrompt"));
-                  }}
-                  disabled={isLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
-                >
-                  <FileText className="w-3 h-3" />
-                  {t("chatDrawer.summarizeBoard")}
-                </button>
-                <button
-                  onClick={() => {
-                    const prompt = t("chatDrawer.generateReportPrompt");
-                    void sendMessage(undefined, prompt);
-                  }}
-                  disabled={isLoading || isGeneratingReport}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
-                >
-                  {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                  {t("chatDrawer.generateReport")}
-                </button>
-              </div>
-            </div>
-          </div>
+      <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
+        {activeTab === 'copilot' && activeTeamId && (
+          <AgentChatPanel
+            teamId={activeTeamId}
+            entityType={entityType ?? 'board'}
+            entityId={boardId}
+            className="h-full"
+          />
         )}
 
-        {activeTab === 'chat' && chatMessages.map((msg) => {
-          if (msg.role === "system") {
-            return (
-              <div key={msg.id} className="flex justify-center">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground px-2 py-1 bg-muted/50 rounded-full">
-                  {msg.content}
-                </span>
-              </div>
-            );
-          }
-
-          if (msg.role === "bot") {
-            const isAi = !msg.avatarUrl && !msg.email && !msg.avatar;
-            return (
-              <div key={msg.id} className="flex gap-3">
-                <div className="h-8 w-8 shrink-0 rounded border flex items-center justify-center shadow-sm bg-muted/50 border-border/50 text-muted-foreground overflow-hidden">
-                  {isAi ? (
-                    <MessageSquare className="h-4 w-4" />
-                  ) : (
-                    (msg.avatarUrl || msg.email) ? (
-                      <img src={getUserAvatarUrl(msg.avatarUrl, msg.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
-                    ) : (
-                      <span className="text-[10px] font-bold">{msg.avatar || "?"}</span>
-                    )
-                  )}
-                </div>
-                <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1 whitespace-pre-wrap break-words">
-                  <RichText
-                    content={msg.content}
-                    context={getResolverContext(teamDocs, [], teamMembers)}
-                    availableTags={allAvailableTags}
-                  />
-                </div>
-              </div>
-            );
-          }
-
-          const userTint = getUserTintStyles(user?.id || user?.email || msg.avatar || "user");
-
-          return (
-            <div key={msg.id} className="flex gap-3 flex-row-reverse">
-              <div
-                className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm overflow-hidden"
-                style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text }}
-              >
-                {(msg.avatarUrl || msg.email) ? (
-                  <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
-                ) : ( msg.avatar || (user?.displayName?.[0] || 'U') )}
-              </div>
-              <div
-                className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20 whitespace-pre-wrap break-words"
-                style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" }}
-              >
-                <RichText
-                  content={msg.content}
-                  context={getResolverContext(teamDocs, [], teamMembers)}
-                  availableTags={allAvailableTags}
-                />
-              </div>
+        {activeTab === 'chat' && (
+          roomChat.isLoading ? (
+            <div className="flex justify-center py-8">
+              <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
             </div>
-          );
-        })}
+          ) : roomChat.messages.length === 0 ? (
+            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60">
+              <MessageSquare className="h-8 w-8 mb-2" />
+              <p>{tRooms("chat.noMessages")}</p>
+            </div>
+          ) : (
+            roomChat.messages.map((msg, idx) => (
+              <RoomMessageItem
+                key={msg.id}
+                message={msg}
+                isOwn={msg.userId === sessionUser?.id}
+                showAvatar={idx === 0 || roomChat.messages[idx - 1].userId !== msg.userId}
+                onReact={(emoji) => void roomChat.addReaction(msg.id, emoji)}
+                resolverContext={getResolverContext(teamDocs, [], teamMembers)}
+                availableTags={allAvailableTags}
+                t={tRooms}
+              />
+            ))
+          )
+        )}
 
         {activeTab === 'activity' && (
           <div className="space-y-6 pr-1 overflow-x-hidden">
@@ -443,30 +300,39 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         <div ref={bottomRef} />
       </div>
 
-      {(activeTab === 'chat' || activeTab === 'copilot') && (
+      {activeTab === 'chat' && (
         <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
+          {roomChat.typingUsers.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/70 mb-1 px-1">
+              {roomChat.typingUsers.map(u => u.displayName).join(", ")} {tRooms("chat.typing_one").replace("{name}", "")}
+            </p>
+          )}
           <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
             <ReferenceTokenInput
-              value={inputVal}
-              onChange={setInputVal}
-              placeholder={activeTab === 'copilot' ? t("chatDrawer.inputPlaceholderAI") : t("chatDrawer.inputPlaceholderChat")}
+              value={roomInput}
+              onChange={setRoomInput}
+              placeholder={t("chatDrawer.inputPlaceholderChat")}
               documents={teamDocs}
               boards={teamBoardsForMentions}
               users={teamMembers}
               cards={boardCardsForMentions}
-              onSubmit={() => {
-                void sendMessage();
+              onSubmit={async () => {
+                if (!roomInput.trim()) return;
+                await roomChat.sendMessage(roomInput.trim());
+                setRoomInput("");
               }}
               className="w-full"
-              inputClassName={`pr-10 shadow-sm ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : ''}`}
+              inputClassName="pr-10 shadow-sm"
             />
             <button
               type="button"
-              onClick={() => {
-                void sendMessage();
+              onClick={async () => {
+                if (!roomInput.trim()) return;
+                await roomChat.sendMessage(roomInput.trim());
+                setRoomInput("");
               }}
-              disabled={!inputVal.trim() || isLoading || isSendingMessage}
-              className={`absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-accent text-accent-foreground'}`}
+              disabled={!roomInput.trim() || roomChat.isSending}
+              className="absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm bg-accent text-accent-foreground"
             >
               <Send className="h-3.5 w-3.5" />
             </button>

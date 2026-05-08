@@ -1,0 +1,140 @@
+{
+  "title": "Salas",
+  "emptyState": {
+    "title": "Sin salas aún",
+    "description": "Crea un canal para colaborar con tu equipo en tiempo real.",
+    "createButton": "Crear sala"
+  },
+  "sidebar": {
+    "channels": "Canales",
+    "linked": "Vinculadas",
+    "directMessages": "Mensajes directos",
+    "createChannel": "Nuevo canal",
+    "createDM": "Nuevo mensaje directo",
+    "createGroup": "Nueva categoría",
+    "noChannels": "Sin canales aún",
+    "noLinked": "Sin hilos vinculados",
+    "noDMs": "Sin mensajes directos"
+  },
+  "header": {
+    "call": "Iniciar llamada",
+    "leaveCall": "Salir de la llamada",
+    "copilot": "Copiloto",
+    "members": "Miembros",
+    "permissions": "Permisos",
+    "linkedTo": "Vinculado a"
+  },
+  "chat": {
+    "inputPlaceholder": "Mensaje en {roomName}... (@AI para copiloto)",
+    "loadMore": "Cargar mensajes anteriores",
+    "noMessages": "Sin mensajes aún. ¡Sé el primero en escribir!",
+    "typing_one": "{name} está escribiendo...",
+    "typing_two": "{name1} y {name2} están escribiendo...",
+    "typing_many": "Varias personas están escribiendo...",
+    "readOnly": "Este canal es de solo lectura para ti",
+    "reactions": {
+      "add": "Agregar reacción"
+    }
+  },
+  "call": {
+    "joining": "Uniéndose a la llamada...",
+    "inCall": "En llamada",
+    "you": "Tú",
+    "participants": "{count} participantes",
+    "full": "Llamada llena (máx. 6 participantes)",
+    "muted": "Silenciado",
+    "videoOff": "Cámara apagada",
+    "sharing": "Compartiendo pantalla",
+    "filters": {
+      "label": "Filtro de video",
+      "none": "Sin filtro",
+      "blur": "Desenfoque de fondo",
+      "grayscale": "Escala de grises",
+      "warm": "Tono cálido"
+    },
+    "controls": {
+      "mic": "Micrófono",
+      "camera": "Cámara",
+      "filter": "Filtro",
+      "screen": "Compartir pantalla",
+      "stopScreen": "Dejar de compartir",
+      "record": "Grabar",
+      "stopRecord": "Detener grabación",
+      "hangUp": "Salir de la llamada",
+      "toggleMic": "Activar/silenciar micrófono",
+      "toggleCamera": "Encender/apagar cámara"
+    },
+    "recording": {
+      "active": "Grabando {time}",
+      "saved": "Grabación guardada"
+    },
+    "transcript": {
+      "submitted": "Transcripción enviada",
+      "unavailable": "Sin transcripción disponible",
+      "view": "Ver transcripción",
+      "download": "Descargar",
+      "timeline": "Transcripción de llamada"
+    }
+  },
+  "callHistory": {
+    "started": "Llamada iniciada",
+    "inProgress": "Llamada en curso",
+    "ended": "Llamada · {duration}",
+    "participants": "{count} participantes",
+    "viewTranscript": "Ver transcripción",
+    "noTranscript": "Sin transcripción"
+  },
+  "permissions": {
+    "title": "Permisos del canal",
+    "defaultRole": "Rol predeterminado para miembros",
+    "membersTab": "Miembros",
+    "channelTab": "Canal",
+    "canPost": "Puede publicar mensajes",
+    "canCall": "Puede iniciar / unirse a llamadas",
+    "canRecord": "Puede grabar llamadas",
+    "canInvite": "Puede invitar miembros",
+    "canManage": "Puede gestionar el canal",
+    "roles": {
+      "admin": "Administrador",
+      "member": "Miembro",
+      "readonly": "Solo lectura"
+    },
+    "removeConfirm": "¿Eliminar a {name} de este canal?",
+    "save": "Guardar",
+    "saved": "Guardado"
+  },
+  "createRoom": {
+    "title": "Crear sala",
+    "nameLabel": "Nombre",
+    "namePlaceholder": "ej. general",
+    "typeLabel": "Tipo",
+    "channel": "Canal",
+    "dm": "Mensaje directo",
+    "groupLabel": "Categoría",
+    "noGroup": "Sin categoría",
+    "descriptionLabel": "Descripción",
+    "descriptionPlaceholder": "¿De qué trata este canal?",
+    "submitButton": "Crear",
+    "cancel": "Cancelar"
+  },
+  "createGroup": {
+    "title": "Nueva categoría",
+    "nameLabel": "Nombre",
+    "namePlaceholder": "ej. Ingeniería",
+    "emojiLabel": "Ícono"
+  },
+  "members": {
+    "title": "Miembros",
+    "online": "En línea",
+    "offline": "Desconectado",
+    "inCall": "En llamada",
+    "you": "(tú)"
+  },
+  "errors": {
+    "loadFailed": "No se pudieron cargar las salas.",
+    "sendFailed": "Error al enviar el mensaje.",
+    "callFailed": "No se pudo iniciar la llamada. Verifica los permisos de cámara y micrófono.",
+    "transcriptFailed": "No se pudo enviar la transcripción.",
+    "recordFailed": "La grabación no está soportada en este navegador."
+  }
+}

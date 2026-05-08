@@ -16,7 +16,9 @@
     "viewAll": "Ver todos",
     "noBoardsYet": "Aun no hay tableros",
     "noDocumentsYet": "Aun no hay documentos",
-    "nomeshsYet": "Aun no hay Meshs"
+    "nomeshsYet": "Aun no hay Meshs",
+    "rooms": "Salas",
+    "noRoomsYet": "Aún no hay salas"
   },
   "metrics": {
     "title": "Metricas del espacio",
