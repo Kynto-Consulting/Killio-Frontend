@@ -222,5 +222,12 @@
     "inputPlaceholderAI": "Ask the AI something or use @...",
     "inputPlaceholderChat": "Ask or mention with @...",
     "openInRooms": "Open in Rooms"
+  },
+  "brickCategories": {
+    "basic": "Basic blocks",
+    "media": "Media content",
+    "advanced": "Advanced",
+    "inline": "Integrations",
+    "other": "Other"
   }
 }

@@ -222,5 +222,12 @@
     "inputPlaceholderAI": "Pregunta algo a la IA o usa @...",
     "inputPlaceholderChat": "Pregunta o menciona con @...",
     "openInRooms": "Abrir en Salas"
+  },
+  "brickCategories": {
+    "basic": "Bloques básicos",
+    "media": "Contenido multimedia",
+    "advanced": "Avanzado",
+    "inline": "Integraciones",
+    "other": "Otros"
   }
 }

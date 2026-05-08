@@ -231,7 +231,9 @@ export function EntitySelectorModal({
   }, [isOpen, teamId, accessToken]);
 
   useEffect(() => {
-    if (isOpen) setTimeout(() => searchRef.current?.focus(), 50);
+    if (!isOpen) return;
+    const id = setTimeout(() => searchRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, [isOpen]);
 
   if (!isOpen) return null;

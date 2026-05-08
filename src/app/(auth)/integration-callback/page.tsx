@@ -17,6 +17,8 @@ export default function IntegrationCallbackPage() {
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
+    let redirectId: ReturnType<typeof setTimeout> | null = null;
+
     if (!accessToken || !user) {
       router.replace("/login");
       return;
@@ -44,9 +46,9 @@ export default function IntegrationCallbackPage() {
       }
       localStorage.removeItem("trello_pending_teamId");
       saveTrelloCallback(pendingTeamId, trelloToken, accessToken)
-        .then(() => { setSuccess(true); setTimeout(() => router.replace("/integrations"), 1500); })
+        .then(() => { setSuccess(true); redirectId = setTimeout(() => router.replace("/integrations"), 1500); })
         .catch((err: any) => setError(err.message || t("callback.errors.finalizeTrello")));
-      return;
+      return () => { if (redirectId) clearTimeout(redirectId); };
     }
 
     // Notion / other OAuth2 flow: code + state in query params
@@ -84,7 +86,7 @@ export default function IntegrationCallbackPage() {
           throw new Error(t("callback.errors.unsupportedProvider"));
         }
         setSuccess(true);
-        setTimeout(() => {
+        redirectId = setTimeout(() => {
           router.replace("/integrations");
         }, 1500);
       } catch (err: any) {
@@ -93,6 +95,7 @@ export default function IntegrationCallbackPage() {
     };
 
     processCallback();
+    return () => { if (redirectId) clearTimeout(redirectId); };
   }, [accessToken, user, router, searchParams, t]);
 
   if (error) {

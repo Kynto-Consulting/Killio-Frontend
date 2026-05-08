@@ -81,7 +81,9 @@ function Hero({ t }: { t: T }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const el = ref.current;
-    if (el) setTimeout(() => { el.style.opacity = "1"; el.style.transform = "none"; }, 80);
+    if (!el) return;
+    const id = setTimeout(() => { el.style.opacity = "1"; el.style.transform = "none"; }, 80);
+    return () => clearTimeout(id);
   }, []);
   return (
     <section className="hero-section">

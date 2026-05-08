@@ -59,13 +59,13 @@ export function RichText({
   onReferenceClick,
   onSuggestionApply 
 }: RichTextProps) {
-  if (!content) return null;
-
   const fallbackDocId = React.useMemo(() => {
     const map = (context as any)?.documentBricksById as Record<string, unknown> | undefined;
     const ids = map ? Object.keys(map) : [];
     return ids.length === 1 ? ids[0] : undefined;
   }, [context]);
+
+  if (!content) return null;
 
   const stripWrappedBold = (value: string): string => {
     const trimmed = value.trim();

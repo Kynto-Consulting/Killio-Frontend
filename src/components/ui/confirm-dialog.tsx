@@ -34,11 +34,11 @@ export function ConfirmDialog({
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setTyped("");
-      setIsLoading(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (!isOpen) return;
+    setTyped("");
+    setIsLoading(false);
+    const id = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(id);
   }, [isOpen]);
 
   const canConfirm = confirmText ? typed === confirmText : true;

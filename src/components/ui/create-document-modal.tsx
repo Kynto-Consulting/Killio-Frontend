@@ -19,12 +19,12 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit }: CreateDocumen
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      setTitle("");
-      setError(null);
-      setIsSubmitting(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (!isOpen) return;
+    setTitle("");
+    setError(null);
+    setIsSubmitting(false);
+    const id = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(id);
   }, [isOpen]);
 
   if (!isOpen) return null;

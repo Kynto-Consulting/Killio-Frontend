@@ -87,6 +87,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   showDragOverlay = true
 }) => {
   const tDetail = useTranslations("document-detail");
+  const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -391,27 +392,18 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             <div className="flex-1 w-[320px] flex flex-col border-r border-border/50">
               <div className="max-h-72 overflow-y-auto p-1.5 flex-1">
                 {slashCommands.map((command, index) => {
-                  const CategoryHeader = () => {
-                    if (index === 0 || command.category !== slashCommands[index - 1].category) {
-                      const catLabels: Record<string, string> = {
-                        basic: "Bloques básicos",
-                        media: "Contenido multimedia",
-                        advanced: "Avanzado",
-                        inline: "Integraciones"
-                      };
-                      const catName = command.category ? (catLabels[command.category] || command.category) : "Otros";
-                      return (
-                        <div className="px-2 pt-3 pb-1">
-                          <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
-                        </div>
-                      );
-                    }
-                    return null;
-                  };
+                  const showCategoryHeader = index === 0 || command.category !== slashCommands[index - 1].category;
+                  const catName = command.category
+                    ? (tBoardDetail(`brickCategories.${command.category}` as any) ?? command.category)
+                    : tBoardDetail("brickCategories.other");
 
                   return (
                     <React.Fragment key={command.id}>
-                      <CategoryHeader />
+                      {showCategoryHeader && (
+                        <div className="px-2 pt-3 pb-1">
+                          <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
+                        </div>
+                      )}
                       <button
                         type="button"
                         onMouseEnter={() => setPlusMenuHoverIndex(index)}

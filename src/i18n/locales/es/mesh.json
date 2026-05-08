@@ -1,0 +1,19 @@
+{
+  "toolbar": {
+    "modeLabel": "Modo",
+    "modes": {
+      "select": "Seleccionar",
+      "pan": "Mover",
+      "pen": "Lápiz",
+      "conn": "Conectar",
+      "vec": "Vector"
+    },
+    "modeShortcuts": {
+      "select": "S",
+      "pan": "H",
+      "pen": "P",
+      "conn": "C",
+      "vec": ""
+    }
+  }
+}

@@ -591,7 +591,7 @@ function ColumnHeaderMenu({
   const [draftName, setDraftName] = useState(column.name);
   const nameRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { setTimeout(() => nameRef.current?.focus(), 50); }, []);
+  useEffect(() => { const id = setTimeout(() => nameRef.current?.focus(), 50); return () => clearTimeout(id); }, []);
 
   const HAS_EDIT_PROPERTY = ["number", "select", "multi_select", "status", "date", "created_time", "last_edited_time", "people", "created_by", "last_edited_by", "document", "phone_number", "checkbox"].includes(column.type);
 
@@ -941,7 +941,9 @@ function EditPropertyFlyout({
   const flyTop = Math.min(menuTop, window.innerHeight - 520);
 
   useEffect(() => {
-    if (creatingInGroup) setTimeout(() => newOptInputRef.current?.focus(), 50);
+    if (!creatingInGroup) return;
+    const id = setTimeout(() => newOptInputRef.current?.focus(), 50);
+    return () => clearTimeout(id);
   }, [creatingInGroup]);
 
   const startCreating = (groupName: string) => {

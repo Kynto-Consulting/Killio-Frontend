@@ -1,0 +1,19 @@
+{
+  "toolbar": {
+    "modeLabel": "Mode",
+    "modes": {
+      "select": "Select",
+      "pan": "Pan",
+      "pen": "Pen",
+      "conn": "Conn",
+      "vec": "Vec"
+    },
+    "modeShortcuts": {
+      "select": "S",
+      "pan": "H",
+      "pen": "P",
+      "conn": "C",
+      "vec": ""
+    }
+  }
+}

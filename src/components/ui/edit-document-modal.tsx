@@ -26,13 +26,13 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen && document) {
-      setTitle(document.title || "");
-      setFolderId(document.folderId || null);
-      setError(null);
-      setIsSubmitting(false);
-      setTimeout(() => inputRef.current?.focus(), 100);
-    }
+    if (!isOpen || !document) return;
+    setTitle(document.title || "");
+    setFolderId(document.folderId || null);
+    setError(null);
+    setIsSubmitting(false);
+    const id = setTimeout(() => inputRef.current?.focus(), 100);
+    return () => clearTimeout(id);
   }, [isOpen, document]);
 
   if (!isOpen || !document) return null;

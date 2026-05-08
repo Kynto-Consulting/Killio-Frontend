@@ -6,6 +6,7 @@
 //   reparent drag-drop, resize, vector edit, connections, realtime (Ably).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { useParams } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, Code2,
@@ -1259,6 +1260,7 @@ type MeshBoardPageProps = {
 };
 
 export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps) {
+  const tMesh = useTranslations("mesh");
   const params  = useParams<{ meshId: string }>();
   const meshId  = params?.meshId;
   const { accessToken, activeTeamId, user } = useSession();
@@ -3637,14 +3639,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
           {/* Modos */}
           <section className="px-2 pb-2">
-            <p className="mb-1 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">Modo</p>
+            <p className="mb-1 text-[8px] font-bold uppercase tracking-widest text-muted-foreground/50">{tMesh("toolbar.modeLabel")}</p>
             <div className="grid grid-cols-3 gap-1">
               {([
-                ["select", "Select", <MousePointer className="h-3.5 w-3.5" />, "S"],
-                ["pan",    "Pan",    <Hand          className="h-3.5 w-3.5" />, "H"],
-                ["pen",    "Pen",    <Pencil        className="h-3.5 w-3.5" />, "P"],
-                ["conn",   "Conn",   <Link2         className="h-3.5 w-3.5" />, "C"],
-                ["vec",    "Vec",    <Edit3         className="h-3.5 w-3.5" />, ""],
+                ["select", tMesh("toolbar.modes.select"), <MousePointer key="i-select" className="h-3.5 w-3.5" />, tMesh("toolbar.modeShortcuts.select")],
+                ["pan",    tMesh("toolbar.modes.pan"),    <Hand          key="i-pan"    className="h-3.5 w-3.5" />, tMesh("toolbar.modeShortcuts.pan")],
+                ["pen",    tMesh("toolbar.modes.pen"),    <Pencil        key="i-pen"    className="h-3.5 w-3.5" />, tMesh("toolbar.modeShortcuts.pen")],
+                ["conn",   tMesh("toolbar.modes.conn"),   <Link2         key="i-conn"   className="h-3.5 w-3.5" />, tMesh("toolbar.modeShortcuts.conn")],
+                ["vec",    tMesh("toolbar.modes.vec"),    <Edit3         key="i-vec"    className="h-3.5 w-3.5" />, tMesh("toolbar.modeShortcuts.vec")],
               ] as [ToolMode, string, React.ReactNode, string][]).map(([m, label, icon, key]) => (
                 <button key={m} type="button" title={`${label}${key ? ` (${key})` : ""}`}
                   onClick={() => { setToolMode(m); if (m !== "conn") setConnSrcId(null); }}
@@ -4088,11 +4090,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Modo</p>
                       <div className="grid grid-cols-5 gap-2">
                         {([
-                          ["select", "Select", <MousePointer className="h-3.5 w-3.5" />],
-                          ["pan", "Pan", <Hand className="h-3.5 w-3.5" />],
-                          ["pen", "Pen", <Pencil className="h-3.5 w-3.5" />],
-                          ["conn", "Conn", <Link2 className="h-3.5 w-3.5" />],
-                          ["vec", "Vec", <Edit3 className="h-3.5 w-3.5" />],
+                          ["select", tMesh("toolbar.modes.select"), <MousePointer key="i-select" className="h-3.5 w-3.5" />],
+                          ["pan",    tMesh("toolbar.modes.pan"),    <Hand key="i-pan" className="h-3.5 w-3.5" />],
+                          ["pen",    tMesh("toolbar.modes.pen"),    <Pencil key="i-pen" className="h-3.5 w-3.5" />],
+                          ["conn",   tMesh("toolbar.modes.conn"),   <Link2 key="i-conn" className="h-3.5 w-3.5" />],
+                          ["vec",    tMesh("toolbar.modes.vec"),    <Edit3 key="i-vec" className="h-3.5 w-3.5" />],
                         ] as [ToolMode, string, React.ReactNode][]).map(([modeKey, label, icon]) => (
                           <button
                             key={modeKey}

@@ -6,6 +6,45 @@ import type { RoomMember } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
 
+interface MemberRowProps {
+  member: RoomMember;
+  isOnline: boolean;
+  isInCall: boolean;
+  isYou: boolean;
+  t: TFn;
+}
+
+function MemberRow({ member, isOnline, isInCall, isYou, t }: MemberRowProps) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/5 transition-colors">
+      <div className="relative shrink-0">
+        <img
+          src={getUserAvatarUrl(member.avatarUrl, member.email, 28)}
+          alt={member.displayName}
+          className="w-7 h-7 rounded-full border border-border"
+        />
+        <span
+          className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-background ${
+            isInCall ? "bg-accent" : isOnline ? "bg-green-500" : "bg-muted-foreground/40"
+          }`}
+        />
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1">
+          <span className="text-xs text-foreground truncate">{member.displayName}</span>
+          {isYou && <span className="text-[9px] text-muted-foreground">{t("members.you")}</span>}
+        </div>
+        <span className="text-[9px] text-muted-foreground">
+          {isInCall ? t("members.inCall") : isOnline ? t("members.online") : t("members.offline")}
+        </span>
+      </div>
+      <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium uppercase tracking-wider">
+        {member.role}
+      </span>
+    </div>
+  );
+}
+
 interface RoomMembersPanelProps {
   presenceMembers: RoomPresenceMember[];
   roomMembers: RoomMember[];
@@ -22,41 +61,6 @@ export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, 
   const online = roomMembers.filter((m) => onlineIds.has(m.userId));
   const offline = roomMembers.filter((m) => !onlineIds.has(m.userId));
 
-  const MemberRow = ({ member }: { member: RoomMember }) => {
-    const isOnline = onlineIds.has(member.userId);
-    const isInCall = inCallIds.has(member.userId);
-    const isYou = member.userId === currentUserId;
-
-    return (
-      <div className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-accent/5 transition-colors">
-        <div className="relative shrink-0">
-          <img
-            src={getUserAvatarUrl(member.avatarUrl, member.email, 28)}
-            alt={member.displayName}
-            className="w-7 h-7 rounded-full border border-border"
-          />
-          <span
-            className={`absolute bottom-0 right-0 w-2 h-2 rounded-full border border-background ${
-              isInCall ? "bg-accent" : isOnline ? "bg-green-500" : "bg-muted-foreground/40"
-            }`}
-          />
-        </div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1">
-            <span className="text-xs text-foreground truncate">{member.displayName}</span>
-            {isYou && <span className="text-[9px] text-muted-foreground">{t("members.you")}</span>}
-          </div>
-          <span className="text-[9px] text-muted-foreground">
-            {isInCall ? t("members.inCall") : isOnline ? t("members.online") : t("members.offline")}
-          </span>
-        </div>
-        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-muted/60 text-muted-foreground font-medium uppercase tracking-wider">
-          {member.role}
-        </span>
-      </div>
-    );
-  };
-
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
       <div className="px-3 py-2.5 border-b border-border/40 shrink-0">
@@ -72,7 +76,16 @@ export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, 
                 {t("members.online")} — {online.length}
               </span>
             </div>
-            {online.map((m) => <MemberRow key={m.userId} member={m} />)}
+            {online.map((m) => (
+              <MemberRow
+                key={m.userId}
+                member={m}
+                isOnline={true}
+                isInCall={inCallIds.has(m.userId)}
+                isYou={m.userId === currentUserId}
+                t={t}
+              />
+            ))}
           </div>
         )}
         {offline.length > 0 && (
@@ -82,7 +95,16 @@ export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, 
                 {t("members.offline")} — {offline.length}
               </span>
             </div>
-            {offline.map((m) => <MemberRow key={m.userId} member={m} />)}
+            {offline.map((m) => (
+              <MemberRow
+                key={m.userId}
+                member={m}
+                isOnline={false}
+                isInCall={false}
+                isYou={m.userId === currentUserId}
+                t={t}
+              />
+            ))}
           </div>
         )}
       </div>

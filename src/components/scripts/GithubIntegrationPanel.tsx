@@ -37,6 +37,7 @@ export function GithubIntegrationPanel({ teamId, accessToken }: GithubIntegratio
   }, [teamId, accessToken]);
 
   useEffect(() => {
+    let successId: ReturnType<typeof setTimeout> | null = null;
     const installationIdFromQuery = searchParams.get("installation_id");
     const setupAction = searchParams.get("setup_action");
     const state = searchParams.get("state");
@@ -88,12 +89,13 @@ export function GithubIntegrationPanel({ teamId, accessToken }: GithubIntegratio
         setSuccess(true);
         setAutoHandledInstallationId(installationIdFromQuery);
         router.replace("/integrations", { scroll: false });
-        setTimeout(() => setSuccess(false), 3000);
+        successId = setTimeout(() => setSuccess(false), 3000);
       })
       .catch(() => {
         setError(t("integrations.github.callbackAutoSaveError"));
       })
       .finally(() => setSyncing(false));
+    return () => { if (successId) clearTimeout(successId); };
   }, [searchParams, autoHandledInstallationId, teamId, accessToken, router, t]);
 
   const handleConnect = async () => {

@@ -103,6 +103,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
   const router = useRouter();
   const tDetail = useTranslations("document-detail");
+  const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
   
@@ -1666,27 +1667,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   <div className="px-2 py-3 text-xs text-muted-foreground">Sin resultados</div>
                 ) : (
                   filteredSlashCommands.map((command, index) => {
-                    const CategoryHeader = () => {
-                      if (index === 0 || command.category !== filteredSlashCommands[index - 1].category) {
-                        const catLabels: Record<string, string> = {
-                          basic: "Bloques básicos",
-                          media: "Contenido multimedia",
-                          advanced: "Avanzado",
-                          inline: "Integraciones"
-                        };
-                        const catName = command.category ? (catLabels[command.category] || command.category) : "Otros";
-                        return (
-                          <div className="px-2 pt-3 pb-1">
-                            <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
-                          </div>
-                        );
-                      }
-                      return null;
-                    };
+                    const showCategoryHeader = index === 0 || command.category !== filteredSlashCommands[index - 1].category;
+                    const catName = command.category
+                      ? (tBoardDetail(`brickCategories.${command.category}` as any) ?? command.category)
+                      : tBoardDetail("brickCategories.other");
 
                     return (
                       <React.Fragment key={command.id}>
-                        <CategoryHeader />
+                        {showCategoryHeader && (
+                          <div className="px-2 pt-3 pb-1">
+                            <span className="text-xs font-semibold text-muted-foreground">{catName}</span>
+                          </div>
+                        )}
                         <button
                           type="button"
                           onMouseDown={(event) => {
