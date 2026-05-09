@@ -47,12 +47,6 @@ export function RoomInput({
 
   const handleSubmit = () => {
     if (!value.trim()) return;
-    const aiPrefix = AI_PREFIXES.find((p) => value.startsWith(p));
-    if (aiPrefix && onAiTrigger) {
-      onAiTrigger(value.slice(aiPrefix.length).trim());
-      onChange("");
-      return;
-    }
     onSend();
   };
 
