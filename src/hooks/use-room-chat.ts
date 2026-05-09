@@ -101,6 +101,8 @@ export function useRoomChat(
         userId: string;
         action: "add" | "remove";
       };
+      // Skip events from self — the optimistic update in handleAddReaction already handles them
+      if (userId === currentUser?.id) return;
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;

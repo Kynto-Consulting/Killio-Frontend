@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import EmojiPickerReact, { EmojiClickData, Theme } from "emoji-picker-react";
 import { SmilePlus } from "lucide-react";
 import { Portal } from "@/components/ui/portal";
@@ -56,6 +56,28 @@ function getTopEmojis(n = 5): string[] {
   return result;
 }
 
+// ── Position calculator ────────────────────────────────────────────────────────
+
+function calcPos(
+  triggerRect: DOMRect,
+  mode: "quick" | "full"
+): { top: number; left: number } {
+  const popH = mode === "full" ? 330 : 52;
+  const popW = mode === "full" ? 290 : 304;
+
+  const spaceBelow = window.innerHeight - triggerRect.bottom - 8;
+  const spaceAbove = triggerRect.top - 8;
+  const openAbove = spaceBelow < popH && spaceAbove >= popH;
+
+  const top = openAbove
+    ? triggerRect.top - popH - 4
+    : Math.min(triggerRect.bottom + 4, window.innerHeight - popH - 8);
+
+  const left = Math.max(8, Math.min(triggerRect.left, window.innerWidth - popW - 8));
+
+  return { top, left };
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 interface EmojiReactionPickerProps {
@@ -69,29 +91,39 @@ export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerPr
   const [quickEmojis, setQuickEmojis] = useState<string[]>(FALLBACK_EMOJIS);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  // Track position + whether it's been positioned yet (to avoid flash at 0,0)
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
 
   useEffect(() => {
     if (open === "quick") setQuickEmojis(getTopEmojis(5));
   }, [open]);
 
-  // Position popover — always inside viewport, prefer opening upward in tight spaces
-  useEffect(() => {
-    if (!open || !triggerRef.current) return;
+  // useLayoutEffect fires synchronously after DOM mutations, before paint —
+  // so the popover is positioned before the user ever sees it
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) {
+      setPos(null);
+      return;
+    }
     const rect = triggerRef.current.getBoundingClientRect();
-    const popH = open === "full" ? 330 : 52;
-    const popW = open === "full" ? 290 : 304;
+    setPos(calcPos(rect, open));
+  }, [open]);
 
-    const spaceBelow = window.innerHeight - rect.bottom - 8;
-    const spaceAbove = rect.top - 8;
-    const openAbove = spaceBelow < popH && spaceAbove >= popH;
-
-    const top = openAbove
-      ? rect.top - popH - 4
-      : Math.min(rect.bottom + 4, window.innerHeight - popH - 8);
-    const left = Math.max(8, Math.min(rect.left, window.innerWidth - popW - 8));
-
-    setPos({ top, left });
+  // Re-calc on scroll or resize while open
+  useEffect(() => {
+    if (!open) return;
+    const recalc = () => {
+      if (!triggerRef.current) return;
+      const rect = triggerRef.current.getBoundingClientRect();
+      setPos(calcPos(rect, open));
+    };
+    window.addEventListener("scroll", recalc, { passive: true, capture: true });
+    window.addEventListener("resize", recalc, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", recalc, { capture: true });
+      window.removeEventListener("resize", recalc);
+    };
   }, [open]);
 
   // Close on outside click
@@ -127,7 +159,7 @@ export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerPr
         <SmilePlus className="w-3 h-3" />
       </button>
 
-      {open && (
+      {open && pos && (
         <Portal>
           <div
             ref={popoverRef}
