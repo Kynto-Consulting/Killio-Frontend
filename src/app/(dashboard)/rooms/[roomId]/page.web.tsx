@@ -117,6 +117,8 @@ export default function RoomDetailWeb() {
     callHook.joinCall();
   }, [callHook, stopRing]);
 
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+
   if (isLoadingRoom) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -240,6 +242,20 @@ export default function RoomDetailWeb() {
           onDisableScreen={callHook.disableParticipantScreen}
           liveCaption={callHook.liveCaption}
           transcriptSegments={callHook.transcriptSegments}
+          activeFilter={callHook.activeFilter}
+          onSetFilter={callHook.setFilter}
+          backgroundBlur={callHook.backgroundBlur}
+          onSetBackgroundBlur={callHook.setBackgroundBlur}
+          skinSmooth={callHook.skinSmooth}
+          onSetSkinSmooth={callHook.setSkinSmooth}
+          backgroundRemoval={callHook.backgroundRemoval}
+          onSetBackgroundRemoval={callHook.setBackgroundRemoval}
+          virtualBackgroundUrl={callHook.virtualBackgroundUrl}
+          onSetVirtualBackgroundUrl={callHook.setVirtualBackgroundUrl}
+          backgroundColor={callHook.backgroundColor}
+          onSetBackgroundColor={callHook.setBackgroundColor}
+          currentVideoDeviceId={callHook.currentVideoDeviceId}
+          onSwitchCamera={callHook.switchCamera}
           callControls={
             <RoomCallControls
               isAudioMuted={callHook.isAudioMuted}
@@ -250,6 +266,7 @@ export default function RoomDetailWeb() {
               isRecording={callHook.isRecording}
               recordingElapsed={callHook.recordingElapsed}
               canRecord={permissions.canRecord}
+              onOpenSettings={() => setSettingsModalOpen(true)}
               onToggleAudio={callHook.toggleAudio}
               onToggleVideo={callHook.toggleVideo}
               onToggleScreenShare={callHook.toggleScreenShare}

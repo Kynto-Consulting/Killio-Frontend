@@ -6,8 +6,9 @@ import {
   Captions, CaptionsOff, Settings, X,
   MicOff, UserX, MonitorOff,
 } from "lucide-react";
-import type { CallPeer } from "@/hooks/use-room-call";
+import type { CallPeer, VideoFilter } from "@/hooks/use-room-call";
 import { RoomCallParticipant, type CaptionStyle } from "./RoomCallParticipant";
+import { RoomCallSettingsModal } from "./RoomCallSettingsModal";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -295,6 +296,20 @@ interface RoomVideoCallProps {
   onDisableScreen?: (peerId: string) => void;
   liveCaption?: string;
   transcriptSegments?: { text: string; ts: number }[];
+  activeFilter: VideoFilter;
+  onSetFilter: (filter: VideoFilter) => void;
+  backgroundBlur: number;
+  onSetBackgroundBlur: (val: number) => void;
+  skinSmooth: number;
+  onSetSkinSmooth: (val: number) => void;
+  backgroundRemoval: boolean;
+  onSetBackgroundRemoval: (val: boolean) => void;
+  virtualBackgroundUrl: string | undefined;
+  onSetVirtualBackgroundUrl: (url: string | undefined) => void;
+  backgroundColor: string | undefined;
+  onSetBackgroundColor: (color: string | undefined) => void;
+  currentVideoDeviceId: string | null;
+  onSwitchCamera: (deviceId: string) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -318,11 +333,26 @@ export function RoomVideoCall({
   onDisableScreen,
   liveCaption = "",
   transcriptSegments = [],
+  activeFilter,
+  onSetFilter,
+  backgroundBlur,
+  onSetBackgroundBlur,
+  skinSmooth,
+  onSetSkinSmooth,
+  backgroundRemoval,
+  onSetBackgroundRemoval,
+  virtualBackgroundUrl,
+  onSetVirtualBackgroundUrl,
+  backgroundColor,
+  onSetBackgroundColor,
+  currentVideoDeviceId,
+  onSwitchCamera,
   t,
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
   const [captionSettings, setCaptionSettings] = useState<CaptionSettings>(DEFAULT_CAPTION_SETTINGS);
   const [captionPanelOpen, setCaptionPanelOpen] = useState(false);
+  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const sharingPeer = peers.find((p) => p.isScreenSharing);
   const hasScreenShare = isScreenSharing || !!sharingPeer;
@@ -428,12 +458,20 @@ export function RoomVideoCall({
       </button>
 
       {captionPanelOpen && (
-        <CaptionSettingsPanel
-          settings={captionSettings}
-          onChange={setCaptionSettings}
-          onClose={() => setCaptionPanelOpen(false)}
-          t={t}
-        />
+        <div className={
+          viewMode === "mini" 
+            ? "absolute bottom-full mb-2 right-0 w-72 z-30" 
+            : "fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
+        }>
+          <div className={viewMode === "mini" ? "" : "w-full max-w-sm"}>
+            <CaptionSettingsPanel
+              settings={captionSettings}
+              onChange={setCaptionSettings}
+              onClose={() => setCaptionPanelOpen(false)}
+              t={t}
+            />
+          </div>
+        </div>
       )}
     </div>
   );
@@ -599,8 +637,35 @@ export function RoomVideoCall({
       )}
 
       <div className="flex justify-center py-2 px-3 border-t border-zinc-700/60 shrink-0">
+        {/* We wrap callControls to inject the onOpenSettings prop if needed, 
+            but since it's already a ReactNode, we assume the parent passed it correctly 
+            or we use a cloneElement if we must. Actually, RoomCallControls already expects it. */}
         {callControls}
       </div>
+      
+      <RoomCallSettingsModal
+        isOpen={settingsModalOpen}
+        onClose={() => setSettingsModalOpen(false)}
+        currentFilter={activeFilter}
+        onSetFilter={onSetFilter}
+        backgroundBlur={backgroundBlur}
+        onSetBackgroundBlur={onSetBackgroundBlur}
+        skinSmooth={skinSmooth}
+        onSetSkinSmooth={onSetSkinSmooth}
+        backgroundRemoval={backgroundRemoval}
+        onSetBackgroundRemoval={onSetBackgroundRemoval}
+        virtualBackgroundUrl={virtualBackgroundUrl}
+        onSetVirtualBackgroundUrl={onSetVirtualBackgroundUrl}
+        backgroundColor={backgroundColor}
+        onSetBackgroundColor={onSetBackgroundColor}
+        currentVideoDeviceId={currentVideoDeviceId}
+        onSwitchCamera={onSwitchCamera}
+        isAudioMuted={isAudioMuted}
+        onToggleAudio={() => {}} // Handle via callControls generally, but modal can have its own
+        localStream={localStream}
+        t={t}
+      />
+
       <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
     </div>
   );

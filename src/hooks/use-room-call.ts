@@ -9,8 +9,9 @@ import {
   CallTranscriptSegment,
 } from "@/lib/api/rooms";
 import { getFilterStyle } from "@/components/rooms/RoomCallEffectsPanel";
+import { VideoEffectsProcessor } from "@/lib/video-effects-processor";
 
-export type VideoFilter = "none" | "blur" | "grayscale" | "warm" | "cool" | "sepia" | "vivid" | "neon";
+export type VideoFilter = "none" | "blur" | "grayscale" | "warm" | "cool" | "sepia" | "vivid" | "neon" | "vintage" | "noir" | "vaporwave" | "glow";
 
 export interface CallPeer {
   peerId: string;
@@ -72,6 +73,12 @@ export function useRoomCall(
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isCameraFilterActive, setIsCameraFilterActive] = useState(false);
   const [activeFilter, setActiveFilter] = useState<VideoFilter>("none");
+  const [backgroundBlur, setBackgroundBlur] = useState(0);
+  const [skinSmooth, setSkinSmooth] = useState(0);
+  const [backgroundRemoval, setBackgroundRemoval] = useState(false);
+  const [virtualBackgroundUrl, setVirtualBackgroundUrl] = useState<string | undefined>(undefined);
+  const [backgroundColor, setBackgroundColor] = useState<string | undefined>(undefined);
+  const [currentVideoDeviceId, setCurrentVideoDeviceId] = useState<string | null>(null);
   const [isRecording, setIsRecording] = useState(false);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [liveCaption, setLiveCaption] = useState("");
@@ -106,6 +113,7 @@ export function useRoomCall(
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const filterRafRef = useRef<number | null>(null);
   const filteredStreamRef = useRef<MediaStream | null>(null);
+  const effectsProcessor = useRef<VideoEffectsProcessor | null>(null);
 
   // Keep refs in sync for callbacks that close over stale state
   useEffect(() => { isAudioMutedRef.current = isAudioMuted; }, [isAudioMuted]);
@@ -378,35 +386,52 @@ export function useRoomCall(
   const startFilterLoop = useCallback(() => {
     const canvas = canvasRef.current;
     const video = localVideoRef.current;
-    if (!canvas || !video) return;
+    if (!effectsProcessor.current) {
+      effectsProcessor.current = new VideoEffectsProcessor();
+    }
 
-    canvas.width = video.videoWidth > 0 ? video.videoWidth : 640;
-    canvas.height = video.videoHeight > 0 ? video.videoHeight : 360;
-
-    const draw = () => {
+    const draw = async () => {
       if (!canvas || !video || video.readyState < 2) {
         filterRafRef.current = requestAnimationFrame(draw);
         return;
       }
-      const ctx = canvas.getContext("2d");
-      if (!ctx) { filterRafRef.current = requestAnimationFrame(draw); return; }
-      const f = activeFilter;
-      ctx.filter = getFilterStyle(f);
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const processedCanvas = await effectsProcessor.current?.processFrame(video, {
+        filter: getFilterStyle(activeFilter),
+        backgroundBlur,
+        backgroundRemoval,
+        virtualBackgroundUrl,
+        backgroundColor,
+        skinSmooth,
+      });
+
+      if (processedCanvas) {
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          if (canvas.width !== processedCanvas.width) {
+             canvas.width = processedCanvas.width;
+             canvas.height = processedCanvas.height;
+          }
+          ctx.drawImage(processedCanvas, 0, 0);
+        }
+      }
+      
       filterRafRef.current = requestAnimationFrame(draw);
     };
     filterRafRef.current = requestAnimationFrame(draw);
 
-    const filtered = canvas.captureStream(30);
-    filteredStreamRef.current = filtered;
+    if (canvas) {
+      const filtered = canvas.captureStream(30);
+      filteredStreamRef.current = filtered;
 
-    peerConnections.current.forEach((pc) => {
-      const sender = pc.getSenders().find((s) => s.track?.kind === "video");
-      if (sender && filtered.getVideoTracks()[0]) {
-        sender.replaceTrack(filtered.getVideoTracks()[0]).catch(console.error);
-      }
-    });
-  }, [activeFilter]);
+      peerConnections.current.forEach((pc) => {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender && filtered.getVideoTracks()[0]) {
+          sender.replaceTrack(filtered.getVideoTracks()[0]).catch(console.error);
+        }
+      });
+    }
+  }, [activeFilter, backgroundBlur, skinSmooth]);
 
   const stopFilterLoop = useCallback(() => {
     if (filterRafRef.current) {
@@ -420,6 +445,8 @@ export function useRoomCall(
         if (sender) sender.replaceTrack(original).catch(console.error);
       });
     }
+    effectsProcessor.current?.dispose();
+    effectsProcessor.current = null;
     filteredStreamRef.current = null;
   }, []);
 
@@ -628,6 +655,42 @@ export function useRoomCall(
     }
   }, [roomId, accessToken, myPeerId]);
 
+  // ── switchCamera ──
+  const switchCamera = useCallback(async (deviceId: string) => {
+    if (!isInCallRef.current || !localStreamRef.current) {
+       setCurrentVideoDeviceId(deviceId);
+       return;
+    }
+
+    try {
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: { deviceId: { exact: deviceId } },
+        audio: !isAudioMutedRef.current,
+      });
+
+      const newVideoTrack = newStream.getVideoTracks()[0];
+      const oldVideoTrack = localStreamRef.current.getVideoTracks()[0];
+
+      if (oldVideoTrack) {
+        oldVideoTrack.stop();
+        localStreamRef.current.removeTrack(oldVideoTrack);
+      }
+
+      localStreamRef.current.addTrack(newVideoTrack);
+      
+      // Update peer connections
+      peerConnections.current.forEach((pc) => {
+        const sender = pc.getSenders().find((s) => s.track?.kind === "video");
+        if (sender) sender.replaceTrack(newVideoTrack).catch(console.error);
+      });
+
+      setCurrentVideoDeviceId(deviceId);
+      setLocalStream(new MediaStream(localStreamRef.current.getTracks()));
+    } catch (e) {
+      console.error("[RTC] switchCamera failed", e);
+    }
+  }, [localStream]);
+
   // ── toggleScreenShare ──
   const toggleScreenShare = useCallback(async () => {
     if (!roomId || !accessToken) return;
@@ -776,6 +839,18 @@ export function useRoomCall(
     toggleScreenShare,
     toggleRecording,
     setFilter,
+    backgroundBlur,
+    setBackgroundBlur,
+    skinSmooth,
+    setSkinSmooth,
+    backgroundRemoval,
+    setBackgroundRemoval,
+    virtualBackgroundUrl,
+    setVirtualBackgroundUrl,
+    backgroundColor,
+    setBackgroundColor,
+    switchCamera,
+    currentVideoDeviceId,
     muteParticipant,
     kickParticipant,
     disableParticipantScreen,

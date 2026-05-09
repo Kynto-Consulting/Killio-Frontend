@@ -3,7 +3,7 @@
 import { useState } from "react";
 import {
   Mic, MicOff, Video, VideoOff, Monitor, MonitorOff,
-  Sparkles, PhoneOff, Circle, Square,
+  Sparkles, PhoneOff, Circle, Square, Settings
 } from "lucide-react";
 import type { VideoFilter } from "@/hooks/use-room-call";
 import { RoomCallEffectsPanel } from "./RoomCallEffectsPanel";
@@ -17,6 +17,7 @@ interface RoomCallControlsProps {
   isRecording: boolean;
   recordingElapsed: number;
   canRecord: boolean;
+  onOpenSettings: () => void;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
@@ -41,6 +42,7 @@ export function RoomCallControls({
   isRecording,
   recordingElapsed,
   canRecord,
+  onOpenSettings,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
@@ -49,8 +51,6 @@ export function RoomCallControls({
   onLeave,
   t,
 }: RoomCallControlsProps) {
-  const [effectsOpen, setEffectsOpen] = useState(false);
-
   return (
     <div className="relative flex items-center gap-2 bg-zinc-900/95 rounded-xl px-4 py-2 border border-zinc-700 shadow-xl">
       {/* Mic */}
@@ -75,30 +75,18 @@ export function RoomCallControls({
         {isVideoMuted ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
       </button>
 
-      {/* Effects — replaces old filter dropdown */}
-      <div className="relative">
-        <button
-          onClick={() => setEffectsOpen((v) => !v)}
-          title={t("call.effects.title")}
-          disabled={isVideoMuted}
-          className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-            isCameraFilterActive
-              ? "bg-violet-600 text-white shadow-[0_0_10px_rgba(139,92,246,0.5)]"
-              : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600 disabled:opacity-40"
-          }`}
-        >
-          <Sparkles className="w-4 h-4" />
-        </button>
-
-        {effectsOpen && !isVideoMuted && (
-          <RoomCallEffectsPanel
-            activeFilter={activeFilter}
-            onSetFilter={(f) => { onSetFilter(f); setEffectsOpen(false); }}
-            onClose={() => setEffectsOpen(false)}
-            t={t}
-          />
-        )}
-      </div>
+      {/* Settings (Devices & Effects) */}
+      <button
+        onClick={onOpenSettings}
+        title={t("call.settings.title")}
+        className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+          isCameraFilterActive
+            ? "bg-violet-600 text-white shadow-[0_0_10px_rgba(139,92,246,0.5)]"
+            : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
+        }`}
+      >
+        <Settings className="w-4 h-4" />
+      </button>
 
       {/* Screen share */}
       <button

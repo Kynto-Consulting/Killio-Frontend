@@ -16,6 +16,10 @@ export function getFilterStyle(filter: VideoFilter): string {
     case "sepia":     return "sepia(0.8) saturate(1.1)";
     case "vivid":     return "saturate(1.8) contrast(1.1)";
     case "neon":      return "saturate(2) hue-rotate(90deg) brightness(1.1) contrast(1.2)";
+    case "vintage":   return "contrast(1.2) sepia(0.5) brightness(0.9) hue-rotate(-20deg)";
+    case "noir":      return "grayscale(1) contrast(1.5) brightness(0.8)";
+    case "vaporwave": return "hue-rotate(240deg) saturate(1.5) brightness(1.1)";
+    case "glow":      return "brightness(1.1) contrast(1.1) drop-shadow(0 0 10px rgba(255,255,255,0.5))";
     default:          return "none";
   }
 }
@@ -51,6 +55,10 @@ const EFFECT_GROUPS: { labelKey: string; options: EffectOption[] }[] = [
       { id: "sepia",     labelKey: "call.effects.sepia",     icon: "🟤", cssPreview: "sepia(0.9)" },
       { id: "vivid",     labelKey: "call.effects.vivid",     icon: "🎨", cssPreview: "saturate(2)" },
       { id: "neon",      labelKey: "call.effects.neon",      icon: "🟢", cssPreview: "saturate(2) hue-rotate(90deg)" },
+      { id: "vintage",   labelKey: "call.effects.vintage",   icon: "🎞️", cssPreview: "contrast(1.2) sepia(0.5) hue-rotate(-20deg)" },
+      { id: "noir",      labelKey: "call.effects.noir",      icon: "🕵️", cssPreview: "grayscale(1) contrast(1.5) brightness(0.8)" },
+      { id: "vaporwave", labelKey: "call.effects.vaporwave", icon: "🌌", cssPreview: "hue-rotate(240deg) saturate(1.5)" },
+      { id: "glow",      labelKey: "call.effects.glow",      icon: "✨", cssPreview: "brightness(1.1) contrast(1.1)" },
     ],
   },
 ];
