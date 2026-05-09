@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Loader2, Trash2 } from "lucide-react";
-import { listRoomMembers, updateMemberRole, removeMember, type RoomMember, type RoomRole } from "@/lib/api/rooms";
+import { listRoomMembers, updateMemberRole, removeMember, updateRoomSettings, type RoomMember, type RoomRole } from "@/lib/api/rooms";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -12,16 +12,20 @@ interface RoomPermissionsModalProps {
   roomId: string;
   accessToken: string;
   currentUserId: string;
+  showReadReceipts?: boolean;
+  onSettingsChange?: (settings: { showReadReceipts: boolean }) => void;
   t: TFn;
 }
 
 const ROLES: RoomRole[] = ["admin", "member", "readonly"];
 
-export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, currentUserId, t }: RoomPermissionsModalProps) {
+export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, currentUserId, showReadReceipts: initialShowReadReceipts, onSettingsChange, t }: RoomPermissionsModalProps) {
   const [activeTab, setActiveTab] = useState<"members" | "channel">("members");
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [showReceipts, setShowReceipts] = useState(initialShowReadReceipts ?? true);
+  const [savingSettings, setSavingSettings] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -131,9 +135,42 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
           )}
 
           {activeTab === "channel" && (
-            <div className="space-y-3 text-sm text-muted-foreground">
-              <p>{t("permissions.defaultRole")}</p>
-              <div className="space-y-1 text-xs">
+            <div className="space-y-4">
+              {/* Read receipts toggle */}
+              <div className="flex items-center justify-between py-2 border-b border-border/50">
+                <div>
+                  <p className="text-sm font-medium">{t("permissions.readReceipts")}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{t("permissions.readReceiptsHint")}</p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const next = !showReceipts;
+                    setShowReceipts(next);
+                    setSavingSettings(true);
+                    try {
+                      await updateRoomSettings(roomId, { showReadReceipts: next }, accessToken);
+                      onSettingsChange?.({ showReadReceipts: next });
+                    } catch {
+                      setShowReceipts(!next);
+                    } finally {
+                      setSavingSettings(false);
+                    }
+                  }}
+                  disabled={savingSettings}
+                  className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus-visible:outline-none disabled:opacity-50 ${
+                    showReceipts ? "bg-accent" : "bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                      showReceipts ? "translate-x-4" : "translate-x-0.5"
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* Permission list */}
+              <div className="space-y-1 text-xs text-muted-foreground">
                 {(["canPost", "canCall", "canRecord", "canInvite", "canManage"] as const).map((perm) => (
                   <div key={perm} className="flex items-center gap-2 py-1">
                     <div className="w-2 h-2 rounded-full bg-accent/50" />

@@ -10,6 +10,7 @@ import { useRoomPresence } from "@/hooks/use-room-presence";
 import { useRoomCall } from "@/hooks/use-room-call";
 import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
+import { useRoomNotifications } from "@/hooks/use-room-notifications";
 import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
 import { AgentChatPanel } from "@/components/agent";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
@@ -44,6 +45,7 @@ export default function RoomDetailWeb() {
   const [createInitialGroupId, setCreateInitialGroupId] = useState<string | undefined>();
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [showReadReceipts, setShowReadReceipts] = useState(true);
 
   const { permissions } = useRoomPermissions(roomId, accessToken);
 
@@ -61,6 +63,12 @@ export default function RoomDetailWeb() {
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
   const callHook = useRoomCall(roomId, userInfo, accessToken);
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
+  const { stopRing } = useRoomNotifications({
+    roomId,
+    roomName: room?.name,
+    currentUserId: user?.id,
+    accessToken,
+  });
 
   const callsById = useMemo<Map<string, RoomCall>>(() => {
     const map = new Map<string, RoomCall>();
@@ -72,7 +80,10 @@ export default function RoomDetailWeb() {
     if (!accessToken || !roomId) return;
     setIsLoadingRoom(true);
     getRoom(roomId, accessToken)
-      .then(setRoom)
+      .then((r) => {
+        setRoom(r);
+        setShowReadReceipts(r.showReadReceipts ?? true);
+      })
       .catch(console.error)
       .finally(() => setIsLoadingRoom(false));
   }, [roomId, accessToken]);
@@ -97,6 +108,11 @@ export default function RoomDetailWeb() {
   const handleAiTrigger = useCallback((_content: string) => {
     setIsAiPanelOpen(true);
   }, []);
+
+  const handleJoinCall = useCallback(() => {
+    stopRing();
+    callHook.joinCall();
+  }, [callHook, stopRing]);
 
   if (isLoadingRoom) {
     return (
@@ -145,7 +161,7 @@ export default function RoomDetailWeb() {
               isMembersPanelOpen={isMembersPanelOpen}
               canCall={permissions.canCall}
               canManage={permissions.canManage}
-              onStartCall={callHook.joinCall}
+              onStartCall={handleJoinCall}
               onLeaveCall={callHook.leaveCall}
               onToggleAiPanel={() => setIsAiPanelOpen((v) => !v)}
               onToggleMembersPanel={() => setIsMembersPanelOpen((v) => !v)}
@@ -164,12 +180,14 @@ export default function RoomDetailWeb() {
               onSend={handleSend}
               onLoadMore={chatHook.loadMore}
               onReact={chatHook.addReaction}
+              onMarkRead={chatHook.markAsRead}
               onTyping={() => chatHook.setTyping(true)}
               onViewTranscript={callHistoryHook.getTranscript}
               onAiTrigger={handleAiTrigger}
               currentUserId={user?.id ?? ""}
               teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}
+              showReadReceipts={showReadReceipts}
               t={t}
             />
           </div>
@@ -240,6 +258,8 @@ export default function RoomDetailWeb() {
         roomId={roomId}
         accessToken={accessToken ?? ""}
         currentUserId={user?.id ?? ""}
+        showReadReceipts={showReadReceipts}
+        onSettingsChange={(s) => setShowReadReceipts(s.showReadReceipts)}
         t={t}
       />
 

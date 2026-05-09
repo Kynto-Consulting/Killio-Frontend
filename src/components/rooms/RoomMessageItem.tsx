@@ -4,9 +4,10 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
-import type { RoomMessage } from "@/lib/api/rooms";
+import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
@@ -26,7 +27,17 @@ interface RoomMessageItemProps {
   availableTags?: any[];
   teamId?: string;
   currentUserId?: string;
+  showReadReceipts?: boolean;
   t: TFn;
+}
+
+function MessageStatusIcon({ status }: { status?: MessageStatus }) {
+  if (!status || status === "sent") return <Check className="w-2.5 h-2.5 text-muted-foreground/50" />;
+  if (status === "sending") return <Loader2 className="w-2.5 h-2.5 text-muted-foreground/40 animate-spin" />;
+  if (status === "failed") return <AlertCircle className="w-2.5 h-2.5 text-destructive" />;
+  if (status === "delivered") return <CheckCheck className="w-2.5 h-2.5 text-muted-foreground/50" />;
+  if (status === "read") return <CheckCheck className="w-2.5 h-2.5 text-accent" />;
+  return null;
 }
 
 const EMPTY_CONTEXT: ResolverContext = { documents: [], boards: [] };
@@ -42,6 +53,7 @@ export function RoomMessageItem({
   availableTags,
   teamId,
   currentUserId,
+  showReadReceipts,
   t,
 }: RoomMessageItemProps) {
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
@@ -179,10 +191,15 @@ export function RoomMessageItem({
               </div>
             )}
 
-            {/* Timestamp */}
-            <div className={`text-[9px] text-muted-foreground/60 mt-0.5 ${isOwn ? "text-right" : "text-left"}`}>
-              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              {message.editedAt && " (edited)"}
+            {/* Timestamp + status */}
+            <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? "justify-end" : "justify-start"}`}>
+              <span className="text-[9px] text-muted-foreground/60">
+                {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {message.editedAt && " (edited)"}
+              </span>
+              {isOwn && showReadReceipts && (
+                <MessageStatusIcon status={message.status} />
+              )}
             </div>
 
             {/* Smart emoji picker */}

@@ -100,6 +100,8 @@
       "readonly": "Solo lectura"
     },
     "removeConfirm": "¿Eliminar a {name} de este canal?",
+    "readReceipts": "Confirmaciones de lectura",
+    "readReceiptsHint": "Mostrar cuándo los mensajes se entregan y se leen",
     "save": "Guardar",
     "saved": "Guardado"
   },

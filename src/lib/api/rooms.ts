@@ -23,6 +23,7 @@ export interface Room {
   description?: string;
   emoji?: string;
   defaultRole: RoomRole;
+  showReadReceipts?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -36,6 +37,8 @@ export interface RoomMember {
   joinedAt: string;
 }
 
+export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
+
 export interface RoomMessage {
   id: string;
   roomId: string;
@@ -47,6 +50,7 @@ export interface RoomMessage {
   editedAt?: string;
   createdAt: string;
   user?: { displayName: string; email: string; avatarUrl?: string };
+  status?: MessageStatus;
 }
 
 export interface RoomCallParticipant {
@@ -165,6 +169,18 @@ export async function listRoomMessages(
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages?${params}`, { headers: authHeader(accessToken) });
   if (!res.ok) throw new Error('Failed to fetch messages');
   return res.json();
+}
+
+export async function updateRoomSettings(
+  roomId: string,
+  settings: { showReadReceipts?: boolean },
+  accessToken: string
+): Promise<void> {
+  await fetch(`${API_BASE_URL}/rooms/${roomId}/settings`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify(settings),
+  });
 }
 
 export async function sendRoomMessage(roomId: string, content: string, accessToken: string): Promise<RoomMessage> {

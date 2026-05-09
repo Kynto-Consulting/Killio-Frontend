@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import type { RoomMessage, RoomCall } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
@@ -24,12 +24,14 @@ interface RoomChatAreaProps {
   onSend: () => void;
   onLoadMore: () => void;
   onReact: (messageId: string, emoji: string) => void;
+  onMarkRead?: (messageIds: string[]) => void;
   onTyping: () => void;
   onViewTranscript: (callId: string) => void;
   onAiTrigger: (content: string) => void;
   currentUserId: string;
   teamId?: string;
   canPost: boolean;
+  showReadReceipts?: boolean;
   roomName?: string;
   documents?: DocumentSummary[];
   boards?: any[];
@@ -71,12 +73,14 @@ export function RoomChatArea({
   onSend,
   onLoadMore,
   onReact,
+  onMarkRead,
   onTyping,
   onViewTranscript,
   onAiTrigger,
   currentUserId,
   teamId,
   canPost,
+  showReadReceipts,
   roomName,
   documents,
   boards,
@@ -86,9 +90,40 @@ export function RoomChatArea({
   t,
 }: RoomChatAreaProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const isAtBottomRef = useRef(true);
 
+  // Scroll to bottom when new messages arrive (only if already at bottom)
   useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (isAtBottomRef.current) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages.length]);
+
+  // Track scroll position to know if at bottom
+  const handleScroll = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const threshold = 80;
+    isAtBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
+
+    // Mark visible messages as read when scrolled to bottom
+    if (isAtBottomRef.current && onMarkRead && showReadReceipts) {
+      const unreadFromOthers = messages
+        .filter((m) => m.userId !== currentUserId && m.status !== "read" && !m.id.startsWith("temp-"))
+        .map((m) => m.id);
+      if (unreadFromOthers.length > 0) onMarkRead(unreadFromOthers);
+    }
+  }, [messages, currentUserId, onMarkRead, showReadReceipts]);
+
+  // Also mark as read when new messages arrive and we're at the bottom
+  useEffect(() => {
+    if (isAtBottomRef.current && onMarkRead && showReadReceipts) {
+      const unreadFromOthers = messages
+        .filter((m) => m.userId !== currentUserId && m.status !== "read" && !m.id.startsWith("temp-"))
+        .map((m) => m.id);
+      if (unreadFromOthers.length > 0) onMarkRead(unreadFromOthers);
+    }
   }, [messages.length]);
 
   const withDividers = insertDateDividers(messages);
@@ -97,7 +132,11 @@ export function RoomChatArea({
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-h-0">
       {/* Message list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-1">
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+      >
         {isLoading && (
           <div className="flex justify-center py-8">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
@@ -152,6 +191,7 @@ export function RoomChatArea({
               availableTags={availableTags}
               teamId={teamId}
               currentUserId={currentUserId}
+              showReadReceipts={showReadReceipts}
               t={t}
             />
           );

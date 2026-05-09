@@ -86,3 +86,35 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// Push notification handler
+self.addEventListener("push", (event: any) => {
+  if (!event.data) return;
+  let payload: { title?: string; body?: string; tag?: string; url?: string } = {};
+  try { payload = event.data.json(); } catch { payload = { body: event.data.text() }; }
+
+  const title = payload.title ?? "Killio";
+  const options: NotificationOptions = {
+    body: payload.body ?? "",
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    tag: payload.tag,
+    data: { url: payload.url ?? "/rooms" },
+  };
+  event.waitUntil((self as any).registration.showNotification(title, options));
+});
+
+// Notification click — focus or open the app
+self.addEventListener("notificationclick", (event: any) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/rooms";
+  event.waitUntil(
+    (self as any).clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((clients: any[]) => {
+        const existing = clients.find((c) => c.url.includes(url));
+        if (existing) return existing.focus();
+        return (self as any).clients.openWindow(url);
+      })
+  );
+});

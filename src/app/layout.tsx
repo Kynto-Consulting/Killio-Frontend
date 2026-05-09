@@ -4,6 +4,15 @@ import './globals.css';
 export const metadata: Metadata = {
   title: 'Killio',
   description: 'Restriction-free productivity execution platform.',
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'Killio',
+  },
+  other: {
+    'mobile-web-app-capable': 'yes',
+  },
 };
 
 import { SessionProvider } from '@/components/providers/session-provider';
