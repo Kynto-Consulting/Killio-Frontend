@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   Minimize2, Maximize2, Expand, Shrink,
-  Captions, CaptionsOff, Settings, X,
   MicOff, UserX, MonitorOff,
 } from "lucide-react";
 import type { CallPeer, VideoFilter } from "@/hooks/use-room-call";
@@ -30,130 +29,6 @@ const DEFAULT_CAPTION_SETTINGS: CaptionSettings = {
   color: "#ffffff",
   font: "sans",
 };
-
-// ── Caption settings panel ─────────────────────────────────────────────────────
-
-function CaptionSettingsPanel({
-  settings,
-  onChange,
-  onClose,
-  t,
-}: {
-  settings: CaptionSettings;
-  onChange: (s: CaptionSettings) => void;
-  onClose: () => void;
-  t: (k: string) => string;
-}) {
-  const COLORS = [
-    { label: "White", value: "#ffffff" },
-    { label: "Yellow", value: "#facc15" },
-    { label: "Cyan", value: "#22d3ee" },
-    { label: "Green", value: "#4ade80" },
-    { label: "Orange", value: "#fb923c" },
-  ];
-
-  return (
-    <div className="absolute bottom-full mb-2 right-0 w-72 bg-zinc-900/98 border border-zinc-700 rounded-2xl shadow-2xl backdrop-blur-sm overflow-hidden z-30">
-      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/60">
-        <span className="text-sm font-semibold text-zinc-100">{t("call.transcript.settings")}</span>
-        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors">
-          <X className="w-3.5 h-3.5" />
-        </button>
-      </div>
-
-      <div className="p-4 space-y-4">
-        {/* Enable toggle */}
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-medium text-zinc-300">{t("call.transcript.showCaptions")}</span>
-          <button
-            onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
-            className={`w-10 h-5 rounded-full transition-colors relative ${settings.enabled ? "bg-accent" : "bg-zinc-600"}`}
-          >
-            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
-          </button>
-        </div>
-
-        {settings.enabled && (
-          <>
-            {/* Mode */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.mode")}</p>
-              <div className="grid grid-cols-2 gap-2">
-                {(["subtitle", "sidebar"] as CaptionMode[]).map((m) => (
-                  <button
-                    key={m}
-                    onClick={() => onChange({ ...settings, mode: m })}
-                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${settings.mode === m
-                        ? "border-accent bg-accent/15 text-accent"
-                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                      }`}
-                  >
-                    {t(`call.transcript.mode_${m}`)}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Font size */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.fontSize")}</p>
-              <div className="flex gap-1.5">
-                {(["sm", "md", "lg", "xl"] as CaptionStyle["fontSize"][]).map((sz) => (
-                  <button
-                    key={sz}
-                    onClick={() => onChange({ ...settings, fontSize: sz })}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${settings.fontSize === sz
-                        ? "border-accent bg-accent/15 text-accent"
-                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                      }`}
-                  >
-                    {sz.toUpperCase()}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Color */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.color")}</p>
-              <div className="flex gap-2 flex-wrap">
-                {COLORS.map((c) => (
-                  <button
-                    key={c.value}
-                    onClick={() => onChange({ ...settings, color: c.value })}
-                    title={c.label}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${settings.color === c.value ? "border-white scale-110" : "border-zinc-600"
-                      }`}
-                    style={{ backgroundColor: c.value }}
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Font */}
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.font")}</p>
-              <div className="grid grid-cols-3 gap-1.5">
-                {(["sans", "serif", "mono"] as CaptionStyle["font"][]).map((f) => (
-                  <button
-                    key={f}
-                    onClick={() => onChange({ ...settings, font: f })}
-                    className={`py-1.5 rounded-lg border text-xs transition-all ${settings.font === f
-                        ? "border-accent bg-accent/15 text-accent"
-                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                      } ${f === "sans" ? "font-sans" : f === "serif" ? "font-serif" : "font-mono"}`}
-                  >
-                    {f.charAt(0).toUpperCase() + f.slice(1)}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
 
 // ── Sidebar transcript panel ───────────────────────────────────────────────────
 
@@ -347,7 +222,6 @@ export function RoomVideoCall({
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
   const [captionSettings, setCaptionSettings] = useState<CaptionSettings>(DEFAULT_CAPTION_SETTINGS);
-  const [captionPanelOpen, setCaptionPanelOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const sharingPeer = peers.find((p) => p.isScreenSharing);
@@ -432,44 +306,9 @@ export function RoomVideoCall({
       onDisableScreen={onDisableScreen}
       captionText={p.isLocal ? activeCaptionText : undefined}
       captionStyle={captionStyle}
-      scaleMode={"contain"}
+      scaleMode={viewMode !== "mini" ? "contain" : "cover"}
       t={t}
     />
-  );
-
-  // Shared captions button (opens settings panel)
-  const captionsBtn = (
-    <div className="relative">
-      <button
-        onClick={() => setCaptionPanelOpen((v) => !v)}
-        title={t("call.transcript.settings")}
-        className={`p-1 transition-colors rounded ${captionSettings.enabled ? "text-accent" : "text-zinc-400 hover:text-white"
-          }`}
-      >
-        {captionSettings.enabled ? (
-          <Captions className="w-3.5 h-3.5" />
-        ) : (
-          <CaptionsOff className="w-3.5 h-3.5" />
-        )}
-      </button>
-
-      {captionPanelOpen && (
-        <div className={
-          viewMode === "mini"
-            ? "absolute bottom-full mb-2 right-0 w-72 z-30"
-            : "fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
-        }>
-          <div className={viewMode === "mini" ? "" : "w-full max-w-sm"}>
-            <CaptionSettingsPanel
-              settings={captionSettings}
-              onChange={setCaptionSettings}
-              onClose={() => setCaptionPanelOpen(false)}
-              t={t}
-            />
-          </div>
-        </div>
-      )}
-    </div>
   );
 
   // Video grid shared sub-component
@@ -527,7 +366,6 @@ export function RoomVideoCall({
         <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
           <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
           <div className="flex gap-0.5">
-            {captionsBtn}
             <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-white" title="Expand">
               <Maximize2 className="w-3 h-3" />
             </button>
@@ -567,7 +405,6 @@ export function RoomVideoCall({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {captionsBtn}
             <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-white" title="Exit fullscreen">
               <Shrink className="w-4 h-4" />
             </button>
@@ -609,7 +446,6 @@ export function RoomVideoCall({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {captionsBtn}
           <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-white" title="Fullscreen">
             <Expand className="w-3.5 h-3.5" />
           </button>
@@ -633,9 +469,6 @@ export function RoomVideoCall({
       )}
 
       <div className="flex justify-center py-2 px-3 border-t border-zinc-700/60 shrink-0">
-        {/* We wrap callControls to inject the onOpenSettings prop if needed, 
-            but since it's already a ReactNode, we assume the parent passed it correctly 
-            or we use a cloneElement if we must. Actually, RoomCallControls already expects it. */}
         {callControls}
       </div>
 
@@ -657,8 +490,10 @@ export function RoomVideoCall({
         currentVideoDeviceId={currentVideoDeviceId}
         onSwitchCamera={onSwitchCamera}
         isAudioMuted={isAudioMuted}
-        onToggleAudio={() => { }} // Handle via callControls generally, but modal can have its own
+        onToggleAudio={() => { }} 
         localStream={localStream}
+        captionSettings={captionSettings}
+        onSetCaptionSettings={setCaptionSettings}
         t={t}
       />
 

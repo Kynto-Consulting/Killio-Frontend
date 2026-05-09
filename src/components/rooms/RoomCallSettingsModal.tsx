@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { 
-  Camera, Mic, Speaker, X, Check, 
+import {
+  Camera, Mic, Speaker, X, Check,
   Sparkles, Settings, Volume2, VideoOff,
   Monitor, Layout, Tv, Maximize2, Image as ImageIcon, Plus, Trash2
 } from "lucide-react";
@@ -37,22 +37,24 @@ interface RoomCallSettingsModalProps {
   isAudioMuted: boolean;
   onToggleAudio: () => void;
   localStream: MediaStream | null;
+  captionSettings: any;
+  onSetCaptionSettings: (s: any) => void;
   t: (key: string) => string;
 }
 
 const ALL_EFFECTS: { id: VideoFilter; name: string; icon: string }[] = [
-  { id: "none",      name: "None",      icon: "✕" },
-  { id: "blur",      name: "Blur",      icon: "🌫️" },
-  { id: "grayscale", name: "Mono",      icon: "⬛" },
-  { id: "warm",      name: "Warm",      icon: "🌅" },
-  { id: "cool",      name: "Cool",      icon: "🧊" },
-  { id: "sepia",     name: "Sepia",     icon: "🟤" },
-  { id: "vivid",     name: "Vivid",     icon: "🎨" },
-  { id: "neon",      name: "Neon",      icon: "🟢" },
-  { id: "vintage",   name: "Vintage",   icon: "🎞️" },
-  { id: "noir",      name: "Noir",      icon: "🕵️" },
-  { id: "vaporwave", name: "Vapor",     icon: "🌌" },
-  { id: "glow",      name: "Glow",      icon: "✨" },
+  { id: "none", name: "None", icon: "✕" },
+  { id: "blur", name: "Blur", icon: "🌫️" },
+  { id: "grayscale", name: "Mono", icon: "⬛" },
+  { id: "warm", name: "Warm", icon: "🌅" },
+  { id: "cool", name: "Cool", icon: "🧊" },
+  { id: "sepia", name: "Sepia", icon: "🟤" },
+  { id: "vivid", name: "Vivid", icon: "🎨" },
+  { id: "neon", name: "Neon", icon: "🟢" },
+  { id: "vintage", name: "Vintage", icon: "🎞️" },
+  { id: "noir", name: "Noir", icon: "🕵️" },
+  { id: "vaporwave", name: "Vapor", icon: "🌌" },
+  { id: "glow", name: "Glow", icon: "✨" },
 ];
 
 export function RoomCallSettingsModal({
@@ -75,6 +77,8 @@ export function RoomCallSettingsModal({
   isAudioMuted,
   onToggleAudio,
   localStream,
+  captionSettings,
+  onSetCaptionSettings,
   t,
 }: RoomCallSettingsModalProps) {
   const [videoDevices, setVideoDevices] = useState<Device[]>([]);
@@ -85,6 +89,7 @@ export function RoomCallSettingsModal({
   const [previewRemoval, setPreviewRemoval] = useState(backgroundRemoval);
   const [previewBgUrl, setPreviewBgUrl] = useState(virtualBackgroundUrl);
   const [previewBgColor, setPreviewBgColor] = useState(backgroundColor);
+  const [previewCaptions, setPreviewCaptions] = useState(captionSettings);
   const [customBgs, setCustomBgs] = useState<{ id: string; url: string }[]>([]);
   const [audioLevel, setAudioLevel] = useState(0);
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -134,18 +139,18 @@ export function RoomCallSettingsModal({
 
   useEffect(() => {
     if (!isOpen || !videoRef.current || !canvasRef.current || !localStream) return;
-    
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     video.srcObject = localStream;
-    
+
     if (!effectsProcessor.current) {
       effectsProcessor.current = new VideoEffectsProcessor();
     }
-    
+
     const draw = async () => {
       if (video.videoWidth > 0) {
         const processedCanvas = await effectsProcessor.current?.processFrame(video, {
@@ -235,7 +240,7 @@ export function RoomCallSettingsModal({
             <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-zinc-800 shadow-inner group">
               <canvas ref={canvasRef} className="w-full h-full object-cover" />
               <video ref={videoRef} autoPlay muted playsInline className="hidden" />
-              
+
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
                 <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-white/90 border border-white/10">
                   Preview: {previewFilter.charAt(0).toUpperCase() + previewFilter.slice(1)}
@@ -263,11 +268,10 @@ export function RoomCallSettingsModal({
                     <button
                       key={device.deviceId}
                       onClick={() => onSwitchCamera(device.deviceId)}
-                      className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${
-                        currentVideoDeviceId === device.deviceId || (currentVideoDeviceId === null && device.label.toLowerCase().includes("default"))
-                        ? "border-violet-600 bg-violet-600/10 text-white"
-                        : "border-zinc-800 bg-zinc-800/30 text-zinc-400 hover:border-zinc-700"
-                      }`}
+                      className={`flex items-center justify-between px-4 py-3 rounded-xl border transition-all ${currentVideoDeviceId === device.deviceId || (currentVideoDeviceId === null && device.label.toLowerCase().includes("default"))
+                          ? "border-violet-600 bg-violet-600/10 text-white"
+                          : "border-zinc-800 bg-zinc-800/30 text-zinc-400 hover:border-zinc-700"
+                        }`}
                     >
                       <span className="text-sm truncate">{device.label}</span>
                       {currentVideoDeviceId === device.deviceId && <Check className="w-4 h-4 text-violet-500" />}
@@ -306,13 +310,12 @@ export function RoomCallSettingsModal({
                   <button
                     key={effect.id}
                     onClick={() => setPreviewFilter(effect.id)}
-                    className={`group relative flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${
-                      previewFilter === effect.id
-                      ? "border-violet-600 bg-violet-600/10"
-                      : "border-zinc-800 bg-zinc-800/30 hover:border-zinc-700"
-                    }`}
+                    className={`group relative flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all ${previewFilter === effect.id
+                        ? "border-violet-600 bg-violet-600/10"
+                        : "border-zinc-800 bg-zinc-800/30 hover:border-zinc-700"
+                      }`}
                   >
-                    <div 
+                    <div
                       className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-700 flex items-center justify-center text-lg shadow-lg group-hover:scale-110 transition-transform"
                       style={{ filter: getFilterStyle(effect.id) }}
                     >
@@ -328,80 +331,128 @@ export function RoomCallSettingsModal({
 
             {/* Background Control */}
             <div className="space-y-4 bg-zinc-800/20 rounded-2xl p-4 border border-zinc-800/50">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                  <Layout className="w-3.5 h-3.5" /> Background Mode
+                </label>
+                <button
+                  onClick={() => setPreviewRemoval(!previewRemoval)}
+                  className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${previewRemoval ? "bg-violet-600 text-white" : "bg-zinc-700 text-zinc-400"
+                    }`}
+                >
+                  {previewRemoval ? "Enabled" : "Disabled"}
+                </button>
+              </div>
+
+              {previewRemoval && (
+                <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
+                  {/* Colors */}
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => { setPreviewBgUrl(undefined); setPreviewBgColor(undefined); }}
+                      className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${!previewBgUrl && !previewBgColor ? "border-violet-500" : "border-transparent"}`}
+                    >
+                      <VideoOff className="w-3 h-3 text-zinc-500" />
+                    </button>
+                    {BG_COLORS.map(color => (
+                      <button
+                        key={color}
+                        onClick={() => { setPreviewBgUrl(undefined); setPreviewBgColor(color); }}
+                        style={{ backgroundColor: color }}
+                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${previewBgColor === color ? "border-white" : "border-transparent"}`}
+                      />
+                    ))}
+                  </div>
+
+                  {/* Virtual BGs & Custom */}
+                  <div className="grid grid-cols-4 gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      className="aspect-video rounded-lg border-2 border-dashed border-zinc-700 hover:border-violet-500 flex flex-col items-center justify-center text-zinc-500 hover:text-violet-400 transition-all bg-zinc-800/40"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span className="text-[8px] font-bold mt-1">Upload</span>
+                    </button>
+                    <input
+                      type="file" ref={fileInputRef} className="hidden"
+                      accept="image/*" onChange={handleFileUpload}
+                    />
+
+                    {customBgs.map(bg => (
+                      <div key={bg.id} className="relative group/bg aspect-video">
+                        <button
+                          onClick={() => { setPreviewBgUrl(bg.url); setPreviewBgColor(undefined); }}
+                          className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all ${previewBgUrl === bg.url ? "border-violet-500" : "border-transparent"}`}
+                        >
+                          <img src={bg.url} alt="Custom" className="w-full h-full object-cover" />
+                        </button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); removeCustomBg(bg.id); }}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/bg:opacity-100 transition-opacity shadow-lg"
+                        >
+                          <Trash2 className="w-3 h-3 text-white" />
+                        </button>
+                      </div>
+                    ))}
+
+                    {VIRTUAL_BGS.map(bg => (
+                      <button
+                        key={bg.id}
+                        onClick={() => { setPreviewBgUrl(bg.url); setPreviewBgColor(undefined); }}
+                        className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${previewBgUrl === bg.url ? "border-violet-500" : "border-transparent"}`}
+                      >
+                        <img src={bg.url} alt={bg.label} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Captions Settings */}
+            <div className="space-y-4 bg-zinc-800/20 rounded-2xl p-4 border border-zinc-800/50">
                <div className="flex items-center justify-between">
                   <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                     <Layout className="w-3.5 h-3.5" /> Background Mode
+                     <Tv className="w-3.5 h-3.5" /> {t("call.transcript.showCaptions")}
                   </label>
                   <button 
-                    onClick={() => setPreviewRemoval(!previewRemoval)}
-                    className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${
-                      previewRemoval ? "bg-violet-600 text-white" : "bg-zinc-700 text-zinc-400"
-                    }`}
+                    onClick={() => setPreviewCaptions({ ...previewCaptions, enabled: !previewCaptions.enabled })}
+                    className={`w-10 h-5 rounded-full transition-colors relative ${previewCaptions.enabled ? "bg-violet-600" : "bg-zinc-700"}`}
                   >
-                    {previewRemoval ? "Enabled" : "Disabled"}
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${previewCaptions.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
                   </button>
                </div>
 
-               {previewRemoval && (
+               {previewCaptions.enabled && (
                  <div className="space-y-4 animate-in slide-in-from-top-2 duration-200">
-                    {/* Colors */}
-                    <div className="flex flex-wrap gap-2">
-                       <button 
-                         onClick={() => { setPreviewBgUrl(undefined); setPreviewBgColor(undefined); }}
-                         className={`w-7 h-7 rounded-full border-2 flex items-center justify-center ${!previewBgUrl && !previewBgColor ? "border-violet-500" : "border-transparent"}`}
-                       >
-                         <VideoOff className="w-3 h-3 text-zinc-500" />
-                       </button>
-                       {BG_COLORS.map(color => (
-                         <button
-                           key={color}
-                           onClick={() => { setPreviewBgUrl(undefined); setPreviewBgColor(color); }}
-                           style={{ backgroundColor: color }}
-                           className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${previewBgColor === color ? "border-white" : "border-transparent"}`}
-                         />
-                       ))}
+                    <div className="grid grid-cols-2 gap-2">
+                      {["subtitle", "sidebar"].map((m) => (
+                        <button
+                          key={m}
+                          onClick={() => setPreviewCaptions({ ...previewCaptions, mode: m })}
+                          className={`px-3 py-1.5 rounded-xl border text-[10px] font-bold transition-all ${previewCaptions.mode === m
+                            ? "border-violet-600 bg-violet-600/10 text-violet-400"
+                            : "border-zinc-800 bg-zinc-800/30 text-zinc-500 hover:border-zinc-700"
+                          }`}
+                        >
+                          {m.charAt(0).toUpperCase() + m.slice(1)}
+                        </button>
+                      ))}
                     </div>
 
-                    {/* Virtual BGs & Custom */}
-                    <div className="grid grid-cols-4 gap-2">
-                       <button
-                         onClick={() => fileInputRef.current?.click()}
-                         className="aspect-video rounded-lg border-2 border-dashed border-zinc-700 hover:border-violet-500 flex flex-col items-center justify-center text-zinc-500 hover:text-violet-400 transition-all bg-zinc-800/40"
-                       >
-                         <Plus className="w-4 h-4" />
-                         <span className="text-[8px] font-bold mt-1">Upload</span>
-                       </button>
-                       <input 
-                         type="file" ref={fileInputRef} className="hidden" 
-                         accept="image/*" onChange={handleFileUpload} 
-                       />
-
-                       {customBgs.map(bg => (
-                         <div key={bg.id} className="relative group/bg aspect-video">
-                           <button
-                             onClick={() => { setPreviewBgUrl(bg.url); setPreviewBgColor(undefined); }}
-                             className={`w-full h-full rounded-lg overflow-hidden border-2 transition-all ${previewBgUrl === bg.url ? "border-violet-500" : "border-transparent"}`}
-                           >
-                             <img src={bg.url} alt="Custom" className="w-full h-full object-cover" />
-                           </button>
-                           <button 
-                             onClick={(e) => { e.stopPropagation(); removeCustomBg(bg.id); }}
-                             className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/bg:opacity-100 transition-opacity shadow-lg"
-                           >
-                             <Trash2 className="w-3 h-3 text-white" />
-                           </button>
-                         </div>
-                       ))}
-
-                       {VIRTUAL_BGS.map(bg => (
-                         <button
-                           key={bg.id}
-                           onClick={() => { setPreviewBgUrl(bg.url); setPreviewBgColor(undefined); }}
-                           className={`relative aspect-video rounded-lg overflow-hidden border-2 transition-all ${previewBgUrl === bg.url ? "border-violet-500" : "border-transparent"}`}
-                         >
-                           <img src={bg.url} alt={bg.label} className="w-full h-full object-cover" />
-                         </button>
-                       ))}
+                    <div className="flex gap-1.5">
+                      {(["sm", "md", "lg", "xl"] as const).map((sz) => (
+                        <button
+                          key={sz}
+                          onClick={() => setPreviewCaptions({ ...previewCaptions, fontSize: sz })}
+                          className={`flex-1 h-7 rounded-lg border text-[10px] font-bold transition-all ${previewCaptions.fontSize === sz
+                            ? "border-violet-600 bg-violet-600/10 text-violet-400"
+                            : "border-zinc-800 bg-zinc-800/30 text-zinc-500 hover:border-zinc-700"
+                          }`}
+                        >
+                          {sz.toUpperCase()}
+                        </button>
+                      ))}
                     </div>
                  </div>
                )}
@@ -409,47 +460,48 @@ export function RoomCallSettingsModal({
 
             {/* GPU Sliders */}
             <div className="space-y-4 bg-zinc-800/20 rounded-2xl p-4 border border-zinc-800/50">
-               <div className="space-y-3">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                       <Tv className="w-3.5 h-3.5" /> Background Blur
-                    </label>
-                    <span className="text-[10px] font-mono text-violet-400">{previewBlur}px</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="20" step="1"
-                    value={previewBlur}
-                    onChange={(e) => setPreviewBlur(parseInt(e.target.value))}
-                    className="w-full accent-violet-500 bg-zinc-700 rounded-lg h-1.5 appearance-none cursor-pointer"
-                  />
-               </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                    <Tv className="w-3.5 h-3.5" /> Background Blur
+                  </label>
+                  <span className="text-[10px] font-mono text-violet-400">{previewBlur}px</span>
+                </div>
+                <input
+                  type="range" min="0" max="20" step="1"
+                  value={previewBlur}
+                  onChange={(e) => setPreviewBlur(parseInt(e.target.value))}
+                  className="w-full accent-violet-500 bg-zinc-700 rounded-lg h-1.5 appearance-none cursor-pointer"
+                />
+              </div>
 
-               <div className="space-y-3">
-                  <div className="flex justify-between items-center px-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                       <Sparkles className="w-3.5 h-3.5 text-pink-400" /> Skin Smoothing
-                    </label>
-                    <span className="text-[10px] font-mono text-pink-400">{previewSmooth}</span>
-                  </div>
-                  <input 
-                    type="range" min="0" max="10" step="1"
-                    value={previewSmooth}
-                    onChange={(e) => setPreviewSmooth(parseInt(e.target.value))}
-                    className="w-full accent-pink-500 bg-zinc-700 rounded-lg h-1.5 appearance-none cursor-pointer"
-                  />
-               </div>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center px-1">
+                  <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
+                    <Sparkles className="w-3.5 h-3.5 text-pink-400" /> Skin Smoothing
+                  </label>
+                  <span className="text-[10px] font-mono text-pink-400">{previewSmooth}</span>
+                </div>
+                <input
+                  type="range" min="0" max="10" step="1"
+                  value={previewSmooth}
+                  onChange={(e) => setPreviewSmooth(parseInt(e.target.value))}
+                  className="w-full accent-pink-500 bg-zinc-700 rounded-lg h-1.5 appearance-none cursor-pointer"
+                />
+              </div>
             </div>
 
             <div className="mt-auto pt-6 border-t border-zinc-800 space-y-3">
               <button
-                onClick={() => { 
-                  onSetFilter(previewFilter); 
+                onClick={() => {
+                  onSetFilter(previewFilter);
                   onSetBackgroundBlur(previewBlur);
                   onSetSkinSmooth(previewSmooth);
                   onSetBackgroundRemoval(previewRemoval);
                   onSetVirtualBackgroundUrl(previewBgUrl);
                   onSetBackgroundColor(previewBgColor);
-                  onClose(); 
+                  onSetCaptionSettings(previewCaptions);
+                  onClose();
                 }}
                 className="w-full bg-violet-600 hover:bg-violet-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-violet-600/20 active:scale-[0.98]"
               >
