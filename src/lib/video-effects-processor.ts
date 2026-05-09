@@ -1,4 +1,7 @@
-import { SelfieSegmentation } from "@mediapipe/selfie_segmentation";
+import * as selfieSegmentation from "@mediapipe/selfie_segmentation";
+
+// Fix for MediaPipe import in Next.js / Webpack
+const SelfieSegmentation = (selfieSegmentation as any).SelfieSegmentation || (selfieSegmentation as any).default?.SelfieSegmentation;
 
 export interface ProcessorOptions {
   filter: string;
@@ -10,7 +13,7 @@ export interface ProcessorOptions {
 }
 
 export class VideoEffectsProcessor {
-  private segmentation: SelfieSegmentation | null = null;
+  private segmentation: any = null;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private offscreenCanvas: HTMLCanvasElement;
@@ -26,14 +29,14 @@ export class VideoEffectsProcessor {
 
     // Initialize SelfieSegmentation
     this.segmentation = new SelfieSegmentation({
-      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
+      locateFile: (file: string) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}`,
     });
 
     this.segmentation.setOptions({
       modelSelection: 1, // 1 for landscape (better quality), 0 for general
     });
 
-    this.segmentation.onResults((results) => {
+    this.segmentation.onResults((results: any) => {
       this.lastResults = results;
     });
   }

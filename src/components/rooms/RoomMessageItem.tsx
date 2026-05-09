@@ -216,7 +216,7 @@ export function RoomMessageItem({
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted/60 border border-border/40 text-xs hover:bg-accent/10 transition-colors"
                 >
                   <span>{emoji}</span>
-                  <span className="text-[10px] text-muted-foreground">{(users as string[]).length}</span>
+                  <span className="text-[10px] text-muted-foreground">{new Set(users as string[]).size}</span>
                 </button>
               ))}
             </div>

@@ -22,6 +22,7 @@ interface RoomCallParticipantProps {
   /** Live subtitle text to overlay on this tile (local only) */
   captionText?: string;
   captionStyle?: CaptionStyle;
+  scaleMode?: "cover" | "contain";
   t: (key: string) => string;
 }
 
@@ -81,6 +82,7 @@ export function RoomCallParticipant({
   onDisableScreen,
   captionText,
   captionStyle,
+  scaleMode = "cover",
   t,
 }: RoomCallParticipantProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -124,7 +126,7 @@ export function RoomCallParticipant({
       {/* Video / Canvas */}
       {!isVideoOff && isLocal && canvasRef ? (
         <>
-          <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
+          <canvas ref={canvasRef} className={`absolute inset-0 w-full h-full ${scaleMode === "cover" ? "object-cover" : "object-contain"}`} />
           <video ref={videoRef} autoPlay muted playsInline className="hidden" />
         </>
       ) : stream && !isVideoOff ? (
@@ -133,7 +135,7 @@ export function RoomCallParticipant({
           autoPlay
           playsInline
           muted={isLocal}
-          className="absolute inset-0 w-full h-full object-cover"
+          className={`absolute inset-0 w-full h-full ${scaleMode === "cover" ? "object-cover" : "object-contain"}`}
         />
       ) : (
         <div className="flex flex-col items-center gap-2">

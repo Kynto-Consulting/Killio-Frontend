@@ -436,6 +436,7 @@ export function RoomVideoCall({
       onDisableScreen={onDisableScreen}
       captionText={p.isLocal ? activeCaptionText : undefined}
       captionStyle={captionStyle}
+      scaleMode={viewMode !== "mini" ? "contain" : "cover"}
       t={t}
     />
   );
