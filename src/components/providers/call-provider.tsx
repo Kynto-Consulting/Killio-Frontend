@@ -21,10 +21,9 @@ const CallContext = createContext<CallContextType | undefined>(undefined);
 export function CallProvider({ children }: { children: React.ReactNode }) {
   const { user, accessToken } = useSession();
   const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
+  const [shouldJoin, setShouldJoin] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
   const t = useTranslations("rooms");
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
 
   const userInfo = user ? {
     id: user.id,
@@ -34,11 +33,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   } : null;
 
   const call = useRoomCall(activeRoomId, userInfo, accessToken);
+  const { canvasRef, localVideoRef } = call;
 
   const joinRoomCall = (roomId: string) => {
     setActiveRoomId(roomId);
-    // The hook will see activeRoomId change and be ready, 
-    // but joinCall needs to be called manually or via useEffect in the component
+    setShouldJoin(true);
   };
 
   const leaveRoomCall = () => {
@@ -51,8 +50,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     if (!call.isInCall && activeRoomId) {
       // If we were in a call and it ended (e.g. kicked or leaveCall finished), reset
       setActiveRoomId(null);
+      setShouldJoin(false);
     }
   }, [call.isInCall, activeRoomId]);
+
+  // Handle auto-join when activeRoomId is set and shouldJoin is true
+  useEffect(() => {
+    if (activeRoomId && shouldJoin && !call.isInCall) {
+      call.joinCall().catch(console.error);
+      setShouldJoin(false);
+    }
+  }, [activeRoomId, shouldJoin, call]);
 
   return (
     <CallContext.Provider value={{

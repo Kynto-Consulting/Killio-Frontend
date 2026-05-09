@@ -110,8 +110,7 @@ export default function RoomDetailWeb() {
   const handleJoinCall = useCallback(() => {
     stopRing();
     joinRoomCall(roomId);
-    call.joinCall();
-  }, [roomId, joinRoomCall, call, stopRing]);
+  }, [roomId, joinRoomCall, stopRing]);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
