@@ -171,18 +171,6 @@ export async function listRoomMessages(
   return res.json();
 }
 
-export async function updateRoomSettings(
-  roomId: string,
-  settings: { showReadReceipts?: boolean },
-  accessToken: string
-): Promise<void> {
-  await fetch(`${API_BASE_URL}/rooms/${roomId}/settings`, {
-    method: 'PATCH',
-    headers: authHeader(accessToken),
-    body: JSON.stringify(settings),
-  });
-}
-
 export async function sendRoomMessage(roomId: string, content: string, accessToken: string): Promise<RoomMessage> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages`, {
     method: 'POST',
@@ -256,6 +244,19 @@ export async function getMyRoomPermissions(roomId: string, accessToken: string):
     return { canPost: true, canCall: true, canInvite: false, canManage: false, canRecord: true };
   }
   return res.json();
+}
+
+export async function updateRoomSettings(
+  roomId: string,
+  settings: { showReadReceipts?: boolean },
+  accessToken: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/settings`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify(settings),
+  });
+  if (!res.ok) throw new Error('Failed to update room settings');
 }
 
 export async function listRoomCalls(roomId: string, accessToken: string): Promise<RoomCall[]> {

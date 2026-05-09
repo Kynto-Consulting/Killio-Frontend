@@ -61,7 +61,10 @@ export default function RoomDetailWeb() {
 
   const chatHook = useRoomChat(roomId, accessToken, user);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
-  const callHook = useRoomCall(roomId, userInfo, accessToken);
+  const callHook = useRoomCall(roomId, userInfo, accessToken, {
+    canManage: permissions.canManage,
+    roomType: room?.type,
+  });
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
   const { stopRing } = useRoomNotifications({
     roomId,
@@ -229,6 +232,10 @@ export default function RoomDetailWeb() {
           isCameraFilterActive={callHook.isCameraFilterActive}
           canvasRef={callHook.canvasRef as React.RefObject<HTMLCanvasElement>}
           localVideoRef={callHook.localVideoRef as React.RefObject<HTMLVideoElement>}
+          canManageCall={callHook.canManageCall}
+          onMuteParticipant={callHook.muteParticipant}
+          onKickParticipant={callHook.kickParticipant}
+          onDisableScreen={callHook.disableParticipantScreen}
           callControls={
             <RoomCallControls
               isAudioMuted={callHook.isAudioMuted}

@@ -74,6 +74,11 @@
       "view": "View transcript",
       "download": "Download",
       "timeline": "Call transcript"
+    },
+    "admin": {
+      "mute": "Mute participant",
+      "kick": "Remove from call",
+      "stopScreen": "Stop screen sharing"
     }
   },
   "callHistory": {

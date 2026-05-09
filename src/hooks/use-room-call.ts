@@ -50,8 +50,16 @@ const MAX_PARTICIPANTS = 6;
 export function useRoomCall(
   roomId: string | null | undefined,
   user: UserInfo | null | undefined,
-  accessToken: string | null | undefined
+  accessToken: string | null | undefined,
+  options?: {
+    canManage?: boolean;
+    roomType?: string;
+  }
 ) {
+  const canManage = options?.canManage ?? false;
+  const roomType = options?.roomType ?? "channel";
+  const isDm = roomType === "dm";
+
   const [isInCall, setIsInCall] = useState(false);
   const [callId, setCallId] = useState<string | null>(null);
   const [callStartTime, setCallStartTime] = useState<number | null>(null);
@@ -75,15 +83,20 @@ export function useRoomCall(
   const callIdRef = useRef<string | null>(null);
   const callStartTimeRef = useRef<number | null>(null);
   const isInCallRef = useRef(false);
+  const isAudioMutedRef = useRef(false);
+  const isVideoMutedRef = useRef(false);
+  const isScreenSharingRef = useRef(false);
 
   // Recording
   const mediaRecorder = useRef<MediaRecorder | null>(null);
   const recordingChunks = useRef<Blob[]>([]);
   const recordingTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // STT
+  // STT + progressive transcript submission
   const recognition = useRef<any>(null);
   const localSegments = useRef<CallTranscriptSegment[]>([]);
+  const lastSubmittedSegmentIndex = useRef(0);
+  const transcriptSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Canvas filter refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -91,7 +104,10 @@ export function useRoomCall(
   const filterRafRef = useRef<number | null>(null);
   const filteredStreamRef = useRef<MediaStream | null>(null);
 
-  const getDisplayName = () => myDisplayName;
+  // Keep refs in sync for callbacks that close over stale state
+  useEffect(() => { isAudioMutedRef.current = isAudioMuted; }, [isAudioMuted]);
+  useEffect(() => { isVideoMutedRef.current = isVideoMuted; }, [isVideoMuted]);
+  useEffect(() => { isScreenSharingRef.current = isScreenSharing; }, [isScreenSharing]);
 
   // ── create or get a PeerConnection for peerId ──
   const getOrCreatePC = useCallback(
@@ -128,7 +144,6 @@ export function useRoomCall(
         }
       };
 
-      // Add existing local tracks
       const stream = localStreamRef.current;
       if (stream) {
         stream.getTracks().forEach((t) => pc.addTrack(t, stream));
@@ -161,6 +176,63 @@ export function useRoomCall(
     [roomId, accessToken, myPeerId, getOrCreatePC]
   );
 
+  // ── Progressive transcript submission ──
+  const scheduleTranscriptSubmit = useCallback(() => {
+    // 15–35s random interval per participant for variability
+    const delay = 15000 + Math.floor(Math.random() * 20000);
+    transcriptSubmitTimer.current = setTimeout(async () => {
+      const cId = callIdRef.current;
+      if (!cId || !roomId || !accessToken || !isInCallRef.current) return;
+      const newSegments = localSegments.current.slice(lastSubmittedSegmentIndex.current);
+      if (newSegments.length > 0) {
+        try {
+          await submitCallTranscript(roomId, cId, newSegments, accessToken);
+          lastSubmittedSegmentIndex.current = localSegments.current.length;
+        } catch {
+          // will retry next interval
+        }
+      }
+      if (isInCallRef.current) scheduleTranscriptSubmit();
+    }, delay);
+  }, [roomId, accessToken]);
+
+  // ── In-call admin actions (publish to signal channel) ──
+  const muteParticipant = useCallback(
+    (targetPeerId: string) => {
+      if (isDm || !canManage || !roomId || !accessToken) return;
+      const ably = getAblyClient(accessToken);
+      ably.channels.get(`room:${roomId}:signal`).publish("call.force_mute", {
+        fromPeerId: myPeerId,
+        targetPeerId,
+      }).catch(() => {});
+    },
+    [isDm, canManage, roomId, accessToken, myPeerId]
+  );
+
+  const kickParticipant = useCallback(
+    (targetPeerId: string) => {
+      if (isDm || !canManage || !roomId || !accessToken) return;
+      const ably = getAblyClient(accessToken);
+      ably.channels.get(`room:${roomId}:signal`).publish("call.kick", {
+        fromPeerId: myPeerId,
+        targetPeerId,
+      }).catch(() => {});
+    },
+    [isDm, canManage, roomId, accessToken, myPeerId]
+  );
+
+  const disableParticipantScreen = useCallback(
+    (targetPeerId: string) => {
+      if (isDm || !canManage || !roomId || !accessToken) return;
+      const ably = getAblyClient(accessToken);
+      ably.channels.get(`room:${roomId}:signal`).publish("call.force_screen_off", {
+        fromPeerId: myPeerId,
+        targetPeerId,
+      }).catch(() => {});
+    },
+    [isDm, canManage, roomId, accessToken, myPeerId]
+  );
+
   // ── Ably signaling subscription ──
   useEffect(() => {
     if (!roomId || !accessToken) return;
@@ -170,7 +242,6 @@ export function useRoomCall(
     const onJoin = async (msg: any) => {
       const { peerId, displayName, avatarUrl } = msg.data;
       if (peerId === myPeerId || !isInCallRef.current) return;
-      // New peer joined — add to list and send them an offer
       setPeers((prev) => {
         if (prev.some((p) => p.peerId === peerId)) return prev;
         return [...prev, { peerId, displayName, avatarUrl, audioMuted: false, videoMuted: false, isScreenSharing: false }];
@@ -243,6 +314,38 @@ export function useRoomCall(
       );
     };
 
+    // Admin force-actions targeting this participant
+    const onForceMute = (msg: any) => {
+      const { targetPeerId } = msg.data;
+      if (targetPeerId !== myPeerId || !isInCallRef.current) return;
+      const stream = localStreamRef.current;
+      if (!stream) return;
+      stream.getAudioTracks().forEach((t) => { t.enabled = false; });
+      setIsAudioMuted(true);
+      if (roomId && accessToken) {
+        const ably2 = getAblyClient(accessToken);
+        ably2.channels.get(`room:${roomId}:signal`).publish("call.mute", {
+          peerId: myPeerId,
+          audioMuted: true,
+          videoMuted: isVideoMutedRef.current,
+        }).catch(() => {});
+      }
+    };
+
+    const onKick = (msg: any) => {
+      const { targetPeerId } = msg.data;
+      if (targetPeerId !== myPeerId || !isInCallRef.current) return;
+      // Trigger leave — use a synthetic call to the leave logic
+      leaveCallRef.current?.();
+    };
+
+    const onForceScreenOff = (msg: any) => {
+      const { targetPeerId } = msg.data;
+      if (targetPeerId !== myPeerId || !isInCallRef.current || !isScreenSharingRef.current) return;
+      // Stop screen share by stopping tracks (triggers onended handler)
+      screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+    };
+
     signal.subscribe("call.join", onJoin);
     signal.subscribe("call.leave", onLeave);
     signal.subscribe("call.offer", onOffer);
@@ -250,6 +353,9 @@ export function useRoomCall(
     signal.subscribe("call.ice", onIce);
     signal.subscribe("call.mute", onMute);
     signal.subscribe("call.screen", onScreen);
+    signal.subscribe("call.force_mute", onForceMute);
+    signal.subscribe("call.kick", onKick);
+    signal.subscribe("call.force_screen_off", onForceScreenOff);
 
     return () => {
       signal.unsubscribe("call.join", onJoin);
@@ -259,6 +365,9 @@ export function useRoomCall(
       signal.unsubscribe("call.ice", onIce);
       signal.unsubscribe("call.mute", onMute);
       signal.unsubscribe("call.screen", onScreen);
+      signal.unsubscribe("call.force_mute", onForceMute);
+      signal.unsubscribe("call.kick", onKick);
+      signal.unsubscribe("call.force_screen_off", onForceScreenOff);
     };
   }, [roomId, accessToken, myPeerId, sendOffer, getOrCreatePC]);
 
@@ -268,22 +377,22 @@ export function useRoomCall(
     const video = localVideoRef.current;
     if (!canvas || !video) return;
 
+    canvas.width = video.videoWidth > 0 ? video.videoWidth : 640;
+    canvas.height = video.videoHeight > 0 ? video.videoHeight : 360;
+
     const draw = () => {
       if (!canvas || !video || video.readyState < 2) {
         filterRafRef.current = requestAnimationFrame(draw);
         return;
       }
       const ctx = canvas.getContext("2d");
-      if (!ctx) return;
+      if (!ctx) { filterRafRef.current = requestAnimationFrame(draw); return; }
       const f = activeFilter;
       ctx.filter =
-        f === "blur"
-          ? "blur(10px)"
-          : f === "grayscale"
-          ? "grayscale(100%)"
-          : f === "warm"
-          ? "sepia(40%) saturate(120%)"
-          : "none";
+        f === "blur" ? "blur(10px)"
+        : f === "grayscale" ? "grayscale(100%)"
+        : f === "warm" ? "sepia(40%) saturate(120%)"
+        : "none";
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       filterRafRef.current = requestAnimationFrame(draw);
     };
@@ -292,7 +401,6 @@ export function useRoomCall(
     const filtered = canvas.captureStream(30);
     filteredStreamRef.current = filtered;
 
-    // Replace video track in all peer connections
     peerConnections.current.forEach((pc) => {
       const sender = pc.getSenders().find((s) => s.track?.kind === "video");
       if (sender && filtered.getVideoTracks()[0]) {
@@ -306,7 +414,6 @@ export function useRoomCall(
       cancelAnimationFrame(filterRafRef.current);
       filterRafRef.current = null;
     }
-    // Restore original camera track
     const original = localStreamRef.current?.getVideoTracks()[0];
     if (original) {
       peerConnections.current.forEach((pc) => {
@@ -333,7 +440,7 @@ export function useRoomCall(
         if (result.isFinal) {
           localSegments.current.push({
             userId: myPeerId,
-            displayName: getDisplayName(),
+            displayName: myDisplayName,
             text: result[0].transcript.trim(),
             startMs: Math.max(0, (event.timeStamp ?? Date.now()) - t0 - 3000),
             endMs: Date.now() - t0,
@@ -343,15 +450,86 @@ export function useRoomCall(
       }
     };
 
-    r.onerror = () => { /* silently ignore STT errors */ };
+    r.onerror = () => { /* silently ignore */ };
     try { r.start(); } catch { /* ignore if already running */ }
     recognition.current = r;
-  }, [myPeerId]);
+  }, [myPeerId, myDisplayName]);
 
   const stopSTT = useCallback(() => {
     try { recognition.current?.stop(); } catch { /* ignore */ }
     recognition.current = null;
   }, []);
+
+  // ── leaveCall — defined early so onKick can reference it ──
+  const leaveCallRef = useRef<(() => void) | null>(null);
+
+  const leaveCall = useCallback(async () => {
+    if (!isInCallRef.current) return;
+
+    // Stop recording
+    if (mediaRecorder.current?.state === "recording") {
+      mediaRecorder.current.stop();
+    }
+    if (recordingTimer.current) {
+      clearInterval(recordingTimer.current);
+      recordingTimer.current = null;
+    }
+    setIsRecording(false);
+    setRecordingElapsed(0);
+
+    // Stop periodic transcript submission
+    if (transcriptSubmitTimer.current) {
+      clearTimeout(transcriptSubmitTimer.current);
+      transcriptSubmitTimer.current = null;
+    }
+
+    // Stop STT then submit remaining segments
+    stopSTT();
+    if (callIdRef.current && roomId && accessToken) {
+      const remaining = localSegments.current.slice(lastSubmittedSegmentIndex.current);
+      if (remaining.length > 0) {
+        submitCallTranscript(roomId, callIdRef.current, remaining, accessToken).catch(console.error);
+      }
+      endCallRecord(roomId, callIdRef.current, accessToken).catch(console.error);
+    }
+
+    // Close all peer connections
+    peerConnections.current.forEach((pc) => pc.close());
+    peerConnections.current.clear();
+
+    stopFilterLoop();
+
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
+
+    if (roomId && accessToken) {
+      const ably = getAblyClient(accessToken);
+      ably.channels.get(`room:${roomId}:signal`).publish("call.leave", { peerId: myPeerId }).catch(() => {});
+    }
+
+    localStreamRef.current = null;
+    screenStreamRef.current = null;
+    callIdRef.current = null;
+    callStartTimeRef.current = null;
+    localSegments.current = [];
+    lastSubmittedSegmentIndex.current = 0;
+    isInCallRef.current = false;
+
+    setIsInCall(false);
+    setCallId(null);
+    setCallStartTime(null);
+    setLocalStream(null);
+    setScreenStream(null);
+    setPeers([]);
+    setIsAudioMuted(false);
+    setIsVideoMuted(false);
+    setIsScreenSharing(false);
+    setIsCameraFilterActive(false);
+    setActiveFilter("none");
+  }, [roomId, accessToken, myPeerId, stopSTT, stopFilterLoop]);
+
+  // Keep ref in sync so onKick handler can call it
+  useEffect(() => { leaveCallRef.current = leaveCall; }, [leaveCall]);
 
   // ── joinCall ──
   const joinCall = useCallback(async () => {
@@ -369,7 +547,6 @@ export function useRoomCall(
     localStreamRef.current = stream;
     setLocalStream(stream);
 
-    // Attach to hidden video element for canvas filter
     if (localVideoRef.current) {
       localVideoRef.current.srcObject = stream;
       localVideoRef.current.play().catch(() => {});
@@ -379,7 +556,6 @@ export function useRoomCall(
       canvasRef.current.height = 270;
     }
 
-    // Create call record
     let call;
     try {
       call = await createCallRecord(roomId, accessToken);
@@ -393,7 +569,6 @@ export function useRoomCall(
     isInCallRef.current = true;
     setIsInCall(true);
 
-    // Publish join
     const ably = getAblyClient(accessToken);
     ably.channels.get(`room:${roomId}:signal`).publish("call.join", {
       peerId: myPeerId,
@@ -402,71 +577,13 @@ export function useRoomCall(
       callId: call.id,
     });
 
-    // Start STT
     localSegments.current = [];
+    lastSubmittedSegmentIndex.current = 0;
     startSTT();
-  }, [roomId, accessToken, user, peers.length, myPeerId, myDisplayName, startSTT]);
 
-  // ── leaveCall ──
-  const leaveCall = useCallback(async () => {
-    if (!isInCallRef.current) return;
-
-    // Stop recording if active
-    if (mediaRecorder.current?.state === "recording") {
-      mediaRecorder.current.stop();
-    }
-    if (recordingTimer.current) {
-      clearInterval(recordingTimer.current);
-      recordingTimer.current = null;
-    }
-    setIsRecording(false);
-    setRecordingElapsed(0);
-
-    // Stop STT and submit transcript
-    stopSTT();
-    if (callIdRef.current && roomId && accessToken && localSegments.current.length > 0) {
-      submitCallTranscript(roomId, callIdRef.current, localSegments.current, accessToken).catch(console.error);
-    }
-    if (callIdRef.current && roomId && accessToken) {
-      endCallRecord(roomId, callIdRef.current, accessToken).catch(console.error);
-    }
-
-    // Close all peer connections
-    peerConnections.current.forEach((pc) => pc.close());
-    peerConnections.current.clear();
-
-    // Stop filter loop
-    stopFilterLoop();
-
-    // Stop local media
-    localStreamRef.current?.getTracks().forEach((t) => t.stop());
-    screenStreamRef.current?.getTracks().forEach((t) => t.stop());
-
-    // Publish leave
-    if (roomId && accessToken) {
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.leave", { peerId: myPeerId }).catch(() => {});
-    }
-
-    localStreamRef.current = null;
-    screenStreamRef.current = null;
-    callIdRef.current = null;
-    callStartTimeRef.current = null;
-    localSegments.current = [];
-    isInCallRef.current = false;
-
-    setIsInCall(false);
-    setCallId(null);
-    setCallStartTime(null);
-    setLocalStream(null);
-    setScreenStream(null);
-    setPeers([]);
-    setIsAudioMuted(false);
-    setIsVideoMuted(false);
-    setIsScreenSharing(false);
-    setIsCameraFilterActive(false);
-    setActiveFilter("none");
-  }, [roomId, accessToken, myPeerId, stopSTT, stopFilterLoop]);
+    // Start progressive transcript submissions with per-participant jitter
+    scheduleTranscriptSubmit();
+  }, [roomId, accessToken, user, peers.length, myPeerId, myDisplayName, startSTT, scheduleTranscriptSubmit]);
 
   // ── toggleAudio ──
   const toggleAudio = useCallback(() => {
@@ -480,10 +597,10 @@ export function useRoomCall(
       ably.channels.get(`room:${roomId}:signal`).publish("call.mute", {
         peerId: myPeerId,
         audioMuted: muted,
-        videoMuted: isVideoMuted,
+        videoMuted: isVideoMutedRef.current,
       }).catch(() => {});
     }
-  }, [roomId, accessToken, myPeerId, isVideoMuted]);
+  }, [roomId, accessToken, myPeerId]);
 
   // ── toggleVideo ──
   const toggleVideo = useCallback(() => {
@@ -496,11 +613,11 @@ export function useRoomCall(
       const ably = getAblyClient(accessToken);
       ably.channels.get(`room:${roomId}:signal`).publish("call.mute", {
         peerId: myPeerId,
-        audioMuted: isAudioMuted,
+        audioMuted: isAudioMutedRef.current,
         videoMuted: muted,
       }).catch(() => {});
     }
-  }, [roomId, accessToken, myPeerId, isAudioMuted]);
+  }, [roomId, accessToken, myPeerId]);
 
   // ── toggleScreenShare ──
   const toggleScreenShare = useCallback(async () => {
@@ -508,7 +625,7 @@ export function useRoomCall(
     const ably = getAblyClient(accessToken);
     const signal = ably.channels.get(`room:${roomId}:signal`);
 
-    if (!isScreenSharing) {
+    if (!isScreenSharingRef.current) {
       try {
         const screen = await navigator.mediaDevices.getDisplayMedia({ video: true });
         screenStreamRef.current = screen;
@@ -521,10 +638,7 @@ export function useRoomCall(
           if (sender) sender.replaceTrack(screenTrack).catch(console.error);
         });
 
-        screen.getVideoTracks()[0].onended = () => {
-          toggleScreenShare();
-        };
-
+        screen.getVideoTracks()[0].onended = () => { toggleScreenShare(); };
         signal.publish("call.screen", { peerId: myPeerId, active: true }).catch(() => {});
       } catch (e) {
         console.error("[RTC] getDisplayMedia failed", e);
@@ -535,7 +649,6 @@ export function useRoomCall(
       setScreenStream(null);
       setIsScreenSharing(false);
 
-      // Restore camera track
       const cameraTrack = localStreamRef.current?.getVideoTracks()[0];
       if (cameraTrack) {
         peerConnections.current.forEach((pc) => {
@@ -545,7 +658,7 @@ export function useRoomCall(
       }
       signal.publish("call.screen", { peerId: myPeerId, active: false }).catch(() => {});
     }
-  }, [roomId, accessToken, myPeerId, isScreenSharing]);
+  }, [roomId, accessToken, myPeerId]);
 
   // ── setFilter ──
   const setFilter = useCallback(
@@ -556,13 +669,11 @@ export function useRoomCall(
         stopFilterLoop();
       } else {
         setIsCameraFilterActive(true);
-        // Loop will pick up new filter value on next render via activeFilter state
       }
     },
     [stopFilterLoop]
   );
 
-  // Restart filter loop when activeFilter changes while active
   useEffect(() => {
     if (isCameraFilterActive && activeFilter !== "none" && isInCall) {
       stopFilterLoop();
@@ -598,7 +709,7 @@ export function useRoomCall(
           URL.revokeObjectURL(url);
           recordingChunks.current = [];
         };
-        recorder.start(1000); // collect in 1s chunks
+        recorder.start(1000);
         mediaRecorder.current = recorder;
 
         let elapsed = 0;
@@ -654,6 +765,10 @@ export function useRoomCall(
     toggleScreenShare,
     toggleRecording,
     setFilter,
+    muteParticipant,
+    kickParticipant,
+    disableParticipantScreen,
+    canManageCall: canManage && !isDm,
     canvasRef,
     localVideoRef,
   };

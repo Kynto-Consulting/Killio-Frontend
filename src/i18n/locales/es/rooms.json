@@ -74,6 +74,11 @@
       "view": "Ver transcripción",
       "download": "Descargar",
       "timeline": "Transcripción de llamada"
+    },
+    "admin": {
+      "mute": "Silenciar participante",
+      "kick": "Expulsar de la llamada",
+      "stopScreen": "Detener pantalla compartida"
     }
   },
   "callHistory": {
