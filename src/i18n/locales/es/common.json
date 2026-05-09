@@ -1,4 +1,6 @@
 {
+  "enabled": "Habilitado",
+  "disabled": "Deshabilitado",
   "actions": {
     "cancel": "Cancelar",
     "save": "Guardar",

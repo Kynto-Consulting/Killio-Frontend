@@ -93,6 +93,20 @@ export function RoomCallSettingsModal({
   const [previewCaptions, setPreviewCaptions] = useState(captionSettings);
   const [customBgs, setCustomBgs] = useState<{ id: string; url: string }[]>([]);
   const [audioLevel, setAudioLevel] = useState(0);
+
+  // Sync preview state when opening
+  useEffect(() => {
+    if (isOpen) {
+      setPreviewFilter(currentFilter);
+      setPreviewBlur(backgroundBlur);
+      setPreviewSmooth(skinSmooth);
+      setPreviewRemoval(backgroundRemoval);
+      setPreviewBgUrl(virtualBackgroundUrl);
+      setPreviewBgColor(backgroundColor);
+      setPreviewCaptions(captionSettings);
+    }
+  }, [isOpen, currentFilter, backgroundBlur, skinSmooth, backgroundRemoval, virtualBackgroundUrl, backgroundColor, captionSettings]);
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
@@ -146,11 +160,19 @@ export function RoomCallSettingsModal({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    video.srcObject = localStream;
-
     if (!effectsProcessor.current) {
       effectsProcessor.current = new VideoEffectsProcessor();
     }
+
+    const handleTrackEnd = () => {
+       if (video.srcObject === localStream) {
+          video.srcObject = null;
+       }
+    };
+    localStream.getTracks().forEach(t => t.addEventListener("ended", handleTrackEnd));
+
+    video.srcObject = localStream;
+    video.play().catch(() => {});
 
     const draw = async () => {
       if (video.videoWidth > 0) {
@@ -176,6 +198,7 @@ export function RoomCallSettingsModal({
 
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      localStream.getTracks().forEach(t => t.removeEventListener("ended", handleTrackEnd));
       effectsProcessor.current?.dispose();
       effectsProcessor.current = null;
     };
@@ -240,7 +263,13 @@ export function RoomCallSettingsModal({
           <div className="flex-1 space-y-6">
             <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border border-zinc-800 shadow-inner group">
               <canvas ref={canvasRef} className="w-full h-full object-cover" />
-              <video ref={videoRef} autoPlay muted playsInline className="hidden" />
+              <video 
+                ref={videoRef} 
+                autoPlay 
+                muted 
+                playsInline 
+                className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none" 
+              />
 
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
                 <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-white/90 border border-white/10">
@@ -338,10 +367,10 @@ export function RoomCallSettingsModal({
                 </label>
                 <button
                   onClick={() => setPreviewRemoval(!previewRemoval)}
-                  className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${previewRemoval ? "bg-violet-600 text-white" : "bg-zinc-700 text-zinc-400"
+                  className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewRemoval ? "bg-violet-600" : "bg-zinc-700"
                     }`}
                 >
-                  {previewRemoval ? t("common.enabled") : t("common.disabled")}
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewRemoval ? "left-[22px]" : "left-0.5"}`} />
                 </button>
               </div>
 
@@ -418,9 +447,9 @@ export function RoomCallSettingsModal({
                   </label>
                   <button 
                     onClick={() => setPreviewCaptions({ ...previewCaptions, enabled: !previewCaptions.enabled })}
-                    className={`w-10 h-5 rounded-full transition-colors relative ${previewCaptions.enabled ? "bg-violet-600" : "bg-zinc-700"}`}
+                    className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewCaptions.enabled ? "bg-violet-600" : "bg-zinc-700"}`}
                   >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${previewCaptions.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewCaptions.enabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                </div>
 
@@ -512,7 +541,7 @@ export function RoomCallSettingsModal({
                 onClick={onClose}
                 className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-bold py-3 rounded-xl transition-all active:scale-[0.98]"
               >
-                {t("common.cancel")}
+                {t("actions.cancel")}
               </button>
             </div>
           </div>

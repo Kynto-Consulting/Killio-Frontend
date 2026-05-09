@@ -88,6 +88,20 @@ export function RoomCallParticipant({
   const videoRef = useRef<HTMLVideoElement>(null);
   const [hovered, setHovered] = useState(false);
 
+  // Sync canvas dimensions with stream if it's the local processing canvas
+  useLayoutEffect(() => {
+    if (isLocal && canvasRef?.current && stream) {
+      const v = document.createElement("video");
+      v.srcObject = stream;
+      v.onloadedmetadata = () => {
+        if (canvasRef.current) {
+          canvasRef.current.width = v.videoWidth;
+          canvasRef.current.height = v.videoHeight;
+        }
+      };
+    }
+  }, [isLocal, canvasRef, stream]);
+
   useEffect(() => {
     if (!videoRef.current || !stream) return;
     videoRef.current.srcObject = stream;

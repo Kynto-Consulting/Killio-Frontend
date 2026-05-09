@@ -51,12 +51,12 @@ export default function RoomDetailWeb() {
 
   const userInfo = user
     ? {
-        id: user.id,
-        displayName: user.displayName ?? user.username ?? undefined,
-        username: user.username ?? undefined,
-        email: user.email ?? undefined,
-        avatarUrl: undefined as string | undefined,
-      }
+      id: user.id,
+      displayName: user.displayName ?? user.username ?? undefined,
+      username: user.username ?? undefined,
+      email: user.email ?? undefined,
+      avatarUrl: undefined as string | undefined,
+    }
     : null;
 
   const chatHook = useRoomChat(roomId, accessToken, user);
@@ -141,7 +141,7 @@ export default function RoomDetailWeb() {
       user: {
         displayName: "AI Copilot",
         email: "ai@killio.com",
-        avatarUrl: "/ai-bot-avatar.png", // We can use a bot icon
+        avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=killio-ai&backgroundColor=c084fc",
       },
     });
 

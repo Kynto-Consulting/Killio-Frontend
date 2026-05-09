@@ -273,7 +273,7 @@ export function RoomVideoCall({
     {
       id: "local",
       displayName: localDisplayName,
-      stream: isCameraFilterActive ? undefined : (localStream ?? undefined),
+      stream: localStream ?? undefined,
       isLocal: true,
       audioMuted: isAudioMuted,
       videoMuted: isVideoMuted,
@@ -367,67 +367,105 @@ export function RoomVideoCall({
     </div>
   );
 
-  // ── Mini mode ────────────────────────────────────────────────────────────────
-  if (viewMode === "mini") {
-    return (
-      <div 
-        className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-52 transition-all duration-300"
-        style={{ bottom: 16 + bottomOffset }}
-      >
-        <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
-          <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
-          <div className="flex gap-0.5">
-            <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-white" title="Expand">
-              <Maximize2 className="w-3 h-3" />
-            </button>
-            <button onClick={() => setViewMode("fullscreen")} className="p-0.5 text-zinc-400 hover:text-white" title="Fullscreen">
-              <Expand className="w-3 h-3" />
-            </button>
+  const renderContent = () => {
+    if (viewMode === "mini") {
+      return (
+        <div 
+          className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-52 transition-all duration-300"
+          style={{ bottom: 16 + bottomOffset }}
+        >
+          <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
+            <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
+            <div className="flex gap-0.5">
+              <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-white" title="Expand">
+                <Maximize2 className="w-3 h-3" />
+              </button>
+              <button onClick={() => setViewMode("fullscreen")} className="p-0.5 text-zinc-400 hover:text-white" title="Fullscreen">
+                <Expand className="w-3 h-3" />
+              </button>
+            </div>
+          </div>
+          <div className="p-1.5">
+            <RoomCallParticipant
+              stream={localStream ?? undefined}
+              displayName={localDisplayName}
+              isLocal
+              isMuted={isAudioMuted}
+              isVideoOff={isVideoMuted}
+              canvasRef={isCameraFilterActive ? canvasRef : undefined}
+              captionText={activeCaptionText}
+              captionStyle={captionStyle}
+              t={t}
+            />
+          </div>
+          <div className="flex justify-center py-1.5">{callControls}</div>
+        </div>
+      );
+    }
+
+    if (viewMode === "fullscreen") {
+      return (
+        <div className="fixed inset-0 z-[500] bg-zinc-950 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-sm text-zinc-200 font-medium">
+                {t("call.inCall")} · {t("call.participants").replace("{count}", String(allParticipants.length))}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-white" title="Exit fullscreen">
+                <Shrink className="w-4 h-4" />
+              </button>
+              <button onClick={() => setViewMode("mini")} className="p-1.5 text-zinc-400 hover:text-white" title="Minimize">
+                <Minimize2 className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+
+          {videoGrid(false)}
+
+          {canManageCall && peers.length > 0 && (
+            <AdminBar
+              peers={peers}
+              onMute={onMuteParticipant}
+              onKick={onKickParticipant}
+              onDisableScreen={onDisableScreen}
+              t={t}
+            />
+          )}
+
+          <div className="flex justify-center py-3 border-t border-zinc-800 shrink-0">
+            {callControls}
           </div>
         </div>
-        <div className="p-1.5">
-          <RoomCallParticipant
-            stream={isCameraFilterActive ? undefined : (localStream ?? undefined)}
-            displayName={localDisplayName}
-            isLocal
-            isMuted={isAudioMuted}
-            isVideoOff={isVideoMuted}
-            canvasRef={isCameraFilterActive ? canvasRef : undefined}
-            captionText={activeCaptionText}
-            captionStyle={captionStyle}
-            t={t}
-          />
-        </div>
-        <div className="flex justify-center py-1.5">{callControls}</div>
-        <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
-      </div>
-    );
-  }
+      );
+    }
 
-  // ── Fullscreen mode ──────────────────────────────────────────────────────────
-  if (viewMode === "fullscreen") {
     return (
-      <div className="fixed inset-0 z-[500] bg-zinc-950 flex flex-col">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
+      <div 
+        className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[520px] max-h-[520px] flex flex-col backdrop-blur-sm transition-all duration-300"
+        style={{ bottom: 16 + bottomOffset }}
+      >
+        <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700/60 shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-sm text-zinc-200 font-medium">
+            <span className="text-xs text-zinc-200 font-medium">
               {t("call.inCall")} · {t("call.participants").replace("{count}", String(allParticipants.length))}
             </span>
           </div>
-          <div className="flex items-center gap-2">
-            <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-white" title="Exit fullscreen">
-              <Shrink className="w-4 h-4" />
+          <div className="flex items-center gap-1">
+            <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-white" title="Fullscreen">
+              <Expand className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => setViewMode("mini")} className="p-1.5 text-zinc-400 hover:text-white" title="Minimize">
-              <Minimize2 className="w-4 h-4" />
+            <button onClick={() => setViewMode("mini")} className="p-1 text-zinc-400 hover:text-white" title="Minimize">
+              <Minimize2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
 
-        {videoGrid(false)}
+        {videoGrid(true)}
 
-        {/* Admin bar */}
         {canManageCall && peers.length > 0 && (
           <AdminBar
             peers={peers}
@@ -438,53 +476,16 @@ export function RoomVideoCall({
           />
         )}
 
-        <div className="flex justify-center py-3 border-t border-zinc-800 shrink-0">
+        <div className="flex justify-center py-2 px-3 border-t border-zinc-700/60 shrink-0">
           {callControls}
         </div>
-        <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
       </div>
     );
-  }
+  };
 
-  // ── Panel mode (default) ─────────────────────────────────────────────────────
   return (
-    <div 
-      className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[520px] max-h-[520px] flex flex-col backdrop-blur-sm transition-all duration-300"
-      style={{ bottom: 16 + bottomOffset }}
-    >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700/60 shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-xs text-zinc-200 font-medium">
-            {t("call.inCall")} · {t("call.participants").replace("{count}", String(allParticipants.length))}
-          </span>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-white" title="Fullscreen">
-            <Expand className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => setViewMode("mini")} className="p-1 text-zinc-400 hover:text-white" title="Minimize">
-            <Minimize2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
-      </div>
-
-      {videoGrid(true)}
-
-      {/* Admin bar */}
-      {canManageCall && peers.length > 0 && (
-        <AdminBar
-          peers={peers}
-          onMute={onMuteParticipant}
-          onKick={onKickParticipant}
-          onDisableScreen={onDisableScreen}
-          t={t}
-        />
-      )}
-
-      <div className="flex justify-center py-2 px-3 border-t border-zinc-700/60 shrink-0">
-        {callControls}
-      </div>
+    <>
+      {renderContent()}
 
       <RoomCallSettingsModal
         isOpen={settingsModalOpen}
@@ -511,7 +512,13 @@ export function RoomVideoCall({
         t={t}
       />
 
-      <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
-    </div>
+      <video 
+        ref={localVideoRef} 
+        autoPlay 
+        muted 
+        playsInline 
+        className="absolute inset-0 w-full h-full object-cover opacity-0 pointer-events-none" 
+      />
+    </>
   );
 }

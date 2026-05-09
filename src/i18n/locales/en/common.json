@@ -1,4 +1,6 @@
 {
+  "enabled": "Enabled",
+  "disabled": "Disabled",
   "actions": {
     "cancel": "Cancel",
     "save": "Save",

@@ -119,17 +119,23 @@ function Hero({ t }: { t: T }) {
 // â”€â”€â”€ Kanban Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function KanbanPreview() {
   const cols = [
-    { name: "To Do", count: 3, cards: [
-      { title: "Design new onboarding", tag: "design", tc: "blue", av: "A", ac: "#6366f1" },
-      { title: "Refactor auth module",  tag: "urgent", tc: "red",  av: "B", ac: "#ef4444" },
-    ]},
-    { name: "In Progress", count: 2, cards: [
-      { title: "Build API rate limiter", tag: "backend", tc: "green", av: "C", ac: "#10b981" },
-      { title: "Write release notes",    tag: "docs",    tc: "blue",  av: "A", ac: "#6366f1" },
-    ]},
-    { name: "Done", count: 2, cards: [
-      { title: "Setup CI/CD pipeline", tag: "devops", tc: "green", av: "D", ac: "#f59e0b" },
-    ]},
+    {
+      name: "To Do", count: 3, cards: [
+        { title: "Design new onboarding", tag: "design", tc: "blue", av: "A", ac: "#6366f1" },
+        { title: "Refactor auth module", tag: "urgent", tc: "red", av: "B", ac: "#ef4444" },
+      ]
+    },
+    {
+      name: "In Progress", count: 2, cards: [
+        { title: "Build API rate limiter", tag: "backend", tc: "green", av: "C", ac: "#10b981" },
+        { title: "Write release notes", tag: "docs", tc: "blue", av: "A", ac: "#6366f1" },
+      ]
+    },
+    {
+      name: "Done", count: 2, cards: [
+        { title: "Setup CI/CD pipeline", tag: "devops", tc: "green", av: "D", ac: "#f59e0b" },
+      ]
+    },
   ];
   return (
     <div className="kanban-preview">
@@ -196,14 +202,14 @@ function DocPreview() {
 // â”€â”€â”€ Mesh Preview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function MeshPreview() {
   const nodes = [
-    { id: "a", x: 20,  y: 28,  w: 130, h: 38, label: "Project Kick-off", bg: "rgba(216,255,114,0.1)", border: "rgba(216,255,114,0.4)", color: "#d8ff72" },
-    { id: "b", x: 200, y: 10,  w: 130, h: 38, label: "Scope Review",     bg: "rgba(99,102,241,0.1)",  border: "rgba(99,102,241,0.4)",   color: "#a5b4fc" },
-    { id: "c", x: 200, y: 90,  w: 130, h: 38, label: "Tech Planning",    bg: "rgba(34,211,238,0.08)", border: "rgba(34,211,238,0.35)",  color: "#67e8f9" },
-    { id: "d", x: 380, y: 50,  w: 130, h: 38, label: "Sprint Start",     bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.35)",  color: "#fcd34d" },
-    { id: "e", x: 110, y: 160, w: 150, h: 38, label: "Decision Gate",    bg: "rgba(248,113,113,0.08)",border: "rgba(248,113,113,0.3)",  color: "#fca5a5" },
+    { id: "a", x: 20, y: 28, w: 130, h: 38, label: "Project Kick-off", bg: "rgba(216,255,114,0.1)", border: "rgba(216,255,114,0.4)", color: "#d8ff72" },
+    { id: "b", x: 200, y: 10, w: 130, h: 38, label: "Scope Review", bg: "rgba(99,102,241,0.1)", border: "rgba(99,102,241,0.4)", color: "#a5b4fc" },
+    { id: "c", x: 200, y: 90, w: 130, h: 38, label: "Tech Planning", bg: "rgba(34,211,238,0.08)", border: "rgba(34,211,238,0.35)", color: "#67e8f9" },
+    { id: "d", x: 380, y: 50, w: 130, h: 38, label: "Sprint Start", bg: "rgba(251,191,36,0.08)", border: "rgba(251,191,36,0.35)", color: "#fcd34d" },
+    { id: "e", x: 110, y: 160, w: 150, h: 38, label: "Decision Gate", bg: "rgba(248,113,113,0.08)", border: "rgba(248,113,113,0.3)", color: "#fca5a5" },
   ];
   const right = (id: string) => { const n = nodes.find((x) => x.id === id)!; return { x: n.x + n.w, y: n.y + n.h / 2 }; };
-  const left  = (id: string) => { const n = nodes.find((x) => x.id === id)!; return { x: n.x,       y: n.y + n.h / 2 }; };
+  const left = (id: string) => { const n = nodes.find((x) => x.id === id)!; return { x: n.x, y: n.y + n.h / 2 }; };
   const nc = nodes.find((n) => n.id === "c")!;
   const ne = nodes.find((n) => n.id === "e")!;
   const conns: [{ x: number; y: number }, { x: number; y: number }][] = [
@@ -268,7 +274,7 @@ function FeaturesSection({ t }: { t: T }) {
                 <h3 className="bento-title">{t("kl.features.mesh.title")}</h3>
                 <p className="bento-desc">{t("kl.features.mesh.desc")}</p>
                 <div style={{ marginTop: 20, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {(["pill1","pill2","pill3","pill4","pill5"] as const).map((pk) => (
+                  {(["pill1", "pill2", "pill3", "pill4", "pill5"] as const).map((pk) => (
                     <span key={pk} style={{ fontSize: 11, padding: "4px 10px", borderRadius: 999, background: "rgba(34,211,238,0.07)", border: "1px solid rgba(34,211,238,0.2)", color: "#67e8f9" }}>{t(`kl.features.mesh.${pk}`)}</span>
                   ))}
                 </div>
@@ -287,11 +293,11 @@ function FeaturesSection({ t }: { t: T }) {
 // â”€â”€â”€ Script Canvas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function ScriptCanvas({ t }: { t: T }) {
   const paths = [
-    { from: { x: 148, y: 62  }, to: { x: 178, y: 166 }, color: "rgba(216,255,114,0.35)" },
-    { from: { x: 318, y: 166 }, to: { x: 330, y: 98  }, color: "rgba(251,191,36,0.35)"  },
-    { from: { x: 318, y: 166 }, to: { x: 330, y: 218 }, color: "rgba(251,191,36,0.35)"  },
-    { from: { x: 448, y: 98  }, to: { x: 486, y: 158 }, color: "rgba(99,102,241,0.35)"  },
-    { from: { x: 460, y: 218 }, to: { x: 486, y: 158 }, color: "rgba(34,211,238,0.35)"  },
+    { from: { x: 148, y: 62 }, to: { x: 178, y: 166 }, color: "rgba(216,255,114,0.35)" },
+    { from: { x: 318, y: 166 }, to: { x: 330, y: 98 }, color: "rgba(251,191,36,0.35)" },
+    { from: { x: 318, y: 166 }, to: { x: 330, y: 218 }, color: "rgba(251,191,36,0.35)" },
+    { from: { x: 448, y: 98 }, to: { x: 486, y: 158 }, color: "rgba(99,102,241,0.35)" },
+    { from: { x: 460, y: 218 }, to: { x: 486, y: 158 }, color: "rgba(34,211,238,0.35)" },
   ];
   return (
     <div className="script-canvas">
@@ -326,9 +332,9 @@ function ScriptCanvas({ t }: { t: T }) {
 function AISection({ t }: { t: T }) {
   const ref = useFadeRef();
   const featureKeys = [
-    { icon: <Zap className="h-4 w-4" />,          cls: "lime",   key: "builder" },
-    { icon: <BrainCircuit className="h-4 w-4" />, cls: "indigo", key: "chat"    },
-    { icon: <Database className="h-4 w-4" />,     cls: "cyan",   key: "rag"     },
+    { icon: <Zap className="h-4 w-4" />, cls: "lime", key: "builder" },
+    { icon: <BrainCircuit className="h-4 w-4" />, cls: "indigo", key: "chat" },
+    { icon: <Database className="h-4 w-4" />, cls: "cyan", key: "rag" },
   ];
   return (
     <section className="ai-section" id="ai" style={{ position: "relative" }}>
@@ -362,16 +368,16 @@ function AISection({ t }: { t: T }) {
 function IntegrationsSection({ t }: { t: T }) {
   const ref = useFadeRef();
   const integrations = [
-    { icon: <SiGithub className="h-4 w-4" />,              key: "github"      },
-    { icon: <SiNotion className="h-4 w-4" />,              key: "notion"      },
-    { icon: <SiGoogledrive className="h-4 w-4" />,         key: "googledrive" },
-    { icon: <TbBrandOnedrive className="h-4 w-4" />,       key: "onedrive"    },
-    { icon: <SiSlack className="h-4 w-4" />,               key: "slack"       },
-    { icon: <SiTrello className="h-4 w-4" />,              key: "trello"      },
-    { icon: <SiWhatsapp className="h-4 w-4" />,            key: "whatsapp"    },
-    { icon: <Webhook className="h-4 w-4" />,               key: "webhooks"    },
-    { icon: <Mail className="h-4 w-4" />,                  key: "email"       },
-    { icon: <SiZapier className="h-4 w-4" />,              key: "zapier"      },
+    { icon: <SiGithub className="h-4 w-4" />, key: "github" },
+    { icon: <SiNotion className="h-4 w-4" />, key: "notion" },
+    { icon: <SiGoogledrive className="h-4 w-4" />, key: "googledrive" },
+    { icon: <TbBrandOnedrive className="h-4 w-4" />, key: "onedrive" },
+    { icon: <SiSlack className="h-4 w-4" />, key: "slack" },
+    { icon: <SiTrello className="h-4 w-4" />, key: "trello" },
+    { icon: <SiWhatsapp className="h-4 w-4" />, key: "whatsapp" },
+    { icon: <Webhook className="h-4 w-4" />, key: "webhooks" },
+    { icon: <Mail className="h-4 w-4" />, key: "email" },
+    { icon: <SiZapier className="h-4 w-4" />, key: "zapier" },
   ];
   return (
     <section className="integrations-section" id="integrations">
@@ -402,17 +408,17 @@ function PricingSection({ t }: { t: T }) {
     {
       key: "free", variant: "free", ctaV: "free",
       monthly: t("kl.pricing.free.price"), yearly: t("kl.pricing.free.price"),
-      features: ["f1","f2","f3","f4","f5"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
+      features: ["f1", "f2", "f3", "f4", "f5"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
     },
     {
       key: "pro", variant: "pro", ctaV: "pro",
       monthly: t("kl.pricing.pro.price"), yearly: t("kl.pricing.pro.priceYearly"),
-      features: ["f1","f2","f3","f4","f5","f6"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
+      features: ["f1", "f2", "f3", "f4", "f5", "f6"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
     },
     {
       key: "max", variant: "max", ctaV: "max",
       monthly: t("kl.pricing.max.price"), yearly: t("kl.pricing.max.priceYearly"),
-      features: ["f1","f2","f3","f4","f5","f6","f7"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
+      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
     },
   ];
   return (
@@ -464,7 +470,7 @@ function PricingSection({ t }: { t: T }) {
             <div className="ent-title">{t("kl.pricing.enterprise.title")}</div>
             <div className="ent-sub">{t("kl.pricing.enterprise.sub")}</div>
           </div>
-          <a href="mailto:sales@killio.com" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>{t("kl.pricing.enterprise.cta")} <ArrowRight className="h-4 w-4" /></a>
+          <a href="mailto:sales@killio.app" className="btn-ghost" style={{ whiteSpace: "nowrap" }}>{t("kl.pricing.enterprise.cta")} <ArrowRight className="h-4 w-4" /></a>
         </div>
       </div>
     </section>
@@ -475,12 +481,12 @@ function PricingSection({ t }: { t: T }) {
 function FeaturesStrip({ t }: { t: T }) {
   const ref = useFadeRef();
   const items = [
-    { icon: <History className="h-5 w-5" />,   key: "history" },
+    { icon: <History className="h-5 w-5" />, key: "history" },
     { icon: <BarChart3 className="h-5 w-5" />, key: "metrics" },
-    { icon: <Users className="h-5 w-5" />,     key: "roles"   },
-    { icon: <Monitor className="h-5 w-5" />,   key: "mobile"  },
-    { icon: <Globe className="h-5 w-5" />,     key: "sharing" },
-    { icon: <Folder className="h-5 w-5" />,    key: "folders" },
+    { icon: <Users className="h-5 w-5" />, key: "roles" },
+    { icon: <Monitor className="h-5 w-5" />, key: "mobile" },
+    { icon: <Globe className="h-5 w-5" />, key: "sharing" },
+    { icon: <Folder className="h-5 w-5" />, key: "folders" },
   ];
   return (
     <section className="features-strip">
