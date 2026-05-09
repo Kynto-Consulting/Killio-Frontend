@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { MicOff, VideoOff, Monitor, UserX, MonitorOff } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MicOff, VideoOff, Monitor, UserX, MonitorOff, Settings, X } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 interface RoomCallParticipantProps {
@@ -19,56 +19,51 @@ interface RoomCallParticipantProps {
   onMute?: (peerId: string) => void;
   onKick?: (peerId: string) => void;
   onDisableScreen?: (peerId: string) => void;
+  /** Live subtitle text to overlay on this tile (local only) */
+  captionText?: string;
+  captionStyle?: CaptionStyle;
   t: (key: string) => string;
 }
 
-// ── Audio level hook — returns 0–100 ──────────────────────────────────────────
+export interface CaptionStyle {
+  fontSize: "sm" | "md" | "lg" | "xl";
+  color: string;
+  font: "sans" | "serif" | "mono";
+}
+
+// ── Audio level hook ────────────────────────────────────────────────────────────
 function useAudioLevel(stream: MediaStream | undefined, muted: boolean): number {
   const [level, setLevel] = useState(0);
   const animRef = useRef<number>(0);
-  const analyserRef = useRef<AnalyserNode | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
-    if (!stream || muted) {
-      setLevel(0);
-      return;
-    }
+    if (!stream || muted) { setLevel(0); return; }
     const audioTracks = stream.getAudioTracks();
     if (audioTracks.length === 0) return;
-
     const ctx = new AudioContext();
-    ctxRef.current = ctx;
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.4;
     source.connect(analyser);
-    analyserRef.current = analyser;
-
     const data = new Uint8Array(analyser.frequencyBinCount);
-
     const tick = () => {
       analyser.getByteFrequencyData(data);
-      // Average of lower bins (voice range)
-      const slice = data.slice(0, 32);
-      const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
+      const avg = data.slice(0, 32).reduce((a, b) => a + b, 0) / 32;
       setLevel(Math.min(100, (avg / 128) * 100));
       animRef.current = requestAnimationFrame(tick);
     };
     animRef.current = requestAnimationFrame(tick);
-
-    return () => {
-      cancelAnimationFrame(animRef.current);
-      ctx.close().catch(() => {});
-    };
+    return () => { cancelAnimationFrame(animRef.current); ctx.close().catch(() => {}); };
   }, [stream, muted]);
 
   return level;
 }
 
-// ── Component ─────────────────────────────────────────────────────────────────
+const FONT_SIZE_MAP = { sm: "text-sm", md: "text-base", lg: "text-lg", xl: "text-2xl" };
+const FONT_FAMILY_MAP = { sans: "font-sans", serif: "font-serif", mono: "font-mono" };
 
+// ── Component ──────────────────────────────────────────────────────────────────
 export function RoomCallParticipant({
   stream,
   displayName,
@@ -84,6 +79,8 @@ export function RoomCallParticipant({
   onMute,
   onKick,
   onDisableScreen,
+  captionText,
+  captionStyle,
   t,
 }: RoomCallParticipantProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -94,15 +91,16 @@ export function RoomCallParticipant({
     videoRef.current.srcObject = stream;
   }, [stream]);
 
-  // Speaking glow — don't run for local (we control our own mute)
   const audioLevel = useAudioLevel(isLocal ? undefined : stream, isMuted);
   const isSpeaking = audioLevel > 15;
-
-  // Glow intensity mapped 0–1
   const glowOpacity = isSpeaking ? Math.min(1, (audioLevel - 15) / 60) : 0;
   const glowSize = isSpeaking ? Math.round(4 + glowOpacity * 12) : 0;
 
   const showAdminActions = canManage && !isLocal && peerId && hovered;
+
+  const csz = captionStyle?.fontSize ?? "md";
+  const cfont = captionStyle?.font ?? "sans";
+  const ccolor = captionStyle?.color ?? "#ffffff";
 
   return (
     <div
@@ -157,27 +155,27 @@ export function RoomCallParticipant({
             <button
               onClick={() => onMute(peerId!)}
               title={t("call.admin.mute")}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 hover:bg-red-600 text-white transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-black/70 hover:bg-red-600 text-white transition-colors"
             >
-              <MicOff className="w-3 h-3" />
+              <MicOff className="w-3.5 h-3.5" />
             </button>
           )}
           {isScreenSharing && onDisableScreen && (
             <button
               onClick={() => onDisableScreen(peerId!)}
               title={t("call.admin.stopScreen")}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 hover:bg-orange-600 text-white transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-black/70 hover:bg-orange-600 text-white transition-colors"
             >
-              <MonitorOff className="w-3 h-3" />
+              <MonitorOff className="w-3.5 h-3.5" />
             </button>
           )}
           {onKick && (
             <button
               onClick={() => onKick(peerId!)}
               title={t("call.admin.kick")}
-              className="w-6 h-6 flex items-center justify-center rounded-full bg-black/60 hover:bg-red-700 text-white transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-full bg-black/70 hover:bg-red-700 text-white transition-colors"
             >
-              <UserX className="w-3 h-3" />
+              <UserX className="w-3.5 h-3.5" />
             </button>
           )}
         </div>
@@ -193,6 +191,22 @@ export function RoomCallParticipant({
         {isMuted && <MicOff className="w-3 h-3 text-red-400 shrink-0" />}
         {isVideoOff && <VideoOff className="w-3 h-3 text-red-400 shrink-0" />}
       </div>
+
+      {/* Subtitle overlay — only when captionText is set */}
+      {captionText && (
+        <div className="absolute bottom-7 left-0 right-0 flex justify-center px-3 pointer-events-none z-10">
+          <span
+            className={`
+              px-3 py-1 rounded-lg max-w-[90%] text-center leading-snug
+              bg-black/60 backdrop-blur-sm
+              ${FONT_SIZE_MAP[csz]} ${FONT_FAMILY_MAP[cfont]}
+            `}
+            style={{ color: ccolor, textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}
+          >
+            {captionText}
+          </span>
+        </div>
+      )}
     </div>
   );
 }

@@ -93,9 +93,17 @@
       "live": "Subtítulos en vivo",
       "waiting": "Comienza a hablar para ver los subtítulos...",
       "showCaptions": "Mostrar subtítulos",
-      "hideCaptions": "Ocultar subtítulos"
+      "hideCaptions": "Ocultar subtítulos",
+      "settings": "Ajustes de subtítulos",
+      "mode": "Modo de visualización",
+      "mode_subtitle": "Subtítulo",
+      "mode_sidebar": "Panel lateral",
+      "fontSize": "Tamaño de fuente",
+      "color": "Color del texto",
+      "font": "Familia de fuente"
     },
     "admin": {
+      "label": "Controles de admin",
       "mute": "Silenciar participante",
       "kick": "Expulsar de la llamada",
       "stopScreen": "Detener pantalla compartida"

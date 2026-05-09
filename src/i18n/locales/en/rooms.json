@@ -93,9 +93,17 @@
       "live": "Live captions",
       "waiting": "Start speaking to see captions...",
       "showCaptions": "Show captions",
-      "hideCaptions": "Hide captions"
+      "hideCaptions": "Hide captions",
+      "settings": "Caption settings",
+      "mode": "Display mode",
+      "mode_subtitle": "Subtitle",
+      "mode_sidebar": "Sidebar",
+      "fontSize": "Font size",
+      "color": "Text color",
+      "font": "Font family"
     },
     "admin": {
+      "label": "Admin controls",
       "mute": "Mute participant",
       "kick": "Remove from call",
       "stopScreen": "Stop screen sharing"

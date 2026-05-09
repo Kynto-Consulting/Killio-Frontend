@@ -1,9 +1,281 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
-import { Minimize2, Maximize2, Expand, Shrink, Captions, CaptionsOff } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import {
+  Minimize2, Maximize2, Expand, Shrink,
+  Captions, CaptionsOff, Settings, X,
+  MicOff, UserX, MonitorOff,
+} from "lucide-react";
 import type { CallPeer } from "@/hooks/use-room-call";
-import { RoomCallParticipant } from "./RoomCallParticipant";
+import { RoomCallParticipant, type CaptionStyle } from "./RoomCallParticipant";
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+type ViewMode = "mini" | "panel" | "fullscreen";
+type CaptionMode = "subtitle" | "sidebar";
+
+interface CaptionSettings {
+  enabled: boolean;
+  mode: CaptionMode;
+  fontSize: CaptionStyle["fontSize"];
+  color: string;
+  font: CaptionStyle["font"];
+}
+
+const DEFAULT_CAPTION_SETTINGS: CaptionSettings = {
+  enabled: false,
+  mode: "subtitle",
+  fontSize: "md",
+  color: "#ffffff",
+  font: "sans",
+};
+
+// ── Caption settings panel ─────────────────────────────────────────────────────
+
+function CaptionSettingsPanel({
+  settings,
+  onChange,
+  onClose,
+  t,
+}: {
+  settings: CaptionSettings;
+  onChange: (s: CaptionSettings) => void;
+  onClose: () => void;
+  t: (k: string) => string;
+}) {
+  const COLORS = [
+    { label: "White",  value: "#ffffff" },
+    { label: "Yellow", value: "#facc15" },
+    { label: "Cyan",   value: "#22d3ee" },
+    { label: "Green",  value: "#4ade80" },
+    { label: "Orange", value: "#fb923c" },
+  ];
+
+  return (
+    <div className="absolute bottom-full mb-2 right-0 w-72 bg-zinc-900/98 border border-zinc-700 rounded-2xl shadow-2xl backdrop-blur-sm overflow-hidden z-30">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-700/60">
+        <span className="text-sm font-semibold text-zinc-100">{t("call.transcript.settings")}</span>
+        <button onClick={onClose} className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors">
+          <X className="w-3.5 h-3.5" />
+        </button>
+      </div>
+
+      <div className="p-4 space-y-4">
+        {/* Enable toggle */}
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-medium text-zinc-300">{t("call.transcript.showCaptions")}</span>
+          <button
+            onClick={() => onChange({ ...settings, enabled: !settings.enabled })}
+            className={`w-10 h-5 rounded-full transition-colors relative ${settings.enabled ? "bg-accent" : "bg-zinc-600"}`}
+          >
+            <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${settings.enabled ? "translate-x-5" : "translate-x-0.5"}`} />
+          </button>
+        </div>
+
+        {settings.enabled && (
+          <>
+            {/* Mode */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.mode")}</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(["subtitle", "sidebar"] as CaptionMode[]).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => onChange({ ...settings, mode: m })}
+                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
+                      settings.mode === m
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                  >
+                    {t(`call.transcript.mode_${m}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Font size */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.fontSize")}</p>
+              <div className="flex gap-1.5">
+                {(["sm", "md", "lg", "xl"] as CaptionStyle["fontSize"][]).map((sz) => (
+                  <button
+                    key={sz}
+                    onClick={() => onChange({ ...settings, fontSize: sz })}
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
+                      settings.fontSize === sz
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
+                    }`}
+                  >
+                    {sz.toUpperCase()}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Color */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.color")}</p>
+              <div className="flex gap-2 flex-wrap">
+                {COLORS.map((c) => (
+                  <button
+                    key={c.value}
+                    onClick={() => onChange({ ...settings, color: c.value })}
+                    title={c.label}
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${
+                      settings.color === c.value ? "border-white scale-110" : "border-zinc-600"
+                    }`}
+                    style={{ backgroundColor: c.value }}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Font */}
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-2">{t("call.transcript.font")}</p>
+              <div className="grid grid-cols-3 gap-1.5">
+                {(["sans", "serif", "mono"] as CaptionStyle["font"][]).map((f) => (
+                  <button
+                    key={f}
+                    onClick={() => onChange({ ...settings, font: f })}
+                    className={`py-1.5 rounded-lg border text-xs transition-all ${
+                      settings.font === f
+                        ? "border-accent bg-accent/15 text-accent"
+                        : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
+                    } ${f === "sans" ? "font-sans" : f === "serif" ? "font-serif" : "font-mono"}`}
+                  >
+                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Sidebar transcript panel ───────────────────────────────────────────────────
+
+function SidebarTranscript({
+  liveCaption,
+  transcriptSegments,
+  captionStyle,
+  t,
+}: {
+  liveCaption: string;
+  transcriptSegments: { text: string; ts: number }[];
+  captionStyle: CaptionSettings;
+  t: (k: string) => string;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [transcriptSegments.length, liveCaption]);
+
+  const FONT_SIZE_MAP = { sm: "text-xs", md: "text-sm", lg: "text-base", xl: "text-lg" };
+  const FONT_MAP = { sans: "font-sans", serif: "font-serif", mono: "font-mono" };
+
+  return (
+    <div className="w-56 shrink-0 bg-black/60 backdrop-blur-sm border-l border-zinc-700/50 flex flex-col overflow-hidden">
+      <div className="px-3 py-2 border-b border-zinc-700/40 shrink-0">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+          {t("call.transcript.live")}
+        </span>
+      </div>
+      <div
+        ref={scrollRef}
+        className="flex-1 px-3 py-2 space-y-1.5 overflow-y-auto scroll-smooth"
+      >
+        {transcriptSegments.length === 0 && !liveCaption && (
+          <p className="text-[11px] text-zinc-500 italic">{t("call.transcript.waiting")}</p>
+        )}
+        {transcriptSegments.map((seg, i) => (
+          <p
+            key={i}
+            className={`${FONT_SIZE_MAP[captionStyle.fontSize]} ${FONT_MAP[captionStyle.font]} leading-snug`}
+            style={{ color: captionStyle.color }}
+          >
+            {seg.text}
+          </p>
+        ))}
+        {liveCaption && (
+          <p
+            className={`${FONT_SIZE_MAP[captionStyle.fontSize]} ${FONT_MAP[captionStyle.font]} leading-snug opacity-60 italic animate-pulse`}
+            style={{ color: captionStyle.color }}
+          >
+            {liveCaption}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Admin bar (shown in fullscreen/panel when canManage) ───────────────────────
+
+function AdminBar({
+  peers,
+  onMute,
+  onKick,
+  onDisableScreen,
+  t,
+}: {
+  peers: CallPeer[];
+  onMute?: (id: string) => void;
+  onKick?: (id: string) => void;
+  onDisableScreen?: (id: string) => void;
+  t: (k: string) => string;
+}) {
+  if (peers.length === 0) return null;
+  return (
+    <div className="px-3 py-1.5 border-t border-zinc-800 shrink-0 flex items-center gap-2 overflow-x-auto">
+      <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500 shrink-0">
+        {t("call.admin.label")}
+      </span>
+      {peers.map((p) => (
+        <div key={p.peerId} className="flex items-center gap-1 bg-zinc-800 rounded-lg px-2 py-1 shrink-0">
+          <span className="text-xs text-zinc-300 max-w-[80px] truncate">{p.displayName}</span>
+          {onMute && (
+            <button
+              onClick={() => onMute(p.peerId)}
+              title={t("call.admin.mute")}
+              className={`w-5 h-5 flex items-center justify-center rounded transition-colors ${p.audioMuted ? "text-red-400" : "text-zinc-400 hover:text-red-400"}`}
+            >
+              <MicOff className="w-3 h-3" />
+            </button>
+          )}
+          {p.isScreenSharing && onDisableScreen && (
+            <button
+              onClick={() => onDisableScreen(p.peerId)}
+              title={t("call.admin.stopScreen")}
+              className="w-5 h-5 flex items-center justify-center rounded text-zinc-400 hover:text-orange-400 transition-colors"
+            >
+              <MonitorOff className="w-3 h-3" />
+            </button>
+          )}
+          {onKick && (
+            <button
+              onClick={() => onKick(p.peerId)}
+              title={t("call.admin.kick")}
+              className="w-5 h-5 flex items-center justify-center rounded text-zinc-400 hover:text-red-500 transition-colors"
+            >
+              <UserX className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Props ──────────────────────────────────────────────────────────────────────
 
 interface RoomVideoCallProps {
   localStream: MediaStream | null;
@@ -21,66 +293,9 @@ interface RoomVideoCallProps {
   onMuteParticipant?: (peerId: string) => void;
   onKickParticipant?: (peerId: string) => void;
   onDisableScreen?: (peerId: string) => void;
-  /** Live interim STT text (current sentence being spoken) */
   liveCaption?: string;
-  /** Finalized transcript segments for this session */
   transcriptSegments?: { text: string; ts: number }[];
   t: (key: string, params?: Record<string, string | number>) => string;
-}
-
-type ViewMode = "mini" | "panel" | "fullscreen";
-
-// ── Live transcript overlay ────────────────────────────────────────────────────
-
-function LiveTranscriptPanel({
-  liveCaption,
-  transcriptSegments,
-  t,
-}: {
-  liveCaption: string;
-  transcriptSegments: { text: string; ts: number }[];
-  t: (key: string) => string;
-}) {
-  const scrollRef = useRef<HTMLDivElement>(null);
-
-  // Auto-scroll to bottom when new segments arrive
-  useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
-  }, [transcriptSegments.length, liveCaption]);
-
-  return (
-    <div className="bg-black/70 backdrop-blur-sm rounded-xl border border-zinc-700/50 overflow-hidden">
-      <div className="px-3 py-1.5 border-b border-zinc-700/40">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-          {t("call.transcript.live")}
-        </span>
-      </div>
-      <div
-        ref={scrollRef}
-        className="px-3 py-2 max-h-32 overflow-y-auto space-y-1 scroll-smooth"
-      >
-        {transcriptSegments.length === 0 && !liveCaption && (
-          <p className="text-[11px] text-zinc-500 italic">{t("call.transcript.waiting")}</p>
-        )}
-
-        {/* Finalized segments */}
-        {transcriptSegments.map((seg, i) => (
-          <p key={i} className="text-xs text-zinc-200 leading-snug">
-            {seg.text}
-          </p>
-        ))}
-
-        {/* Live interim text */}
-        {liveCaption && (
-          <p className="text-xs text-zinc-400 italic leading-snug animate-pulse">
-            {liveCaption}
-          </p>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ── Main component ─────────────────────────────────────────────────────────────
@@ -106,12 +321,22 @@ export function RoomVideoCall({
   t,
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
-  const [captionsVisible, setCaptionsVisible] = useState(true);
+  const [captionSettings, setCaptionSettings] = useState<CaptionSettings>(DEFAULT_CAPTION_SETTINGS);
+  const [captionPanelOpen, setCaptionPanelOpen] = useState(false);
 
   const sharingPeer = peers.find((p) => p.isScreenSharing);
   const hasScreenShare = isScreenSharing || !!sharingPeer;
 
-  const hasCaptions = liveCaption.length > 0 || transcriptSegments.length > 0;
+  // Whether to show live caption text as subtitle on local tile
+  const activeCaptionText =
+    captionSettings.enabled && captionSettings.mode === "subtitle"
+      ? liveCaption || (transcriptSegments.length > 0 ? transcriptSegments[transcriptSegments.length - 1].text : "")
+      : undefined;
+
+  const showSidebar =
+    captionSettings.enabled &&
+    captionSettings.mode === "sidebar" &&
+    (liveCaption.length > 0 || transcriptSegments.length > 0);
 
   // Fix: set srcObject on the hidden video element after it mounts
   useEffect(() => {
@@ -123,7 +348,6 @@ export function RoomVideoCall({
     }
   }, [localStream, localVideoRef]);
 
-  // Also set canvas dimensions when the canvas mounts (for filter)
   useEffect(() => {
     const canvas = canvasRef.current;
     const video = localVideoRef.current;
@@ -156,67 +380,121 @@ export function RoomVideoCall({
     })),
   ];
 
-  const participantTile = useCallback(
-    (p: (typeof allParticipants)[number]) => (
-      <RoomCallParticipant
-        key={p.id}
-        stream={p.stream}
-        displayName={p.displayName}
-        isLocal={p.isLocal}
-        isMuted={p.audioMuted}
-        isVideoOff={p.videoMuted}
-        isScreenSharing={p.isScreenSharing}
-        canvasRef={p.isLocal && isCameraFilterActive ? canvasRef : undefined}
-        canManage={canManageCall}
-        peerId={p.id}
-        onMute={onMuteParticipant}
-        onKick={onKickParticipant}
-        onDisableScreen={onDisableScreen}
-        t={t}
-      />
-    ),
-    [canManageCall, canvasRef, isCameraFilterActive, onDisableScreen, onKickParticipant, onMuteParticipant, t]
+  const captionStyle: CaptionStyle = {
+    fontSize: captionSettings.fontSize,
+    color: captionSettings.color,
+    font: captionSettings.font,
+  };
+
+  const participantTile = (p: (typeof allParticipants)[number]) => (
+    <RoomCallParticipant
+      key={p.id}
+      stream={p.stream}
+      displayName={p.displayName}
+      isLocal={p.isLocal}
+      isMuted={p.audioMuted}
+      isVideoOff={p.videoMuted}
+      isScreenSharing={p.isScreenSharing}
+      canvasRef={p.isLocal && isCameraFilterActive ? canvasRef : undefined}
+      canManage={canManageCall}
+      peerId={p.id}
+      onMute={onMuteParticipant}
+      onKick={onKickParticipant}
+      onDisableScreen={onDisableScreen}
+      captionText={p.isLocal ? activeCaptionText : undefined}
+      captionStyle={captionStyle}
+      t={t}
+    />
   );
 
-  // Shared captions toggle button
-  const captionsToggle = (
-    <button
-      onClick={() => setCaptionsVisible((v) => !v)}
-      title={captionsVisible ? t("call.transcript.hideCaptions") : t("call.transcript.showCaptions")}
-      className={`p-1 transition-colors rounded ${
-        captionsVisible && hasCaptions
-          ? "text-accent"
-          : "text-zinc-400 hover:text-white"
-      }`}
-    >
-      {captionsVisible ? (
-        <Captions className="w-3.5 h-3.5" />
-      ) : (
-        <CaptionsOff className="w-3.5 h-3.5" />
+  // Shared captions button (opens settings panel)
+  const captionsBtn = (
+    <div className="relative">
+      <button
+        onClick={() => setCaptionPanelOpen((v) => !v)}
+        title={t("call.transcript.settings")}
+        className={`p-1 transition-colors rounded ${
+          captionSettings.enabled ? "text-accent" : "text-zinc-400 hover:text-white"
+        }`}
+      >
+        {captionSettings.enabled ? (
+          <Captions className="w-3.5 h-3.5" />
+        ) : (
+          <CaptionsOff className="w-3.5 h-3.5" />
+        )}
+      </button>
+
+      {captionPanelOpen && (
+        <CaptionSettingsPanel
+          settings={captionSettings}
+          onChange={setCaptionSettings}
+          onClose={() => setCaptionPanelOpen(false)}
+          t={t}
+        />
       )}
-    </button>
+    </div>
   );
 
-  // ── Mini mode ─────────────────────────────────────────────────────────────
+  // Video grid shared sub-component
+  const videoGrid = (compact = false) => (
+    <div className={`flex flex-1 overflow-hidden ${compact ? "p-2" : "p-3"} min-h-0`}>
+      <div className={`flex flex-1 overflow-hidden ${showSidebar ? "gap-0" : ""}`}>
+        <div className="flex-1 overflow-hidden">
+          {hasScreenShare ? (
+            <div className="flex gap-2 h-full">
+              <div className="flex-1 bg-black rounded-xl overflow-hidden">
+                {isScreenSharing && screenStream ? (
+                  <video autoPlay playsInline muted ref={(v) => { if (v) v.srcObject = screenStream; }} className="w-full h-full object-contain" />
+                ) : sharingPeer?.stream ? (
+                  <video autoPlay playsInline ref={(v) => { if (v) v.srcObject = sharingPeer.stream!; }} className="w-full h-full object-contain" />
+                ) : null}
+              </div>
+              <div className="flex flex-col gap-1.5 w-24 overflow-y-auto">
+                {allParticipants.map(participantTile)}
+              </div>
+            </div>
+          ) : (
+            <div
+              className="grid gap-1.5 h-full"
+              style={{
+                gridTemplateColumns:
+                  allParticipants.length === 1
+                    ? "1fr"
+                    : allParticipants.length <= 4
+                    ? "1fr 1fr"
+                    : "1fr 1fr 1fr",
+              }}
+            >
+              {allParticipants.map(participantTile)}
+            </div>
+          )}
+        </div>
+
+        {/* Sidebar transcript — doesn't push the grid, floats over on mobile */}
+        {showSidebar && (
+          <SidebarTranscript
+            liveCaption={liveCaption}
+            transcriptSegments={transcriptSegments}
+            captionStyle={captionSettings}
+            t={t}
+          />
+        )}
+      </div>
+    </div>
+  );
+
+  // ── Mini mode ────────────────────────────────────────────────────────────────
   if (viewMode === "mini") {
     return (
-      <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-48 overflow-hidden">
+      <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-52 overflow-hidden">
         <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
           <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
-          <div className="flex gap-1">
-            {captionsToggle}
-            <button
-              onClick={() => setViewMode("panel")}
-              className="p-0.5 text-zinc-400 hover:text-white"
-              title="Expand"
-            >
+          <div className="flex gap-0.5">
+            {captionsBtn}
+            <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-white" title="Expand">
               <Maximize2 className="w-3 h-3" />
             </button>
-            <button
-              onClick={() => setViewMode("fullscreen")}
-              className="p-0.5 text-zinc-400 hover:text-white"
-              title="Fullscreen"
-            >
+            <button onClick={() => setViewMode("fullscreen")} className="p-0.5 text-zinc-400 hover:text-white" title="Fullscreen">
               <Expand className="w-3 h-3" />
             </button>
           </div>
@@ -229,29 +507,21 @@ export function RoomVideoCall({
             isMuted={isAudioMuted}
             isVideoOff={isVideoMuted}
             canvasRef={isCameraFilterActive ? canvasRef : undefined}
+            captionText={activeCaptionText}
+            captionStyle={captionStyle}
             t={t}
           />
         </div>
-        {captionsVisible && hasCaptions && (
-          <div className="px-1.5 pb-1.5">
-            <LiveTranscriptPanel
-              liveCaption={liveCaption}
-              transcriptSegments={transcriptSegments}
-              t={t}
-            />
-          </div>
-        )}
         <div className="flex justify-center py-1.5">{callControls}</div>
         <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
       </div>
     );
   }
 
-  // ── Fullscreen mode ────────────────────────────────────────────────────────
+  // ── Fullscreen mode ──────────────────────────────────────────────────────────
   if (viewMode === "fullscreen") {
     return (
       <div className="fixed inset-0 z-[500] bg-zinc-950 flex flex-col overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-4 py-2 border-b border-zinc-800 shrink-0">
           <div className="flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -260,77 +530,40 @@ export function RoomVideoCall({
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {captionsToggle}
-            <button
-              onClick={() => setViewMode("panel")}
-              className="p-1.5 text-zinc-400 hover:text-white transition-colors"
-              title="Exit fullscreen"
-            >
+            {captionsBtn}
+            <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-white" title="Exit fullscreen">
               <Shrink className="w-4 h-4" />
             </button>
-            <button
-              onClick={() => setViewMode("mini")}
-              className="p-1.5 text-zinc-400 hover:text-white transition-colors"
-              title="Minimize"
-            >
+            <button onClick={() => setViewMode("mini")} className="p-1.5 text-zinc-400 hover:text-white" title="Minimize">
               <Minimize2 className="w-4 h-4" />
             </button>
           </div>
         </div>
 
-        {/* Video area */}
-        <div className="flex-1 overflow-hidden p-3">
-          {hasScreenShare ? (
-            <div className="flex gap-3 h-full">
-              <div className="flex-1 bg-black rounded-xl overflow-hidden">
-                {isScreenSharing && screenStream ? (
-                  <video autoPlay playsInline muted ref={(v) => { if (v) v.srcObject = screenStream; }} className="w-full h-full object-contain" />
-                ) : sharingPeer?.stream ? (
-                  <video autoPlay playsInline ref={(v) => { if (v) v.srcObject = sharingPeer.stream!; }} className="w-full h-full object-contain" />
-                ) : null}
-              </div>
-              <div className="flex flex-col gap-2 w-36 overflow-y-auto">
-                {allParticipants.map(participantTile)}
-              </div>
-            </div>
-          ) : (
-            <div
-              className="grid gap-2 h-full"
-              style={{
-                gridTemplateColumns: allParticipants.length === 1 ? "1fr" : allParticipants.length <= 4 ? "repeat(2, 1fr)" : "repeat(3, 1fr)",
-                gridAutoRows: "1fr",
-              }}
-            >
-              {allParticipants.map(participantTile)}
-            </div>
-          )}
-        </div>
+        {videoGrid(false)}
 
-        {/* Live transcript — above controls */}
-        {captionsVisible && hasCaptions && (
-          <div className="px-6 pb-2 shrink-0">
-            <LiveTranscriptPanel
-              liveCaption={liveCaption}
-              transcriptSegments={transcriptSegments}
-              t={t}
-            />
-          </div>
+        {/* Admin bar */}
+        {canManageCall && peers.length > 0 && (
+          <AdminBar
+            peers={peers}
+            onMute={onMuteParticipant}
+            onKick={onKickParticipant}
+            onDisableScreen={onDisableScreen}
+            t={t}
+          />
         )}
 
-        {/* Controls */}
         <div className="flex justify-center py-3 border-t border-zinc-800 shrink-0">
           {callControls}
         </div>
-
         <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
       </div>
     );
   }
 
-  // ── Panel mode (default) ───────────────────────────────────────────────────
+  // ── Panel mode (default) ─────────────────────────────────────────────────────
   return (
-    <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[480px] max-h-[520px] flex flex-col overflow-hidden backdrop-blur-sm">
-      {/* Header */}
+    <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[520px] max-h-[520px] flex flex-col overflow-hidden backdrop-blur-sm">
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700/60 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -339,68 +572,32 @@ export function RoomVideoCall({
           </span>
         </div>
         <div className="flex items-center gap-1">
-          {captionsToggle}
-          <button
-            onClick={() => setViewMode("fullscreen")}
-            className="p-1 text-zinc-400 hover:text-white transition-colors"
-            title="Fullscreen"
-          >
+          {captionsBtn}
+          <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-white" title="Fullscreen">
             <Expand className="w-3.5 h-3.5" />
           </button>
-          <button
-            onClick={() => setViewMode("mini")}
-            className="p-1 text-zinc-400 hover:text-white transition-colors"
-            title="Minimize"
-          >
+          <button onClick={() => setViewMode("mini")} className="p-1 text-zinc-400 hover:text-white" title="Minimize">
             <Minimize2 className="w-3.5 h-3.5" />
           </button>
         </div>
       </div>
 
-      {/* Video area */}
-      <div className="flex-1 overflow-hidden p-2 min-h-0">
-        {hasScreenShare ? (
-          <div className="flex gap-2 h-full">
-            <div className="flex-1 bg-black rounded-xl overflow-hidden">
-              {isScreenSharing && screenStream ? (
-                <video autoPlay playsInline muted ref={(v) => { if (v) v.srcObject = screenStream; }} className="w-full h-full object-contain" />
-              ) : sharingPeer?.stream ? (
-                <video autoPlay playsInline ref={(v) => { if (v) v.srcObject = sharingPeer.stream!; }} className="w-full h-full object-contain" />
-              ) : null}
-            </div>
-            <div className="flex flex-col gap-1.5 w-24 overflow-y-auto">
-              {allParticipants.map(participantTile)}
-            </div>
-          </div>
-        ) : (
-          <div
-            className="grid gap-1.5 h-full"
-            style={{
-              gridTemplateColumns: allParticipants.length === 1 ? "1fr" : allParticipants.length <= 4 ? "1fr 1fr" : "1fr 1fr 1fr",
-            }}
-          >
-            {allParticipants.map(participantTile)}
-          </div>
-        )}
-      </div>
+      {videoGrid(true)}
 
-      {/* Live captions */}
-      {captionsVisible && hasCaptions && (
-        <div className="px-2 pb-1 shrink-0">
-          <LiveTranscriptPanel
-            liveCaption={liveCaption}
-            transcriptSegments={transcriptSegments}
-            t={t}
-          />
-        </div>
+      {/* Admin bar */}
+      {canManageCall && peers.length > 0 && (
+        <AdminBar
+          peers={peers}
+          onMute={onMuteParticipant}
+          onKick={onKickParticipant}
+          onDisableScreen={onDisableScreen}
+          t={t}
+        />
       )}
 
-      {/* Controls */}
       <div className="flex justify-center py-2 px-3 border-t border-zinc-700/60 shrink-0">
         {callControls}
       </div>
-
-      {/* Hidden video for canvas filter source — MUST be always mounted */}
       <video ref={localVideoRef} autoPlay muted playsInline className="hidden" />
     </div>
   );
