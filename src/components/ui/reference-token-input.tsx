@@ -15,7 +15,7 @@ type PickerCard = { id: string; title: string };
 
 type MentionPart = {
   type: "mention";
-  mentionType: "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread";
+  mentionType: "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
   id: string;
   name: string;
 };

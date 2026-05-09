@@ -52,10 +52,10 @@ function TranscriptDocument({ transcript, call }: { transcript: CallTranscript; 
 
   return (
     <div className="space-y-0.5">
-      {transcript.segments.map((seg, i) => {
+      {(transcript?.segments || []).map((seg, i) => {
         const color = getUserColor(seg.userId, colorMap.current);
         const showHeader =
-          i === 0 || transcript.segments[i - 1].userId !== seg.userId;
+          i === 0 || transcript.segments[i - 1]?.userId !== seg.userId;
         return (
           <div key={i} className={showHeader ? "mt-4" : ""}>
             {showHeader && (
@@ -97,15 +97,14 @@ function CallListSidebar({
         </div>
       )}
       <div className="py-1">
-        {calls.map((call) => (
+        {(calls || []).map((call) => (
           <button
             key={call.id}
             onClick={() => onSelect(call)}
-            className={`w-full text-left px-4 py-3 transition-colors flex items-start gap-2 group ${
-              selectedCallId === call.id
+            className={`w-full text-left px-4 py-3 transition-colors flex items-start gap-2 group ${selectedCallId === call.id
                 ? "bg-accent/10 border-l-2 border-accent"
                 : "hover:bg-zinc-800/50 border-l-2 border-transparent"
-            }`}
+              }`}
           >
             <Clock className="w-3.5 h-3.5 shrink-0 mt-0.5 text-zinc-500" />
             <div className="min-w-0 flex-1">
@@ -113,13 +112,12 @@ function CallListSidebar({
                 {formatDate(call.startedAt)}
               </p>
               <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${
-                  call.transcriptStatus === "complete"
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${call.transcriptStatus === "complete"
                     ? "bg-emerald-500/20 text-emerald-400"
                     : call.transcriptStatus === "partial"
-                    ? "bg-amber-500/20 text-amber-400"
-                    : "bg-zinc-700 text-zinc-500"
-                }`}>
+                      ? "bg-amber-500/20 text-amber-400"
+                      : "bg-zinc-700 text-zinc-500"
+                  }`}>
                   {t(`transcripts.status_${call.transcriptStatus}`)}
                 </span>
               </div>
@@ -140,9 +138,9 @@ export default function RoomTranscriptsPage() {
   const router = useRouter();
   const { accessToken, user } = useSession();
   const t = useTranslations("rooms");
-  const teamId = (user as any)?.activeTeamId ?? "";
 
   const [room, setRoom] = useState<Room | null>(null);
+  const teamId = room?.teamId || (user as any)?.activeTeamId || "";
   const [canAccess, setCanAccess] = useState<boolean | null>(null);
 
   const { calls, isLoading: callsLoading, getTranscript } = useRoomCallHistory(
@@ -195,10 +193,10 @@ export default function RoomTranscriptsPage() {
 
   const handleCopyAll = useCallback(() => {
     if (!transcript) return;
-    const text = transcript.segments
+    const text = (transcript?.segments || [])
       .map((s) => `[${msToTimestamp(s.startMs)}] ${s.displayName}: ${s.text}`)
       .join("\n");
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch(() => { });
     setCopiedAll(true);
     setTimeout(() => setCopiedAll(false), 1500);
   }, [transcript]);
@@ -317,11 +315,10 @@ export default function RoomTranscriptsPage() {
             <button
               onClick={() => setShowCopilot((v) => !v)}
               title={t("header.copilot")}
-              className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
-                showCopilot
+              className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${showCopilot
                   ? "bg-violet-600/20 text-violet-400 border border-violet-500/40"
                   : "border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
-              }`}
+                }`}
             >
               <Bot className="w-4 h-4" />
             </button>
@@ -359,11 +356,11 @@ export default function RoomTranscriptsPage() {
                   <div className="flex items-center gap-4 mt-3">
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                       <User className="w-3 h-3" />
-                      {[...new Set(transcript.segments.map((s) => s.displayName))].join(", ")}
+                      {[...new Set((transcript?.segments || []).map((s) => s.displayName))].join(", ")}
                     </div>
                     <div className="flex items-center gap-1.5 text-xs text-zinc-500">
                       <Clock className="w-3 h-3" />
-                      {transcript.segments.length} {t("transcripts.segments")}
+                      {(transcript?.segments || []).length} {t("transcripts.segments")}
                     </div>
                   </div>
                 </div>

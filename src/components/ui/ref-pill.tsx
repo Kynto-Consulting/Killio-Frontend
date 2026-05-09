@@ -15,7 +15,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript';
   id: string;
   name: string;
   label?: string;
@@ -156,6 +156,18 @@ export function RefPill({
         console.error("Failed to navigate to card", e);
       }
     }
+    if (type === 'transcript') {
+      const parts = id.split(':');
+      if (parts.length >= 2) {
+        const roomId = parts[0];
+        const callId = parts[1];
+        router.push(`/rooms/${roomId}/transcripts?callId=${callId}`);
+      } else {
+        // Fallback if id is just roomId
+        router.push(`/rooms/${id}/transcripts`);
+      }
+      return;
+    }
     if (type === 'deep') {
         const tokens = id.split(':').map((token) => token.trim()).filter(Boolean);
         if (tokens.length >= 4) {
@@ -263,6 +275,7 @@ export function RefPill({
     mention: "bg-accent/10 border-accent/20 text-accent hover:bg-accent/20",
     room: "bg-teal-500/10 border-teal-500/20 text-teal-600 hover:bg-teal-500/20",
     thread: "bg-cyan-500/10 border-cyan-500/20 text-cyan-600 hover:bg-cyan-500/20",
+    transcript: "bg-violet-500/10 border-violet-500/20 text-violet-600 hover:bg-violet-500/20",
   };
 
   const Icons: Record<string, any> = {
@@ -275,6 +288,7 @@ export function RefPill({
     mention: Hash,
     room: MessageSquare,
     thread: GitBranch,
+    transcript: MessageSquare,
   };
 
   const Icon = Icons[type] || Database;
