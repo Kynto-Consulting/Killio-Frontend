@@ -69,12 +69,13 @@ export function useRoomChat(
       const payload = msg.data as RoomMessage;
       setMessages((prev) => {
         // Replace any temp message with same content+userId within 10s
+        // Also match AI messages with their bot- placeholders
         const tempIdx = prev.findIndex(
           (m) =>
-            m.id.startsWith("temp-") &&
-            m.userId === payload.userId &&
+            (m.id.startsWith("temp-") || m.id.startsWith("bot-")) &&
+            (m.userId === payload.userId || (m.type === "ai" && payload.type === "ai")) &&
             m.content === payload.content &&
-            Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 10_000
+            Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 15_000
         );
         if (tempIdx !== -1) {
           const updated = [...prev];

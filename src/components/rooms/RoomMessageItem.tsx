@@ -84,8 +84,9 @@ export function RoomMessageItem({
 
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
-  const displayName = message.user?.displayName ?? "Unknown";
-  const userId = message.userId ?? "";
+  const isAi = message.type === "ai";
+  const displayName = isAi ? "AI Copilot" : (message.user?.displayName ?? "Unknown");
+  const userId = message.userId ?? (isAi ? "000" : "");
   const canOpenDm = teamId && userId && userId !== currentUserId;
 
   const handleAvatarClick = (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -118,7 +119,7 @@ export function RoomMessageItem({
               className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50 hover:ring-2 hover:ring-accent/40 transition-all cursor-pointer"
             >
               <img
-                src={getUserAvatarUrl(avatarUrl, email, 28)}
+                src={isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : getUserAvatarUrl(avatarUrl, email, 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
@@ -126,7 +127,7 @@ export function RoomMessageItem({
           ) : (
             <div className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50">
               <img
-                src={getUserAvatarUrl(avatarUrl, email, 28)}
+                src={isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : getUserAvatarUrl(avatarUrl, email, 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
@@ -142,7 +143,7 @@ export function RoomMessageItem({
               <span className="text-[10px] font-semibold text-muted-foreground">
                 {displayName}
               </span>
-              {userId === "000" && (
+              {isAi && (
                 <span className="bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[8px] font-bold px-1 rounded flex items-center gap-0.5 uppercase tracking-tighter">
                   <Bot className="w-2 h-2" />
                   Bot
