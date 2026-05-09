@@ -32,10 +32,11 @@ interface RoomMessageItemProps {
 }
 
 function MessageStatusIcon({ status }: { status?: MessageStatus }) {
-  if (!status || status === "sent") return <Check className="w-2.5 h-2.5 text-muted-foreground/50" />;
+  if (!status || status === "sent" || status === "delivered") {
+    return <CheckCheck className="w-2.5 h-2.5 text-muted-foreground/50" />;
+  }
   if (status === "sending") return <Loader2 className="w-2.5 h-2.5 text-muted-foreground/40 animate-spin" />;
   if (status === "failed") return <AlertCircle className="w-2.5 h-2.5 text-destructive" />;
-  if (status === "delivered") return <CheckCheck className="w-2.5 h-2.5 text-muted-foreground/50" />;
   if (status === "read") return <CheckCheck className="w-2.5 h-2.5 text-accent" />;
   return null;
 }
