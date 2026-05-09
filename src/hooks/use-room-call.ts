@@ -74,6 +74,8 @@ export function useRoomCall(
   const [activeFilter, setActiveFilter] = useState<VideoFilter>("none");
   const [isRecording, setIsRecording] = useState(false);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
+  const [liveCaption, setLiveCaption] = useState("");
+  const [transcriptSegments, setTranscriptSegments] = useState<{ text: string; ts: number }[]>([]);
 
   const myPeerId = user?.id || "";
   const myDisplayName = user?.displayName || user?.username || user?.email || "Unknown";
@@ -427,24 +429,34 @@ export function useRoomCall(
     if (!SR) return;
     const r = new SR();
     r.continuous = true;
-    r.interimResults = false;
+    r.interimResults = true;
     r.lang = navigator.language;
     const t0 = callStartTimeRef.current ?? Date.now();
 
     r.onresult = (event: any) => {
+      let interim = "";
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i];
         if (result.isFinal) {
+          const text = result[0].transcript.trim();
           localSegments.current.push({
             userId: myPeerId,
             displayName: myDisplayName,
-            text: result[0].transcript.trim(),
+            text,
             startMs: Math.max(0, (event.timeStamp ?? Date.now()) - t0 - 3000),
             endMs: Date.now() - t0,
             confidence: result[0].confidence ?? 1,
           });
+          setTranscriptSegments((prev) => [
+            ...prev,
+            { text, ts: Date.now() },
+          ]);
+          setLiveCaption("");
+        } else {
+          interim += result[0].transcript;
         }
       }
+      if (interim) setLiveCaption(interim);
     };
 
     r.onerror = () => { /* silently ignore */ };
@@ -754,6 +766,8 @@ export function useRoomCall(
     activeFilter,
     isRecording,
     recordingElapsed,
+    liveCaption,
+    transcriptSegments,
     canParticipate: peers.length < MAX_PARTICIPANTS,
     joinCall,
     leaveCall,

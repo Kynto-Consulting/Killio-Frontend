@@ -89,7 +89,11 @@
       "unavailable": "No transcript available",
       "view": "View transcript",
       "download": "Download",
-      "timeline": "Call transcript"
+      "timeline": "Call transcript",
+      "live": "Live captions",
+      "waiting": "Start speaking to see captions...",
+      "showCaptions": "Show captions",
+      "hideCaptions": "Hide captions"
     },
     "admin": {
       "mute": "Mute participant",

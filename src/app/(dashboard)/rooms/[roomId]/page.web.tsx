@@ -238,6 +238,8 @@ export default function RoomDetailWeb() {
           onMuteParticipant={callHook.muteParticipant}
           onKickParticipant={callHook.kickParticipant}
           onDisableScreen={callHook.disableParticipantScreen}
+          liveCaption={callHook.liveCaption}
+          transcriptSegments={callHook.transcriptSegments}
           callControls={
             <RoomCallControls
               isAudioMuted={callHook.isAudioMuted}

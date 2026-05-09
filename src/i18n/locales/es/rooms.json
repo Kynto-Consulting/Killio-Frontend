@@ -89,7 +89,11 @@
       "unavailable": "Sin transcripción disponible",
       "view": "Ver transcripción",
       "download": "Descargar",
-      "timeline": "Transcripción de llamada"
+      "timeline": "Transcripción de llamada",
+      "live": "Subtítulos en vivo",
+      "waiting": "Comienza a hablar para ver los subtítulos...",
+      "showCaptions": "Mostrar subtítulos",
+      "hideCaptions": "Ocultar subtítulos"
     },
     "admin": {
       "mute": "Silenciar participante",
