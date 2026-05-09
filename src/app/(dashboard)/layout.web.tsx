@@ -17,9 +17,11 @@ import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { useRouter } from "next/navigation";
 
 export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();
   const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
@@ -29,19 +31,25 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
   const navigation = [
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
-    { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
-    { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
-    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
     { name: tDashboard("nav.teams"), href: "/teams", icon: Users },
-    { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
+    { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 },
+    { name: tDashboard("nav.marketplace"), href: "/marketplace", icon: Sparkles },
+    { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap },
+    { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
+    { name: tDashboard("nav.meshs"), href: "/m", icon: GitBranch },
+    { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
     { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
+    { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
-  const navigationItems = canAccessScripts
-    ? [...navigation, { name: tDashboard("nav.statistics"), href: "/metrics", icon: BarChart3 }, { name: tDashboard("nav.scripts"), href: "/integrations", icon: Zap }]
-    : navigation;
+
+  // Filter navigationItems based on permissions (though order is now fixed)
+  const navigationItems = navigation.filter(item => {
+    if (item.href === "/metrics" || item.href === "/integrations") return canAccessScripts;
+    return true;
+  });
   const [teams, setTeams] = useState<TeamView[]>([]);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isFetchingBoards, setIsFetchingBoards] = useState(false);
@@ -58,6 +66,39 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
+  const [dismissedBanners, setDismissedBanners] = useState<string[]>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem("killio_dismissed_banners");
+      return saved ? JSON.parse(saved) : [];
+    }
+    return [];
+  });
+
+  const dismissBanner = (id: string) => {
+    const next = [...dismissedBanners, id];
+    setDismissedBanners(next);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("killio_dismissed_banners", JSON.stringify(next));
+    }
+  };
+
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("killio_sidebar_collapsed") === "true";
+    }
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("killio_sidebar_collapsed", String(isSidebarCollapsed));
+    }
+  }, [isSidebarCollapsed]);
+
+
+  const activeTeam = teams.find(t => t.id === activeTeamId);
+  const currentPlan = activeTeam?.planTier || 'free';
+  const showUpgradeBanner = currentPlan === 'free' && !dismissedBanners.includes('upgrade_to_pro') && !isSidebarCollapsed;
 
   useEffect(() => {
     if (isPathActive("/b")) {
@@ -169,6 +210,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     items,
     isLoading,
     emptyLabel,
+    isCollapsed,
   }: {
     key: string;
     href?: string;
@@ -180,6 +222,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     items: { id: string; label: string; href: string }[];
     isLoading: boolean;
     emptyLabel: string;
+    isCollapsed: boolean;
   }) => {
     const itemClassName = isActive
       ? "bg-accent/10 text-foreground"
@@ -187,35 +230,43 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
     return (
       <div key={key} className="flex flex-col">
-        <div className={`group flex items-center rounded-md transition-colors ${itemClassName} pl-3`}>
+        <div className={`group flex items-center rounded-md transition-colors ${itemClassName} ${isCollapsed ? "justify-center px-0" : "pl-3"}`}>
 
           {href ? (
-            <Link href={href} className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-sm font-medium">
+            <Link
+              href={href}
+              title={isCollapsed ? name : undefined}
+              className={`flex min-w-0 items-center space-x-3 py-2 text-sm font-medium ${isCollapsed ? "justify-center w-full px-0" : "flex-1 pr-3"}`}
+            >
               <Icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
-              <span className="truncate">{name}</span>
+              {!isCollapsed && <span className="truncate">{name}</span>}
             </Link>
           ) : (
             <button
               type="button"
               onClick={onToggle}
-              className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-left text-sm font-medium"
+              title={isCollapsed ? name : undefined}
+              className={`flex min-w-0 items-center space-x-3 py-2 text-left text-sm font-medium ${isCollapsed ? "justify-center w-full px-0" : "flex-1 pr-3"}`}
             >
               <Icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
-              <span className="truncate">{name}</span>
+              {!isCollapsed && <span className="truncate">{name}</span>}
             </button>
           )}
-                    <button
-            type="button"
-            onClick={onToggle}
-            aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
-            className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
-          </button>
+
+          {!isCollapsed && (
+            <button
+              type="button"
+              onClick={onToggle}
+              aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
+              className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
+            </button>
+          )}
 
         </div>
 
-        {isOpen && (
+        {isOpen && !isCollapsed && (
           <div className="ml-5 mt-1 border-l border-border/70 pl-4">
             <div className="space-y-1 py-1">
               {isLoading ? (
@@ -272,13 +323,32 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
         onClose={() => setIsSwitchAccountModalOpen(false)}
       />
       {/* Sidebar */}
-      <aside className="hidden w-64 flex-col border-r border-border bg-card/30 backdrop-blur-sm md:flex">
-        <div className="flex h-14 items-center border-b border-border px-4">
+      <aside className={`hidden flex-col border-r border-border bg-card/30 backdrop-blur-sm md:flex transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "w-16" : "w-64"}`}>
+        <div className={`flex h-14 items-center border-b border-border px-4 ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
           <Link href="/" className="flex items-center space-x-2 transition-opacity hover:opacity-80">
             <img src="/killio_white.webp" alt="Killio" className="h-6 w-auto" />
-            <span className="font-semibold tracking-tight text-lg">Killio</span>
+            {!isSidebarCollapsed && <span className="font-semibold tracking-tight text-lg">Killio</span>}
           </Link>
+          {!isSidebarCollapsed && (
+            <button
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="p-1 rounded-md hover:bg-accent/10 text-muted-foreground transition-colors"
+            >
+              <ChevronRight className="h-4 w-4 rotate-180" />
+            </button>
+          )}
         </div>
+
+        {isSidebarCollapsed && (
+          <div className="flex justify-center py-2 border-b border-border/50">
+            <button
+              onClick={() => setIsSidebarCollapsed(false)}
+              className="p-2 rounded-md hover:bg-accent/10 text-muted-foreground transition-colors"
+            >
+              <ChevronRight className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
@@ -289,35 +359,35 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
               const isNestedMenu = isScriptsMenu || isMarketplaceMenu;
 
               if (item.href === "/b") {
-                return (
-                  <div key={item.name} className="space-y-1">
-                    {renderExpandableItem({
-                      key: item.href,
-                      href: item.href,
-                      name: item.name,
-                      icon: item.icon,
-                      isOpen: isBoardsOpen,
-                      onToggle: () => setIsBoardsOpen((current) => !current),
-                      isActive,
-                      items: recentBoardLinks,
-                      isLoading: isFetchingBoards,
-                      emptyLabel: tDashboard("nav.noBoardsYet"),
-                    })}
+                return renderExpandableItem({
+                  key: item.href,
+                  href: item.href,
+                  name: item.name,
+                  icon: item.icon,
+                  isOpen: isBoardsOpen,
+                  onToggle: () => setIsBoardsOpen((current) => !current),
+                  isActive,
+                  items: recentBoardLinks,
+                  isLoading: isFetchingBoards,
+                  emptyLabel: tDashboard("nav.noBoardsYet"),
+                  isCollapsed: isSidebarCollapsed,
+                });
+              }
 
-                    {renderExpandableItem({
-                      key: "mesh",
-                      href: "/m",
-                      name: tDashboard("nav.meshs"),
-                      icon: GitBranch,
-                      isOpen: ismeshsOpen,
-                      onToggle: () => setIsmeshsOpen((current) => !current),
-                      isActive: isPathActive("/m"),
-                      items: recentMeshLinks,
-                      isLoading: isFetchingBoards,
-                      emptyLabel: tDashboard("nav.nomeshsYet"),
-                    })}
-                  </div>
-                );
+              if (item.href === "/m") {
+                return renderExpandableItem({
+                  key: "mesh",
+                  href: "/m",
+                  name: item.name,
+                  icon: item.icon,
+                  isOpen: ismeshsOpen,
+                  onToggle: () => setIsmeshsOpen((current) => !current),
+                  isActive,
+                  items: recentMeshLinks,
+                  isLoading: isFetchingBoards,
+                  emptyLabel: tDashboard("nav.nomeshsYet"),
+                  isCollapsed: isSidebarCollapsed,
+                });
               }
 
               if (item.href === "/d") {
@@ -332,30 +402,34 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                   items: recentDocumentLinks,
                   isLoading: isFetchingDocs,
                   emptyLabel: tDashboard("nav.noDocumentsYet"),
+                  isCollapsed: isSidebarCollapsed,
                 });
               }
 
               if (isMarketplaceMenu) {
                 return (
                   <div key={item.name} className="flex flex-col">
-                    <div className={`group flex items-center rounded-md transition-colors pl-3 ${isActive ? "bg-accent/5 text-foreground" : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"}`}>
+                    <div className={`group flex items-center rounded-md transition-colors ${isSidebarCollapsed ? "justify-center px-0" : "pl-3"} ${isActive ? "bg-accent/5 text-foreground" : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"}`}>
                       <button
                         type="button"
-                        onClick={() => setIsMarketplaceOpen((v) => !v)}
-                        className="flex min-w-0 flex-1 items-center space-x-3 py-2 pr-3 text-left text-sm font-medium"
+                        onClick={() => isSidebarCollapsed ? router.push(item.href) : setIsMarketplaceOpen((v) => !v)}
+                        title={isSidebarCollapsed ? item.name : undefined}
+                        className={`flex min-w-0 items-center space-x-3 py-2 text-left text-sm font-medium ${isSidebarCollapsed ? "justify-center w-full px-0" : "flex-1 pr-3"}`}
                       >
                         <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
-                        <span className="truncate">{item.name}</span>
+                        {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setIsMarketplaceOpen((v) => !v)}
-                        className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
-                      >
-                        <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isMarketplaceOpen ? "rotate-90" : ""}`} />
-                      </button>
+                      {!isSidebarCollapsed && (
+                        <button
+                          type="button"
+                          onClick={() => setIsMarketplaceOpen((v) => !v)}
+                          className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isMarketplaceOpen ? "rotate-90" : ""}`} />
+                        </button>
+                      )}
                     </div>
-                    {isMarketplaceOpen && (
+                    {isMarketplaceOpen && !isSidebarCollapsed && (
                       <div className="ml-5 mt-1 border-l border-border/70 pl-3">
                         <div className="space-y-1 py-1">
                           <Link
@@ -381,16 +455,16 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                 <div key={item.name} className="flex flex-col">
                   <Link
                     href={item.href}
-                    className={`flex items-center space-x-3 rounded-md px-3 py-2 text-sm font-medium transition-colors ${
-                      isActive && !isNestedMenu
-                        ? "bg-accent/20 text-accent font-semibold"
-                        : isActive && isNestedMenu
+                    title={isSidebarCollapsed ? item.name : undefined}
+                    className={`flex items-center space-x-3 rounded-md py-2 text-sm font-medium transition-colors ${isSidebarCollapsed ? "justify-center px-0" : "px-3"} ${isActive && !isNestedMenu
+                      ? "bg-accent/20 text-accent font-semibold"
+                      : isActive && isNestedMenu
                         ? "bg-accent/5 text-foreground font-semibold"
                         : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-                    }`}
+                      }`}
                   >
                     <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
-                    <span>{item.name}</span>
+                    {!isSidebarCollapsed && <span>{item.name}</span>}
                   </Link>
 
                   {/* Render slot for integrations sub-tabs */}
@@ -407,26 +481,54 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
         </div>
 
         <div className="border-t border-border p-4 relative">
+          {showUpgradeBanner && (
+            <div className="mb-4 relative overflow-hidden rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 p-3 shadow-lg animate-in fade-in slide-in-from-bottom-4 group/banner">
+              <button
+                onClick={() => dismissBanner('upgrade_to_pro')}
+                className="absolute top-2 right-2 p-1 rounded-full hover:bg-white/10 text-white/60 hover:text-white transition-colors"
+              >
+                <Plus className="h-3 w-3 rotate-45" />
+              </button>
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center gap-2 text-white font-bold text-xs uppercase tracking-wider">
+                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  PRO
+                </div>
+                <p className="text-[11px] text-white/90 leading-snug">
+                  Unlock AI automation, premium rooms & custom meshs.
+                </p>
+                <button
+                  onClick={() => router.push("/pricing")}
+                  className="mt-1 w-full bg-white text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm"
+                >
+                  Upgrade Now
+                </button>
+              </div>
+            </div>
+          )}
+
           <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-            className="flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent"
+            className={`flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent ${isSidebarCollapsed ? "justify-center" : ""}`}
           >
             <div className="flex items-center space-x-2 overflow-hidden">
               <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
-                <img 
-                  src={getUserAvatarUrl(undefined, user?.email, 32)} 
-                  alt={ user?.username || user?.displayName || tCommon("account.fallbackUser")} 
+                <img
+                  src={getUserAvatarUrl(undefined, user?.email, 32)}
+                  alt={user?.username || user?.displayName || tCommon("account.fallbackUser")}
                   className="h-full w-full object-cover"
                 />
               </div>
-              <div className="flex flex-col items-start overflow-hidden">
-                <span className="text-sm font-medium w-full text-left truncate">{user?.username ||user?.displayName ||  "Loading..."}</span>
-                <span className="text-xs text-muted-foreground w-full text-left truncate">
-                  {user?.email || tCommon("account.fallbackAccount")}
-                </span>
-              </div>
+              {!isSidebarCollapsed && (
+                <div className="flex flex-col items-start overflow-hidden">
+                  <span className="text-sm font-medium w-full text-left truncate">{user?.username || user?.displayName || "Loading..."}</span>
+                  <span className="text-xs text-muted-foreground w-full text-left truncate capitalize">
+                    {currentPlan} {tDashboard("accountMenu.plan")}
+                  </span>
+                </div>
+              )}
             </div>
-            <ChevronsUpDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0 ml-2" />
+            {!isSidebarCollapsed && <ChevronsUpDown className="h-4 w-4 text-muted-foreground group-hover:text-foreground shrink-0 ml-2" />}
           </button>
 
           {isSettingsOpen && (

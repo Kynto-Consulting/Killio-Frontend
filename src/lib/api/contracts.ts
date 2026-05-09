@@ -23,6 +23,7 @@ export type TeamView = {
   description: string | null;
   icon?: string | null;
   isPersonal?: boolean;
+  planTier?: 'free' | 'pro' | 'enterprise';
 };
 
 export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';

@@ -122,7 +122,7 @@ export function RoomCallParticipant({
       }
     >
       {/* Video / Canvas */}
-      {isLocal && canvasRef ? (
+      {!isVideoOff && isLocal && canvasRef ? (
         <>
           <canvas ref={canvasRef} className="absolute inset-0 w-full h-full object-cover" />
           <video ref={videoRef} autoPlay muted playsInline className="hidden" />

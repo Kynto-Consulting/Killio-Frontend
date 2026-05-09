@@ -138,6 +138,7 @@
   },
   "accountMenu": {
     "account": "Account",
+    "plan": "Plan",
     "profileSettings": "Profile Settings",
     "appPreferences": "App Preferences",
     "switchAccount": "Switch Account",

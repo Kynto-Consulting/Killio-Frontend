@@ -138,6 +138,7 @@
   },
   "accountMenu": {
     "account": "Cuenta",
+    "plan": "Plan",
     "profileSettings": "Configuracion de perfil",
     "appPreferences": "Preferencias de la app",
     "switchAccount": "Cambiar cuenta",
