@@ -45,10 +45,10 @@ function CaptionSettingsPanel({
   t: (k: string) => string;
 }) {
   const COLORS = [
-    { label: "White",  value: "#ffffff" },
+    { label: "White", value: "#ffffff" },
     { label: "Yellow", value: "#facc15" },
-    { label: "Cyan",   value: "#22d3ee" },
-    { label: "Green",  value: "#4ade80" },
+    { label: "Cyan", value: "#22d3ee" },
+    { label: "Green", value: "#4ade80" },
     { label: "Orange", value: "#fb923c" },
   ];
 
@@ -83,11 +83,10 @@ function CaptionSettingsPanel({
                   <button
                     key={m}
                     onClick={() => onChange({ ...settings, mode: m })}
-                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${
-                      settings.mode === m
+                    className={`px-3 py-2 rounded-xl border text-xs font-medium transition-all ${settings.mode === m
                         ? "border-accent bg-accent/15 text-accent"
                         : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                    }`}
+                      }`}
                   >
                     {t(`call.transcript.mode_${m}`)}
                   </button>
@@ -103,11 +102,10 @@ function CaptionSettingsPanel({
                   <button
                     key={sz}
                     onClick={() => onChange({ ...settings, fontSize: sz })}
-                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${
-                      settings.fontSize === sz
+                    className={`flex-1 py-1.5 rounded-lg border text-xs font-medium transition-all ${settings.fontSize === sz
                         ? "border-accent bg-accent/15 text-accent"
                         : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                    }`}
+                      }`}
                   >
                     {sz.toUpperCase()}
                   </button>
@@ -124,9 +122,8 @@ function CaptionSettingsPanel({
                     key={c.value}
                     onClick={() => onChange({ ...settings, color: c.value })}
                     title={c.label}
-                    className={`w-7 h-7 rounded-full border-2 transition-all ${
-                      settings.color === c.value ? "border-white scale-110" : "border-zinc-600"
-                    }`}
+                    className={`w-7 h-7 rounded-full border-2 transition-all ${settings.color === c.value ? "border-white scale-110" : "border-zinc-600"
+                      }`}
                     style={{ backgroundColor: c.value }}
                   />
                 ))}
@@ -141,11 +138,10 @@ function CaptionSettingsPanel({
                   <button
                     key={f}
                     onClick={() => onChange({ ...settings, font: f })}
-                    className={`py-1.5 rounded-lg border text-xs transition-all ${
-                      settings.font === f
+                    className={`py-1.5 rounded-lg border text-xs transition-all ${settings.font === f
                         ? "border-accent bg-accent/15 text-accent"
                         : "border-zinc-600 text-zinc-400 hover:border-zinc-500"
-                    } ${f === "sans" ? "font-sans" : f === "serif" ? "font-serif" : "font-mono"}`}
+                      } ${f === "sans" ? "font-sans" : f === "serif" ? "font-serif" : "font-mono"}`}
                   >
                     {f.charAt(0).toUpperCase() + f.slice(1)}
                   </button>
@@ -377,7 +373,7 @@ export function RoomVideoCall({
     }
     if (video.srcObject !== localStream) {
       video.srcObject = localStream;
-      video.play().catch(() => {});
+      video.play().catch(() => { });
     }
   }, [localStream, localVideoRef]);
 
@@ -436,7 +432,7 @@ export function RoomVideoCall({
       onDisableScreen={onDisableScreen}
       captionText={p.isLocal ? activeCaptionText : undefined}
       captionStyle={captionStyle}
-      scaleMode={viewMode !== "mini" ? "contain" : "cover"}
+      scaleMode={"contain"}
       t={t}
     />
   );
@@ -447,9 +443,8 @@ export function RoomVideoCall({
       <button
         onClick={() => setCaptionPanelOpen((v) => !v)}
         title={t("call.transcript.settings")}
-        className={`p-1 transition-colors rounded ${
-          captionSettings.enabled ? "text-accent" : "text-zinc-400 hover:text-white"
-        }`}
+        className={`p-1 transition-colors rounded ${captionSettings.enabled ? "text-accent" : "text-zinc-400 hover:text-white"
+          }`}
       >
         {captionSettings.enabled ? (
           <Captions className="w-3.5 h-3.5" />
@@ -460,8 +455,8 @@ export function RoomVideoCall({
 
       {captionPanelOpen && (
         <div className={
-          viewMode === "mini" 
-            ? "absolute bottom-full mb-2 right-0 w-72 z-30" 
+          viewMode === "mini"
+            ? "absolute bottom-full mb-2 right-0 w-72 z-30"
             : "fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm"
         }>
           <div className={viewMode === "mini" ? "" : "w-full max-w-sm"}>
@@ -503,8 +498,8 @@ export function RoomVideoCall({
                   allParticipants.length === 1
                     ? "1fr"
                     : allParticipants.length <= 4
-                    ? "1fr 1fr"
-                    : "1fr 1fr 1fr",
+                      ? "1fr 1fr"
+                      : "1fr 1fr 1fr",
               }}
             >
               {allParticipants.map(participantTile)}
@@ -643,7 +638,7 @@ export function RoomVideoCall({
             or we use a cloneElement if we must. Actually, RoomCallControls already expects it. */}
         {callControls}
       </div>
-      
+
       <RoomCallSettingsModal
         isOpen={settingsModalOpen}
         onClose={() => setSettingsModalOpen(false)}
@@ -662,7 +657,7 @@ export function RoomVideoCall({
         currentVideoDeviceId={currentVideoDeviceId}
         onSwitchCamera={onSwitchCamera}
         isAudioMuted={isAudioMuted}
-        onToggleAudio={() => {}} // Handle via callControls generally, but modal can have its own
+        onToggleAudio={() => { }} // Handle via callControls generally, but modal can have its own
         localStream={localStream}
         t={t}
       />
