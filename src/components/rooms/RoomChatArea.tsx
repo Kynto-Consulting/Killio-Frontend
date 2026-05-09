@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
-import { Loader2 } from "lucide-react";
+import { useEffect, useRef, useCallback, useState } from "react";
+import { Loader2, X } from "lucide-react";
 import type { RoomMessage, RoomCall } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
@@ -38,6 +38,7 @@ interface RoomChatAreaProps {
   users?: any[];
   resolverContext?: ResolverContext;
   availableTags?: any[];
+  onOpenCopilot?: () => void;
   t: TFn;
 }
 
@@ -87,8 +88,10 @@ export function RoomChatArea({
   users,
   resolverContext,
   availableTags,
+  onOpenCopilot,
   t,
 }: RoomChatAreaProps) {
+  const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -128,6 +131,11 @@ export function RoomChatArea({
 
   const withDividers = insertDateDividers(messages);
   const typingText = formatTypingText(typingUsers, t);
+
+  const handleSend = () => {
+    onSend(); // We don't pass the replyTo here, handleSend in page.web should get it from some state or we pass it
+    setReplyTo(null);
+  };
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden min-h-0">
@@ -192,6 +200,8 @@ export function RoomChatArea({
               teamId={teamId}
               currentUserId={currentUserId}
               showReadReceipts={showReadReceipts}
+              onReply={setReplyTo}
+              onOpenCopilot={onOpenCopilot}
               t={t}
             />
           );
@@ -207,11 +217,31 @@ export function RoomChatArea({
         </div>
       )}
 
+      {/* Reply Preview */}
+      {replyTo && (
+        <div className="mx-4 mb-2 p-2 rounded-xl bg-muted/80 border border-border/50 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
+          <div className="flex-1 min-w-0">
+            <div className="text-[10px] font-bold text-accent uppercase tracking-wider mb-0.5">
+              Replying to {replyTo.user?.displayName || "User"}
+            </div>
+            <div className="text-xs text-muted-foreground truncate italic">
+              {replyTo.content}
+            </div>
+          </div>
+          <button
+            onClick={() => setReplyTo(null)}
+            className="p-1 rounded-md hover:bg-black/10 text-muted-foreground"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <RoomInput
         value={inputValue}
         onChange={onInputChange}
-        onSend={onSend}
+        onSend={handleSend}
         onTyping={onTyping}
         readOnly={!canPost}
         roomName={roomName}
@@ -219,6 +249,7 @@ export function RoomChatArea({
         boards={boards}
         users={users}
         onAiTrigger={onAiTrigger}
+        replyTo={replyTo || undefined}
         t={t}
       />
     </div>

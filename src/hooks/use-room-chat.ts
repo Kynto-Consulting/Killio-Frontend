@@ -194,7 +194,7 @@ export function useRoomChat(
   }, [roomId, accessToken, currentUser?.id]);
 
   const sendMessage = useCallback(
-    async (content: string) => {
+    async (content: string, metadata?: any) => {
       if (!roomId || !accessToken || !content.trim()) return;
       setIsSending(true);
       // Optimistic insert
@@ -205,6 +205,7 @@ export function useRoomChat(
         userId: currentUser?.id ?? "",
         content,
         type: "text",
+        metadata,
         createdAt: new Date().toISOString(),
         status: "sending",
         user: {
@@ -214,7 +215,7 @@ export function useRoomChat(
       };
       setMessages((prev) => [...prev, optimistic]);
       try {
-        const real = await sendRoomMessage(roomId, content, accessToken);
+        const real = await sendRoomMessage(roomId, content, accessToken, metadata);
         // Replace temp with real message (Ably may also deliver it, handled in onMessage)
         setMessages((prev) =>
           prev.map((m) => (m.id === tempId ? { ...real, status: "sent" } : m))

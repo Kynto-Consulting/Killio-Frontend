@@ -3,6 +3,7 @@
 import { useRef } from "react";
 import { Send, Bot } from "lucide-react";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
+import type { RoomMessage, RoomMember } from "@/lib/api/rooms";
 import type { DocumentSummary } from "@/lib/api/documents";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -19,6 +20,7 @@ interface RoomInputProps {
   boards?: any[];
   users?: any[];
   onAiTrigger?: (content: string) => void;
+  replyTo?: RoomMessage;
   t: TFn;
 }
 
@@ -36,6 +38,7 @@ export function RoomInput({
   boards,
   users,
   onAiTrigger,
+  replyTo,
   t,
 }: RoomInputProps) {
   const isAiQuery = AI_PREFIXES.some((p) => value.startsWith(p));

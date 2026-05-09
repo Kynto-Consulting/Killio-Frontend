@@ -45,6 +45,7 @@ export interface RoomMessage {
   userId: string;
   content: string;
   type: 'text' | 'ai' | 'system' | 'call_started' | 'call_ended';
+  metadata?: any;
   reactions?: Record<string, string[]>;
   callRef?: string;
   editedAt?: string;
@@ -171,21 +172,21 @@ export async function listRoomMessages(
   return res.json();
 }
 
-export async function sendRoomMessage(roomId: string, content: string, accessToken: string): Promise<RoomMessage> {
+export async function sendRoomMessage(roomId: string, content: string, accessToken: string, metadata?: any): Promise<RoomMessage> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages`, {
     method: 'POST',
     headers: authHeader(accessToken),
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, metadata }),
   });
   if (!res.ok) throw new Error('Failed to send message');
   return res.json();
 }
 
-export async function sendAiRoomMessage(roomId: string, content: string, accessToken: string): Promise<RoomMessage> {
+export async function sendAiRoomMessage(roomId: string, content: string, accessToken: string, metadata?: any): Promise<RoomMessage> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/ai-messages`, {
     method: 'POST',
     headers: authHeader(accessToken),
-    body: JSON.stringify({ content }),
+    body: JSON.stringify({ content, metadata }),
   });
   if (!res.ok) throw new Error('Failed to send AI message');
   return res.json();

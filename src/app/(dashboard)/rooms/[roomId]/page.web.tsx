@@ -11,7 +11,7 @@ import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
 import { useRoomNotifications } from "@/hooks/use-room-notifications";
 import { useCall } from "@/components/providers/call-provider";
-import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
+import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage } from "@/lib/api/rooms";
 import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { AgentChatPanel } from "@/components/agent";
@@ -152,17 +152,30 @@ export default function RoomDetailWeb() {
     );
   }, [roomId, accessToken, activeTeamId, chatHook]);
 
+  const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
+
   const handleSend = useCallback(async () => {
     if (!chatInput.trim()) return;
     const content = chatInput.trim();
     setChatInput("");
-    await chatHook.sendMessage(content);
 
-    if (content.toLowerCase().startsWith("#ai")) {
+    const metadata = replyTo ? {
+      replyTo: {
+        id: replyTo.id,
+        content: replyTo.content,
+        displayName: replyTo.user?.displayName || "User"
+      }
+    } : undefined;
+
+    const isReplyingToAi = replyTo?.type === "ai";
+    setReplyTo(null);
+    await chatHook.sendMessage(content, metadata);
+
+    if (content.toLowerCase().startsWith("#ai") || isReplyingToAi) {
       // Trigger AI after sending the user message to the room
       handleAiTrigger(content.replace(/^#ai\s*/i, ""));
     }
-  }, [chatInput, chatHook, handleAiTrigger]);
+  }, [chatInput, chatHook, handleAiTrigger, replyTo]);
 
   const handleJoinCall = useCallback(() => {
     stopRing();
@@ -243,6 +256,7 @@ export default function RoomDetailWeb() {
               onTyping={() => chatHook.setTyping(true)}
               onViewTranscript={callHistoryHook.getTranscript}
               onAiTrigger={handleAiTrigger}
+              onOpenCopilot={() => setIsAiPanelOpen(true)}
               currentUserId={user?.id ?? ""}
               teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}

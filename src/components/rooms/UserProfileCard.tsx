@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Mail, Building2, Loader2, X } from "lucide-react";
+import { MessageSquare, Mail, Building2, Loader2, X, Bot } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { findOrCreateDm } from "@/lib/api/rooms";
@@ -15,6 +15,7 @@ interface UserProfileCardProps {
   teamId: string;
   anchor: { x: number; y: number };
   onClose: () => void;
+  onOpenCopilot?: () => void;
 }
 
 export function UserProfileCard({
@@ -25,6 +26,7 @@ export function UserProfileCard({
   teamId,
   anchor,
   onClose,
+  onOpenCopilot,
 }: UserProfileCardProps) {
   const router = useRouter();
   const { accessToken } = useSession();
@@ -45,6 +47,11 @@ export function UserProfileCard({
   }, [onClose]);
 
   const openDm = async () => {
+    if (userId === "000" && onOpenCopilot) {
+      onOpenCopilot();
+      onClose();
+      return;
+    }
     if (!accessToken) return;
     setIsOpening(true);
     try {
@@ -81,7 +88,11 @@ export function UserProfileCard({
             <X className="w-3.5 h-3.5" />
           </button>
           <div className="flex items-center gap-3">
-            {avatarUrl ? (
+            {userId === "000" ? (
+              <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center ring-2 ring-background shrink-0 shadow-lg">
+                <Bot className="w-7 h-7 text-white" />
+              </div>
+            ) : avatarUrl ? (
               <img src={avatarUrl} alt={displayName} className="w-12 h-12 rounded-full object-cover ring-2 ring-background" />
             ) : (
               <div className="w-12 h-12 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold ring-2 ring-background">
@@ -97,16 +108,31 @@ export function UserProfileCard({
 
         {/* Info rows */}
         <div className="px-4 py-3 space-y-2">
-          {email && (
-            <div className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Mail className="w-3.5 h-3.5 shrink-0" />
-              <span className="truncate">{email}</span>
+          {userId === "000" ? (
+            <div className="space-y-2">
+              <div className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider opacity-50">About Bot</div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Autonomous agent designed to assist in real-time. I can analyze documents, summarize calls, and help you with your daily tasks.
+              </p>
+              <div className="flex items-center gap-2 text-[10px] text-violet-500 font-medium">
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                <span>Active in this workspace</span>
+              </div>
             </div>
+          ) : (
+            <>
+              {email && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Mail className="w-3.5 h-3.5 shrink-0" />
+                  <span className="truncate">{email}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Building2 className="w-3.5 h-3.5 shrink-0" />
+                <span>Same workspace</span>
+              </div>
+            </>
           )}
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Building2 className="w-3.5 h-3.5 shrink-0" />
-            <span>Same workspace</span>
-          </div>
         </div>
 
         {/* Actions */}
@@ -114,14 +140,19 @@ export function UserProfileCard({
           <button
             onClick={openDm}
             disabled={isOpening}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90 disabled:opacity-50 transition-colors"
+            className={`w-full flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-sm font-medium transition-all shadow-sm disabled:opacity-50 ${userId === "000"
+                ? "bg-violet-600 text-white hover:bg-violet-700 hover:shadow-violet-500/20"
+                : "bg-accent text-accent-foreground hover:bg-accent/90"
+              }`}
           >
             {isOpening ? (
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
+            ) : userId === "000" ? (
+              <Bot className="w-3.5 h-3.5" />
             ) : (
               <MessageSquare className="w-3.5 h-3.5" />
             )}
-            Send message
+            {userId === "000" ? "Ask AI Copilot" : "Send message"}
           </button>
         </div>
       </div>

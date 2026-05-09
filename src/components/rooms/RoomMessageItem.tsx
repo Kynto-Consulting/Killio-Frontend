@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, MessageSquare } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -28,6 +28,8 @@ interface RoomMessageItemProps {
   teamId?: string;
   currentUserId?: string;
   showReadReceipts?: boolean;
+  onReply?: (message: RoomMessage) => void;
+  onOpenCopilot?: () => void;
   t: TFn;
 }
 
@@ -55,6 +57,8 @@ export function RoomMessageItem({
   teamId,
   currentUserId,
   showReadReceipts,
+  onReply,
+  onOpenCopilot,
   t,
 }: RoomMessageItemProps) {
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
@@ -159,6 +163,17 @@ export function RoomMessageItem({
                 : "bg-muted/50 text-foreground border-border/50 rounded-tl-sm"
             }`}
           >
+            {/* Quoted Message (Reply) */}
+            {message.metadata?.replyTo && (
+              <div className="mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 line-clamp-2">
+                <div className="font-bold text-accent mb-0.5">
+                  {message.metadata.replyTo.displayName}
+                </div>
+                <div className="text-muted-foreground italic">
+                  {message.metadata.replyTo.content}
+                </div>
+              </div>
+            )}
             {/* Markdown + reference pills */}
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-pre:my-1 prose-code:text-xs">
               <ReactMarkdown
@@ -212,8 +227,17 @@ export function RoomMessageItem({
               )}
             </div>
 
-            {/* Smart emoji picker */}
-            <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
+            {/* Smart emoji picker + Reply */}
+            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+              <button
+                onClick={() => onReply?.(message)}
+                className="p-1 rounded-md bg-background/80 border border-border/50 hover:bg-background text-muted-foreground transition-colors"
+                title="Reply"
+              >
+                <MessageSquare className="w-3 h-3" />
+              </button>
+              <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
+            </div>
           </div>
 
           {/* Reactions */}
@@ -244,6 +268,7 @@ export function RoomMessageItem({
           teamId={teamId}
           anchor={userCard.anchor}
           onClose={() => setUserCard(null)}
+          onOpenCopilot={onOpenCopilot}
         />
       )}
     </>
