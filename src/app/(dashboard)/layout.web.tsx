@@ -676,6 +676,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
             canvasRef={canvasRef}
             localVideoRef={localVideoRef}
             localDisplayName={user?.displayName || user?.username || "You"}
+            localUserId={user?.id}
             isAudioMuted={call.isAudioMuted}
             isVideoMuted={call.isVideoMuted}
             liveCaption={call.liveCaption}

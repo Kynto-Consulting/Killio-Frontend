@@ -82,7 +82,7 @@ export function useRoomCall(
   const [isRecording, setIsRecording] = useState(false);
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [liveCaption, setLiveCaption] = useState("");
-  const [transcriptSegments, setTranscriptSegments] = useState<{ text: string; ts: number }[]>([]);
+  const [transcriptSegments, setTranscriptSegments] = useState<{ text: string; ts: number; userId?: string }[]>([]);
   const [captionSettings, setCaptionSettings] = useState({
     enabled: false,
     mode: "subtitle" as "subtitle" | "sidebar",
@@ -364,6 +364,16 @@ export function useRoomCall(
       screenStreamRef.current?.getTracks().forEach((t) => t.stop());
     };
 
+    const onTranscript = (msg: any) => {
+      const { text, userId } = msg.data;
+      if (userId === myPeerId) return; // ignore own as we set it locally
+      setTranscriptSegments((prev) => {
+        // Keep last 50 segments to avoid bloat
+        const next = [...prev, { text, ts: Date.now(), userId }];
+        return next.slice(-50);
+      });
+    };
+
     signal.subscribe("call.join", onJoin);
     signal.subscribe("call.leave", onLeave);
     signal.subscribe("call.offer", onOffer);
@@ -374,6 +384,7 @@ export function useRoomCall(
     signal.subscribe("call.force_mute", onForceMute);
     signal.subscribe("call.kick", onKick);
     signal.subscribe("call.force_screen_off", onForceScreenOff);
+    signal.subscribe("call.transcript", onTranscript);
 
     return () => {
       signal.unsubscribe("call.join", onJoin);
@@ -386,6 +397,7 @@ export function useRoomCall(
       signal.unsubscribe("call.force_mute", onForceMute);
       signal.unsubscribe("call.kick", onKick);
       signal.unsubscribe("call.force_screen_off", onForceScreenOff);
+      signal.unsubscribe("call.transcript", onTranscript);
     };
   }, [roomId, accessToken, myPeerId, sendOffer, getOrCreatePC]);
 
@@ -483,9 +495,19 @@ export function useRoomCall(
           });
           setTranscriptSegments((prev) => [
             ...prev,
-            { text, ts: Date.now() },
+            { text, ts: Date.now(), userId: myPeerId },
           ]);
           setLiveCaption("");
+          
+          // Broadcast to others
+          if (roomId && accessToken) {
+             const ably = getAblyClient(accessToken);
+             ably.channels.get(`room:${roomId}:signal`).publish("call.transcript", {
+                text,
+                userId: myPeerId,
+                displayName: myDisplayName,
+             }).catch(() => {});
+          }
         } else {
           interim += result[0].transcript;
         }

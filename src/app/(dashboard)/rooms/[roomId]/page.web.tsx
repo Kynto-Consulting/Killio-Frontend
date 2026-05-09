@@ -11,7 +11,7 @@ import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
 import { useRoomNotifications } from "@/hooks/use-room-notifications";
 import { useCall } from "@/components/providers/call-provider";
-import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
+import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
 import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { AgentChatPanel } from "@/components/agent";
@@ -99,37 +99,21 @@ export default function RoomDetailWeb() {
     listRoomMembers(roomId, accessToken).then(setRoomMembers).catch(console.error);
   }, [roomId, accessToken]);
 
-  const handleSend = useCallback(async () => {
-    if (!chatInput.trim()) return;
-    await chatHook.sendMessage(chatInput.trim());
-    setChatInput("");
-  }, [chatInput, chatHook]);
-
   const handleAiTrigger = useCallback(async (content: string) => {
     if (!roomId || !accessToken) return;
 
-    // 1. Add user's question to chat
-    const userMsgId = `u-ai-${Date.now()}`;
-    chatHook.addLocalMessage({
-      id: userMsgId,
-      roomId,
-      userId: user?.id ?? "",
-      content: `#AI ${content}`,
-      type: "text",
-      createdAt: new Date().toISOString(),
-      status: "sent",
-      user: {
-        displayName: user?.displayName ?? user?.username ?? "You",
-        email: user?.email ?? "",
-      },
-    });
-
-    // 2. Prepare context from last messages
+    // 1. Prepare context from last messages
     const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || 'User'}: ${m.content}`).join("\n");
     const fullPrompt = `Room Context:\n${lastMsgs}\n\nUser Question: ${content}`;
 
-    // 3. Add bot placeholder
+    // 2. Add bot placeholder locally
     const botMsgId = `bot-${Date.now()}`;
+    const botUser = {
+      displayName: "AI Copilot",
+      email: "ai@killio.app",
+      avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=killio-ai&backgroundColor=c084fc",
+    };
+
     chatHook.addLocalMessage({
       id: botMsgId,
       roomId,
@@ -137,15 +121,11 @@ export default function RoomDetailWeb() {
       content: "...",
       type: "ai",
       createdAt: new Date().toISOString(),
-      status: "sent",
-      user: {
-        displayName: "AI Copilot",
-        email: "ai@killio.com",
-        avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=killio-ai&backgroundColor=c084fc",
-      },
+      status: "sending",
+      user: botUser,
     });
 
-    // 4. Stream response
+    // 3. Stream response
     let accText = "";
     streamAgentChat(
       {
@@ -160,13 +140,29 @@ export default function RoomDetailWeb() {
           accText += event.text;
           chatHook.updateLocalMessage(botMsgId, { content: accText });
         } else if (event.type === "done") {
-          chatHook.updateLocalMessage(botMsgId, { content: event.text || accText });
+          const finalContent = event.text || accText;
+          chatHook.updateLocalMessage(botMsgId, { content: finalContent, status: "sent" });
+
+          // Save to DB and broadcast to others via backend
+          sendAiRoomMessage(roomId, finalContent, accessToken).catch(console.error);
         } else if (event.type === "error") {
-          chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}` });
+          chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}`, status: "failed" });
         }
       }
     );
-  }, [roomId, accessToken, user, activeTeamId, chatHook]);
+  }, [roomId, accessToken, activeTeamId, chatHook]);
+
+  const handleSend = useCallback(async () => {
+    if (!chatInput.trim()) return;
+    const content = chatInput.trim();
+    setChatInput("");
+    await chatHook.sendMessage(content);
+
+    if (content.toLowerCase().startsWith("#ai")) {
+      // Trigger AI after sending the user message to the room
+      handleAiTrigger(content.replace(/^#ai\s*/i, ""));
+    }
+  }, [chatInput, chatHook, handleAiTrigger]);
 
   const handleJoinCall = useCallback(() => {
     stopRing();

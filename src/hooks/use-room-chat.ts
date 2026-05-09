@@ -331,6 +331,16 @@ export function useRoomChat(
     []
   );
 
+  const publishMessage = useCallback(
+    async (message: RoomMessage) => {
+      if (!roomId || !accessToken) return;
+      const ably = getAblyClient(accessToken);
+      const channel = ably.channels.get(`room:${roomId}`);
+      await channel.publish("room.message", message).catch(console.error);
+    },
+    [roomId, accessToken]
+  );
+
   return {
     messages,
     isLoading,
@@ -340,6 +350,7 @@ export function useRoomChat(
     sendMessage,
     addLocalMessage,
     updateLocalMessage,
+    publishMessage,
     loadMore,
     addReaction: handleAddReaction,
     markAsRead,

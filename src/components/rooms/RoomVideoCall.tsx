@@ -158,6 +158,7 @@ interface RoomVideoCallProps {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
   localVideoRef: React.RefObject<HTMLVideoElement | null>;
   localDisplayName: string;
+  localUserId?: string;
   isAudioMuted: boolean;
   isVideoMuted: boolean;
   callControls: React.ReactNode;
@@ -166,7 +167,7 @@ interface RoomVideoCallProps {
   onKickParticipant?: (peerId: string) => void;
   onDisableScreen?: (peerId: string) => void;
   liveCaption?: string;
-  transcriptSegments?: { text: string; ts: number }[];
+  transcriptSegments?: { text: string; ts: number; userId?: string }[];
   activeFilter: VideoFilter;
   onSetFilter: (filter: VideoFilter) => void;
   backgroundBlur: number;
@@ -228,6 +229,7 @@ export function RoomVideoCall({
   captionSettings,
   onSetCaptionSettings,
   bottomOffset = 0,
+  localUserId,
   t,
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
@@ -235,16 +237,18 @@ export function RoomVideoCall({
   const sharingPeer = peers.find((p) => p.isScreenSharing);
   const hasScreenShare = isScreenSharing || !!sharingPeer;
 
-  // Whether to show live caption text as subtitle on local tile
-  const activeCaptionText =
-    captionSettings.enabled && captionSettings.mode === "subtitle"
-      ? liveCaption || (transcriptSegments.length > 0 ? transcriptSegments[transcriptSegments.length - 1].text : "")
-      : undefined;
-
+  // Sidebar only allowed in fullscreen/max mode as requested
   const showSidebar =
     captionSettings.enabled &&
     captionSettings.mode === "sidebar" &&
+    viewMode === "fullscreen" &&
     (liveCaption.length > 0 || transcriptSegments.length > 0);
+
+  // Map of userId -> last text segment for subtitle mode
+  const lastSegments = transcriptSegments.reduce((acc, seg) => {
+    if (seg.userId) acc[seg.userId] = seg.text;
+    return acc;
+  }, {} as Record<string, string>);
 
   // Fix: set srcObject on the hidden video element after it mounts
   useEffect(() => {
@@ -297,27 +301,37 @@ export function RoomVideoCall({
     font: captionSettings.font,
   };
 
-  const participantTile = (p: (typeof allParticipants)[number]) => (
-    <RoomCallParticipant
-      key={p.id}
-      stream={p.stream}
-      displayName={p.displayName}
-      isLocal={p.isLocal}
-      isMuted={p.audioMuted}
-      isVideoOff={p.videoMuted}
-      isScreenSharing={p.isScreenSharing}
-      canvasRef={p.isLocal && isCameraFilterActive ? canvasRef : undefined}
-      canManage={canManageCall}
-      peerId={p.id}
-      onMute={onMuteParticipant}
-      onKick={onKickParticipant}
-      onDisableScreen={onDisableScreen}
-      captionText={p.isLocal ? activeCaptionText : undefined}
-      captionStyle={captionStyle}
-      scaleMode={viewMode !== "mini" ? "contain" : "cover"}
-      t={t}
-    />
-  );
+  const participantTile = (p: (typeof allParticipants)[number]) => {
+    const isActuallyLocal = p.isLocal || (localUserId && p.id === localUserId);
+    const pid = p.id === "local" ? (localUserId || "local") : p.id;
+
+    // Determine caption for this tile
+    const captionText = (captionSettings.enabled && captionSettings.mode === "subtitle")
+      ? (isActuallyLocal && liveCaption ? liveCaption : lastSegments[pid])
+      : undefined;
+
+    return (
+      <RoomCallParticipant
+        key={p.id}
+        stream={p.stream}
+        displayName={p.displayName}
+        isLocal={p.isLocal}
+        isMuted={p.audioMuted}
+        isVideoOff={p.videoMuted}
+        isScreenSharing={p.isScreenSharing}
+        canvasRef={p.isLocal && isCameraFilterActive ? canvasRef : undefined}
+        canManage={canManageCall}
+        peerId={p.id}
+        onMute={onMuteParticipant}
+        onKick={onKickParticipant}
+        onDisableScreen={onDisableScreen}
+        captionText={captionText}
+        captionStyle={captionStyle}
+        scaleMode={viewMode !== "mini" ? "contain" : "cover"}
+        t={t}
+      />
+    );
+  };
 
   // Video grid shared sub-component
   const videoGrid = (compact = false) => (
@@ -393,7 +407,7 @@ export function RoomVideoCall({
               isMuted={isAudioMuted}
               isVideoOff={isVideoMuted}
               canvasRef={isCameraFilterActive ? canvasRef : undefined}
-              captionText={activeCaptionText}
+              captionText={captionSettings.enabled && captionSettings.mode === "subtitle" ? (liveCaption || lastSegments[localUserId || "local"]) : undefined}
               captionStyle={captionStyle}
               t={t}
             />

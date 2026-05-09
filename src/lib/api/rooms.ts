@@ -181,6 +181,16 @@ export async function sendRoomMessage(roomId: string, content: string, accessTok
   return res.json();
 }
 
+export async function sendAiRoomMessage(roomId: string, content: string, accessToken: string): Promise<RoomMessage> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/ai-messages`, {
+    method: 'POST',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ content }),
+  });
+  if (!res.ok) throw new Error('Failed to send AI message');
+  return res.json();
+}
+
 export async function addReaction(
   roomId: string,
   messageId: string,
