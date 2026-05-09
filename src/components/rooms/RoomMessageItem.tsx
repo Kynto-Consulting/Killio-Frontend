@@ -203,7 +203,7 @@ export function RoomMessageItem({
             </div>
 
             {/* Smart emoji picker */}
-            <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} />
+            <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
           </div>
 
           {/* Reactions */}

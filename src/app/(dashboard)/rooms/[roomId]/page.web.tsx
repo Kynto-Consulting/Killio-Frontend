@@ -136,22 +136,24 @@ export default function RoomDetailWeb() {
   return (
     <div className="h-full overflow-hidden flex flex-col">
       <RoomsLayout
-        sidebar={
+        sidebar={(onClose) => (
           <RoomSidebar
             rooms={rooms}
             groups={groups}
             activeRoomId={roomId}
             isLoading={false}
             canCreate={isAdmin}
-            onSelectRoom={(id) => router.push(`/rooms/${id}`)}
+            onSelectRoom={(id) => { router.push(`/rooms/${id}`); onClose(); }}
             onCreateRoom={(groupId) => {
               setCreateInitialGroupId(groupId);
               setIsCreateOpen(true);
+              onClose();
             }}
-            onCreateGroup={() => setIsCreateGroupOpen(true)}
+            onCreateGroup={() => { setIsCreateGroupOpen(true); onClose(); }}
+            onClose={onClose}
             t={t}
           />
-        }
+        )}
       >
         <div className="flex flex-1 overflow-hidden">
           {/* Main chat column */}

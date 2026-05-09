@@ -14,29 +14,21 @@ interface UsageEntry { count: number; lastUsed: number; }
 type UsageMap = Record<string, UsageEntry>;
 
 function loadUsage(): UsageMap {
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "{}"); }
+  catch { return {}; }
 }
 
 function saveUsage(map: UsageMap) {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(map));
-  } catch {}
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(map)); } catch {}
 }
 
 export function trackEmojiUse(emoji: string) {
   const map = loadUsage();
-  const now = Date.now();
-  map[emoji] = { count: (map[emoji]?.count ?? 0) + 1, lastUsed: now };
-  // Trim to MAX_STORED by score descending
+  map[emoji] = { count: (map[emoji]?.count ?? 0) + 1, lastUsed: Date.now() };
   const entries = Object.entries(map);
   if (entries.length > MAX_STORED) {
     const sorted = entries.sort(([, a], [, b]) => score(b) - score(a));
-    const trimmed = Object.fromEntries(sorted.slice(0, MAX_STORED));
-    saveUsage(trimmed);
+    saveUsage(Object.fromEntries(sorted.slice(0, MAX_STORED)));
   } else {
     saveUsage(map);
   }
@@ -44,9 +36,7 @@ export function trackEmojiUse(emoji: string) {
 
 function score(e: UsageEntry): number {
   const ageMs = Date.now() - e.lastUsed;
-  const hourAgo = 3_600_000;
-  const dayAgo = 86_400_000;
-  const recency = ageMs < hourAgo ? 3 : ageMs < dayAgo ? 1.5 : 1;
+  const recency = ageMs < 3_600_000 ? 3 : ageMs < 86_400_000 ? 1.5 : 1;
   return e.count * recency;
 }
 
@@ -57,13 +47,8 @@ function getTopEmojis(n = 5): string[] {
   const sorted = Object.entries(map)
     .sort(([, a], [, b]) => score(b) - score(a))
     .map(([emoji]) => emoji);
-
   const result: string[] = [];
-  for (const e of sorted) {
-    if (result.length >= n) break;
-    result.push(e);
-  }
-  // Fill remainder with fallbacks not already included
+  for (const e of sorted) { if (result.length >= n) break; result.push(e); }
   for (const e of FALLBACK_EMOJIS) {
     if (result.length >= n) break;
     if (!result.includes(e)) result.push(e);
@@ -76,28 +61,37 @@ function getTopEmojis(n = 5): string[] {
 interface EmojiReactionPickerProps {
   onReact: (emoji: string) => void;
   isOwn?: boolean;
+  t: (key: string) => string;
 }
 
-export function EmojiReactionPicker({ onReact, isOwn }: EmojiReactionPickerProps) {
+export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerProps) {
   const [open, setOpen] = useState<"quick" | "full" | null>(null);
   const [quickEmojis, setQuickEmojis] = useState<string[]>(FALLBACK_EMOJIS);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0 });
 
-  // Load personalized quick emojis once on open
   useEffect(() => {
     if (open === "quick") setQuickEmojis(getTopEmojis(5));
   }, [open]);
 
-  // Position popover near trigger
+  // Position popover — always inside viewport, prefer opening upward in tight spaces
   useEffect(() => {
     if (!open || !triggerRef.current) return;
     const rect = triggerRef.current.getBoundingClientRect();
-    setPos({
-      top: rect.bottom + 4,
-      left: Math.min(rect.left, window.innerWidth - 360),
-    });
+    const popH = open === "full" ? 330 : 52;
+    const popW = open === "full" ? 290 : 304;
+
+    const spaceBelow = window.innerHeight - rect.bottom - 8;
+    const spaceAbove = rect.top - 8;
+    const openAbove = spaceBelow < popH && spaceAbove >= popH;
+
+    const top = openAbove
+      ? rect.top - popH - 4
+      : Math.min(rect.bottom + 4, window.innerHeight - popH - 8);
+    const left = Math.max(8, Math.min(rect.left, window.innerWidth - popW - 8));
+
+    setPos({ top, left });
   }, [open]);
 
   // Close on outside click
@@ -107,9 +101,7 @@ export function EmojiReactionPicker({ onReact, isOwn }: EmojiReactionPickerProps
       if (
         popoverRef.current && !popoverRef.current.contains(e.target as Node) &&
         triggerRef.current && !triggerRef.current.contains(e.target as Node)
-      ) {
-        setOpen(null);
-      }
+      ) setOpen(null);
     };
     document.addEventListener("mousedown", handler, true);
     return () => document.removeEventListener("mousedown", handler, true);
@@ -156,7 +148,7 @@ export function EmojiReactionPicker({ onReact, isOwn }: EmojiReactionPickerProps
                 <button
                   onClick={() => setOpen("full")}
                   className="w-8 h-8 flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-lg transition-colors text-xs font-bold"
-                  title="More emojis"
+                  title={t("chat.reactions.more")}
                 >
                   ＋
                 </button>
@@ -169,9 +161,9 @@ export function EmojiReactionPicker({ onReact, isOwn }: EmojiReactionPickerProps
                 theme={Theme.DARK}
                 lazyLoadEmojis
                 skinTonesDisabled
-                searchPlaceholder="Search emoji..."
-                width={320}
-                height={380}
+                searchPlaceholder={t("chat.reactions.search")}
+                width={290}
+                height={330}
               />
             )}
           </div>

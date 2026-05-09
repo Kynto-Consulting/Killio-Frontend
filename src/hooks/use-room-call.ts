@@ -8,8 +8,9 @@ import {
   submitCallTranscript,
   CallTranscriptSegment,
 } from "@/lib/api/rooms";
+import { getFilterStyle } from "@/components/rooms/RoomCallEffectsPanel";
 
-export type VideoFilter = "none" | "blur" | "grayscale" | "warm";
+export type VideoFilter = "none" | "blur" | "grayscale" | "warm" | "cool" | "sepia" | "vivid" | "neon";
 
 export interface CallPeer {
   peerId: string;
@@ -388,11 +389,7 @@ export function useRoomCall(
       const ctx = canvas.getContext("2d");
       if (!ctx) { filterRafRef.current = requestAnimationFrame(draw); return; }
       const f = activeFilter;
-      ctx.filter =
-        f === "blur" ? "blur(10px)"
-        : f === "grayscale" ? "grayscale(100%)"
-        : f === "warm" ? "sepia(40%) saturate(120%)"
-        : "none";
+      ctx.filter = getFilterStyle(f);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       filterRafRef.current = requestAnimationFrame(draw);
     };

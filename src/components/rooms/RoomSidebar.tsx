@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Hash, Link2, MessageSquare, Loader2, ChevronDown, ChevronRight, FolderOpen } from "lucide-react";
+import { Plus, Hash, Link2, MessageSquare, Loader2, ChevronDown, ChevronRight, FolderOpen, X } from "lucide-react";
 import type { Room, RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
@@ -16,6 +16,7 @@ interface RoomSidebarProps {
   onSelectRoom: (roomId: string) => void;
   onCreateRoom: (groupId?: string) => void;
   onCreateGroup?: () => void;
+  onClose?: () => void;
   t: TFn;
 }
 
@@ -115,6 +116,7 @@ export function RoomSidebar({
   onSelectRoom: _onSelectRoom,
   onCreateRoom,
   onCreateGroup,
+  onClose,
   t,
 }: RoomSidebarProps) {
   const channels = rooms.filter((r) => r.type === "channel");
@@ -130,21 +132,33 @@ export function RoomSidebar({
   );
 
   return (
-    <aside className="w-56 shrink-0 border-r border-border/60 bg-card/30 flex flex-col overflow-hidden">
+    <aside className="w-64 md:w-56 shrink-0 border-r border-border/60 bg-card/30 flex flex-col overflow-hidden h-full">
       {/* Header */}
       <div className="px-3 py-3 border-b border-border/40 shrink-0 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           {t("title")}
         </span>
-        {canCreate && onCreateGroup && (
-          <button
-            onClick={onCreateGroup}
-            title={t("sidebar.createGroup")}
-            className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <FolderOpen className="w-3.5 h-3.5" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {canCreate && onCreateGroup && (
+            <button
+              onClick={onCreateGroup}
+              title={t("sidebar.createGroup")}
+              className="w-5 h-5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <FolderOpen className="w-3.5 h-3.5" />
+            </button>
+          )}
+          {/* Mobile close button */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="md:hidden w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Close sidebar"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Lists */}

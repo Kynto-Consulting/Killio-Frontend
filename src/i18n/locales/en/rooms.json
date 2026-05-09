@@ -33,7 +33,9 @@
     "typing_many": "Several people are typing...",
     "readOnly": "This channel is read-only for you",
     "reactions": {
-      "add": "Add reaction"
+      "add": "Add reaction",
+      "more": "More emojis",
+      "search": "Search emoji..."
     }
   },
   "call": {
@@ -55,7 +57,7 @@
     "controls": {
       "mic": "Microphone",
       "camera": "Camera",
-      "filter": "Filter",
+      "effects": "Effects",
       "screen": "Share screen",
       "stopScreen": "Stop sharing",
       "record": "Record",
@@ -63,6 +65,20 @@
       "hangUp": "Leave call",
       "toggleMic": "Toggle microphone",
       "toggleCamera": "Toggle camera"
+    },
+    "effects": {
+      "title": "Video effects",
+      "groupNone": "None",
+      "groupBackground": "Background",
+      "groupColor": "Color filters",
+      "none": "Off",
+      "blur": "Blur background",
+      "grayscale": "Grayscale",
+      "warm": "Warm",
+      "cool": "Cool",
+      "sepia": "Sepia",
+      "vivid": "Vivid",
+      "neon": "Neon"
     },
     "recording": {
       "active": "Recording {time}",

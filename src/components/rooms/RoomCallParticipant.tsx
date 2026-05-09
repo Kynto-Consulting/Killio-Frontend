@@ -22,6 +22,53 @@ interface RoomCallParticipantProps {
   t: (key: string) => string;
 }
 
+// ── Audio level hook — returns 0–100 ──────────────────────────────────────────
+function useAudioLevel(stream: MediaStream | undefined, muted: boolean): number {
+  const [level, setLevel] = useState(0);
+  const animRef = useRef<number>(0);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+
+  useEffect(() => {
+    if (!stream || muted) {
+      setLevel(0);
+      return;
+    }
+    const audioTracks = stream.getAudioTracks();
+    if (audioTracks.length === 0) return;
+
+    const ctx = new AudioContext();
+    ctxRef.current = ctx;
+    const source = ctx.createMediaStreamSource(stream);
+    const analyser = ctx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.4;
+    source.connect(analyser);
+    analyserRef.current = analyser;
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+
+    const tick = () => {
+      analyser.getByteFrequencyData(data);
+      // Average of lower bins (voice range)
+      const slice = data.slice(0, 32);
+      const avg = slice.reduce((a, b) => a + b, 0) / slice.length;
+      setLevel(Math.min(100, (avg / 128) * 100));
+      animRef.current = requestAnimationFrame(tick);
+    };
+    animRef.current = requestAnimationFrame(tick);
+
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      ctx.close().catch(() => {});
+    };
+  }, [stream, muted]);
+
+  return level;
+}
+
+// ── Component ─────────────────────────────────────────────────────────────────
+
 export function RoomCallParticipant({
   stream,
   displayName,
@@ -47,6 +94,14 @@ export function RoomCallParticipant({
     videoRef.current.srcObject = stream;
   }, [stream]);
 
+  // Speaking glow — don't run for local (we control our own mute)
+  const audioLevel = useAudioLevel(isLocal ? undefined : stream, isMuted);
+  const isSpeaking = audioLevel > 15;
+
+  // Glow intensity mapped 0–1
+  const glowOpacity = isSpeaking ? Math.min(1, (audioLevel - 15) / 60) : 0;
+  const glowSize = isSpeaking ? Math.round(4 + glowOpacity * 12) : 0;
+
   const showAdminActions = canManage && !isLocal && peerId && hovered;
 
   return (
@@ -54,6 +109,19 @@ export function RoomCallParticipant({
       className="relative bg-zinc-900 rounded-xl overflow-hidden aspect-video flex items-center justify-center group"
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
+      style={
+        isSpeaking
+          ? {
+              boxShadow: `0 0 ${glowSize}px ${Math.round(glowSize * 0.6)}px rgba(99,102,241,${(glowOpacity * 0.8).toFixed(2)})`,
+              outline: `2px solid rgba(99,102,241,${(glowOpacity * 0.9).toFixed(2)})`,
+              transition: "box-shadow 80ms ease-out, outline 80ms ease-out",
+            }
+          : {
+              boxShadow: "none",
+              outline: "2px solid transparent",
+              transition: "box-shadow 200ms ease-in, outline 200ms ease-in",
+            }
+      }
     >
       {/* Video / Canvas */}
       {isLocal && canvasRef ? (

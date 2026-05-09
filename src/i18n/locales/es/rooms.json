@@ -33,7 +33,9 @@
     "typing_many": "Varias personas están escribiendo...",
     "readOnly": "Este canal es de solo lectura para ti",
     "reactions": {
-      "add": "Agregar reacción"
+      "add": "Agregar reacción",
+      "more": "Más emojis",
+      "search": "Buscar emoji..."
     }
   },
   "call": {
@@ -55,7 +57,7 @@
     "controls": {
       "mic": "Micrófono",
       "camera": "Cámara",
-      "filter": "Filtro",
+      "effects": "Efectos",
       "screen": "Compartir pantalla",
       "stopScreen": "Dejar de compartir",
       "record": "Grabar",
@@ -63,6 +65,20 @@
       "hangUp": "Salir de la llamada",
       "toggleMic": "Activar/silenciar micrófono",
       "toggleCamera": "Encender/apagar cámara"
+    },
+    "effects": {
+      "title": "Efectos de video",
+      "groupNone": "Sin efecto",
+      "groupBackground": "Fondo",
+      "groupColor": "Filtros de color",
+      "none": "Ninguno",
+      "blur": "Desenfoque de fondo",
+      "grayscale": "Escala de grises",
+      "warm": "Cálido",
+      "cool": "Frío",
+      "sepia": "Sépia",
+      "vivid": "Vívido",
+      "neon": "Neón"
     },
     "recording": {
       "active": "Grabando {time}",
