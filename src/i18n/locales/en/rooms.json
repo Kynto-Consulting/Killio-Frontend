@@ -26,7 +26,7 @@
     "transcripts": "Call transcripts"
   },
   "chat": {
-    "inputPlaceholder": "Message {roomName}... (@AI for copilot)",
+    "inputPlaceholder": "Message {roomName}... (#AI for copilot)",
     "loadMore": "Load older messages",
     "noMessages": "No messages yet. Be the first to say something!",
     "typing_one": "{name} is typing...",

@@ -22,7 +22,7 @@ interface RoomInputProps {
   t: TFn;
 }
 
-const AI_PREFIXES = ["@ai ", "@AI "];
+const AI_PREFIXES = ["#ai ", "#AI "];
 
 export function RoomInput({
   value,
@@ -71,7 +71,7 @@ export function RoomInput({
       {isAiQuery && (
         <div className="flex items-center gap-1.5 text-[10px] text-violet-400 font-medium mb-1.5 px-1">
           <Bot className="w-3 h-3" />
-          <span>AI Copilot mode — press Enter to open Copilot panel</span>
+          <span>AI Copilot mode — press Enter to send to chat</span>
         </div>
       )}
       <div className="relative flex items-center">

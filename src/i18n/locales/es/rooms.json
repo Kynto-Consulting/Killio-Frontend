@@ -26,7 +26,7 @@
     "transcripts": "Transcripciones de llamada"
   },
   "chat": {
-    "inputPlaceholder": "Mensaje en {roomName}... (@AI para copiloto)",
+    "inputPlaceholder": "Mensaje en {roomName}... (#AI para copiloto)",
     "loadMore": "Cargar mensajes anteriores",
     "noMessages": "Sin mensajes aún. ¡Sé el primero en escribir!",
     "typing_one": "{name} está escribiendo...",
@@ -108,6 +108,18 @@
       "mute": "Silenciar participante",
       "kick": "Expulsar de la llamada",
       "stopScreen": "Detener pantalla compartida"
+    },
+    "settings": {
+      "title": "Ajustes de llamada",
+      "subtitle": "Configura tus dispositivos y efectos de video",
+      "camera": "Cámara",
+      "microphone": "Micrófono",
+      "videoEffects": "Efectos de video",
+      "backgroundMode": "Modo de fondo",
+      "backgroundBlur": "Desenfoque de fondo",
+      "skinSmoothing": "Suavizado de piel",
+      "applyChanges": "Aplicar cambios",
+      "preview": "Vista previa"
     }
   },
   "transcripts": {

@@ -317,6 +317,20 @@ export function useRoomChat(
     [roomId, accessToken, currentUser]
   );
 
+  const addLocalMessage = useCallback(
+    (message: RoomMessage) => {
+      setMessages((prev) => [...prev, message]);
+    },
+    []
+  );
+
+  const updateLocalMessage = useCallback(
+    (id: string, updates: Partial<RoomMessage>) => {
+      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+    },
+    []
+  );
+
   return {
     messages,
     isLoading,
@@ -324,6 +338,8 @@ export function useRoomChat(
     hasMore,
     typingUsers,
     sendMessage,
+    addLocalMessage,
+    updateLocalMessage,
     loadMore,
     addReaction: handleAddReaction,
     markAsRead,

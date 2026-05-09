@@ -12,6 +12,8 @@ import { useRoomPermissions } from "@/hooks/use-room-permissions";
 import { useRoomNotifications } from "@/hooks/use-room-notifications";
 import { useCall } from "@/components/providers/call-provider";
 import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
+import { streamAgentChat } from "@/lib/api/agent";
+import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { AgentChatPanel } from "@/components/agent";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
 import { RoomSidebar } from "@/components/rooms/RoomSidebar";
@@ -103,9 +105,68 @@ export default function RoomDetailWeb() {
     setChatInput("");
   }, [chatInput, chatHook]);
 
-  const handleAiTrigger = useCallback((_content: string) => {
-    setIsAiPanelOpen(true);
-  }, []);
+  const handleAiTrigger = useCallback(async (content: string) => {
+    if (!roomId || !accessToken) return;
+
+    // 1. Add user's question to chat
+    const userMsgId = `u-ai-${Date.now()}`;
+    chatHook.addLocalMessage({
+      id: userMsgId,
+      roomId,
+      userId: user?.id ?? "",
+      content: `#AI ${content}`,
+      type: "text",
+      createdAt: new Date().toISOString(),
+      status: "sent",
+      user: {
+        displayName: user?.displayName ?? user?.username ?? "You",
+        email: user?.email ?? "",
+      },
+    });
+
+    // 2. Prepare context from last messages
+    const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || 'User'}: ${m.content}`).join("\n");
+    const fullPrompt = `Room Context:\n${lastMsgs}\n\nUser Question: ${content}`;
+
+    // 3. Add bot placeholder
+    const botMsgId = `bot-${Date.now()}`;
+    chatHook.addLocalMessage({
+      id: botMsgId,
+      roomId,
+      userId: "000",
+      content: "...",
+      type: "ai",
+      createdAt: new Date().toISOString(),
+      status: "sent",
+      user: {
+        displayName: "AI Copilot",
+        email: "ai@killio.com",
+        avatarUrl: "/ai-bot-avatar.png", // We can use a bot icon
+      },
+    });
+
+    // 4. Stream response
+    let accText = "";
+    streamAgentChat(
+      {
+        teamId: activeTeamId || "",
+        entityType: "team",
+        entityId: activeTeamId || "",
+        message: fullPrompt,
+      },
+      accessToken,
+      (event) => {
+        if (event.type === "delta") {
+          accText += event.text;
+          chatHook.updateLocalMessage(botMsgId, { content: accText });
+        } else if (event.type === "done") {
+          chatHook.updateLocalMessage(botMsgId, { content: event.text || accText });
+        } else if (event.type === "error") {
+          chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}` });
+        }
+      }
+    );
+  }, [roomId, accessToken, user, activeTeamId, chatHook]);
 
   const handleJoinCall = useCallback(() => {
     stopRing();

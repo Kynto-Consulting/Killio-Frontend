@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2 } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -137,9 +137,17 @@ export function RoomMessageItem({
 
         <div className={`flex flex-col max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}>
           {showAvatar && !isOwn && (
-            <span className="text-[10px] font-semibold text-muted-foreground mb-0.5 px-1">
-              {displayName}
-            </span>
+            <div className="flex items-center gap-1 mb-0.5 px-1">
+              <span className="text-[10px] font-semibold text-muted-foreground">
+                {displayName}
+              </span>
+              {userId === "000" && (
+                <span className="bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[8px] font-bold px-1 rounded flex items-center gap-0.5 uppercase tracking-tighter">
+                  <Bot className="w-2 h-2" />
+                  Bot
+                </span>
+              )}
+            </div>
           )}
 
           <div
