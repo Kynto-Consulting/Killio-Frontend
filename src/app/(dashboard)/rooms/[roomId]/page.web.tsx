@@ -182,8 +182,6 @@ export default function RoomDetailWeb() {
     joinRoomCall(roomId);
   }, [roomId, joinRoomCall, stopRing]);
 
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-
   if (isLoadingRoom) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -257,6 +255,8 @@ export default function RoomDetailWeb() {
               onViewTranscript={callHistoryHook.getTranscript}
               onAiTrigger={handleAiTrigger}
               onOpenCopilot={() => setIsAiPanelOpen(true)}
+              replyTo={replyTo}
+              onReply={setReplyTo}
               currentUserId={user?.id ?? ""}
               teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}

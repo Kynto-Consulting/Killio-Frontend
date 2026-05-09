@@ -37,7 +37,9 @@
       "add": "Agregar reacción",
       "more": "Más emojis",
       "search": "Buscar emoji..."
-    }
+    },
+    "replyingTo": "Respondiendo a {name}",
+    "cancelReply": "Cancelar respuesta"
   },
   "call": {
     "joining": "Uniéndose a la llamada...",

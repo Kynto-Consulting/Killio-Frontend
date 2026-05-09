@@ -144,3 +144,12 @@
 .killio-reactflow .react-flow__attribution a {
   color: hsl(var(--muted-foreground));
 }
+
+@keyframes pulse-accent {
+  0%, 100% { opacity: 1; }
+  50% { background-color: hsl(var(--accent) / 0.5); }
+}
+
+.animate-pulse-accent {
+  animation: pulse-accent 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}

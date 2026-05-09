@@ -37,7 +37,9 @@
       "add": "Add reaction",
       "more": "More emojis",
       "search": "Search emoji..."
-    }
+    },
+    "replyingTo": "Replying to {name}",
+    "cancelReply": "Cancel reply"
   },
   "call": {
     "joining": "Joining call...",

@@ -39,6 +39,8 @@ interface RoomChatAreaProps {
   resolverContext?: ResolverContext;
   availableTags?: any[];
   onOpenCopilot?: () => void;
+  replyTo?: RoomMessage | null;
+  onReply?: (message: RoomMessage | null) => void;
   t: TFn;
 }
 
@@ -89,9 +91,10 @@ export function RoomChatArea({
   resolverContext,
   availableTags,
   onOpenCopilot,
+  replyTo,
+  onReply,
   t,
 }: RoomChatAreaProps) {
-  const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -133,8 +136,7 @@ export function RoomChatArea({
   const typingText = formatTypingText(typingUsers, t);
 
   const handleSend = () => {
-    onSend(); // We don't pass the replyTo here, handleSend in page.web should get it from some state or we pass it
-    setReplyTo(null);
+    onSend();
   };
 
   return (
@@ -200,7 +202,7 @@ export function RoomChatArea({
               teamId={teamId}
               currentUserId={currentUserId}
               showReadReceipts={showReadReceipts}
-              onReply={setReplyTo}
+              onReply={onReply}
               onOpenCopilot={onOpenCopilot}
               t={t}
             />
@@ -222,15 +224,16 @@ export function RoomChatArea({
         <div className="mx-4 mb-2 p-2 rounded-xl bg-muted/80 border border-border/50 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-bold text-accent uppercase tracking-wider mb-0.5">
-              Replying to {replyTo.user?.displayName || "User"}
+              {t("chat.replyingTo", { name: replyTo.user?.displayName || "User" })}
             </div>
             <div className="text-xs text-muted-foreground truncate italic">
               {replyTo.content}
             </div>
           </div>
           <button
-            onClick={() => setReplyTo(null)}
+            onClick={() => onReply?.(null)}
             className="p-1 rounded-md hover:bg-black/10 text-muted-foreground"
+            title={t("chat.cancelReply")}
           >
             <X className="w-3.5 h-3.5" />
           </button>

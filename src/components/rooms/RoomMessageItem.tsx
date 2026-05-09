@@ -4,7 +4,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, MessageSquare } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -114,7 +114,10 @@ export function RoomMessageItem({
 
   return (
     <>
-      <div className={`group relative flex gap-2 ${showAvatar ? "mt-3" : "mt-0.5"} ${isOwn ? "flex-row-reverse" : "flex-row"}`}>
+      <div 
+        id={`msg-${message.id}`}
+        className={`group relative flex gap-2 ${showAvatar ? "mt-3" : "mt-0.5"} ${isOwn ? "flex-row-reverse" : "flex-row"}`}
+      >
         {/* Avatar */}
         {showAvatar ? (
           canOpenDm ? (
@@ -165,14 +168,22 @@ export function RoomMessageItem({
           >
             {/* Quoted Message (Reply) */}
             {message.metadata?.replyTo && (
-              <div className="mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 line-clamp-2">
+              <button
+                onClick={() => {
+                  const el = document.getElementById(`msg-${message.metadata.replyTo.id}`);
+                  el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  el?.classList.add('animate-pulse-accent');
+                  setTimeout(() => el?.classList.remove('animate-pulse-accent'), 2000);
+                }}
+                className="w-full text-left mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 line-clamp-2 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+              >
                 <div className="font-bold text-accent mb-0.5">
                   {message.metadata.replyTo.displayName}
                 </div>
                 <div className="text-muted-foreground italic">
                   {message.metadata.replyTo.content}
                 </div>
-              </div>
+              </button>
             )}
             {/* Markdown + reference pills */}
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-pre:my-1 prose-code:text-xs">
@@ -227,16 +238,17 @@ export function RoomMessageItem({
               )}
             </div>
 
-            {/* Smart emoji picker + Reply */}
-            <div className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1">
+            {/* Smart emoji picker + Reply action bar */}
+            <div className={`absolute -top-3 ${isOwn ? "right-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-0.5 p-0.5 bg-background border border-border/60 rounded-lg shadow-md z-10 scale-90 group-hover:scale-100 origin-bottom`}>
+              <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
+              <div className="w-[1px] h-3 bg-border/50 mx-0.5" />
               <button
                 onClick={() => onReply?.(message)}
-                className="p-1 rounded-md bg-background/80 border border-border/50 hover:bg-background text-muted-foreground transition-colors"
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-accent transition-colors"
                 title="Reply"
               >
-                <MessageSquare className="w-3 h-3" />
+                <CornerUpLeft className="w-3.5 h-3.5" />
               </button>
-              <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
             </div>
           </div>
 
