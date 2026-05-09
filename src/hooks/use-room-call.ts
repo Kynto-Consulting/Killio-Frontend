@@ -83,6 +83,13 @@ export function useRoomCall(
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const [liveCaption, setLiveCaption] = useState("");
   const [transcriptSegments, setTranscriptSegments] = useState<{ text: string; ts: number }[]>([]);
+  const [captionSettings, setCaptionSettings] = useState({
+    enabled: false,
+    mode: "subtitle" as "subtitle" | "sidebar",
+    fontSize: "md" as "sm" | "md" | "lg" | "xl",
+    color: "#ffffff",
+    font: "sans" as "sans" | "serif" | "mono",
+  });
 
   const myPeerId = user?.id || "";
   const myDisplayName = user?.displayName || user?.username || user?.email || "Unknown";
@@ -636,6 +643,7 @@ export function useRoomCall(
         videoMuted: isVideoMutedRef.current,
       }).catch(() => {});
     }
+    setLocalStream(new MediaStream(stream.getTracks()));
   }, [roomId, accessToken, myPeerId]);
 
   // ── toggleVideo ──
@@ -653,6 +661,7 @@ export function useRoomCall(
         videoMuted: muted,
       }).catch(() => {});
     }
+    setLocalStream(new MediaStream(stream.getTracks()));
   }, [roomId, accessToken, myPeerId]);
 
   // ── switchCamera ──
@@ -831,6 +840,8 @@ export function useRoomCall(
     recordingElapsed,
     liveCaption,
     transcriptSegments,
+    captionSettings,
+    setCaptionSettings,
     canParticipate: peers.length < MAX_PARTICIPANTS,
     joinCall,
     leaveCall,

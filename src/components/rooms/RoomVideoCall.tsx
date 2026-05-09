@@ -181,6 +181,10 @@ interface RoomVideoCallProps {
   onSetBackgroundColor: (color: string | undefined) => void;
   currentVideoDeviceId: string | null;
   onSwitchCamera: (deviceId: string) => void;
+  settingsModalOpen: boolean;
+  onSetSettingsModalOpen: (open: boolean) => void;
+  captionSettings: CaptionSettings;
+  onSetCaptionSettings: (s: CaptionSettings) => void;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -218,11 +222,13 @@ export function RoomVideoCall({
   onSetBackgroundColor,
   currentVideoDeviceId,
   onSwitchCamera,
+  settingsModalOpen,
+  onSetSettingsModalOpen,
+  captionSettings,
+  onSetCaptionSettings,
   t,
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
-  const [captionSettings, setCaptionSettings] = useState<CaptionSettings>(DEFAULT_CAPTION_SETTINGS);
-  const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
   const sharingPeer = peers.find((p) => p.isScreenSharing);
   const hasScreenShare = isScreenSharing || !!sharingPeer;
@@ -474,7 +480,7 @@ export function RoomVideoCall({
 
       <RoomCallSettingsModal
         isOpen={settingsModalOpen}
-        onClose={() => setSettingsModalOpen(false)}
+        onClose={() => onSetSettingsModalOpen(false)}
         currentFilter={activeFilter}
         onSetFilter={onSetFilter}
         backgroundBlur={backgroundBlur}
@@ -493,7 +499,7 @@ export function RoomVideoCall({
         onToggleAudio={() => { }} 
         localStream={localStream}
         captionSettings={captionSettings}
-        onSetCaptionSettings={setCaptionSettings}
+        onSetCaptionSettings={onSetCaptionSettings}
         t={t}
       />
 

@@ -256,6 +256,10 @@ export default function RoomDetailWeb() {
           onSetBackgroundColor={callHook.setBackgroundColor}
           currentVideoDeviceId={callHook.currentVideoDeviceId}
           onSwitchCamera={callHook.switchCamera}
+          settingsModalOpen={settingsModalOpen}
+          onSetSettingsModalOpen={setSettingsModalOpen}
+          captionSettings={callHook.captionSettings || { enabled: false, mode: "subtitle", fontSize: "md", color: "#ffffff", font: "sans" }}
+          onSetCaptionSettings={callHook.setCaptionSettings || (() => {})}
           callControls={
             <RoomCallControls
               isAudioMuted={callHook.isAudioMuted}
