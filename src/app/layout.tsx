@@ -19,6 +19,7 @@ import { SessionProvider } from '@/components/providers/session-provider';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { PlatformProvider } from '@/components/providers/platform-provider';
+import { CallProvider } from '@/components/providers/call-provider';
 import { getPlatform } from '@/lib/platform';
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -30,7 +31,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         <PlatformProvider platform={platform}>
           <SessionProvider>
             <I18nProvider>
-              {children}
+              <CallProvider>
+                {children}
+              </CallProvider>
               <Toaster />
             </I18nProvider>
           </SessionProvider>

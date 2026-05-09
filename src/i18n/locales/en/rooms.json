@@ -108,6 +108,18 @@
       "mute": "Mute participant",
       "kick": "Remove from call",
       "stopScreen": "Stop screen sharing"
+    },
+    "settings": {
+      "title": "Call Settings",
+      "subtitle": "Configure your media devices and video effects",
+      "camera": "Camera",
+      "microphone": "Microphone",
+      "videoEffects": "Video Effects",
+      "backgroundMode": "Background Mode",
+      "backgroundBlur": "Background Blur",
+      "skinSmoothing": "Skin Smoothing",
+      "applyChanges": "Apply Changes",
+      "preview": "Preview"
     }
   },
   "transcripts": {

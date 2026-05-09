@@ -7,18 +7,16 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useRoomChat } from "@/hooks/use-room-chat";
 import { useRoomPresence } from "@/hooks/use-room-presence";
-import { useRoomCall } from "@/hooks/use-room-call";
 import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
 import { useRoomNotifications } from "@/hooks/use-room-notifications";
+import { useCall } from "@/components/providers/call-provider";
 import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, type Room, type RoomCall, type RoomMember, type RoomGroup } from "@/lib/api/rooms";
 import { AgentChatPanel } from "@/components/agent";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
 import { RoomSidebar } from "@/components/rooms/RoomSidebar";
 import { RoomHeader } from "@/components/rooms/RoomHeader";
 import { RoomChatArea } from "@/components/rooms/RoomChatArea";
-import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
-import { RoomCallControls } from "@/components/rooms/RoomCallControls";
 import { RoomMembersPanel } from "@/components/rooms/RoomMembersPanel";
 import { RoomPermissionsModal } from "@/components/rooms/RoomPermissionsModal";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
@@ -61,10 +59,7 @@ export default function RoomDetailWeb() {
 
   const chatHook = useRoomChat(roomId, accessToken, user);
   const presenceMembers = useRoomPresence(roomId, userInfo, accessToken);
-  const callHook = useRoomCall(roomId, userInfo, accessToken, {
-    canManage: permissions.canManage,
-    roomType: room?.type,
-  });
+  const { call, activeRoomId, joinRoomCall, leaveRoomCall } = useCall();
   const callHistoryHook = useRoomCallHistory(roomId, accessToken);
   const { stopRing } = useRoomNotifications({
     roomId,
@@ -75,7 +70,7 @@ export default function RoomDetailWeb() {
 
   const callsById = useMemo<Map<string, RoomCall>>(() => {
     const map = new Map<string, RoomCall>();
-    callHistoryHook.calls.forEach((c) => map.set(c.id, c));
+    callHistoryHook.calls.forEach((c: any) => map.set(c.id, c));
     return map;
   }, [callHistoryHook.calls]);
 
@@ -114,8 +109,9 @@ export default function RoomDetailWeb() {
 
   const handleJoinCall = useCallback(() => {
     stopRing();
-    callHook.joinCall();
-  }, [callHook, stopRing]);
+    joinRoomCall(roomId);
+    call.joinCall();
+  }, [roomId, joinRoomCall, call, stopRing]);
 
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
 
@@ -163,13 +159,13 @@ export default function RoomDetailWeb() {
             <RoomHeader
               room={room}
               presenceMembers={presenceMembers}
-              isInCall={callHook.isInCall}
+              isInCall={call.isInCall && activeRoomId === roomId}
               isAiPanelOpen={isAiPanelOpen}
               isMembersPanelOpen={isMembersPanelOpen}
               canCall={permissions.canCall}
               canManage={permissions.canManage}
               onStartCall={handleJoinCall}
-              onLeaveCall={callHook.leaveCall}
+              onLeaveCall={leaveRoomCall}
               onToggleAiPanel={() => setIsAiPanelOpen((v) => !v)}
               onToggleMembersPanel={() => setIsMembersPanelOpen((v) => !v)}
               onOpenPermissions={() => setIsPermissionsOpen(true)}
@@ -223,66 +219,6 @@ export default function RoomDetailWeb() {
         </div>
       </RoomsLayout>
 
-      {/* Video call overlay */}
-      {callHook.isInCall && (
-        <RoomVideoCall
-          peers={callHook.peers}
-          localStream={callHook.localStream}
-          screenStream={callHook.screenStream}
-          localDisplayName={user?.displayName ?? user?.username ?? "You"}
-          isAudioMuted={callHook.isAudioMuted}
-          isVideoMuted={callHook.isVideoMuted}
-          isScreenSharing={callHook.isScreenSharing}
-          isCameraFilterActive={callHook.isCameraFilterActive}
-          canvasRef={callHook.canvasRef as React.RefObject<HTMLCanvasElement>}
-          localVideoRef={callHook.localVideoRef as React.RefObject<HTMLVideoElement>}
-          canManageCall={callHook.canManageCall}
-          onMuteParticipant={callHook.muteParticipant}
-          onKickParticipant={callHook.kickParticipant}
-          onDisableScreen={callHook.disableParticipantScreen}
-          liveCaption={callHook.liveCaption}
-          transcriptSegments={callHook.transcriptSegments}
-          activeFilter={callHook.activeFilter}
-          onSetFilter={callHook.setFilter}
-          backgroundBlur={callHook.backgroundBlur}
-          onSetBackgroundBlur={callHook.setBackgroundBlur}
-          skinSmooth={callHook.skinSmooth}
-          onSetSkinSmooth={callHook.setSkinSmooth}
-          backgroundRemoval={callHook.backgroundRemoval}
-          onSetBackgroundRemoval={callHook.setBackgroundRemoval}
-          virtualBackgroundUrl={callHook.virtualBackgroundUrl}
-          onSetVirtualBackgroundUrl={callHook.setVirtualBackgroundUrl}
-          backgroundColor={callHook.backgroundColor}
-          onSetBackgroundColor={callHook.setBackgroundColor}
-          currentVideoDeviceId={callHook.currentVideoDeviceId}
-          onSwitchCamera={callHook.switchCamera}
-          settingsModalOpen={settingsModalOpen}
-          onSetSettingsModalOpen={setSettingsModalOpen}
-          captionSettings={callHook.captionSettings || { enabled: false, mode: "subtitle", fontSize: "md", color: "#ffffff", font: "sans" }}
-          onSetCaptionSettings={callHook.setCaptionSettings || (() => {})}
-          callControls={
-            <RoomCallControls
-              isAudioMuted={callHook.isAudioMuted}
-              isVideoMuted={callHook.isVideoMuted}
-              isScreenSharing={callHook.isScreenSharing}
-              isCameraFilterActive={callHook.isCameraFilterActive}
-              activeFilter={callHook.activeFilter}
-              isRecording={callHook.isRecording}
-              recordingElapsed={callHook.recordingElapsed}
-              canRecord={permissions.canRecord}
-              onOpenSettings={() => setSettingsModalOpen(true)}
-              onToggleAudio={callHook.toggleAudio}
-              onToggleVideo={callHook.toggleVideo}
-              onToggleScreenShare={callHook.toggleScreenShare}
-              onSetFilter={callHook.setFilter}
-              onToggleRecording={callHook.toggleRecording}
-              onLeave={callHook.leaveCall}
-              t={t}
-            />
-          }
-          t={t}
-        />
-      )}
 
       <RoomPermissionsModal
         isOpen={isPermissionsOpen}

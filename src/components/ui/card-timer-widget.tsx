@@ -28,7 +28,15 @@ function formatCountdown(totalMs: number): string {
   return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
-export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards?: any[]; teamDocs?: any[] }) {
+export function CardTimerWidget({
+  teamBoards = [],
+  teamDocs = [],
+  onTimersChange
+}: {
+  teamBoards?: any[];
+  teamDocs?: any[];
+  onTimersChange?: (hasTimers: boolean) => void;
+}) {
   const t = useTranslations("board-detail");
   const { locale } = useI18n();
   const { accessToken } = useSession();
@@ -184,6 +192,10 @@ export function CardTimerWidget({ teamBoards = [], teamDocs = [] }: { teamBoards
     window.addEventListener("killio:toast-count", handleToastCount);
     return () => window.removeEventListener("killio:toast-count", handleToastCount);
   }, []);
+
+  useEffect(() => {
+    onTimersChange?.(timers.length > 0);
+  }, [timers.length, onTimersChange]);
 
   if (!timers.length) return null;
 

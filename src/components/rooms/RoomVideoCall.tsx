@@ -155,8 +155,8 @@ interface RoomVideoCallProps {
   peers: CallPeer[];
   isScreenSharing: boolean;
   isCameraFilterActive: boolean;
-  canvasRef: React.RefObject<HTMLCanvasElement>;
-  localVideoRef: React.RefObject<HTMLVideoElement>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  localVideoRef: React.RefObject<HTMLVideoElement | null>;
   localDisplayName: string;
   isAudioMuted: boolean;
   isVideoMuted: boolean;
@@ -185,6 +185,7 @@ interface RoomVideoCallProps {
   onSetSettingsModalOpen: (open: boolean) => void;
   captionSettings: CaptionSettings;
   onSetCaptionSettings: (s: CaptionSettings) => void;
+  bottomOffset?: number;
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
@@ -226,6 +227,7 @@ export function RoomVideoCall({
   onSetSettingsModalOpen,
   captionSettings,
   onSetCaptionSettings,
+  bottomOffset = 0,
   t,
 }: RoomVideoCallProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("panel");
@@ -368,7 +370,10 @@ export function RoomVideoCall({
   // ── Mini mode ────────────────────────────────────────────────────────────────
   if (viewMode === "mini") {
     return (
-      <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-52">
+      <div 
+        className="fixed bottom-4 right-4 z-[200] bg-zinc-900 border border-zinc-700 rounded-xl shadow-2xl w-52 transition-all duration-300"
+        style={{ bottom: 16 + bottomOffset }}
+      >
         <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
           <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
           <div className="flex gap-0.5">
@@ -443,7 +448,10 @@ export function RoomVideoCall({
 
   // ── Panel mode (default) ─────────────────────────────────────────────────────
   return (
-    <div className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[520px] max-h-[520px] flex flex-col backdrop-blur-sm">
+    <div 
+      className="fixed bottom-4 right-4 z-[200] bg-zinc-900/95 border border-zinc-700 rounded-2xl shadow-2xl w-[520px] max-h-[520px] flex flex-col backdrop-blur-sm transition-all duration-300"
+      style={{ bottom: 16 + bottomOffset }}
+    >
       <div className="flex items-center justify-between px-3 py-2 border-b border-zinc-700/60 shrink-0">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />

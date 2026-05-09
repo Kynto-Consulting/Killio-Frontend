@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   Camera, Mic, Speaker, X, Check,
   Sparkles, Settings, Volume2, VideoOff,
@@ -215,8 +216,8 @@ export function RoomCallSettingsModal({
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
+  const modalContent = (
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-200">
       <div className="bg-zinc-900 border border-zinc-700 rounded-3xl shadow-2xl w-full max-w-4xl flex flex-col max-h-[90vh] overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-zinc-800">
@@ -243,7 +244,7 @@ export function RoomCallSettingsModal({
 
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
                 <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-white/90 border border-white/10">
-                  Preview: {previewFilter.charAt(0).toUpperCase() + previewFilter.slice(1)}
+                  {t("call.settings.preview")}: {previewFilter.charAt(0).toUpperCase() + previewFilter.slice(1)}
                 </div>
                 {isAudioMuted ? (
                   <div className="bg-red-500/20 border border-red-500/50 p-2 rounded-full text-red-400">
@@ -333,14 +334,14 @@ export function RoomCallSettingsModal({
             <div className="space-y-4 bg-zinc-800/20 rounded-2xl p-4 border border-zinc-800/50">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                  <Layout className="w-3.5 h-3.5" /> Background Mode
+                  <Layout className="w-3.5 h-3.5" /> {t("call.settings.backgroundMode")}
                 </label>
                 <button
                   onClick={() => setPreviewRemoval(!previewRemoval)}
                   className={`text-[10px] font-bold px-2 py-1 rounded-md transition-colors ${previewRemoval ? "bg-violet-600 text-white" : "bg-zinc-700 text-zinc-400"
                     }`}
                 >
-                  {previewRemoval ? "Enabled" : "Disabled"}
+                  {previewRemoval ? t("common.enabled") : t("common.disabled")}
                 </button>
               </div>
 
@@ -463,7 +464,7 @@ export function RoomCallSettingsModal({
               <div className="space-y-3">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                    <Tv className="w-3.5 h-3.5" /> Background Blur
+                    <Tv className="w-3.5 h-3.5" /> {t("call.settings.backgroundBlur")}
                   </label>
                   <span className="text-[10px] font-mono text-violet-400">{previewBlur}px</span>
                 </div>
@@ -478,7 +479,7 @@ export function RoomCallSettingsModal({
               <div className="space-y-3">
                 <div className="flex justify-between items-center px-1">
                   <label className="text-xs font-bold uppercase tracking-wider text-zinc-400 flex items-center gap-2">
-                    <Sparkles className="w-3.5 h-3.5 text-pink-400" /> Skin Smoothing
+                    <Sparkles className="w-3.5 h-3.5 text-pink-400" /> {t("call.settings.skinSmoothing")}
                   </label>
                   <span className="text-[10px] font-mono text-pink-400">{previewSmooth}</span>
                 </div>
@@ -519,4 +520,8 @@ export function RoomCallSettingsModal({
       </div>
     </div>
   );
+
+  return typeof document !== "undefined"
+    ? createPortal(modalContent, document.body)
+    : null;
 }

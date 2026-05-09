@@ -13,7 +13,7 @@ interface RoomCallParticipantProps {
   isMuted?: boolean;
   isVideoOff?: boolean;
   isScreenSharing?: boolean;
-  canvasRef?: React.RefObject<HTMLCanvasElement>;
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
   canManage?: boolean;
   peerId?: string;
   onMute?: (peerId: string) => void;

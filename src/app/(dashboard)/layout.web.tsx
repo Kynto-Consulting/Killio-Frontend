@@ -10,8 +10,11 @@ import { AppPreferencesModal } from "@/components/ui/preferences-modal";
 import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
+import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
+import { RoomCallControls } from "@/components/rooms/RoomCallControls";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
@@ -27,6 +30,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const tRooms = useTranslations("rooms");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   const navigation = [
@@ -66,6 +70,8 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
+  const [hasTimers, setHasTimers] = useState(false);
+  const { call, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef } = useCall();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("killio_dismissed_banners");
@@ -654,7 +660,68 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
           {children}
         </main>
 
-        <CardTimerWidget teamBoards={boards} teamDocs={recentDocuments} />
+        <CardTimerWidget 
+          teamBoards={boards} 
+          teamDocs={recentDocuments} 
+          onTimersChange={setHasTimers}
+        />
+
+        {call.isInCall && (
+          <RoomVideoCall
+            localStream={call.localStream}
+            screenStream={call.screenStream}
+            peers={call.peers}
+            isScreenSharing={call.isScreenSharing}
+            isCameraFilterActive={call.isCameraFilterActive}
+            canvasRef={canvasRef}
+            localVideoRef={localVideoRef}
+            localDisplayName={user?.displayName || user?.username || "You"}
+            isAudioMuted={call.isAudioMuted}
+            isVideoMuted={call.isVideoMuted}
+            liveCaption={call.liveCaption}
+            transcriptSegments={call.transcriptSegments}
+            activeFilter={call.activeFilter}
+            onSetFilter={call.setFilter}
+            backgroundBlur={call.backgroundBlur}
+            onSetBackgroundBlur={call.setBackgroundBlur}
+            skinSmooth={call.skinSmooth}
+            onSetSkinSmooth={call.setSkinSmooth}
+            backgroundRemoval={call.backgroundRemoval}
+            onSetBackgroundRemoval={call.setBackgroundRemoval}
+            virtualBackgroundUrl={call.virtualBackgroundUrl}
+            onSetVirtualBackgroundUrl={call.setVirtualBackgroundUrl}
+            backgroundColor={call.backgroundColor}
+            onSetBackgroundColor={call.setBackgroundColor}
+            currentVideoDeviceId={call.currentVideoDeviceId}
+            onSwitchCamera={call.switchCamera}
+            settingsModalOpen={settingsModalOpen}
+            onSetSettingsModalOpen={setSettingsModalOpen}
+            captionSettings={call.captionSettings}
+            onSetCaptionSettings={call.setCaptionSettings}
+            bottomOffset={hasTimers ? 240 : 0}
+            callControls={
+              <RoomCallControls
+                isAudioMuted={call.isAudioMuted}
+                isVideoMuted={call.isVideoMuted}
+                isScreenSharing={call.isScreenSharing}
+                isCameraFilterActive={call.isCameraFilterActive}
+                activeFilter={call.activeFilter}
+                isRecording={call.isRecording}
+                recordingElapsed={call.recordingElapsed}
+                canRecord={true} // Simplified for global
+                onOpenSettings={() => setSettingsModalOpen(true)}
+                onToggleAudio={call.toggleAudio}
+                onToggleVideo={call.toggleVideo}
+                onToggleScreenShare={call.toggleScreenShare}
+                onSetFilter={call.setFilter}
+                onToggleRecording={call.toggleRecording}
+                onLeave={call.leaveCall}
+                t={tRooms}
+              />
+            }
+            t={tRooms}
+          />
+        )}
       </div>
     </div>
   );
