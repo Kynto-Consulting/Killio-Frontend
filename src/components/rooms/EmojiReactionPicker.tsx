@@ -154,9 +154,9 @@ export function EmojiReactionPicker({ onReact, isOwn, t }: EmojiReactionPickerPr
       <button
         ref={triggerRef}
         onClick={() => setOpen((v) => (v ? null : "quick"))}
-        className={`absolute -top-2.5 ${isOwn ? "left-2" : "right-2"} hidden group-hover:flex items-center gap-0.5 bg-card border border-border rounded-full px-1.5 py-0.5 shadow-sm text-muted-foreground hover:text-foreground transition-colors z-10`}
+        className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
       >
-        <SmilePlus className="w-3 h-3" />
+        <SmilePlus className="w-3.5 h-3.5" />
       </button>
 
       {open && pos && (

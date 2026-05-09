@@ -38,8 +38,9 @@
       "more": "More emojis",
       "search": "Search emoji..."
     },
-    "replyingTo": "Replying to {name}",
-    "cancelReply": "Cancel reply"
+    "replyingTo": "Replying to {{name}}",
+    "cancelReply": "Cancel reply",
+    "thinking": "Killio is thinking"
   },
   "call": {
     "joining": "Joining call...",

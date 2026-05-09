@@ -118,7 +118,7 @@ export default function RoomDetailWeb() {
       id: botMsgId,
       roomId,
       userId: "000",
-      content: "...",
+      content: "AI_THINKING",
       type: "ai",
       createdAt: new Date().toISOString(),
       status: "sending",

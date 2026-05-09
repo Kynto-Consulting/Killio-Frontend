@@ -79,7 +79,7 @@ export function RoomMessageItem({
       <div className="flex justify-center my-2">
         <RoomCallHistoryCard
           call={linkedCall}
-          onViewTranscript={onViewTranscript ?? (() => {})}
+          onViewTranscript={onViewTranscript ?? (() => { })}
           t={t}
         />
       </div>
@@ -114,7 +114,7 @@ export function RoomMessageItem({
 
   return (
     <>
-      <div 
+      <div
         id={`msg-${message.id}`}
         className={`group relative flex gap-2 ${showAvatar ? "mt-3" : "mt-0.5"} ${isOwn ? "flex-row-reverse" : "flex-row"}`}
       >
@@ -160,11 +160,10 @@ export function RoomMessageItem({
           )}
 
           <div
-            className={`relative rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words border shadow-sm ${
-              isOwn
+            className={`relative rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words border shadow-sm ${isOwn
                 ? "bg-accent/15 text-foreground border-accent/20 rounded-tr-sm"
                 : "bg-muted/50 text-foreground border-border/50 rounded-tl-sm"
-            }`}
+              }`}
           >
             {/* Quoted Message (Reply) */}
             {message.metadata?.replyTo && (
@@ -175,45 +174,57 @@ export function RoomMessageItem({
                   el?.classList.add('animate-pulse-accent');
                   setTimeout(() => el?.classList.remove('animate-pulse-accent'), 2000);
                 }}
-                className="w-full text-left mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 line-clamp-2 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+                className="block text-left mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 hover:bg-black/10 dark:hover:bg-white/10 transition-colors max-w-[280px] overflow-hidden"
               >
-                <div className="font-bold text-accent mb-0.5">
+                <div className="font-bold text-accent mb-0.5 truncate">
                   {message.metadata.replyTo.displayName}
                 </div>
-                <div className="text-muted-foreground italic">
+                <div className="text-muted-foreground italic line-clamp-1">
                   {message.metadata.replyTo.content}
                 </div>
               </button>
             )}
             {/* Markdown + reference pills */}
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-pre:my-1 prose-code:text-xs">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                rehypePlugins={[rehypeRaw]}
-                components={{
-                  a: ({ node, ...props }) => (
-                    <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent underline" />
-                  ),
-                  code: ({ node, className, children, ...props }) => {
-                    const isBlock = className?.includes("language-");
-                    return isBlock ? (
-                      <code
-                        className={`block bg-background/60 rounded px-2 py-1 text-xs font-mono overflow-x-auto ${className ?? ""}`}
-                        {...props}
-                      >
-                        {children}
-                      </code>
-                    ) : (
-                      <code className="bg-background/60 rounded px-1 text-xs font-mono" {...props}>
-                        {children}
-                      </code>
-                    );
-                  },
-                  p: ({ children }) => <span>{children}</span>,
-                }}
-              >
-                {message.content}
-              </ReactMarkdown>
+              {message.content === "AI_THINKING" ? (
+                <div className="flex items-center gap-2 py-1 italic text-muted-foreground animate-pulse">
+                  <Bot className="w-3 h-3" />
+                  <span>{t("chat.thinking")}</span>
+                  <span className="flex gap-1 ml-1">
+                    <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.3s]"></span>
+                    <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.15s]"></span>
+                    <span className="w-1 h-1 rounded-full bg-current animate-bounce"></span>
+                  </span>
+                </div>
+              ) : (
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  rehypePlugins={[rehypeRaw]}
+                  components={{
+                    a: ({ node, ...props }) => (
+                      <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent underline" />
+                    ),
+                    code: ({ node, className, children, ...props }) => {
+                      const isBlock = className?.includes("language-");
+                      return isBlock ? (
+                        <code
+                          className={`block bg-background/60 rounded px-2 py-1 text-xs font-mono overflow-x-auto ${className ?? ""}`}
+                          {...props}
+                        >
+                          {children}
+                        </code>
+                      ) : (
+                        <code className="bg-background/60 rounded px-1 text-xs font-mono" {...props}>
+                          {children}
+                        </code>
+                      );
+                    },
+                    p: ({ children }) => <span>{children}</span>,
+                  }}
+                >
+                  {message.content}
+                </ReactMarkdown>
+              )}
             </div>
 
             {/* Rich text (reference pills) — second pass */}
@@ -238,10 +249,10 @@ export function RoomMessageItem({
               )}
             </div>
 
-            {/* Smart emoji picker + Reply action bar */}
-            <div className={`absolute -top-3 ${isOwn ? "right-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center gap-0.5 p-0.5 bg-background border border-border/60 rounded-lg shadow-md z-10 scale-90 group-hover:scale-100 origin-bottom`}>
+            {/* Message Actions (Emoji + Reply) */}
+            <div className={`absolute -top-3.5 ${isOwn ? "right-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
               <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
-              <div className="w-[1px] h-3 bg-border/50 mx-0.5" />
+              <div className="w-[1px] h-3 bg-border mx-1" />
               <button
                 onClick={() => onReply?.(message)}
                 className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-accent transition-colors"
