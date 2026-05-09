@@ -306,6 +306,7 @@ export async function getCallTranscript(roomId: string, callId: string, accessTo
   return res.json();
 }
 
+
 export async function listTeamRoomGroups(teamId: string, accessToken: string): Promise<RoomGroup[]> {
   const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups`, { headers: authHeader(accessToken) });
   if (!res.ok) return [];
@@ -329,3 +330,23 @@ export async function deleteRoomGroup(teamId: string, groupId: string, accessTok
   });
   if (!res.ok) throw new Error('Failed to delete room group');
 }
+
+/**
+ * Convert a call transcript into a Document.
+ * Returns the new document's id and title.
+ */
+export async function transcriptToDocument(
+  roomId: string,
+  callId: string,
+  teamId: string,
+  accessToken: string
+): Promise<{ documentId: string; title: string }> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/calls/${callId}/to-document`, {
+    method: 'POST',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ teamId }),
+  });
+  if (!res.ok) throw new Error('Failed to convert transcript to document');
+  return res.json();
+}
+

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch } from "lucide-react";
+import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { Room } from "@/lib/api/rooms";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
@@ -104,6 +104,17 @@ export function RoomHeader({
               </div>
             )}
           </div>
+        )}
+
+        {/* Transcript / Captions button */}
+        {canCall && (
+          <Link
+            href={`/rooms/${room.id}/transcripts`}
+            title={t("header.transcripts")}
+            className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <Captions className="w-3.5 h-3.5" />
+          </Link>
         )}
 
         {/* Call button */}

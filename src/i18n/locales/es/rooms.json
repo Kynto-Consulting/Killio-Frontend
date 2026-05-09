@@ -22,7 +22,8 @@
     "copilot": "Copiloto",
     "members": "Miembros",
     "permissions": "Permisos",
-    "linkedTo": "Vinculado a"
+    "linkedTo": "Vinculado a",
+    "transcripts": "Transcripciones de llamada"
   },
   "chat": {
     "inputPlaceholder": "Mensaje en {roomName}... (@AI para copiloto)",
@@ -108,6 +109,26 @@
       "kick": "Expulsar de la llamada",
       "stopScreen": "Detener pantalla compartida"
     }
+  },
+  "transcripts": {
+    "title": "Transcripciones",
+    "callHistory": "Historial de llamadas",
+    "noCalls": "Sin llamadas",
+    "noAccess": "No tienes acceso a las transcripciones de este room",
+    "selectCall": "Selecciona una llamada para ver su transcripción",
+    "documentTitle": "Transcripción de llamada",
+    "segments": "segmentos",
+    "empty": "Sin transcripción registrada para esta llamada",
+    "notRecorded": "La transcripción no estaba habilitada para esta llamada",
+    "copyAll": "Copiar todo",
+    "copied": "¡Copiado!",
+    "toDocument": "Transformar a documento",
+    "openDocument": "Abrir documento",
+    "copilotHint": "Usa Copilot para analizar esta transcripción.",
+    "openCopilot": "Abrir Copilot",
+    "status_none": "Sin transcripción",
+    "status_partial": "Parcial",
+    "status_complete": "Completa"
   },
   "callHistory": {
     "started": "Llamada iniciada",

@@ -468,6 +468,13 @@ export class ReferenceResolver {
       return { label: user ? user.name! : (extra[0] || 'Unknown User') };
     }
 
+    if (type === 'transcript') {
+      // id = roomId, extra[0] = callId, extra[1] = optional label
+      const callId = extra[0] || '';
+      const label = extra[1] || `Transcript · ${callId.slice(0, 8)}`;
+      return { label, href: `/rooms/${id}/transcripts?callId=${callId}` };
+    }
+
     return { label: extra[0] || id };
   }
 
@@ -493,15 +500,15 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[(?:doc|board|mesh|card|user|folder|room|thread):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
-      const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread):([^:\]]+)(?::([^\]]+))?\]/);
+      const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread|transcript):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
-        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread";
+        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
         const isMeshBoard = parsedMentionType === "board" && context.boards.find((b) => b.id === id)?.boardType === "mesh";
-        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread";
+        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
         const fallbackName =
           mentionType === "doc"
             ? context.documents.find((d) => d.id === id)?.title
