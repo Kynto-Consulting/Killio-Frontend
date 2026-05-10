@@ -1,5 +1,8 @@
 {
   "title": "Salas",
+  "ai": {
+    "copilotName": "AI Copilot"
+  },
   "emptyState": {
     "title": "Sin salas aún",
     "description": "Crea un canal para colaborar con tu equipo en tiempo real.",

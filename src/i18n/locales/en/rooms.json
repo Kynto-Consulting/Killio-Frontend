@@ -1,5 +1,8 @@
 {
   "title": "Rooms",
+  "ai": {
+    "copilotName": "AI Copilot"
+  },
   "emptyState": {
     "title": "No rooms yet",
     "description": "Create a channel to start collaborating with your team in real time.",
