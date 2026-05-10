@@ -126,7 +126,7 @@ export function RoomMessageItem({
               className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50 hover:ring-2 hover:ring-accent/40 transition-all cursor-pointer"
             >
               <img
-                src={isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : getUserAvatarUrl(avatarUrl, email, 28)}
+                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
@@ -134,7 +134,7 @@ export function RoomMessageItem({
           ) : (
             <div className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50">
               <img
-                src={isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : getUserAvatarUrl(avatarUrl, email, 28)}
+                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
@@ -177,7 +177,7 @@ export function RoomMessageItem({
                 className="block text-left mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 hover:bg-black/10 dark:hover:bg-white/10 transition-colors max-w-[280px] overflow-hidden"
               >
                 <div className="font-bold text-accent mb-0.5 truncate">
-                  {message.metadata.replyTo.displayName}
+                  {message.metadata.replyTo.displayName === "User" && message.metadata.replyTo.id.includes("ai") ? "AI Copilot" : message.metadata.replyTo.displayName}
                 </div>
                 <div className="text-muted-foreground italic line-clamp-1">
                   {message.metadata.replyTo.content}
@@ -186,10 +186,14 @@ export function RoomMessageItem({
             )}
             {/* Markdown + reference pills */}
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-pre:my-1 prose-code:text-xs">
-              {message.content === "AI_THINKING" ? (
+              {message.content.startsWith("AI_THINKING") ? (
                 <div className="flex items-center gap-2 py-1 italic text-muted-foreground animate-pulse">
                   <Bot className="w-3 h-3" />
-                  <span>{t("chat.thinking")}</span>
+                  <span>
+                    {message.content.startsWith("AI_THINKING_TOOL:") 
+                      ? `${t("chat.thinking")} (${message.content.split(":")[1]})`
+                      : t("chat.thinking")}
+                  </span>
                   <span className="flex gap-1 ml-1">
                     <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.3s]"></span>
                     <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.15s]"></span>
@@ -250,7 +254,7 @@ export function RoomMessageItem({
             </div>
 
             {/* Message Actions (Emoji + Reply) */}
-            <div className={`absolute -top-3.5 ${isOwn ? "right-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
+            <div className={`absolute -top-3.5 ${isOwn ? "left-2" : "left-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
               <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
               <div className="w-[1px] h-3 bg-border mx-1" />
               <button

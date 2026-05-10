@@ -224,7 +224,7 @@ export function RoomChatArea({
         <div className="mx-4 mb-2 p-2 rounded-xl bg-muted/80 border border-border/50 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-bold text-accent uppercase tracking-wider mb-0.5">
-              {t("chat.replyingTo", { name: replyTo.user?.displayName || "User" })}
+              {t("chat.replyingTo", { name: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User") })}
             </div>
             <div className="text-xs text-muted-foreground truncate italic">
               {replyTo.content}

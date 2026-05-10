@@ -103,8 +103,16 @@ export default function RoomDetailWeb() {
     if (!roomId || !accessToken) return;
 
     // 1. Prepare context from last messages
-    const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || 'User'}: ${m.content}`).join("\n");
-    const fullPrompt = `Room Context:\n${lastMsgs}\n\nUser Question: ${content}`;
+    const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || (m.type === 'ai' ? 'AI Copilot' : 'User')}: ${m.content}`).join("\n");
+    const systemPrompt = `You are AI Copilot, a helpful assistant in the Kynto workspace. 
+You have access to tools to manage documents, boards, and search. 
+When asked for counts or data, ALWAYS use your tools. 
+Do not provide placeholders like [insert number here]. 
+If a tool fails, explain why. 
+Current Room: ${room?.name || 'Unknown'}. 
+Team Context: ${activeTeamId}.`;
+
+    const fullPrompt = `${systemPrompt}\n\nRoom Context:\n${lastMsgs}\n\nUser Question: ${content}`;
 
     // 2. Add bot placeholder locally
     const botMsgId = `bot-${Date.now()}`;
@@ -139,6 +147,11 @@ export default function RoomDetailWeb() {
         if (event.type === "delta") {
           accText += event.text;
           chatHook.updateLocalMessage(botMsgId, { content: accText });
+        } else if (event.type === "tool_start") {
+          chatHook.updateLocalMessage(botMsgId, { content: `AI_THINKING_TOOL:${event.tool}` });
+        } else if (event.type === "tool_done") {
+          // Keep the accText if we have any, or go back to thinking
+          chatHook.updateLocalMessage(botMsgId, { content: accText || "AI_THINKING" });
         } else if (event.type === "done") {
           const finalContent = event.text || accText;
           chatHook.updateLocalMessage(botMsgId, { content: finalContent, status: "sent" });
@@ -163,7 +176,7 @@ export default function RoomDetailWeb() {
       replyTo: {
         id: replyTo.id,
         content: replyTo.content,
-        displayName: replyTo.user?.displayName || "User"
+        displayName: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User")
       }
     } : undefined;
 
