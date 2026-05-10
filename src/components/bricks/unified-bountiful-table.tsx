@@ -2505,10 +2505,12 @@ function AIAutocompleteModal({
                           {previewCols.map(c => {
                             const cell = r.cells[c.id];
                             const isTarget = c.id === column.id;
+                            const cellValue = cell ? (cell.text || cell.name || cell.value || (cell.number !== undefined ? String(cell.number) : "")) : "";
+                            
                             return (
                               <td key={c.id} className={cn("px-4 py-3 text-xs border-r border-border/20 transition-all",
                                 isTarget && "bg-accent/[0.04] font-semibold text-accent shadow-[inset_0_0_0_1px_rgba(var(--accent-rgb),0.1)]")}>
-                                {cell?.text || cell?.name || cell?.number || (isTarget && isProcessing ? <span className="animate-pulse opacity-40">...</span> : <span className="opacity-10">—</span>)}
+                                {cellValue || (isTarget && isProcessing ? <span className="animate-pulse opacity-40">...</span> : <span className="opacity-10">—</span>)}
                                 {isTarget && isProcessing && ridx === previewRowIdx && (
                                   <span className="ml-2 inline-block h-1.5 w-1.5 bg-accent rounded-full animate-ping" />
                                 )}
@@ -3473,7 +3475,10 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
       const match = item.token.match(/@\[user:([^:]+):([^\]]+)\]/);
       const uid = match?.[1] || "";
       const uname = match?.[2] || item.label;
-      newCell = { type: "user", users: [{ id: uid, name: uname }] };
+      const existing = rows.find(r => r.id === rowId)?.cells[colId]?.users || [];
+      if (!existing.some(u => u.id === uid)) {
+        newCell = { type: "user", users: [...existing, { id: uid, name: uname }] };
+      }
     } else if (type === "doc") {
       // Could be complex token $[docId:...] or simple @[doc:id:name]
       let docId = "";
@@ -4186,6 +4191,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                     onDragEnd={() => { setDraggedColIdx(null); setDragOverIdx(null); }}
                     className={cn("font-medium px-3 py-2 border-b border-r border-border last:border-r-0 text-muted-foreground min-w-[120px] transition-all bg-muted/30",
                       !readonly && "cursor-pointer hover:bg-muted/40 transition-colors",
+                      (headerMenu?.colId === col.id || showAIModalColId === col.id) && "bg-accent/10 border-b-2 border-b-accent text-accent",
                       draggedColIdx === columns.indexOf(col) && "opacity-40 grayscale",
                       dragOverIdx === columns.indexOf(col) && "bg-accent/10 border-l-2 border-l-accent",
                       isPinned && "sticky z-20 shadow-[2px_0_4px_rgba(0,0,0,0.05)]")}
@@ -4260,7 +4266,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           <ColumnHeaderMenu column={col}
             anchorRect={headerMenu.rect}
             onClose={() => setHeaderMenu(null)}
-            onAIAutocomplete={() => setShowAIModalColId(headerMenu.colId)}
+            onAIAutocomplete={() => { setShowAIModalColId(headerMenu.colId); setHeaderMenu(null); }}
             onRename={name => renameColumn(headerMenu.colId, name)}
             onChangeType={type => changeColumnType(headerMenu.colId, type)}
             onSort={dir => setSortConfig(dir ? { colId: headerMenu.colId, direction: dir } : null)}
