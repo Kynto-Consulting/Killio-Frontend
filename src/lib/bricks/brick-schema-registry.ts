@@ -199,18 +199,50 @@ export const MESH_BRICK_SCHEMAS: Record<string, any> = {
   draw: { description: "Handwritten or sketched content" }
 };
 
-export function getFullBrickSchemaContext(): string {
-  let context = "### KYNTIO BRICK SCHEMA REGISTRY\n";
-  context += "The following schemas define the valid structure for 'content' in different brick types. Use these when creating or modifying bricks.\n\n";
-  
-  for (const [kind, schema] of Object.entries(BRICK_SCHEMAS)) {
-    context += `#### Kind: ${kind}\n`;
-    context += `- Description: ${schema.description}\n`;
-    context += `- Content Structure: ${JSON.stringify(schema.contentStructure, null, 2)}\n\n`;
+/**
+ * TOON (Token-Oriented Object Notation) simplified stringifier.
+ * Optimized for LLM context.
+ */
+function toTOON(obj: any, indent = 0): string {
+  const spaces = "  ".repeat(indent);
+  if (obj === null) return "null";
+  if (typeof obj !== "object") return String(obj);
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return "[]";
+    const first = obj[0];
+    if (typeof first === "object" && first !== null && !Array.isArray(first)) {
+      const keys = Object.keys(first);
+      let res = `[${obj.length}]{${keys.join(",")}}:\n`;
+      for (const item of obj) {
+        res += `${spaces}  ${keys.map(k => String(item[k] ?? "")).join(",")}\n`;
+      }
+      return res.trim();
+    }
+    return `[${obj.length}]: ${obj.map(v => String(v)).join(",")}`;
   }
-  
+
+  let res = "";
+  const entries = Object.entries(obj);
+  for (let i = 0; i < entries.length; i++) {
+    const [k, v] = entries[i];
+    const valStr = typeof v === "object" && v !== null ? `\n${spaces}  ${toTOON(v, indent + 1)}` : ` ${toTOON(v, indent + 1)}`;
+    res += `${k}:${valStr}${i < entries.length - 1 ? "\n" + spaces : ""}`;
+  }
+  return res;
+}
+
+export function getFullBrickSchemaContext(): string {
+  let context = "=== REGISTRO DE ESQUEMAS DE BRICKS (Formato TOON) ===\n";
+  context += "Usa estas estructuras exactas al generar o editar bricks.\n\n";
+
+  for (const [kind, schema] of Object.entries(BRICK_SCHEMAS)) {
+    context += `${kind}:\n`;
+    context += `  description: ${schema.description}\n`;
+    context += `  contentStructure:\n    ${toTOON(schema.contentStructure, 2)}\n\n`;
+  }
+
   context += "### MESH BRICKS\n";
-  context += "Mesh bricks are used on 2D canvases and have 'position' {x, y} and 'size' {w, h}.\n";
   for (const [kind, schema] of Object.entries(MESH_BRICK_SCHEMAS)) {
     context += `- ${kind}: ${schema.description}\n`;
   }
