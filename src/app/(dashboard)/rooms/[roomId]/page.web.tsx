@@ -14,6 +14,7 @@ import { useCall } from "@/components/providers/call-provider";
 import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage } from "@/lib/api/rooms";
 import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
+import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
 import { AgentChatPanel } from "@/components/agent";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
 import { RoomSidebar } from "@/components/rooms/RoomSidebar";

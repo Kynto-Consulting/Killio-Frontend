@@ -1,4 +1,5 @@
 import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
+import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
 
 type MentionPart = {
   type: "mention";
@@ -49,6 +50,8 @@ export function buildAiMessageWithReferenceContext(message: string, context: Res
     "[REFERENCE_CONTEXT]",
     "Referencias parseadas para contexto:",
     ...unique,
+    "",
+    getFullBrickSchemaContext(),
     "[/REFERENCE_CONTEXT]",
   ].join("\n");
 
