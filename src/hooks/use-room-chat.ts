@@ -74,8 +74,8 @@ export function useRoomChat(
           (m) =>
             (m.id.startsWith("temp-") || m.id.startsWith("bot-")) &&
             (m.userId === payload.userId || (m.type === "ai" && payload.type === "ai")) &&
-            m.content === payload.content &&
-            Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 15_000
+            m.content.trim() === payload.content.trim() &&
+            Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 30_000
         );
         if (tempIdx !== -1) {
           const updated = [...prev];

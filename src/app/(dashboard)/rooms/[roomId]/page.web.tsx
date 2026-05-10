@@ -107,6 +107,7 @@ export default function RoomDetailWeb() {
     const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || (m.type === 'ai' ? 'AI Copilot' : 'User')}: ${m.content}`).join("\n");
     const systemPrompt = `You are AI Copilot, a helpful assistant in the Kynto workspace. 
 You have access to tools to manage documents, boards, and search. 
+Use document_list and board_list to discover IDs and titles before requesting details.
 When asked for counts or data, ALWAYS use your tools. 
 Do not provide placeholders like [insert number here]. 
 If a tool fails, explain why. 
