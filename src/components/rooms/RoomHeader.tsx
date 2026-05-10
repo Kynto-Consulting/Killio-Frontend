@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions } from "lucide-react";
+import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions, ChevronLeft } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { Room } from "@/lib/api/rooms";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
+import { usePlatform } from "@/components/providers/platform-provider";
 
 type TFn = (key: string) => string;
 
@@ -51,6 +52,58 @@ export function RoomHeader({
   onOpenPermissions,
   t,
 }: RoomHeaderProps) {
+  const platform = usePlatform();
+
+  // Mobile-optimized header
+  if (platform === "mobile") {
+    const onlineCount = presenceMembers.length;
+    return (
+      <div className="flex items-center justify-between px-3 py-2 border-b border-border/50 bg-background/60 backdrop-blur shrink-0">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link href="/rooms" className="p-2 rounded-md text-muted-foreground hover:bg-accent/10">
+            <ChevronLeft className="w-5 h-5" />
+          </Link>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold truncate">
+              {roomPrefix(room)} {room.name}
+            </div>
+            {onlineCount > 0 && (
+              <div className="text-xs text-muted-foreground truncate">{onlineCount} online</div>
+            )}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1">
+          {canCall && (
+            <button
+              onClick={isInCall ? onLeaveCall : onStartCall}
+              title={isInCall ? t("header.leaveCall") : t("header.call")}
+              className="p-2 rounded-md hover:bg-accent/10 text-muted-foreground"
+            >
+              {isInCall ? <PhoneOff className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+            </button>
+          )}
+
+          <button
+            onClick={onToggleAiPanel}
+            title={t("header.copilot")}
+            className={`p-2 rounded-md ${isAiPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
+          >
+            <Bot className="w-5 h-5" />
+          </button>
+
+          <button
+            onClick={onToggleMembersPanel}
+            title={t("header.members")}
+            className={`p-2 rounded-md ${isMembersPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
+          >
+            <Users className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const onlineCount = presenceMembers.length;
   const visibleAvatars = presenceMembers.slice(0, 4);
   const extraCount = onlineCount - 4;

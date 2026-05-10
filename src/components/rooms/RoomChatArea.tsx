@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { usePlatform } from "@/components/providers/platform-provider";
 import { Loader2, X } from "lucide-react";
 import type { RoomMessage, RoomCall } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
@@ -95,6 +96,8 @@ export function RoomChatArea({
   onReply,
   t,
 }: RoomChatAreaProps) {
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
@@ -145,7 +148,7 @@ export function RoomChatArea({
       <div
         ref={scrollRef}
         onScroll={handleScroll}
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-1"
+        className={`flex-1 overflow-y-auto ${isMobile ? "px-3 py-3 pb-24" : "px-4 py-4"} space-y-1`}
       >
         {isLoading && (
           <div className="flex justify-center py-8">
@@ -214,14 +217,14 @@ export function RoomChatArea({
 
       {/* Typing indicator */}
       {typingText && (
-        <div className="px-4 pb-1">
+        <div className={isMobile ? "px-3 pb-1" : "px-4 pb-1"}>
           <span className="text-[10px] text-muted-foreground italic">{typingText}</span>
         </div>
       )}
 
       {/* Reply Preview */}
       {replyTo && (
-        <div className="mx-4 mb-2 p-2 rounded-xl bg-muted/80 border border-border/50 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200">
+        <div className={`${isMobile ? "mx-3 mb-2 p-2" : "mx-4 mb-2 p-2"} rounded-xl bg-muted/80 border border-border/50 flex items-center gap-3 animate-in slide-in-from-bottom-2 duration-200`}>
           <div className="flex-1 min-w-0">
             <div className="text-[10px] font-bold text-accent uppercase tracking-wider mb-0.5">
               {t("chat.replyingTo", { name: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User") })}

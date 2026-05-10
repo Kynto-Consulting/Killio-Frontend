@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Loader2 } from "lucide-react";
+import { usePlatform } from "@/components/providers/platform-provider";
 import { createRoomGroup, type RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
@@ -23,6 +24,8 @@ export function CreateRoomGroupModal({
   onCreated,
   t,
 }: CreateRoomGroupModalProps) {
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -46,8 +49,8 @@ export function CreateRoomGroupModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[260] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xs overflow-hidden">
+    <div className={`fixed inset-0 z-[260] flex ${isMobile ? "items-end justify-stretch" : "items-center justify-center"} bg-black/50 backdrop-blur-sm`}>
+      <div className={`bg-card border border-border shadow-2xl w-full overflow-hidden ${isMobile ? "rounded-t-2xl max-h-[92vh]" : "max-w-xs rounded-2xl"}`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-sm font-semibold">{t("createGroup.title")}</h3>
           <button onClick={onClose} className="p-1 rounded-md hover:bg-accent/10 text-muted-foreground">

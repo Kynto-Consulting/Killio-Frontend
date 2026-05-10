@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Loader2, Trash2 } from "lucide-react";
+import { usePlatform } from "@/components/providers/platform-provider";
 import { listRoomMembers, updateMemberRole, removeMember, updateRoomSettings, type RoomMember, type RoomRole } from "@/lib/api/rooms";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -20,6 +21,8 @@ interface RoomPermissionsModalProps {
 const ROLES: RoomRole[] = ["admin", "member", "readonly"];
 
 export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, currentUserId, showReadReceipts: initialShowReadReceipts, onSettingsChange, t }: RoomPermissionsModalProps) {
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
   const [activeTab, setActiveTab] = useState<"members" | "channel">("members");
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -64,8 +67,8 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden">
+    <div className={`fixed inset-0 z-[250] flex ${isMobile ? "items-end justify-stretch" : "items-center justify-center"} bg-black/50 backdrop-blur-sm`}>
+      <div className={`bg-card border border-border shadow-2xl w-full flex flex-col overflow-hidden ${isMobile ? "h-[92vh] rounded-t-2xl" : "max-w-md rounded-2xl"}`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border">
           <h3 className="text-sm font-semibold">{t("permissions.title")}</h3>
@@ -92,7 +95,7 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto max-h-80 p-4">
+        <div className={`flex-1 overflow-y-auto p-4 ${isMobile ? "max-h-none" : "max-h-80"}`}>
           {activeTab === "members" && (
             <div className="space-y-2">
               {isLoading ? (

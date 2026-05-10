@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
 import type { RoomMember } from "@/lib/api/rooms";
@@ -49,10 +50,11 @@ interface RoomMembersPanelProps {
   presenceMembers: RoomPresenceMember[];
   roomMembers: RoomMember[];
   currentUserId: string;
+  onClose?: () => void;
   t: TFn;
 }
 
-export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, t }: RoomMembersPanelProps) {
+export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, onClose, t }: RoomMembersPanelProps) {
   const onlineIds = new Set(presenceMembers.map((m) => m.clientId));
   const inCallIds = new Set(
     presenceMembers.filter((m) => m.data.status === "in-call").map((m) => m.clientId)
@@ -63,10 +65,19 @@ export function RoomMembersPanel({ presenceMembers, roomMembers, currentUserId, 
 
   return (
     <div className="w-full h-full flex flex-col overflow-hidden">
-      <div className="px-3 py-2.5 border-b border-border/40 shrink-0">
+      <div className="px-3 py-2.5 border-b border-border/40 shrink-0 flex items-center justify-between">
         <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
           {t("members.title")}
         </span>
+        {onClose && (
+          <button
+            onClick={onClose}
+            className="p-1 rounded-md hover:bg-accent/10 text-muted-foreground"
+            aria-label="Close members panel"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto py-2 px-2">
         {online.length > 0 && (

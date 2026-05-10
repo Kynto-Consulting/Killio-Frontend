@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePlatform } from "@/components/providers/platform-provider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
@@ -62,6 +63,8 @@ export function RoomMessageItem({
   t,
 }: RoomMessageItemProps) {
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
 
   // System / call history messages
   if (message.type === "system") {
@@ -123,28 +126,28 @@ export function RoomMessageItem({
           canOpenDm ? (
             <button
               onClick={handleAvatarClick}
-              className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50 hover:ring-2 hover:ring-accent/40 transition-all cursor-pointer"
+              className={`${isMobile ? "h-6 w-6" : "h-7 w-7"} rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50 hover:ring-2 hover:ring-accent/40 transition-all cursor-pointer`}
             >
               <img
-                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, 28)}
+                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, isMobile ? 32 : 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
             </button>
           ) : (
-            <div className="h-7 w-7 rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50">
+            <div className={`${isMobile ? "h-6 w-6" : "h-7 w-7"} rounded-full overflow-hidden border border-border shrink-0 mt-0.5 bg-muted/50`}>
               <img
-                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, 28)}
+                src={getUserAvatarUrl(avatarUrl || (isAi ? "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9" : null), isAi ? "ai@killio.app" : email, isMobile ? 32 : 28)}
                 alt={displayName}
                 className="w-full h-full object-cover"
               />
             </div>
           )
         ) : (
-          <div className="w-7 shrink-0" />
+          <div className={`${isMobile ? "w-6" : "w-7"} shrink-0`} />
         )}
 
-        <div className={`flex flex-col max-w-[75%] ${isOwn ? "items-end" : "items-start"}`}>
+        <div className={`flex flex-col ${isOwn ? "items-end" : "items-start"} ${isMobile ? "max-w-[85%]" : "max-w-[75%]"}`}>
           {showAvatar && !isOwn && (
             <div className="flex items-center gap-1 mb-0.5 px-1">
               <span className="text-[10px] font-semibold text-muted-foreground">
@@ -254,7 +257,7 @@ export function RoomMessageItem({
             </div>
 
             {/* Message Actions (Emoji + Reply) */}
-            <div className={`absolute -top-3.5 ${isOwn ? "left-2" : "right-2"} opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
+            <div className={`absolute -top-3.5 ${isOwn ? "left-2" : "right-2"} opacity-0 md:group-hover:opacity-100 transition-all duration-200 hidden md:flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
               <EmojiReactionPicker onReact={handleReact} isOwn={isOwn} t={t} />
               <div className="w-[1px] h-3 bg-border mx-1" />
               <button
