@@ -138,7 +138,7 @@ export function RoomChatArea({
 
   const withDividers = insertDateDividers(messages);
   const typingText = formatTypingText(typingUsers, t);
-  const replyPreview = replyTo ? parseAiMarkup(replyTo.content).visibleText : "";
+  const replyPreview = replyTo ? parseAiMarkup(replyTo.content).visibleText.trim() : "";
 
   const handleSend = () => {
     onSend();
@@ -231,8 +231,8 @@ export function RoomChatArea({
             <div className="text-[10px] font-bold text-accent uppercase tracking-wider mb-0.5">
               {t("chat.replyingTo", { name: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User") })}
             </div>
-            <div className="text-xs text-muted-foreground truncate italic">
-              {replyPreview}
+            <div className="text-muted-foreground italic line-clamp-1 text-[11px]">
+              {parseAiMarkup(replyTo.content).visibleText}
             </div>
           </div>
           <button

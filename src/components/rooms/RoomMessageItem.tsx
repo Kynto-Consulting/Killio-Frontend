@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import { usePlatform } from "@/components/providers/platform-provider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft, ChevronDown, ChevronUp, Info, Wrench } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft, ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -67,10 +67,15 @@ export function RoomMessageItem({
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
-  const { blocks: markupBlocks, visibleText: visibleContent } = useMemo(() => parseAiMarkup(message.content), [message.content]);
-  const replyPreview = message.metadata?.replyTo?.content
-    ? parseAiMarkup(message.metadata.replyTo.content).visibleText
-    : "";
+  const { blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.content), [message.content]);
+
+  const toggleMarkup = useCallback((key: string) => {
+    setExpandedMarkup((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }, []);
 
   // System / call history messages
   if (message.type === "system") {
@@ -95,9 +100,9 @@ export function RoomMessageItem({
     );
   }
 
+  const isAi = message.type === "ai";
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
-  const isAi = message.type === "ai";
   const displayName = isAi ? (t("ai.copilotName") || "AI Copilot") : (message.user?.displayName ?? "Unknown");
   const userId = message.userId ?? (isAi ? "000" : "");
   const canOpenDm = teamId && userId && userId !== currentUserId;
@@ -169,9 +174,9 @@ export function RoomMessageItem({
           )}
 
           <div
-            className={`relative rounded-xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap break-words border shadow-sm ${isOwn
-                ? "bg-accent/15 text-foreground border-accent/20 rounded-tr-sm"
-                : "bg-muted/50 text-foreground border-border/50 rounded-tl-sm"
+            className={`relative rounded-xl px-3 py-2 text-sm leading-relaxed border shadow-sm ${isOwn
+              ? "bg-accent/15 text-foreground border-accent/20 rounded-tr-sm"
+              : "bg-muted/50 text-foreground border-border/50 rounded-tl-sm"
               }`}
           >
             {/* Quoted Message (Reply) */}
@@ -185,157 +190,163 @@ export function RoomMessageItem({
                 }}
                 className="block text-left mb-2 p-2 rounded-lg bg-black/5 dark:bg-white/5 border-l-4 border-accent/50 text-[11px] opacity-80 hover:bg-black/10 dark:hover:bg-white/10 transition-colors max-w-[280px] overflow-hidden"
               >
-                <div className="font-bold text-accent mb-0.5 truncate">
-                  {message.metadata.replyTo.displayName === "User" || message.metadata.replyTo.userId === "000" || message.metadata.replyTo.id.startsWith("bot-") || message.metadata.replyTo.id.includes("ai") ? (t("ai.copilotName") || "AI Copilot") : message.metadata.replyTo.displayName}
+                <div className="font-bold text-accent mb-0.5 truncate text-[10px]">
+                  {message.metadata.replyTo.displayName === "User" || message.metadata.replyTo.userId === "000" || message.metadata.replyTo.id?.startsWith("bot-") ? (t("ai.copilotName") || "AI Copilot") : message.metadata.replyTo.displayName}
                 </div>
-                <div className="text-muted-foreground italic line-clamp-1">
-                  {replyPreview}
+                <div className="text-muted-foreground italic line-clamp-1 text-[11px]">
+                  {parseAiMarkup(message.metadata.replyTo.content).visibleText || message.metadata.replyTo.content}
                 </div>
               </button>
             )}
-            {/* Markdown + reference pills */}
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-0 prose-pre:my-1 prose-code:text-xs">
-              {message.content.startsWith("AI_THINKING") ? (
-                <div className="flex items-center gap-2 py-1 italic text-muted-foreground animate-pulse">
-                  <Bot className="w-3 h-3" />
-                  <span>
-                    {message.content.startsWith("AI_THINKING_TOOL:") 
-                      ? `${t("chat.thinking")} (${message.content.split(":")[1]})`
-                      : t("chat.thinking")}
-                  </span>
-                  <span className="flex gap-1 ml-1">
-                    <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.3s]"></span>
-                    <span className="w-1 h-1 rounded-full bg-current animate-bounce [animation-delay:-0.15s]"></span>
-                    <span className="w-1 h-1 rounded-full bg-current animate-bounce"></span>
-                  </span>
-                </div>
-              ) : (
-                <>
-                  {markupBlocks.map((block, index) => {
-                    const key = `${block.tag}-${index}`;
-                    const isExpanded = expandedMarkup.has(key);
 
-                    if (block.tag === "tool_call") {
-                      try {
-                        const data = JSON.parse(block.content);
-                        const searchName = data.name.toLowerCase();
-                        const isDone = message.metadata?.toolEvents?.some((e: any) => e.tool.toLowerCase() === searchName && e.phase === "done");
+            {message.status === "sending" && message.content.startsWith("AI_THINKING") ? (
+              <div className="flex items-center gap-2 py-1 italic text-muted-foreground animate-pulse">
+                <Bot className="w-3 h-3" />
+                <span>
+                  {message.content.startsWith("AI_THINKING_TOOL:")
+                    ? `${t("chat.thinking")} (${message.content.split(":")[1]})`
+                    : t("chat.thinking")}
+                </span>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-1.5 min-w-0">
+                {markupBlocks.map((block, index) => {
+                  const key = `${block.tag}-${index}`;
+                  const isExpanded = expandedMarkup.has(key);
 
-                        return (
-                          <div key={key} className="mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10 text-[10px] animate-in fade-in slide-in-from-left-1">
-                            <div className="relative">
-                              {!isDone && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
-                              <Bot className="w-3 h-3 text-violet-500 relative" />
-                            </div>
-                            <span className="text-violet-700 dark:text-violet-300 font-bold uppercase tracking-tighter">
-                              {data.name.replace(/_/g, " ")}
-                            </span>
-                            {isDone ? (
-                              message.metadata?.toolEvents?.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false) ? (
-                                <AlertCircle className="w-2.5 h-2.5 text-destructive" />
-                              ) : (
-                                <Check className="w-2.5 h-2.5 text-emerald-500" />
-                              )
+                  if (block.tag === "text") {
+                    return (
+                      <div key={key} className="text-sm leading-relaxed max-w-full overflow-hidden">
+                        <RichText
+                          content={block.content}
+                          context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                          availableTags={availableTags}
+                        />
+                      </div>
+                    );
+                  }
+
+                  if (block.tag === "tool_call") {
+                    try {
+                      const data = JSON.parse(block.content);
+                      const searchName = data.name?.toLowerCase();
+                      const events = (message.metadata as any)?.toolEvents || [];
+                      const isDone = events.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done");
+                      const isError = events.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false);
+
+                      return (
+                        <div key={key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10 text-[10px] animate-in fade-in slide-in-from-left-1">
+                          <div className="relative shrink-0">
+                            {!isDone && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
+                            <Bot className="w-3 h-3 text-violet-500 relative" />
+                          </div>
+                          <span className="text-violet-700 dark:text-violet-300 font-bold uppercase tracking-tighter truncate max-w-[140px]">
+                            {data.name?.replace(/_/g, " ")}
+                          </span>
+                          {isDone ? (
+                            isError ? (
+                              <AlertCircle className="w-2.5 h-2.5 text-destructive shrink-0" />
                             ) : (
-                              <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400" />
-                            )}
+                              <Check className="w-2.5 h-2.5 text-emerald-500 shrink-0" />
+                            )
+                          ) : (
+                            <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400 shrink-0" />
+                          )}
 
-                            <div className="group/info relative ml-auto">
-                              <Info className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-violet-500 cursor-help transition-colors" />
-                              <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
-                                <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
-                                  <span>TOOL CALL RAW</span>
+                          <div className="group/info relative ml-auto shrink-0">
+                            <Info className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-violet-500 cursor-help transition-colors" />
+                            <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
+                              <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                                <span className="flex items-center gap-1">
                                   <Wrench className="w-2 h-2" />
-                                </div>
-                                <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
-                                  {JSON.stringify(data.input, null, 2)}
-                                </pre>
+                                  TOOL CALL RAW
+                                </span>
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigator.clipboard.writeText(JSON.stringify(data.input, null, 2));
+                                  }}
+                                  className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-400 hover:text-violet-400"
+                                  title="Copy JSON"
+                                >
+                                  <Copy className="w-2 h-2" />
+                                </button>
                               </div>
+                              <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar">
+                                {JSON.stringify(data.input, null, 2)}
+                              </pre>
                             </div>
                           </div>
-                        );
-                      } catch (e) {
-                        return null;
-                      }
+                        </div>
+                      );
+                    } catch (e) { return null; }
+                  }
+
+                  if (block.tag === "plan") {
+                    const steps: { id: string; status: string; content: string }[] = [];
+                    const stepRegex = /<step\s+id=["']?([^"'>\s]+)["']?\s+status=["']?([^"'>\s]+)["']?>([\s\S]*?)<\/step>/gi;
+                    let match;
+                    while ((match = stepRegex.exec(block.content)) !== null) {
+                      steps.push({ id: match[1], status: match[2], content: match[3].trim() });
                     }
 
                     return (
-                      <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 px-2 py-1.5">
-                        <button
-                          onClick={() => {
-                            setExpandedMarkup((prev) => {
-                              const next = new Set(prev);
-                              next.has(key) ? next.delete(key) : next.add(key);
-                              return next;
-                            });
-                          }}
-                          className="w-full flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
-                          title={isExpanded ? `Ocultar ${getAiMarkupLabel(block.tag)}` : `Mostrar ${getAiMarkupLabel(block.tag)}`}
-                        >
-                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                          <span>{getAiMarkupLabel(block.tag)}</span>
-                        </button>
-                        {isExpanded && (
-                          <pre className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground font-mono">
-                            {block.content}
-                          </pre>
-                        )}
+                      <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm max-w-full overflow-hidden">
+                        <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
+                          <ListChecks className="w-3 h-3" />
+                          <span>Execution Plan</span>
+                        </div>
+                        <div className="space-y-2">
+                          {steps.map((step) => (
+                            <div key={step.id} className="flex gap-2. group/step">
+                              <div className="shrink-0 mt-0.5">
+                                {step.status === "done" ? (
+                                  <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                                  </div>
+                                ) : step.status === "doing" || step.status === "active" ? (
+                                  <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                                    <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
+                                    <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`flex-1 text-[12px] leading-snug ${step.status === "done" ? "text-muted-foreground line-through decoration-border" : "text-foreground"}`}>
+                                <RichText
+                                  content={step.content}
+                                  context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                                  availableTags={availableTags}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     );
-                  })}
+                  }
 
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    rehypePlugins={[rehypeRaw]}
-                    components={{
-                      a: ({ node, ...props }) => (
-                        <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent underline" />
-                      ),
-                      code: ({ node, className, children, ...props }) => {
-                        const isBlock = className?.includes("language-");
-                        return isBlock ? (
-                          <code
-                            className={`block bg-background/60 rounded px-2 py-1 text-xs font-mono overflow-x-auto ${className ?? ""}`}
-                            {...props}
-                          >
-                            {children}
-                          </code>
-                        ) : (
-                          <code className="bg-background/60 rounded px-1 text-xs font-mono" {...props}>
-                            {children}
-                          </code>
-                        );
-                      },
-                      p: ({ children }) => <span>{children}</span>,
-                    }}
-                  >
-                    {visibleContent}
-                  </ReactMarkdown>
-                </>
-              )}
-            </div>
-
-            {/* Rich text (reference pills) — second pass */}
-            {visibleContent.includes("@[") && (
-              <div className="mt-0.5">
-                <RichText
-                  content={visibleContent}
-                  context={resolverContext ?? EMPTY_CONTEXT}
-                  availableTags={availableTags}
-                />
+                  return (
+                    <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 px-2 py-1.5 overflow-hidden">
+                      <button
+                        onClick={() => toggleMarkup(key)}
+                        className="w-full flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        {isExpanded ? <ChevronUp className="w-3 h-3 shrink-0" /> : <ChevronDown className="w-3 h-3 shrink-0" />}
+                        <span className="uppercase">{getAiMarkupLabel(block.tag)}</span>
+                      </button>
+                      {isExpanded && (
+                        <div className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground font-medium animate-in fade-in slide-in-from-top-1">
+                          <pre className="whitespace-pre-wrap font-mono">{block.content}</pre>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             )}
-
-            {/* Timestamp + status */}
-            <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? "justify-end" : "justify-start"}`}>
-              <span className="text-[9px] text-muted-foreground/60">
-                {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                {message.editedAt && " (edited)"}
-              </span>
-              {isOwn && showReadReceipts && (
-                <MessageStatusIcon status={message.status} />
-              )}
-            </div>
 
             {/* Message Actions (Emoji + Reply) */}
             <div className={`absolute -top-3.5 ${isOwn ? "left-2" : "right-2"} opacity-0 md:group-hover:opacity-100 transition-all duration-200 hidden md:flex items-center bg-card border border-border rounded-lg shadow-lg z-20 py-0.5 px-1`}>
@@ -366,10 +377,18 @@ export function RoomMessageItem({
               ))}
             </div>
           )}
+
+          <div className={`flex items-center gap-1 mt-0.5 ${isOwn ? "justify-end" : "justify-start"}`}>
+            <span className="text-[9px] text-muted-foreground/60">
+              {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            </span>
+            {isOwn && showReadReceipts && (
+              <MessageStatusIcon status={message.status} />
+            )}
+          </div>
         </div>
       </div>
 
-      {/* User profile card (DM trigger from avatar) */}
       {userCard && teamId && (
         <UserProfileCard
           userId={userId}

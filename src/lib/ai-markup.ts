@@ -19,47 +19,56 @@ const COLLAPSIBLE_AI_TAGS = [
 ];
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
-  let source = String(value || "");
+  const source = String(value || "");
   const blocks: AiMarkupBlock[] = [];
-  const seenBlocks = new Set<string>();
+  
+  // Create a combined pattern for all tags we care about
+  // 1. <tool_call ... />
+  // 2. <tag>...</tag>
+  const toolCallPart = `<tool_call\\s+name=["']([^"']+)["']\\s+input=([''])([\\s\\S]*?)\\2\\s*\\/?>`;
+  const collapsiblePart = `(<(${COLLAPSIBLE_AI_TAGS.join('|')})\\b[^>]*>([\\s\\S]*?)<\\/\\5>)`;
+  const pattern = new RegExp(`${toolCallPart}|${collapsiblePart}`, "gi");
 
-  // 1. First, extract self-closing <tool_call /> tags
-  const toolCallPattern = /<tool_call\s+name=["']([^"']+)["']\s+input=(['"])([\s\S]*?)\2\s*\/?>/gi;
-  source = source.replace(toolCallPattern, (_full, name, _q, input) => {
-    const normalizedName = String(name || "").trim();
-    const rawInput = String(input || "").trim();
-    let parsedInput = rawInput;
-    try {
-      parsedInput = JSON.parse(rawInput);
-    } catch (e) {
-      // Keep as string if invalid JSON
-    }
-    
-    const key = `tool_call:${normalizedName}:${rawInput}`;
-    
-    if (normalizedName && !seenBlocks.has(key)) {
-      seenBlocks.add(key);
-      blocks.push({ tag: "tool_call", content: JSON.stringify({ name: normalizedName, input: parsedInput }) });
-    }
-    return "\n";
-  });
+  let lastIndex = 0;
+  let match;
 
-  // 2. Then, handle collapsible pair tags
-  for (const tag of COLLAPSIBLE_AI_TAGS) {
-    const pattern = new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "gi");
-    source = source.replace(pattern, (_full, content) => {
-      const normalized = String(content || "").trim();
-      const key = `${tag}:${normalized}`;
-      if (normalized && !seenBlocks.has(key)) {
-        seenBlocks.add(key);
-        blocks.push({ tag, content: normalized });
-      }
-      return "\n";
-    });
+  while ((match = pattern.exec(source)) !== null) {
+    // Add preceding text as a "text" block
+    const precedingText = source.slice(lastIndex, match.index);
+    if (precedingText && precedingText.trim()) {
+      blocks.push({ tag: "text", content: precedingText.trim() });
+    }
+
+    if (match[1]) {
+      // It's a tool_call
+      const name = match[1].trim();
+      const rawInput = match[3].trim();
+      let parsedInput = rawInput;
+      try {
+        parsedInput = JSON.parse(rawInput);
+      } catch (e) {}
+      blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });
+    } else if (match[4]) {
+      // It's a collapsible tag
+      const tag = match[5].toLowerCase();
+      const content = match[6].trim();
+      blocks.push({ tag, content });
+    }
+
+    lastIndex = pattern.lastIndex;
+  }
+
+  // Add remaining text
+  const remainingText = source.slice(lastIndex);
+  if (remainingText && remainingText.trim()) {
+    blocks.push({ tag: "text", content: remainingText.trim() });
   }
 
   return {
-    visibleText: escapeLooseXmlTags(source).trim(),
+    visibleText: blocks
+      .filter((b) => b.tag === "text")
+      .map((b) => b.content.trim())
+      .join(" "),
     blocks,
   };
 }

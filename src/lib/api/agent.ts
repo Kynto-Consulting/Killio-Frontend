@@ -93,3 +93,13 @@ export async function listAgentConversations(
   if (!res.ok) return [];
   return res.json();
 }
+export async function getAgentMessages(
+  conversationId: string,
+  accessToken: string,
+): Promise<any[]> {
+  const res = await fetch(`${API_BASE_URL}/agent/conversations/${conversationId}/messages`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return [];
+  return res.json();
+}

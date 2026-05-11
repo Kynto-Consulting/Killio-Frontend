@@ -6,8 +6,8 @@ import {
   Copy, ThumbsUp, ThumbsDown, RotateCcw, History, ChevronDown, ChevronUp,
   Layout, FileText, Code, Users, Search, List, Play, PlusCircle,
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
-  Clock, MessageSquare, Tag,
-  AlertCircle, Info,
+  Clock, MessageSquare, Tag, AlertCircle, Info,
+  ListChecks,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
@@ -19,6 +19,7 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { getAiMarkupLabel, parseAiMarkup } from "@/lib/ai-markup";
+import { RichText } from "../ui/rich-text";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -314,8 +315,8 @@ export function AgentChatPanel({
                     setShowHistory(false);
                   }}
                   className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors text-sm ${conv.id === conversationId
-                      ? "border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
-                      : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
+                    ? "border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
+                    : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
                     }`}
                 >
                   <p className="font-medium truncate">
@@ -381,6 +382,7 @@ export function AgentChatPanel({
               copied={copiedId === msg.id}
               onThumb={(v) => setThumb(msg.id, v)}
               onRetry={retryMessage}
+              resolverContext={resolverContext}
             />
           ),
         )}
@@ -487,6 +489,8 @@ function AssistantMessage({
   copied,
   onThumb,
   onRetry,
+  resolverContext,
+  availableTags,
 }: {
   t: TFn;
   message: AgentMessage;
@@ -497,6 +501,8 @@ function AssistantMessage({
   copied: boolean;
   onThumb: (v: "up" | "down") => void;
   onRetry: () => void;
+  resolverContext?: ResolverContext;
+  availableTags?: any[];
 }) {
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
 
@@ -537,12 +543,13 @@ function AssistantMessage({
               const inputPreview = formatToolInput(data.input);
 
               // Find if this tool call has finished in toolEvents
-              const searchName = data.name.toLowerCase();
-              const isDone = message.toolEvents?.some(e => e.tool.toLowerCase() === searchName && e.phase === "done");
-              const isError = message.toolEvents?.some(e => e.tool.toLowerCase() === searchName && e.phase === "done" && e.success === false);
+              const searchName = data.name?.toLowerCase();
+              const events = message.toolEvents || [];
+              const isDone = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
+              const isError = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false);
 
               return (
-                <div key={key} className="self-start max-w-full mb-1">
+                <div key={key} className="self-start max-w-full">
                   <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10 text-[11px] animate-in fade-in slide-in-from-left-1">
                     <div className="relative">
                       {!isDone && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
@@ -568,12 +575,24 @@ function AssistantMessage({
 
                     <div className="group/info relative ml-auto">
                       <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
-                      <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
+                      <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
                         <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
-                          <span>TOOL CALL RAW</span>
-                          <Wrench className="w-2 h-2" />
+                          <span className="flex items-center gap-1">
+                            <Wrench className="w-2 h-2" />
+                            TOOL CALL RAW
+                          </span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigator.clipboard.writeText(JSON.stringify(data.input, null, 2));
+                            }}
+                            className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-400 hover:text-violet-400"
+                            title="Copy JSON"
+                          >
+                            <Copy className="w-2 h-2" />
+                          </button>
                         </div>
-                        <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
+                        <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar">
                           {JSON.stringify(data.input, null, 2)}
                         </pre>
                       </div>
@@ -586,17 +605,77 @@ function AssistantMessage({
             }
           }
 
+          if (block.tag === "text") {
+            return (
+              <div key={key} className="text-neutral-700 dark:text-neutral-300 text-[13px] leading-relaxed max-w-full">
+                <RichText
+                  content={block.content}
+                  context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                  availableTags={availableTags}
+                />
+              </div>
+            );
+          }
+
+          if (block.tag === "plan") {
+            const steps: { id: string; status: string; content: string }[] = [];
+            const stepRegex = /<step\s+id=["']?([^"'>\s]+)["']?\s+status=["']?([^"'>\s]+)["']?>([\s\S]*?)<\/step>/gi;
+            let match;
+            while ((match = stepRegex.exec(block.content)) !== null) {
+              steps.push({ id: match[1], status: match[2], content: match[3].trim() });
+            }
+
+            return (
+              <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm">
+                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
+                  <ListChecks className="w-3 h-3" />
+                  <span>Execution Plan</span>
+                </div>
+                <div className="space-y-2">
+                  {steps.map((step) => (
+                    <div key={step.id} className="flex gap-2.5 group/step">
+                      <div className="shrink-0 mt-0.5">
+                        {step.status === "done" ? (
+                          <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                        ) : step.status === "doing" || step.status === "active" ? (
+                          <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                            <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
+                            <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
+                          </div>
+                        )}
+                      </div>
+                      <div className={`flex-1 text-[12px] leading-snug ${step.status === "done" ? "text-neutral-400 line-through decoration-neutral-300 dark:decoration-neutral-700" : "text-neutral-700 dark:text-neutral-300"}`}>
+                        <RichText
+                          content={step.content}
+                          context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                          availableTags={availableTags}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          }
+
           return (
-            <div key={key} className="self-start max-w-full">
+            <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 p-2 overflow-hidden shadow-sm">
               <button
                 onClick={() => toggleMarkup(key)}
-                className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
-                title={isExpanded ? `Ocultar ${getAiMarkupLabel(block.tag)}` : `Mostrar ${getAiMarkupLabel(block.tag)}`}
+                className="w-full flex items-center justify-between text-[10px] font-bold text-neutral-400 hover:text-violet-500 transition-colors uppercase tracking-wider"
               >
-                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                <span>{getAiMarkupLabel(block.tag)}</span>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                    {isExpanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
+                  </div>
+                  <span>{getAiMarkupLabel(block.tag)}</span>
+                </div>
               </button>
-
               {isExpanded && (
                 <div className="mt-1 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/70 px-3 py-2">
                   <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300 font-mono">
@@ -656,12 +735,24 @@ function AssistantMessage({
 
                   <div className="group/info relative ml-auto shrink-0">
                     <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
-                    <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
+                    <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
                       <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
-                        <span>TOOL CALL RAW</span>
-                        <Wrench className="w-2 h-2" />
+                        <span className="flex items-center gap-1">
+                          <Wrench className="w-2 h-2" />
+                          TOOL CALL RAW
+                        </span>
+                        <button
+                          onClick={(clickEvt) => {
+                            clickEvt.stopPropagation();
+                            navigator.clipboard.writeText(JSON.stringify(e.input || {}, null, 2));
+                          }}
+                          className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-400 hover:text-violet-400"
+                          title="Copy JSON"
+                        >
+                          <Copy className="w-2 h-2" />
+                        </button>
                       </div>
-                      <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
+                      <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar">
                         {JSON.stringify(e.input || {}, null, 2)}
                       </pre>
                     </div>
@@ -771,8 +862,8 @@ function ActionButton({
       onClick={onClick}
       title={title}
       className={`p-1 rounded transition-colors ${active
-          ? activeClass
-          : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        ? activeClass
+        : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
         }`}
     >
       {children}

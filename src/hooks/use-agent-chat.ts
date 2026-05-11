@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { streamAgentChat, AgentEntityScope, AgentStreamEvent } from "@/lib/api/agent";
+import { streamAgentChat, AgentEntityScope, AgentStreamEvent, getAgentMessages } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import type { ResolverContext } from "@/lib/reference-resolver";
 
@@ -192,11 +192,49 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     );
   }, []);
 
-  const loadConversation = useCallback((conversationId: string) => {
+  const loadConversation = useCallback(async (conversationId: string) => {
+    if (!accessToken) return;
     conversationIdRef.current = conversationId;
-    setMessages([]);
-    setActiveToolEvents([]);
-  }, []);
+    setIsLoading(true);
+    try {
+      const raw = await getAgentMessages(conversationId, accessToken);
+      const mapped: AgentMessage[] = raw.map((m) => {
+        // Synthesize toolEvents from tool_calls and tool_results columns
+        const toolEvents: ToolEvent[] = [];
+        const calls = m.tool_calls || [];
+        const results = m.tool_results || [];
+
+        calls.forEach((call: any) => {
+          toolEvents.push({
+            tool: call.function?.name || call.tool,
+            input: call.function?.arguments ? JSON.parse(call.function.arguments) : call.input,
+            phase: "done",
+            success: true,
+          });
+        });
+
+        results.forEach((res: any) => {
+          const match = toolEvents.find(e => e.tool === res.tool_use_id || e.tool === res.tool);
+          if (match) {
+            match.success = !res.is_error;
+          }
+        });
+
+        return {
+          id: m.id,
+          role: m.role,
+          text: m.content || "",
+          toolEvents,
+          isStreaming: false,
+        };
+      });
+      setMessages(mapped);
+    } catch (err) {
+      console.error("Failed to load agent history", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [accessToken]);
 
   const cancel = useCallback(() => {
     cancelRef.current?.();
