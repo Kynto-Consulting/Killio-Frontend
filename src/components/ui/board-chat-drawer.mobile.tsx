@@ -10,20 +10,25 @@ import { ReferenceTokenInput } from "./reference-token-input";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useBoardChatDrawer, prettifyAction, fieldLabels, getResolverContext, getUserTintStyles, parseAiActions } from "@/hooks/use-board-chat-drawer";
 import { getWorkspaceMemberLabel, toReferenceUsers } from "@/lib/workspace-members";
+import { AgentChatPanel } from "@/components/agent";
+import { useSession } from "@/components/providers/session-provider";
+import type { AgentEntityScope } from "@/lib/api/agent";
 
 export interface BoardChatDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   boardId?: string;
   initialTab?: 'copilot' | 'chat' | 'activity';
+  entityType?: AgentEntityScope;
 }
 
 
 
 
-export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = 'chat' }: BoardChatDrawerProps) {
+export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = 'chat', entityType }: BoardChatDrawerProps) {
   const t = useTranslations("board-detail");
   const getActionTheme = useActionTheme();
+  const { activeTeamId } = useSession();
   const {
     state: {
       activeTab, setActiveTab, aiMessages, setAiMessages, chatMessages, inputVal, setInputVal,
@@ -106,132 +111,17 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
       </div>
 
       <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
-        {activeTab === 'copilot' && (
-          <div className="flex flex-col h-full space-y-4">
-            <div className="flex-1 space-y-4">
-              <div className="flex gap-3">
-                <div className="h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center bg-amber-500/10 border-amber-500/20 text-amber-500">
-                  <Bot className="h-4 w-4" />
-                </div>
-                <div className="max-w-[85%] p-3 rounded-xl text-sm shadow-sm border bg-muted/50 border-border/50 rounded-tl-none">
-                  <p>{t("chatDrawer.aiWelcome")}</p>
-                </div>
-              </div>
-
-              {aiMessages.map((msg) => {
-                const userTint = getUserTintStyles(user?.id || user?.email || msg.avatar || "user");
-                const { cleanText, actions } = msg.loading ? { cleanText: "", actions: [] as any[] } : parseAiActions(msg.content);
-
-                return (
-                  <div key={msg.id} className="space-y-3">
-                    <div className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                      <div
-                        className={`h-8 w-8 shrink-0 rounded shadow-sm border flex items-center justify-center overflow-hidden ${msg.role === 'user'
-                          ? 'rounded-full bg-primary/10 border-primary/20 text-primary font-bold text-[10px]'
-                          : 'bg-amber-500/10 border-amber-500/20 text-amber-500'
-                          }`}
-                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text } : undefined}
-                      >
-                        {msg.role === 'user' ? (
-                          (msg.avatarUrl || msg.email) ? (
-                            <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
-                          ) : (msg.avatar || (user?.displayName?.[0] || 'U'))
-                        ) : <Bot className="h-4 w-4" />}
-                      </div>
-                      <div
-                        className={`max-w-[85%] p-3 rounded-xl text-sm shadow-sm border whitespace-pre-wrap break-words ${msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground rounded-tr-none border-primary/20'
-                          : 'bg-muted/50 border-border/50 rounded-tl-none'
-                          }`}
-                        style={msg.role === 'user' ? { backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" } : undefined}
-                      >
-                        {msg.loading ? (
-                          <div className="flex gap-1.5 items-center px-1 py-2">
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "0ms" }} />
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "150ms" }} />
-                            <div className="w-1.5 h-1.5 rounded-full bg-foreground/40 animate-bounce" style={{ animationDelay: "300ms" }} />
-                          </div>
-                        ) : (
-                          <RichText
-                            content={cleanText}
-                            context={getResolverContext(teamDocs, [], teamMembers)}
-                            availableTags={allAvailableTags}
-                            onSuggestionApply={() => {
-                              setAiMessages(prev => [...prev, { id: Date.now(), role: 'bot', content: t("chatDrawer.actionDone") }]);
-                            }}
-                          />
-                        )}
-                      </div>
-                    </div>
-
-                    {actions.map((action, actionIdx) => (
-                      <div key={actionIdx} className="ml-11 mr-4 mt-2 p-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 shadow-sm space-y-3 animate-in fade-in slide-in-from-left-2 duration-300">
-                        <div className="flex items-center gap-2 mb-1">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span className="text-xs uppercase font-black text-emerald-700 tracking-wider">{t("chatDrawer.suggestedAction")}</span>
-                        </div>
-                        
-                        <div className="bg-emerald-500/20 rounded-md border border-emerald-500/30 px-3 py-2 flex items-center justify-between">
-                          <span className="text-sm font-bold text-emerald-800">{String(action.action || action.type || "").replace(/_/g, " ")}</span>
-                        </div>
-
-                        <button
-                          onClick={() => handleAiAction(action)}
-                          className="w-full py-2 px-3 rounded-md bg-emerald-600/90 text-white text-xs font-bold hover:bg-emerald-600 shadow-sm transition-all active:scale-[0.98] flex items-center justify-center gap-1.5"
-                        >
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {t("chatDrawer.applyOne")}
-                        </button>
-                      </div>
-                    ))}
-
-                    {actions.length > 1 && (
-                      <div className="ml-11 mr-4 mt-1">
-                        <button
-                          onClick={() => {
-                            void applyAllActions(msg.id, actions);
-                          }}
-                          disabled={applyingAllMessageId === msg.id}
-                          className="w-full py-2 px-3 rounded-md border border-emerald-500/40 bg-emerald-500/5 text-emerald-700 text-xs font-bold hover:bg-emerald-500/10 transition-all disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 flex-wrap"
-                        >
-                          {applyingAllMessageId === msg.id ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <CheckCheck className="h-3.5 w-3.5" />
-                          )}
-                          <span>{t("chatDrawer.applyAll")}</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-
-              <div className="flex flex-wrap gap-2 pt-2">
-                <button
-                  onClick={() => {
-                    void sendMessage(undefined, t("chatDrawer.summarizeBoardPrompt"));
-                  }}
-                  disabled={isLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded-full text-[11px] font-bold hover:bg-amber-500/20 transition-all disabled:opacity-50"
-                >
-                  <FileText className="w-3 h-3" />
-                  {t("chatDrawer.summarizeBoard")}
-                </button>
-                <button
-                  onClick={() => {
-                    const prompt = t("chatDrawer.generateReportPrompt");
-                    void sendMessage(undefined, prompt);
-                  }}
-                  disabled={isLoading || isGeneratingReport}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 rounded-full text-[11px] font-bold hover:bg-indigo-500/20 transition-all disabled:opacity-50"
-                >
-                  {isGeneratingReport ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileText className="w-3 h-3" />}
-                  {t("chatDrawer.generateReport")}
-                </button>
-              </div>
-            </div>
-          </div>
+        {activeTab === 'copilot' && activeTeamId && (
+          <AgentChatPanel
+            teamId={activeTeamId}
+            entityType={entityType ?? 'board'}
+            entityId={boardId}
+            documents={teamDocs}
+            boards={teamBoardsForMentions}
+            users={teamMembers}
+            cards={boardCardsForMentions}
+            className="h-full"
+          />
         )}
 
         {activeTab === 'chat' && chatMessages.map((msg) => {
@@ -388,13 +278,13 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         <div ref={bottomRef} />
       </div>
 
-      {(activeTab === 'chat' || activeTab === 'copilot') && (
+      {activeTab === 'chat' && (
         <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
           <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
             <ReferenceTokenInput
               value={inputVal}
               onChange={setInputVal}
-              placeholder={activeTab === 'copilot' ? t("chatDrawer.inputPlaceholderAI") : t("chatDrawer.inputPlaceholderChat")}
+              placeholder={t("chatDrawer.inputPlaceholderChat")}
               documents={teamDocs}
               boards={teamBoardsForMentions}
               users={teamMembers}
@@ -403,7 +293,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 void sendMessage();
               }}
               className="w-full"
-              inputClassName={`pr-10 shadow-sm ${activeTab === 'copilot' ? 'focus:border-amber-500/50 ring-amber-500/10' : ''}`}
+              inputClassName="pr-10 shadow-sm"
             />
             <button
               type="button"
@@ -411,7 +301,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 void sendMessage();
               }}
               disabled={!inputVal.trim() || isLoading || isSendingMessage}
-              className={`absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm ${activeTab === 'copilot' ? 'bg-amber-500 hover:bg-amber-600 text-white' : 'bg-accent text-accent-foreground'}`}
+              className="absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm bg-accent text-accent-foreground"
             >
               <Send className="h-3.5 w-3.5" />
             </button>

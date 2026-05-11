@@ -8,6 +8,7 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { RoomMessageItem } from "./RoomMessageItem";
 import { RoomInput } from "./RoomInput";
+import { parseAiMarkup } from "@/lib/ai-markup";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -137,6 +138,7 @@ export function RoomChatArea({
 
   const withDividers = insertDateDividers(messages);
   const typingText = formatTypingText(typingUsers, t);
+  const replyPreview = replyTo ? parseAiMarkup(replyTo.content).visibleText : "";
 
   const handleSend = () => {
     onSend();
@@ -230,7 +232,7 @@ export function RoomChatArea({
               {t("chat.replyingTo", { name: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User") })}
             </div>
             <div className="text-xs text-muted-foreground truncate italic">
-              {replyTo.content}
+              {replyPreview}
             </div>
           </div>
           <button

@@ -24,6 +24,7 @@ export interface AgentMessage {
 
 export interface ToolEvent {
   tool: string;
+  input?: Record<string, unknown>;
   success?: boolean;
   durationMs?: number;
   phase: "start" | "done";
@@ -86,7 +87,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
         (event: AgentStreamEvent) => {
           switch (event.type) {
             case "tool_start":
-              toolEvts.push({ tool: event.tool, phase: "start" });
+              toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
               setActiveToolEvents([...toolEvts]);
               setMessages((prev) =>
                 prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
@@ -100,6 +101,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
               if (idx !== -1) {
                 toolEvts[toolEvts.length - 1 - idx] = {
                   tool: event.tool,
+                  input: toolEvts[toolEvts.length - 1 - idx].input,
                   phase: "done",
                   success: event.success,
                   durationMs: event.durationMs,

@@ -6,7 +6,8 @@ import {
   Copy, ThumbsUp, ThumbsDown, RotateCcw, History, ChevronDown, ChevronUp,
   Layout, FileText, Code, Users, Search, List, Play, PlusCircle,
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
-  Clock, MessageSquare,
+  Clock, MessageSquare, Tag,
+  AlertCircle, Info,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
@@ -17,6 +18,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
+import { getAiMarkupLabel, parseAiMarkup } from "@/lib/ai-markup";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -112,6 +114,8 @@ function getToolMeta(t: TFn, tool: string): { icon: React.ReactNode; color: stri
     return { icon: <Edit2 className="w-3.5 h-3.5" />, color: "text-blue-500", label: t("agent.tools.cardUpdated") };
   if (s.includes("move_card"))
     return { icon: <ArrowRight className="w-3.5 h-3.5" />, color: "text-orange-500", label: t("agent.tools.cardMoved") };
+  if (s.includes("card_tag") || s.includes("tag_") || s.includes("tag"))
+    return { icon: <Tag className="w-3.5 h-3.5" />, color: "text-rose-500", label: formatToolName(tool) };
   if (s.includes("delete_card") || s.includes("remove_card"))
     return { icon: <Trash2 className="w-3.5 h-3.5" />, color: "text-red-500", label: t("agent.tools.cardDeleted") };
   if (s.includes("create_document") || s.includes("create_doc"))
@@ -235,7 +239,7 @@ export function AgentChatPanel({
   }, [teamId, accessToken]);
 
   const copyMessage = useCallback((id: string, text: string) => {
-    navigator.clipboard.writeText(text).catch(() => {});
+    navigator.clipboard.writeText(text).catch(() => { });
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 1500);
   }, []);
@@ -309,11 +313,10 @@ export function AgentChatPanel({
                     loadConversation(conv.id);
                     setShowHistory(false);
                   }}
-                  className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors text-sm ${
-                    conv.id === conversationId
+                  className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors text-sm ${conv.id === conversationId
                       ? "border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
                       : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
-                  }`}
+                    }`}
                 >
                   <p className="font-medium truncate">
                     {conv.title ?? t("agent.history.untitled")}
@@ -495,6 +498,18 @@ function AssistantMessage({
   onThumb: (v: "up" | "down") => void;
   onRetry: () => void;
 }) {
+  const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
+
+  const { visibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+
+  const toggleMarkup = useCallback((key: string) => {
+    setExpandedMarkup((prev) => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  }, []);
+
   const doneEvents = (message.toolEvents ?? []).filter((e) => e.phase === "done");
   const count = doneEvents.length;
   const actionsLabel =
@@ -511,6 +526,88 @@ function AssistantMessage({
       </div>
 
       <div className="max-w-[85%] flex flex-col gap-1.5 min-w-0">
+        {markupBlocks.map((block, index) => {
+          const key = `${block.tag}-${index}`;
+          const isExpanded = expandedMarkup.has(key);
+
+          if (block.tag === "tool_call") {
+            try {
+              const data = JSON.parse(block.content);
+              const meta = getToolMeta(t, data.name);
+              const inputPreview = formatToolInput(data.input);
+
+              // Find if this tool call has finished in toolEvents
+              const searchName = data.name.toLowerCase();
+              const isDone = message.toolEvents?.some(e => e.tool.toLowerCase() === searchName && e.phase === "done");
+              const isError = message.toolEvents?.some(e => e.tool.toLowerCase() === searchName && e.phase === "done" && e.success === false);
+
+              return (
+                <div key={key} className="self-start max-w-full mb-1">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl border border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10 text-[11px] animate-in fade-in slide-in-from-left-1">
+                    <div className="relative">
+                      {!isDone && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
+                      <span className={`${meta.color} shrink-0 relative`}>{meta.icon}</span>
+                    </div>
+                    <span className="text-violet-700 dark:text-violet-300 font-semibold uppercase tracking-tight">
+                      {formatToolName(data.name)}
+                    </span>
+                    {inputPreview && (
+                      <span className="text-violet-400/80 truncate max-w-[150px]">
+                        {inputPreview}
+                      </span>
+                    )}
+                    {isDone ? (
+                      isError ? (
+                        <AlertCircle className="w-2.5 h-2.5 text-destructive" />
+                      ) : (
+                        <Check className="w-2.5 h-2.5 text-emerald-500" />
+                      )
+                    ) : (
+                      <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400" />
+                    )}
+
+                    <div className="group/info relative ml-auto">
+                      <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
+                      <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
+                        <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                          <span>TOOL CALL RAW</span>
+                          <Wrench className="w-2 h-2" />
+                        </div>
+                        <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
+                          {JSON.stringify(data.input, null, 2)}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            } catch (e) {
+              return null;
+            }
+          }
+
+          return (
+            <div key={key} className="self-start max-w-full">
+              <button
+                onClick={() => toggleMarkup(key)}
+                className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+                title={isExpanded ? `Ocultar ${getAiMarkupLabel(block.tag)}` : `Mostrar ${getAiMarkupLabel(block.tag)}`}
+              >
+                {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                <span>{getAiMarkupLabel(block.tag)}</span>
+              </button>
+
+              {isExpanded && (
+                <div className="mt-1 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/70 px-3 py-2">
+                  <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300 font-mono">
+                    {block.content}
+                  </pre>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
         {doneEvents.length > 0 && (
           <button
             onClick={onToggleTools}
@@ -536,8 +633,9 @@ function AssistantMessage({
           <div className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 py-2 space-y-1.5">
             {doneEvents.map((e, i) => {
               const meta = getToolMeta(t, e.tool);
+              const inputPreview = formatToolInput(e.input);
               return (
-                <div key={i} className="flex items-center gap-2 text-[11px]">
+                <div key={i} className="flex items-center gap-2 text-[11px] min-w-0">
                   {e.success === false ? (
                     <XCircle className="w-3.5 h-3.5 text-red-400 shrink-0" />
                   ) : (
@@ -547,9 +645,27 @@ function AssistantMessage({
                   <span className="text-neutral-700 dark:text-neutral-300 font-mono">
                     {formatToolName(e.tool)}
                   </span>
-                  {e.durationMs !== undefined && (
-                    <span className="text-neutral-400 ml-auto shrink-0">{e.durationMs}ms</span>
+                  {inputPreview && (
+                    <span className="text-neutral-400 truncate min-w-0">
+                      {inputPreview}
+                    </span>
                   )}
+                  {e.durationMs !== undefined && (
+                    <span className="text-neutral-400 ml-1.5 shrink-0">{e.durationMs}ms</span>
+                  )}
+
+                  <div className="group/info relative ml-auto shrink-0">
+                    <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
+                    <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
+                      <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                        <span>TOOL CALL RAW</span>
+                        <Wrench className="w-2 h-2" />
+                      </div>
+                      <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
+                        {JSON.stringify(e.input || {}, null, 2)}
+                      </pre>
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -561,16 +677,16 @@ function AssistantMessage({
         )}
 
         <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-sm leading-relaxed">
-          {message.text ? (
+          {visibleText ? (
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
-              <ReactMarkdown>{message.text}</ReactMarkdown>
+              <ReactMarkdown>{visibleText}</ReactMarkdown>
             </div>
           ) : message.isStreaming ? (
             <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse rounded-sm" />
           ) : null}
         </div>
 
-        {!message.isStreaming && message.text && (
+        {!message.isStreaming && visibleText && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity pl-0.5">
             <ActionButton onClick={onCopy} title={t("agent.messages.copy")}>
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -654,11 +770,10 @@ function ActionButton({
     <button
       onClick={onClick}
       title={title}
-      className={`p-1 rounded transition-colors ${
-        active
+      className={`p-1 rounded transition-colors ${active
           ? activeClass
           : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
-      }`}
+        }`}
     >
       {children}
     </button>
@@ -672,14 +787,19 @@ function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
     <div className="flex flex-col gap-1.5">
       {results.map((r, i) => {
         const meta = getToolMeta(t, r.tool);
+        const nestedTag = typeof r.data.tag === "object" && r.data.tag !== null ? r.data.tag as Record<string, unknown> : null;
         const title =
           (r.data.title as string) ||
           (r.data.name as string) ||
+          (nestedTag?.name as string) ||
           (r.data.id as string) ||
+          (r.data.tagId as string) ||
+          (r.data.cardId as string) ||
           formatToolName(r.tool);
         const subtitle =
           (r.data.listName as string) ||
           (r.data.boardName as string) ||
+          (nestedTag?.id as string) ||
           (r.data.description as string) ||
           null;
 
@@ -766,4 +886,14 @@ function EmptyState({
 
 function formatToolName(tool: string): string {
   return tool.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function formatToolInput(input?: Record<string, unknown>): string {
+  if (!input) return "";
+  const fields = ["name", "title", "cardId", "tagId", "boardId", "documentId", "meshId", "scriptId", "query", "scopeType"];
+  const parts = fields
+    .filter((key) => input[key] !== undefined && input[key] !== null && String(input[key]).trim())
+    .slice(0, 3)
+    .map((key) => `${key}:${String(input[key]).slice(0, 32)}`);
+  return parts.length ? parts.join(" ") : "";
 }

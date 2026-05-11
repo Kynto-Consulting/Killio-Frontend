@@ -17,6 +17,7 @@ import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
 import { AgentChatPanel } from "@/components/agent";
+import { parseAiMarkup } from "@/lib/ai-markup";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
 import { RoomSidebar } from "@/components/rooms/RoomSidebar";
 import { RoomHeader } from "@/components/rooms/RoomHeader";
@@ -181,7 +182,7 @@ Team Context: ${activeTeamId}.`;
     const metadata = replyTo ? {
       replyTo: {
         id: replyTo.id,
-        content: replyTo.content,
+        content: parseAiMarkup(replyTo.content).visibleText,
         displayName: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User")
       }
     } : undefined;

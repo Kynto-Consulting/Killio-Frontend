@@ -89,6 +89,7 @@ export function RoomInput({
           users={users}
           onSubmit={handleSubmit}
           submitOnEnter
+          focusSignal={replyTo?.id}
           disabled={disabled}
           className="w-full"
           inputClassName={isMobile ? "pr-12 shadow-sm" : "pr-10 shadow-sm"}

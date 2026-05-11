@@ -14,7 +14,7 @@ export interface AgentConversation {
 }
 
 export type AgentStreamEvent =
-  | { type: 'tool_start'; tool: string }
+  | { type: 'tool_start'; tool: string; input?: Record<string, unknown> }
   | { type: 'tool_done'; tool: string; success: boolean; durationMs: number }
   /** Optional structured output from a tool (e.g. a created card object) */
   | { type: 'tool_result'; tool: string; data: Record<string, unknown> }

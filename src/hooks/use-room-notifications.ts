@@ -106,10 +106,13 @@ export function useRoomNotifications({
       if (!document.hidden) return;
       if (payload.userId === currentUserId) return;
       const sender = payload.user?.displayName ?? "Someone";
-      const preview =
-        typeof payload.content === "string"
-          ? payload.content.slice(0, 100)
-          : "";
+      const rawContent = typeof payload.content === "string" ? payload.content : "";
+      const preview = payload.preview || rawContent
+        .replace(/<pre_think>[\s\S]*?<\/pre_think>/gi, "")
+        .replace(/<plan>[\s\S]*?<\/plan>/gi, "")
+        .replace(/<tool_call\s+[\s\S]*?\/>/gi, "")
+        .trim()
+        .slice(0, 100);
       showBrowserNotification(
         `${sender} in ${roomName ?? "Rooms"}`,
         preview,

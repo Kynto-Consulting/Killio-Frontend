@@ -45,6 +45,7 @@ interface ReferenceTokenInputProps {
   activeBricks?: any[];
   onSubmit?: () => void;
   submitOnEnter?: boolean;
+  focusSignal?: unknown;
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>, currentValue: string) => void;
 }
 
@@ -77,6 +78,7 @@ export function ReferenceTokenInput({
   activeBricks = [],
   onSubmit,
   submitOnEnter = true,
+  focusSignal,
   onKeyDown,
 }: ReferenceTokenInputProps) {
   const t = useTranslations("common");
@@ -332,6 +334,23 @@ export function ReferenceTokenInput({
     if (document.activeElement === root) return;
     applyRenderedValue(value);
   }, [value, applyRenderedValue, readMarkdown]);
+
+  useEffect(() => {
+    if (focusSignal === undefined || focusSignal === null) return;
+    const root = editorRef.current;
+    if (!root || disabled) return;
+
+    window.setTimeout(() => {
+      root.focus();
+      const selection = window.getSelection();
+      if (!selection) return;
+      const range = document.createRange();
+      range.selectNodeContents(root);
+      range.collapse(false);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }, 0);
+  }, [focusSignal, disabled]);
 
   useEffect(() => {
     if (!accessToken) return;

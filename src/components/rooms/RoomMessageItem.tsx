@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { usePlatform } from "@/components/providers/platform-provider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft, ChevronDown, ChevronUp, Info, Wrench } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
+import { getAiMarkupLabel, parseAiMarkup } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
 import { UserProfileCard } from "./UserProfileCard";
@@ -63,8 +64,13 @@ export function RoomMessageItem({
   t,
 }: RoomMessageItemProps) {
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
+  const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
+  const { blocks: markupBlocks, visibleText: visibleContent } = useMemo(() => parseAiMarkup(message.content), [message.content]);
+  const replyPreview = message.metadata?.replyTo?.content
+    ? parseAiMarkup(message.metadata.replyTo.content).visibleText
+    : "";
 
   // System / call history messages
   if (message.type === "system") {
@@ -183,7 +189,7 @@ export function RoomMessageItem({
                   {message.metadata.replyTo.displayName === "User" || message.metadata.replyTo.userId === "000" || message.metadata.replyTo.id.startsWith("bot-") || message.metadata.replyTo.id.includes("ai") ? (t("ai.copilotName") || "AI Copilot") : message.metadata.replyTo.displayName}
                 </div>
                 <div className="text-muted-foreground italic line-clamp-1">
-                  {message.metadata.replyTo.content}
+                  {replyPreview}
                 </div>
               </button>
             )}
@@ -204,41 +210,116 @@ export function RoomMessageItem({
                   </span>
                 </div>
               ) : (
-                <ReactMarkdown
-                  remarkPlugins={[remarkGfm]}
-                  rehypePlugins={[rehypeRaw]}
-                  components={{
-                    a: ({ node, ...props }) => (
-                      <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent underline" />
-                    ),
-                    code: ({ node, className, children, ...props }) => {
-                      const isBlock = className?.includes("language-");
-                      return isBlock ? (
-                        <code
-                          className={`block bg-background/60 rounded px-2 py-1 text-xs font-mono overflow-x-auto ${className ?? ""}`}
-                          {...props}
+                <>
+                  {markupBlocks.map((block, index) => {
+                    const key = `${block.tag}-${index}`;
+                    const isExpanded = expandedMarkup.has(key);
+
+                    if (block.tag === "tool_call") {
+                      try {
+                        const data = JSON.parse(block.content);
+                        const searchName = data.name.toLowerCase();
+                        const isDone = message.metadata?.toolEvents?.some((e: any) => e.tool.toLowerCase() === searchName && e.phase === "done");
+
+                        return (
+                          <div key={key} className="mb-2 flex items-center gap-2 px-2 py-1.5 rounded-lg border border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10 text-[10px] animate-in fade-in slide-in-from-left-1">
+                            <div className="relative">
+                              {!isDone && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
+                              <Bot className="w-3 h-3 text-violet-500 relative" />
+                            </div>
+                            <span className="text-violet-700 dark:text-violet-300 font-bold uppercase tracking-tighter">
+                              {data.name.replace(/_/g, " ")}
+                            </span>
+                            {isDone ? (
+                              message.metadata?.toolEvents?.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false) ? (
+                                <AlertCircle className="w-2.5 h-2.5 text-destructive" />
+                              ) : (
+                                <Check className="w-2.5 h-2.5 text-emerald-500" />
+                              )
+                            ) : (
+                              <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400" />
+                            )}
+
+                            <div className="group/info relative ml-auto">
+                              <Info className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-violet-500 cursor-help transition-colors" />
+                              <div className="absolute bottom-full right-0 mb-2 w-[240px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-none">
+                                <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                                  <span>TOOL CALL RAW</span>
+                                  <Wrench className="w-2 h-2" />
+                                </div>
+                                <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px]">
+                                  {JSON.stringify(data.input, null, 2)}
+                                </pre>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      } catch (e) {
+                        return null;
+                      }
+                    }
+
+                    return (
+                      <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 px-2 py-1.5">
+                        <button
+                          onClick={() => {
+                            setExpandedMarkup((prev) => {
+                              const next = new Set(prev);
+                              next.has(key) ? next.delete(key) : next.add(key);
+                              return next;
+                            });
+                          }}
+                          className="w-full flex items-center gap-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                          title={isExpanded ? `Ocultar ${getAiMarkupLabel(block.tag)}` : `Mostrar ${getAiMarkupLabel(block.tag)}`}
                         >
-                          {children}
-                        </code>
-                      ) : (
-                        <code className="bg-background/60 rounded px-1 text-xs font-mono" {...props}>
-                          {children}
-                        </code>
-                      );
-                    },
-                    p: ({ children }) => <span>{children}</span>,
-                  }}
-                >
-                  {message.content}
-                </ReactMarkdown>
+                          {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                          <span>{getAiMarkupLabel(block.tag)}</span>
+                        </button>
+                        {isExpanded && (
+                          <pre className="mt-1 whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground font-mono">
+                            {block.content}
+                          </pre>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    rehypePlugins={[rehypeRaw]}
+                    components={{
+                      a: ({ node, ...props }) => (
+                        <a {...props} target="_blank" rel="noopener noreferrer" className="text-accent underline" />
+                      ),
+                      code: ({ node, className, children, ...props }) => {
+                        const isBlock = className?.includes("language-");
+                        return isBlock ? (
+                          <code
+                            className={`block bg-background/60 rounded px-2 py-1 text-xs font-mono overflow-x-auto ${className ?? ""}`}
+                            {...props}
+                          >
+                            {children}
+                          </code>
+                        ) : (
+                          <code className="bg-background/60 rounded px-1 text-xs font-mono" {...props}>
+                            {children}
+                          </code>
+                        );
+                      },
+                      p: ({ children }) => <span>{children}</span>,
+                    }}
+                  >
+                    {visibleContent}
+                  </ReactMarkdown>
+                </>
               )}
             </div>
 
             {/* Rich text (reference pills) — second pass */}
-            {message.content.includes("@[") && (
+            {visibleContent.includes("@[") && (
               <div className="mt-0.5">
                 <RichText
-                  content={message.content}
+                  content={visibleContent}
                   context={resolverContext ?? EMPTY_CONTEXT}
                   availableTags={availableTags}
                 />
