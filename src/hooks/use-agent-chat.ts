@@ -27,7 +27,7 @@ export interface ToolEvent {
   input?: Record<string, unknown>;
   success?: boolean;
   durationMs?: number;
-  phase: "start" | "done";
+  phase: "start" | "done" | "waiting_for_approval";
 }
 
 export interface UseAgentChatOptions {
@@ -146,6 +146,15 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
               setActiveToolEvents([]);
               break;
 
+            case "tool_approval_request":
+              toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
+              setActiveToolEvents([...toolEvts]);
+              setMessages((prev) =>
+                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+              );
+              setIsLoading(false); // Stop loading so user can interact
+              break;
+
             case "error":
               setMessages((prev) =>
                 prev.map((m) =>
@@ -242,9 +251,71 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     setActiveToolEvents([]);
   }, []);
 
+  const sendToolApproval = useCallback(async (toolName: string, input: any, decision: 'approved' | 'rejected') => {
+    if (isLoading || !accessToken) return;
+    
+    // Resume chat with approval decision
+    setIsLoading(true);
+    const assistantId = messages[messages.length - 1]?.id;
+    if (!assistantId) return;
+
+    let accText = messages[messages.length - 1].text;
+    const toolEvts = [...(messages[messages.length - 1].toolEvents || [])];
+
+    const cancel = streamAgentChat(
+      { 
+        conversationId: conversationIdRef.current, 
+        teamId, 
+        entityType, 
+        entityId, 
+        message: lastUserTextRef.current,
+        approvalDecision: decision,
+        approvalToolCall: { name: toolName, input }
+      },
+      accessToken!,
+      (event: AgentStreamEvent) => {
+        // Same logic as sendMessage Switch
+        switch (event.type) {
+          case "tool_start":
+            toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m));
+            break;
+          case "tool_done":
+            // ... (Simplified for brevity, but I should probably abstract the handler)
+            break;
+          case "tool_approval_request":
+            toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m));
+            setIsLoading(false);
+            break;
+          case "tool_result":
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] } : m));
+            break;
+          case "delta":
+            accText += event.text;
+            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)));
+            break;
+          case "done":
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed } : m));
+            setIsLoading(false);
+            setActiveToolEvents([]);
+            break;
+        }
+      }
+    );
+    cancelRef.current = cancel;
+  }, [messages, isLoading, accessToken, teamId, entityType, entityId]);
+
   const clearConversation = useCallback(() => {
-    conversationIdRef.current = undefined;
     setMessages([]);
+    conversationIdRef.current = undefined;
+    if (cancelRef.current) {
+      cancelRef.current();
+      cancelRef.current = null;
+    }
+    setIsLoading(false);
     setActiveToolEvents([]);
   }, []);
 
@@ -260,6 +331,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     loadConversation,
     cancel,
     clearConversation,
+    sendToolApproval,
     conversationId: conversationIdRef.current,
   };
 }

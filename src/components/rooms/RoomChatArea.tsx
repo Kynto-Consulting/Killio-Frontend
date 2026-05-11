@@ -41,6 +41,7 @@ interface RoomChatAreaProps {
   resolverContext?: ResolverContext;
   availableTags?: any[];
   onOpenCopilot?: () => void;
+  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
   replyTo?: RoomMessage | null;
   onReply?: (message: RoomMessage | null) => void;
   t: TFn;
@@ -93,6 +94,7 @@ export function RoomChatArea({
   resolverContext,
   availableTags,
   onOpenCopilot,
+  onToolApproval,
   replyTo,
   onReply,
   t,
@@ -209,6 +211,7 @@ export function RoomChatArea({
               showReadReceipts={showReadReceipts}
               onReply={onReply}
               onOpenCopilot={onOpenCopilot}
+              onToolApproval={onToolApproval}
               t={t}
             />
           );

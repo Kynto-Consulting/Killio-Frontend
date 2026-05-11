@@ -16,7 +16,7 @@ export interface AgentConversation {
 export type AgentStreamEvent =
   | { type: 'tool_start'; tool: string; input?: Record<string, unknown> }
   | { type: 'tool_done'; tool: string; success: boolean; durationMs: number }
-  /** Optional structured output from a tool (e.g. a created card object) */
+  | { type: 'tool_approval_request'; tool: string; input: Record<string, unknown> }
   | { type: 'tool_result'; tool: string; data: Record<string, unknown> }
   | { type: 'delta'; text: string }
   | { type: 'done'; text: string; conversationId: string; toolsUsed: string[] }
@@ -33,6 +33,8 @@ export function streamAgentChat(
     entityId?: string;
     teamId: string;
     message: string;
+    approvalDecision?: 'approved' | 'rejected';
+    approvalToolCall?: { name: string; input: any };
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

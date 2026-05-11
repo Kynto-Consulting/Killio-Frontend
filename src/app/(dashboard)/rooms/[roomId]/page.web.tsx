@@ -105,7 +105,7 @@ export default function RoomDetailWeb() {
     listRoomMembers(roomId, accessToken).then(setRoomMembers).catch(console.error);
   }, [roomId, accessToken]);
 
-  const handleAiTrigger = useCallback(async (content: string) => {
+  const handleAiTrigger = useCallback(async (content: string, approvalDecision?: 'approved' | 'rejected', approvalToolCall?: any) => {
     if (!roomId || !accessToken) return;
 
     // 1. Prepare context from last messages
@@ -121,28 +121,34 @@ Team Context: ${activeTeamId}.`;
 
     const fullPrompt = `${systemPrompt}\n\nRoom Context:\n${lastMsgs}\n\nUser Question: ${content}`;
 
-    // 2. Add bot placeholder locally
-    const botMsgId = `bot-${Date.now()}`;
+    // 2. Add or update bot placeholder locally
+    // If it's an approval resumption, find the last bot message
+    const existingBotMsg = approvalDecision ? chatHook.messages.slice().reverse().find(m => m.type === 'ai' && m.id.startsWith('bot-')) : null;
+    const botMsgId = existingBotMsg?.id || `bot-${Date.now()}`;
     const botUser = {
       displayName: "AI Copilot",
       email: "ai@killio.app",
       avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=killio-ai&backgroundColor=c084fc",
     };
 
-    chatHook.addLocalMessage({
-      id: botMsgId,
-      roomId,
-      userId: "000",
-      content: "AI_THINKING",
-      type: "ai",
-      createdAt: new Date().toISOString(),
-      status: "sending",
-      user: botUser,
-    });
+    if (!existingBotMsg) {
+      chatHook.addLocalMessage({
+        id: botMsgId,
+        roomId,
+        userId: "000",
+        content: "AI_THINKING",
+        type: "ai",
+        createdAt: new Date().toISOString(),
+        status: "sending",
+        user: botUser,
+      });
+    } else {
+      chatHook.updateLocalMessage(botMsgId, { status: 'sending' });
+    }
 
     // 3. Stream response
-    let accText = "";
-    const toolEvents: any[] = [];
+    let accText = existingBotMsg?.content || "";
+    const toolEvents: any[] = (existingBotMsg?.metadata?.toolEvents as any[]) || [];
 
     streamAgentChat(
       {
@@ -150,6 +156,8 @@ Team Context: ${activeTeamId}.`;
         entityType: "team",
         entityId: activeTeamId || "",
         message: fullPrompt,
+        approvalDecision,
+        approvalToolCall,
       },
       accessToken,
       (event) => {
@@ -165,8 +173,19 @@ Team Context: ${activeTeamId}.`;
             content: accText || `AI_THINKING_TOOL:${event.tool}`,
             metadata: { toolEvents: [...toolEvents] } 
           });
-        } else if (event.type === "tool_done") {
+        } else if (event.type === "tool_approval_request") {
           const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && e.phase === "start");
+          if (idx !== -1) {
+            const actualIdx = toolEvents.length - 1 - idx;
+            toolEvents[actualIdx] = { ...toolEvents[actualIdx], phase: "waiting_for_approval" };
+          }
+          chatHook.updateLocalMessage(botMsgId, { 
+            content: accText, 
+            status: 'sent',
+            metadata: { toolEvents: [...toolEvents] } 
+          });
+        } else if (event.type === "tool_done") {
+          const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && (e.phase === "start" || e.phase === "waiting_for_approval"));
           if (idx !== -1) {
             const actualIdx = toolEvents.length - 1 - idx;
             toolEvents[actualIdx] = { 
@@ -198,6 +217,11 @@ Team Context: ${activeTeamId}.`;
       }
     );
   }, [roomId, accessToken, activeTeamId, chatHook, room?.name]);
+
+  const handleToolApproval = useCallback((toolName: string, input: any, decision: 'approved' | 'rejected') => {
+    // Resume AI trigger with decision
+    handleAiTrigger("", decision, { name: toolName, input });
+  }, [handleAiTrigger]);
 
   const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
 
@@ -317,6 +341,7 @@ Team Context: ${activeTeamId}.`;
               onTyping={() => chatHook.setTyping(true)}
               onViewTranscript={callHistoryHook.getTranscript}
               onAiTrigger={handleAiTrigger}
+              onToolApproval={handleToolApproval}
               onOpenCopilot={() => setIsAiPanelOpen(true)}
               replyTo={replyTo}
               onReply={setReplyTo}
