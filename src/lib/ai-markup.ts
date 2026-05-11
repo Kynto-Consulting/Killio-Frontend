@@ -67,7 +67,8 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   return {
     visibleText: blocks
       .filter((b) => b.tag === "text")
-      .map((b) => b.content.trim())
+      .map((b) => (typeof b.content === "string" ? b.content.trim() : ""))
+      .filter(Boolean)
       .join(" "),
     blocks,
   };
