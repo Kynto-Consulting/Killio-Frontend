@@ -89,6 +89,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
   const [themeSurface, setThemeSurface] = useState("#0b0f14");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
+  const [isUploadingBackground, setIsUploadingBackground] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) {
@@ -105,6 +106,8 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
     if (themePreset !== THEME_PRESET_OPTIONS[0].id) setThemePreset(THEME_PRESET_OPTIONS[0].id);
     if (themeAccent !== "#d8ff72") setThemeAccent("#d8ff72");
     if (themeSurface !== "#0b0f14") setThemeSurface("#0b0f14");
+    if (isUploadingCover) setIsUploadingCover(false);
+    if (isUploadingBackground) setIsUploadingBackground(false);
     if (error) setError(null);
     return null;
   }
@@ -158,7 +161,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
       return;
     }
 
-    setIsUploadingCover(true);
+    setIsUploadingBackground(true);
     setError(null);
     try {
       const uploadedUrl = await onUploadCoverImage(file);
@@ -168,7 +171,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
       console.error(err);
       setError(err?.message || "No se pudo subir la imagen de fondo.");
     } finally {
-      setIsUploadingCover(false);
+      setIsUploadingBackground(false);
       event.target.value = "";
     }
   };
@@ -243,8 +246,8 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
            <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
            <Layout className="h-12 w-12 text-white/90 drop-shadow-xl z-0" />
            {usingImageCover ? (
-            <div className="absolute bottom-2 left-2 right-2 h-10 rounded-md border border-white/20 bg-slate-900/40 overflow-hidden">
-              <div className="h-full w-full bg-cover bg-center" style={{ backgroundImage: `url(${coverImageUrl})` }} />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-white/20 bg-slate-900/60 overflow-hidden backdrop-blur-sm">
+              <div className="h-full w-full bg-cover bg-center transition-transform duration-300 hover:scale-105" style={{ backgroundImage: `url(${coverImageUrl})` }} />
             </div>
            ) : null}
         </div>
@@ -292,7 +295,15 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
                 disabled={isSubmitting || isUploadingCover || !onUploadCoverImage}
                 className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
               >
-                <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir portada
+                {isUploadingCover ? (
+                  <>
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Subiendo...
+                  </>
+                ) : (
+                  <>
+                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir portada
+                  </>
+                )}
               </button>
               {coverImageUrl ? (
                 <button
@@ -328,10 +339,10 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
               <button
                 type="button"
                 onClick={() => backgroundFileInputRef.current?.click()}
-                disabled={isSubmitting || isUploadingCover || !onUploadCoverImage || backgroundKind !== "image"}
+                disabled={isSubmitting || isUploadingBackground || !onUploadCoverImage || backgroundKind !== "image"}
                 className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
               >
-                {isUploadingCover ? (
+                {isUploadingBackground ? (
                   <>
                     <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Subiendo...
                   </>
@@ -348,7 +359,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
                     setImageBackground("");
                     setBackgroundKind("preset");
                   }}
-                  disabled={isSubmitting || isUploadingCover}
+                  disabled={isSubmitting || isUploadingBackground}
                   className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
                 >
                   <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Quitar imagen
@@ -445,7 +456,7 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || isSubmitting || isUploadingCover}
+              disabled={!name.trim() || isSubmitting || isUploadingCover || isUploadingBackground}
               className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               {isSubmitting ? (
