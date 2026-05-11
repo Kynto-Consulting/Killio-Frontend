@@ -3,7 +3,6 @@
 import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { streamAgentChat, AgentEntityScope, AgentStreamEvent } from "@/lib/api/agent";
-import { streamAiChat } from "@/lib/api/contracts";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import type { ResolverContext } from "@/lib/reference-resolver";
 
@@ -81,127 +80,84 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
       let accText = "";
       const toolEvts: ToolEvent[] = [];
 
-      const cancel = entityType === "document"
-        ? streamAiChat(
-            {
-              scope: "document",
-              scopeId: entityId || teamId,
-              message,
-            },
-            accessToken!,
-            (event) => {
-              switch (event.type) {
-                case "delta":
-                  accText += event.text;
-                  setMessages((prev) =>
-                    prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)),
-                  );
-                  break;
+      const cancel = streamAgentChat(
+        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message },
+        accessToken!,
+        (event: AgentStreamEvent) => {
+          switch (event.type) {
+            case "tool_start":
+              toolEvts.push({ tool: event.tool, phase: "start" });
+              setActiveToolEvents([...toolEvts]);
+              setMessages((prev) =>
+                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+              );
+              break;
 
-                case "done":
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: [] }
-                        : m,
-                    ),
-                  );
-                  setIsLoading(false);
-                  setActiveToolEvents([]);
-                  break;
-
-                case "error":
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, text: `Error: ${event.message}`, isStreaming: false }
-                        : m,
-                    ),
-                  );
-                  setIsLoading(false);
-                  setActiveToolEvents([]);
-                  break;
+            case "tool_done": {
+              const idx = [...toolEvts].reverse().findIndex(
+                (e) => e.tool === event.tool && e.phase === "start",
+              );
+              if (idx !== -1) {
+                toolEvts[toolEvts.length - 1 - idx] = {
+                  tool: event.tool,
+                  phase: "done",
+                  success: event.success,
+                  durationMs: event.durationMs,
+                };
+              } else {
+                toolEvts.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs });
               }
-            },
-          )
-        : streamAgentChat(
-            { conversationId: conversationIdRef.current, teamId, entityType, entityId, message },
-            accessToken!,
-            (event: AgentStreamEvent) => {
-              switch (event.type) {
-                case "tool_start":
-                  toolEvts.push({ tool: event.tool, phase: "start" });
-                  setActiveToolEvents([...toolEvts]);
-                  setMessages((prev) =>
-                    prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
-                  );
-                  break;
+              setActiveToolEvents([...toolEvts]);
+              setMessages((prev) =>
+                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+              );
+              break;
+            }
 
-                case "tool_done": {
-                  const idx = [...toolEvts].reverse().findIndex(
-                    (e) => e.tool === event.tool && e.phase === "start",
-                  );
-                  if (idx !== -1) {
-                    toolEvts[toolEvts.length - 1 - idx] = {
-                      tool: event.tool,
-                      phase: "done",
-                      success: event.success,
-                      durationMs: event.durationMs,
-                    };
-                  } else {
-                    toolEvts.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs });
-                  }
-                  setActiveToolEvents([...toolEvts]);
-                  setMessages((prev) =>
-                    prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
-                  );
-                  break;
-                }
+            case "tool_result":
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] }
+                    : m,
+                ),
+              );
+              break;
 
-                case "tool_result":
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] }
-                        : m,
-                    ),
-                  );
-                  break;
+            case "delta":
+              accText += event.text;
+              setMessages((prev) =>
+                prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)),
+              );
+              break;
 
-                case "delta":
-                  accText += event.text;
-                  setMessages((prev) =>
-                    prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)),
-                  );
-                  break;
+            case "done":
+              conversationIdRef.current = event.conversationId;
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed }
+                    : m,
+                ),
+              );
+              setIsLoading(false);
+              setActiveToolEvents([]);
+              break;
 
-                case "done":
-                  conversationIdRef.current = event.conversationId;
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed }
-                        : m,
-                    ),
-                  );
-                  setIsLoading(false);
-                  setActiveToolEvents([]);
-                  break;
-
-                case "error":
-                  setMessages((prev) =>
-                    prev.map((m) =>
-                      m.id === assistantId
-                        ? { ...m, text: `Error: ${event.message}`, isStreaming: false }
-                        : m,
-                    ),
-                  );
-                  setIsLoading(false);
-                  setActiveToolEvents([]);
-                  break;
-              }
-            },
-          );
+            case "error":
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === assistantId
+                    ? { ...m, text: `Error: ${event.message}`, isStreaming: false }
+                    : m,
+                ),
+              );
+              setIsLoading(false);
+              setActiveToolEvents([]);
+              break;
+          }
+        },
+      );
 
       cancelRef.current = cancel;
     },
