@@ -142,6 +142,8 @@ Team Context: ${activeTeamId}.`;
 
     // 3. Stream response
     let accText = "";
+    const toolEvents: any[] = [];
+
     streamAgentChat(
       {
         teamId: activeTeamId || "",
@@ -153,24 +155,49 @@ Team Context: ${activeTeamId}.`;
       (event) => {
         if (event.type === "delta") {
           accText += event.text;
-          chatHook.updateLocalMessage(botMsgId, { content: accText });
+          chatHook.updateLocalMessage(botMsgId, { 
+            content: accText || "AI_THINKING",
+            metadata: { toolEvents: [...toolEvents] } 
+          });
         } else if (event.type === "tool_start") {
-          chatHook.updateLocalMessage(botMsgId, { content: `AI_THINKING_TOOL:${event.tool}` });
+          toolEvents.push({ tool: event.tool, input: event.input, phase: "start" });
+          chatHook.updateLocalMessage(botMsgId, { 
+            content: accText || `AI_THINKING_TOOL:${event.tool}`,
+            metadata: { toolEvents: [...toolEvents] } 
+          });
         } else if (event.type === "tool_done") {
-          // Keep the accText if we have any, or go back to thinking
-          chatHook.updateLocalMessage(botMsgId, { content: accText || "AI_THINKING" });
+          const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && e.phase === "start");
+          if (idx !== -1) {
+            const actualIdx = toolEvents.length - 1 - idx;
+            toolEvents[actualIdx] = { 
+              ...toolEvents[actualIdx], 
+              phase: "done", 
+              success: event.success, 
+              durationMs: event.durationMs 
+            };
+          } else {
+            toolEvents.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs });
+          }
+          chatHook.updateLocalMessage(botMsgId, { 
+            content: accText || "AI_THINKING",
+            metadata: { toolEvents: [...toolEvents] } 
+          });
         } else if (event.type === "done") {
           const finalContent = event.text || accText;
-          chatHook.updateLocalMessage(botMsgId, { content: finalContent, status: "sent" });
+          chatHook.updateLocalMessage(botMsgId, { 
+            content: finalContent, 
+            status: "sent",
+            metadata: { toolEvents: [...toolEvents] } 
+          });
 
           // Save to DB and broadcast to others via backend
-          sendAiRoomMessage(roomId, finalContent, accessToken).catch(console.error);
+          sendAiRoomMessage(roomId, finalContent, accessToken, { toolEvents }).catch(console.error);
         } else if (event.type === "error") {
           chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}`, status: "failed" });
         }
       }
     );
-  }, [roomId, accessToken, activeTeamId, chatHook]);
+  }, [roomId, accessToken, activeTeamId, chatHook, room?.name]);
 
   const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
 

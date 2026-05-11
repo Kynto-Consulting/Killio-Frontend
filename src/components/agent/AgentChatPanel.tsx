@@ -7,7 +7,7 @@ import {
   Layout, FileText, Code, Users, Search, List, Play, PlusCircle,
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
   Clock, MessageSquare, Tag, AlertCircle, Info,
-  ListChecks,
+  ListChecks, FileCode,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
@@ -663,6 +663,39 @@ function AssistantMessage({
             );
           }
 
+          if (block.tag === "edit") {
+            const file = block.attributes?.file;
+            const lines = block.content.split('\n');
+            return (
+              <div key={key} className="mb-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-900 overflow-hidden font-mono text-[11px] shadow-sm">
+                {file && (
+                  <div className="bg-neutral-800/50 border-b border-neutral-800 px-3 py-1.5 flex items-center gap-2 text-neutral-400 font-sans font-semibold text-[10px] uppercase tracking-wider">
+                    <FileCode className="w-3.5 h-3.5 text-violet-400" />
+                    <span>{file}</span>
+                  </div>
+                )}
+                <div className="p-2 space-y-0.5 overflow-x-auto custom-scrollbar">
+                  {lines.map((line, i) => {
+                    const isAdded = line.startsWith('+');
+                    const isRemoved = line.startsWith('-');
+                    return (
+                      <div
+                        key={i}
+                        className={`px-1 rounded whitespace-pre ${
+                          isAdded ? 'bg-emerald-500/15 text-emerald-400' :
+                          isRemoved ? 'bg-red-500/15 text-red-400' :
+                          'text-neutral-400'
+                        }`}
+                      >
+                        {line}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          }
+
           return (
             <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 p-2 overflow-hidden shadow-sm">
               <button
@@ -773,7 +806,10 @@ function AssistantMessage({
               <ReactMarkdown>{visibleText}</ReactMarkdown>
             </div>
           ) : message.isStreaming ? (
-            <span className="inline-block w-1.5 h-4 bg-violet-400 animate-pulse rounded-sm" />
+            <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
+              <Bot className="w-3.5 h-3.5" />
+              <span className="text-[11px]">{t("chat.thinking")}...</span>
+            </div>
           ) : null}
         </div>
 

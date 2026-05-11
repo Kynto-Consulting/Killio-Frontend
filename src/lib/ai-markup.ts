@@ -1,6 +1,7 @@
 export type AiMarkupBlock = {
   tag: string;
   content: string;
+  attributes?: Record<string, string>;
 };
 
 export type ParsedAiMarkup = {
@@ -16,6 +17,7 @@ const COLLAPSIBLE_AI_TAGS = [
   "tool_result",
   "tool_results",
   "reasoning",
+  "edit",
 ];
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
@@ -26,7 +28,7 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   // 1. <tool_call ... />
   // 2. <tag>...</tag>
   const toolCallPart = `<tool_call\\s+name=["']([^"']+)["']\\s+input=([''])([\\s\\S]*?)\\2\\s*\\/?>`;
-  const collapsiblePart = `(<(${COLLAPSIBLE_AI_TAGS.join('|')})\\b[^>]*>([\\s\\S]*?)<\\/\\5>)`;
+  const collapsiblePart = `(<(${COLLAPSIBLE_AI_TAGS.join('|')})\\b([^>]*)>([\\s\\S]*?)<\\/\\5>)`;
   const pattern = new RegExp(`${toolCallPart}|${collapsiblePart}`, "gi");
 
   let lastIndex = 0;
@@ -51,8 +53,17 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     } else if (match[4]) {
       // It's a collapsible tag
       const tag = match[5].toLowerCase();
-      const content = match[6].trim();
-      blocks.push({ tag, content });
+      const rawAttrs = match[6].trim();
+      const content = match[7].trim();
+
+      const attributes: Record<string, string> = {};
+      const attrPattern = /([a-z0-9_-]+)=(?:(['"])(.*?)\2|([^>\s]+))/gi;
+      let attrMatch;
+      while ((attrMatch = attrPattern.exec(rawAttrs)) !== null) {
+        attributes[attrMatch[1].toLowerCase()] = attrMatch[3] || attrMatch[4];
+      }
+
+      blocks.push({ tag, content, attributes });
     }
 
     lastIndex = pattern.lastIndex;

@@ -5,7 +5,7 @@ import { usePlatform } from "@/components/providers/platform-provider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
-import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft, ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks } from "lucide-react";
+import { Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft, ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -67,7 +67,7 @@ export function RoomMessageItem({
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
-  const { blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.content), [message.content]);
+  const { blocks: markupBlocks, visibleText } = useMemo(() => parseAiMarkup(message.content), [message.content]);
 
   const toggleMarkup = useCallback((key: string) => {
     setExpandedMarkup((prev) => {
@@ -199,38 +199,48 @@ export function RoomMessageItem({
               </button>
             )}
 
-            {message.status === "sending" && message.content.startsWith("AI_THINKING") ? (
-              <div className="flex items-center gap-2 py-1 italic text-muted-foreground animate-pulse">
-                <Bot className="w-3 h-3" />
-                <span>
-                  {message.content.startsWith("AI_THINKING_TOOL:")
-                    ? `${t("chat.thinking")} (${message.content.split(":")[1]})`
-                    : t("chat.thinking")}
-                </span>
-              </div>
-            ) : (
-              <div className="flex flex-col gap-1.5 min-w-0">
-                {markupBlocks.map((block, index) => {
-                  const key = `${block.tag}-${index}`;
-                  const isExpanded = expandedMarkup.has(key);
+            <div className="flex flex-col gap-1.5 min-w-0">
+              {markupBlocks.map((block, index) => {
+                const key = `${block.tag}-${index}`;
+                const isExpanded = expandedMarkup.has(key);
 
-                  if (block.tag === "text") {
-                    return (
-                      <div key={key} className="text-sm leading-relaxed max-w-full overflow-hidden">
-                        <RichText
-                          content={block.content}
-                          context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
-                          availableTags={availableTags}
-                        />
-                      </div>
-                    );
-                  }
+                if (block.tag === "text") {
+                  // Special case for the legacy thinking placeholder
+                  if (block.content === "AI_THINKING") return null;
+
+                  return (
+                    <div key={key} className="text-sm leading-relaxed max-w-full overflow-hidden">
+                      <RichText
+                        content={block.content}
+                        context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                        availableTags={availableTags}
+                      />
+                    </div>
+                  );
+                }
 
                   if (block.tag === "tool_call") {
                     try {
                       const data = JSON.parse(block.content);
                       const searchName = data.name?.toLowerCase();
-                      const events = (message.metadata as any)?.toolEvents || [];
+                      const rawEvents = (message.metadata as any)?.toolEvents || [];
+                      
+                      // Synthesize events from DB columns if missing (crucial after page refresh)
+                      const events = rawEvents.length > 0 ? rawEvents : (() => {
+                        const syn: any[] = [];
+                        const calls = (message as any).tool_calls || [];
+                        const results = (message as any).tool_results || [];
+                        calls.forEach((c: any) => {
+                          const result = results.find((r: any) => (r.tool_use_id === c.id) || (r.tool === c.name));
+                          syn.push({
+                            tool: c.name,
+                            phase: "done",
+                            success: result ? !result.is_error : true 
+                          });
+                        });
+                        return syn;
+                      })();
+
                       const isDone = events.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done");
                       const isError = events.some((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false);
 
@@ -327,6 +337,39 @@ export function RoomMessageItem({
                       </div>
                     );
                   }
+ 
+                  if (block.tag === "edit") {
+                    const file = block.attributes?.file;
+                    const lines = block.content.split('\n');
+                    return (
+                      <div key={key} className="mb-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-900 overflow-hidden font-mono text-[11px] shadow-sm">
+                        {file && (
+                          <div className="bg-neutral-800/50 border-b border-neutral-800 px-3 py-1.5 flex items-center gap-2 text-neutral-400 font-sans font-semibold text-[10px] uppercase tracking-wider">
+                            <FileCode className="w-3.5 h-3.5 text-violet-400" />
+                            <span>{file}</span>
+                          </div>
+                        )}
+                        <div className="p-2 space-y-0.5 overflow-x-auto custom-scrollbar">
+                          {lines.map((line, i) => {
+                            const isAdded = line.startsWith('+');
+                            const isRemoved = line.startsWith('-');
+                            return (
+                              <div
+                                key={i}
+                                className={`px-1 rounded whitespace-pre ${
+                                  isAdded ? 'bg-emerald-500/15 text-emerald-400' :
+                                  isRemoved ? 'bg-red-500/15 text-red-400' :
+                                  'text-neutral-400'
+                                }`}
+                              >
+                                {line}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  }
 
                   return (
                     <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 px-2 py-1.5 overflow-hidden">
@@ -343,9 +386,21 @@ export function RoomMessageItem({
                         </div>
                       )}
                     </div>
-                  );
-                })}
-              </div>
+                );
+              })}
+
+              {/* Persistent Thinking Indicator while streaming or if empty content */}
+              {(message.status === "sending" || (isAi && markupBlocks.length === 0)) && (
+                <div className="flex items-center gap-1.5 py-1 text-muted-foreground animate-pulse">
+                  <Bot className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-medium italic">
+                    {message.content.includes("AI_THINKING_TOOL:")
+                      ? `${t("chat.thinking")} (${message.content.split("AI_THINKING_TOOL:")[1].split(/[<\n]/)[0]})`
+                      : t("chat.thinking")}...
+                  </span>
+                </div>
+              )}
+            </div>
             )}
 
             {/* Message Actions (Emoji + Reply) */}
