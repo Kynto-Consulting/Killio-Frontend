@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { usePlatform } from "@/components/providers/platform-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useRoomChat } from "@/hooks/use-room-chat";
 import { useRoomPresence } from "@/hooks/use-room-presence";
@@ -24,9 +25,12 @@ import { RoomMembersPanel } from "@/components/rooms/RoomMembersPanel";
 import { RoomPermissionsModal } from "@/components/rooms/RoomPermissionsModal";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { CreateRoomGroupModal } from "@/components/rooms/CreateRoomGroupModal";
-import { Loader2 } from "lucide-react";
+import { Loader2, X } from "lucide-react";
 
 export default function RoomDetailWeb() {
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
+
   const t = useTranslations("rooms");
   const params = useParams();
   const router = useRouter();
@@ -197,6 +201,22 @@ Team Context: ${activeTeamId}.`;
     joinRoomCall(roomId);
   }, [roomId, joinRoomCall, stopRing]);
 
+  const handleToggleAiPanel = useCallback(() => {
+    setIsAiPanelOpen((prev) => {
+      const next = !prev;
+      if (next) setIsMembersPanelOpen(false);
+      return next;
+    });
+  }, []);
+
+  const handleToggleMembersPanel = useCallback(() => {
+    setIsMembersPanelOpen((prev) => {
+      const next = !prev;
+      if (next) setIsAiPanelOpen(false);
+      return next;
+    });
+  }, []);
+
   if (isLoadingRoom) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -248,8 +268,8 @@ Team Context: ${activeTeamId}.`;
               canManage={permissions.canManage}
               onStartCall={handleJoinCall}
               onLeaveCall={leaveRoomCall}
-              onToggleAiPanel={() => setIsAiPanelOpen((v) => !v)}
-              onToggleMembersPanel={() => setIsMembersPanelOpen((v) => !v)}
+              onToggleAiPanel={handleToggleAiPanel}
+              onToggleMembersPanel={handleToggleMembersPanel}
               onOpenPermissions={() => setIsPermissionsOpen(true)}
               t={t}
             />
@@ -281,7 +301,7 @@ Team Context: ${activeTeamId}.`;
           </div>
 
           {/* Right panel: AI or Members */}
-          {isAiPanelOpen && (
+          {!isMobile && isAiPanelOpen && (
             <div className="w-80 shrink-0 border-l border-border/50 overflow-hidden flex flex-col">
               <AgentChatPanel
                 teamId={activeTeamId ?? ""}
@@ -291,7 +311,7 @@ Team Context: ${activeTeamId}.`;
               />
             </div>
           )}
-          {!isAiPanelOpen && isMembersPanelOpen && (
+          {!isMobile && !isAiPanelOpen && isMembersPanelOpen && (
             <div className="w-60 shrink-0 border-l border-border/50 overflow-hidden flex flex-col">
               <RoomMembersPanel
                 presenceMembers={presenceMembers}
@@ -303,6 +323,53 @@ Team Context: ${activeTeamId}.`;
           )}
         </div>
       </RoomsLayout>
+
+      {isMobile && (isAiPanelOpen || isMembersPanelOpen) && (
+        <button
+          className="fixed inset-0 z-[210] bg-black/50 backdrop-blur-sm"
+          onClick={() => {
+            setIsAiPanelOpen(false);
+            setIsMembersPanelOpen(false);
+          }}
+          aria-label="Close panel"
+        />
+      )}
+
+      {isMobile && isAiPanelOpen && (
+        <div className="fixed inset-0 z-[220] bg-card border-l border-border/50 overflow-hidden flex flex-col">
+          <div className="flex items-center justify-between px-3 py-2.5 border-b border-border/50 shrink-0">
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">AI Copilot</span>
+            <button
+              onClick={() => setIsAiPanelOpen(false)}
+              className="p-1 rounded-md hover:bg-accent/10 text-muted-foreground"
+              aria-label="Close AI panel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0">
+            <AgentChatPanel
+              teamId={activeTeamId ?? ""}
+              entityType="team"
+              entityId={activeTeamId ?? ""}
+              onClose={() => setIsAiPanelOpen(false)}
+              className="h-full"
+            />
+          </div>
+        </div>
+      )}
+
+      {isMobile && !isAiPanelOpen && isMembersPanelOpen && (
+        <div className="fixed inset-0 z-[220] bg-card border-l border-border/50 overflow-hidden flex flex-col">
+          <RoomMembersPanel
+            presenceMembers={presenceMembers}
+            roomMembers={roomMembers}
+            currentUserId={user?.id ?? ""}
+            onClose={() => setIsMembersPanelOpen(false)}
+            t={t}
+          />
+        </div>
+      )}
 
 
       <RoomPermissionsModal

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { X, Loader2, ChevronDown, Hash } from "lucide-react";
+import { usePlatform } from "@/components/providers/platform-provider";
 import { createRoom, type CreateRoomInput, type RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
@@ -27,6 +28,8 @@ export function CreateRoomModal({
   onCreated,
   t,
 }: CreateRoomModalProps) {
+  const platform = usePlatform();
+  const isMobile = platform === "mobile";
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState<string | undefined>(initialGroupId);
@@ -58,8 +61,8 @@ export function CreateRoomModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+    <div className={`fixed inset-0 z-[250] flex ${isMobile ? "items-end justify-stretch" : "items-center justify-center"} bg-black/50 backdrop-blur-sm`}>
+      <div className={`bg-card border border-border shadow-2xl w-full overflow-hidden ${isMobile ? "rounded-t-2xl max-h-[92vh]" : "max-w-sm rounded-2xl"}`}>
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Hash className="w-4 h-4 text-accent" />
