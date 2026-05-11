@@ -55,7 +55,17 @@ export default function BoardsPage() {
     if (!accessToken) {
       throw new Error("Sesión expirada. Inicia sesión nuevamente.");
     }
-    const uploaded = await uploadFile(file, accessToken);
+    const uploaded = await uploadFile(
+      file,
+      accessToken,
+      activeTeamId
+        ? {
+            ownerScopeType: 'team',
+            ownerScopeId: activeTeamId,
+            usage: 'board-cover',
+          }
+        : { usage: 'board-cover' },
+    );
     return uploaded.url;
   };
 

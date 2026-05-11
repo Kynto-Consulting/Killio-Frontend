@@ -60,7 +60,17 @@ export default function WorkspacesPage() {
     if (!accessToken) {
       throw new Error("Sesion expirada. Inicia sesion nuevamente.");
     }
-    const uploaded = await uploadFile(file, accessToken);
+    const uploaded = await uploadFile(
+      file,
+      accessToken,
+      activeTeamId
+        ? {
+            ownerScopeType: 'team',
+            ownerScopeId: activeTeamId,
+            usage: 'board-cover',
+          }
+        : { usage: 'board-cover' },
+    );
     return uploaded.url;
   };
 
@@ -125,6 +135,11 @@ export default function WorkspacesPage() {
   };
 
   const resolveBoardCover = (board: BoardSummary): { className: string; style?: CSSProperties } => {
+    // Prioridad 1: Cover image (portada del board) - tiene mayor prioridad que el background
+    const cover = resolveSerializedCover(board.coverImageUrl);
+    if (cover) return cover;
+
+    // Prioridad 2: Background image
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {
         className: "bg-slate-800 bg-cover bg-center",
@@ -132,6 +147,7 @@ export default function WorkspacesPage() {
       };
     }
 
+    // Prioridad 3: Background color
     if (board.backgroundKind === "color" && board.backgroundValue) {
       return {
         className: "bg-slate-800",
@@ -139,6 +155,7 @@ export default function WorkspacesPage() {
       };
     }
 
+    // Prioridad 4: Background gradient
     if (board.backgroundKind === "gradient" && board.backgroundGradient) {
       if (board.backgroundGradient.startsWith("bg-")) {
         return { className: board.backgroundGradient };
@@ -150,12 +167,10 @@ export default function WorkspacesPage() {
       };
     }
 
+    // Prioridad 5: Preset background
     if (board.backgroundKind === "preset" && board.backgroundValue) {
       return { className: board.backgroundValue };
     }
-
-    const cover = resolveSerializedCover(board.coverImageUrl);
-    if (cover) return cover;
 
     return { className: "bg-gradient-to-tr from-accent to-primary/60" };
   };

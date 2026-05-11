@@ -883,9 +883,13 @@ export default function BoardPage() {
     if (!accessToken) {
       throw new Error("Sesión expirada. Inicia sesión nuevamente.");
     }
-    const uploaded = await uploadFile(file, accessToken);
+    const uploaded = await uploadFile(file, accessToken, {
+      ownerScopeType: 'board',
+      ownerScopeId: boardId,
+      usage: 'board-cover',
+    });
     return uploaded.url;
-  }, [accessToken]);
+  }, [accessToken, boardId]);
 
   const scheduleBoardReload = useCallback((delayMs = 120) => {
     if (realtimeReloadTimerRef.current) {

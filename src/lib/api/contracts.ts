@@ -28,6 +28,14 @@ export type TeamView = {
 
 export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';
 
+/**
+ * Resumen de un board para listas y vistas generales.
+ * 
+ * Lógica de cover (previsualización):
+ * - coverImageUrl tiene prioridad sobre backgroundKind en las miniaturas
+ * - El campo puede venir en formato: "image::https://..." o URL directa
+ * - La función resolveSerializedCover() procesa el formato serializado
+ */
 export type BoardSummary = {
   id: string;
   teamId: string;
@@ -35,6 +43,7 @@ export type BoardSummary = {
   name: string;
   slug: string;
   description: string | null;
+  /** Imagen de portada del board. Formato: "kind::value" o URL directa. */
   coverImageUrl: string | null;
   backgroundKind: 'none' | 'preset' | 'image' | 'color' | 'gradient';
   backgroundValue: string | null;
@@ -586,15 +595,35 @@ type CreateTeamPayload = {
   icon?: string;
 };
 
+/**
+ * Payload para crear un nuevo board.
+ * 
+ * NOTA sobre imágenes de portada vs backgrounds:
+ * - coverImageUrl: Imagen de portada principal del board (miniatura en listas). 
+ *   Formato: URL directa (https://..., /uploads/..., data:image/...).
+ *   Esta imagen tiene PRIORIDAD sobre backgroundKind en la vista de miniaturas.
+ * - backgroundKind/backgroundValue/backgroundImageUrl/backgroundGradient: 
+ *   Fondo visual del board (solo se usa si coverImageUrl no está definido).
+ * 
+ * Flujo recomendado:
+ * 1. Si el usuario sube una imagen de portada → usar coverImageUrl
+ * 2. Si el usuario selecciona un color/gradiente/fondo → usar backgroundKind + campos correspondientes
+ * 3. El campo coverImageUrl tiene prioridad en las vistas de lista (dashboard, workspace)
+ */
 type CreateBoardPayload = {
   name: string;
   slug: string;
   boardType?: 'kanban' | 'mesh';
   description?: string;
+  /** Imagen de portada del board (URL). Prioritaria sobre background en miniaturas. */
   coverImageUrl?: string;
+  /** Tipo de fondo del board (preset|gradient|color|image|none). Se usa si no hay coverImageUrl. */
   backgroundKind?: 'none' | 'preset' | 'image' | 'color' | 'gradient';
+  /** Valor del fondo (clase CSS para preset, código hex para color, etc.) */
   backgroundValue?: string;
+  /** URL de imagen de fondo (solo si backgroundKind='image') */
   backgroundImageUrl?: string;
+  /** Gradient CSS (solo si backgroundKind='gradient') */
   backgroundGradient?: string;
   themeKind?: 'preset' | 'custom';
   themePreset?: string;
@@ -1755,10 +1784,24 @@ export async function reorderBricks(
 
 export async function uploadFile(
   file: File,
-  accessToken: string
+  accessToken: string,
+  options?: {
+    ownerScopeType?: 'user' | 'team' | 'board' | 'card' | 'ingestion_job' | 'document';
+    ownerScopeId?: string;
+    usage?: string;
+  },
 ): Promise<{ key: string; url: string; isPrivate: boolean }> {
   const formData = new FormData();
   formData.append('file', file);
+  if (options?.ownerScopeType) {
+    formData.append('ownerScopeType', options.ownerScopeType);
+  }
+  if (options?.ownerScopeId) {
+    formData.append('ownerScopeId', options.ownerScopeId);
+  }
+  if (options?.usage) {
+    formData.append('usage', options.usage);
+  }
 
   const uploaded = await request<{ key: string; url: string; isPrivate: boolean }>(`/uploads`, {
     method: 'POST',

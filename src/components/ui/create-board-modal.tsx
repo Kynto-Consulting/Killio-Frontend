@@ -245,11 +245,11 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
         >
            <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
            <Layout className="h-12 w-12 text-white/90 drop-shadow-xl z-0" />
-           {usingImageCover ? (
-            <div className="absolute inset-x-0 bottom-0 h-1/2 border-t border-white/20 bg-slate-900/60 overflow-hidden backdrop-blur-sm">
-              <div className="h-full w-full bg-cover bg-center transition-transform duration-300 hover:scale-105" style={{ backgroundImage: `url(${coverImageUrl})` }} />
-            </div>
-           ) : null}
+{usingImageCover ? (
+             <div className="absolute inset-x-0 bottom-0 top-16 border-t border-white/20 overflow-hidden">
+               <div className="h-full w-full bg-cover bg-center transition-transform duration-300 hover:scale-105" style={{ backgroundImage: `url(${coverImageUrl})` }} />
+             </div>
+            ) : null}
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
