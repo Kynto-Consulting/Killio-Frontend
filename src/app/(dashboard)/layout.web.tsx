@@ -517,10 +517,10 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
             className={`flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent ${isSidebarCollapsed ? "justify-center" : ""}`}
           >
-            <div className="flex items-center space-x-2 overflow-hidden">
-              <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+            <div className={`flex items-center space-x-2 ${isSidebarCollapsed ? "" : "overflow-hidden"}`}>
+              <div className={`h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10 ${isSidebarCollapsed ? "mx-auto" : ""}`}>
                 <img
-                  src={getUserAvatarUrl(undefined, user?.email, 32)}
+                  src={user?.avatarUrl || getUserAvatarUrl(undefined, user?.email, 32)}
                   alt={user?.username || user?.displayName || tCommon("account.fallbackUser")}
                   className="h-full w-full object-cover"
                 />

@@ -9,6 +9,9 @@ import type { DocumentSummary } from "@/lib/api/documents";
 import { RoomMessageItem } from "./RoomMessageItem";
 import { RoomInput } from "./RoomInput";
 import { parseAiMarkup } from "@/lib/ai-markup";
+import { getProactiveSuggestion } from "@/lib/api/agent";
+import { useSession } from "@/components/providers/session-provider";
+import { Sparkles } from "lucide-react";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -23,7 +26,7 @@ interface RoomChatAreaProps {
   typingUsers: TypingUser[];
   inputValue: string;
   onInputChange: (value: string) => void;
-  onSend: () => void;
+  onSend: (content?: string) => void;
   onLoadMore: () => void;
   onReact: (messageId: string, emoji: string) => void;
   onMarkRead?: (messageIds: string[]) => void;
@@ -99,7 +102,11 @@ export function RoomChatArea({
   onReply,
   t,
 }: RoomChatAreaProps) {
+  const { accessToken } = useSession();
   const platform = usePlatform();
+  const [proactiveSuggestion, setProactiveSuggestion] = useState<string>("");
+  const [isSuggesting, setIsSuggesting] = useState(false);
+  const suggestTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isMobile = platform === "mobile";
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -142,7 +149,42 @@ export function RoomChatArea({
   const typingText = formatTypingText(typingUsers, t);
   const replyPreview = replyTo ? parseAiMarkup(replyTo.content).visibleText.trim() : "";
 
+  // Proactive suggestions logic
+  useEffect(() => {
+    if (!accessToken || !teamId || inputValue.length < 15 || inputValue.length > 200) {
+      setProactiveSuggestion("");
+      return;
+    }
+
+    if (suggestTimeoutRef.current) clearTimeout(suggestTimeoutRef.current);
+
+    suggestTimeoutRef.current = setTimeout(async () => {
+      try {
+        setIsSuggesting(true);
+        const res = await getProactiveSuggestion({
+          teamId,
+          message: inputValue,
+          entityType: "team",
+          entityId: teamId
+        }, accessToken);
+        
+        if (res.text && res.text !== proactiveSuggestion) {
+          setProactiveSuggestion(res.text);
+        }
+      } catch (err) {
+        console.error("Proactive suggest error:", err);
+      } finally {
+        setIsSuggesting(false);
+      }
+    }, 1500); // 1.5s debounce
+
+    return () => {
+      if (suggestTimeoutRef.current) clearTimeout(suggestTimeoutRef.current);
+    };
+  }, [inputValue, teamId, accessToken]);
+
   const handleSend = () => {
+    setProactiveSuggestion("");
     onSend();
   };
 
@@ -248,6 +290,22 @@ export function RoomChatArea({
         </div>
       )}
 
+      {/* Proactive Suggestion (Ghost Message) */}
+      {proactiveSuggestion && !replyTo && (
+        <div className={`${isMobile ? "mx-3 mb-2 px-3 py-2" : "mx-4 mb-2 px-3 py-2"} rounded-xl bg-violet-500/5 border border-violet-500/20 flex items-center gap-2 animate-in fade-in slide-in-from-bottom-1 duration-500 group/ghost`}>
+          <Sparkles className="w-3 h-3 text-violet-500 animate-pulse" />
+          <div className="flex-1 min-w-0 text-[11px] text-violet-600/80 dark:text-violet-400/80 font-medium italic truncate">
+            {proactiveSuggestion}
+          </div>
+          <button
+            onClick={() => setProactiveSuggestion("")}
+            className="p-1 rounded-md hover:bg-violet-500/10 text-violet-400 opacity-0 group-hover/ghost:opacity-100 transition-opacity"
+          >
+            <X className="w-3 h-3" />
+          </button>
+        </div>
+      )}
+
       {/* Input */}
       <RoomInput
         value={inputValue}
@@ -261,6 +319,7 @@ export function RoomChatArea({
         users={users}
         onAiTrigger={onAiTrigger}
         replyTo={replyTo || undefined}
+        teamId={teamId}
         t={t}
       />
     </div>

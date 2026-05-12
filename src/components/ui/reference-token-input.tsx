@@ -695,8 +695,8 @@ export function ReferenceTokenInput({
           applyRenderedValue(markdown);
         }}
         className={cn(
-          "w-full rounded-full border border-input bg-card px-4 py-2.5 text-sm outline-none transition-all focus:ring-1 focus:ring-accent",
-          "min-h-[42px] leading-6",
+          "w-full rounded-2xl border border-input bg-card px-4 py-2.5 text-sm outline-none transition-all focus:ring-1 focus:ring-accent",
+          "min-h-[42px] leading-6 max-h-[200px] overflow-y-auto custom-scrollbar",
           disabled && "cursor-not-allowed opacity-60",
           inputClassName
         )}

@@ -8,6 +8,7 @@ import {
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
   Clock, MessageSquare, Tag, AlertCircle, Info,
   ListChecks, FileCode, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ShieldAlert,
+  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
@@ -18,18 +19,28 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
-import { getAiMarkupLabel, parseAiMarkup } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections } from "@/lib/ai-markup";
 import { RichText } from "../ui/rich-text";
 import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
+import { uploadFile } from "@/lib/api/uploads";
+import { API_BASE_URL } from "@/lib/api/client";
+
+const resolveAssetUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return url;
+};
+
 
 const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
   const [isLive, setIsLive] = useState(false);
-  
+
   if (isLive) {
     return (
-      <iframe 
-        src={src} 
-        className="w-full rounded-lg bg-white animate-in fade-in duration-500" 
+      <iframe
+        src={src}
+        className="w-full rounded-lg bg-white animate-in fade-in duration-500"
         style={{ height }}
         title={title || "Portal Content"}
       />
@@ -37,15 +48,15 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
   }
 
   return (
-    <div 
+    <div
       className="relative flex flex-col items-center justify-center bg-slate-950/50 rounded-lg cursor-pointer hover:bg-slate-900/60 transition-all border border-blue-500/10 overflow-hidden"
       style={{ height }}
       onClick={() => setIsLive(true)}
     >
       {screenshot && (
-        <img 
-          src={screenshot} 
-          alt={title || "Preview"} 
+        <img
+          src={screenshot}
+          alt={title || "Preview"}
           className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover/iframe:opacity-50 transition-opacity"
         />
       )}
@@ -249,6 +260,9 @@ export function AgentChatPanel({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set());
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<{ url: string; name: string; type: 'img' | 'document' }[]>([]);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -292,6 +306,54 @@ export function AgentChatPanel({
       return next;
     });
   }, []);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !accessToken) return;
+    await performUpload(file);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const performUpload = async (file: File) => {
+    if (!accessToken) return;
+    try {
+      setIsUploading(true);
+      const res = await uploadFile(file, accessToken, {
+        ownerScopeType: "team",
+        ownerScopeId: teamId,
+        usage: "chat_attachment"
+      });
+
+      const isImage = file.type.startsWith("image/");
+      setAttachments(prev => [...prev, {
+        url: res.url,
+        name: file.name,
+        type: isImage ? 'img' : 'document'
+      }]);
+    } catch (err) {
+      console.error("Failed to upload file:", err);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleAgentSend = (text?: string) => {
+    const raw = typeof text === 'string' ? text : inputValue;
+    if (!raw.trim() && attachments.length === 0) return;
+
+    let finalContent = raw;
+    if (attachments.length > 0) {
+      const assetTags = attachments.map(att =>
+        att.type === 'img'
+          ? `<asset type="img" src="${att.url}" />`
+          : `<asset type="document" src="${att.url}" title="${att.name}" />`
+      ).join('\n');
+      finalContent = finalContent.trim() ? `${finalContent}\n\n${assetTags}` : assetTags;
+    }
+
+    sendMessage(finalContent);
+    setAttachments([]);
+  };
 
   const entityConfig = useMemo(() => getEntityConfig(t), [t]);
   const entitySuggestions = useMemo(() => getEntitySuggestions(t), [t]);
@@ -450,7 +512,68 @@ export function AgentChatPanel({
 
       {/* ── Input area ───────────────────────────────────────────────────── */}
       <div className="shrink-0 border-t border-neutral-200 dark:border-neutral-700 px-3 py-3">
+        {attachments.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3 px-1 animate-in slide-in-from-bottom-2 duration-300">
+            {attachments.map((att, idx) => (
+              <div key={idx} className="relative group/att">
+                {att.type === 'img' ? (
+                  <div className="w-14 h-14 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-neutral-50 dark:bg-neutral-800">
+                    <img src={resolveAssetUrl(att.url)} alt="preview" className="w-full h-full object-cover" />
+                  </div>
+                ) : (
+                  <div className="h-14 px-3 flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-[10px] font-medium text-neutral-500">
+                    <FileText className="w-3.5 h-3.5 text-violet-500" />
+                    <span className="max-w-[70px] truncate">{att.name}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
+                  className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover/att:opacity-100 transition-opacity shadow-sm"
+                >
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </div>
+            ))}
+            {isUploading && (
+              <div className="w-14 h-14 rounded-xl border border-dashed border-neutral-200 dark:border-neutral-700 flex items-center justify-center bg-neutral-50/50">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+              </div>
+            )}
+          </div>
+        )}
+
         <div className="flex items-end gap-2">
+          <input
+            type="file"
+            accept="image/*,application/pdf,text/markdown,.md"
+            className="hidden"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+          />
+          <div className="flex flex-col gap-1 mb-0.5">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isLoading}
+              className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
+              title="Adjuntar imagen"
+            >
+              <ImageIcon className="w-4 h-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isLoading}
+              className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
+              title="Adjuntar archivo"
+            >
+              <div className="relative">
+                <FileText className="w-4 h-4" />
+                <div className="absolute -top-1 -right-1 bg-violet-500 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-bold">+</div>
+              </div>
+            </button>
+          </div>
+
           <ReferenceTokenInput
             value={inputValue}
             onChange={setInputValue}
@@ -459,7 +582,7 @@ export function AgentChatPanel({
             boards={boards}
             users={users}
             cards={cards}
-            onSubmit={() => sendMessage()}
+            onSubmit={() => handleAgentSend()}
             disabled={isLoading}
             className="flex-1"
             inputClassName="text-sm bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-violet-500/50 min-h-[38px]"
@@ -474,8 +597,8 @@ export function AgentChatPanel({
             </button>
           ) : (
             <button
-              onClick={() => sendMessage()}
-              disabled={!inputValue.trim()}
+              onClick={() => handleAgentSend()}
+              disabled={!inputValue.trim() && attachments.length === 0}
               className="shrink-0 p-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -501,19 +624,57 @@ function UserMessage({
   copied: boolean;
   copyLabel: string;
 }) {
+  const { blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+
   return (
     <div className="flex justify-end gap-2 group">
-      <div className="max-w-[85%] flex flex-col items-end gap-1">
-        <div className="relative px-3.5 py-2.5 rounded-2xl rounded-br-sm bg-violet-600 text-white text-sm leading-relaxed">
-          <p className="whitespace-pre-wrap">{message.text}</p>
-          <button
-            onClick={onCopy}
-            className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-all"
-            title={copyLabel}
-          >
-            {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-          </button>
-        </div>
+      <div className="max-w-[85%] flex flex-col items-end gap-1.5 min-w-0">
+        {markupBlocks.map((block, index) => {
+          const key = `user-${block.tag}-${index}`;
+
+          if (block.tag === "asset") {
+            const { type, src, title } = block.attributes || {};
+            const assetSrc = resolveAssetUrl(src);
+            if (!assetSrc) return null;
+
+            return (
+              <div key={key} className="rounded-xl border border-border/50 bg-neutral-100 dark:bg-neutral-800 p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
+                {type === "img" ? (
+                  <img
+                    src={assetSrc}
+                    alt={title || "Image"}
+                    className="rounded-lg max-w-full h-auto object-contain bg-white dark:bg-neutral-900 shadow-sm"
+                    style={{ maxHeight: '300px' }}
+                  />
+                ) : (
+                  <div className="flex items-center gap-3 p-2 bg-white/50 dark:bg-black/20 rounded-lg">
+                    <FileText className="w-5 h-5 text-violet-500" />
+                    <span className="text-[11px] font-medium truncate max-w-[120px]">{title || (type === 'document' ? "Documento" : "Archivo")}</span>
+                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
+                      <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
+                )}
+              </div>
+            );
+          }
+
+          // Text block (user bubble)
+          return (
+            <div key={key} className="relative px-3.5 py-2.5 rounded-2xl rounded-br-sm bg-violet-600 text-white text-sm shadow-sm leading-relaxed">
+              <p className="whitespace-pre-wrap">{block.content}</p>
+              {index === 0 && (
+                <button
+                  onClick={onCopy}
+                  className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-all"
+                  title={copyLabel}
+                >
+                  {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                </button>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
@@ -612,7 +773,7 @@ function AssistantMessage({
                           ({inputPreview})
                         </span>
                       )}
-                      
+
                       {needsApproval ? null : (
                         isDone ? (
                           isError ? (
@@ -681,7 +842,8 @@ function AssistantMessage({
             const { type, src, width, height, title, kind: brickKind, screenshot } = block.attributes || {};
 
             // "Portal" style for interactive/media types and entities
-            const isPortal = ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
+            const isUpload = src?.startsWith("/uploads/");
+            const isPortal = !isUpload && ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
             const isBrick = type === "brick";
 
             if (isPortal) {
@@ -745,16 +907,16 @@ function AssistantMessage({
             }
 
             if (isBrick) {
-              let brickData = null;
+              let brickData: any = null;
               try {
-                brickData = block.content ? JSON.parse(block.content) : {};
+                const raw = (block.content || "").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\"/g, '"'); try { brickData = JSON.parse(raw); } catch (e) { brickData = {}; }
               } catch (e) { }
 
               const previewBrick = {
                 id: `asset-brick-${key}`,
                 documentId: 'preview',
-                kind: brickKind || brickData?.kind || 'text',
-                content: brickData || { text: block.content },
+                kind: brickKind || brickData?.kind || brickData?.content?.kind || 'text',
+                content: (brickData?.content ?? brickData ?? {}),
                 position: 0,
                 createdAt: new Date().toISOString(),
                 updatedAt: new Date().toISOString()
@@ -781,26 +943,32 @@ function AssistantMessage({
               );
             }
 
+            const assetSrc = resolveAssetUrl(src);
             return (
-              <div key={key} className="my-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/20 dark:bg-violet-900/5 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
-                {type === "img" && src && (
-                  <img
-                    src={src}
-                    alt={title || "Image Asset"}
-                    className="rounded-lg max-w-full h-auto object-contain shadow-sm hover:scale-[1.01] transition-transform cursor-zoom-in bg-white dark:bg-neutral-900"
-                    style={{ width: width || '100%', maxHeight: height || '400px' }}
-                  />
+              <div key={key} className="my-2 rounded-xl border border-border/50 bg-background/50 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
+                {type === "img" && assetSrc && (
+                  <div className="relative group/img-asset overflow-hidden rounded-lg">
+                    <img
+                      src={assetSrc}
+                      alt={title || "Image Asset"}
+                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
+                      style={{ maxHeight: height || '400px' }}
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                      <Maximize2 className="w-5 h-5 text-white" />
+                    </div>
+                  </div>
                 )}
-                {type === "pdf" && src && (
-                  <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-violet-100/50 dark:border-violet-800/20">
-                    <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-red-500" />
+                {(type === "pdf" || type === "document") && assetSrc && (
+                  <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
+                    <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-violet-500" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold truncate text-violet-900 dark:text-violet-100">{title || "PDF Document"}</div>
-                      <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Portable Document Format</div>
+                      <div className="text-[11px] font-bold truncate text-foreground">{title || (type === 'pdf' ? "PDF Document" : "Documento")}</div>
+                      <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Adjunto</div>
                     </div>
-                    <a href={src} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
+                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                       <ExternalLink className="w-4 h-4" />
                     </a>
                   </div>
@@ -867,6 +1035,46 @@ function AssistantMessage({
             );
           }
 
+          if (block.tag === "pre_think") {
+            const sections = parsePreThinkSections(block.content);
+            const sectionMeta: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
+              assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: "Assumptions", color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
+              risks: { icon: <ShieldCheck className="w-3 h-3" />, label: "Risks", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
+              strategy: { icon: <Lightbulb className="w-3 h-3" />, label: "Strategy", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+              raw: { icon: <Brain className="w-3 h-3" />, label: "Thinking", color: "text-neutral-500", bg: "bg-neutral-50 dark:bg-neutral-800/50" },
+            };
+            return (
+              <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 overflow-hidden shadow-sm">
+                <button
+                  onClick={() => toggleMarkup(key)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold text-neutral-400 hover:text-violet-500 transition-colors uppercase tracking-wider"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <Brain className="w-3.5 h-3.5" />
+                    <span>Pre-think</span>
+                  </div>
+                  {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                </button>
+                {isExpanded && (
+                  <div className="px-3 pb-3 space-y-2 animate-in fade-in slide-in-from-top-1">
+                    {sections.map((sec, si) => {
+                      const meta = sectionMeta[sec.tag] ?? sectionMeta.raw;
+                      return (
+                        <div key={si} className={`rounded-lg p-2.5 ${meta.bg}`}>
+                          <div className={`flex items-center gap-1.5 mb-1.5 text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>
+                            {meta.icon}
+                            <span>{meta.label}</span>
+                          </div>
+                          <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300 whitespace-pre-wrap">{sec.content}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
+
           if (block.tag === "edit") {
             const file = block.attributes?.file;
             const lines = block.content.split('\n');
@@ -886,8 +1094,8 @@ function AssistantMessage({
                       <div
                         key={i}
                         className={`px-1 rounded whitespace-pre ${isAdded ? 'bg-emerald-500/15 text-emerald-400' :
-                            isRemoved ? 'bg-red-500/15 text-red-400' :
-                              'text-neutral-400'
+                          isRemoved ? 'bg-red-500/15 text-red-400' :
+                            'text-neutral-400'
                           }`}
                       >
                         {line}

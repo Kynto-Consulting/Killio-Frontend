@@ -192,6 +192,21 @@ export async function sendAiRoomMessage(roomId: string, content: string, accessT
   return res.json();
 }
 
+export async function updateMessageMetadata(
+  roomId: string,
+  messageId: string,
+  metadata: any,
+  accessToken: string
+): Promise<RoomMessage> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}/metadata`, {
+    method: 'PATCH',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ metadata }),
+  });
+  if (!res.ok) throw new Error('Failed to update message metadata');
+  return res.json();
+}
+
 export async function addReaction(
   roomId: string,
   messageId: string,

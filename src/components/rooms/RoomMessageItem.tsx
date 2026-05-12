@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { usePlatform } from "@/components/providers/platform-provider";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -9,18 +9,28 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
-  ShieldAlert, X
+  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle,
 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
-import { getAiMarkupLabel, parseAiMarkup } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
 import { UserProfileCard } from "./UserProfileCard";
 import type { RoomCall } from "@/lib/api/rooms";
 import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
+import { updateMessageMetadata } from "@/lib/api/rooms";
+import { useSession } from "@/components/providers/session-provider";
+import { API_BASE_URL } from "@/lib/api/client";
+
+const resolveAssetUrl = (url: string) => {
+  if (!url) return "";
+  if (url.startsWith("http") || url.startsWith("data:")) return url;
+  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
+  return url;
+};
 
 const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
   const [isLive, setIsLive] = useState(false);
@@ -55,6 +65,125 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
       <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">Activar Vista en Vivo</div>
       <div className="relative z-10 mt-1 text-[10px] text-blue-500/60 font-mono truncate max-w-[80%]">
         {src.startsWith('/') ? window.location.hostname : (src.startsWith('http') ? new URL(src).hostname : src)}
+      </div>
+    </div>
+  );
+};
+
+const PollRenderer = ({ 
+  content, 
+  metadata, 
+  onVote, 
+  onClose,
+  currentUserId,
+  creatorId
+}: { 
+  content: string; 
+  metadata: any; 
+  onVote: (optionIndex: number, isRemoving?: boolean) => void;
+  onClose?: () => void;
+  currentUserId?: string;
+  creatorId?: string;
+}) => {
+  const lines = content.includes('|') 
+    ? content.split('|').map(l => l.trim()).filter(Boolean)
+    : content.split('\n').filter(l => l.trim());
+  const question = lines[0];
+  const options = lines.slice(1);
+  const votes = metadata?.pollVotes || {}; // { optionIndex: [userIds] }
+  const expiresAt = metadata?.expiresAt; // ISO string
+  const isMultiple = metadata?.multiple === true;
+  
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    if (!expiresAt) return;
+    const timer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, [expiresAt]);
+
+  const isExpired = expiresAt ? new Date(expiresAt) <= now : false;
+  const isClosed = metadata?.isClosed || isExpired;
+
+  const totalVotes = Object.values(votes).reduce((acc: number, val: any) => acc + (Array.isArray(val) ? val.length : 0), 0);
+
+  const timeLeft = expiresAt ? Math.max(0, new Date(expiresAt).getTime() - now.getTime()) : 0;
+  const formatTimeLeft = (ms: number) => {
+    const sec = Math.floor(ms / 1000);
+    if (sec < 60) return `${sec}s`;
+    const min = Math.floor(sec / 60);
+    if (min < 60) return `${min}m ${sec % 60}s`;
+    return `${Math.floor(min / 60)}h ${min % 60}m`;
+  };
+
+  return (
+    <div className={`my-3 p-4 rounded-2xl bg-white dark:bg-neutral-950 border shadow-sm animate-in zoom-in-95 duration-300 max-w-sm transition-opacity ${isClosed ? 'opacity-80 border-neutral-200 dark:border-neutral-800' : 'border-violet-200 dark:border-violet-800/40'}`}>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
+          <ListChecks className="w-4 h-4" />
+          <span className="text-[11px] font-bold uppercase tracking-widest">{question || "Encuesta"}</span>
+        </div>
+        <div className="flex items-center gap-2">
+          {expiresAt && !isClosed && (
+            <div className="flex items-center gap-1 text-[10px] font-mono text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-md">
+              <Clock className="w-3 h-3" />
+              {formatTimeLeft(timeLeft)}
+            </div>
+          )}
+          {isClosed && (
+            <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-500 uppercase tracking-tighter bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded-md">
+              <ShieldCheck className="w-3 h-3" />
+              Cerrada
+            </div>
+          )}
+          {!isClosed && currentUserId === creatorId && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onClose?.(); }}
+              className="text-[10px] font-bold text-neutral-400 hover:text-red-500 transition-colors uppercase tracking-tighter bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded-md"
+            >
+              Cerrar
+            </button>
+          )}
+        </div>
+      </div>
+      
+      <div className="space-y-2">
+        {options.map((opt, i) => {
+          const optVotes = Array.isArray(votes[i]) ? votes[i] : [];
+          const percentage = totalVotes > 0 ? Math.round((optVotes.length / totalVotes) * 100) : 0;
+          const hasVoted = currentUserId && optVotes.includes(currentUserId);
+
+          return (
+            <button
+              key={i}
+              disabled={isClosed}
+              onClick={() => onVote(i, Boolean(hasVoted && isMultiple))}
+              className={`w-full relative group/opt overflow-hidden rounded-xl border transition-all ${isClosed ? 'cursor-default' : ''} ${hasVoted ? 'border-violet-500 bg-violet-500/5' : 'border-border/50 hover:border-violet-400 hover:bg-violet-400/5'}`}
+            >
+              <div 
+                className={`absolute inset-y-0 left-0 transition-all duration-1000 ${hasVoted ? 'bg-violet-500/10' : 'bg-violet-400/5'}`} 
+                style={{ width: `${percentage}%` }}
+              />
+              <div className="relative px-3 py-2 flex items-center justify-between gap-3 min-h-[40px]">
+                <span className={`text-[13px] font-medium text-left ${hasVoted ? 'text-violet-700 dark:text-violet-300' : 'text-foreground'}`}>{opt}</span>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] font-bold text-muted-foreground opacity-60">{percentage}%</span>
+                  {hasVoted && <Check className="w-3.5 h-3.5 text-violet-500" />}
+                </div>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+      
+      <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground font-medium opacity-60">
+        <div className="flex items-center gap-2">
+          <span>{totalVotes} votos totales</span>
+          {isMultiple && <span className="bg-violet-100 dark:bg-violet-900/50 text-violet-600 px-1 rounded">Multivoto</span>}
+        </div>
+        {currentUserId && Object.values(votes).some((v: any) => v.includes(currentUserId)) && (
+          <span className="text-violet-500">Ya participaste</span>
+        )}
       </div>
     </div>
   );
@@ -108,8 +237,10 @@ export function RoomMessageItem({
   onReply,
   onOpenCopilot,
   onToolApproval,
+  onAiRetry,
   t,
 }: RoomMessageItemProps) {
+  const { accessToken } = useSession();
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
@@ -385,7 +516,8 @@ export function RoomMessageItem({
                 if (block.tag === "asset") {
                   const { type, src, width, height, title, kind: brickKind, screenshot } = block.attributes || {};
 
-                  const isPortal = ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
+                  const isUpload = src?.startsWith("/uploads/");
+                  const isPortal = !isUpload && ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
                   const isBrick = type === "brick";
 
                   if (isPortal) {
@@ -449,16 +581,16 @@ export function RoomMessageItem({
                   }
 
                   if (isBrick) {
-                    let brickData = null;
+                    let brickData: any = null;
                     try {
-                      brickData = block.content ? JSON.parse(block.content) : {};
+                      const raw = (block.content || "").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\"/g, '"'); try { brickData = JSON.parse(raw); } catch(e) { brickData = {}; }
                     } catch (e) { }
-
+                    const rawContent = brickData?.content ?? brickData ?? {};
                     const previewBrick = {
                       id: `asset-brick-${key}`,
                       documentId: 'preview',
-                      kind: brickKind || brickData?.kind || 'text',
-                      content: brickData || { text: block.content },
+                      kind: brickKind || rawContent?.kind || brickData?.kind || 'text',
+                      content: rawContent,
                       position: 0,
                       createdAt: new Date().toISOString(),
                       updatedAt: new Date().toISOString()
@@ -485,26 +617,32 @@ export function RoomMessageItem({
                     );
                   }
 
+                  const assetSrc = resolveAssetUrl(src);
                   return (
-                    <div key={key} className="my-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/20 dark:bg-violet-900/5 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
-                      {type === "img" && src && (
-                        <img
-                          src={src}
-                          alt={title || "Image Asset"}
-                          className="rounded-lg max-w-full h-auto object-contain shadow-sm hover:scale-[1.01] transition-transform cursor-zoom-in bg-white dark:bg-neutral-900"
-                          style={{ width: width || '100%', maxHeight: height || '400px' }}
-                        />
+                    <div key={key} className="my-2 rounded-xl border border-border/50 bg-background/50 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
+                      {type === "img" && assetSrc && (
+                        <div className="relative group/img-asset overflow-hidden rounded-lg">
+                          <img
+                            src={assetSrc}
+                            alt={title || "Image Asset"}
+                            className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
+                            style={{ maxHeight: height || '400px' }}
+                          />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
+                            <Maximize2 className="w-5 h-5 text-white" />
+                          </div>
+                        </div>
                       )}
-                      {type === "pdf" && src && (
-                        <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-violet-100/50 dark:border-violet-800/20">
-                          <div className="w-10 h-10 rounded-lg bg-red-100 dark:bg-red-900/20 flex items-center justify-center">
-                            <FileText className="w-6 h-6 text-red-500" />
+                      {type === "document" && assetSrc && (
+                        <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
+                          <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
+                            <FileText className="w-6 h-6 text-violet-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-bold truncate text-violet-900 dark:text-violet-100">{title || "PDF Document"}</div>
-                            <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Portable Document Format</div>
+                            <div className="text-[11px] font-bold truncate text-foreground">{title || "Documento"}</div>
+                            <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Adjunto</div>
                           </div>
-                          <a href={src} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
+                          <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                             <ExternalLink className="w-4 h-4" />
                           </a>
                         </div>
@@ -559,6 +697,46 @@ export function RoomMessageItem({
                   );
                 }
 
+                if (block.tag === "pre_think") {
+                  const sections = parsePreThinkSections(block.content);
+                  const sectionMeta: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
+                    assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: "Assumptions", color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
+                    risks: { icon: <ShieldCheck className="w-3 h-3" />, label: "Risks", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
+                    strategy: { icon: <Lightbulb className="w-3 h-3" />, label: "Strategy", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+                    raw: { icon: <Brain className="w-3 h-3" />, label: "Thinking", color: "text-muted-foreground", bg: "bg-muted/40" },
+                  };
+                  return (
+                    <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 overflow-hidden">
+                      <button
+                        onClick={() => toggleMarkup(key)}
+                        className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <Brain className="w-3 h-3 shrink-0" />
+                          <span className="uppercase">Pre-think</span>
+                        </div>
+                        {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      </button>
+                      {isExpanded && (
+                        <div className="px-2 pb-2 space-y-1.5 animate-in fade-in slide-in-from-top-1">
+                          {sections.map((sec, si) => {
+                            const meta = sectionMeta[sec.tag] ?? sectionMeta.raw;
+                            return (
+                              <div key={si} className={`rounded-lg p-2 ${meta.bg}`}>
+                                <div className={`flex items-center gap-1.5 mb-1 text-[9px] font-bold uppercase tracking-wider ${meta.color}`}>
+                                  {meta.icon}
+                                  <span>{meta.label}</span>
+                                </div>
+                                <p className="text-[11px] leading-relaxed text-foreground/70 whitespace-pre-wrap">{sec.content}</p>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
+
                 if (block.tag === "edit") {
                   const file = block.attributes?.file;
                   const lines = block.content.split('\n');
@@ -588,6 +766,65 @@ export function RoomMessageItem({
                         })}
                       </div>
                     </div>
+                  );
+                }
+
+                if (block.tag === "poll") {
+                  const handleVote = async (optionIndex: number, isRemoving?: boolean) => {
+                    if (!accessToken || !currentUserId) return;
+                    const prevMetadata = message.metadata || {};
+                    
+                    // Security check: don't vote if closed
+                    const isExpired = prevMetadata.expiresAt ? new Date(prevMetadata.expiresAt) <= new Date() : false;
+                    if (prevMetadata.isClosed || isExpired) return;
+
+                    const pollVotes = { ...(prevMetadata.pollVotes || {}) };
+                    const isMultiple = prevMetadata.multiple === true;
+                    
+                    if (!isMultiple) {
+                      // Single choice: remove existing vote from any other option
+                      Object.keys(pollVotes).forEach(idx => {
+                        if (Array.isArray(pollVotes[idx])) {
+                          pollVotes[idx] = pollVotes[idx].filter((id: string) => id !== currentUserId);
+                        }
+                      });
+                    }
+
+                    if (isRemoving) {
+                      // Toggle off
+                      if (Array.isArray(pollVotes[optionIndex])) {
+                        pollVotes[optionIndex] = pollVotes[optionIndex].filter((id: string) => id !== currentUserId);
+                      }
+                    } else {
+                      // Add vote
+                      if (!Array.isArray(pollVotes[optionIndex])) pollVotes[optionIndex] = [];
+                      if (!pollVotes[optionIndex].includes(currentUserId)) {
+                        pollVotes[optionIndex].push(currentUserId);
+                      }
+                    }
+
+                    const newMetadata = { ...prevMetadata, pollVotes };
+                    try {
+                      await updateMessageMetadata(message.roomId, message.id, newMetadata, accessToken);
+                    } catch (err) {
+                      console.error("Failed to vote:", err);
+                    }
+                  };
+
+                  return (
+                    <PollRenderer
+                      key={key}
+                      content={block.content}
+                      metadata={message.metadata}
+                      currentUserId={currentUserId}
+                      creatorId={message.userId}
+                      onVote={handleVote}
+                      onClose={async () => {
+                        if (!accessToken) return;
+                        const newMetadata = { ...(message.metadata || {}), isClosed: true };
+                        await updateMessageMetadata(message.roomId, message.id, newMetadata, accessToken);
+                      }}
+                    />
                   );
                 }
 

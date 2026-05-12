@@ -105,3 +105,19 @@ export async function getAgentMessages(
   if (!res.ok) return [];
   return res.json();
 }
+
+export async function getProactiveSuggestion(
+  params: { teamId: string; message: string; entityType?: string; entityId?: string },
+  accessToken: string,
+): Promise<{ text: string }> {
+  const res = await fetch(`${API_BASE_URL}/agent/proactive-suggest`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) return { text: '' };
+  return res.json();
+}

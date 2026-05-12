@@ -109,13 +109,32 @@ export default function RoomDetailWeb() {
     if (!roomId || !accessToken) return;
 
     // 1. Prepare context from last messages
-    const lastMsgs = chatHook.messages.slice(-10).map(m => `${m.user?.displayName || (m.type === 'ai' ? 'AI Copilot' : 'User')}: ${m.content}`).join("\n");
+    const lastMsgs = chatHook.messages.slice(-10).map(m => {
+      const author = m.user?.displayName || (m.type === 'ai' ? 'AI Copilot' : 'User');
+      let text = m.content;
+      
+      // If it's a poll, include results in context
+      if (m.metadata?.pollVotes) {
+        const votes = m.metadata.pollVotes;
+        const summary = Object.entries(votes).map(([idx, uids]: [string, any]) => {
+          const count = Array.isArray(uids) ? uids.length : 0;
+          return `Option ${parseInt(idx) + 1}: ${count} votes`;
+        }).join(", ");
+        text += `\n[Poll State: ${summary}]`;
+      }
+      
+      return `${author}: ${text}`;
+    }).join("\n");
     const systemPrompt = `You are AI Copilot, a helpful assistant in the Kynto workspace. 
 You have access to tools to manage documents, boards, and search. 
 Use document_list and board_list to discover IDs and titles before requesting details.
 When asked for counts or data, ALWAYS use your tools. 
 Do not provide placeholders like [insert number here]. 
 If a tool fails, explain why. 
+You can create interactive polls/surveys using the <poll> tag.
+Example: <poll>Question | Opt1 | Opt2</poll>.
+To make it a multi-select survey, add "multiple: true" to metadata.
+To set an expiration, add "expiresAt: ISOString" to metadata.
 Current Room: ${room?.name || 'Unknown'}. 
 Team Context: ${activeTeamId}.`;
 
@@ -210,7 +229,8 @@ Team Context: ${activeTeamId}.`;
           });
 
           // Save to DB and broadcast to others via backend
-          sendAiRoomMessage(roomId, finalContent, accessToken, { toolEvents }).catch(console.error);
+          // Tag the local message with a nonce so Ably dedup can match it
+          sendAiRoomMessage(roomId, finalContent, accessToken, { toolEvents, localBotId: botMsgId }).catch(console.error);
         } else if (event.type === "error") {
           chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}`, status: "failed" });
         }
@@ -225,18 +245,40 @@ Team Context: ${activeTeamId}.`;
 
   const [replyTo, setReplyTo] = useState<RoomMessage | null>(null);
 
-  const handleSend = useCallback(async () => {
-    if (!chatInput.trim()) return;
-    const content = chatInput.trim();
+  const handleSend = useCallback(async (overrideContent?: string) => {
+    const finalContent = typeof overrideContent === 'string' ? overrideContent : chatInput;
+    if (!finalContent.trim()) return;
+    let content = finalContent.trim();
     setChatInput("");
 
-    const metadata = replyTo ? {
+    let metadata: any = replyTo ? {
       replyTo: {
         id: replyTo.id,
         content: parseAiMarkup(replyTo.content).visibleText,
         displayName: replyTo.type === "ai" ? "AI Copilot" : (replyTo.user?.displayName || "User")
       }
     } : undefined;
+
+    // Detect /poll or /survey command
+    const pollMatch = content.match(/^\/(poll|survey)\s+(.+)/i);
+    if (pollMatch) {
+      const type = pollMatch[1].toLowerCase();
+      const rawBody = pollMatch[2];
+      const parts = rawBody.split('|').map(p => p.trim()).filter(Boolean);
+      
+      if (parts.length >= 2) {
+        const question = parts[0];
+        const options = parts.slice(1);
+        content = `<poll>\n${question}\n${options.join('\n')}\n</poll>`;
+        
+        metadata = {
+          ...metadata,
+          multiple: type === 'survey',
+          // Default expiry: 2 hours
+          expiresAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString()
+        };
+      }
+    }
 
     const isReplyingToAi = replyTo?.type === "ai";
     setReplyTo(null);

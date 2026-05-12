@@ -5,7 +5,8 @@ import { X, Loader2, UserCircle, Upload } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
-import { getOtpLoginPreference, setOtpLoginPreference } from "@/lib/api/contracts";
+import { getOtpLoginPreference, setOtpLoginPreference, updateProfile } from "@/lib/api/contracts";
+import { uploadFile } from "@/lib/api/uploads";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -22,6 +23,8 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   const [isOtpSaving, setIsOtpSaving] = useState(false);
   const [otpLoginEnabled, setOtpLoginEnabledState] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
 
   useEffect(() => {
     if (!isOpen || !accessToken) return;
@@ -66,20 +69,55 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
     }
   };
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      setError(t("avatarTooLarge") || "Image must be less than 5MB");
+      return;
+    }
+
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!name.trim() || !accessToken || !user) return;
     
     setIsSubmitting(true);
     setError(null);
     try {
-      // TODO: Wire up to actual updateProfile API when available
-      await new Promise(resolve => setTimeout(resolve, 800));
+      let avatarUrl = user.avatarUrl || "";
+
+      // 1. Upload if file selected
+      if (selectedFile) {
+        const uploadResult = await uploadFile(selectedFile, accessToken, {
+          ownerScopeType: "user",
+          ownerScopeId: user.id,
+          usage: "avatar"
+        });
+        avatarUrl = uploadResult.url;
+      }
+
+      // 2. Update profile
+      await updateProfile(accessToken, { 
+        name: name.trim(), 
+        avatarUrl 
+      });
+
+      // 3. Optional: local state sync (user might need to refresh or we can try to force it)
+      // For now, let's just close and hope Ably or a refresh handles it, or trigger a reload.
+      window.location.reload();
       onClose();
     } catch (err: any) {
       console.error(err);
       setError(err?.message || t("updateError"));
-    } finally {
       setIsSubmitting(false);
     }
   };
@@ -107,20 +145,36 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-            <div className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border shadow-sm bg-accent/10">
+            <div 
+              className="group relative flex h-20 w-20 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-border shadow-sm bg-accent/10"
+              onClick={() => document.getElementById("avatar-upload")?.click()}
+            >
                 <img 
-                  src={getUserAvatarUrl(undefined, user?.email, 80)} 
+                  src={previewUrl || getUserAvatarUrl(undefined, user?.email, 80)} 
                   alt={user?.displayName || tCommon("account.fallbackUser")} 
                   className="h-full w-full object-cover group-hover:opacity-40 transition-opacity"
                 />
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100">
                   <Upload className="h-6 w-6 text-white" />
                 </div>
+                <input 
+                  id="avatar-upload"
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
             </div>
             <div className="space-y-1 text-center sm:text-left">
               <h3 className="text-sm font-medium">{t("avatar")}</h3>
               <p className="text-xs text-muted-foreground max-w-[200px]">{t("avatarHint")}</p>
-              <button type="button" className="mt-2 text-xs font-semibold text-accent hover:underline">{t("changePhoto")}</button>
+              <button 
+                type="button" 
+                onClick={() => document.getElementById("avatar-upload")?.click()}
+                className="mt-2 text-xs font-semibold text-accent hover:underline"
+              >
+                {t("changePhoto")}
+              </button>
             </div>
           </div>
 
@@ -180,7 +234,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || isSubmitting || name === user?.displayName}
+              disabled={(!name.trim() || isSubmitting) || (name === user?.displayName && !selectedFile)}
               className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               {isSubmitting ? (

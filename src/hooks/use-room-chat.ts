@@ -68,13 +68,22 @@ export function useRoomChat(
     const onMessage = (msg: any) => {
       const payload = msg.data as RoomMessage;
       setMessages((prev) => {
-        // Replace any temp message with same content+userId within 10s
-        // Also match AI messages with their bot- placeholders
+        // 1. Match by localBotId nonce passed in metadata
+        const nonceId = (payload.metadata as any)?.localBotId;
+        if (nonceId) {
+          const nonceIdx = prev.findIndex((m) => m.id === nonceId);
+          if (nonceIdx !== -1) {
+            const updated = [...prev];
+            updated[nonceIdx] = { ...payload, status: "sent" };
+            return updated;
+          }
+        }
+
+        // 2. Match temp/bot placeholder by userId+type within 30s (no content comparison)
         const tempIdx = prev.findIndex(
           (m) =>
             (m.id.startsWith("temp-") || m.id.startsWith("bot-")) &&
             (m.userId === payload.userId || (m.type === "ai" && payload.type === "ai")) &&
-            m.content.trim() === payload.content.trim() &&
             Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 30_000
         );
         if (tempIdx !== -1) {
@@ -82,7 +91,15 @@ export function useRoomChat(
           updated[tempIdx] = { ...payload, status: "sent" };
           return updated;
         }
-        if (prev.some((m) => m.id === payload.id)) return prev;
+
+        // 3. Exact ID dedup - but UPDATE if metadata/content changed
+        const existingIdx = prev.findIndex((m) => m.id === payload.id);
+        if (existingIdx !== -1) {
+          const updated = [...prev];
+          updated[existingIdx] = { ...payload, status: "sent" };
+          return updated;
+        }
+
         return [...prev, { ...payload, status: "sent" }];
       });
 

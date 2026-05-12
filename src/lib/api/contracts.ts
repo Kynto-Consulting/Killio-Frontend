@@ -873,6 +873,17 @@ export async function setOtpLoginPreference(accessToken: string, enabled: boolea
   });
 }
 
+export async function updateProfile(
+  accessToken: string,
+  data: { name?: string; avatarUrl?: string }
+): Promise<{ ok: boolean }> {
+  return request<{ ok: boolean }>('/auth/profile', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(data),
+  });
+}
+
 export async function listTeams(accessToken: string): Promise<TeamView[]> {
   return request<TeamView[]>('/teams', {
     method: 'GET',
