@@ -467,6 +467,7 @@ export function AgentChatPanel({
           msg.role === "user" ? (
             <UserMessage
               key={msg.id}
+              t={t}
               message={msg}
               onCopy={() => copyMessage(msg.id, msg.text)}
               copied={copiedId === msg.id}
@@ -614,11 +615,13 @@ export function AgentChatPanel({
 // ─── UserMessage ──────────────────────────────────────────────────────────────
 
 function UserMessage({
+  t,
   message,
   onCopy,
   copied,
   copyLabel,
 }: {
+  t: TFn;
   message: AgentMessage;
   onCopy: () => void;
   copied: boolean;
@@ -632,6 +635,9 @@ function UserMessage({
         {markupBlocks.map((block, index) => {
           const key = `user-${block.tag}-${index}`;
 
+          if (block.tag === "asset") {
+            const { type, src, title } = block.attributes || {};
+            const assetSrc = resolveAssetUrl(src || "");
             return (
               <div key={key} className="relative group/img-asset rounded-xl border border-border/50 bg-neutral-100 dark:bg-neutral-800 p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
                 {type === "img" ? (
@@ -648,7 +654,7 @@ function UserMessage({
                         target="_blank" 
                         rel="noopener noreferrer" 
                         className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm"
-                        title="Ver original"
+                        title={t("agent.asset.original")}
                       >
                         <ExternalLink className="w-4 h-4" />
                       </a>
@@ -656,9 +662,24 @@ function UserMessage({
                         href={assetSrc} 
                         download={title || "image.png"} 
                         className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm"
-                        title="Descargar"
-                        onClick={(e) => {
-                          // Force download if same-origin or handled by server
+                        title={t("agent.asset.download")}
+                        onClick={async (e) => {
+                          e.preventDefault();
+                          try {
+                            const response = await fetch(assetSrc);
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = title || (type === 'img' ? "image.png" : "file");
+                            document.body.appendChild(a);
+                            a.click();
+                            window.URL.revokeObjectURL(url);
+                            document.body.removeChild(a);
+                          } catch (err) {
+                            console.error("Download failed:", err);
+                            window.open(assetSrc, '_blank');
+                          }
                         }}
                       >
                         <Download className="w-4 h-4" />
@@ -668,7 +689,7 @@ function UserMessage({
                 ) : (
                   <div className="flex items-center gap-3 p-2 bg-white/50 dark:bg-black/20 rounded-lg">
                     <FileText className="w-5 h-5 text-violet-500" />
-                    <span className="text-[11px] font-medium truncate max-w-[120px]">{title || (type === 'document' ? "Documento" : "Archivo")}</span>
+                    <span className="text-[11px] font-medium truncate max-w-[120px]">{title || (type === 'document' ? t("agent.asset.document") : t("agent.asset.file"))}</span>
                     <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>

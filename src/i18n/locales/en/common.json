@@ -216,6 +216,13 @@
       "searching": "Searching",
       "querying": "Querying",
       "canvas": "Canvas"
+    },
+    "asset": {
+      "document": "Document",
+      "file": "File",
+      "original": "View original",
+      "download": "Download",
+      "attached": "Attached"
     }
   }
 }

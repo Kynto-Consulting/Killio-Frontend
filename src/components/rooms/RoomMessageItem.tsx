@@ -639,7 +639,7 @@ export function RoomMessageItem({
                               href={assetSrc}
                               download={title || "image.png"}
                               className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
-                              title="Descargar"
+                              title={t("chat.asset.download")}
                             >
                               <Download className="w-4 h-4" />
                             </a>
@@ -652,8 +652,8 @@ export function RoomMessageItem({
                             <FileText className="w-6 h-6 text-violet-500" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <div className="text-[11px] font-bold truncate text-foreground">{title || "Documento"}</div>
-                            <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Adjunto</div>
+                            <div className="text-[11px] font-bold truncate text-foreground">{title || t("chat.asset.document")}</div>
+                            <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">{t("chat.asset.attached")}</div>
                           </div>
                           <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                             <ExternalLink className="w-4 h-4" />

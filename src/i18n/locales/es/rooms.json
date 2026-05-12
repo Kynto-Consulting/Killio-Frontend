@@ -43,7 +43,14 @@
     },
     "replyingTo": "Respondiendo a {{name}}",
     "cancelReply": "Cancelar respuesta",
-    "thinking": "Killio está pensando"
+    "thinking": "Killio está pensando",
+    "asset": {
+      "document": "Documento",
+      "file": "Archivo",
+      "original": "Ver original",
+      "download": "Descargar",
+      "attached": "Adjunto"
+    }
   },
   "call": {
     "joining": "Uniéndose a la llamada...",
