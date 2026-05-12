@@ -183,9 +183,9 @@ export function RoomChatArea({
     };
   }, [inputValue, teamId, accessToken]);
 
-  const handleSend = () => {
+  const handleSend = (content?: string) => {
     setProactiveSuggestion("");
-    onSend();
+    onSend(content);
   };
 
   return (
