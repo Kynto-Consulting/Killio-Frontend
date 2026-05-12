@@ -2,9 +2,6 @@
 
 import { useMemo, useState, useCallback, useEffect } from "react";
 import { usePlatform } from "@/components/providers/platform-provider";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import rehypeRaw from "rehype-raw";
 import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,

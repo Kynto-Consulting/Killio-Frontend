@@ -550,6 +550,9 @@ type RegisterPayload = {
   name: string;
   email: string;
   password: string;
+  username?: string;
+  acceptedTerms?: boolean;
+  allowCommunications?: boolean;
 };
 
 type LoginPayload = {
