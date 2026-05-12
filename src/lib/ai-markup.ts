@@ -20,6 +20,7 @@ const COLLAPSIBLE_AI_TAGS = [
   "edit",
   "asset",
   "poll",
+  "batch_tool",
 ];
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {

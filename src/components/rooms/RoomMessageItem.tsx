@@ -394,117 +394,55 @@ export function RoomMessageItem({
                   );
                 }
 
+                if (block.tag === "batch_tool") {
+                  const { blocks: subBlocks } = parseAiMarkup(block.content);
+                  const toolCalls = subBlocks.filter(b => b.tag === 'tool_call');
+
+                  return (
+                    <div key={key} className="self-start max-w-full my-1.5 animate-in fade-in slide-in-from-left-2">
+                      <div className="flex flex-col gap-2 p-3 rounded-2xl border-2 border-violet-500/10 bg-violet-500/5 dark:bg-violet-900/5">
+                        <div className="flex items-center gap-2 px-1">
+                          <ListChecks className="w-3.5 h-3.5 text-violet-500" />
+                          <span className="text-[10px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+                            Ejecución en Lote ({toolCalls.length})
+                          </span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          {toolCalls.map((sub, i) => {
+                            try {
+                              const data = JSON.parse(sub.content);
+                              return (
+                                <ToolCallItem
+                                  key={`${key}-${i}`}
+                                  t={t}
+                                  data={data}
+                                  message={message}
+                                  onToolApproval={onToolApproval}
+                                  isOwn={isOwn}
+                                />
+                              );
+                            } catch (e) {
+                              return null;
+                            }
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                }
+
                 if (block.tag === "tool_call") {
                   try {
                     const data = JSON.parse(block.content);
-                    const searchName = data.name?.toLowerCase();
-                    const rawEvents = (message.metadata as any)?.toolEvents || [];
-
-                    // Synthesize events from DB columns if missing (crucial after page refresh)
-                    const events = rawEvents.length > 0 ? rawEvents : (() => {
-                      const syn: any[] = [];
-                      const calls = (message as any).tool_calls || [];
-                      const results = (message as any).tool_results || [];
-                      calls.forEach((c: any) => {
-                        const res = results.find((r: any) => (r.tool_use_id === c.id) || (r.tool === c.name));
-                        syn.push({
-                          tool: c.name,
-                          phase: "done",
-                          success: res ? !res.is_error : true,
-                          result: res ? res.content : null
-                        });
-                      });
-                      return syn;
-                    })();
-
-                    const event = events.find((e: any) => e.tool?.toLowerCase() === searchName);
-                    const isDone = !!event && event.phase === "done";
-                    const isError = isDone && event.success === false;
-                    const needsApproval = !!event && event.phase === "waiting_for_approval";
-                    const output = event?.result;
-
                     return (
                       <div key={key} className="self-start max-w-full my-1">
-                        <div className={`flex flex-col gap-2 p-2 rounded-xl border animate-in fade-in slide-in-from-left-1 ${needsApproval ? 'border-amber-500/30 bg-amber-500/5' : 'border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10'}`}>
-                          <div className="flex items-center gap-2 px-1 text-[10px]">
-                            <div className="relative shrink-0">
-                              {!isDone && !needsApproval && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
-                              {needsApproval && <div className="absolute inset-0 bg-amber-400 rounded-full animate-pulse opacity-40" />}
-                              <span className={`${needsApproval ? 'text-amber-500' : 'text-violet-500'} shrink-0 relative`}>
-                                {needsApproval ? <ShieldAlert className="w-3.5 h-3.5" /> : <Bot className="w-3 h-3" />}
-                              </span>
-                            </div>
-                            <span className={`${needsApproval ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-300'} font-bold uppercase tracking-tighter truncate max-w-[140px]`}>
-                              {data.name?.replace(/_/g, " ")} {needsApproval && "— Permiso"}
-                            </span>
-
-                            {needsApproval ? null : (
-                              isDone ? (
-                                isError ? (
-                                  <AlertCircle className="w-2.5 h-2.5 text-destructive shrink-0 ml-auto" />
-                                ) : (
-                                  <Check className="w-2.5 h-2.5 text-emerald-500 shrink-0 ml-auto" />
-                                )
-                              ) : (
-                                <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400 shrink-0 ml-auto" />
-                              )
-                            )}
-
-                            <div className="group/info relative ml-auto shrink-0">
-                              <Info className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-violet-500 cursor-help transition-colors" />
-                              <div className={`absolute bottom-full ${isOwn ? "right-0" : "left-0"} mb-1 w-[320px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto`}>
-                                <div className="space-y-3">
-                                  {/* INPUT SECTION */}
-                                  <div>
-                                    <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
-                                      <span className="flex items-center gap-1">
-                                        <Wrench className="w-2 h-2" />
-                                        TOOL INPUT
-                                      </span>
-                                    </div>
-                                    <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[100px] custom-scrollbar bg-neutral-950/50 p-1.5 rounded">
-                                      {JSON.stringify(data.input, null, 2)}
-                                    </pre>
-                                  </div>
-
-                                  {/* OUTPUT SECTION */}
-                                  {isDone && (
-                                    <div>
-                                      <div className={`text-[9px] font-mono mb-1 flex items-center justify-between ${isError ? "text-red-400" : "text-emerald-400"}`}>
-                                        <span className="flex items-center gap-1">
-                                          <Terminal className="w-2 h-2" />
-                                          TOOL OUTPUT
-                                        </span>
-                                      </div>
-                                      <pre className={`text-[9px] font-mono whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar bg-neutral-950/50 p-1.5 rounded ${isError ? "text-red-300" : "text-neutral-300"}`}>
-                                        {typeof output === 'string' ? output : JSON.stringify(output, null, 2) || "No output data"}
-                                      </pre>
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          {needsApproval && (
-                            <div className="flex items-center gap-2 mt-1">
-                              <button
-                                onClick={() => onToolApproval?.(data.name, data.input, 'approved')}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider transition-colors shadow-sm"
-                              >
-                                <Check className="w-2.5 h-2.5" />
-                                Aprobar
-                              </button>
-                              <button
-                                onClick={() => onToolApproval?.(data.name, data.input, 'rejected')}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold text-[9px] uppercase tracking-wider transition-colors border border-neutral-300 dark:border-neutral-700"
-                              >
-                                <X className="w-2.5 h-2.5" />
-                                Rechazar
-                              </button>
-                            </div>
-                          )}
-                        </div>
+                        <ToolCallItem
+                          t={t}
+                          data={data}
+                          message={message}
+                          onToolApproval={onToolApproval}
+                          isOwn={isOwn}
+                        />
                       </div>
                     );
                   } catch (e) { return null; }
@@ -926,5 +864,129 @@ export function RoomMessageItem({
         />
       )}
     </>
+  );
+}
+// ─── ToolCallItem ────────────────────────────────────────────────────────────
+
+function ToolCallItem({
+  t,
+  data,
+  message,
+  onToolApproval,
+  isOwn,
+}: {
+  t: TFn;
+  data: any;
+  message: RoomMessage;
+  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
+  isOwn: boolean;
+}) {
+  const searchName = data.name?.toLowerCase();
+  const rawEvents = (message.metadata as any)?.toolEvents || [];
+
+  // Synthesize events from DB columns if missing (crucial after page refresh)
+  const events = rawEvents.length > 0 ? rawEvents : (() => {
+    const syn: any[] = [];
+    const calls = (message as any).tool_calls || [];
+    const results = (message as any).tool_results || [];
+    calls.forEach((c: any) => {
+      const res = results.find((r: any) => (r.tool_use_id === c.id) || (r.tool === c.name));
+      syn.push({
+        tool: c.name,
+        phase: "done",
+        success: res ? !res.is_error : true,
+        result: res ? res.content : null
+      });
+    });
+    return syn;
+  })();
+
+  const event = events.find((e: any) => e.tool?.toLowerCase() === searchName);
+  const isDone = !!event && event.phase === "done";
+  const isError = isDone && event.success === false;
+  const needsApproval = !!event && event.phase === "waiting_for_approval";
+  const output = event?.result;
+
+  return (
+    <div className={`flex flex-col gap-2 p-2 rounded-xl border animate-in fade-in slide-in-from-left-1 ${needsApproval ? 'border-amber-500/30 bg-amber-500/5' : 'border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10'}`}>
+      <div className="flex items-center gap-2 px-1 text-[10px]">
+        <div className="relative shrink-0">
+          {!isDone && !needsApproval && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
+          {needsApproval && <div className="absolute inset-0 bg-amber-400 rounded-full animate-pulse opacity-40" />}
+          <span className={`${needsApproval ? 'text-amber-500' : 'text-violet-500'} shrink-0 relative`}>
+            {needsApproval ? <ShieldAlert className="w-3.5 h-3.5" /> : <Bot className="w-3 h-3" />}
+          </span>
+        </div>
+        <span className={`${needsApproval ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-300'} font-bold uppercase tracking-tighter truncate max-w-[140px]`}>
+          {data.name?.replace(/_/g, " ")} {needsApproval && "— Permiso"}
+        </span>
+
+        {needsApproval ? null : (
+          isDone ? (
+            isError ? (
+              <AlertCircle className="w-2.5 h-2.5 text-destructive shrink-0 ml-auto" />
+            ) : (
+              <Check className="w-2.5 h-2.5 text-emerald-500 shrink-0 ml-auto" />
+            )
+          ) : (
+            <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400 shrink-0 ml-auto" />
+          )
+        )}
+
+        <div className="group/info relative ml-auto shrink-0">
+          <Info className="w-2.5 h-2.5 text-muted-foreground/40 hover:text-violet-500 cursor-help transition-colors" />
+          <div className={`absolute bottom-full ${isOwn ? "right-0" : "left-0"} mb-1 w-[320px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto`}>
+            <div className="space-y-3">
+              {/* INPUT SECTION */}
+              <div>
+                <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                  <span className="flex items-center gap-1">
+                    <Wrench className="w-2 h-2" />
+                    TOOL INPUT
+                  </span>
+                </div>
+                <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[100px] custom-scrollbar bg-neutral-950/50 p-1.5 rounded">
+                  {JSON.stringify(data.input, null, 2)}
+                </pre>
+              </div>
+
+              {/* OUTPUT SECTION */}
+              {isDone && (
+                <div>
+                  <div className={`text-[9px] font-mono mb-1 flex items-center justify-between ${isError ? "text-red-400" : "text-emerald-400"}`}>
+                    <span className="flex items-center gap-1">
+                      <Terminal className="w-2 h-2" />
+                      TOOL OUTPUT
+                    </span>
+                  </div>
+                  <pre className={`text-[9px] font-mono whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar bg-neutral-950/50 p-1.5 rounded ${isError ? "text-red-300" : "text-neutral-300"}`}>
+                    {typeof output === 'string' ? output : JSON.stringify(output, null, 2) || "No output data"}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {needsApproval && (
+        <div className="flex items-center gap-2 mt-1">
+          <button
+            onClick={() => onToolApproval?.(data.name, data.input, 'approved')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-wider transition-colors shadow-sm"
+          >
+            <Check className="w-2.5 h-2.5" />
+            Aprobar
+          </button>
+          <button
+            onClick={() => onToolApproval?.(data.name, data.input, 'rejected')}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold text-[9px] uppercase tracking-wider transition-colors border border-neutral-300 dark:border-neutral-700"
+          >
+            <X className="w-2.5 h-2.5" />
+            Rechazar
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
