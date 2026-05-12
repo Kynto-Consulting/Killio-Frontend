@@ -8,7 +8,7 @@ import {
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
   Clock, MessageSquare, Tag, AlertCircle, Info,
   ListChecks, FileCode, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ShieldAlert,
-  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2,
+  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
@@ -632,20 +632,39 @@ function UserMessage({
         {markupBlocks.map((block, index) => {
           const key = `user-${block.tag}-${index}`;
 
-          if (block.tag === "asset") {
-            const { type, src, title } = block.attributes || {};
-            const assetSrc = resolveAssetUrl(src);
-            if (!assetSrc) return null;
-
             return (
-              <div key={key} className="rounded-xl border border-border/50 bg-neutral-100 dark:bg-neutral-800 p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
+              <div key={key} className="relative group/img-asset rounded-xl border border-border/50 bg-neutral-100 dark:bg-neutral-800 p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
                 {type === "img" ? (
-                  <img
-                    src={assetSrc}
-                    alt={title || "Image"}
-                    className="rounded-lg max-w-full h-auto object-contain bg-white dark:bg-neutral-900 shadow-sm"
-                    style={{ maxHeight: '300px' }}
-                  />
+                  <div className="relative overflow-hidden rounded-lg">
+                    <img
+                      src={assetSrc}
+                      alt={title || "Image"}
+                      className="rounded-lg max-w-full h-auto object-contain bg-white dark:bg-neutral-900 shadow-sm transition-all group-hover/img-asset:scale-[1.01]"
+                      style={{ maxHeight: '300px' }}
+                    />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a 
+                        href={assetSrc} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm"
+                        title="Ver original"
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <a 
+                        href={assetSrc} 
+                        download={title || "image.png"} 
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm"
+                        title="Descargar"
+                        onClick={(e) => {
+                          // Force download if same-origin or handled by server
+                        }}
+                      >
+                        <Download className="w-4 h-4" />
+                      </a>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex items-center gap-3 p-2 bg-white/50 dark:bg-black/20 rounded-lg">
                     <FileText className="w-5 h-5 text-violet-500" />

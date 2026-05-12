@@ -9,7 +9,7 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
-  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle,
+  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download,
 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
@@ -34,12 +34,12 @@ const resolveAssetUrl = (url: string) => {
 
 const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
   const [isLive, setIsLive] = useState(false);
-  
+
   if (isLive) {
     return (
-      <iframe 
-        src={src} 
-        className="w-full rounded-lg bg-white animate-in fade-in duration-500" 
+      <iframe
+        src={src}
+        className="w-full rounded-lg bg-white animate-in fade-in duration-500"
         style={{ height }}
         title={title || "Portal Content"}
       />
@@ -47,15 +47,15 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
   }
 
   return (
-    <div 
+    <div
       className="relative flex flex-col items-center justify-center bg-slate-950/50 rounded-lg cursor-pointer hover:bg-slate-900/60 transition-all border border-blue-500/10 overflow-hidden"
       style={{ height }}
       onClick={() => setIsLive(true)}
     >
       {screenshot && (
-        <img 
-          src={screenshot} 
-          alt={title || "Preview"} 
+        <img
+          src={screenshot}
+          alt={title || "Preview"}
           className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover/iframe:opacity-50 transition-opacity"
         />
       )}
@@ -70,22 +70,22 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
   );
 };
 
-const PollRenderer = ({ 
-  content, 
-  metadata, 
-  onVote, 
+const PollRenderer = ({
+  content,
+  metadata,
+  onVote,
   onClose,
   currentUserId,
   creatorId
-}: { 
-  content: string; 
-  metadata: any; 
+}: {
+  content: string;
+  metadata: any;
   onVote: (optionIndex: number, isRemoving?: boolean) => void;
   onClose?: () => void;
   currentUserId?: string;
   creatorId?: string;
 }) => {
-  const lines = content.includes('|') 
+  const lines = content.includes('|')
     ? content.split('|').map(l => l.trim()).filter(Boolean)
     : content.split('\n').filter(l => l.trim());
   const question = lines[0];
@@ -93,7 +93,7 @@ const PollRenderer = ({
   const votes = metadata?.pollVotes || {}; // { optionIndex: [userIds] }
   const expiresAt = metadata?.expiresAt; // ISO string
   const isMultiple = metadata?.multiple === true;
-  
+
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -137,7 +137,7 @@ const PollRenderer = ({
             </div>
           )}
           {!isClosed && currentUserId === creatorId && (
-            <button 
+            <button
               onClick={(e) => { e.stopPropagation(); onClose?.(); }}
               className="text-[10px] font-bold text-neutral-400 hover:text-red-500 transition-colors uppercase tracking-tighter bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded-md"
             >
@@ -146,7 +146,7 @@ const PollRenderer = ({
           )}
         </div>
       </div>
-      
+
       <div className="space-y-2">
         {options.map((opt, i) => {
           const optVotes = Array.isArray(votes[i]) ? votes[i] : [];
@@ -160,8 +160,8 @@ const PollRenderer = ({
               onClick={() => onVote(i, Boolean(hasVoted && isMultiple))}
               className={`w-full relative group/opt overflow-hidden rounded-xl border transition-all ${isClosed ? 'cursor-default' : ''} ${hasVoted ? 'border-violet-500 bg-violet-500/5' : 'border-border/50 hover:border-violet-400 hover:bg-violet-400/5'}`}
             >
-              <div 
-                className={`absolute inset-y-0 left-0 transition-all duration-1000 ${hasVoted ? 'bg-violet-500/10' : 'bg-violet-400/5'}`} 
+              <div
+                className={`absolute inset-y-0 left-0 transition-all duration-1000 ${hasVoted ? 'bg-violet-500/10' : 'bg-violet-400/5'}`}
                 style={{ width: `${percentage}%` }}
               />
               <div className="relative px-3 py-2 flex items-center justify-between gap-3 min-h-[40px]">
@@ -175,7 +175,7 @@ const PollRenderer = ({
           );
         })}
       </div>
-      
+
       <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground font-medium opacity-60">
         <div className="flex items-center gap-2">
           <span>{totalVotes} votos totales</span>
@@ -440,7 +440,7 @@ export function RoomMessageItem({
                             <span className={`${needsApproval ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-300'} font-bold uppercase tracking-tighter truncate max-w-[140px]`}>
                               {data.name?.replace(/_/g, " ")} {needsApproval && "— Permiso"}
                             </span>
-                            
+
                             {needsApproval ? null : (
                               isDone ? (
                                 isError ? (
@@ -544,7 +544,7 @@ export function RoomMessageItem({
                         <div className="p-1">
                           {type === "iframe" ? (
                             <div className="relative group/iframe">
-                              <IframeWithPreview 
+                              <IframeWithPreview
                                 src={src.startsWith('/') ? (src.includes('?') ? `${src}&noLayout=true` : `${src}?noLayout=true`) : src}
                                 title={title || "Portal Content"}
                                 height={height || '400px'}
@@ -583,7 +583,7 @@ export function RoomMessageItem({
                   if (isBrick) {
                     let brickData: any = null;
                     try {
-                      const raw = (block.content || "").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\"/g, '"'); try { brickData = JSON.parse(raw); } catch(e) { brickData = {}; }
+                      const raw = (block.content || "").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\"/g, '"'); try { brickData = JSON.parse(raw); } catch (e) { brickData = {}; }
                     } catch (e) { }
                     const rawContent = brickData?.content ?? brickData ?? {};
                     const previewBrick = {
@@ -628,8 +628,24 @@ export function RoomMessageItem({
                             className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
                             style={{ maxHeight: height || '400px' }}
                           />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                            <Maximize2 className="w-5 h-5 text-white" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                            <a
+                              href={assetSrc}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
+                              title="Ver original"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                            <a
+                              href={assetSrc}
+                              download={title || "image.png"}
+                              className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
+                              title="Descargar"
+                            >
+                              <Download className="w-4 h-4" />
+                            </a>
                           </div>
                         </div>
                       )}
@@ -773,14 +789,14 @@ export function RoomMessageItem({
                   const handleVote = async (optionIndex: number, isRemoving?: boolean) => {
                     if (!accessToken || !currentUserId) return;
                     const prevMetadata = message.metadata || {};
-                    
+
                     // Security check: don't vote if closed
                     const isExpired = prevMetadata.expiresAt ? new Date(prevMetadata.expiresAt) <= new Date() : false;
                     if (prevMetadata.isClosed || isExpired) return;
 
                     const pollVotes = { ...(prevMetadata.pollVotes || {}) };
                     const isMultiple = prevMetadata.multiple === true;
-                    
+
                     if (!isMultiple) {
                       // Single choice: remove existing vote from any other option
                       Object.keys(pollVotes).forEach(idx => {
