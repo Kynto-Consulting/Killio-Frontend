@@ -15,11 +15,26 @@ export interface AgentConversation {
 
 export type AgentStreamEvent =
   | { type: 'tool_start'; tool: string; input?: Record<string, unknown> }
-  | { type: 'tool_done'; tool: string; success: boolean; durationMs: number }
+  | { type: 'tool_done'; tool: string; success: boolean; durationMs: number; input?: Record<string, unknown>; output?: Record<string, unknown> }
   | { type: 'tool_approval_request'; tool: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool: string; data: Record<string, unknown> }
+  | { type: 'tool_result'; tool: string; data: Record<string, unknown>; success?: boolean; durationMs?: number }
   | { type: 'delta'; text: string }
-  | { type: 'done'; text: string; conversationId: string; toolsUsed: string[] }
+  | { 
+      type: 'done'; 
+      text: string; 
+      conversationId: string; 
+      toolsUsed: string[];
+      toolExecution?: Array<{
+        toolName: string;
+        input: Record<string, unknown>;
+        output: Record<string, unknown>;
+        success: boolean;
+        durationMs: number;
+        durationSeconds: string;
+        phase: string;
+        timestamp: string;
+      }>;
+    }
   | { type: 'error'; message: string };
 
 /**

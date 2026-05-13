@@ -238,6 +238,26 @@ export function RoomMessageItem({
   t,
 }: RoomMessageItemProps) {
   const { accessToken } = useSession();
+  async function fetchAndDownload(url: string, filename?: string) {
+    try {
+      const headers: Record<string, string> = {};
+      if (accessToken && url.startsWith(API_BASE_URL)) headers['Authorization'] = `Bearer ${accessToken}`;
+      const res = await fetch(url, { headers });
+      if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+      const blob = await res.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = filename || (url.split('/').pop() || 'download');
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      console.error("Download failed:", err);
+      window.open(url, '_blank');
+    }
+  }
   const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
@@ -450,6 +470,7 @@ export function RoomMessageItem({
 
                 if (block.tag === "asset") {
                   const { type, src, width, height, title, kind: brickKind, screenshot } = block.attributes || {};
+                  const assetSrc = resolveAssetUrl(src);
 
                   const isUpload = src?.startsWith("/uploads/");
                   const isPortal = !isUpload && ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
@@ -473,6 +494,16 @@ export function RoomMessageItem({
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
+                            {assetSrc && (assetSrc.startsWith('http') || assetSrc.startsWith('data:') || assetSrc.startsWith(API_BASE_URL)) && (
+                              <button
+                                type="button"
+                                onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || `attachment`); }}
+                                className="p-1 hover:bg-blue-400/20 rounded transition-colors text-blue-400"
+                                title={t?.("chat.asset.download") || 'Descargar'}
+                              >
+                                <Download className="h-3.5 w-3.5" />
+                              </button>
+                            )}
                           </div>
                         </div>
 
@@ -552,7 +583,6 @@ export function RoomMessageItem({
                     );
                   }
 
-                  const assetSrc = resolveAssetUrl(src);
                   return (
                     <div key={key} className="my-2 rounded-xl border border-border/50 bg-background/50 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
                       {type === "img" && assetSrc && (
@@ -573,14 +603,14 @@ export function RoomMessageItem({
                             >
                               <ExternalLink className="w-4 h-4" />
                             </a>
-                            <a
-                              href={assetSrc}
-                              download={title || "image.png"}
+                            <button
+                              type="button"
+                              onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || "image.png"); }}
                               className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
                               title={t("chat.asset.download")}
                             >
                               <Download className="w-4 h-4" />
-                            </a>
+                            </button>
                           </div>
                         </div>
                       )}
@@ -596,6 +626,14 @@ export function RoomMessageItem({
                           <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                             <ExternalLink className="w-4 h-4" />
                           </a>
+                          <button
+                            type="button"
+                            onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment'); }}
+                            className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500"
+                            title={t("chat.asset.download")}
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
                         </div>
                       )}
                     </div>

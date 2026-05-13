@@ -43,7 +43,7 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   // Pattern A: tool_call self-closing
   // Pattern B: collapsible tags — self-closing OR paired with explicit closing tag list
   //   closing tag: </tagname> with optional trailing whitespace/backslash
-  const toolCallRe = /<tool_call\s+name=(["'])([^"']+)\1\s+input=(["'])([\s\S]*?)\3\s*\/?>/gi;
+  const toolCallRe = /<tool(?:_call)?\s+(?:name\s*=?\s*(["'])([^"']+)\1\s+)?input\s*=\s*(["'])([\s\S]*?)\3\s*\/?>/gi;
   const collapsibleRe = new RegExp(
     `<(${tagList})\\b([^>]*?)(?:\\s*\\/>|>([\\s\\S]*?)<\\s*\\/\\s*(?:${tagList})\\s*>\\\\?)`,
     "gi"
@@ -88,8 +88,14 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     }
 
     if (match.kind === "tool_call") {
-      const name = match.raw[2].trim();
-      const rawInput = match.raw[4].trim();
+      const name = match.raw[2]?.trim() || "";
+      let rawInput = match.raw[4]?.trim() || "";
+      
+      // Greedy match fix: If we over-captured, trim to last }
+      if (rawInput.includes('}')) {
+        rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
+      }
+
       let parsedInput: any = rawInput;
       try { parsedInput = JSON.parse(rawInput); } catch (e) {}
       blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });

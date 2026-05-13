@@ -32,6 +32,27 @@ const resolveAssetUrl = (url: string) => {
   return url;
 };
 
+async function fetchAndDownload(url: string, filename?: string, accessToken?: string) {
+  try {
+    const headers: Record<string, string> = {};
+    if (accessToken && url.startsWith(API_BASE_URL)) headers['Authorization'] = `Bearer ${accessToken}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const blob = await res.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = filename || (url.split('/').pop() || 'download');
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    console.error('Download failed:', err);
+    window.open(url, '_blank');
+  }
+}
+
 
 const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
   const [isLive, setIsLive] = useState(false);
@@ -760,6 +781,7 @@ function AssistantMessage({
       return next;
     });
   }, []);
+  const { accessToken } = useSession();
 
   const doneEvents = (message.toolEvents ?? []).filter((e) => e.phase === "done");
   const count = doneEvents.length;
@@ -852,7 +874,7 @@ function AssistantMessage({
                       {type === 'iframe' ? 'Live Content' : type}
                     </span>
                     {title && <span className="ml-1 truncate text-[10px] text-blue-200/60">— {title}</span>}
-                    <div className="ml-auto flex items-center gap-1">
+                          <div className="ml-auto flex items-center gap-1">
                       <a
                         href={type === 'document' ? `/d/${src}` : (type === 'kanban' || type === 'mesh' ? `/b/${src}` : src)}
                         target="_blank"
@@ -861,6 +883,16 @@ function AssistantMessage({
                       >
                         <ExternalLink className="h-3.5 w-3.5" />
                       </a>
+                      {assetSrc && (assetSrc.startsWith('http') || assetSrc.startsWith('data:') || assetSrc.startsWith(API_BASE_URL)) && (
+                        <button
+                          type="button"
+                          onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || `attachment`, accessToken); }}
+                          className="p-1 hover:bg-blue-400/20 rounded transition-colors text-blue-400"
+                          title={t?.("agent.asset.download") || 'Descargar'}
+                        >
+                          <Download className="h-3.5 w-3.5" />
+                        </button>
+                      )}
                     </div>
                   </div>
 
@@ -951,8 +983,24 @@ function AssistantMessage({
                       className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
                       style={{ maxHeight: height || '400px' }}
                     />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-                      <Maximize2 className="w-5 h-5 text-white" />
+                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                      <a
+                        href={assetSrc}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
+                        title={t("agent.asset.original")}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || "image.png", accessToken); }}
+                        className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
+                        title={t("agent.asset.download")}
+                      >
+                        <Download className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 )}
@@ -968,6 +1016,14 @@ function AssistantMessage({
                     <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
                       <ExternalLink className="w-4 h-4" />
                     </a>
+                    <button
+                      type="button"
+                      onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment', accessToken); }}
+                      className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500"
+                      title={t("agent.asset.download")}
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
                   </div>
                 )}
               </div>
@@ -1369,15 +1425,21 @@ function ToolCallItem({
   message: AgentMessage;
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const meta = getToolMeta(t, data.name);
   const inputPreview = formatToolInput(data.input);
 
   // Find if this tool call has finished in toolEvents
   const searchName = data.name?.toLowerCase();
   const events = message.toolEvents || [];
-  const isDone = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
-  const isError = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "done" && e.success === false);
+  const doneEvent = events.find(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
+  const isDone = !!doneEvent;
+  const isError = doneEvent?.success === false;
   const needsApproval = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "waiting_for_approval");
+
+  // Prefer output from toolEvents (live streaming), fall back to data.output (loaded from history)
+  const toolOutput = doneEvent?.output ?? data.output;
+  const toolInput = doneEvent?.input ?? data.input;
 
   return (
     <div className={`flex flex-col gap-2 p-2 rounded-xl border animate-in fade-in slide-in-from-left-1 ${needsApproval ? 'border-amber-500/30 bg-amber-500/5' : 'border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10'}`}>
@@ -1410,31 +1472,44 @@ function ToolCallItem({
           )
         )}
 
-        <div className="group/info relative ml-auto">
-          <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
-          <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
-            <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
-              <span className="flex items-center gap-1">
+        {isDone && (
+          <button
+            onClick={() => setExpanded((v: boolean) => !v)}
+            className="p-0.5 rounded hover:bg-violet-100 dark:hover:bg-violet-800/30 transition-colors ml-1"
+            title={expanded ? "Ocultar detalles" : "Ver detalles"}
+          >
+            <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 transition-colors" />
+          </button>
+        )}
+      </div>
+
+      {/* Expanded TOOL INPUT / TOOL OUTPUT section */}
+      {isDone && expanded && (
+        <div className="mt-1 flex flex-col gap-1.5 border-t border-violet-100 dark:border-violet-800/20 pt-1.5">
+          {toolInput && (
+            <div>
+              <div className="text-[9px] font-mono text-violet-400 mb-0.5 flex items-center gap-1">
                 <Wrench className="w-2 h-2" />
-                TOOL CALL RAW
-              </span>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  navigator.clipboard.writeText(JSON.stringify(data.input, null, 2));
-                }}
-                className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-400 hover:text-violet-400"
-                title="Copy JSON"
-              >
-                <Copy className="w-2 h-2" />
-              </button>
+                TOOL INPUT
+              </div>
+              <pre className="text-[9px] font-mono text-neutral-300 bg-neutral-900 rounded-lg p-1.5 whitespace-pre-wrap break-all overflow-y-auto max-h-[100px] custom-scrollbar">
+                {JSON.stringify(toolInput, null, 2)}
+              </pre>
             </div>
-            <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar">
-              {JSON.stringify(data.input, null, 2)}
+          )}
+          <div>
+            <div className={`text-[9px] font-mono mb-0.5 flex items-center gap-1 ${isError ? 'text-red-400' : 'text-emerald-400'}`}>
+              {isError ? <AlertCircle className="w-2 h-2" /> : <Check className="w-2 h-2" />}
+              TOOL OUTPUT
+            </div>
+            <pre className="text-[9px] font-mono text-neutral-300 bg-neutral-900 rounded-lg p-1.5 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px] custom-scrollbar">
+              {toolOutput
+                ? JSON.stringify(toolOutput, null, 2)
+                : isError ? "(error sin detalles)" : "(sin datos de salida)"}
             </pre>
           </div>
         </div>
-      </div>
+      )}
 
       {needsApproval && (
         <div className="flex items-center gap-2 mt-1">

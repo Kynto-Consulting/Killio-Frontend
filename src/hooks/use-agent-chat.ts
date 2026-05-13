@@ -20,11 +20,22 @@ export interface AgentMessage {
   toolsUsed?: string[];
   isStreaming?: boolean;
   thumb?: "up" | "down";
+  toolExecution?: Array<{
+    toolName: string;
+    input: Record<string, unknown>;
+    output: Record<string, unknown>;
+    success: boolean;
+    durationMs: number;
+    durationSeconds: string;
+    phase: string;
+    timestamp: string;
+  }>;
 }
 
 export interface ToolEvent {
   tool: string;
   input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
   success?: boolean;
   durationMs?: number;
   phase: "start" | "done" | "waiting_for_approval";
@@ -101,13 +112,14 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
               if (idx !== -1) {
                 toolEvts[toolEvts.length - 1 - idx] = {
                   tool: event.tool,
-                  input: toolEvts[toolEvts.length - 1 - idx].input,
+                  input: event.input ?? toolEvts[toolEvts.length - 1 - idx].input,
+                  output: event.output,
                   phase: "done",
                   success: event.success,
                   durationMs: event.durationMs,
                 };
               } else {
-                toolEvts.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs });
+                toolEvts.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs, output: event.output });
               }
               setActiveToolEvents([...toolEvts]);
               setMessages((prev) =>
@@ -138,7 +150,13 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === assistantId
-                    ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed }
+                    ? { 
+                        ...m, 
+                        text: event.text || accText, 
+                        isStreaming: false, 
+                        toolsUsed: event.toolsUsed,
+                        toolExecution: event.toolExecution // Store complete tool execution metadata
+                      }
                     : m,
                 ),
               );
@@ -208,32 +226,68 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     try {
       const raw = await getAgentMessages(conversationId, accessToken);
       const mapped: AgentMessage[] = raw.map((m) => {
-        // Synthesize toolEvents from tool_calls and tool_results columns
+        // Try to use enriched toolExecution metadata first (new structure)
+        if (m.metadata?.toolExecution) {
+          // Extract tool results from metadata for display
+          const toolResults: ToolResult[] = m.metadata.toolExecution
+            .filter((exe: any) => exe.output)
+            .map((exe: any) => ({
+              tool: exe.toolName,
+              data: exe.output,
+            }));
+
+          return {
+            id: m.id,
+            role: m.role,
+            text: m.content || "",
+            toolExecution: m.metadata.toolExecution,
+            toolResults: toolResults.length > 0 ? toolResults : undefined,
+            toolsUsed: m.metadata.toolsExecuted,
+            isStreaming: false,
+          };
+        }
+
+        // Fall back to synthesizing toolEvents from tool_calls and tool_results columns (legacy)
         const toolEvents: ToolEvent[] = [];
         const calls = m.tool_calls || [];
         const results = m.tool_results || [];
 
         calls.forEach((call: any) => {
           toolEvents.push({
-            tool: call.function?.name || call.tool,
-            input: call.function?.arguments ? JSON.parse(call.function.arguments) : call.input,
+            tool: call.function?.name || call.tool || call.name,
+            input: call.function?.arguments ? JSON.parse(call.function.arguments) : call.input || {},
             phase: "done",
             success: true,
           });
         });
 
         results.forEach((res: any) => {
-          const match = toolEvents.find(e => e.tool === res.tool_use_id || e.tool === res.tool);
+          const match = toolEvents.find(e => e.tool === res.tool_use_id || e.tool === res.tool || e.tool === res.toolName);
           if (match) {
-            match.success = !res.is_error;
+            match.success = !res.is_error && res.success !== false;
+            if (res.output) {
+              match.output = res.output;
+            }
+            if (res.durationMs) {
+              match.durationMs = res.durationMs;
+            }
           }
         });
+
+        // Also extract tool results for legacy format
+        const toolResults: ToolResult[] = results
+          .filter((res: any) => res.content)
+          .map((res: any) => ({
+            tool: res.toolName || res.tool,
+            data: res.output || (typeof res.content === 'string' ? JSON.parse(res.content) : res.content),
+          }));
 
         return {
           id: m.id,
           role: m.role,
           text: m.content || "",
           toolEvents,
+          toolResults: toolResults.length > 0 ? toolResults : undefined,
           isStreaming: false,
         };
       });
@@ -298,7 +352,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)));
             break;
           case "done":
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed } : m));
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed, toolExecution: event.toolExecution } : m));
             setIsLoading(false);
             setActiveToolEvents([]);
             break;
