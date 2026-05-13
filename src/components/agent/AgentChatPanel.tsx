@@ -865,6 +865,7 @@ function AssistantMessage({
             const isPortal = !isUpload && ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
             const isBrick = type === "brick";
 
+            const assetSrc = resolveAssetUrl(src || "");
             if (isPortal) {
               return (
                 <div key={key} className="my-3 rounded-xl overflow-hidden border-2 border-blue-500/20 dark:border-blue-400/20 bg-slate-900/95 shadow-lg animate-in zoom-in-95 duration-200">
@@ -886,7 +887,7 @@ function AssistantMessage({
                       {assetSrc && (assetSrc.startsWith('http') || assetSrc.startsWith('data:') || assetSrc.startsWith(API_BASE_URL)) && (
                         <button
                           type="button"
-                          onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || `attachment`, accessToken); }}
+                          onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || `attachment`, accessToken!); }}
                           className="p-1 hover:bg-blue-400/20 rounded transition-colors text-blue-400"
                           title={t?.("agent.asset.download") || 'Descargar'}
                         >
@@ -972,7 +973,6 @@ function AssistantMessage({
               );
             }
 
-            const assetSrc = resolveAssetUrl(src);
             return (
               <div key={key} className="my-2 rounded-xl border border-border/50 bg-background/50 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
                 {type === "img" && assetSrc && (
@@ -995,7 +995,7 @@ function AssistantMessage({
                       </a>
                       <button
                         type="button"
-                        onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || "image.png", accessToken); }}
+                        onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || "image.png", accessToken!); }}
                         className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
                         title={t("agent.asset.download")}
                       >
@@ -1018,7 +1018,7 @@ function AssistantMessage({
                     </a>
                     <button
                       type="button"
-                      onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment', accessToken); }}
+                      onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment', accessToken!); }}
                       className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500"
                       title={t("agent.asset.download")}
                     >
