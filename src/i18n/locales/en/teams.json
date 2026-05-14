@@ -27,6 +27,8 @@
   "personalWorkspaceInviteTitle": "This is a personal workspace. Switch to a team workspace to invite members.",
   "roleCannotInviteTitle": "Your workspace role cannot invite people.",
   "inviteSendError": "Could not send invite.",
+  "inviteDeliverySkipped": "Invite was created, but email was not sent because the email provider is not configured.",
+  "inviteDeliveryFailed": "Invite was created, but email delivery failed. Check email provider configuration.",
   "inviteRevokeError": "Could not revoke invite.",
   "roleUpdateError": "Could not update role.",
   "aliasUpdateError": "Could not update alias.",

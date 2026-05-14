@@ -67,7 +67,19 @@ export function InviteMemberModal({
     setError(null);
 
     try {
-      await createInvite({ email: email.trim(), role }, teamId, accessToken);
+      const invite = await createInvite({ email: email.trim(), role }, teamId, accessToken);
+      if (invite.deliveryStatus !== "sent") {
+        setError(
+          invite.deliveryStatus === "skipped"
+            ? t("inviteMember.deliverySkipped")
+            : t("inviteMember.deliveryFailed"),
+        );
+        if (onInvited) {
+          await onInvited();
+        }
+        return;
+      }
+
       setInvited(true);
       setEmail("");
       if (onInvited) {

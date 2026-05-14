@@ -369,6 +369,11 @@ function applyCardUpdated(lists: BoardListState[], payload: Record<string, unkno
     nextCard.status = statusTo;
   }
 
+  const tagsTo = changes.tags?.to;
+  if (Array.isArray(tagsTo)) {
+    nextCard.tags = tagsTo;
+  }
+
   const targetListId = asString(changes.list_id?.to) ?? listIdFromPayload ?? sourceList.id;
   const targetPosition = asFiniteNumber(changes.position?.to);
   const targetListIndex = nextLists.findIndex((list) => list.id === targetListId);
@@ -692,6 +697,8 @@ function applyRealtimeEventToLists(
       return applyBrickReordered(lists, event.payload);
     case "board.updated":
       return applyBoardUpdated(lists, event.payload, onBoardMetaChange, onVisibilityChange, onAppearanceChange);
+    case "tag.created":
+      return { nextLists: lists, needsFallback: true };
     case "brick.created":
     case "brick.updated":
       return { nextLists: lists, needsFallback: true };

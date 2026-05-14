@@ -27,6 +27,8 @@
   "personalWorkspaceInviteTitle": "Este es un workspace personal. Cambia a un workspace de equipo para invitar miembros.",
   "roleCannotInviteTitle": "Tu rol actual no puede invitar personas.",
   "inviteSendError": "No se pudo enviar la invitacion.",
+  "inviteDeliverySkipped": "La invitacion se creo, pero el correo no se envio porque el proveedor de email no esta configurado.",
+  "inviteDeliveryFailed": "La invitacion se creo, pero el correo fallo al enviarse. Revisa configuracion de email.",
   "inviteRevokeError": "No se pudo revocar la invitacion.",
   "roleUpdateError": "No se pudo actualizar el rol.",
   "aliasUpdateError": "No se pudo actualizar el alias.",

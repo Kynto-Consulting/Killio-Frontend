@@ -115,7 +115,14 @@ export default function TeamsPage() {
     setInviteError(null);
     setIsInlineInviting(true);
     try {
-      await createInvite({ email: inlineInviteEmail.trim(), role: inlineInviteRole }, activeTeamId, accessToken);
+      const invite = await createInvite({ email: inlineInviteEmail.trim(), role: inlineInviteRole }, activeTeamId, accessToken);
+      if (invite.deliveryStatus !== "sent") {
+        setInviteError(
+          invite.deliveryStatus === "skipped"
+            ? t("inviteDeliverySkipped")
+            : t("inviteDeliveryFailed"),
+        );
+      }
       setInlineInviteEmail("");
       await reloadInvites();
     } catch (err: any) {
@@ -491,7 +498,7 @@ export default function TeamsPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                      {["Email", "Role", "Status", "Action"].map((h) => (
+                      {["Email", "Role", "Status", "Delivery", "Action"].map((h) => (
                         <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", padding: "10px 20px", textAlign: "left" }}>{h}</th>
                       ))}
                     </tr>
@@ -508,6 +515,14 @@ export default function TeamsPage() {
                             ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fbbf24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
                             : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }
                           }>{invite.status}</span>
+                        </td>
+                        <td style={{ padding: "11px 20px" }}>
+                          <span style={invite.deliveryStatus === "sent"
+                            ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#86efac", background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.22)" }
+                            : invite.deliveryStatus === "skipped"
+                              ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fbbf24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
+                              : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f87171", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }
+                          }>{invite.deliveryStatus}</span>
                         </td>
                         <td style={{ padding: "11px 20px" }}>
                           {canInvite && invite.status === "pending" && (

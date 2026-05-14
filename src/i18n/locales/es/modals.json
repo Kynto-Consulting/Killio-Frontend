@@ -32,7 +32,9 @@
     "inviteSent": "Invitacion enviada!",
     "sending": "Enviando invitacion...",
     "send": "Enviar invitacion",
-    "errorDefault": "No se pudo enviar la invitacion."
+    "errorDefault": "No se pudo enviar la invitacion.",
+    "deliverySkipped": "La invitacion se creo, pero el correo no se envio porque el proveedor de email no esta configurado.",
+    "deliveryFailed": "La invitacion se creo, pero el correo fallo al enviarse. Revisa configuracion de email."
   },
   "switchAccount": {
     "title": "Cambiar cuenta",

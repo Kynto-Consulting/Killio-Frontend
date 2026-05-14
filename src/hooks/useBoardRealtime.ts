@@ -8,6 +8,7 @@ export type BoardEvent = {
   | 'card.moved'
   | 'card.created'
   | 'card.updated'
+  | 'tag.created'
   | 'card.assignee_added'
   | 'card.assignee_removed'
   | 'board.updated'
@@ -61,6 +62,7 @@ export function useBoardRealtime(
       'card.moved',
       'card.created',
       'card.updated',
+      'tag.created',
       'card.assignee_added',
       'card.assignee_removed',
       'board.updated',

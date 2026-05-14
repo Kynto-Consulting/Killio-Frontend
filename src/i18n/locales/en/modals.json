@@ -32,7 +32,9 @@
     "inviteSent": "Invite sent!",
     "sending": "Sending invite...",
     "send": "Send invite",
-    "errorDefault": "Could not send invite."
+    "errorDefault": "Could not send invite.",
+    "deliverySkipped": "Invite was created, but email was not sent because the email provider is not configured.",
+    "deliveryFailed": "Invite was created, but email delivery failed. Check email provider configuration."
   },
   "switchAccount": {
     "title": "Switch Account",
