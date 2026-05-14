@@ -18,6 +18,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
 import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary, updateBoardAppearance, updateBoardDetails, uploadFile } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
 import { useEffect } from "react";
@@ -739,8 +740,16 @@ export default function BoardPage() {
 
   useEffect(() => {
     if (!accessToken || !boardTeamId) return;
-    listDocuments(boardTeamId, accessToken).then(setTeamDocs).catch(console.error);
-    listTeamBoards(boardTeamId, accessToken).then(setTeamBoards).catch(console.error);
+
+    // Serve from cache immediately (populated by layout sidebar or previous visit)
+    const cachedBoards = apiCache.get<BoardSummary[]>(cacheKey.boards(boardTeamId));
+    const cachedDocs   = apiCache.get<DocumentSummary[]>(cacheKey.documents(boardTeamId));
+    if (cachedBoards) setTeamBoards(cachedBoards);
+    if (cachedDocs)   setTeamDocs(cachedDocs);
+
+    // Refresh in background only if cache was cold
+    if (!cachedBoards) listTeamBoards(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.boards(boardTeamId), d, CACHE_TTL.BOARDS); setTeamBoards(d); }).catch(console.error);
+    if (!cachedDocs)   listDocuments(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.documents(boardTeamId), d, CACHE_TTL.DOCUMENTS); setTeamDocs(d); }).catch(console.error);
   }, [accessToken, boardTeamId]);
 
   const lastOverIdRef = useRef<string | null>(null);
@@ -831,52 +840,58 @@ export default function BoardPage() {
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  const applyBoardData = useCallback((board: Awaited<ReturnType<typeof getBoard>>) => {
+    setBoardName(board.name);
+    setBoardDescription(board.description ?? null);
+    setBoardVisibility(board.visibility || "team");
+    setBoardAppearance({
+      coverImageUrl: board.coverImageUrl,
+      backgroundKind: board.backgroundKind,
+      backgroundValue: board.backgroundValue,
+      backgroundImageUrl: board.backgroundImageUrl,
+      backgroundGradient: board.backgroundGradient,
+      themeKind: board.themeKind,
+      themePreset: board.themePreset,
+      themeCustom: board.themeCustom,
+    });
+    setBoardTeamId(board.teamId ?? null);
+    setLists(board.lists.map(list => ({ id: list.id, title: list.name, cards: list.cards })));
+  }, []);
+
   const loadBoard = useCallback(() => {
     if (!accessToken || !boardId) return;
 
+    // Show cached board instantly (no loading flash on revisit)
+    const cached = apiCache.get<Awaited<ReturnType<typeof getBoard>>>(cacheKey.board(boardId));
+    if (cached) applyBoardData(cached);
+
     getBoard(boardId, accessToken)
       .then((board) => {
-        setBoardName(board.name);
-        setBoardDescription(board.description ?? null);
-        setBoardVisibility(board.visibility || "team");
-        setBoardAppearance({
-          coverImageUrl: board.coverImageUrl,
-          backgroundKind: board.backgroundKind,
-          backgroundValue: board.backgroundValue,
-          backgroundImageUrl: board.backgroundImageUrl,
-          backgroundGradient: board.backgroundGradient,
-          themeKind: board.themeKind,
-          themePreset: board.themePreset,
-          themeCustom: board.themeCustom,
-        });
-        setBoardTeamId(board.teamId ?? null);
-        const mappedLists = board.lists.map(list => ({
-          id: list.id,
-          title: list.name,
-          cards: list.cards
-        }));
-        setLists(mappedLists);
+        apiCache.set(cacheKey.board(boardId), board, CACHE_TTL.BOARD_DETAIL);
+        applyBoardData(board);
       })
       .catch((err) => {
         console.error("Failed to fetch board", err);
-        setBoardName(t("loadBoardError"));
-        setBoardDescription(null);
+        if (!cached) {
+          setBoardName(t("loadBoardError"));
+          setBoardDescription(null);
+        }
       });
-  }, [accessToken, boardId, t]);
+  }, [accessToken, boardId, applyBoardData, t]);
 
   const handleSaveBoardGeneral = useCallback(async ({ name, description }: { name: string; description: string | null }) => {
     if (!accessToken) return;
     await updateBoardDetails(boardId, { name, description }, accessToken);
     setBoardName(name);
     setBoardDescription(description);
-    toast("Configuración general actualizada.", "success");
+    toast(t("settingsUpdated"), "success");
   }, [accessToken, boardId]);
 
   const handleSaveBoardAppearance = useCallback(async (payload: BoardAppearanceState) => {
     if (!accessToken) return;
     await updateBoardAppearance(boardId, payload, accessToken);
     setBoardAppearance((prev) => ({ ...prev, ...payload }));
-    toast("Apariencia actualizada.", "success");
+    toast(t("appearanceUpdated"), "success");
   }, [accessToken, boardId]);
 
   const handleUploadBoardImage = useCallback(async (file: File): Promise<string> => {

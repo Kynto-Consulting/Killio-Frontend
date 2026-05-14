@@ -33,13 +33,63 @@
   "create": {
     "title": "Create a new pack"
   },
+  "profile": {
+    "title": "Sell & Publish",
+    "subtitle": "Publish packs and share them with the world.",
+    "statPacks": "Packs",
+    "statInstalls": "Installs",
+    "newPack": "New pack",
+    "myPacksTitle": "My Packs",
+    "packsPublished": "{{count}} packs published",
+    "createFirst": "Create your first pack and share it with the world.",
+    "publishSnapshot": "Publish snapshot",
+    "optional": "(optional)",
+    "visibility": "Visibility",
+    "locale": "Locale",
+    "status": "Status",
+    "statusPublished": "Published",
+    "statusDraft": "Draft",
+    "statusArchived": "Archived",
+    "releaseKey": "Release key",
+    "snapshotTitle": "Snapshot title",
+    "includeAssets": "Include assets",
+    "selectAssets": "Select the assets to include in the first snapshot of your pack.",
+    "addAssetsLater": "You can always add more assets later by publishing a new snapshot.",
+    "noAssetsSelected": "No assets selected — the pack will be created without a first snapshot. You can publish a snapshot later.",
+    "packSummary": "Pack summary",
+    "noDescription": "No description",
+    "back": "Back",
+    "continue": "Continue",
+    "publishing": "Publishing…",
+    "wizard": {
+      "eyebrow": "New pack",
+      "step1": "Pack details",
+      "step2": "Choose assets",
+      "step3": "First version"
+    }
+  },
   "myPacks": {
     "title": "Your Team Packs",
     "count": "{{count}} packs"
   },
   "publicPacks": {
     "title": "Public Marketplace",
-    "search": "Search packs"
+    "search": "Search packs",
+    "tagline": "Find packs created by the community or publish your own.",
+    "categories": "Popular categories",
+    "count": "{{count}} packs available",
+    "refresh": "Refresh",
+    "checkBack": "Check back later or publish your own."
+  },
+  "categories": {
+    "document": "Documents",
+    "documentSub": "Guides, specs, docs",
+    "mesh": "Meshes",
+    "meshSub": "Canvas boards & diagrams",
+    "board": "Kanban",
+    "boardSub": "Boards & workflows",
+    "script": "Scripts",
+    "scriptSub": "Automations & tools"
   },
   "snapshot": {
     "title": "Snapshot Version",

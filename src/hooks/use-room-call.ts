@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 import {
   createCallRecord,
   endCallRecord,
@@ -61,6 +62,12 @@ export function useRoomCall(
   const canManage = options?.canManage ?? false;
   const roomType = options?.roomType ?? "channel";
   const isDm = roomType === "dm";
+
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {}
 
   const [isInCall, setIsInCall] = useState(false);
   const [callId, setCallId] = useState<string | null>(null);
@@ -138,12 +145,11 @@ export function useRoomCall(
 
       pc.onicecandidate = (e) => {
         if (!e.candidate || !roomId || !accessToken) return;
-        const ably = getAblyClient(accessToken);
-        ably.channels.get(`room:${roomId}:signal`).publish("call.ice", {
+        realtime?.getChannel(realtimeChannel.roomSignal(roomId!)).publish("call.ice", {
           fromPeerId: myPeerId,
           targetPeerId: peerId,
           candidate: e.candidate.toJSON(),
-        });
+        }).catch(() => {});
       };
 
       pc.ontrack = (e) => {
@@ -181,12 +187,11 @@ export function useRoomCall(
       try {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
-        const ably = getAblyClient(accessToken);
-        ably.channels.get(`room:${roomId}:signal`).publish("call.offer", {
+        realtime?.getChannel(realtimeChannel.roomSignal(roomId!)).publish("call.offer", {
           fromPeerId: myPeerId,
           targetPeerId: peerId,
           sdp: offer,
-        });
+        }).catch(() => {});
       } catch (e) {
         console.error("[RTC] sendOffer failed", e);
       }
@@ -218,8 +223,7 @@ export function useRoomCall(
   const muteParticipant = useCallback(
     (targetPeerId: string) => {
       if (isDm || !canManage || !roomId || !accessToken) return;
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.force_mute", {
+      realtime?.getChannel(realtimeChannel.roomSignal(roomId!)).publish("call.force_mute", {
         fromPeerId: myPeerId,
         targetPeerId,
       }).catch(() => {});
@@ -230,8 +234,7 @@ export function useRoomCall(
   const kickParticipant = useCallback(
     (targetPeerId: string) => {
       if (isDm || !canManage || !roomId || !accessToken) return;
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.kick", {
+      realtime?.getChannel(realtimeChannel.roomSignal(roomId!)).publish("call.kick", {
         fromPeerId: myPeerId,
         targetPeerId,
       }).catch(() => {});
@@ -242,8 +245,7 @@ export function useRoomCall(
   const disableParticipantScreen = useCallback(
     (targetPeerId: string) => {
       if (isDm || !canManage || !roomId || !accessToken) return;
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.force_screen_off", {
+      realtime?.getChannel(realtimeChannel.roomSignal(roomId!)).publish("call.force_screen_off", {
         fromPeerId: myPeerId,
         targetPeerId,
       }).catch(() => {});
@@ -251,11 +253,10 @@ export function useRoomCall(
     [isDm, canManage, roomId, accessToken, myPeerId]
   );
 
-  // ── Ably signaling subscription ──
+  // ── Realtime signaling subscription ──
   useEffect(() => {
-    if (!roomId || !accessToken) return;
-    const ably = getAblyClient(accessToken);
-    const signal = ably.channels.get(`room:${roomId}:signal`);
+    if (!roomId || !realtime) return;
+    const signal = realtime.getChannel(realtimeChannel.roomSignal(roomId));
 
     const onJoin = async (msg: any) => {
       const { peerId, displayName, avatarUrl } = msg.data;
@@ -282,9 +283,8 @@ export function useRoomCall(
         await pc.setRemoteDescription(new RTCSessionDescription(sdp));
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
-        if (!roomId || !accessToken) return;
-        const ably2 = getAblyClient(accessToken);
-        ably2.channels.get(`room:${roomId}:signal`).publish("call.answer", {
+        if (!roomId || !realtime) return;
+        realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.answer", {
           fromPeerId: myPeerId,
           targetPeerId: fromPeerId,
           sdp: answer,
@@ -340,9 +340,8 @@ export function useRoomCall(
       if (!stream) return;
       stream.getAudioTracks().forEach((t) => { t.enabled = false; });
       setIsAudioMuted(true);
-      if (roomId && accessToken) {
-        const ably2 = getAblyClient(accessToken);
-        ably2.channels.get(`room:${roomId}:signal`).publish("call.mute", {
+      if (roomId && realtime) {
+        realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.mute", {
           peerId: myPeerId,
           audioMuted: true,
           videoMuted: isVideoMutedRef.current,
@@ -387,19 +386,20 @@ export function useRoomCall(
     signal.subscribe("call.transcript", onTranscript);
 
     return () => {
-      signal.unsubscribe("call.join", onJoin);
-      signal.unsubscribe("call.leave", onLeave);
-      signal.unsubscribe("call.offer", onOffer);
-      signal.unsubscribe("call.answer", onAnswer);
-      signal.unsubscribe("call.ice", onIce);
-      signal.unsubscribe("call.mute", onMute);
-      signal.unsubscribe("call.screen", onScreen);
-      signal.unsubscribe("call.force_mute", onForceMute);
-      signal.unsubscribe("call.kick", onKick);
-      signal.unsubscribe("call.force_screen_off", onForceScreenOff);
-      signal.unsubscribe("call.transcript", onTranscript);
+      try { signal.unsubscribe("call.join", onJoin); } catch {}
+      try { signal.unsubscribe("call.leave", onLeave); } catch {}
+      try { signal.unsubscribe("call.offer", onOffer); } catch {}
+      try { signal.unsubscribe("call.answer", onAnswer); } catch {}
+      try { signal.unsubscribe("call.ice", onIce); } catch {}
+      try { signal.unsubscribe("call.mute", onMute); } catch {}
+      try { signal.unsubscribe("call.screen", onScreen); } catch {}
+      try { signal.unsubscribe("call.force_mute", onForceMute); } catch {}
+      try { signal.unsubscribe("call.kick", onKick); } catch {}
+      try { signal.unsubscribe("call.force_screen_off", onForceScreenOff); } catch {}
+      try { signal.unsubscribe("call.transcript", onTranscript); } catch {}
     };
-  }, [roomId, accessToken, myPeerId, sendOffer, getOrCreatePC]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, realtime, myPeerId, sendOffer, getOrCreatePC]);
 
   // ── Canvas filter loop ──
   const startFilterLoop = useCallback(() => {
@@ -500,9 +500,8 @@ export function useRoomCall(
           setLiveCaption("");
           
           // Broadcast to others
-          if (roomId && accessToken) {
-             const ably = getAblyClient(accessToken);
-             ably.channels.get(`room:${roomId}:signal`).publish("call.transcript", {
+          if (roomId && realtime) {
+             realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.transcript", {
                 text,
                 userId: myPeerId,
                 displayName: myDisplayName,
@@ -567,9 +566,8 @@ export function useRoomCall(
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
     screenStreamRef.current?.getTracks().forEach((t) => t.stop());
 
-    if (roomId && accessToken) {
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.leave", { peerId: myPeerId }).catch(() => {});
+    if (roomId && realtime) {
+      realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.leave", { peerId: myPeerId }).catch(() => {});
     }
 
     localStreamRef.current = null;
@@ -634,13 +632,12 @@ export function useRoomCall(
     isInCallRef.current = true;
     setIsInCall(true);
 
-    const ably = getAblyClient(accessToken);
-    ably.channels.get(`room:${roomId}:signal`).publish("call.join", {
+    realtime?.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.join", {
       peerId: myPeerId,
       displayName: myDisplayName,
       avatarUrl: user.avatarUrl,
       callId: call.id,
-    });
+    }).catch(() => {});
 
     localSegments.current = [];
     lastSubmittedSegmentIndex.current = 0;
@@ -657,16 +654,15 @@ export function useRoomCall(
     stream.getAudioTracks().forEach((t) => { t.enabled = !t.enabled; });
     const muted = !stream.getAudioTracks()[0]?.enabled;
     setIsAudioMuted(muted);
-    if (roomId && accessToken) {
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.mute", {
+    if (roomId && realtime) {
+      realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.mute", {
         peerId: myPeerId,
         audioMuted: muted,
         videoMuted: isVideoMutedRef.current,
       }).catch(() => {});
     }
     setLocalStream(new MediaStream(stream.getTracks()));
-  }, [roomId, accessToken, myPeerId]);
+  }, [roomId, realtime, myPeerId]);
 
   // ── toggleVideo ──
   const toggleVideo = useCallback(() => {
@@ -675,16 +671,15 @@ export function useRoomCall(
     stream.getVideoTracks().forEach((t) => { t.enabled = !t.enabled; });
     const muted = !stream.getVideoTracks()[0]?.enabled;
     setIsVideoMuted(muted);
-    if (roomId && accessToken) {
-      const ably = getAblyClient(accessToken);
-      ably.channels.get(`room:${roomId}:signal`).publish("call.mute", {
+    if (roomId && realtime) {
+      realtime.getChannel(realtimeChannel.roomSignal(roomId)).publish("call.mute", {
         peerId: myPeerId,
         audioMuted: isAudioMutedRef.current,
         videoMuted: muted,
       }).catch(() => {});
     }
     setLocalStream(new MediaStream(stream.getTracks()));
-  }, [roomId, accessToken, myPeerId]);
+  }, [roomId, realtime, myPeerId]);
 
   // ── switchCamera ──
   const switchCamera = useCallback(async (deviceId: string) => {
@@ -724,9 +719,8 @@ export function useRoomCall(
 
   // ── toggleScreenShare ──
   const toggleScreenShare = useCallback(async () => {
-    if (!roomId || !accessToken) return;
-    const ably = getAblyClient(accessToken);
-    const signal = ably.channels.get(`room:${roomId}:signal`);
+    if (!roomId || !realtime) return;
+    const signal = realtime.getChannel(realtimeChannel.roomSignal(roomId));
 
     if (!isScreenSharingRef.current) {
       try {
@@ -761,7 +755,7 @@ export function useRoomCall(
       }
       signal.publish("call.screen", { peerId: myPeerId, active: false }).catch(() => {});
     }
-  }, [roomId, accessToken, myPeerId]);
+  }, [roomId, realtime, myPeerId]);
 
   // ── setFilter ──
   const setFilter = useCallback(

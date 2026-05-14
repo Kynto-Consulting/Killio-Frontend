@@ -862,8 +862,8 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <Sparkles className="h-3 w-3" />
                 {t("eyebrow")}
               </span>
-              <h1 className="mt-2.5 text-2xl font-extrabold tracking-tight text-white">Sell &amp; Publish</h1>
-              <p className="mt-1 text-sm text-white/45">Publish packs and share them with the world.</p>
+              <h1 className="mt-2.5 text-2xl font-extrabold tracking-tight text-white">{t("profile.title")}</h1>
+              <p className="mt-1 text-sm text-white/45">{t("profile.subtitle")}</p>
             </div>
             <button
               type="button"
@@ -871,7 +871,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/50 transition-all hover:border-white/20 hover:text-white"
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${packsLoading ? "animate-spin" : ""}`} />
-              Refresh
+              {t("actions.refresh")}
             </button>
           </div>
         </div>
@@ -888,11 +888,11 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
           <div className="flex items-center gap-8">
             <div className="text-center">
               <p className="text-xl font-extrabold text-white">{packs.length}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Packs</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{t("profile.statPacks")}</p>
             </div>
             <div className="text-center">
               <p className="text-xl font-extrabold text-white">{totalInstalls}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">Installs</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{t("profile.statInstalls")}</p>
             </div>
           </div>
           <button
@@ -901,7 +901,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
             className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2.5 text-[13px] font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60]"
           >
             <Plus className="h-4 w-4" />
-            New pack
+            {t("profile.newPack")}
           </button>
         </div>
 
@@ -917,24 +917,24 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
         <section>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-[15px] font-bold text-white">My Packs</h2>
-              <p className="mt-0.5 text-xs text-white/35">{packsLoading ? "Loading…" : `${packs.length} packs published`}</p>
+              <h2 className="text-[15px] font-bold text-white">{t("profile.myPacksTitle")}</h2>
+              <p className="mt-0.5 text-xs text-white/35">{packsLoading ? t("status.loading") : t("profile.packsPublished", { count: packs.length })}</p>
             </div>
           </div>
 
           {packsLoading ? (
             <div className="flex items-center justify-center py-20 text-sm text-white/30">
-              <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> Loading…
+              <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> {t("status.loading")}
             </div>
           ) : packs.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
               <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
                 <Package className="h-7 w-7 text-white/20" />
               </div>
-              <p className="mt-4 text-[14px] font-semibold text-white/40">No packs yet.</p>
-              <p className="mt-1 text-xs text-white/25">Create your first pack and share it with the world.</p>
+              <p className="mt-4 text-[14px] font-semibold text-white/40">{t("empty.noTeamPacks")}</p>
+              <p className="mt-1 text-xs text-white/25">{t("profile.createFirst")}</p>
               <button type="button" onClick={openWizard} className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#d8ff72] px-4 py-2 text-[13px] font-bold text-[#0a1200]">
-                <Plus className="h-3.5 w-3.5" /> New pack
+                <Plus className="h-3.5 w-3.5" /> {t("profile.newPack")}
               </button>
             </div>
           ) : (
@@ -952,7 +952,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         <h3 className="truncate text-[15px] font-bold text-white">{pack.title}</h3>
                         <p className="mt-0.5 font-mono text-[11px] text-white/30">{pack.slug}</p>
                         <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-white/45">
-                          {pack.summary ?? <span className="italic text-white/25">No description</span>}
+                          {pack.summary ?? <span className="italic text-white/25">{t("profile.noDescription")}</span>}
                         </p>
                       </div>
                       {/* publish mode badge */}
@@ -977,7 +977,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-white/60 transition-all hover:border-white/20 hover:text-white"
                       >
                         <Upload className="h-4 w-4" />
-                        Publish snapshot
+                        {t("profile.publishSnapshot")}
                         <ChevronRight className="ml-auto h-4 w-4" />
                       </button>
                     </div>
@@ -999,9 +999,9 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
             {/* wizard header */}
             <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">New pack</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t("profile.wizard.eyebrow")}</p>
                 <h2 className="mt-0.5 text-[18px] font-extrabold tracking-tight text-white">
-                  {wizard.step === 1 ? "Pack details" : wizard.step === 2 ? "Choose assets" : "First version"}
+                  {wizard.step === 1 ? t("profile.wizard.step1") : wizard.step === 2 ? t("profile.wizard.step2") : t("profile.wizard.step3")}
                 </h2>
               </div>
               {/* step pills */}
@@ -1025,7 +1025,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <div className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Title</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.title")}</label>
                       <input
                         value={wizard.title}
                         onChange={(e) => setWizard((w) => w ? { ...w, title: e.target.value, slug: w.slug || slugify(e.target.value) } : w)}
@@ -1034,7 +1034,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Slug</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.slug")}</label>
                       <div className="relative mt-1.5">
                         <input
                           value={wizard.slug}
@@ -1049,7 +1049,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
                   <div>
                     <div className="flex items-baseline justify-between">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Summary <span className="normal-case font-normal text-white/20">(optional)</span></label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.summary")} <span className="normal-case font-normal text-white/20">{t("profile.optional")}</span></label>
                       <span className="text-[10px] text-white/25">{wizard.summary.length} / 120</span>
                     </div>
                     <textarea
@@ -1063,7 +1063,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Visibility</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.visibility")}</label>
                     <div className="mt-2 grid grid-cols-3 gap-3">
                       {PUB_MODES.map(({ mode, label, sub, icon: Icon, color }) => {
                         const on = wizard.publishMode === mode;
@@ -1093,7 +1093,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {wizard.step === 2 && (
                 <div>
                   <div className="mb-4 flex items-center justify-between">
-                    <p className="text-[13px] text-white/50">Select the assets to include in the first snapshot of your pack.</p>
+                    <p className="text-[13px] text-white/50">{t("profile.selectAssets")}</p>
                     {wizard.selectedAssetKeys.length > 0 && (
                       <span className="rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#d8ff72]">
                         {wizard.selectedAssetKeys.length} selected
@@ -1108,7 +1108,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     accessToken={accessToken}
                     teamId={activeTeamId}
                   />
-                  <p className="mt-4 text-[12px] text-white/25">You can always add more assets later by publishing a new snapshot.</p>
+                  <p className="mt-4 text-[12px] text-white/25">{t("profile.addAssetsLater")}</p>
                 </div>
               )}
 
@@ -1117,7 +1117,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <div className="space-y-5">
                   {/* review */}
                   <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">Pack summary</p>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">{t("profile.packSummary")}</p>
                     <p className="mt-2 text-[15px] font-bold text-white">{wizard.title}</p>
                     <p className="mt-0.5 font-mono text-[11px] text-white/30">{wizard.slug}</p>
                     {wizard.summary && <p className="mt-2 text-[13px] text-white/45">{wizard.summary}</p>}
@@ -1134,7 +1134,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   {wizard.selectedAssetKeys.length > 0 && (
                     <div className="grid gap-4 sm:grid-cols-4">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Version</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("snapshot.version")}</label>
                         <input
                           value={wizard.version}
                           onChange={(e) => setWizard((w) => w ? { ...w, version: e.target.value } : w)}
@@ -1143,7 +1143,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.locale")}</label>
                         <LocaleDropdown
                           value={wizard.locale}
                           options={localeOptions}
@@ -1151,18 +1151,18 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.status")}</label>
                         <StatusDropdown
                           value={wizard.snapshotStatus}
                           options={[
-                            { value: "published", label: "Published" },
-                            { value: "draft", label: "Draft" },
+                            { value: "published", label: t("profile.statusPublished") },
+                            { value: "draft", label: t("profile.statusDraft") },
                           ]}
                           onChange={(val) => setWizard((w) => w ? { ...w, snapshotStatus: val as MarketplaceVersionStatus } : w)}
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.releaseKey")}</label>
                         <input
                           value={buildLocalizedReleaseKey(wizard.version, wizard.locale)}
                           readOnly
@@ -1174,7 +1174,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
                   {wizard.selectedAssetKeys.length === 0 && (
                     <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[13px] text-white/35">
-                      No assets selected — the pack will be created without a first snapshot. You can publish a snapshot later.
+                      {t("profile.noAssetsSelected")}
                     </div>
                   )}
                 </div>
@@ -1194,7 +1194,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 onClick={() => wizard.step === 1 ? setWizard(null) : setWizard((w) => w ? { ...w, step: (w.step - 1) as WizardStep } : w)}
                 className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50 transition-colors hover:border-white/20 hover:text-white"
               >
-                {wizard.step === 1 ? "Cancel" : "Back"}
+                {wizard.step === 1 ? t("actions.cancel") : t("profile.back")}
               </button>
 
               {wizard.step < 3 ? (
@@ -1204,7 +1204,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   onClick={() => setWizard((w) => w ? { ...w, step: (w.step + 1) as WizardStep } : w)}
                   className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
                 >
-                  Continue
+                  {t("profile.continue")}
                   <ChevronRight className="h-4 w-4" />
                 </button>
               ) : (
@@ -1215,7 +1215,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
                 >
                   <Plus className="h-4 w-4" />
-                  {wizard.submitting ? "Creating…" : "Create pack"}
+                  {wizard.submitting ? t("actions.creating") : t("actions.createPack")}
                 </button>
               )}
             </div>
@@ -1232,7 +1232,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
             <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">Publish snapshot</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t("profile.publishSnapshot")}</p>
                 <h2 className="mt-0.5 text-[17px] font-extrabold tracking-tight text-white">{snapModal.pack.title}</h2>
                 <p className="mt-0.5 font-mono text-[11px] text-white/30">{snapModal.pack.slug}</p>
               </div>
@@ -1245,7 +1245,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {/* version meta */}
               <div className="grid gap-3 sm:grid-cols-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Version</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("snapshot.version")}</label>
                   <input
                     value={snapModal.version}
                     onChange={(e) => setSnapModal((s) => s ? { ...s, version: e.target.value } : s)}
@@ -1254,7 +1254,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Locale</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.locale")}</label>
                   <LocaleDropdown
                     value={snapModal.locale}
                     options={localeOptions}
@@ -1262,19 +1262,19 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Status</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.status")}</label>
                   <StatusDropdown
                     value={snapModal.status}
                     options={[
-                      { value: "published", label: "Published" },
-                      { value: "draft", label: "Draft" },
-                      { value: "archived", label: "Archived" },
+                      { value: "published", label: t("profile.statusPublished") },
+                      { value: "draft", label: t("profile.statusDraft") },
+                      { value: "archived", label: t("profile.statusArchived") },
                     ]}
                     onChange={(val) => setSnapModal((s) => s ? { ...s, status: val as MarketplaceVersionStatus } : s)}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Release key</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.releaseKey")}</label>
                   <input
                     value={buildLocalizedReleaseKey(snapModal.version, snapModal.locale)}
                     readOnly
@@ -1285,7 +1285,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
               {/* title */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Snapshot title</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.snapshotTitle")}</label>
                 <input
                   value={snapModal.title}
                   onChange={(e) => setSnapModal((s) => s ? { ...s, title: e.target.value } : s)}
@@ -1296,7 +1296,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {/* asset picker */}
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">Include assets</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.includeAssets")}</label>
                   {snapModal.selectedAssetKeys.length > 0 && (
                     <span className="rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-2 py-0.5 text-[10px] font-bold text-[#d8ff72]">
                       {snapModal.selectedAssetKeys.length} selected
@@ -1322,7 +1322,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
             <div className="flex shrink-0 items-center justify-end gap-3 border-t border-white/8 px-6 py-4">
               <button type="button" onClick={() => setSnapModal(null)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50 transition-colors hover:border-white/20 hover:text-white">
-                Cancel
+                {t("actions.cancel")}
               </button>
               <button
                 type="button"
@@ -1331,7 +1331,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
               >
                 <Upload className="h-4 w-4" />
-                {snapModal.submitting ? "Publishing…" : "Publish snapshot"}
+                {snapModal.submitting ? t("profile.publishing") : t("profile.publishSnapshot")}
               </button>
             </div>
           </div>

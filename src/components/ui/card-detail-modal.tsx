@@ -1211,7 +1211,7 @@ export function CardDetailModal({
     setIsSubmittingComment(true);
 
     if (!canComment) {
-      toast("No tienes permisos para comentar en esta tarjeta.", "error");
+      toast(t("card.commentPermissionError"), "error");
       setIsSubmittingComment(false);
       return;
     }
@@ -1233,6 +1233,7 @@ export function CardDetailModal({
   };
 
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
+  useEffect(() => () => { if (debounceTimer.current) clearTimeout(debounceTimer.current); }, []);
 
   const applyCardPatch = useCallback(async (updates: Record<string, any>) => {
     if (!card?.id || !accessToken) return;

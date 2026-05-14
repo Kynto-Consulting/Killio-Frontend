@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { getAblyClient } from "@/lib/ably";
-import type Ably from "ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
+import type { IRealtimeChannel } from "@/lib/realtime/types";
 
 export interface RoomPresenceMember {
   clientId: string;
@@ -17,15 +18,22 @@ export interface RoomPresenceMember {
 export function useRoomPresence(
   roomId: string | null | undefined,
   user: { id?: string; email?: string; displayName?: string; username?: string; avatarUrl?: string } | null | undefined,
-  accessToken: string | null | undefined
+  accessToken?: string | null | undefined,
 ): RoomPresenceMember[] {
   const [members, setMembers] = useState<RoomPresenceMember[]>([]);
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
+  const channelRef = useRef<IRealtimeChannel | null>(null);
 
-  const refreshMembers = async (channel: Ably.RealtimeChannel) => {
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
+
+  const refreshMembers = async (channel: IRealtimeChannel) => {
     try {
       const presenceMembers = await channel.presence.get();
-      if (!presenceMembers) return;
       const seen = new Set<string>();
       const deduped: RoomPresenceMember[] = [];
       for (const m of presenceMembers) {
@@ -41,17 +49,16 @@ export function useRoomPresence(
   };
 
   useEffect(() => {
-    if (!roomId || !accessToken || !user) return;
+    if (!roomId || !user || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`room:${roomId}`);
+    const channel = realtime.getChannel(realtimeChannel.room(roomId));
     channelRef.current = channel;
 
-    const presenceData: RoomPresenceMember["data"] = {
+    const presenceData = {
       displayName: user.displayName || user.username || user.email || "Unknown",
       email: user.email || "",
       avatarUrl: user.avatarUrl ?? null,
-      status: "online",
+      status: "online" as const,
     };
 
     channel.presence.enter(presenceData).then(() => {
@@ -59,17 +66,14 @@ export function useRoomPresence(
     }).catch(console.error);
 
     const handler = () => refreshMembers(channel);
-    channel.presence.subscribe("enter", handler);
-    channel.presence.subscribe("leave", handler);
-    channel.presence.subscribe("update", handler);
+    channel.presence.subscribe(["enter", "leave", "update"], handler);
 
     return () => {
-      channel.presence.unsubscribe("enter", handler);
-      channel.presence.unsubscribe("leave", handler);
-      channel.presence.unsubscribe("update", handler);
-      channel.presence.leave();
+      channel.presence.unsubscribe();
+      channel.presence.leave().catch(console.error);
     };
-  }, [roomId, accessToken, user?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, user?.id, realtime]);
 
   const setStatus = (status: "online" | "in-call") => {
     const channel = channelRef.current;
@@ -79,7 +83,7 @@ export function useRoomPresence(
       email: user.email || "",
       avatarUrl: user.avatarUrl ?? null,
       status,
-    });
+    }).catch(console.error);
   };
 
   return members;

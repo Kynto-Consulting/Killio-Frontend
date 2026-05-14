@@ -124,6 +124,10 @@ const i18n = {
       commandUnavailable: "Comando no disponible en este contexto.",
       runError: "No se pudo ejecutar el comando.",
       settingsTriggered: "Settings abierto",
+      documentCreated: "Documento creado correctamente",
+      documentCreateError: "No se pudo crear el documento",
+      documentNotFound: "Documento no encontrado",
+      documentSearchError: "No se pudo buscar documentos",
     },
   },
   en: {
@@ -154,6 +158,10 @@ const i18n = {
       commandUnavailable: "Command is unavailable in this context.",
       runError: "Could not execute command.",
       settingsTriggered: "Settings opened",
+      documentCreated: "Document created successfully",
+      documentCreateError: "Failed to create document",
+      documentNotFound: "Document not found",
+      documentSearchError: "Failed to search documents",
     },
   },
 } as const;
@@ -755,9 +763,9 @@ export function CommandPalette() {
           const doc = await createDocument({ teamId: activeTeamId, title: "Untitled Document" }, accessToken);
           setOpen(false);
           router.push(`/d/${doc.id}`);
-          toast("Document created successfully", "success");
+          toast(t.fallback.documentCreated, "success");
         } catch (error) {
-          toast("Failed to create document", "error");
+          toast(t.fallback.documentCreateError, "error");
         } finally {
           setIsRunningAction(false);
         }
@@ -776,13 +784,13 @@ export function CommandPalette() {
           const docs = await listDocuments(activeTeamId!, accessToken!);
           const doc = resolveBySelector(selector, docs, (d) => d.title);
           if (!doc) {
-            toast("Document not found", "error");
+            toast(t.fallback.documentNotFound, "error");
           } else {
             setOpen(false);
             router.push(`/d/${doc.id}`);
           }
         } catch (error) {
-          toast("Failed to search documents", "error");
+          toast(t.fallback.documentSearchError, "error");
         } finally {
           setIsRunningAction(false);
         }

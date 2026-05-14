@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useCallback } from "react";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 
 interface NotificationOptions {
   roomId: string | null | undefined;
@@ -88,20 +89,25 @@ export function useRoomNotifications({
 }: NotificationOptions) {
   const isRinging = useRef(false);
 
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {}
+
   // Request notification permission once
   useEffect(() => {
     requestNotificationPermission().catch(() => {});
   }, []);
 
-  // Subscribe to Ably for notifications
+  // Subscribe to realtime for notifications
   useEffect(() => {
-    if (!roomId || !accessToken) return;
+    if (!roomId || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`room:${roomId}`);
+    const channel = realtime.getChannel(realtimeChannel.room(roomId));
 
-    const onMessage = (msg: any) => {
-      const payload = msg.data;
+    const onMessage = (msg: { name: string; data: unknown }) => {
+      const payload = (msg.data ?? {}) as any;
       // Only notify when tab is hidden and message is from someone else
       if (!document.hidden) return;
       if (payload.userId === currentUserId) return;
@@ -120,8 +126,8 @@ export function useRoomNotifications({
       );
     };
 
-    const onCallStarted = (msg: any) => {
-      const payload = msg.data;
+    const onCallStarted = (msg: { name: string; data: unknown }) => {
+      const payload = (msg.data ?? {}) as any;
       if (payload.initiatorUserId === currentUserId) return;
       // Ring tone
       if (!isRinging.current) {
@@ -139,10 +145,11 @@ export function useRoomNotifications({
     channel.subscribe("room.call.started", onCallStarted);
 
     return () => {
-      channel.unsubscribe("room.message", onMessage);
-      channel.unsubscribe("room.call.started", onCallStarted);
+      try { channel.unsubscribe("room.message", onMessage); } catch {}
+      try { channel.unsubscribe("room.call.started", onCallStarted); } catch {}
     };
-  }, [roomId, accessToken, currentUserId, roomName]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, realtime, currentUserId, roomName]);
 
   const stopRingCallback = useCallback(() => {
     isRinging.current = false;

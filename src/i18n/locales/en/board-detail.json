@@ -3,6 +3,9 @@
   "loadBoardError": "Error loading board",
   "deleteBoardError": "Failed to delete board",
   "createListError": "Failed to create list",
+  "createCardError": "Failed to create card",
+  "settingsUpdated": "General settings updated.",
+  "appearanceUpdated": "Appearance updated.",
   "header": {
     "live": "Live",
     "copilot": "Copilot",
@@ -55,7 +58,8 @@
     "checklistItems": "Checklist items",
     "comments": "Comments",
     "attachments": "Attachments",
-    "archived": "Archived"
+    "archived": "Archived",
+    "commentPermissionError": "You don't have permission to comment on this card."
   },
   "cardModal": {
     "archiveCard": "Archive card",

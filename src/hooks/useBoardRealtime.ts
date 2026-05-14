@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { getAblyClient } from '@/lib/ably';
+import { useRealtime } from '@/components/providers/realtime-provider';
+import { realtimeChannel } from '@/lib/realtime/channels';
+import type { MessageListener } from '@/lib/realtime/types';
 
 export type BoardEvent = {
   type:
@@ -29,6 +31,7 @@ export type BoardEvent = {
  *
  * @param boardId   – the board to subscribe to (`board:{boardId}` channel)
  * @param onEvent   – callback fired on every incoming event
+ * @param accessToken – kept for backward-compat signature; ignored (provider manages auth)
  *
  * Usage:
  *   useBoardRealtime(boardId, (evt) => refetch());
@@ -36,16 +39,23 @@ export type BoardEvent = {
 export function useBoardRealtime(
   boardId: string | null | undefined,
   onEvent: (event: BoardEvent) => void,
-  accessToken: string | null | undefined,
+  accessToken?: string | null | undefined,
 ) {
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
-  useEffect(() => {
-    if (!boardId || !accessToken) return;
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`board:${boardId}`);
+  useEffect(() => {
+    if (!boardId || !realtime) return;
+
+    const channel = realtime.getChannel(realtimeChannel.board(boardId));
 
     const eventsToSubscribe: BoardEvent['type'][] = [
       'card.moved',
@@ -68,27 +78,24 @@ export function useBoardRealtime(
       'mesh.connection.deleted',
     ];
 
-    const subscriptions: Array<{ eventName: BoardEvent['type']; listener: (message: unknown) => void }> = [];
+    const listeners: Array<{ eventName: BoardEvent['type']; listener: MessageListener }> = [];
 
     eventsToSubscribe.forEach((eventName) => {
-      const listener = (message: unknown) => {
-        const messageData = (message as { data?: unknown }).data;
+      const listener: MessageListener = (message) => {
         onEventRef.current({
           type: eventName,
-          payload: (messageData ?? {}) as Record<string, unknown>,
+          payload: (message.data ?? {}) as Record<string, unknown>,
         });
       };
-
-      subscriptions.push({ eventName, listener });
+      listeners.push({ eventName, listener });
       channel.subscribe(eventName, listener);
     });
 
     return () => {
-      subscriptions.forEach(({ eventName, listener }) => {
-        channel.unsubscribe(eventName, listener);
+      listeners.forEach(({ eventName, listener }) => {
+        try { channel.unsubscribe(eventName, listener); } catch {}
       });
-      // Don't detach — the singleton Ably client reuses the channel
-      // and detach() leaves it in a terminal state that blocks reattachment.
     };
-  }, [boardId, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, realtime]);
 }

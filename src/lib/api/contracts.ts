@@ -1190,40 +1190,47 @@ export function streamAiChat(
     }),
     signal: ctrl.signal,
   }).then(async (res) => {
-    if (!res.ok || !res.body) {
-      terminalEventReceived = true;
-      onEvent({ type: 'error', message: `AI stream failed (${res.status})` });
-      return;
-    }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let buf = '';
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      const parts = buf.split('\n\n');
-      buf = parts.pop() ?? '';
-      for (const part of parts) {
-        const line = part.replace(/^data: /, '').trim();
-        if (!line) continue;
-        try {
-          const event = JSON.parse(line) as AiStreamEvent;
-          if (event.type === 'delta') accumulated += event.text;
-          if (event.type === 'done' || event.type === 'error') terminalEventReceived = true;
-          onEvent(event);
-        } catch {
-          /* ignore */
+    try {
+      if (!res.ok || !res.body) {
+        terminalEventReceived = true;
+        onEvent({ type: 'error', message: `AI stream failed (${res.status})` });
+        return;
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = '';
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        const parts = buf.split('\n\n');
+        buf = parts.pop() ?? '';
+        for (const part of parts) {
+          const line = part.replace(/^data: /, '').trim();
+          if (!line) continue;
+          try {
+            const event = JSON.parse(line) as AiStreamEvent;
+            if (event.type === 'delta') accumulated += (event as any).text ?? '';
+            if (event.type === 'done' || event.type === 'error') terminalEventReceived = true;
+            onEvent(event);
+          } catch {
+            /* ignore malformed SSE line */
+          }
         }
       }
-    }
 
-    if (!terminalEventReceived) {
-      terminalEventReceived = true;
-      onEvent({ type: 'done', text: accumulated });
+      if (!terminalEventReceived) {
+        terminalEventReceived = true;
+        onEvent({ type: 'done', text: accumulated });
+      }
+    } catch (innerErr: any) {
+      if (innerErr?.name !== 'AbortError' && !terminalEventReceived) {
+        terminalEventReceived = true;
+        onEvent({ type: 'error', message: String(innerErr?.message ?? 'Stream processing error') });
+      }
     }
   }).catch((err) => {
-    if (err?.name !== 'AbortError') {
+    if (err?.name !== 'AbortError' && !terminalEventReceived) {
       terminalEventReceived = true;
       onEvent({ type: 'error', message: String(err?.message ?? 'Stream error') });
     }

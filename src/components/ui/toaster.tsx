@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from "lucide-react";
 import { ToastEventDetail, ToastVariant } from "@/lib/toast";
 
 interface ToastItem extends ToastEventDetail {
@@ -46,11 +46,13 @@ export function Toaster() {
             animate-in fade-in slide-in-from-right-4 duration-300
             ${t.variant === "success" ? "border-emerald-500/20 text-emerald-500" : ""}
             ${t.variant === "error" ? "border-red-500/20 text-red-500" : ""}
+            ${t.variant === "warning" ? "border-amber-500/20 text-amber-400" : ""}
             ${t.variant === "info" ? "border-accent/20 text-accent" : ""}
           `}
         >
           {t.variant === "success" && <CheckCircle2 className="h-5 w-5 shrink-0" />}
           {t.variant === "error" && <AlertCircle className="h-5 w-5 shrink-0" />}
+          {t.variant === "warning" && <AlertTriangle className="h-5 w-5 shrink-0" />}
           {t.variant === "info" && <Info className="h-5 w-5 shrink-0" />}
           
           <div className="flex-1 text-sm font-medium text-foreground">

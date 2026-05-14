@@ -17,10 +17,12 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
-import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
+import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useRouter } from "next/navigation";
+import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
+import { SkeletonSidebarLink } from "@/components/ui/skeleton";
 
 export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -121,45 +123,60 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     }
   }, [pathname]);
 
+  const applyTeams = (fetchedTeams: TeamView[]) => {
+    setTeams(fetchedTeams);
+    if (fetchedTeams.length === 0) {
+      if (activeTeamId) setActiveTeamId(null);
+      return;
+    }
+    const hasValidActiveTeam = !!activeTeamId && fetchedTeams.some((t) => t.id === activeTeamId);
+    if (!hasValidActiveTeam) setActiveTeamId(fetchedTeams[0].id);
+  };
+
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken || !user?.id) return;
+    const key = cacheKey.teams(user.id);
 
-    listTeams(accessToken).then((fetchedTeams) => {
-      setTeams(fetchedTeams);
-      if (fetchedTeams.length === 0) {
-        if (activeTeamId) {
-          setActiveTeamId(null);
-        }
-        return;
-      }
+    // Show cached data instantly (no spinner)
+    const cached = apiCache.get<TeamView[]>(key);
+    if (cached) applyTeams(cached);
 
-      const hasValidActiveTeam = !!activeTeamId && fetchedTeams.some((team) => team.id === activeTeamId);
-      if (!hasValidActiveTeam) {
-        setActiveTeamId(fetchedTeams[0].id);
-      }
+    // Always re-fetch in background to keep data fresh
+    listTeams(accessToken).then((fresh) => {
+      apiCache.set(key, fresh, CACHE_TTL.TEAMS);
+      applyTeams(fresh);
     }).catch(console.error);
-  }, [accessToken, activeTeamId, setActiveTeamId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, user?.id]);
 
   useEffect(() => {
-    if (!accessToken || !activeTeamId || teams.length === 0) return;
-    if (!teams.some((team) => team.id === activeTeamId)) return;
+    if (!accessToken || !activeTeamId) return;
 
-    setIsFetchingBoards(true);
-    listTeamBoards(activeTeamId, accessToken)
-      .then((fetchedBoards) => {
-        setBoards(fetchedBoards);
-      })
-      .catch(console.error)
-      .finally(() => setIsFetchingBoards(false));
+    const bKey = cacheKey.boards(activeTeamId);
+    const dKey = cacheKey.documents(activeTeamId);
 
-    setIsFetchingDocs(true);
-    listDocuments(activeTeamId, accessToken)
-      .then((fetchedDocs) => {
-        setRecentDocuments(fetchedDocs);
-      })
-      .catch(console.error)
-      .finally(() => setIsFetchingDocs(false));
-  }, [accessToken, activeTeamId, teams]);
+    // Serve from cache immediately — no spinner if cached
+    const cachedBoards = apiCache.get<BoardSummary[]>(bKey);
+    const cachedDocs   = apiCache.get<DocumentSummary[]>(dKey);
+
+    if (cachedBoards) setBoards(cachedBoards);
+    if (cachedDocs)   setRecentDocuments(cachedDocs);
+
+    if (!cachedBoards) setIsFetchingBoards(true);
+    if (!cachedDocs)   setIsFetchingDocs(true);
+
+    // Fetch both in parallel (no waterfall)
+    Promise.all([
+      listTeamBoards(activeTeamId, accessToken),
+      listDocuments(activeTeamId, accessToken),
+    ]).then(([freshBoards, freshDocs]) => {
+      apiCache.set(bKey, freshBoards, CACHE_TTL.BOARDS);
+      apiCache.set(dKey, freshDocs,   CACHE_TTL.DOCUMENTS);
+      setBoards(freshBoards);
+      setRecentDocuments(freshDocs);
+    }).catch(console.error)
+      .finally(() => { setIsFetchingBoards(false); setIsFetchingDocs(false); });
+  }, [accessToken, activeTeamId]);
 
   const handleCreateTeamSubmit = async (payload: { name: string; icon?: string; invites: { email: string; role: Exclude<TeamRole, 'owner'> }[] }) => {
     if (!accessToken) return;
@@ -204,6 +221,17 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
     label: document.title,
     href: `/d/${document.id}`,
   }));
+
+  // Prefetch board details in the background so clicking a board link is instant
+  if (accessToken) {
+    [...recentBoardLinks, ...recentMeshLinks].forEach(({ id }) => {
+      apiCache.prefetch(
+        cacheKey.board(id),
+        () => getBoard(id, accessToken),
+        CACHE_TTL.BOARD_DETAIL,
+      );
+    });
+  }
 
   const renderExpandableItem = ({
     key,
@@ -275,9 +303,11 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
         {isOpen && !isCollapsed && (
           <div className="ml-5 mt-1 border-l border-border/70 pl-4">
             <div className="space-y-1 py-1">
-              {isLoading ? (
-                <div className="flex justify-center p-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              {isLoading && items.length === 0 ? (
+                <div className="space-y-1 py-1">
+                  <SkeletonSidebarLink />
+                  <SkeletonSidebarLink className="opacity-70" />
+                  <SkeletonSidebarLink className="opacity-40" />
                 </div>
               ) : items.length > 0 ? (
                 items.map((item) => (
@@ -285,6 +315,13 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                     key={item.id}
                     href={item.href}
                     className="group flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground/75 transition-all hover:bg-accent/10 hover:text-foreground"
+                    onMouseEnter={() => {
+                      if (!accessToken) return;
+                      // On-hover prefetch for boards/meshes
+                      if (item.href.startsWith('/b/') || item.href.startsWith('/m/')) {
+                        apiCache.prefetch(cacheKey.board(item.id), () => getBoard(item.id, accessToken), CACHE_TTL.BOARD_DETAIL);
+                      }
+                    }}
                   >
                     <span className="truncate">{item.label}</span>
                   </Link>

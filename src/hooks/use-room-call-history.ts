@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 import {
   listRoomCalls,
   getCallTranscript,
@@ -25,13 +26,18 @@ export function useRoomCallHistory(
       .finally(() => setIsLoading(false));
   }, [roomId, accessToken]);
 
-  useEffect(() => {
-    if (!roomId || !accessToken) return;
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`room:${roomId}`);
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {}
 
-    const onCallStarted = (msg: any) => {
-      const { callId, initiatorUserId, startedAt } = msg.data;
+  useEffect(() => {
+    if (!roomId || !realtime) return;
+    const channel = realtime.getChannel(realtimeChannel.room(roomId));
+
+    const onCallStarted = (msg: { name: string; data: unknown }) => {
+      const { callId, initiatorUserId, startedAt } = (msg.data ?? {}) as any;
       setCalls((prev) => {
         if (prev.some((c) => c.id === callId)) return prev;
         const newCall: RoomCall = {
@@ -46,8 +52,8 @@ export function useRoomCallHistory(
       });
     };
 
-    const onCallEnded = (msg: any) => {
-      const { callId, endedAt, transcriptStatus } = msg.data;
+    const onCallEnded = (msg: { name: string; data: unknown }) => {
+      const { callId, endedAt, transcriptStatus } = (msg.data ?? {}) as any;
       setCalls((prev) =>
         prev.map((c) =>
           c.id === callId ? { ...c, endedAt, transcriptStatus: transcriptStatus ?? c.transcriptStatus } : c
@@ -59,10 +65,11 @@ export function useRoomCallHistory(
     channel.subscribe("room.call.ended", onCallEnded);
 
     return () => {
-      channel.unsubscribe("room.call.started", onCallStarted);
-      channel.unsubscribe("room.call.ended", onCallEnded);
+      try { channel.unsubscribe("room.call.started", onCallStarted); } catch {}
+      try { channel.unsubscribe("room.call.ended", onCallEnded); } catch {}
     };
-  }, [roomId, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, realtime]);
 
   const getTranscript = useCallback(
     async (callId: string): Promise<CallTranscript | null> => {

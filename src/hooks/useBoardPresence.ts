@@ -1,55 +1,59 @@
 import { useEffect, useState } from 'react';
-import { getAblyClient } from '@/lib/ably';
+import { useRealtime } from '@/components/providers/realtime-provider';
+import { realtimeChannel } from '@/lib/realtime/channels';
+import type { PresenceMember } from '@/lib/realtime/types';
 
-export type PresenceMember = {
-  clientId: string;
-  data: {
-    displayName: string;
-    email: string;
-   avatar_url?: string | null;
-    avatarColor?: string;
-  };
-};
+export type { PresenceMember };
 
-export function useBoardPresence(boardId: string | null | undefined, user: any, accessToken: string | null | undefined) {
+export function useBoardPresence(
+  boardId: string | null | undefined,
+  user: any,
+  accessToken?: string | null | undefined,
+) {
   const [members, setMembers] = useState<PresenceMember[]>([]);
 
-  useEffect(() => {
-    if (!boardId || !user?.id || !accessToken) return;
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`board:${boardId}`);
+  useEffect(() => {
+    if (!boardId || !user?.id || !realtime) return;
+
+    const channel = realtime.getChannel(realtimeChannel.board(boardId));
 
     const updateMembers = async () => {
       try {
         const presenceSet = await channel.presence.get();
-        // Remove duplicates if the same user drops and reconnects quickly
         const uniqueMembers = new Map<string, PresenceMember>();
-        presenceSet.forEach((member: any) => {
-          uniqueMembers.set(member.clientId, member as unknown as PresenceMember);
+        presenceSet.forEach((member) => {
+          uniqueMembers.set(member.clientId, member);
         });
         setMembers(Array.from(uniqueMembers.values()));
       } catch (err) {
-        console.error("Failed to get Ably presence", err);
+        console.error("Failed to get board presence", err);
       }
     };
 
-    channel.presence.subscribe('enter', updateMembers);
-    channel.presence.subscribe('leave', updateMembers);
-    channel.presence.subscribe('update', updateMembers);
+    const handler = () => { updateMembers(); };
 
-    // Enter presence — clientId comes from the Ably token (= user.id)
+    channel.presence.subscribe(['enter', 'leave', 'update'], handler);
+
     channel.presence.enter({
       displayName: user.displayName,
       email: user.email,
-     avatar_url: user.avatar_url,
+      avatar_url: user.avatar_url,
     }).then(updateMembers).catch(console.error);
 
     return () => {
       channel.presence.leave().catch(console.error);
       channel.presence.unsubscribe();
     };
-  }, [boardId, user?.id, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [boardId, user?.id, realtime]);
 
   return members;
 }

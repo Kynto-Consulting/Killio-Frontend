@@ -11,6 +11,8 @@ import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } fr
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
+import { SkeletonBoardCard, SkeletonDocumentRow } from "@/components/ui/skeleton";
 
 type TFunction = (key: string, params?: Record<string, string | number>) => string;
 
@@ -29,13 +31,23 @@ export default function WorkspacesPage() {
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
 
-    setIsLoading(true);
+    const bKey = cacheKey.boards(activeTeamId);
+    const dKey = cacheKey.documents(activeTeamId);
+
+    // Serve cached data immediately — no loading spinner if cache is warm
+    const cachedBoards = apiCache.get<BoardSummary[]>(bKey);
+    const cachedDocs   = apiCache.get<DocumentSummary[]>(dKey);
+    if (cachedBoards) setBoards(cachedBoards);
+    if (cachedDocs)   setDocuments(cachedDocs);
+
+    if (!cachedBoards || !cachedDocs) setIsLoading(true);
+
     Promise.all([
-      listTeamBoards(activeTeamId, accessToken).catch(e => { console.error(e); return [] as BoardSummary[]; }),
-      listDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; })
-    ]).then(([fetchedBoards, fetchedDocs]) => {
-      setBoards(fetchedBoards);
-      setDocuments(fetchedDocs);
+      cachedBoards ? Promise.resolve(cachedBoards) : listTeamBoards(activeTeamId, accessToken).catch(e => { console.error(e); return [] as BoardSummary[]; }),
+      cachedDocs   ? Promise.resolve(cachedDocs)   : listDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; }),
+    ]).then(([freshBoards, freshDocs]) => {
+      if (!cachedBoards) { apiCache.set(bKey, freshBoards, CACHE_TTL.BOARDS); setBoards(freshBoards); }
+      if (!cachedDocs)   { apiCache.set(dKey, freshDocs,   CACHE_TTL.DOCUMENTS); setDocuments(freshDocs); }
     }).finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId]);
 
@@ -53,7 +65,9 @@ export default function WorkspacesPage() {
 
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
     const newBoard = await createBoard({ ...payload, slug }, activeTeamId, accessToken);
-    setBoards([...boards, newBoard]);
+    const updated = [...boards, newBoard];
+    setBoards(updated);
+    apiCache.set(cacheKey.boards(activeTeamId), updated, CACHE_TTL.BOARDS);
   };
 
   const handleUploadBoardCover = async (file: File): Promise<string> => {
@@ -190,11 +204,13 @@ export default function WorkspacesPage() {
   };
 
   const handleDeleteBoard = async () => {
-    if (!accessToken || !boardToDelete) return;
+    if (!accessToken || !boardToDelete || !activeTeamId) return;
 
     try {
       await deleteBoard(boardToDelete.id, accessToken);
-      setBoards(boards.filter(b => b.id !== boardToDelete.id));
+      const updated = boards.filter(b => b.id !== boardToDelete.id);
+      setBoards(updated);
+      apiCache.set(cacheKey.boards(activeTeamId), updated, CACHE_TTL.BOARDS);
       setBoardToDelete(null);
     } catch (error) {
       console.error(t("deleteBoardError"), error);
@@ -285,11 +301,10 @@ export default function WorkspacesPage() {
             <p className="text-sm text-muted-foreground mt-1">{t("startFromScratch")}</p>
           </div>
 
-          {isLoading ? (
-            <div className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary/50" />
-              <p>{t("gatheringWorkspaces")}</p>
-            </div>
+          {isLoading && boards.length === 0 ? (
+            <>
+              {[1,2,3,4,5,6].map(i => <SkeletonBoardCard key={i} />)}
+            </>
           ) : boards.map((board) => (
             (() => {
               const cover = resolveBoardCover(board);
@@ -341,11 +356,10 @@ export default function WorkspacesPage() {
             <p className="text-sm text-muted-foreground mt-1">{t("startWriting")}</p>
           </div>
 
-          {isLoading ? (
-            <div className="col-span-full py-12 flex flex-col items-center justify-center text-muted-foreground">
-              <Loader2 className="h-8 w-8 animate-spin mb-4 text-primary/50" />
-              <p>{t("gatheringDocuments")}</p>
-            </div>
+          {isLoading && documents.length === 0 ? (
+            <>
+              {[1,2,3,4].map(i => <SkeletonDocumentRow key={i} className="col-span-full" />)}
+            </>
           ) : documents.map((doc) => (
             <Link href={`/d/${doc.id}`} key={doc.id} className="group relative rounded-xl border border-border bg-card shadow-sm hover:border-accent/40 hover:shadow-md transition-all flex flex-col min-h-[220px] overflow-hidden">
               <div className="p-5 flex flex-col flex-1">

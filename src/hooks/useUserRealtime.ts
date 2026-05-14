@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import * as Ably from 'ably';
+import { useEffect, useRef } from 'react';
 import { useSession } from '@/components/providers/session-provider';
-import { getAblyClient } from '@/lib/ably';
+import { useRealtime } from '@/components/providers/realtime-provider';
+import { realtimeChannel } from '@/lib/realtime/channels';
+import type { MessageListener } from '@/lib/realtime/types';
 
 export type UserEvent = {
   type: 'notification.created';
@@ -9,26 +10,32 @@ export type UserEvent = {
 };
 
 export function useUserRealtime(onEvent?: (event: UserEvent) => void) {
-  const { user, accessToken } = useSession();
+  const { user } = useSession();
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
   useEffect(() => {
-    if (!user || !accessToken) return;
+    if (!user || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channelName = `user:${user.id}`;
-    const channel = ably.channels.get(channelName);
+    const channel = realtime.getChannel(realtimeChannel.user(user.id));
 
-    const subscription = (message: Ably.Message) => {
-      if (onEvent) {
-        onEvent(message.data as UserEvent);
-      }
+    const listener: MessageListener = (message) => {
+      onEventRef.current?.(message.data as UserEvent);
     };
 
-    channel.subscribe(subscription);
+    channel.subscribeAll(listener);
 
     return () => {
-      channel.unsubscribe(subscription);
-      // We don't detach channel immediately since other hooks might use it.
+      try { channel.unsubscribeAll(listener); } catch {}
     };
-  }, [user, accessToken, onEvent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, realtime]);
 }

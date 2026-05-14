@@ -6,6 +6,9 @@
   "allDocuments": "All documents",
   "loadError": "Failed to load document",
   "createBlockError": "Failed to create block",
+  "uploadError": "Could not upload one of the files. It will be shown locally for this session.",
+  "exportOk": "Export complete",
+  "exportFailed": "Export failed",
   "shareSuccess": "Shared with {{email}}",
   "shareError": "Failed to share document",
   "notFoundTitle": "Document Not Found",
@@ -81,7 +84,13 @@
     "successMessage": "Submitted successfully.",
     "missingEndpoint": "Configure the webhook URL before submitting.",
     "submitError": "Could not submit the form.",
-    "notConfigured": "This form is not configured yet."
+    "notConfigured": "This form is not configured yet.",
+    "invalidScript": "Invalid webhook script.",
+    "webhookUrlError": "Could not build the webhook URL.",
+    "authRequired": "You must be authenticated to connect to the database.",
+    "tableSourceError": "Could not determine the table source.",
+    "requiredFieldsStep": "Complete all required fields in this step.",
+    "requiredFieldsSubmit": "Complete all required fields before submitting."
   },
   "title": {
     "editHint": "Edit Title"

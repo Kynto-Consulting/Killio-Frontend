@@ -6,6 +6,9 @@
   "allDocuments": "Todos los documentos",
   "loadError": "No se pudo cargar el documento",
   "createBlockError": "No se pudo crear el bloque",
+  "uploadError": "No se pudo subir uno de los archivos. Se mostrará localmente en esta sesión.",
+  "exportOk": "Exportación completada",
+  "exportFailed": "Error al exportar",
   "shareSuccess": "Compartido con {{email}}",
   "shareError": "No se pudo compartir el documento",
   "notFoundTitle": "Documento no encontrado",
@@ -81,7 +84,13 @@
     "successMessage": "Enviado correctamente.",
     "missingEndpoint": "Configura la URL del webhook antes de enviar.",
     "submitError": "No se pudo enviar el formulario.",
-    "notConfigured": "Este formulario todavía no está configurado."
+    "notConfigured": "Este formulario todavía no está configurado.",
+    "invalidScript": "Script de webhook inválido.",
+    "webhookUrlError": "No se pudo construir la URL del webhook.",
+    "authRequired": "Debes estar autenticado para conectar a la base de datos.",
+    "tableSourceError": "No se pudo determinar el origen de la tabla.",
+    "requiredFieldsStep": "Completa todos los campos obligatorios de este paso.",
+    "requiredFieldsSubmit": "Completa todos los campos obligatorios antes de enviar."
   },
   "title": {
     "editHint": "Editar titulo"

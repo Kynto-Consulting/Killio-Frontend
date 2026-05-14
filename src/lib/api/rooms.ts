@@ -285,6 +285,12 @@ export async function updateRoomSettings(
   if (!res.ok) throw new Error('Failed to update room settings');
 }
 
+export async function getActiveCall(roomId: string, accessToken: string): Promise<RoomCall | null> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/active-call`, { headers: authHeader(accessToken) });
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function listRoomCalls(roomId: string, accessToken: string): Promise<RoomCall[]> {
   const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/calls`, { headers: authHeader(accessToken) });
   if (!res.ok) throw new Error('Failed to fetch calls');

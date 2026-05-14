@@ -3,7 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { ScriptRunLog, getScriptGraph, getScriptRuns } from "@/lib/api/scripts";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 import { CheckCircle, XCircle, Loader2, RefreshCw, Clock, ChevronDown, ChevronRight } from "lucide-react";
 
 interface RunLogsPanelProps {
@@ -27,6 +28,13 @@ const STATUS_COLOR: Record<string, string> = {
 export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProps) {
   const { locale } = useI18n();
   const t = useTranslations("integrations");
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted — no realtime updates
+  }
   const [logs, setLogs] = useState<ScriptRunLog[]>([]);
   const [nodeMetaById, setNodeMetaById] = useState<Record<string, { label: string; kind: string }>>({});
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
@@ -73,10 +81,9 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
   }, [scriptId]);
 
   useEffect(() => {
-    if (!accessToken || !scriptId) return;
+    if (!scriptId || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`script:${scriptId}`);
+    const channel = realtime.getChannel(realtimeChannel.script(scriptId));
 
     const queueReload = () => {
       if (reloadTimerRef.current) return;
@@ -141,14 +148,14 @@ export function RunLogsPanel({ scriptId, teamId, accessToken }: RunLogsPanelProp
         clearTimeout(reloadTimerRef.current);
         reloadTimerRef.current = null;
       }
-      channel.unsubscribe("script.run.started", runStartedListener);
-      channel.unsubscribe("script.run.completed", runCompletedListener);
-      channel.unsubscribe("script.run.failed", runFailedListener);
-      channel.unsubscribe("script.node.started", nodeStartedListener);
-      channel.unsubscribe("script.node.completed", nodeCompletedListener);
-      channel.unsubscribe("script.node.failed", nodeFailedListener);
+      try { channel.unsubscribe("script.run.started", runStartedListener); } catch {}
+      try { channel.unsubscribe("script.run.completed", runCompletedListener); } catch {}
+      try { channel.unsubscribe("script.run.failed", runFailedListener); } catch {}
+      try { channel.unsubscribe("script.node.started", nodeStartedListener); } catch {}
+      try { channel.unsubscribe("script.node.completed", nodeCompletedListener); } catch {}
+      try { channel.unsubscribe("script.node.failed", nodeFailedListener); } catch {}
     };
-  }, [accessToken, scriptId]);
+  }, [scriptId, realtime]);
 
   if (loading) {
     return (

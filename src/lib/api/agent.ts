@@ -67,27 +67,33 @@ export function streamAgentChat(
     signal: ctrl.signal,
   })
     .then(async (res) => {
-      if (!res.ok || !res.body) {
-        onEvent({ type: 'error', message: `Agent stream failed (${res.status})` });
-        return;
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buf = '';
+      try {
+        if (!res.ok || !res.body) {
+          onEvent({ type: 'error', message: `Agent stream failed (${res.status})` });
+          return;
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buf += decoder.decode(value, { stream: true });
-        const parts = buf.split('\n\n');
-        buf = parts.pop() ?? '';
-        for (const part of parts) {
-          const line = part.replace(/^data: /, '').trim();
-          if (!line) continue;
-          try {
-            const event = JSON.parse(line) as AgentStreamEvent;
-            onEvent(event);
-          } catch {}
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+          const parts = buf.split('\n\n');
+          buf = parts.pop() ?? '';
+          for (const part of parts) {
+            const line = part.replace(/^data: /, '').trim();
+            if (!line) continue;
+            try {
+              const event = JSON.parse(line) as AgentStreamEvent;
+              onEvent(event);
+            } catch { /* ignore malformed SSE line */ }
+          }
+        }
+      } catch (innerErr: any) {
+        if (innerErr?.name !== 'AbortError') {
+          onEvent({ type: 'error', message: innerErr?.message ?? 'Stream processing error' });
         }
       }
     })

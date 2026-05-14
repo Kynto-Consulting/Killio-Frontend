@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   Globe,
@@ -89,12 +89,13 @@ function serializeValue(p: MarketplacePlaceholder, raw: string): unknown {
 }
 
 /* ── category data ── */
-const CATEGORIES = [
-  { id: "document", label: "Documents", sub: "Guides, specs, docs", icon: FileText, color: "#818cf8" },
-  { id: "mesh",     label: "Meshes",    sub: "3D models & assets", icon: GitBranch, color: "#22d3ee" },
-  { id: "board",    label: "Kanban",    sub: "Boards & workflows",  icon: Layout,    color: "#f472b6" },
-  { id: "script",   label: "Scripts",   sub: "Automations & tools", icon: Zap,       color: "#fbbf24" },
-] as const;
+type CategoryId = "document" | "mesh" | "board" | "script";
+const CATEGORY_META: { id: CategoryId; icon: React.ElementType; color: string }[] = [
+  { id: "document", icon: FileText,  color: "#818cf8" },
+  { id: "mesh",     icon: GitBranch, color: "#22d3ee" },
+  { id: "board",    icon: Layout,    color: "#f472b6" },
+  { id: "script",   icon: Zap,       color: "#fbbf24" },
+];
 
 /* ── placeholder field ── */
 function PlaceholderField({
@@ -281,7 +282,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
               {t("eyebrow")}
             </span>
             <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{t("subtitle")}</h1>
-            <p className="mt-2 text-sm text-white/50">Find packs created by the community or publish your own.</p>
+            <p className="mt-2 text-sm text-white/50">{t("publicPacks.tagline")}</p>
 
             {/* search */}
             <div className="relative mt-5 w-full max-w-sm">
@@ -299,16 +300,18 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
         {/* ── CATEGORIES ── */}
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/30">Popular categories</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-white/30">{t("publicPacks.categories")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {CATEGORIES.map((cat) => {
+            {CATEGORY_META.map((cat) => {
               const Icon = cat.icon;
+              const label = t(`categories.${cat.id}`);
+              const sub   = t(`categories.${cat.id}Sub`);
               return (
                 <button
                   key={cat.id}
                   type="button"
-                  onClick={() => setQuery(cat.label)}
+                  onClick={() => setQuery(label)}
                   className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-3.5 text-left transition-all hover:border-white/15 hover:bg-white/[0.06]"
                 >
                   <div
@@ -318,8 +321,8 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                     <Icon className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-[13px] font-semibold text-white">{cat.label}</p>
-                    <p className="text-[11px] text-white/40">{cat.sub}</p>
+                    <p className="text-[13px] font-semibold text-white">{label}</p>
+                    <p className="text-[11px] text-white/40">{sub}</p>
                   </div>
                 </button>
               );
@@ -341,7 +344,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             <div>
               <h2 className="text-base font-bold text-white">{t("publicPacks.title")}</h2>
               {!loading ? (
-                <p className="mt-0.5 text-xs text-white/40">{sorted.length} packs available</p>
+                <p className="mt-0.5 text-xs text-white/40">{t("publicPacks.count", { count: sorted.length })}</p>
               ) : null}
             </div>
             <button
@@ -350,7 +353,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
               className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/60 transition-all hover:border-white/20 hover:text-white"
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
-              Refresh
+              {t("actions.refresh")}
             </button>
           </div>
 
@@ -364,7 +367,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                 <Download className="h-7 w-7 text-white/20" />
               </div>
               <p className="mt-4 text-sm font-semibold text-white/50">{t("empty.noPublicPacks")}</p>
-              <p className="mt-1 text-xs text-white/25">Check back later or publish your own.</p>
+              <p className="mt-1 text-xs text-white/25">{t("publicPacks.checkBack")}</p>
             </div>
           ) : (
             <div className={`grid gap-4 ${cols}`}>

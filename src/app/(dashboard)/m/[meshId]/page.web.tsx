@@ -34,10 +34,12 @@ import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
 } from "@/lib/api/contracts";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 import { getDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useMeshCursors } from "@/hooks/useMeshCursors";
+import { useMeshLocks } from "@/hooks/useMeshLocks";
 import { MeshCursorLayer } from "@/components/ui/mesh-cursor-layer";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -1264,6 +1266,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const params  = useParams<{ meshId: string }>();
   const meshId  = params?.meshId;
   const { accessToken, activeTeamId, user } = useSession();
+  const realtime = useRealtime();
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const presenceMembers = useBoardPresence(meshId ?? null, user, accessToken);
 
@@ -1275,6 +1278,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     user?.displayName ?? user?.name ?? user?.email ?? "User",
     accessToken,
     toolMode,
+  );
+
+  const { locks: brickLocks, publishLock, publishUnlock } = useMeshLocks(
+    meshId ?? null,
+    user?.id ?? null,
+    user?.displayName ?? user?.name ?? user?.email ?? "User",
+    user?.email ? getUserAvatarUrl(undefined, user.email, 24) : undefined,
+    accessToken,
   );
 
   const [state,      setState]      = useState<MeshState>(defaultMeshState());
@@ -1388,7 +1399,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         lastSavedHashRef.current = initialHash;
         revisionRef.current = s.revision;
       })
-      .catch(() => toast("No se pudo cargar la mesh.", "error"))
+      .catch(() => toast(tMesh("errors.loadFailed"), "error"))
       .finally(() => setIsLoading(false));
   }, [meshId, accessToken]);
 
@@ -1444,10 +1455,21 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
       setRevision(s.revision);
       setUpdatedAt(s.updatedAt);
-      if (!opts?.silent) toast("Guardado.", "success");
+      if (!opts?.silent) toast(tMesh("feedback.saved"), "success");
       return true;
-    } catch {
-      if (!opts?.silent) toast("Error al guardar.", "error");
+    } catch (err: any) {
+      const body = err?.response ?? err?.data;
+      if (body?.error === "MESH_REVISION_CONFLICT" && body.currentState) {
+        // Server has a newer revision — apply it and show a warning
+        setState(body.currentState);
+        revisionRef.current = body.currentRevision;
+        setRevision(body.currentRevision);
+        lastSavedHashRef.current = JSON.stringify(body.currentState);
+        stateHashRef.current = JSON.stringify(body.currentState);
+        toast(tMesh("feedback.conflictResolved"), "warning");
+      } else {
+        if (!opts?.silent) toast(tMesh("errors.saveFailed"), "error");
+      }
       return false;
     } finally {
       isSavingRef.current = false;
@@ -2045,14 +2067,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     });
     if (scopeMap.size === 0) return;
 
-    const ably = getAblyClient(accessToken);
-    const subscriptions: Array<{ channel: ReturnType<typeof ably.channels.get>; listener: (msg: unknown) => void }> = [];
+    const subscriptions: Array<{ channelName: string; listener: (msg: { name: string; data: unknown; clientId?: string }) => void }> = [];
 
     scopeMap.forEach(({ scopeId, brickIds }) => {
-      const channel = ably.channels.get(`board:${scopeId}`);
-      const listener = async (message: unknown) => {
-        const data = ((message as { data?: unknown }).data ?? {}) as Record<string, unknown>;
-        const eventType = (message as { name?: string }).name ?? "";
+      const channel = realtime.getChannel(realtimeChannel.mesh(scopeId));
+      const listener = async (message: { name: string; data: unknown; clientId?: string }) => {
+        const data = (message.data ?? {}) as Record<string, unknown>;
+        const eventType = message.name ?? "";
         if (eventType !== "mesh.brick.updated" && eventType !== "mesh.state.updated") return;
         // Re-fetch the source mesh and update all mirrors watching this scope
         try {
@@ -2080,17 +2101,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       };
       channel.subscribe("mesh.brick.updated", listener);
       channel.subscribe("mesh.state.updated", listener);
-      subscriptions.push({ channel, listener });
+      subscriptions.push({ channelName: realtimeChannel.mesh(scopeId), listener });
     });
 
     return () => {
-      subscriptions.forEach(({ channel, listener }) => {
-        channel.unsubscribe("mesh.brick.updated", listener);
-        channel.unsubscribe("mesh.state.updated", listener);
+      subscriptions.forEach(({ channelName, listener }) => {
+        const channel = realtime.getChannel(channelName);
+        try { channel.unsubscribe("mesh.brick.updated", listener); } catch {}
+        try { channel.unsubscribe("mesh.state.updated", listener); } catch {}
       });
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, meshId]);
+  }, [accessToken, meshId, realtime]);
 
   // ── Keyboard shortcuts ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -2107,9 +2129,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         e.preventDefault();
         if (selectedIds.size > 0) {
           setState((c) => { let s = c; selectedIds.forEach((id) => { s = deleteBrick(s, id); }); return s; });
-          setSelectedIds(new Set()); toast(`${selectedIds.size} eliminado(s).`, "success");
+          setSelectedIds(new Set()); toast(tMesh("feedback.deletedCount", { count: selectedIds.size }), "success");
         } else {
-          if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast("Eliminado.", "success"); }
+          if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast(tMesh("feedback.deleted"), "success"); }
           if (selectedConnId) { setState((c) => deleteConn(c, selectedConnId)); setSelectedConnId(null); }
         }
       }
@@ -2164,9 +2186,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       anchor.click();
       document.body.removeChild(anchor);
       URL.revokeObjectURL(url);
-      toast("Mesh descargada.", "success");
+      toast(tMesh("feedback.downloaded"), "success");
     } catch {
-      toast("No se pudo descargar la mesh.", "error");
+      toast(tMesh("errors.downloadFailed"), "error");
     }
   }, [meshId, revision, updatedAt, state, viewport.x, viewport.y, viewport.zoom]);
 
@@ -2340,14 +2362,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (!connSrcId || connSrcId === brickId) return;
     addConn(connSrcId, brickId, connSrcPort ?? undefined, port, connSrcAnchor ?? undefined);
     setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
-    toast("Conexión creada.", "success");
+    toast(tMesh("feedback.connCreated"), "success");
   }, [connSrcId, connSrcPort, connSrcAnchor, addConn]);
 
   const finishConnAtAnchor = useCallback((brickId: string, anchor: AnchorNorm) => {
     if (!connSrcId || connSrcId === brickId) return;
     addConn(connSrcId, brickId, connSrcPort ?? undefined, undefined, connSrcAnchor ?? undefined, anchor);
     setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
-    toast("Conexión creada.", "success");
+    toast(tMesh("feedback.connCreated"), "success");
   }, [connSrcId, connSrcPort, connSrcAnchor, addConn]);
 
   // ── Mouse move ────────────────────────────────────────────────────────────────
@@ -2504,7 +2526,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         setRecognizing(true);
         callIink(strokes, cw, ch, accessToken ?? "").then((result) => {
           setRecognizing(false);
-          if (!result) { toast("iink: sin respuesta", "error"); return; }
+          if (!result) { toast(tMesh("errors.iinkNoResponse"), "error"); return; }
           const { text, shapes } = result;
           console.log("[iink]", { text, shapes });
           const primaryShape = shapes[0];
@@ -2526,7 +2548,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 });
                 if (srcId && tgtId && srcId !== tgtId) {
                   const conn: MeshConnection = { id: mkId("conn"), cons: [srcId, tgtId], label: { type: "doc", content: [] }, style: { ...connStyle(connPreset) } };
-                  toast("Conexión por trazo.", "success");
+                  toast(tMesh("feedback.connByStroke"), "success");
                   return { ...cur, connectionsById: { ...cur.connectionsById, [conn.id]: conn } };
                 }
                 return cur;
@@ -2586,7 +2608,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             if (parentId && board) by[board.id] = withChildOrder(board, [...childOrder(board), nb.id]);
             return { ...cur, bricksById: by, rootOrder: root };
           });
-          if (mapped) toast(`Figura: ${primaryShape!.kind}`, "success");
+          if (mapped) toast(tMesh("feedback.shapeRecognized", { kind: primaryShape!.kind }), "success");
           else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
         });
       }, 900);
@@ -2643,10 +2665,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
     }
 
+    if (dragState) publishUnlock(dragState.brickId);
+    if (resizeState) publishUnlock(resizeState.brickId);
     setDragState(null);
     setResizeState(null);
     setVecDragState(null);
-  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom]);
+  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, resizeState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom, publishUnlock]);
 
   // ── Drag start ─────────────────────────────────────────────────────────────────
   const startDrag = useCallback((e: React.MouseEvent, brickId: string) => {
@@ -2654,21 +2678,33 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (editingBrickId === brickId) return;
     e.stopPropagation();
     if (e.button !== 0) return;
+    const existingLock = brickLocks.get(brickId);
+    if (existingLock) {
+      toast(tMesh("feedback.lockedBy", { name: existingLock.displayName }), "warning");
+      return;
+    }
     const { x, y } = fromEv(e);
     const b = state.bricksById[brickId];
     if (!b) return;
+    publishLock(brickId, "drag");
     setDragState({ brickId, startMouse: { x, y }, startPosition: { ...b.position }, originalParentId: b.parentId });
     setSelectedId(brickId);
     setSelectedConnId(null);
-  }, [toolMode, fromEv, state.bricksById, editingBrickId]);
+  }, [toolMode, fromEv, state.bricksById, editingBrickId, brickLocks, publishLock]);
 
   const startResize = useCallback((e: React.MouseEvent, brickId: string) => {
     e.stopPropagation();
+    const existingLock = brickLocks.get(brickId);
+    if (existingLock) {
+      toast(tMesh("feedback.lockedBy", { name: existingLock.displayName }), "warning");
+      return;
+    }
     const { x, y } = fromEv(e);
     const b = state.bricksById[brickId];
     if (!b) return;
+    publishLock(brickId, "resize");
     setResizeState({ brickId, startMouse: { x, y }, startSize: { ...b.size } });
-  }, [fromEv, state.bricksById]);
+  }, [fromEv, state.bricksById, brickLocks, publishLock]);
 
   const deleteVecPoint = useCallback((brickId: string, idx: number) => {
     setState((cur) => {
@@ -2770,7 +2806,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       if (snapTarget) {
         addConn(connSrcId, snapTarget.brickId, connSrcPort ?? undefined, snapTarget.port, connSrcAnchor ?? undefined);
         setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); setSnapTarget(null);
-        toast("Conexión creada.", "success");
+        toast(tMesh("feedback.connCreated"), "success");
         return;
       }
       const { x, y } = fromEv(e);
@@ -2781,7 +2817,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const d = Math.hypot(g.x + b.size.w / 2 - x, g.y + b.size.h / 2 - y);
         if (d < nd) { nd = d; nearId = b.id; }
       });
-      if (nearId && nd <= 160) { addConn(connSrcId, nearId, connSrcPort ?? undefined, undefined, connSrcAnchor ?? undefined); setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); toast("Conexión creada.", "success"); }
+      if (nearId && nd <= 160) { addConn(connSrcId, nearId, connSrcPort ?? undefined, undefined, connSrcAnchor ?? undefined); setConnSrcId(null); setConnSrcPort(null); setConnSrcAnchor(null); toast(tMesh("feedback.connCreated"), "success"); }
       return;
     }
     if (toolMode !== "select") return;
@@ -2807,7 +2843,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           addConn(connSrcId, brickId, connSrcPort ?? undefined);
         }
         setConnSrcId(null); setConnSrcPort(null); setSnapTarget(null);
-        toast("Conexión creada.", "success");
+        toast(tMesh("feedback.connCreated"), "success");
       }
       return;
     }
@@ -2915,6 +2951,24 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       </div>
     ) : null;
 
+    // Lock overlay — shown when another user is dragging/editing this brick
+    const activeLock = brickLocks.get(brick.id);
+    const lockOverlay = activeLock ? (
+      <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center rounded-[inherit] bg-slate-900/50 backdrop-blur-[1px]">
+        {activeLock.avatarUrl ? (
+          <img src={activeLock.avatarUrl} alt={activeLock.displayName}
+            className="h-7 w-7 rounded-full border-2 border-amber-400 shadow-lg" />
+        ) : (
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-900/80 text-[10px] font-bold text-amber-200">
+            {activeLock.displayName.slice(0, 2).toUpperCase()}
+          </div>
+        )}
+        <span className="ml-1.5 max-w-[100px] truncate rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] text-amber-200">
+          {activeLock.displayName}
+        </span>
+      </div>
+    ) : null;
+
     // ─ Board ─
     if (isBoard) {
       const collapsed = collapsedBoards.has(brick.id);
@@ -2984,6 +3038,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </div>
           )}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3108,6 +3163,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           ))}
           {vecCustomPortDots}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3186,6 +3242,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {vecCustomPortDots}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3323,6 +3380,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3408,6 +3466,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3442,6 +3501,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
+          {lockOverlay}
         </div>
       );
     }
@@ -3539,9 +3599,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <button type="button" onClick={() => {
               if (selectedIds.size > 0) {
                 setState((c) => { let s = c; selectedIds.forEach((id) => { s = deleteBrick(s, id); }); return s; });
-                setSelectedIds(new Set()); toast(`${selectedIds.size} eliminado(s).`, "success");
+                setSelectedIds(new Set()); toast(tMesh("feedback.deletedCount", { count: selectedIds.size }), "success");
               } else {
-                if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast("Eliminado.", "success"); }
+                if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast(tMesh("feedback.deleted"), "success"); }
                 if (selectedConnId) { setState((c) => deleteConn(c, selectedConnId)); setSelectedConnId(null); }
               }
             }} className="inline-flex h-7 items-center gap-1 rounded-md border border-red-500/40 bg-red-950/30 px-2 text-xs text-red-300 hover:bg-red-900/40">
@@ -4172,27 +4232,30 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   )}
 
                   {toolbarPanel === "shapes" && (
-                    <div className="space-y-3">
-                      {SHAPE_CATEGORIES.map((cat) => (
-                        <div key={cat.label}>
-                          <div className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-cyan-200/60">
-                            {cat.icon}<span>{cat.label}</span>
+                    <div>
+                      <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Formas</p>
+                      <div className="max-h-[50vh] overflow-y-auto space-y-3 pr-1">
+                        {SHAPE_CATEGORIES.map((cat) => (
+                          <div key={cat.label}>
+                            <div className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-cyan-200/60">
+                              {cat.icon}<span>{cat.label}</span>
+                            </div>
+                            <div className="grid grid-cols-5 gap-1">
+                              {cat.shapes.map(({ preset, label }) => (
+                                <button key={preset} type="button" title={label} draggable
+                                  onClick={() => { addShape(preset); setToolbarPanel(null); }}
+                                  onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
+                                  className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
+                                  <div className="relative h-[18px] w-[32px]">
+                                    <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
+                                  </div>
+                                  <span className="max-w-[40px] truncate text-[7px] leading-none">{label}</span>
+                                </button>
+                              ))}
+                            </div>
                           </div>
-                          <div className="grid grid-cols-5 gap-1">
-                            {cat.shapes.map(({ preset, label }) => (
-                              <button key={preset} type="button" title={label} draggable
-                                onClick={() => { addShape(preset); setToolbarPanel(null); }}
-                                onDragStart={(e) => onToolDragStart(e, { type: "shape", preset })}
-                                className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                                <div className="relative h-[18px] w-[32px]">
-                                  <ShapeSvg preset={preset} w={32} h={18} stroke="currentColor" fill="none" sw={1.5} />
-                                </div>
-                                <span className="max-w-[40px] truncate text-[7px] leading-none">{label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
                   )}
 
@@ -4365,7 +4428,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         onSelect={(result: EntitySelectorResult) => {
           if (!selectorModalBrickId) return;
           if (selectorModalBrickKind === "portal" && result.type === "mesh" && result.id === meshId) {
-            toast("El portal no puede apuntar a esta misma mesh.", "error");
+            toast(tMesh("errors.portalSelf"), "error");
             return;
           }
           void (async () => {

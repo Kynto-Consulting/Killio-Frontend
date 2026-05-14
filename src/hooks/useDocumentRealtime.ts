@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
-import * as Ably from 'ably';
+import { useEffect, useRef } from 'react';
 import { useSession } from '@/components/providers/session-provider';
-import { getAblyClient } from '@/lib/ably';
+import { useRealtime } from '@/components/providers/realtime-provider';
+import { realtimeChannel } from '@/lib/realtime/channels';
+import type { MessageListener } from '@/lib/realtime/types';
 
 export type DocumentEvent = {
   type: 'brick.created' | 'brick.updated' | 'brick.deleted' | 'brick.reordered' | 'document.updated';
@@ -9,26 +10,35 @@ export type DocumentEvent = {
 };
 
 export function useDocumentRealtime(documentId: string, onEvent?: (event: DocumentEvent) => void) {
-  const { user, accessToken } = useSession();
+  const { user } = useSession();
+  const onEventRef = useRef(onEvent);
+  onEventRef.current = onEvent;
+
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
   useEffect(() => {
-    if (!user || !accessToken || !documentId) return;
+    if (!user || !documentId || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channelName = `document:${documentId}`;
-    const channel = ably.channels.get(channelName);
+    const channel = realtime.getChannel(realtimeChannel.document(documentId));
 
-    const subscription = (message: Ably.Message) => {
-      if (onEvent) {
-        onEvent({ type: message.name as DocumentEvent['type'], payload: message.data });
-      }
+    const listener: MessageListener = (message) => {
+      onEventRef.current?.({
+        type: message.name as DocumentEvent['type'],
+        payload: message.data,
+      });
     };
 
-    channel.subscribe(subscription);
+    channel.subscribeAll(listener);
 
     return () => {
-      channel.unsubscribe(subscription);
-      // We don't detach channel immediately since other active hooks might use it.
+      try { channel.unsubscribeAll(listener); } catch {}
     };
-  }, [user, accessToken, documentId, onEvent]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, documentId, realtime]);
 }

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
+import type { IRealtimeChannel } from "@/lib/realtime/types";
 
 export type RemoteCursor = {
   clientId: string;
@@ -34,18 +36,25 @@ export function useMeshCursors(
 ) {
   const [cursors, setCursors] = useState<Map<string, RemoteCursor>>(new Map());
 
-  const channelRef = useRef<any>(null);
+  const channelRef = useRef<IRealtimeChannel | null>(null);
   const lastPublishRef = useRef(0);
   const toolModeRef = useRef(toolMode);
   const displayNameRef = useRef(displayName);
   toolModeRef.current = toolMode;
   displayNameRef.current = displayName;
 
-  useEffect(() => {
-    if (!meshId || !userId || !accessToken) return;
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`board:${meshId}`);
+  useEffect(() => {
+    if (!meshId || !userId || !realtime) return;
+
+    const channel = realtime.getChannel(realtimeChannel.mesh(meshId));
     channelRef.current = channel;
 
     // Purge stale cursors every 2s
@@ -61,8 +70,8 @@ export function useMeshCursors(
       });
     }, 2000);
 
-    const onCursorMove = (msg: any) => {
-      const d = msg.data;
+    const onCursorMove = (msg: { name: string; data: unknown; clientId?: string }) => {
+      const d = msg.data as any;
       if (!d) return;
       const clientId: string = msg.clientId ?? d.clientId ?? "";
       if (!clientId || clientId === userId) return;
@@ -85,10 +94,11 @@ export function useMeshCursors(
 
     return () => {
       clearInterval(cleanupId);
-      try { channel.unsubscribe("mesh.cursor.move"); } catch {}
+      try { channel.unsubscribe("mesh.cursor.move", onCursorMove); } catch {}
       channelRef.current = null;
     };
-  }, [meshId, userId, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meshId, userId, realtime]);
 
   const publishCursor = useCallback((x: number, y: number) => {
     const now = Date.now();

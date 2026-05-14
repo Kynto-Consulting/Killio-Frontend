@@ -103,7 +103,7 @@ function DocumentsPageContent() {
       if (editingFolder) {
         const f = await updateFolder(editingFolder.id, data, accessToken);
         setFolders(folders.map(folder => folder.id === editingFolder.id ? f : folder));
-        toast("Carpeta actualizada", "success");
+        toast(t("folderUpdated"), "success");
       } else {
         const parsedData = {
           ...data,
@@ -111,12 +111,12 @@ function DocumentsPageContent() {
         };
         const f = await createFolder({ teamId: activeTeamId, ...parsedData }, accessToken);
         setFolders([...folders, f]);
-        toast("Carpeta creada", "success");
+        toast(t("folderCreated"), "success");
       }
       setIsFolderModalOpen(false);
     } catch (e) {
       console.error(e);
-      toast("Error al guardar carpeta", "error");
+      toast(t("folderSaveError"), "error");
     }
   };
 
@@ -142,7 +142,7 @@ function DocumentsPageContent() {
     try {
       const updatedDoc = await updateDocument(documentId, updates, accessToken);
       setDocuments((prev) => prev.map(d => d.id === documentId ? { ...d, ...updates, folderId: updates.folderId === null ? undefined : (updates.folderId ?? d.folderId) } : d));
-      toast("Documento actualizado", "success");
+      toast(t("documentUpdated"), "success");
     } catch (error) {
       console.error(error);
       throw error;
@@ -184,10 +184,10 @@ function DocumentsPageContent() {
       await Promise.all(ids.map((id: string) => updateDocument(id, { folderId: targetFolderId }, accessToken)));
       setDocuments((prev) => prev.map(d => ids.includes(d.id) ? { ...d, folderId: targetFolderId || undefined } : d));
       setSelectedItemIds([]);
-      toast("Documento movido", "success");
+      toast(t("documentMoved"), "success");
     } catch (error) {
       console.error(error);
-      toast("Error al mover el documento", "error");
+      toast(t("documentMoveError"), "error");
     }
   };
 

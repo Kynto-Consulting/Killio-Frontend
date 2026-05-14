@@ -9,6 +9,7 @@ import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, listAllTeamDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, TeamMemberSummary, uploadFile } from "@/lib/api/contracts";
+import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
@@ -88,15 +89,21 @@ export default function DocumentPage() {
       }
 
       if (activeTeamId) {
-        const [docs, boards, members, flds] = await Promise.all([
+        // Serve cached team data immediately (no extra latency on revisit)
+        const cachedBoards  = apiCache.get<BoardSummary[]>(cacheKey.boards(activeTeamId));
+        const cachedMembers = apiCache.get<TeamMemberSummary[]>(cacheKey.members(activeTeamId));
+        if (cachedBoards)  setTeamBoards(cachedBoards);
+        if (cachedMembers) setTeamMembers(cachedMembers);
+
+        const [docs, freshBoards, freshMembers, flds] = await Promise.all([
           listAllTeamDocuments(activeTeamId, accessToken),
-          listTeamBoards(activeTeamId, accessToken),
-          listTeamMembers(activeTeamId, accessToken),
-          listFolders(activeTeamId, accessToken)
+          cachedBoards  ? Promise.resolve(cachedBoards)  : listTeamBoards(activeTeamId, accessToken),
+          cachedMembers ? Promise.resolve(cachedMembers) : listTeamMembers(activeTeamId, accessToken),
+          listFolders(activeTeamId, accessToken),
         ]);
         setTeamDocs(docs);
-        setTeamBoards(boards);
-        setTeamMembers(members);
+        if (!cachedBoards)  { apiCache.set(cacheKey.boards(activeTeamId), freshBoards, CACHE_TTL.BOARDS); setTeamBoards(freshBoards); }
+        if (!cachedMembers) { apiCache.set(cacheKey.members(activeTeamId), freshMembers, CACHE_TTL.MEMBERS); setTeamMembers(freshMembers); }
 
         let parsedFlds = [];
         if (Array.isArray(flds)) parsedFlds = flds;
@@ -1015,8 +1022,9 @@ export default function DocumentPage() {
       accessToken,
       uploadFile,
       onUploadError: (err) => {
-        console.error('Failed to upload media file for document brick', err);
-        toast('No se pudo subir uno de los archivos. Se mostrara localmente en esta sesion.', 'error');
+        // Upload failure is surfaced via toast; log as warning only
+        if (process.env.NODE_ENV !== 'production') console.warn('Failed to upload media file for document brick', err);
+        toast(t("uploadError"), 'error');
       },
       allowLocalBlobFallback: true,
     });
@@ -1194,10 +1202,10 @@ export default function DocumentPage() {
       a.remove();
       window.URL.revokeObjectURL(downloadUrl);
 
-      toast("Exportación completada", "success");
+      toast(t("exportOk"), "success");
       setIsExportModalOpen(false);
     } catch (e: any) {
-      toast(e.message || "Error al exportar", "error");
+      toast(e.message || t("exportFailed"), "error");
     } finally {
       setIsExporting(false);
     }
@@ -1220,8 +1228,31 @@ export default function DocumentPage() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      <div className="flex flex-col h-full bg-background">
+        {/* Header skeleton */}
+        <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="h-6 w-6 rounded-md bg-muted animate-pulse" />
+            <div className="h-3 w-px bg-border mx-2" />
+            <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="h-7 w-16 rounded-md bg-muted animate-pulse" />
+            <div className="h-7 w-20 rounded-md bg-muted animate-pulse" />
+          </div>
+        </header>
+        {/* Content skeleton */}
+        <main className="flex-1 overflow-y-auto flex justify-center py-10 px-4">
+          <div className="max-w-4xl w-full space-y-4">
+            <div className="h-12 w-2/3 rounded-lg bg-muted animate-pulse mb-8" />
+            {[1,2,3,4,5].map(i => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-full rounded bg-muted animate-pulse" style={{ opacity: 1 - i * 0.15 }} />
+                <div className="h-4 w-4/5 rounded bg-muted animate-pulse" style={{ opacity: 1 - i * 0.15 }} />
+              </div>
+            ))}
+          </div>
+        </main>
       </div>
     );
   }

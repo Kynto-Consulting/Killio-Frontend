@@ -12,7 +12,9 @@ import { useRoomCallHistory } from "@/hooks/use-room-call-history";
 import { useRoomPermissions } from "@/hooks/use-room-permissions";
 import { useRoomNotifications } from "@/hooks/use-room-notifications";
 import { useCall } from "@/components/providers/call-provider";
-import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage } from "@/lib/api/rooms";
+import { listTeamRooms, getRoom, listRoomMembers, listTeamRoomGroups, sendAiRoomMessage, getActiveCall, type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage } from "@/lib/api/rooms";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
 import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
@@ -26,7 +28,7 @@ import { RoomMembersPanel } from "@/components/rooms/RoomMembersPanel";
 import { RoomPermissionsModal } from "@/components/rooms/RoomPermissionsModal";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { CreateRoomGroupModal } from "@/components/rooms/CreateRoomGroupModal";
-import { Loader2, X } from "lucide-react";
+import { Loader2, Phone, X } from "lucide-react";
 
 export default function RoomDetailWeb() {
   const platform = usePlatform();
@@ -37,6 +39,7 @@ export default function RoomDetailWeb() {
   const router = useRouter();
   const roomId = params.roomId as string;
   const { accessToken, activeTeamId, user } = useSession();
+  const realtime = useRealtime();
   const { isAdmin } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
 
   const [room, setRoom] = useState<Room | null>(null);
@@ -44,6 +47,7 @@ export default function RoomDetailWeb() {
   const [groups, setGroups] = useState<RoomGroup[]>([]);
   const [roomMembers, setRoomMembers] = useState<RoomMember[]>([]);
   const [isLoadingRoom, setIsLoadingRoom] = useState(true);
+  const [roomLoadError, setRoomLoadError] = useState<string | null>(null);
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isMembersPanelOpen, setIsMembersPanelOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
@@ -52,6 +56,7 @@ export default function RoomDetailWeb() {
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [showReadReceipts, setShowReadReceipts] = useState(true);
+  const [activeCallInRoom, setActiveCallInRoom] = useState<RoomCall | null>(null);
 
   const { permissions } = useRoomPermissions(roomId, accessToken);
 
@@ -82,23 +87,56 @@ export default function RoomDetailWeb() {
     return map;
   }, [callHistoryHook.calls]);
 
-  useEffect(() => {
+  const loadRoom = useCallback(() => {
     if (!accessToken || !roomId) return;
     setIsLoadingRoom(true);
+    setRoomLoadError(null);
     getRoom(roomId, accessToken)
       .then((r) => {
         setRoom(r);
         setShowReadReceipts(r.showReadReceipts ?? true);
       })
-      .catch(console.error)
+      .catch((err) => {
+        console.error(err);
+        setRoomLoadError(t("errors.loadFailed"));
+      })
       .finally(() => setIsLoadingRoom(false));
-  }, [roomId, accessToken]);
+  }, [accessToken, roomId]);
+
+  useEffect(() => { loadRoom(); }, [loadRoom]);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
     listTeamRooms(activeTeamId, accessToken).then(setRooms).catch(console.error);
     listTeamRoomGroups(activeTeamId, accessToken).then(setGroups).catch(console.error);
   }, [activeTeamId, accessToken]);
+
+  // Fetch active call on room load + subscribe to call started/ended events
+  useEffect(() => {
+    if (!roomId || !accessToken) return;
+    getActiveCall(roomId, accessToken).then(setActiveCallInRoom).catch(() => {});
+
+    const channel = realtime.getChannel(realtimeChannel.room(roomId));
+
+    const onCallStarted = (msg: { name: string; data: unknown; clientId?: string }) => {
+      const d = (msg.data ?? {}) as any;
+      const { callId, initiatorUserId, startedAt } = d;
+      if (!callId) return;
+      setActiveCallInRoom({ id: callId, roomId, initiatorUserId: initiatorUserId ?? '', startedAt: startedAt ?? new Date().toISOString(), participants: [], transcriptStatus: 'none' });
+    };
+
+    const onCallEnded = () => {
+      setActiveCallInRoom(null);
+    };
+
+    channel.subscribe('room.call.started', onCallStarted);
+    channel.subscribe('room.call.ended', onCallEnded);
+
+    return () => {
+      try { channel.unsubscribe('room.call.started', onCallStarted); } catch {}
+      try { channel.unsubscribe('room.call.ended', onCallEnded); } catch {}
+    };
+  }, [roomId, accessToken, realtime]);
 
   useEffect(() => {
     if (!accessToken || !roomId) return;
@@ -292,6 +330,7 @@ Team Context: ${activeTeamId}.`;
 
   const handleJoinCall = useCallback(() => {
     stopRing();
+    setActiveCallInRoom(null);
     joinRoomCall(roomId);
   }, [roomId, joinRoomCall, stopRing]);
 
@@ -315,6 +354,17 @@ Team Context: ${activeTeamId}.`;
     return (
       <div className="flex h-full items-center justify-center">
         <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (roomLoadError) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
+        <span>{roomLoadError}</span>
+        <button className="text-xs underline hover:text-foreground transition-colors" onClick={loadRoom}>
+          Reintentar
+        </button>
       </div>
     );
   }
@@ -367,6 +417,32 @@ Team Context: ${activeTeamId}.`;
               onOpenPermissions={() => setIsPermissionsOpen(true)}
               t={t}
             />
+            {/* Active call banner — visible to members not in the call */}
+            {activeCallInRoom && !call.isInCall && (
+              <div className="flex items-center gap-3 px-4 py-2 bg-emerald-500/10 border-b border-emerald-500/20 shrink-0">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <Phone className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                <span className="text-xs text-emerald-600 dark:text-emerald-400 flex-1 font-medium">
+                  Llamada en curso
+                </span>
+                <button
+                  onClick={handleJoinCall}
+                  className="text-xs font-semibold text-white bg-emerald-500 hover:bg-emerald-600 px-3 py-1 rounded-full transition-colors"
+                >
+                  Unirse
+                </button>
+                <button
+                  onClick={() => setActiveCallInRoom(null)}
+                  className="p-0.5 rounded hover:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400"
+                  aria-label="Cerrar"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
             <RoomChatArea
               messages={chatHook.messages}
               callsById={callsById}

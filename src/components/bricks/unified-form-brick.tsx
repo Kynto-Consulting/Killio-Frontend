@@ -377,13 +377,13 @@ export function UnifiedFormBrick({
 
     const script = webhookScripts.find((item) => item.id === scriptId);
     if (!script) {
-      toast("Script no valido para webhook.", "error");
+      toast(t("form.invalidScript"), "error");
       return;
     }
 
     const webhookUrl = getWebhookUrlForScript(script);
     if (!webhookUrl) {
-      toast("No se pudo construir la URL del webhook.", "error");
+      toast(t("form.webhookUrlError"), "error");
       return;
     }
 
@@ -402,7 +402,7 @@ export function UnifiedFormBrick({
     setShowTablePicker(false);
     
     if (!activeTeamId || !accessToken) {
-      toast("No se puede conectar a la base de datos sin estar autenticado.", "error");
+      toast(t("form.authRequired"), "error");
       return;
     }
 
@@ -439,7 +439,7 @@ export function UnifiedFormBrick({
     }
 
     if (!sourceId) {
-      toast("No se pudo determinar el origen de la tabla.", "error");
+      toast(t("form.tableSourceError"), "error");
       return;
     }
 
@@ -559,7 +559,7 @@ export function UnifiedFormBrick({
     });
 
     if (currentRequiredMissing) {
-      toast("Completa los campos obligatorios de este paso.", "error");
+      toast(t("form.requiredFieldsStep"), "error");
       return;
     }
 
@@ -591,7 +591,7 @@ export function UnifiedFormBrick({
 
       if (missingEntry) {
         setActivePage(missingEntry.pageId);
-        toast("Completa los campos obligatorios antes de enviar.", "error");
+        toast(t("form.requiredFieldsSubmit"), "error");
         return;
       }
     }

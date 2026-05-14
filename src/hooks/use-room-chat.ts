@@ -1,7 +1,9 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getAblyClient } from "@/lib/ably";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
+import type { IRealtimeChannel } from "@/lib/realtime/types";
 import {
   listRoomMessages,
   sendRoomMessage,
@@ -44,6 +46,15 @@ export function useRoomChat(
   const typingTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
   const typingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isTypingRef = useRef(false);
+  const channelRef = useRef<IRealtimeChannel | null>(null);
+
+  let realtime: ReturnType<typeof useRealtime> | null = null;
+  try {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    realtime = useRealtime();
+  } catch {
+    // Provider not mounted yet — no-op
+  }
 
   // Initial load
   useEffect(() => {
@@ -58,17 +69,16 @@ export function useRoomChat(
       .finally(() => setIsLoading(false));
   }, [roomId, accessToken]);
 
-  // Ably subscription
+  // Realtime subscription
   useEffect(() => {
-    if (!roomId || !accessToken) return;
+    if (!roomId || !realtime) return;
 
-    const ably = getAblyClient(accessToken);
-    const channel = ably.channels.get(`room:${roomId}`);
+    const channel = realtime.getChannel(realtimeChannel.room(roomId));
+    channelRef.current = channel;
 
-    const onMessage = (msg: any) => {
+    const onMessage = (msg: { name: string; data: unknown; clientId?: string }) => {
       const payload = msg.data as RoomMessage;
       setMessages((prev) => {
-        // 1. Match by localBotId nonce passed in metadata
         const nonceId = (payload.metadata as any)?.localBotId;
         if (nonceId) {
           const nonceIdx = prev.findIndex((m) => m.id === nonceId);
@@ -79,7 +89,6 @@ export function useRoomChat(
           }
         }
 
-        // 2. Match temp/bot placeholder by userId+type within 30s (no content comparison)
         const tempIdx = prev.findIndex(
           (m) =>
             (m.id.startsWith("temp-") || m.id.startsWith("bot-")) &&
@@ -92,7 +101,6 @@ export function useRoomChat(
           return updated;
         }
 
-        // 3. Exact ID dedup - but UPDATE if metadata/content changed
         const existingIdx = prev.findIndex((m) => m.id === payload.id);
         if (existingIdx !== -1) {
           const updated = [...prev];
@@ -103,7 +111,6 @@ export function useRoomChat(
         return [...prev, { ...payload, status: "sent" }];
       });
 
-      // Auto-publish delivered for messages from others
       if (payload.userId !== currentUser?.id && currentUser?.id) {
         channel.publish("room.message.delivered", {
           messageId: payload.id,
@@ -112,14 +119,13 @@ export function useRoomChat(
       }
     };
 
-    const onReaction = (msg: any) => {
+    const onReaction = (msg: { name: string; data: unknown }) => {
       const { messageId, emoji, userId, action } = msg.data as {
         messageId: string;
         emoji: string;
         userId: string;
         action: "add" | "remove";
       };
-      // Skip events from self — the optimistic update in handleAddReaction already handles them
       if (userId === currentUser?.id) return;
       setMessages((prev) =>
         prev.map((m) => {
@@ -137,35 +143,31 @@ export function useRoomChat(
       );
     };
 
-    const onDelivered = (msg: any) => {
+    const onDelivered = (msg: { name: string; data: unknown }) => {
       const { messageId, userId } = msg.data as { messageId: string; userId: string };
       if (userId === currentUser?.id) return;
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
-          if (statusPriority(m.status) < statusPriority("delivered")) {
-            return { ...m, status: "delivered" };
-          }
+          if (statusPriority(m.status) < statusPriority("delivered")) return { ...m, status: "delivered" };
           return m;
         })
       );
     };
 
-    const onRead = (msg: any) => {
+    const onRead = (msg: { name: string; data: unknown }) => {
       const { messageIds, userId } = msg.data as { messageIds: string[]; userId: string };
       if (userId === currentUser?.id) return;
       setMessages((prev) =>
         prev.map((m) => {
           if (!messageIds.includes(m.id)) return m;
-          if (statusPriority(m.status) < statusPriority("read")) {
-            return { ...m, status: "read" };
-          }
+          if (statusPriority(m.status) < statusPriority("read")) return { ...m, status: "read" };
           return m;
         })
       );
     };
 
-    const onTypingStart = (msg: any) => {
+    const onTypingStart = (msg: { name: string; data: unknown }) => {
       const { userId, displayName } = msg.data as TypingUser;
       if (!userId || userId === currentUser?.id) return;
       setTypingUsers((prev) => {
@@ -183,13 +185,10 @@ export function useRoomChat(
       );
     };
 
-    const onTypingStop = (msg: any) => {
+    const onTypingStop = (msg: { name: string; data: unknown }) => {
       const { userId } = msg.data as { userId: string };
       const timer = typingTimers.current.get(userId);
-      if (timer) {
-        clearTimeout(timer);
-        typingTimers.current.delete(userId);
-      }
+      if (timer) { clearTimeout(timer); typingTimers.current.delete(userId); }
       setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
     };
 
@@ -201,20 +200,21 @@ export function useRoomChat(
     channel.subscribe("room.typing.stop", onTypingStop);
 
     return () => {
-      channel.unsubscribe("room.message", onMessage);
-      channel.unsubscribe("room.message.reaction", onReaction);
-      channel.unsubscribe("room.message.delivered", onDelivered);
-      channel.unsubscribe("room.message.read", onRead);
-      channel.unsubscribe("room.typing.start", onTypingStart);
-      channel.unsubscribe("room.typing.stop", onTypingStop);
+      try { channel.unsubscribe("room.message", onMessage); } catch {}
+      try { channel.unsubscribe("room.message.reaction", onReaction); } catch {}
+      try { channel.unsubscribe("room.message.delivered", onDelivered); } catch {}
+      try { channel.unsubscribe("room.message.read", onRead); } catch {}
+      try { channel.unsubscribe("room.typing.start", onTypingStart); } catch {}
+      try { channel.unsubscribe("room.typing.stop", onTypingStop); } catch {}
+      channelRef.current = null;
     };
-  }, [roomId, accessToken, currentUser?.id]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, realtime, currentUser?.id]);
 
   const sendMessage = useCallback(
     async (content: string, metadata?: any) => {
       if (!roomId || !accessToken || !content.trim()) return;
       setIsSending(true);
-      // Optimistic insert
       const tempId = `temp-${Date.now()}`;
       const optimistic: RoomMessage = {
         id: tempId,
@@ -233,14 +233,9 @@ export function useRoomChat(
       setMessages((prev) => [...prev, optimistic]);
       try {
         const real = await sendRoomMessage(roomId, content, accessToken, metadata);
-        // Replace temp with real message (Ably may also deliver it, handled in onMessage)
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...real, status: "sent" } : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...real, status: "sent" } : m)));
       } catch {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m))
-        );
+        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
       } finally {
         setIsSending(false);
       }
@@ -266,7 +261,6 @@ export function useRoomChat(
   const handleAddReaction = useCallback(
     async (messageId: string, emoji: string) => {
       if (!roomId || !accessToken || !currentUser?.id) return;
-      // Optimistic update
       setMessages((prev) =>
         prev.map((m) => {
           if (m.id !== messageId) return m;
@@ -285,7 +279,6 @@ export function useRoomChat(
         await addReaction(roomId, messageId, emoji, accessToken);
       } catch (e) {
         console.error(e);
-        // Revert on error — reload messages
         listRoomMessages(roomId, accessToken, 50).then((msgs) =>
           setMessages(msgs.map((msg) => ({ ...msg, status: "sent" as MessageStatus })))
         ).catch(() => {});
@@ -296,68 +289,59 @@ export function useRoomChat(
 
   const markAsRead = useCallback(
     (messageIds: string[]) => {
-      if (!roomId || !accessToken || !currentUser?.id || messageIds.length === 0) return;
-      const ably = getAblyClient(accessToken);
-      const channel = ably.channels.get(`room:${roomId}`);
-      channel.publish("room.message.read", { messageIds, userId: currentUser.id }).catch(() => {});
+      if (!roomId || !currentUser?.id || messageIds.length === 0) return;
+      const ch = channelRef.current;
+      if (!ch) return;
+      ch.publish("room.message.read", { messageIds, userId: currentUser.id }).catch(() => {});
     },
-    [roomId, accessToken, currentUser]
+    [roomId, currentUser]
   );
 
   const setTyping = useCallback(
     (isTyping: boolean) => {
-      if (!roomId || !accessToken) return;
-      const ably = getAblyClient(accessToken);
-      const channel = ably.channels.get(`room:${roomId}`);
+      if (!roomId) return;
+      const ch = channelRef.current;
+      if (!ch) return;
 
       if (isTyping && !isTypingRef.current) {
         isTypingRef.current = true;
         const displayName =
           currentUser?.displayName ?? currentUser?.name ?? currentUser?.username ?? "Someone";
-        channel
-          .publish("room.typing.start", { userId: currentUser?.id ?? "", displayName })
-          .catch(() => {});
+        ch.publish("room.typing.start", { userId: currentUser?.id ?? "", displayName }).catch(() => {});
       }
 
       if (typingStopTimer.current) clearTimeout(typingStopTimer.current);
       typingStopTimer.current = setTimeout(() => {
         if (isTypingRef.current) {
           isTypingRef.current = false;
-          channel.publish("room.typing.stop", { userId: currentUser?.id ?? "" }).catch(() => {});
+          ch.publish("room.typing.stop", { userId: currentUser?.id ?? "" }).catch(() => {});
         }
       }, 2000);
 
       if (!isTyping && isTypingRef.current) {
         if (typingStopTimer.current) clearTimeout(typingStopTimer.current);
         isTypingRef.current = false;
-        channel.publish("room.typing.stop", { userId: currentUser?.id ?? "" }).catch(() => {});
+        ch.publish("room.typing.stop", { userId: currentUser?.id ?? "" }).catch(() => {});
       }
     },
-    [roomId, accessToken, currentUser]
+    [roomId, currentUser]
   );
 
-  const addLocalMessage = useCallback(
-    (message: RoomMessage) => {
-      setMessages((prev) => [...prev, message]);
-    },
-    []
-  );
+  const addLocalMessage = useCallback((message: RoomMessage) => {
+    setMessages((prev) => [...prev, message]);
+  }, []);
 
-  const updateLocalMessage = useCallback(
-    (id: string, updates: Partial<RoomMessage>) => {
-      setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
-    },
-    []
-  );
+  const updateLocalMessage = useCallback((id: string, updates: Partial<RoomMessage>) => {
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, ...updates } : m)));
+  }, []);
 
   const publishMessage = useCallback(
     async (message: RoomMessage) => {
-      if (!roomId || !accessToken) return;
-      const ably = getAblyClient(accessToken);
-      const channel = ably.channels.get(`room:${roomId}`);
-      await channel.publish("room.message", message).catch(console.error);
+      const ch = channelRef.current;
+      if (!ch) return;
+      await ch.publish("room.message", message).catch(console.error);
     },
-    [roomId, accessToken]
+    []
   );
 
   return {

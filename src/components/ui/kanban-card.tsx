@@ -16,6 +16,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
   const t = useTranslations("board-detail");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { accessToken } = useSession();
   const isGuest = !canEdit;
   const searchParams = useSearchParams();
@@ -122,6 +123,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
               <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
               <div className="my-1 border-t border-border" />
               <button
+                disabled={isDeleting}
                 onClick={async (e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
@@ -134,16 +136,19 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
                   const confirmed = window.confirm(t("card.deleteConfirm"));
                   if (!confirmed) return;
 
+                  setIsDeleting(true);
                   try {
                     await deleteCard(card.id, accessToken);
                     window.dispatchEvent(new Event('board:refresh'));
                   } catch (err) {
                     console.error("Failed to delete card", err);
+                  } finally {
+                    setIsDeleting(false);
                   }
                 }}
-                className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive"
+                className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {t("card.delete")}
+                {isDeleting ? '...' : t("card.delete")}
               </button>
             </div>
           )}

@@ -3,6 +3,9 @@
   "loadBoardError": "Error al cargar el tablero",
   "deleteBoardError": "No se pudo eliminar el tablero",
   "createListError": "No se pudo crear la lista",
+  "createCardError": "No se pudo crear la tarjeta",
+  "settingsUpdated": "Configuración general actualizada.",
+  "appearanceUpdated": "Apariencia actualizada.",
   "header": {
     "live": "En vivo",
     "copilot": "Copilot",
@@ -55,7 +58,8 @@
     "checklistItems": "Ítems del checklist",
     "comments": "Comentarios",
     "attachments": "Adjuntos",
-    "archived": "Archivada"
+    "archived": "Archivada",
+    "commentPermissionError": "No tienes permisos para comentar en esta tarjeta."
   },
   "cardModal": {
     "archiveCard": "Archivar tarjeta",

@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MessageSquare, Loader2, Plus } from "lucide-react";
+import { MessageSquare, Plus } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { listTeamRooms, type Room } from "@/lib/api/rooms";
 import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
+import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
+import { SkeletonRoomRow } from "@/components/ui/skeleton";
 
 export default function RoomsPageWeb() {
   const t = useTranslations("rooms");
@@ -18,9 +20,24 @@ export default function RoomsPageWeb() {
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
-    setIsLoading(true);
+    const key = cacheKey.rooms(activeTeamId);
+
+    // Show cached rooms instantly
+    const cached = apiCache.get<Room[]>(key);
+    if (cached) {
+      setRooms(cached);
+      setIsLoading(false);
+      if (cached.length > 0) {
+        router.replace(`/rooms/${cached[0].id}`);
+        return;
+      }
+    } else {
+      setIsLoading(true);
+    }
+
     listTeamRooms(activeTeamId, accessToken)
       .then((fetched) => {
+        apiCache.set(key, fetched, CACHE_TTL.ROOMS);
         setRooms(fetched);
         if (fetched.length > 0) {
           router.replace(`/rooms/${fetched[0].id}`);
@@ -32,8 +49,8 @@ export default function RoomsPageWeb() {
 
   if (isLoading) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <div className="flex h-full flex-col divide-y divide-border">
+        {[1,2,3,4,5].map(i => <SkeletonRoomRow key={i} />)}
       </div>
     );
   }

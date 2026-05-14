@@ -15,5 +15,23 @@
       "conn": "C",
       "vec": ""
     }
+  },
+  "feedback": {
+    "saved": "Saved.",
+    "conflictResolved": "Revision conflict — state updated from server.",
+    "deleted": "Deleted.",
+    "deletedCount": "{{count}} deleted.",
+    "downloaded": "Mesh downloaded.",
+    "connCreated": "Connection created.",
+    "connByStroke": "Connection by stroke.",
+    "shapeRecognized": "Shape: {{kind}}",
+    "lockedBy": "\"{{name}}\" is editing this element"
+  },
+  "errors": {
+    "loadFailed": "Could not load mesh.",
+    "saveFailed": "Could not save.",
+    "downloadFailed": "Could not download mesh.",
+    "iinkNoResponse": "iink: no response",
+    "portalSelf": "A portal cannot point to the same mesh."
   }
 }
