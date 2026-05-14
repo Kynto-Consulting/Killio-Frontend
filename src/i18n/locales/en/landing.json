@@ -361,7 +361,7 @@
         "headline": "For growing teams that need more power.",
         "price": "S/ 39",
         "priceYearly": "S/ 31",
-        "priceSub": "per user / month",
+        "priceSub": "per workspace / month",
         "badge": "Most popular",
         "f1": "500 script runs / month",
         "f2": "80 AI credits / month",
@@ -376,7 +376,7 @@
         "headline": "For power users who need unlimited scale.",
         "price": "S/ 89",
         "priceYearly": "S/ 71",
-        "priceSub": "per user / month",
+        "priceSub": "per workspace / month",
         "badge": "Best value",
         "f1": "2000 script runs",
         "f2": "250 AI credits / month",
@@ -391,12 +391,30 @@
     "strip": {
       "eyebrow": "Built for teams",
       "title": "Every detail, covered.",
-      "history": { "title": "Activity History",    "desc": "Full audit trail of every action across boards, documents, and automations." },
-      "metrics": { "title": "Workspace Metrics",   "desc": "Track team velocity, script usage, AI credit consumption, and more." },
-      "roles":   { "title": "Team Roles & Invites", "desc": "Owner, admin, member, and guest roles. Email invites with delivery tracking." },
-      "mobile":  { "title": "Mobile Ready",         "desc": "Full mobile layout for boards and documents. Work from anywhere." },
-      "sharing": { "title": "Public Sharing",       "desc": "Share any board, document, or mesh canvas publicly with a single link." },
-      "folders": { "title": "Folder Organization",  "desc": "Organize boards and documents into nested folders for clean workspace structure." }
+      "history": {
+        "title": "Activity History",
+        "desc": "Full audit trail of every action across boards, documents, and automations."
+      },
+      "metrics": {
+        "title": "Workspace Metrics",
+        "desc": "Track team velocity, script usage, AI credit consumption, and more."
+      },
+      "roles": {
+        "title": "Team Roles & Invites",
+        "desc": "Owner, admin, member, and guest roles. Email invites with delivery tracking."
+      },
+      "mobile": {
+        "title": "Mobile Ready",
+        "desc": "Full mobile layout for boards and documents. Work from anywhere."
+      },
+      "sharing": {
+        "title": "Public Sharing",
+        "desc": "Share any board, document, or mesh canvas publicly with a single link."
+      },
+      "folders": {
+        "title": "Folder Organization",
+        "desc": "Organize boards and documents into nested folders for clean workspace structure."
+      }
     },
     "cta": {
       "eyebrow": "Get started today",
