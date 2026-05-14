@@ -361,7 +361,7 @@
         "headline": "Para equipos en crecimiento que necesitan mas poder.",
         "price": "S/ 39",
         "priceYearly": "S/ 31",
-        "priceSub": "por usuario / mes",
+        "priceSub": "por espacio / mes",
         "badge": "Mas popular",
         "f1": "500 ejecuciones de script / mes",
         "f2": "80 creditos IA / mes",
@@ -376,7 +376,7 @@
         "headline": "Para usuarios avanzados que necesitan escala ilimitada.",
         "price": "S/ 89",
         "priceYearly": "S/ 71",
-        "priceSub": "por usuario / mes",
+        "priceSub": "por espacio / mes",
         "badge": "Mejor valor",
         "f1": "2000 ejecuciones de script",
         "f2": "250 creditos IA / mes",
@@ -391,12 +391,30 @@
     "strip": {
       "eyebrow": "Construido para equipos",
       "title": "Cada detalle, cubierto.",
-      "history": { "title": "Historial de Actividad",    "desc": "Registro completo de cada accion en tableros, documentos y automatizaciones." },
-      "metrics": { "title": "Metricas del Workspace",    "desc": "Monitorea la velocidad del equipo, uso de scripts, consumo de creditos IA y mas." },
-      "roles":   { "title": "Roles e Invitaciones",      "desc": "Roles de propietario, admin, miembro e invitado. Invitaciones por email con seguimiento." },
-      "mobile":  { "title": "Listo para Movil",          "desc": "Diseno completo para tableros y documentos en movil. Trabaja desde cualquier lugar." },
-      "sharing": { "title": "Compartir Publicamente",    "desc": "Comparte cualquier tablero, documento o lienzo Mesh publicamente con un solo enlace." },
-      "folders": { "title": "Organizacion por Carpetas", "desc": "Organiza tableros y documentos en carpetas anidadas para una estructura de workspace limpia." }
+      "history": {
+        "title": "Historial de Actividad",
+        "desc": "Registro completo de cada accion en tableros, documentos y automatizaciones."
+      },
+      "metrics": {
+        "title": "Metricas del Workspace",
+        "desc": "Monitorea la velocidad del equipo, uso de scripts, consumo de creditos IA y mas."
+      },
+      "roles": {
+        "title": "Roles e Invitaciones",
+        "desc": "Roles de propietario, admin, miembro e invitado. Invitaciones por email con seguimiento."
+      },
+      "mobile": {
+        "title": "Listo para Movil",
+        "desc": "Diseno completo para tableros y documentos en movil. Trabaja desde cualquier lugar."
+      },
+      "sharing": {
+        "title": "Compartir Publicamente",
+        "desc": "Comparte cualquier tablero, documento o lienzo Mesh publicamente con un solo enlace."
+      },
+      "folders": {
+        "title": "Organizacion por Carpetas",
+        "desc": "Organiza tableros y documentos en carpetas anidadas para una estructura de workspace limpia."
+      }
     },
     "cta": {
       "eyebrow": "Empieza hoy",
