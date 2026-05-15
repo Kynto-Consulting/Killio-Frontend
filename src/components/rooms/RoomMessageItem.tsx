@@ -22,6 +22,8 @@ import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
 import { updateMessageMetadata } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { API_BASE_URL } from "@/lib/api/client";
+import { MessageInfoPanel } from "./MessageInfoPanel";
+import { Portal } from "@/components/ui/portal";
 
 const resolveAssetUrl = (url: string) => {
   if (!url) return "";
@@ -259,7 +261,10 @@ export function RoomMessageItem({
       window.open(url, '_blank');
     }
   }
-  const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
+  const [userCard, setUserCard] = useState<{ anchor: DOMRect } | null>(null);
+  const [isInfoOpen, setIsInfoOpen] = useState(false);
+
+  const { accessToken } = useSession();
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -838,6 +843,14 @@ export function RoomMessageItem({
               >
                 <CornerUpLeft className="w-3.5 h-3.5" />
               </button>
+              <div className="w-[1px] h-3 bg-border mx-1" />
+              <button
+                onClick={() => setIsInfoOpen(true)}
+                className="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-blue-500 transition-colors"
+                title="Message Info"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
             </div>
           </div>
 
@@ -879,6 +892,24 @@ export function RoomMessageItem({
           onClose={() => setUserCard(null)}
           onOpenCopilot={onOpenCopilot}
         />
+      )}
+
+      {isInfoOpen && (
+        <Portal>
+          <div className="fixed inset-0 z-[300] flex items-center justify-end sm:p-4">
+            <div 
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" 
+              onClick={() => setIsInfoOpen(false)}
+            />
+            <div className="relative w-full sm:w-[400px] h-full sm:h-[600px] sm:max-h-[90vh] bg-card sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
+              <MessageInfoPanel 
+                roomId={message.roomId} 
+                message={message} 
+                onClose={() => setIsInfoOpen(false)} 
+              />
+            </div>
+          </div>
+        </Portal>
       )}
     </>
   );

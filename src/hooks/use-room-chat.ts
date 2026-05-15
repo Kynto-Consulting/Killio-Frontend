@@ -8,6 +8,7 @@ import {
   listRoomMessages,
   sendRoomMessage,
   addReaction,
+  markMessagesAsRead,
   RoomMessage,
   MessageStatus,
 } from "@/lib/api/rooms";
@@ -289,12 +290,15 @@ export function useRoomChat(
 
   const markAsRead = useCallback(
     (messageIds: string[]) => {
-      if (!roomId || !currentUser?.id || messageIds.length === 0) return;
+      if (!roomId || !currentUser?.id || messageIds.length === 0 || !accessToken) return;
       const ch = channelRef.current;
       if (!ch) return;
-      ch.publish("room.message.read", { messageIds, userId: currentUser.id }).catch(() => {});
+      // Persist to DB via API
+      markMessagesAsRead(roomId, messageIds, accessToken).catch(console.error);
+      // Publish to Ably is now handled by the backend service for consistency,
+      // but we could also do it here for zero-latency if needed.
     },
-    [roomId, currentUser]
+    [roomId, currentUser, accessToken]
   );
 
   const setTyping = useCallback(

@@ -997,6 +997,8 @@
     "deleteSuccess": "Variable deleted.",
     "errorSave": "Failed to save variable.",
     "errorDelete": "Failed to delete variable.",
-    "errorLoad": "Failed to load variables."
+    "errorLoad": "Failed to load variables.",
+    "accessDeniedTitle": "Admin access required",
+    "accessDeniedMessage": "Only team admins and owners can manage environment variables."
   }
 }

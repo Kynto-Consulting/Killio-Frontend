@@ -402,3 +402,28 @@ export async function transcriptToDocument(
   return res.json();
 }
 
+export async function markMessagesAsRead(
+  roomId: string,
+  messageIds: string[],
+  accessToken: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/read`, {
+    method: 'POST',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ messageIds }),
+  });
+  if (!res.ok) throw new Error('Failed to mark messages as read');
+}
+
+export async function getMessageInfo(
+  roomId: string,
+  messageId: string,
+  accessToken: string
+): Promise<any> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/${messageId}/info`, {
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw new Error('Failed to fetch message info');
+  return res.json();
+}
+

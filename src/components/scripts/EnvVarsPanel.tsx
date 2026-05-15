@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useSession } from "@/components/providers/session-provider";
+import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { EnvVarSummary, listEnvVars, upsertEnvVar, deleteEnvVar } from "@/lib/api/scripts";
-import { KeyRound, Plus, Trash2, Eye, EyeOff, Pencil, CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { KeyRound, Plus, Trash2, Eye, EyeOff, Pencil, CheckCircle2, XCircle, Loader2, Lock } from "lucide-react";
 
 interface Props {
   teamId: string;
@@ -21,6 +23,8 @@ const EMPTY_FORM: FormState = { key: "", value: "", description: "", isSecret: t
 
 export function EnvVarsPanel({ teamId, accessToken }: Props) {
   const t = useTranslations("integrations");
+  const { user } = useSession();
+  const { isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(teamId, accessToken, user?.id);
 
   const [vars, setVars] = useState<EnvVarSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,7 +56,13 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
     }
   }, [teamId, accessToken, t]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    if (!isRoleLoading && isAdmin) {
+      load();
+    } else if (!isRoleLoading && !isAdmin) {
+      setLoading(false);
+    }
+  }, [load, isRoleLoading, isAdmin]);
 
   const openCreate = () => {
     setEditingId(null);
@@ -106,24 +116,35 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
 
   return (
     <div className="flex flex-col gap-6 p-6 pb-10 max-w-3xl">
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <KeyRound className="h-5 w-5 text-indigo-400" />
-            <h2 className="text-lg font-bold text-white">{t("envVars.title")}</h2>
+      {/* Admin-only check */}
+      {!isRoleLoading && !isAdmin ? (
+        <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-6 flex items-start gap-4">
+          <Lock className="h-5 w-5 shrink-0 text-red-400 mt-0.5" />
+          <div>
+            <h3 className="font-semibold text-red-300 mb-1">{t("envVars.accessDeniedTitle")}</h3>
+            <p className="text-sm text-red-200">{t("envVars.accessDeniedMessage")}</p>
           </div>
-          <p className="text-sm text-slate-400">{t("envVars.subtitle")}</p>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
-        >
-          <Plus className="h-4 w-4" />
-          {t("envVars.add")}
-        </button>
-      </div>
+      ) : (
+        <>
+          {/* Header */}
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <KeyRound className="h-5 w-5 text-indigo-400" />
+                <h2 className="text-lg font-bold text-white">{t("envVars.title")}</h2>
+              </div>
+              <p className="text-sm text-slate-400">{t("envVars.subtitle")}</p>
+            </div>
+            <button
+              type="button"
+              onClick={openCreate}
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
+            >
+              <Plus className="h-4 w-4" />
+              {t("envVars.add")}
+            </button>
+          </div>
 
       {/* Feedback */}
       {successMsg && (
@@ -254,6 +275,8 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
             </div>
           ))}
         </div>
+      )}
+        </>
       )}
     </div>
   );

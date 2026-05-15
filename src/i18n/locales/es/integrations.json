@@ -997,6 +997,8 @@
     "deleteSuccess": "Variable eliminada.",
     "errorSave": "Error al guardar la variable.",
     "errorDelete": "Error al eliminar la variable.",
-    "errorLoad": "Error al cargar las variables."
+    "errorLoad": "Error al cargar las variables.",
+    "accessDeniedTitle": "Se requiere acceso de administrador",
+    "accessDeniedMessage": "Solo los administradores y propietarios del equipo pueden gestionar las variables de entorno."
   }
 }

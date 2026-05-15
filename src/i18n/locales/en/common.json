@@ -349,6 +349,14 @@
       "open": "Open {{type}}"
     },
     "attach": "Attach file",
+    "errors": {
+      "noCredits": "No AI credits available. Please upgrade your plan.",
+      "lowCredits": "Low credits"
+    },
+    "credits": {
+      "used": "{{used}} / {{limit}} credits",
+      "remaining": "{{remaining}} remaining"
+    },
     "toolAction": {
       "cardCreated":        "Created card {{title}}",
       "cardMoved":          "Moved card → {{list}}",

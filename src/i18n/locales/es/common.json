@@ -349,6 +349,14 @@
       "open": "Abrir {{type}}"
     },
     "attach": "Adjuntar archivo",
+    "errors": {
+      "noCredits": "Sin créditos de IA disponibles. Actualiza tu plan.",
+      "lowCredits": "Créditos bajos"
+    },
+    "credits": {
+      "used": "{{used}} / {{limit}} créditos",
+      "remaining": "{{remaining}} restantes"
+    },
     "toolAction": {
       "cardCreated":        "Creó tarjeta {{title}}",
       "cardMoved":          "Movió tarjeta → {{list}}",

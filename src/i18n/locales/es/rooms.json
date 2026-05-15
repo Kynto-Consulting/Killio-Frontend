@@ -215,11 +215,23 @@
     "inCall": "En llamada",
     "you": "(tú)"
   },
-  "errors": {
-    "loadFailed": "No se pudieron cargar las salas.",
-    "sendFailed": "Error al enviar el mensaje.",
-    "callFailed": "No se pudo iniciar la llamada. Verifica los permisos de cámara y micrófono.",
-    "transcriptFailed": "No se pudo enviar la transcripción.",
     "recordFailed": "La grabación no está soportada en este navegador."
+  },
+  "info": {
+    "title": "Info del mensaje",
+    "status": "Estado y entrega",
+    "aiUsage": "Detalles de uso de IA",
+    "pollDetails": "Resultados de encuesta",
+    "readBy": "Leído por",
+    "sentAt": "Enviado el",
+    "read": "Leído",
+    "delivered": "Entregado",
+    "sending": "Enviando...",
+    "model": "Modelo",
+    "tokens": "Tokens",
+    "cost": "Costo",
+    "credits": "créditos",
+    "nobodyRead": "Nadie ha leído este mensaje aún.",
+    "createdAt": "Creado el {date}"
   }
 }

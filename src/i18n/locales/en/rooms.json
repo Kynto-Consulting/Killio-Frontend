@@ -215,11 +215,23 @@
     "inCall": "In call",
     "you": "(you)"
   },
-  "errors": {
-    "loadFailed": "Could not load rooms.",
-    "sendFailed": "Failed to send message.",
-    "callFailed": "Could not start call. Check camera and microphone permissions.",
-    "transcriptFailed": "Could not submit transcript.",
     "recordFailed": "Recording is not supported in this browser."
+  },
+  "info": {
+    "title": "Message Info",
+    "status": "Status & Delivery",
+    "aiUsage": "AI Usage Details",
+    "pollDetails": "Poll Results",
+    "readBy": "Read by",
+    "sentAt": "Sent at",
+    "read": "Read",
+    "delivered": "Delivered",
+    "sending": "Sending...",
+    "model": "Model",
+    "tokens": "Tokens",
+    "cost": "Cost",
+    "credits": "credits",
+    "nobodyRead": "No one has read this message yet.",
+    "createdAt": "Created on {date}"
   }
 }

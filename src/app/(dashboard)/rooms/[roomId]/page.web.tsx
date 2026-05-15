@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -20,6 +21,7 @@ import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
 import { AgentChatPanel } from "@/components/agent";
 import { parseAiMarkup } from "@/lib/ai-markup";
+import { NavbarAiCredits } from "@/components/ui/navbar-ai-credits";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
 import { RoomSidebar } from "@/components/rooms/RoomSidebar";
 import { RoomHeader } from "@/components/rooms/RoomHeader";
@@ -57,6 +59,7 @@ export default function RoomDetailWeb() {
   const [chatInput, setChatInput] = useState("");
   const [showReadReceipts, setShowReadReceipts] = useState(true);
   const [activeCallInRoom, setActiveCallInRoom] = useState<RoomCall | null>(null);
+  const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
 
   const { permissions } = useRoomPermissions(roomId, accessToken);
 
@@ -110,6 +113,21 @@ export default function RoomDetailWeb() {
     listTeamRooms(activeTeamId, accessToken).then(setRooms).catch(console.error);
     listTeamRoomGroups(activeTeamId, accessToken).then(setGroups).catch(console.error);
   }, [activeTeamId, accessToken]);
+
+  // Detect navbar usage slot for portal rendering
+  useEffect(() => {
+    const checkDomElement = () => {
+      const navSlot = document.getElementById("navbar-usage-slot");
+      setNavbarUsageSlotEl((prev) => (prev === navSlot ? prev : navSlot));
+    };
+
+    checkDomElement();
+
+    const observer = new MutationObserver(checkDomElement);
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Fetch active call on room load + subscribe to call started/ended events
   useEffect(() => {
@@ -621,6 +639,14 @@ Team Context: ${activeTeamId}.`;
           />
         </>
       )}
+
+      {/* Render AI Credits in navbar */}
+      {navbarUsageSlotEl && activeTeamId && accessToken ? 
+        createPortal(
+          <NavbarAiCredits teamId={activeTeamId} accessToken={accessToken} />,
+          navbarUsageSlotEl
+        ) 
+        : null}
     </div>
   );
 }

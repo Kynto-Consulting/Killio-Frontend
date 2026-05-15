@@ -14,9 +14,11 @@ import ReactMarkdown from "react-markdown";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
+import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useTeamAiCreditsUpdate } from "@/hooks/use-team-ai-credits-update";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
@@ -284,6 +286,7 @@ export function AgentChatPanel({
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<{ url: string; name: string; type: 'img' | 'document' }[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [aiUsage, setAiUsage] = useState<TeamAiUsage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -301,6 +304,37 @@ export function AgentChatPanel({
       onInitialMessageClear?.();
     }
   }, [initialMessage, autoSendInitial, sendMessage, setInputValue, onInitialMessageClear]);
+
+  // Load initial AI usage
+  useEffect(() => {
+    if (!teamId || !accessToken) return;
+
+    const loadUsage = async () => {
+      try {
+        const usage = await getTeamAiUsage(teamId, accessToken);
+        setAiUsage(usage);
+      } catch (err) {
+        console.error("Failed to load AI usage:", err);
+      }
+    };
+
+    loadUsage();
+  }, [teamId, accessToken]);
+
+  // Subscribe to real-time credits updates
+  const handleCreditsUsed = useCallback((event: any) => {
+    setAiUsage((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        creditsUsed: parseFloat((prev.creditsUsed + event.credits).toFixed(6)),
+        tokensUsed: prev.tokensUsed + event.tokens,
+        remaining: parseFloat((prev.remaining - event.credits).toFixed(6)),
+      };
+    });
+  }, []);
+
+  useTeamAiCreditsUpdate(teamId, handleCreditsUsed);
 
   const openHistory = useCallback(async () => {
     setShowHistory(true);
@@ -362,6 +396,12 @@ export function AgentChatPanel({
   const handleAgentSend = (text?: string) => {
     const raw = typeof text === 'string' ? text : inputValue;
     if (!raw.trim() && attachments.length === 0) return;
+
+    // Validate credits before sending
+    if (!aiUsage || aiUsage.remaining <= 0) {
+      alert(t("agent.errors.noCredits"));
+      return;
+    }
 
     let finalContent = raw;
     if (attachments.length > 0) {
@@ -612,7 +652,7 @@ export function AgentChatPanel({
           ) : (
             <button
               onClick={() => handleAgentSend()}
-              disabled={!inputValue.trim() && attachments.length === 0}
+              disabled={(!inputValue.trim() && attachments.length === 0) || !aiUsage || aiUsage.remaining <= 0}
               className="shrink-0 p-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
@@ -620,6 +660,20 @@ export function AgentChatPanel({
           )}
         </div>
         <p className="mt-1 text-[10px] text-neutral-400 text-center">{t("agent.input.hint")}</p>
+        {aiUsage && (
+          <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[10px] text-neutral-500">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-3 h-3" />
+              <span>{t("agent.credits.used", { used: aiUsage.creditsUsed.toFixed(2), limit: aiUsage.limit.toFixed(2) })}</span>
+            </div>
+            {aiUsage.remaining <= 0 && (
+              <span className="text-red-500 font-medium">{t("agent.errors.noCredits")}</span>
+            )}
+            {aiUsage.remaining > 0 && aiUsage.remaining < 1 && (
+              <span className="text-amber-500 font-medium">{t("agent.errors.lowCredits")}</span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
