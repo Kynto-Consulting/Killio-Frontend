@@ -182,3 +182,19 @@ function isCommonMarkdownHtmlTag(tag: string): boolean {
     "p", "pre", "s", "span", "strong", "sub", "sup", "u",
   ].includes(tag);
 }
+
+/**
+ * Splits text content at the start of an incomplete `<tool_call` or `<batch_tool` tag.
+ * During streaming, the model may emit partial opening tags before they are fully
+ * closed — these fall through `parseAiMarkup` as plain text blocks.
+ * Call this on any text block content to strip the partial XML and signal that a
+ * "Building tool call…" placeholder should be rendered instead.
+ */
+export function splitAtPartialToolTag(content: string): { clean: string; hasPartial: boolean } {
+  const idx = content.search(/<(?:batch_tool|tool_call)\b/i);
+  if (idx === -1) return { clean: content, hasPartial: false };
+  return {
+    clean: content.slice(0, idx).trimEnd(),
+    hasPartial: true,
+  };
+}

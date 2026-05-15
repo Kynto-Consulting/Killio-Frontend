@@ -8,12 +8,12 @@ import {
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
   ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download,
 } from "lucide-react";
-import { ToolCallChip, BatchToolChip } from "@/components/agent/tool-call-chip";
+import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
-import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
 import { UserProfileCard } from "./UserProfileCard";
@@ -404,13 +404,17 @@ export function RoomMessageItem({
                   // Special case for the legacy thinking placeholder
                   if (block.content === "AI_THINKING") return null;
 
+                  const { clean, hasPartial } = splitAtPartialToolTag(block.content);
                   return (
                     <div key={key} className="text-sm leading-relaxed max-w-full overflow-hidden">
-                      <RichText
-                        content={block.content}
-                        context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
-                        availableTags={availableTags}
-                      />
+                      {clean && (
+                        <RichText
+                          content={clean}
+                          context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                          availableTags={availableTags}
+                        />
+                      )}
+                      {hasPartial && <BuildingToolCallChip t={t} />}
                     </div>
                   );
                 }

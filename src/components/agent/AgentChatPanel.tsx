@@ -11,7 +11,7 @@ import {
   Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
-import { ToolCallChip, BatchToolChip } from "@/components/agent/tool-call-chip";
+import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
@@ -20,7 +20,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
-import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RichText } from "../ui/rich-text";
 import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
 import { uploadFile } from "@/lib/api/uploads";
@@ -764,7 +764,11 @@ function AssistantMessage({
 }) {
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
 
-  const { visibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+  const { visibleText: rawVisibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+  const { clean: visibleText, hasPartial: hasPartialToolCall } = useMemo(
+    () => splitAtPartialToolTag(rawVisibleText),
+    [rawVisibleText],
+  );
 
   const toggleMarkup = useCallback((key: string) => {
     setExpandedMarkup((prev) => {
@@ -1234,12 +1238,13 @@ function AssistantMessage({
             <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
               <ReactMarkdown>{visibleText}</ReactMarkdown>
             </div>
-          ) : message.isStreaming ? (
+          ) : message.isStreaming && !hasPartialToolCall ? (
             <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
               <Bot className="w-3.5 h-3.5" />
               <span className="text-[11px]">{t("agent.header.thinking")}</span>
             </div>
           ) : null}
+          {hasPartialToolCall && <BuildingToolCallChip t={t} />}
         </div>
 
         {!message.isStreaming && visibleText && (

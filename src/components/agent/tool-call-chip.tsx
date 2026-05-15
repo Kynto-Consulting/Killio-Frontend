@@ -636,6 +636,24 @@ export function ToolCallChip({
   );
 }
 
+// ─── Building tool call placeholder ──────────────────────────────────────────
+
+/**
+ * Shown during AI streaming when a partial `<tool_call` or `<batch_tool` opening
+ * tag is detected in text content — before the model has finished emitting the tag.
+ */
+export function BuildingToolCallChip({ t }: { t: TFn }) {
+  return (
+    <div className="flex items-center gap-1.5 py-0.5 text-[12px] text-violet-500 dark:text-violet-400">
+      <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
+      <Wrench className="w-3 h-3 shrink-0 opacity-70" />
+      <span className="font-medium italic opacity-80">
+        {t("agent.tools.buildingToolCall") || "Building tool call…"}
+      </span>
+    </div>
+  );
+}
+
 // ─── Batch wrapper ────────────────────────────────────────────────────────────
 
 export interface BatchToolChipProps {
