@@ -61,11 +61,11 @@ interface GeneratedAgentDraft {
 
 const AGENT_TOOL_OPTIONS: Array<{ id: AgentToolId; label: string; description: string }> = [
   { id: 'search', label: 'Search', description: 'agentTools.search' },
-  { id: 'edit', label: 'Edit', description: 'Edita contenido con acciones propuestas' },
+  { id: 'edit', label: 'Edit', description: 'agentTools.edit' },
   { id: 'investigate', label: 'Investigate', description: 'agentTools.investigate' },
-  { id: 'docs', label: 'Docs', description: 'Crea y organiza documentos' },
-  { id: 'boards', label: 'Boards', description: 'Crea y actualiza tableros y listas' },
-  { id: 'scripts', label: 'Scripts', description: 'Propone y configura automatizaciones' },
+  { id: 'docs', label: 'Docs', description: 'agentTools.docs' },
+  { id: 'boards', label: 'Boards', description: 'agentTools.boards' },
+  { id: 'scripts', label: 'Scripts', description: 'agentTools.scripts' },
 ];
 
 const extractJsonObject = (rawText: string): any | null => {
@@ -420,7 +420,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
             }
           } else {
             console.error("File extraction failed");
-            pushToast("error", "No se pudo extraer el archivo. Se intentara continuar con el contexto manual.");
+            pushToast("error", t("aiPanel.extractionError"));
             extractedText = `(No se pudo extraer el contenido de ${selectedFile.name})`;
           }
         }
@@ -523,7 +523,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         const toolsSummary = enabledAgentTools.length > 0
           ? enabledAgentTools.join(', ')
-          : 'ninguna';
+          : t("aiPanel.noneTools");
 
         const agentPrompt = `
 Eres un diseñador de agentes para Killio.
@@ -555,7 +555,7 @@ ${finalContent}
         const draft: GeneratedAgentDraft = {
           id: `draft-agent-${Date.now()}`,
           name: String(parsed?.name || 'Agent Draft'),
-          description: String(parsed?.description || 'Agente generado para este workspace'),
+          description: String(parsed?.description || t("aiPanel.noResultsDesc.agents")),
           reasoning: String(parsed?.reasoning || t("aiPanel.noStructuredReasoning")),
           response: String(parsed?.response || chatRes.text || ''),
           selectedTools: [...enabledAgentTools],
@@ -568,7 +568,7 @@ ${finalContent}
       setGenerationProgress(100);
     } catch (err) {
       console.error("AI Generation failed", err);
-      pushToast("error", "Error conectando con la IA.");
+      pushToast("error", t("aiPanel.generationError"));
     } finally {
       clearInterval(progressInterval);
       setTimeout(() => {
@@ -652,7 +652,7 @@ ${finalContent}
     setPreviewCards((prev) => prev.map((card) => card.id === editingDraftId
       ? {
         ...card,
-        title: editingTitle.trim() || "Tarjeta sin titulo",
+        title: editingTitle.trim() || t("aiPanel.cardUntitled"),
         bricks: [{ kind: 'text', content: { markdown: editingDescription } }],
       }
       : card
@@ -660,7 +660,7 @@ ${finalContent}
     setEditingDraftId(null);
     setEditingTitle("");
     setEditingDescription("");
-    pushToast("success", "Borrador actualizado.");
+    pushToast("success", t("aiPanel.draftUpdated"));
   };
 
   const handleEnableCustomDestination = (cardId: string) => {
@@ -710,7 +710,7 @@ ${finalContent}
       ));
     } catch (error) {
       console.error("Error fetching board lists", error);
-      pushToast("error", "No se pudieron cargar las listas del tablero elegido.");
+      pushToast("error", t("aiPanel.listLoadError"));
     }
   };
 
@@ -747,12 +747,12 @@ ${finalContent}
 
     if (generationType === 'cards') {
       if (!defaultBoardId || !defaultListId) {
-        pushToast("error", "Selecciona un tablero y lista de destino antes de enviar.");
+        pushToast("error", t("aiPanel.selectDestinationFirst"));
         return;
       }
       const selectedDrafts = previewCards.filter((card) => card.isSelected);
       if (selectedDrafts.length === 0) {
-        pushToast("info", "Selecciona al menos una tarjeta para enviar.");
+        pushToast("info", t("aiPanel.selectAtLeastOneCard"));
         return;
       }
       setIsDispatchingSelected(true);
@@ -765,7 +765,7 @@ ${finalContent}
 
         const results = await Promise.allSettled(
           payloads.map(async (entry) => {
-            const card = await createCard({ listId: entry.listId, title: entry.draft.title?.trim() || "Tarjeta sin titulo" }, accessToken);
+            const card = await createCard({ listId: entry.listId, title: entry.draft.title?.trim() || t("aiPanel.cardUntitled") }, accessToken);
             if (entry.draft.bricks) {
               for (const brick of entry.draft.bricks) {
                 await createCardBrick(card.id, {
@@ -797,10 +797,10 @@ ${finalContent}
           setCreatedCardsQueue(createdCards);
           setCreatedCardsQueueIndex(0);
           setActiveCardDetails(createdCards[0]);
-          pushToast("success", `Se enviaron ${createdCards.length} tarjetas.`);
+          pushToast("success", t("aiPanel.cardsSent", { count: createdCards.length }));
         }
       } catch (err: any) {
-        pushToast("error", "Error al enviar tarjetas: " + (err?.message || "Error desconocido"));
+        pushToast("error", t("aiPanel.cardsError", { message: err?.message || t("aiPanel.unknownError") }));
       } finally {
         setIsDispatchingSelected(false);
       }
@@ -819,9 +819,9 @@ ${finalContent}
           }
         }
         setPreviewDocuments(prev => prev.filter(d => !selectedDocs.find(sd => sd.id === d.id)));
-        pushToast("success", `Se crearon ${selectedDocs.length} documentos.`);
+        pushToast("success", t("aiPanel.documentsSent", { count: selectedDocs.length }));
       } catch (err: any) {
-        pushToast("error", "Error al crear documentos.");
+        pushToast("error", t("aiPanel.documentsError"));
       } finally {
         setIsDispatchingSelected(false);
       }
@@ -850,9 +850,9 @@ ${finalContent}
           }
         }
         setPreviewBoards(prev => prev.filter(b => !selectedBoards.find(sb => sb.id === b.id)));
-        pushToast("success", `Se crearon ${selectedBoards.length} tableros.`);
+        pushToast("success", t("aiPanel.boardsSent", { count: selectedBoards.length }));
       } catch (err: any) {
-        pushToast("error", "Error al crear tableros.");
+        pushToast("error", t("aiPanel.boardsError"));
       } finally {
         setIsDispatchingSelected(false);
       }
@@ -949,9 +949,9 @@ ${finalContent}
         }
 
         setPreviewScripts((prev) => prev.filter((script) => !selectedScripts.find((selected) => selected.id === script.id)));
-        pushToast('success', `Se crearon ${selectedScripts.length} scripts.`);
+        pushToast('success', t("aiPanel.scriptsSent", { count: selectedScripts.length }));
       } catch (err: any) {
-        pushToast('error', `Error al crear scripts: ${err?.message || 'Error desconocido'}`);
+        pushToast('error', t("aiPanel.scriptsError", { message: err?.message || t("aiPanel.unknownError") }));
       } finally {
         setIsDispatchingSelected(false);
       }
@@ -987,7 +987,7 @@ ${finalContent}
         setPreviewAgents((prev) => prev.filter((agent) => !selectedAgents.find((selected) => selected.id === agent.id)));
         pushToast('success', t("aiPanel.createdAgents", { count: selectedAgents.length }));
       } catch (err: any) {
-        pushToast('error', `Error al crear agentes: ${err?.message || 'Error desconocido'}`);
+        pushToast('error', t("aiPanel.agentsError", { message: err?.message || t("aiPanel.unknownError") }));
       } finally {
         setIsDispatchingSelected(false);
       }
@@ -1045,7 +1045,7 @@ ${finalContent}
                   <button
                     onClick={() => { setSelectedFile(null); }}
                     className="p-1.5 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    title="Eliminar archivo"
+                    title={t("aiPanel.removeFile")}
                   >
                     <X className="h-4 w-4" />
                   </button>
@@ -1055,13 +1055,13 @@ ${finalContent}
               {/* Text Area (Main Content or Extra Context) */}
               <div className="flex-1 flex flex-col">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
-                  {selectedFile ? "Contexto Adicional (Opcional)" : "Pega tus notas o requerimientos"}
+                  {selectedFile ? t("aiPanel.additionalContextLabel") : t("aiPanel.pasteNotesLabel")}
                 </label>
                 <ReferenceTokenInput
                   value={fileText}
                   onChange={setFileText}
                   onPasteImage={(file) => setSelectedFile(file)}
-                  placeholder={selectedFile ? t("aiPanel.filterContextPlaceholder") : "Añade toda la información necesaria para crear las tarjetas..."}
+                  placeholder={selectedFile ? t("aiPanel.filterContextPlaceholder") : t("aiPanel.mainPlaceholder")}
                   documents={teamDocs}
                   boards={boards}
                   users={teamMembers}
@@ -1076,7 +1076,7 @@ ${finalContent}
                 {isGenerating ? (
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs font-medium text-muted-foreground">
-                      <span className="flex items-center"><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> Analizando contenido...</span>
+                      <span className="flex items-center"><Loader2 className="h-3 w-3 animate-spin mr-1.5" /> {t("aiPanel.analyzing")}</span>
                       <span>{generationProgress}%</span>
                     </div>
                     <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
@@ -1095,13 +1095,13 @@ ${finalContent}
                     >
                       <Sparkles className="h-5 w-5 mr-2" />
                       {generationType === 'cards'
-                        ? 'Generar Tarjetas'
+                        ? t("aiPanel.generateCards")
                         : generationType === 'documents'
-                          ? 'Generar Documentos'
+                          ? t("aiPanel.generateDocuments")
                           : generationType === 'boards'
-                            ? 'Generar Tableros'
+                            ? t("aiPanel.generateBoards")
                             : generationType === 'scripts'
-                              ? 'Generar Scripts'
+                              ? t("aiPanel.generateScripts")
                               : t("aiPanel.designAgent")}
                     </button>
                     <div className="flex gap-2">
@@ -1117,22 +1117,22 @@ ${finalContent}
                         {showGenerationTypeMenu && (
                           <div className="absolute bottom-full right-0 w-52 bg-card border border-border rounded-xl shadow-xl p-1.5 transition-all origin-bottom-right z-30 mb-2">
                           <button onClick={() => { setGenerationType('cards'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'cards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Layout className="h-3.5 w-3.5" /> Generar Tarjetas
+                            <Layout className="h-3.5 w-3.5" /> {t("aiPanel.generateCards")}
                           </button>
                           <button onClick={() => { setGenerationType('documents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'documents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <FileText className="h-3.5 w-3.5" /> Generar Documentos
+                            <FileText className="h-3.5 w-3.5" /> {t("aiPanel.generateDocuments")}
                           </button>
                           <button onClick={() => { setGenerationType('boards'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'boards' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Layout className="h-3.5 w-3.5" /> Generar Tableros
+                            <Layout className="h-3.5 w-3.5" /> {t("aiPanel.generateBoards")}
                           </button>
                           <button onClick={() => { setGenerationType('scripts'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'scripts' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Sparkles className="h-3.5 w-3.5" /> Generar Scripts
+                            <Sparkles className="h-3.5 w-3.5" /> {t("aiPanel.generateScripts")}
                           </button>
                           <button onClick={() => { setGenerationType('agents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'agents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Bot className="h-3.5 w-3.5" /> Modo Agente
+                            <Bot className="h-3.5 w-3.5" /> {t("aiPanel.agentMode")}
                           </button>
                           <button onClick={() => { setGenerationType('chat'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'chat' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Bot className="h-3.5 w-3.5" /> Chat con IA
+                            <Bot className="h-3.5 w-3.5" /> {t("aiPanel.chatWithAI")}
                           </button>
                         </div>
                         )}
@@ -1143,7 +1143,7 @@ ${finalContent}
                           <button
                             type="button"
                             className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
-                            title="Tools del agente"
+                            title={t("aiPanel.agentToolsTitle")}
                           >
                             <Wrench className="h-4.5 w-4.5 text-muted-foreground" />
                           </button>
@@ -1162,7 +1162,7 @@ ${finalContent}
                                       <span className="text-xs font-semibold text-foreground">{tool.label}</span>
                                       {selected && <CheckCircle2 className="h-3.5 w-3.5 text-accent" />}
                                     </div>
-                                    <p className="text-[11px] text-muted-foreground mt-1">{tool.description}</p>
+                                    <p className="text-[11px] text-muted-foreground mt-1">{t(tool.description)}</p>
                                   </button>
                                 );
                               })}
@@ -1200,14 +1200,14 @@ ${finalContent}
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-lg text-foreground">
                   {generationType === 'cards'
-                    ? 'Borradores de Tarjetas'
+                    ? t("aiPanel.draftTitles.cards")
                     : generationType === 'documents'
-                      ? 'Borradores de Documentos'
+                      ? t("aiPanel.draftTitles.documents")
                       : generationType === 'boards'
-                        ? 'Borradores de Tableros'
+                        ? t("aiPanel.draftTitles.boards")
                         : generationType === 'scripts'
-                          ? 'Borradores de Scripts'
-                          : 'Borradores de Agentes'}
+                          ? t("aiPanel.draftTitles.scripts")
+                          : t("aiPanel.draftTitles.agents")}
                 </h3>
                 {((generationType === 'cards' && previewCards.length > 0)
                   || (generationType === 'documents' && previewDocuments.length > 0)
@@ -1216,7 +1216,7 @@ ${finalContent}
                   || (generationType === 'agents' && previewAgents.length > 0)) && (
                   <div className="flex items-center space-x-2">
                     <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary/10 text-primary">
-                      {generationType === 'cards'
+                      {t("aiPanel.pendingCount", { count: generationType === 'cards'
                         ? previewCards.length
                         : generationType === 'documents'
                           ? previewDocuments.length
@@ -1224,7 +1224,7 @@ ${finalContent}
                             ? previewBoards.length
                             : generationType === 'scripts'
                               ? previewScripts.length
-                              : previewAgents.length} en espera
+                              : previewAgents.length })}
                     </span>
                     <button
                       onClick={handleToggleSelectAll}
@@ -1235,7 +1235,7 @@ ${finalContent}
                         || (generationType === 'documents' && previewDocuments.every(d => d.isSelected))
                         || (generationType === 'boards' && previewBoards.every(b => b.isSelected))
                         || (generationType === 'scripts' && previewScripts.every(s => s.isSelected))
-                        || (generationType === 'agents' && previewAgents.every(a => a.isSelected))) ? "Deseleccionar" : "Seleccionar"} todas
+                        || (generationType === 'agents' && previewAgents.every(a => a.isSelected))) ? t("aiPanel.deselectAll") : t("aiPanel.selectAll")}
                     </button>
                   </div>
                 )}
@@ -1271,7 +1271,7 @@ ${finalContent}
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
-                        Paso 1: haz clic en cualquier tarjeta para leerla y editarla. Paso 2: elige un tablero/lista y envía una o varias tarjetas seleccionadas.
+                        {t("aiPanel.instructions.cards")}
                       </p>
                     </div>
                   )}
@@ -1279,7 +1279,7 @@ ${finalContent}
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
-                        Selecciona los documentos que deseas crear y presiona "Crear documentos" para agregarlos a tu espacio.
+                        {t("aiPanel.instructions.documents")}
                       </p>
                     </div>
                   )}
@@ -1287,7 +1287,7 @@ ${finalContent}
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
-                        Selecciona los tableros que deseas crear y presiona "Crear tableros" para agregarlos a tu equipo.
+                        {t("aiPanel.instructions.boards")}
                       </p>
                     </div>
                   )}
@@ -1295,7 +1295,7 @@ ${finalContent}
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
-                        Revisa la estructura del workflow y crea los scripts seleccionados para editarlos luego en el builder visual.
+                        {t("aiPanel.instructions.scripts")}
                       </p>
                     </div>
                   )}
@@ -1303,20 +1303,20 @@ ${finalContent}
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />
                       <p className="text-muted-foreground">
-                        El agente usa las tools habilitadas para razonar, investigar y proponer acciones. Puedes guardar su configuración como documento.
+                        {t("aiPanel.instructions.agents")}
                       </p>
                     </div>
                   )}
 
                   {generationType === 'cards' && (
                     <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
-                      <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">Paso 2: Destino</div>
+                      <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">{t("aiPanel.step2Destination")}</div>
                       <Select
                         sizeVariant="sm"
                         wrapperClassName="flex-1 min-w-[160px]"
                         value={defaultBoardId}
                         onChange={(e) => setDefaultBoardId(e.target.value)}
-                        placeholder="Selecciona tablero..."
+                        placeholder={t("aiPanel.selectBoard")}
                         options={boards.map((board) => ({ value: board.id, label: board.name }))}
                       />
                       <Select
@@ -1325,7 +1325,7 @@ ${finalContent}
                         value={defaultListId}
                         onChange={(e) => setDefaultListId(e.target.value)}
                         disabled={!defaultBoardId || defaultLists.length === 0}
-                        placeholder={!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
+                        placeholder={!defaultBoardId ? t("aiPanel.selectBoardFirst") : defaultLists.length === 0 ? t("aiPanel.noLists") : t("aiPanel.selectList")}
                         options={defaultLists.map((list) => ({ value: list.id, label: list.name }))}
                       />
                     <button
@@ -1337,7 +1337,7 @@ ${finalContent}
                         <Loader2 className="h-4 w-4 animate-spin" />
                       ) : (
                         <>
-                          <Send className="h-3.5 w-3.5 mr-1.5" /> Enviar seleccionadas
+                          <Send className="h-3.5 w-3.5 mr-1.5" /> {t("aiPanel.sendSelected")}
                         </>
                       )}
                     </button>
@@ -1355,7 +1355,7 @@ ${finalContent}
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear documentos
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> {t("aiPanel.createDocuments")}
                           </>
                         )}
                       </button>
@@ -1373,7 +1373,7 @@ ${finalContent}
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear tableros
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> {t("aiPanel.createBoards")}
                           </>
                         )}
                       </button>
@@ -1391,7 +1391,7 @@ ${finalContent}
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Crear scripts
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> {t("aiPanel.createScripts")}
                           </>
                         )}
                       </button>
@@ -1409,7 +1409,7 @@ ${finalContent}
                           <Loader2 className="h-4 w-4 animate-spin" />
                         ) : (
                           <>
-                            <Plus className="h-3.5 w-3.5 mr-1.5" /> Guardar agentes
+                            <Plus className="h-3.5 w-3.5 mr-1.5" /> {t("aiPanel.saveAgents")}
                           </>
                         )}
                       </button>
@@ -1441,7 +1441,7 @@ ${finalContent}
                           }}
                           className="inline-flex items-center h-8 px-2.5 rounded-md border border-input text-xs font-medium hover:bg-accent/5"
                         >
-                          <Edit3 className="h-3.5 w-3.5 mr-1" /> Revisar
+                          <Edit3 className="h-3.5 w-3.5 mr-1" /> {t("aiPanel.review")}
                         </button>
                       </div>
 
@@ -1455,25 +1455,25 @@ ${finalContent}
                           onAddBrick={() => { }}
                           users={teamMembers}
                         />
-                        {card.bricks.length > 2 && <div className="text-[10px] mt-1 italic opacity-60">+{card.bricks.length - 2} bricks más...</div>}
+                        {card.bricks.length > 2 && <div className="text-[10px] mt-1 italic opacity-60">{t("aiPanel.moreBricks", { count: card.bricks.length - 2 })}</div>}
                       </div>
 
                       <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-between mb-2">
-                          <span className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">Destino individual (opcional)</span>
+                          <span className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">{t("aiPanel.individualDestination")}</span>
                           {card.customBoardId ? (
                             <button
                               onClick={() => handleDisableCustomDestination(card.id)}
                               className="text-xs text-muted-foreground hover:text-foreground"
                             >
-                              Usar destino global
+                              {t("aiPanel.useGlobalDestination")}
                             </button>
                           ) : (
                             <button
                               onClick={() => handleEnableCustomDestination(card.id)}
                               className="text-xs text-accent hover:underline"
                             >
-                              Definir destino propio
+                              {t("aiPanel.defineOwnDestination")}
                             </button>
                           )}
                         </div>
@@ -1484,7 +1484,7 @@ ${finalContent}
                               sizeVariant="sm"
                               value={card.customBoardId}
                               onChange={(e) => handleCustomBoardChange(card.id, e.target.value)}
-                              placeholder="Tablero..."
+                              placeholder={t("aiPanel.boardPlaceholder")}
                               options={boards.map((board) => ({ value: board.id, label: board.name }))}
                             />
                             <Select
@@ -1492,15 +1492,15 @@ ${finalContent}
                               value={card.customListId || ""}
                               onChange={(e) => handleCustomListChange(card.id, e.target.value)}
                               disabled={!card.customBoardId || (card.availableLists || []).length === 0}
-                              placeholder="Lista..."
+                              placeholder={t("aiPanel.listPlaceholder")}
                               options={(card.availableLists || []).map((list) => ({ value: list.id, label: list.name }))}
                             />
                           </div>
                         )}
                       </div>
                       <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between text-xs text-muted-foreground">
-                        <span>{card.isSelected ? "Seleccionada para enviar" : "No seleccionada"}</span>
-                        <span className="text-accent">Haz click para editar</span>
+                        <span>{card.isSelected ? t("aiPanel.selectedToSend") : t("aiPanel.notSelected")}</span>
+                        <span className="text-accent">{t("aiPanel.clickToEdit")}</span>
                       </div>
                     </div>
                   ))}
@@ -1594,10 +1594,10 @@ ${finalContent}
                           <span className="text-[10px] bg-accent/10 text-accent px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">SCRIPT</span>
                         </div>
                       </div>
-                      <p className="text-sm text-muted-foreground mb-3">{script.description || 'Sin descripción'}</p>
+                      <p className="text-sm text-muted-foreground mb-3">{script.description || t("aiPanel.noDescription")}</p>
                       <div className="flex gap-2 flex-wrap">
-                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">Nodos: {script.nodes.length}</span>
-                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">Conexiones: {script.connections.length}</span>
+                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">{t("aiPanel.nodesLabel")}: {script.nodes.length}</span>
+                        <span className="text-[11px] bg-secondary/50 border border-border px-2 py-1 rounded-md">{t("aiPanel.connectionsLabel")}: {script.connections.length}</span>
                       </div>
 
                       <div className="mt-3">
@@ -1609,25 +1609,25 @@ ${finalContent}
                           }}
                           className="text-xs px-2.5 py-1.5 rounded-md border border-border hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
                         >
-                          {expandedScriptPreviewIds.includes(script.id) ? 'Ocultar previsualización' : 'Previsualizar script'}
+                          {expandedScriptPreviewIds.includes(script.id) ? t("aiPanel.hidePreview") : t("aiPanel.previewScript")}
                         </button>
                       </div>
 
                       {expandedScriptPreviewIds.includes(script.id) && (
                         <div className="mt-3 rounded-lg border border-border/70 bg-background/40 p-3 space-y-3">
                           <div>
-                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Nodos</p>
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">{t("aiPanel.nodesLabel")}</p>
                             <pre className="text-[11px] whitespace-pre-wrap text-foreground/80 leading-relaxed">
 {script.nodes.map((node) => `- ${node.id} | ${node.kind}${node.label ? ` | ${node.label}` : ''}`).join('\n')}
                             </pre>
                           </div>
 
                           <div>
-                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">Conexiones</p>
+                            <p className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">{t("aiPanel.connectionsLabel")}</p>
                             <pre className="text-[11px] whitespace-pre-wrap text-foreground/80 leading-relaxed">
 {script.connections.length > 0
   ? script.connections.map((edge) => `- ${edge.source} -> ${edge.target}`).join('\n')
-  : '- Sin conexiones'}
+  : `- ${t("aiPanel.noConnections")}`}
                             </pre>
                           </div>
                         </div>
@@ -1663,7 +1663,7 @@ ${finalContent}
                       </div>
 
                       <div className="rounded-md border border-border/60 p-3 bg-background/40 mb-3">
-                        <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">Respuesta del agente</p>
+                        <p className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground mb-2">{t("aiPanel.agentResponse")}</p>
                         <p className="text-xs text-muted-foreground whitespace-pre-wrap">{agent.response}</p>
                       </div>
 
@@ -1701,7 +1701,7 @@ ${finalContent}
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
           <div className="w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl p-6">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold">Revisar Borrador</h3>
+              <h3 className="text-lg font-semibold">{t("aiPanel.reviewDraft")}</h3>
               <button
                 onClick={() => setEditingDraftId(null)}
                 className="rounded-full p-2 hover:bg-accent/10 text-muted-foreground"
@@ -1712,25 +1712,25 @@ ${finalContent}
 
             <div className="space-y-4">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Titulo</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("aiPanel.titleLabel")}</label>
                 <input
                   value={editingTitle}
                   onChange={(e) => setEditingTitle(e.target.value)}
                   className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                  placeholder="Titulo de la tarjeta"
+                  placeholder={t("aiPanel.cardTitlePlaceholder")}
                 />
               </div>
 
               <div>
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">Descripcion</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">{t("aiPanel.descriptionLabel")}</label>
                 <textarea
                   value={editingDescription}
                   onChange={(e) => setEditingDescription(e.target.value)}
                   className="w-full min-h-[220px] rounded-md border border-input bg-background px-3 py-2 text-sm resize-none"
-                  placeholder="Revisa y edita el contenido antes de enviarlo..."
+                  placeholder={t("aiPanel.contentEditPlaceholder")}
                 />
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Luego en el detalle de la card creada podras adjuntar imagenes, etiquetas y asignados.
+                  {t("aiPanel.cardDetailHelper")}
                 </p>
               </div>
             </div>
@@ -1740,13 +1740,13 @@ ${finalContent}
                 onClick={() => setEditingDraftId(null)}
                 className="inline-flex items-center justify-center h-9 px-4 rounded-md border border-input text-sm hover:bg-accent/5"
               >
-                Cancelar
+                {t("aiPanel.cancel")}
               </button>
               <button
                 onClick={handleSaveDraftEditor}
                 className="inline-flex items-center justify-center h-9 px-4 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:bg-accent/90"
               >
-                Guardar cambios
+                {t("aiPanel.saveChanges")}
               </button>
             </div>
           </div>

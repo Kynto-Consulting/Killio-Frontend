@@ -11,6 +11,7 @@ import {
   Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import { ToolCallChip, BatchToolChip } from "@/components/agent/tool-call-chip";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
@@ -54,7 +55,7 @@ async function fetchAndDownload(url: string, filename?: string, accessToken?: st
 }
 
 
-const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
+const IframeWithPreview = ({ src, title, height, screenshot, t }: { src: string, title?: string, height: string, screenshot?: string, t: TFn }) => {
   const [isLive, setIsLive] = useState(false);
 
   if (isLive) {
@@ -84,7 +85,7 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
       <div className="relative z-10 w-16 h-16 rounded-full bg-blue-500/20 backdrop-blur-sm flex items-center justify-center text-blue-400 group-hover/iframe:scale-110 transition-transform">
         <Play className="w-8 h-8 ml-1" />
       </div>
-      <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">Activar Vista en Vivo</div>
+      <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">{t("agent.asset.activateLive")}</div>
       <div className="relative z-10 mt-1 text-[10px] text-blue-500/60 font-mono truncate max-w-[80%]">
         {src.startsWith('/') ? window.location.hostname : (src.startsWith('http') ? new URL(src).hostname : src)}
       </div>
@@ -473,7 +474,7 @@ export function AgentChatPanel({
       )}
 
       {/* ── Message list ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-hidden px-4 py-4 space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <EmptyState
             t={t}
@@ -578,7 +579,7 @@ export function AgentChatPanel({
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isLoading}
               className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
-              title="Adjuntar archivo"
+              title={t("agent.attach")}
             >
               <div className="relative">
                 <FileText className="w-4 h-4" />
@@ -797,35 +798,23 @@ function AssistantMessage({
           if (block.tag === "batch_tool") {
             const { blocks: subBlocks } = parseAiMarkup(block.content);
             const toolCalls = subBlocks.filter(b => b.tag === 'tool_call');
-
+            const anyRunning = toolCalls.some(sub => {
+              try {
+                const d = JSON.parse(sub.content);
+                const events = message.toolEvents ?? [];
+                return events.some(e => e.tool?.toLowerCase() === d.name?.toLowerCase() && e.phase === "start");
+              } catch { return false; }
+            });
             return (
-              <div key={key} className="self-start max-w-full my-1.5 animate-in fade-in slide-in-from-left-2">
-                <div className="flex flex-col gap-2 p-3 rounded-2xl border-2 border-violet-500/10 bg-violet-500/5 dark:bg-violet-900/5">
-                  <div className="flex items-center gap-2 px-1">
-                    <ListChecks className="w-3.5 h-3.5 text-violet-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
-                      Ejecución en Lote ({toolCalls.length})
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2">
-                    {toolCalls.map((sub, i) => {
-                      try {
-                        const data = JSON.parse(sub.content);
-                        return (
-                          <ToolCallItem
-                            key={`${key}-${i}`}
-                            t={t}
-                            data={data}
-                            message={message}
-                            onToolApproval={onToolApproval}
-                          />
-                        );
-                      } catch (e) {
-                        return null;
-                      }
-                    })}
-                  </div>
-                </div>
+              <div key={key} className="my-1">
+                <BatchToolChip t={t} count={toolCalls.length} defaultOpen={anyRunning}>
+                  {toolCalls.map((sub, i) => {
+                    try {
+                      const data = JSON.parse(sub.content);
+                      return <AgentToolCallChip key={`${key}-${i}`} t={t} data={data} message={message} onToolApproval={onToolApproval} />;
+                    } catch { return null; }
+                  })}
+                </BatchToolChip>
               </div>
             );
           }
@@ -834,18 +823,11 @@ function AssistantMessage({
             try {
               const data = JSON.parse(block.content);
               return (
-                <div key={key} className="self-start max-w-full my-1">
-                  <ToolCallItem
-                    t={t}
-                    data={data}
-                    message={message}
-                    onToolApproval={onToolApproval}
-                  />
+                <div key={key} className="my-0.5">
+                  <AgentToolCallChip t={t} data={data} message={message} onToolApproval={onToolApproval} />
                 </div>
               );
-            } catch (e) {
-              return null;
-            }
+            } catch { return null; }
           }
 
           if (block.tag === "asset") {
@@ -896,6 +878,7 @@ function AssistantMessage({
                           title={title || "Portal Content"}
                           height={height || '400px'}
                           screenshot={screenshot}
+                          t={t}
                         />
                       </div>
                     ) : (
@@ -1021,17 +1004,8 @@ function AssistantMessage({
             );
           }
 
-          if (block.tag === "text") {
-            return (
-              <div key={key} className="text-neutral-700 dark:text-neutral-300 text-[13px] leading-relaxed max-w-full">
-                <RichText
-                  content={block.content}
-                  context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
-                  availableTags={availableTags}
-                />
-              </div>
-            );
-          }
+          // "text" blocks are rendered in the bottom bubble via visibleText — skip here
+          if (block.tag === "text") return null;
 
           if (block.tag === "plan") {
             const steps: { id: string; status: string; content: string }[] = [];
@@ -1045,7 +1019,7 @@ function AssistantMessage({
               <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm">
                 <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
                   <ListChecks className="w-3 h-3" />
-                  <span>Execution Plan</span>
+                  <span>{t("agent.tools.executionPlan")}</span>
                 </div>
                 <div className="space-y-2">
                   {steps.map((step) => (
@@ -1082,10 +1056,10 @@ function AssistantMessage({
           if (block.tag === "pre_think") {
             const sections = parsePreThinkSections(block.content);
             const sectionMeta: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-              assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: "Assumptions", color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
-              risks: { icon: <ShieldCheck className="w-3 h-3" />, label: "Risks", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
-              strategy: { icon: <Lightbulb className="w-3 h-3" />, label: "Strategy", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-              raw: { icon: <Brain className="w-3 h-3" />, label: "Thinking", color: "text-neutral-500", bg: "bg-neutral-50 dark:bg-neutral-800/50" },
+              assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: t("agent.preThinkSections.assumptions"), color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
+              risks: { icon: <ShieldCheck className="w-3 h-3" />, label: t("agent.preThinkSections.risks"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
+              strategy: { icon: <Lightbulb className="w-3 h-3" />, label: t("agent.preThinkSections.strategy"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+              raw: { icon: <Brain className="w-3 h-3" />, label: t("agent.preThinkSections.thinking"), color: "text-neutral-500", bg: "bg-neutral-50 dark:bg-neutral-800/50" },
             };
             return (
               <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 overflow-hidden shadow-sm">
@@ -1095,7 +1069,7 @@ function AssistantMessage({
                 >
                   <div className="flex items-center gap-1.5">
                     <Brain className="w-3.5 h-3.5" />
-                    <span>Pre-think</span>
+                    <span>{t("agent.tools.preThink")}</span>
                   </div>
                   {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                 </button>
@@ -1263,7 +1237,7 @@ function AssistantMessage({
           ) : message.isStreaming ? (
             <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
               <Bot className="w-3.5 h-3.5" />
-              <span className="text-[11px]">{t("chat.thinking")}...</span>
+              <span className="text-[11px]">{t("agent.header.thinking")}</span>
             </div>
           ) : null}
         </div>
@@ -1403,9 +1377,9 @@ function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
   );
 }
 
-// ─── ToolCallItem ────────────────────────────────────────────────────────────
+// ─── AgentToolCallChip — resolves AgentMessage events → ToolCallChip props ───
 
-function ToolCallItem({
+function AgentToolCallChip({
   t,
   data,
   message,
@@ -1416,111 +1390,29 @@ function ToolCallItem({
   message: AgentMessage;
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
-  const meta = getToolMeta(t, data.name);
-  const inputPreview = formatToolInput(data.input);
-
-  // Find if this tool call has finished in toolEvents
-  const searchName = data.name?.toLowerCase();
-  const events = message.toolEvents || [];
-  const doneEvent = events.find(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
-  const isDone = !!doneEvent;
-  const isError = doneEvent?.success === false;
+  const searchName = (data.name ?? "").toLowerCase();
+  const events = message.toolEvents ?? [];
+  const doneEvent   = events.find(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
+  const isDone      = !!doneEvent;
+  const isError     = doneEvent?.success === false;
+  const isRunning   = !isDone && events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "start");
   const needsApproval = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "waiting_for_approval");
-
-  // Prefer output from toolEvents (live streaming), fall back to data.output (loaded from history)
-  const toolOutput = doneEvent?.output ?? data.output;
-  const toolInput = doneEvent?.input ?? data.input;
+  const output      = doneEvent?.output ?? data.output;
+  const input       = doneEvent?.input  ?? data.input;
 
   return (
-    <div className={`flex flex-col gap-2 p-2 rounded-xl border animate-in fade-in slide-in-from-left-1 ${needsApproval ? 'border-amber-500/30 bg-amber-500/5' : 'border-violet-100 dark:border-violet-800/30 bg-violet-50/50 dark:bg-violet-900/10'}`}>
-      <div className="flex items-center gap-2 px-1">
-        <div className="relative">
-          {!isDone && !needsApproval && <div className="absolute inset-0 bg-violet-400 rounded-full animate-ping opacity-20" />}
-          {needsApproval && <div className="absolute inset-0 bg-amber-400 rounded-full animate-pulse opacity-40" />}
-          <span className={`${needsApproval ? 'text-amber-500' : meta.color} shrink-0 relative`}>
-            {needsApproval ? <ShieldAlert className="w-3.5 h-3.5" /> : meta.icon}
-          </span>
-        </div>
-        <span className={`${needsApproval ? 'text-amber-700 dark:text-amber-400' : 'text-violet-700 dark:text-violet-300'} font-semibold uppercase tracking-tight text-[11px]`}>
-          {formatToolName(data.name)} {needsApproval && "— Requiere Permiso"}
-        </span>
-        {inputPreview && (
-          <span className="text-[10px] text-muted-foreground truncate max-w-[150px] font-mono opacity-60">
-            ({inputPreview})
-          </span>
-        )}
-
-        {needsApproval ? null : (
-          isDone ? (
-            isError ? (
-              <AlertCircle className="w-2.5 h-2.5 text-destructive ml-auto" />
-            ) : (
-              <Check className="w-2.5 h-2.5 text-emerald-500 ml-auto" />
-            )
-          ) : (
-            <Loader2 className="w-2.5 h-2.5 animate-spin text-violet-400 ml-auto" />
-          )
-        )}
-
-        {isDone && (
-          <button
-            onClick={() => setExpanded((v: boolean) => !v)}
-            className="p-0.5 rounded hover:bg-violet-100 dark:hover:bg-violet-800/30 transition-colors ml-1"
-            title={expanded ? "Ocultar detalles" : "Ver detalles"}
-          >
-            <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 transition-colors" />
-          </button>
-        )}
-      </div>
-
-      {/* Expanded TOOL INPUT / TOOL OUTPUT section */}
-      {isDone && expanded && (
-        <div className="mt-1 flex flex-col gap-1.5 border-t border-violet-100 dark:border-violet-800/20 pt-1.5">
-          {toolInput && (
-            <div>
-              <div className="text-[9px] font-mono text-violet-400 mb-0.5 flex items-center gap-1">
-                <Wrench className="w-2 h-2" />
-                TOOL INPUT
-              </div>
-              <pre className="text-[9px] font-mono text-neutral-300 bg-neutral-900 rounded-lg p-1.5 whitespace-pre-wrap break-all overflow-y-auto max-h-[100px] custom-scrollbar">
-                {JSON.stringify(toolInput, null, 2)}
-              </pre>
-            </div>
-          )}
-          <div>
-            <div className={`text-[9px] font-mono mb-0.5 flex items-center gap-1 ${isError ? 'text-red-400' : 'text-emerald-400'}`}>
-              {isError ? <AlertCircle className="w-2 h-2" /> : <Check className="w-2 h-2" />}
-              TOOL OUTPUT
-            </div>
-            <pre className="text-[9px] font-mono text-neutral-300 bg-neutral-900 rounded-lg p-1.5 whitespace-pre-wrap break-all overflow-y-auto max-h-[120px] custom-scrollbar">
-              {toolOutput
-                ? JSON.stringify(toolOutput, null, 2)
-                : isError ? "(error sin detalles)" : "(sin datos de salida)"}
-            </pre>
-          </div>
-        </div>
-      )}
-
-      {needsApproval && (
-        <div className="flex items-center gap-2 mt-1">
-          <button
-            onClick={() => onToolApproval?.(data.name, data.input, 'approved')}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-[10px] uppercase tracking-wider transition-colors shadow-sm"
-          >
-            <Check className="w-3 h-3" />
-            Aprobar
-          </button>
-          <button
-            onClick={() => onToolApproval?.(data.name, data.input, 'rejected')}
-            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg bg-neutral-200 dark:bg-neutral-800 hover:bg-neutral-300 dark:hover:bg-neutral-700 text-neutral-700 dark:text-neutral-300 font-bold text-[10px] uppercase tracking-wider transition-colors border border-neutral-300 dark:border-neutral-700"
-          >
-            <X className="w-3 h-3" />
-            Rechazar
-          </button>
-        </div>
-      )}
-    </div>
+    <ToolCallChip
+      t={t}
+      toolName={data.name ?? ""}
+      input={input}
+      isDone={isDone}
+      isRunning={isRunning}
+      isError={isError}
+      needsApproval={needsApproval}
+      output={output}
+      onApprove={onToolApproval ? () => onToolApproval(data.name, data.input, 'approved') : undefined}
+      onReject={onToolApproval  ? () => onToolApproval(data.name, data.input, 'rejected') : undefined}
+    />
   );
 }
 
