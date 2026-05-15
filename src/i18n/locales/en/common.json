@@ -137,6 +137,12 @@
       "agents": "The agent uses enabled tools to reason, investigate and propose actions. You can save its configuration as a document."
     }
   },
+  "pushBanner": {
+    "message": "Enable notifications to receive mentions, card assignments and follow-ups — even when this tab is closed.",
+    "enable": "Enable notifications",
+    "disable": "Disable notifications",
+    "dismiss": "Dismiss"
+  },
   "items": {
     "cardOverdueTitle": "Overdue: {{cardTitle}}",
     "cardOverdueMessage": "The card in {{boardName}} / {{listName}} has passed its due date.",

@@ -12,6 +12,7 @@ import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
 import { RoomCallControls } from "@/components/rooms/RoomCallControls";
+import { PushPermissionBanner } from "@/components/rooms/PushPermissionBanner";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
@@ -691,6 +692,9 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
             <NotificationCenter />
           </div>
         </header>
+
+        {/* Global Push Permission Banner */}
+        <PushPermissionBanner accessToken={accessToken} />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto bg-background/50">

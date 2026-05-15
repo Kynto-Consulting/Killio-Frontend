@@ -137,6 +137,12 @@
       "agents": "El agente usa las tools habilitadas para razonar, investigar y proponer acciones. Puedes guardar su configuración como documento."
     }
   },
+  "pushBanner": {
+    "message": "Activa las notificaciones para recibir menciones, asignaciones de tarjetas y seguimientos, incluso cuando esta pestaña esté cerrada.",
+    "enable": "Activar notificaciones",
+    "disable": "Desactivar notificaciones",
+    "dismiss": "Descartar"
+  },
   "items": {
     "cardOverdueTitle": "Vencida: {{cardTitle}}",
     "cardOverdueMessage": "La card en {{boardName}} / {{listName}} ya pasó su fecha límite.",
