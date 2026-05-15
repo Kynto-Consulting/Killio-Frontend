@@ -34,6 +34,9 @@ export type AgentStreamEvent =
         phase: string;
         timestamp: string;
       }>;
+      billedTokens?: number;
+      billedCredits?: number;
+      modelUsed?: string;
     }
   | { type: 'error'; message: string };
 

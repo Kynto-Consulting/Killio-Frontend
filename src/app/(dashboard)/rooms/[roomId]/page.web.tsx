@@ -317,15 +317,29 @@ Team Context: ${activeTeamId}.`;
           });
         } else if (event.type === "done") {
           const finalContent = event.text || accText;
+          const billingMetadata = {
+            billedTokens: event.billedTokens,
+            billedCredits: event.billedCredits,
+            modelUsed: event.modelUsed
+          };
+          
           chatHook.updateLocalMessage(botMsgId, { 
             content: finalContent, 
             status: "sent",
-            metadata: { toolEvents: [...toolEvents], toolResults: [...toolResults] } 
+            metadata: { 
+              toolEvents: [...toolEvents], 
+              toolResults: [...toolResults],
+              ...billingMetadata
+            } 
           });
 
           // Save to DB and broadcast to others via backend
-          // Tag the local message with a nonce so Ably dedup can match it
-          sendAiRoomMessage(roomId, finalContent, accessToken, { toolEvents, toolResults, localBotId: botMsgId }).catch(console.error);
+          sendAiRoomMessage(roomId, finalContent, accessToken, { 
+            toolEvents, 
+            toolResults, 
+            localBotId: botMsgId,
+            ...billingMetadata
+          }).catch(console.error);
         } else if (event.type === "error") {
           chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}`, status: "failed" });
         }

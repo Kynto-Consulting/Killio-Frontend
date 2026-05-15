@@ -33,11 +33,11 @@
     "notifNone": "Nada"
   },
   "chat": {
-    "inputPlaceholder": "Mensaje en {roomName}... (#AI para copiloto)",
+    "inputPlaceholder": "Mensaje en {{roomName}}... (#AI para copiloto)",
     "loadMore": "Cargar mensajes anteriores",
     "noMessages": "Sin mensajes aún. ¡Sé el primero en escribir!",
-    "typing_one": "{name} está escribiendo...",
-    "typing_two": "{name1} y {name2} están escribiendo...",
+    "typing_one": "{{name}} está escribiendo...",
+    "typing_two": "{{name1}} y {{name2}} están escribiendo...",
     "typing_many": "Varias personas están escribiendo...",
     "readOnly": "Este canal es de solo lectura para ti",
     "reactions": {
@@ -60,7 +60,7 @@
     "joining": "Uniéndose a la llamada...",
     "inCall": "En llamada",
     "you": "Tú",
-    "participants": "{count} participantes",
+    "participants": "{{count}} participantes",
     "full": "Llamada llena (máx. 6 participantes)",
     "muted": "Silenciado",
     "videoOff": "Cámara apagada",
@@ -99,7 +99,7 @@
       "neon": "Neón"
     },
     "recording": {
-      "active": "Grabando {time}",
+      "active": "Grabando {{time}}",
       "saved": "Grabación guardada"
     },
     "transcript": {
@@ -162,8 +162,8 @@
   "callHistory": {
     "started": "Llamada iniciada",
     "inProgress": "Llamada en curso",
-    "ended": "Llamada · {duration}",
-    "participants": "{count} participantes",
+    "ended": "Llamada · {{duration}}",
+    "participants": "{{count}} participantes",
     "viewTranscript": "Ver transcripción",
     "noTranscript": "Sin transcripción"
   },
@@ -233,6 +233,6 @@
     "cost": "Costo",
     "credits": "créditos",
     "nobodyRead": "Nadie ha leído este mensaje aún.",
-    "createdAt": "Creado el {date}"
+    "createdAt": "Creado el {{date}}"
   }
 }

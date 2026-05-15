@@ -238,6 +238,7 @@ export function RoomMessageItem({
   onOpenCopilot,
   onToolApproval,
   onAiRetry,
+  onMarkRead,
   t,
 }: RoomMessageItemProps) {
   const { accessToken } = useSession();
@@ -905,6 +906,7 @@ export function RoomMessageItem({
                 roomId={message.roomId} 
                 message={message} 
                 onClose={() => setIsInfoOpen(false)} 
+                onMarkRead={onMarkRead}
               />
             </div>
           </div>

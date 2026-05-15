@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { 
   X, Info, Clock, CheckCircle2, Bot, 
   Coins, Hash, BarChart3, Users, 
@@ -9,6 +9,7 @@ import {
 import { getMessageInfo, type RoomMessage } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useRealtime } from "@/components/providers/realtime-provider";
 import { format } from "date-fns";
 
 interface MessageReadDetail {
@@ -29,21 +30,53 @@ interface MessageInfoPanelProps {
   roomId: string;
   message: RoomMessage;
   onClose: () => void;
+  onMarkRead?: (messageIds: string[]) => void;
 }
 
 export function MessageInfoPanel({ roomId, message, onClose }: MessageInfoPanelProps) {
-  const { accessToken } = useSession();
+  const { accessToken, user } = useSession();
+  const { realtime } = useRealtime();
   const t = useTranslations("rooms");
   const [data, setData] = useState<MessageInfoData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchDetails = useCallback(() => {
     if (!accessToken) return;
     getMessageInfo(roomId, message.id, accessToken)
       .then(setData)
       .catch(console.error)
       .finally(() => setIsLoading(false));
   }, [roomId, message.id, accessToken]);
+
+  useEffect(() => {
+    fetchDetails();
+    
+    // Mark as read when panel is opened if it's from someone else
+    if (onMarkRead && message.userId !== user?.id && message.status !== "read") {
+      onMarkRead([message.id]);
+    }
+  }, [fetchDetails, onMarkRead, message.userId, user?.id, message.id, message.status]);
+
+  useEffect(() => {
+    if (!accessToken || !realtime) return;
+    
+    const channel = realtime.getChannel(`room:${roomId}`);
+    const onRead = (msg: any) => {
+      // Only refetch if this message was marked as read
+      const affectedIds = msg.data?.messageIds || [];
+      if (affectedIds.includes(message.id) || msg.name === 'room.message.read.all') {
+        fetchDetails();
+      }
+    };
+    
+    channel.subscribe('room.message.read', onRead);
+    channel.subscribe('room.message.read.all', onRead);
+    
+    return () => {
+      channel.unsubscribe('room.message.read', onRead);
+      channel.unsubscribe('room.message.read.all', onRead);
+    };
+  }, [roomId, message.id, accessToken, realtime, fetchDetails]);
 
   const isAi = message.type === "ai";
   const billedTokens = data?.metadata?.billedTokens ?? (message.metadata as any)?.billedTokens;

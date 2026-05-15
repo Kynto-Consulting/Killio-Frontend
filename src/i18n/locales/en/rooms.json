@@ -33,11 +33,11 @@
     "notifNone": "Nothing"
   },
   "chat": {
-    "inputPlaceholder": "Message {roomName}... (#AI for copilot)",
+    "inputPlaceholder": "Message {{roomName}}... (#AI for copilot)",
     "loadMore": "Load older messages",
     "noMessages": "No messages yet. Be the first to say something!",
-    "typing_one": "{name} is typing...",
-    "typing_two": "{name1} and {name2} are typing...",
+    "typing_one": "{{name}} is typing...",
+    "typing_two": "{{name1}} and {{name2}} are typing...",
     "typing_many": "Several people are typing...",
     "readOnly": "This channel is read-only for you",
     "reactions": {
@@ -60,7 +60,7 @@
     "joining": "Joining call...",
     "inCall": "In call",
     "you": "You",
-    "participants": "{count} participants",
+    "participants": "{{count}} participants",
     "full": "Call is full (max 6 participants)",
     "muted": "Muted",
     "videoOff": "Camera off",
@@ -99,7 +99,7 @@
       "neon": "Neon"
     },
     "recording": {
-      "active": "Recording {time}",
+      "active": "Recording {{time}}",
       "saved": "Recording saved"
     },
     "transcript": {
@@ -162,8 +162,8 @@
   "callHistory": {
     "started": "Call started",
     "inProgress": "Call in progress",
-    "ended": "Call · {duration}",
-    "participants": "{count} participants",
+    "ended": "Call · {{duration}}",
+    "participants": "{{count}} participants",
     "viewTranscript": "View transcript",
     "noTranscript": "No transcript"
   },
@@ -233,6 +233,6 @@
     "cost": "Cost",
     "credits": "credits",
     "nobodyRead": "No one has read this message yet.",
-    "createdAt": "Created on {date}"
+    "createdAt": "Created on {{date}}"
   }
 }
