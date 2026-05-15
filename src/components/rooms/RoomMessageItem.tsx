@@ -261,7 +261,7 @@ export function RoomMessageItem({
       window.open(url, '_blank');
     }
   }
-  const [userCard, setUserCard] = useState<{ anchor: DOMRect } | null>(null);
+  const [userCard, setUserCard] = useState<{ anchor: { x: number; y: number } } | null>(null);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
