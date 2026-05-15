@@ -894,9 +894,42 @@ function RoomToolCallChip({
 }) {
   const searchName = (data.name ?? "").toLowerCase();
   const rawEvents = (message.metadata as any)?.toolEvents || [];
+  const rawResults = (message.metadata as any)?.toolResults || [];
+  const normalizeToolName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
+  const normalizeToolWords = (value: string) => {
+    const parts = value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((part) => part.endsWith("s") ? part.slice(0, -1) : part);
+    return parts.sort().join("|");
+  };
+  const hasUsefulOutput = (value: unknown) => {
+    if (value === null || value === undefined) return false;
+    if (typeof value === "string") return value.trim().length > 0;
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === "object") return Object.keys(value as Record<string, unknown>).length > 0;
+    return true;
+  };
+  const findMatchingResult = () => {
+    if (rawResults.length === 0) return null;
+    const results = [...rawResults].reverse() as any[];
+    const exact = results.find((r) => (r.toolName || r.tool || "").toLowerCase() === searchName);
+    if (exact) return exact;
+    const normalizedName = normalizeToolName(searchName);
+    const wordName = normalizeToolWords(searchName);
+    const fuzzy = results.find((r) => {
+      const candidate = String(r.toolName || r.tool || "");
+      return normalizeToolName(candidate) === normalizedName || normalizeToolWords(candidate) === wordName;
+    });
+    return fuzzy || results[0] || null;
+  };
+  const matchingResult = findMatchingResult();
 
   // Synthesize events from DB columns when live events aren't available (post-refresh)
-  const events = rawEvents.length > 0 ? rawEvents : (() => {
+  const events = rawEvents.length > 0 ? rawEvents : rawResults.length > 0 ? rawResults.map((r: any) => ({
+    tool: r.toolName || r.tool,
+    phase: "done",
+    success: r.success !== false,
+    result: r.data ?? r.output ?? r.content,
+    output: r.data ?? r.output ?? r.content,
+  })) : (() => {
     const syn: any[] = [];
     const calls   = (message as any).tool_calls   || [];
     const results = (message as any).tool_results || [];
@@ -907,12 +940,14 @@ function RoomToolCallChip({
     return syn;
   })();
 
-  const event        = events.find((e: any) => e.tool?.toLowerCase() === searchName);
+  const event        = [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done")
+    ?? [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName);
   const isDone       = !!event && event.phase === "done";
   const isError      = isDone && event.success === false;
   const isRunning    = !!event && event.phase === "start";
   const needsApproval = !!event && event.phase === "waiting_for_approval";
-  const output       = event?.result ?? event?.output;
+  const candidateOutputs = [event?.result, event?.output, matchingResult?.data, matchingResult?.output, matchingResult?.content];
+  const output = candidateOutputs.find(hasUsefulOutput);
 
   return (
     <ToolCallChip

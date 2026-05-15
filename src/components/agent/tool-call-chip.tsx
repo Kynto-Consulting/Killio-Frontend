@@ -286,6 +286,67 @@ function InputKV({ input }: { input: Record<string, unknown> }) {
 function OutputSummary({ output, isError }: { output: unknown; isError: boolean }) {
   if (output === null || output === undefined) return null;
 
+  const formatPreviewItem = (item: unknown): string => {
+    if (item === null || item === undefined) return "—";
+    if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
+      return formatScalar(item, 80);
+    }
+    if (Array.isArray(item)) {
+      return `${item.length} item${item.length !== 1 ? "s" : ""}`;
+    }
+    if (typeof item === "object") {
+      const obj = item as Record<string, unknown>;
+      const primary = formatScalar(obj.title ?? obj.name ?? obj.label ?? obj.id, 80);
+      const details = [
+        obj.boardType ? formatScalar(obj.boardType, 40) : "",
+        obj.visibility ? formatScalar(obj.visibility, 40) : "",
+        obj.status ? formatScalar(obj.status, 40) : "",
+        obj.updatedAt ? formatScalar(obj.updatedAt, 40) : "",
+      ].filter(Boolean);
+      return details.length > 0 ? `${primary} · ${details.join(" · ")}` : primary;
+    }
+    return formatScalar(item, 80);
+  };
+
+  const renderArrayPreview = (arr: unknown[], showCount = true) => {
+    const previewItems = arr.slice(0, 3).map(formatPreviewItem).filter(Boolean);
+    return (
+      <div className="flex flex-col gap-1">
+        {showCount && (
+          <div className="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">
+            {arr.length} item{arr.length !== 1 ? "s" : ""}
+          </div>
+        )}
+        {previewItems.length > 0 && (
+          <div className="flex flex-col gap-1 rounded-md border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 px-2 py-1">
+            {previewItems.map((item, index) => (
+              <div key={index} className="font-mono text-[10px] leading-relaxed break-words text-neutral-700 dark:text-neutral-200">
+                {index + 1}. {item}
+              </div>
+            ))}
+            {arr.length > 3 && (
+              <div className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+                …
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderObjectPreview = (value: Record<string, unknown>) => {
+    if (Array.isArray(value.preview) && typeof value.items === "number") {
+      return renderArrayPreview(value.preview, false);
+    }
+
+    if (Array.isArray(value.preview)) {
+      return renderArrayPreview(value.preview);
+    }
+
+    return null;
+  };
+
   // Plain string — show as-is
   if (typeof output === "string") {
     const s = output.trim();
@@ -299,20 +360,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
 
   // Array — show count + brief preview
   if (Array.isArray(output)) {
-    const arr = output as unknown[];
-    const preview = arr
-      .slice(0, 3)
-      .map(item => (typeof item === "object" && item !== null
-        ? formatScalar((item as Record<string, unknown>).title ?? (item as Record<string, unknown>).name ?? (item as Record<string, unknown>).id)
-        : formatScalar(item)))
-      .filter(Boolean)
-      .join(", ");
-    return (
-      <p className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
-        {arr.length} item{arr.length !== 1 ? "s" : ""}
-        {preview ? ` — ${preview}${arr.length > 3 ? "…" : ""}` : ""}
-      </p>
-    );
+    return renderArrayPreview(output as unknown[]);
   }
 
   // Object — show key-value pairs, preferring common "result" fields first
@@ -337,20 +385,48 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
       if (shownEntries.length >= 4) break;
       if (importantKeys.includes(k) || SKIP_KEYS.has(k)) continue;
       if (v === null || v === undefined) continue;
-      if (typeof v === "object") continue;
+      if (Array.isArray(v)) {
+        shownEntries.push([k, { items: v.length, preview: v.slice(0, 3) }]);
+        continue;
+      }
+      if (typeof v === "object") {
+        const nested = Object.entries(v as Record<string, unknown>)
+          .filter(([, nestedValue]) => nestedValue !== null && nestedValue !== undefined)
+          .slice(0, 2)
+          .map(([nestedKey, nestedValue]) => `${humanizeKey(nestedKey)}: ${formatScalar(nestedValue, 40)}`)
+          .join(" · ");
+        if (nested) shownEntries.push([k, nested]);
+        continue;
+      }
       shownEntries.push([k, v]);
     }
-    if (shownEntries.length === 0) return null;
+    if (shownEntries.length === 0) {
+      return (
+        <pre className={`mt-1 whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+          {JSON.stringify(obj, null, 2)}
+        </pre>
+      );
+    }
     return (
       <div className="flex flex-col gap-0.5">
         {shownEntries.map(([k, v]) => (
-          <div key={k} className="flex gap-2 min-w-0">
+          <div key={k} className="flex flex-col gap-1 min-w-0">
             <span className="text-neutral-400 dark:text-neutral-500 shrink-0 min-w-[64px] text-right font-sans text-[10px] leading-[1.6] capitalize">
               {humanizeKey(k)}
             </span>
-            <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
-              {formatScalar(v)}
-            </span>
+            {typeof v === "object" && v !== null && !Array.isArray(v) ? (
+              renderObjectPreview(v as Record<string, unknown>) ?? (
+                <pre className={`whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+                  {JSON.stringify(v, null, 2)}
+                </pre>
+              )
+            ) : Array.isArray(v) ? (
+              renderArrayPreview(v)
+            ) : (
+              <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+                {formatScalar(v)}
+              </span>
+            )}
           </div>
         ))}
       </div>

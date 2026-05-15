@@ -13,13 +13,43 @@
  */
 
 import { createContext, useContext, useEffect, useMemo, useRef } from "react";
-import type { IRealtimeProvider } from "@/lib/realtime/types";
+import type {
+  IRealtimeProvider,
+  IRealtimeChannel,
+  PresenceMemberData,
+  MessageListener,
+  PresenceListener,
+  PresenceAction,
+} from "@/lib/realtime/types";
 import { createAblyProvider } from "@/lib/realtime/ably-provider";
 import { useSession } from "@/components/providers/session-provider";
 
+// ─── No-op provider (safe fallback) ───────────────────────────────────────────
+
+const noopChannel: IRealtimeChannel = {
+  subscribe: (_eventName: string, _listener: MessageListener) => {},
+  subscribeAll: (_listener: MessageListener) => {},
+  unsubscribe: (_eventName: string, _listener: MessageListener) => {},
+  unsubscribeAll: (_listener: MessageListener) => {},
+  publish: async (_eventName: string, _data: unknown) => {},
+  presence: {
+    enter: async (_data: PresenceMemberData) => {},
+    leave: async () => {},
+    update: async (_data: PresenceMemberData) => {},
+    get: async () => [] as any,
+    subscribe: (_action: PresenceAction | PresenceAction[], _listener: PresenceListener) => {},
+    unsubscribe: (_action?: PresenceAction | PresenceAction[], _listener?: PresenceListener) => {},
+  },
+};
+
+const NOOP_PROVIDER: IRealtimeProvider = {
+  getChannel: (_name: string) => noopChannel,
+  disconnect: () => {},
+};
+
 // ─── Context ──────────────────────────────────────────────────────────────────
 
-const RealtimeContext = createContext<IRealtimeProvider | null>(null);
+const RealtimeContext = createContext<IRealtimeProvider>(NOOP_PROVIDER);
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
@@ -29,9 +59,7 @@ const RealtimeContext = createContext<IRealtimeProvider | null>(null);
  */
 export function useRealtime(): IRealtimeProvider {
   const ctx = useContext(RealtimeContext);
-  if (!ctx) {
-    throw new Error("useRealtime() must be used inside <RealtimeProvider>");
-  }
+  // Always return a provider (could be NOOP) so callers don't need try/catch.
   return ctx;
 }
 
@@ -77,10 +105,12 @@ export function RealtimeProvider({
     };
   }, []);
 
-  // While there's no accessToken yet, render children without a provider
-  // (hooks will be no-ops since they guard on the presence of the provider)
+  // Provide a NOOP provider while accessToken is not available so callers
+  // can safely call `useRealtime()` without guarding.
+  const effectiveProvider = provider ?? NOOP_PROVIDER;
+
   return (
-    <RealtimeContext.Provider value={provider}>
+    <RealtimeContext.Provider value={effectiveProvider}>
       {children}
     </RealtimeContext.Provider>
   );
