@@ -207,6 +207,7 @@ interface RoomMessageItemProps {
   onOpenCopilot?: () => void;
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
   onAiRetry?: () => void;
+  onMarkRead?: (messageIds: string[]) => void;
   t: TFn;
 }
 
@@ -897,15 +898,15 @@ export function RoomMessageItem({
       {isInfoOpen && (
         <Portal>
           <div className="fixed inset-0 z-[300] flex items-center justify-end sm:p-4">
-            <div 
-              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300" 
+            <div
+              className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-in fade-in duration-300"
               onClick={() => setIsInfoOpen(false)}
             />
             <div className="relative w-full sm:w-[400px] h-full sm:h-[600px] sm:max-h-[90vh] bg-card sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-right duration-300">
-              <MessageInfoPanel 
-                roomId={message.roomId} 
-                message={message} 
-                onClose={() => setIsInfoOpen(false)} 
+              <MessageInfoPanel
+                roomId={message.roomId}
+                message={message}
+                onClose={() => setIsInfoOpen(false)}
                 onMarkRead={onMarkRead}
               />
             </div>
@@ -967,7 +968,7 @@ function RoomToolCallChip({
     output: r.data ?? r.output ?? r.content,
   })) : (() => {
     const syn: any[] = [];
-    const calls   = (message as any).tool_calls   || [];
+    const calls = (message as any).tool_calls || [];
     const results = (message as any).tool_results || [];
     calls.forEach((c: any) => {
       const res = results.find((r: any) => r.tool_use_id === c.id || r.tool === c.name);
@@ -976,11 +977,11 @@ function RoomToolCallChip({
     return syn;
   })();
 
-  const event        = [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done")
+  const event = [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done")
     ?? [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName);
-  const isDone       = !!event && event.phase === "done";
-  const isError      = isDone && event.success === false;
-  const isRunning    = !!event && event.phase === "start";
+  const isDone = !!event && event.phase === "done";
+  const isError = isDone && event.success === false;
+  const isRunning = !!event && event.phase === "start";
   const needsApproval = !!event && event.phase === "waiting_for_approval";
   const candidateOutputs = [event?.result, event?.output, matchingResult?.data, matchingResult?.output, matchingResult?.content];
   const output = candidateOutputs.find(hasUsefulOutput);
@@ -996,7 +997,7 @@ function RoomToolCallChip({
       needsApproval={needsApproval}
       output={output}
       onApprove={onToolApproval ? () => onToolApproval(data.name, data.input, 'approved') : undefined}
-      onReject={onToolApproval  ? () => onToolApproval(data.name, data.input, 'rejected') : undefined}
+      onReject={onToolApproval ? () => onToolApproval(data.name, data.input, 'rejected') : undefined}
     />
   );
 }

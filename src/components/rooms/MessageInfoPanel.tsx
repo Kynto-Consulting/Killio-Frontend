@@ -33,9 +33,9 @@ interface MessageInfoPanelProps {
   onMarkRead?: (messageIds: string[]) => void;
 }
 
-export function MessageInfoPanel({ roomId, message, onClose }: MessageInfoPanelProps) {
+export function MessageInfoPanel({ roomId, message, onClose, onMarkRead }: MessageInfoPanelProps) {
   const { accessToken, user } = useSession();
-  const { realtime } = useRealtime();
+  const realtimeProvider = useRealtime();
   const t = useTranslations("rooms");
   const [data, setData] = useState<MessageInfoData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -58,9 +58,9 @@ export function MessageInfoPanel({ roomId, message, onClose }: MessageInfoPanelP
   }, [fetchDetails, onMarkRead, message.userId, user?.id, message.id, message.status]);
 
   useEffect(() => {
-    if (!accessToken || !realtime) return;
+    if (!accessToken || !realtimeProvider) return;
     
-    const channel = realtime.getChannel(`room:${roomId}`);
+    const channel = realtimeProvider.getChannel(`room:${roomId}`);
     const onRead = (msg: any) => {
       // Only refetch if this message was marked as read
       const affectedIds = msg.data?.messageIds || [];
@@ -76,7 +76,7 @@ export function MessageInfoPanel({ roomId, message, onClose }: MessageInfoPanelP
       channel.unsubscribe('room.message.read', onRead);
       channel.unsubscribe('room.message.read.all', onRead);
     };
-  }, [roomId, message.id, accessToken, realtime, fetchDetails]);
+  }, [roomId, message.id, accessToken, realtimeProvider, fetchDetails]);
 
   const isAi = message.type === "ai";
   const billedTokens = data?.metadata?.billedTokens ?? (message.metadata as any)?.billedTokens;
