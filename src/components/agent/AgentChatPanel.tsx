@@ -578,15 +578,6 @@ export function AgentChatPanel({
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isLoading}
               className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
-              title="Adjuntar imagen"
-            >
-              <ImageIcon className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isLoading}
-              className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
               title="Adjuntar archivo"
             >
               <div className="relative">
