@@ -1,16 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { X, Loader2, Layout, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { X, Loader2, ImagePlus, Trash2, Layout } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 export type CreateBoardSubmitPayload = {
   name: string;
-  coverImageUrl?: string;
   backgroundKind: "none" | "preset" | "image" | "color" | "gradient";
   backgroundValue?: string;
   backgroundImageUrl?: string;
   backgroundGradient?: string;
+  /** Kept for API compatibility — not collected in this modal */
+  coverImageUrl?: string;
   themeKind: "preset" | "custom";
   themePreset?: string;
   themeCustom?: Record<string, unknown>;
@@ -20,241 +24,140 @@ interface CreateBoardModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (payload: CreateBoardSubmitPayload) => Promise<void>;
-  onUploadCoverImage?: (file: File) => Promise<string>;
+  /** When provided, an "Image" tab appears for uploading a custom background */
+  onUploadBackground?: (file: File) => Promise<string>;
 }
 
-const BACKGROUNDS = [
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const PRESET_BACKGROUNDS = [
   "bg-gradient-to-tr from-blue-500 to-purple-500",
   "bg-gradient-to-tr from-orange-400 to-red-500",
   "bg-gradient-to-tr from-emerald-400 to-teal-500",
   "bg-gradient-to-tr from-pink-500 to-rose-500",
   "bg-gradient-to-tr from-slate-700 to-slate-900",
-  "bg-gradient-to-tr from-indigo-500 to-cyan-400"
-];
-
-const THEME_PRESET_OPTIONS = [
-  {
-    id: "killio-default",
-    label: "Clásico",
-    accent: "#d8ff72",
-    surface: "#0b0f14",
-    Icon: Sparkles,
-  },
-  {
-    id: "trello-ocean",
-    label: "Océano",
-    accent: "#67e8f9",
-    surface: "#0c2233",
-    Icon: Waves,
-  },
-  {
-    id: "trello-forest",
-    label: "Bosque",
-    accent: "#86efac",
-    surface: "#10251f",
-    Icon: Trees,
-  },
-  {
-    id: "trello-sunrise",
-    label: "Amanecer",
-    accent: "#fcd34d",
-    surface: "#3b1f10",
-    Icon: Sun,
-  },
+  "bg-gradient-to-tr from-indigo-500 to-cyan-400",
 ] as const;
 
-function isImageCover(value: string): boolean {
-  return /^https?:\/\//i.test(value) || value.startsWith("/") || value.startsWith("data:image/");
-}
+type BackgroundKind = "preset" | "image" | "color" | "gradient";
 
-function isTailwindGradient(value: string): boolean {
-  return value.startsWith("bg-");
-}
+// ─── Component ────────────────────────────────────────────────────────────────
 
-export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage }: CreateBoardModalProps) {
-  const t = useTranslations("modals");
+export function CreateBoardModal({
+  isOpen,
+  onClose,
+  onSubmit,
+  onUploadBackground,
+}: CreateBoardModalProps) {
+  const t       = useTranslations("modals");
   const tCommon = useTranslations("common");
-  const coverFileInputRef = useRef<HTMLInputElement>(null);
-  const backgroundFileInputRef = useRef<HTMLInputElement>(null);
-  const [name, setName] = useState("");
-  const [coverImageUrl, setCoverImageUrl] = useState("");
-  const [backgroundKind, setBackgroundKind] = useState<"preset" | "image" | "color" | "gradient">("preset");
-  const [presetBackground, setPresetBackground] = useState(BACKGROUNDS[0]);
-  const [imageBackground, setImageBackground] = useState("");
-  const [colorBackground, setColorBackground] = useState("#0f172a");
-  const [gradientBackground, setGradientBackground] = useState("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
-  const [themeKind, setThemeKind] = useState<"preset" | "custom">("preset");
-  const [themePreset, setThemePreset] = useState<string>(THEME_PRESET_OPTIONS[0].id);
-  const [themeAccent, setThemeAccent] = useState("#d8ff72");
-  const [themeSurface, setThemeSurface] = useState("#0b0f14");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isUploadingCover, setIsUploadingCover] = useState(false);
-  const [isUploadingBackground, setIsUploadingBackground] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const bgInputRef = useRef<HTMLInputElement>(null);
 
-  if (!isOpen) {
-    if (name) setName("");
-    if (coverImageUrl) setCoverImageUrl("");
-    if (backgroundKind !== "preset") setBackgroundKind("preset");
-    if (presetBackground !== BACKGROUNDS[0]) setPresetBackground(BACKGROUNDS[0]);
-    if (imageBackground) setImageBackground("");
-    if (colorBackground !== "#0f172a") setColorBackground("#0f172a");
-    if (gradientBackground !== "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)") {
-      setGradientBackground("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
-    }
-    if (themeKind !== "preset") setThemeKind("preset");
-    if (themePreset !== THEME_PRESET_OPTIONS[0].id) setThemePreset(THEME_PRESET_OPTIONS[0].id);
-    if (themeAccent !== "#d8ff72") setThemeAccent("#d8ff72");
-    if (themeSurface !== "#0b0f14") setThemeSurface("#0b0f14");
-    if (isUploadingCover) setIsUploadingCover(false);
-    if (isUploadingBackground) setIsUploadingBackground(false);
-    if (error) setError(null);
-    return null;
-  }
+  const [name,           setName]           = useState("");
+  const [bgKind,         setBgKind]         = useState<BackgroundKind>("preset");
+  const [presetBg,       setPresetBg]       = useState<string>(PRESET_BACKGROUNDS[0]);
+  const [colorBg,        setColorBg]        = useState("#0f172a");
+  const [gradientBg,     setGradientBg]     = useState("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
+  const [imageBg,        setImageBg]        = useState("");
+  const [isUploadingBg,  setIsUploadingBg]  = useState(false);
+  const [uploadError,    setUploadError]    = useState<string | null>(null);
 
-  const currentBackground =
-    backgroundKind === "image"
-      ? imageBackground
-      : backgroundKind === "color"
-        ? colorBackground
-        : backgroundKind === "gradient"
-          ? gradientBackground
-          : presetBackground;
-
-  const usingImageBackground = isImageCover(currentBackground);
-  const usingCssGradient = backgroundKind === "gradient" && !isTailwindGradient(currentBackground);
-  const usingImageCover = isImageCover(coverImageUrl);
-
-  const handleSelectCoverFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onUploadCoverImage) return;
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("El archivo debe ser una imagen.");
-      event.target.value = "";
-      return;
-    }
-
-    setIsUploadingCover(true);
-    setError(null);
-    try {
-      const uploadedUrl = await onUploadCoverImage(file);
-      setCoverImageUrl(uploadedUrl);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "No se pudo subir la portada.");
-    } finally {
-      setIsUploadingCover(false);
-      event.target.value = "";
-    }
-  };
-
-  const handleSelectBackgroundFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!onUploadCoverImage) return;
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      setError("El archivo debe ser una imagen.");
-      event.target.value = "";
-      return;
-    }
-
-    setIsUploadingBackground(true);
-    setError(null);
-    try {
-      const uploadedUrl = await onUploadCoverImage(file);
-      setBackgroundKind("image");
-      setImageBackground(uploadedUrl);
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || "No se pudo subir la imagen de fondo.");
-    } finally {
-      setIsUploadingBackground(false);
-      event.target.value = "";
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const submitAction = useAsyncAction(async (_: void) => {
     if (!name.trim()) return;
-    
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const payload: CreateBoardSubmitPayload = {
-        name: name.trim(),
-        backgroundKind,
-        themeKind,
-      };
+    const payload: CreateBoardSubmitPayload = {
+      name: name.trim(),
+      backgroundKind: bgKind,
+      themeKind: "preset",
+      themePreset: "killio-default",
+    };
+    if (bgKind === "preset")   payload.backgroundValue    = presetBg;
+    if (bgKind === "color")    payload.backgroundValue    = colorBg;
+    if (bgKind === "gradient") payload.backgroundGradient = gradientBg;
+    if (bgKind === "image")    payload.backgroundImageUrl = imageBg;
+    await onSubmit(payload);
+    onClose();
+  });
 
-      if (coverImageUrl.trim()) {
-        payload.coverImageUrl = coverImageUrl.trim();
-      }
-
-      if (backgroundKind === "preset") payload.backgroundValue = presetBackground;
-      if (backgroundKind === "image") payload.backgroundImageUrl = imageBackground;
-      if (backgroundKind === "color") payload.backgroundValue = colorBackground;
-      if (backgroundKind === "gradient") payload.backgroundGradient = gradientBackground;
-
-      if (themeKind === "preset") {
-        payload.themePreset = themePreset;
-      } else {
-        payload.themeCustom = {
-          accent: themeAccent,
-          surface: themeSurface,
-        };
-      }
-
-      await onSubmit(payload);
+  // Reset when modal closes
+  useEffect(() => {
+    if (!isOpen) {
       setName("");
-      setCoverImageUrl("");
-      setBackgroundKind("preset");
-      setPresetBackground(BACKGROUNDS[0]);
-      setImageBackground("");
-      setColorBackground("#0f172a");
-      setGradientBackground("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
-      setThemeKind("preset");
-      setThemePreset(THEME_PRESET_OPTIONS[0].id);
-      setThemeAccent("#d8ff72");
-      setThemeSurface("#0b0f14");
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || t("createBoard.createError"));
+      setBgKind("preset");
+      setPresetBg(PRESET_BACKGROUNDS[0] as string);
+      setColorBg("#0f172a");
+      setGradientBg("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
+      setImageBg("");
+      setUploadError(null);
+      submitAction.reset();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  // ── Background image upload ────────────────────────────────────────────────
+  const handleBgFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onUploadBackground) return;
+    if (!file.type.startsWith("image/")) {
+      setUploadError(t("createBoard.fileNotImage"));
+      e.target.value = "";
+      return;
+    }
+    setIsUploadingBg(true);
+    setUploadError(null);
+    try {
+      const url = await onUploadBackground(file);
+      setImageBg(url);
+      setBgKind("image");
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : t("createBoard.uploadBackgroundError"));
     } finally {
-      setIsSubmitting(false);
+      setIsUploadingBg(false);
+      e.target.value = "";
     }
   };
+
+  // ── Tab button style helper ────────────────────────────────────────────────
+  const tabCls = (active: boolean) =>
+    `h-7 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+      active
+        ? "border-primary bg-primary/10 text-primary"
+        : "border-border text-muted-foreground hover:border-primary/40 hover:text-foreground"
+    }`;
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-        <button 
-          onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none text-white drop-shadow-md"
-        >
-          <X className="h-5 w-5" />
-          <span className="sr-only">{tCommon("actions.close")}</span>
-        </button>
+      <div className="relative w-full max-w-sm rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200">
 
-        <div
-          className={`h-32 -m-6 mb-6 rounded-t-2xl relative overflow-hidden ${usingImageBackground ? "bg-slate-800" : (isTailwindGradient(currentBackground) ? currentBackground : "bg-slate-800")} flex items-center justify-center transition-all duration-300 shadow-inner bg-cover bg-center`}
-          style={usingImageBackground ? { backgroundImage: `url(${currentBackground})` } : (usingCssGradient ? { background: currentBackground } : undefined)}
-        >
-           <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px]"></div>
-           <Layout className="h-12 w-12 text-white/90 drop-shadow-xl z-0" />
-{usingImageCover ? (
-             <div className="absolute inset-x-0 bottom-0 top-16 border-t border-white/20 overflow-hidden">
-               <div className="h-full w-full bg-cover bg-center transition-transform duration-300 hover:scale-105" style={{ backgroundImage: `url(${coverImageUrl})` }} />
-             </div>
-            ) : null}
+        {/* ── Header ────────────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between p-5 pb-0">
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 text-primary">
+              <Layout className="h-4 w-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold tracking-tight">{t("createBoard.title")}</h2>
+              <p className="text-xs text-muted-foreground">{t("createBoard.subtitle")}</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label={tCommon("actions.close")}
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-2">
-            <label htmlFor="board-name" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+        {/* ── Form ──────────────────────────────────────────────────────── */}
+        <form
+          onSubmit={(e) => { e.preventDefault(); void submitAction.run(undefined); }}
+          className="p-5 pt-4 space-y-4"
+        >
+          {/* Board name */}
+          <div className="space-y-1.5">
+            <label htmlFor="board-name" className="text-sm font-medium">
               {t("createBoard.nameLabel")}
             </label>
             <input
@@ -263,210 +166,135 @@ export function CreateBoardModal({ isOpen, onClose, onSubmit, onUploadCoverImage
               placeholder={t("createBoard.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
-              disabled={isSubmitting}
+              disabled={submitAction.isPending}
               autoFocus
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all focus:border-primary font-medium shadow-sm"
+              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-sm font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50 transition-all"
             />
-            {error && (
-              <p className="text-sm font-medium text-destructive mt-1">{error}</p>
-            )}
           </div>
 
+          {/* Background */}
           <div className="space-y-2">
-            <label className="text-sm font-medium leading-none">Portada del board</label>
-            <input
-              type="text"
-              value={coverImageUrl}
-              onChange={(e) => setCoverImageUrl(e.target.value)}
-              placeholder="https://... (opcional)"
-              className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
-            />
-            <input
-              ref={coverFileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleSelectCoverFile}
-              className="hidden"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => coverFileInputRef.current?.click()}
-                disabled={isSubmitting || isUploadingCover || !onUploadCoverImage}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
-              >
-                {isUploadingCover ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir portada
-                  </>
-                )}
-              </button>
-              {coverImageUrl ? (
+            <label className="text-sm font-medium">{t("createBoard.backgroundLabel")}</label>
+
+            {/* 6 preset swatches */}
+            <div className="grid grid-cols-6 gap-1.5">
+              {PRESET_BACKGROUNDS.map((bg) => (
                 <button
+                  key={bg}
                   type="button"
-                  onClick={() => setCoverImageUrl("")}
-                  disabled={isSubmitting || isUploadingCover}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
-                >
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Quitar portada
-                </button>
-              ) : null}
+                  onClick={() => { setPresetBg(bg); setBgKind("preset"); }}
+                  className={`h-8 w-full rounded-lg ${bg} ring-offset-background transition-all hover:scale-105 focus:outline-none ${
+                    bgKind === "preset" && presetBg === bg
+                      ? "ring-2 ring-primary ring-offset-2 scale-105 shadow-md"
+                      : "opacity-70 hover:opacity-100"
+                  }`}
+                />
+              ))}
             </div>
-          </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium leading-none">
-              {t("createBoard.backgroundLabel")}
-            </label>
-            <div className="grid grid-cols-4 gap-2">
-              <button type="button" onClick={() => setBackgroundKind("preset")} className={`h-8 rounded-md border text-xs ${backgroundKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
-              <button type="button" onClick={() => setBackgroundKind("gradient")} className={`h-8 rounded-md border text-xs ${backgroundKind === "gradient" ? "border-primary bg-primary/10" : "border-border"}`}>Gradient</button>
-              <button type="button" onClick={() => setBackgroundKind("color")} className={`h-8 rounded-md border text-xs ${backgroundKind === "color" ? "border-primary bg-primary/10" : "border-border"}`}>Color</button>
-              <button type="button" onClick={() => setBackgroundKind("image")} className={`h-8 rounded-md border text-xs ${backgroundKind === "image" ? "border-primary bg-primary/10" : "border-border"}`}>Image</button>
-            </div>
-            <input
-              ref={backgroundFileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleSelectBackgroundFile}
-              className="hidden"
-            />
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => backgroundFileInputRef.current?.click()}
-                disabled={isSubmitting || isUploadingBackground || !onUploadCoverImage || backgroundKind !== "image"}
-                className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
-              >
-                {isUploadingBackground ? (
-                  <>
-                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> Subiendo...
-                  </>
-                ) : (
-                  <>
-                    <ImagePlus className="mr-1.5 h-3.5 w-3.5" /> Subir fondo
-                  </>
-                )}
+            {/* Custom background kind tabs */}
+            <div className="flex items-center gap-1">
+              <button type="button" onClick={() => setBgKind("gradient")} className={tabCls(bgKind === "gradient")}>
+                {t("createBoard.gradient")}
               </button>
-              {backgroundKind === "image" && usingImageBackground ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImageBackground("");
-                    setBackgroundKind("preset");
-                  }}
-                  disabled={isSubmitting || isUploadingBackground}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
-                >
-                  <Trash2 className="mr-1.5 h-3.5 w-3.5" /> Quitar imagen
+              <button type="button" onClick={() => setBgKind("color")} className={tabCls(bgKind === "color")}>
+                {t("createBoard.color")}
+              </button>
+              {onUploadBackground && (
+                <button type="button" onClick={() => setBgKind("image")} className={tabCls(bgKind === "image")}>
+                  {t("createBoard.image")}
                 </button>
-              ) : null}
+              )}
             </div>
 
-            {backgroundKind === "preset" && (
-              <div className="grid grid-cols-6 gap-2">
-                {BACKGROUNDS.map((bg) => (
-                  <button
-                    key={bg}
-                    type="button"
-                    onClick={() => setPresetBackground(bg)}
-                    className={`h-10 w-full rounded-md ${bg} transition-all duration-200 hover:scale-105 hover:shadow-md focus:outline-none ring-offset-background ${presetBackground === bg ? 'ring-2 ring-primary ring-offset-2 scale-105 shadow-md' : 'opacity-80'}`}
-                  />
-                ))}
-              </div>
-            )}
-
-            {backgroundKind === "gradient" && (
+            {/* Gradient value */}
+            {bgKind === "gradient" && (
               <input
                 type="text"
-                value={gradientBackground}
-                onChange={(e) => setGradientBackground(e.target.value)}
-                placeholder="linear-gradient(...) o clase bg-gradient-*"
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-xs"
+                value={gradientBg}
+                onChange={(e) => setGradientBg(e.target.value)}
+                placeholder="linear-gradient(...)"
+                className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               />
             )}
 
-            {backgroundKind === "color" && (
+            {/* Solid color picker */}
+            {bgKind === "color" && (
               <div className="flex items-center gap-2">
-                <input type="color" value={colorBackground} onChange={(e) => setColorBackground(e.target.value)} className="h-9 w-14 rounded-md border border-input bg-background" />
-                <input type="text" value={colorBackground} onChange={(e) => setColorBackground(e.target.value)} className="flex h-9 w-full rounded-md border border-input bg-background px-3 text-xs" />
+                <input
+                  type="color"
+                  value={colorBg}
+                  onChange={(e) => setColorBg(e.target.value)}
+                  className="h-8 w-12 shrink-0 cursor-pointer rounded-md border border-input bg-background"
+                />
+                <input
+                  type="text"
+                  value={colorBg}
+                  onChange={(e) => setColorBg(e.target.value)}
+                  className="flex h-8 w-full rounded-md border border-input bg-background px-3 text-xs font-mono focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                />
+              </div>
+            )}
+
+            {/* Image upload */}
+            {bgKind === "image" && (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={bgInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleBgFileSelect}
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => bgInputRef.current?.click()}
+                  disabled={isUploadingBg || submitAction.isPending}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+                >
+                  {isUploadingBg
+                    ? <><Loader2 className="h-3 w-3 animate-spin" />{t("createBoard.uploading")}</>
+                    : <><ImagePlus className="h-3 w-3" />{t("createBoard.uploadBackground")}</>
+                  }
+                </button>
+                {imageBg && (
+                  <button
+                    type="button"
+                    onClick={() => { setImageBg(""); setBgKind("preset"); }}
+                    disabled={isUploadingBg || submitAction.isPending}
+                    className="inline-flex h-8 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-xs font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
+                  >
+                    <Trash2 className="h-3 w-3" />{t("createBoard.removeBackground")}
+                  </button>
+                )}
               </div>
             )}
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium leading-none">Theme</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button type="button" onClick={() => setThemeKind("preset")} className={`h-8 rounded-md border text-xs ${themeKind === "preset" ? "border-primary bg-primary/10" : "border-border"}`}>Preset</button>
-              <button type="button" onClick={() => setThemeKind("custom")} className={`h-8 rounded-md border text-xs ${themeKind === "custom" ? "border-primary bg-primary/10" : "border-border"}`}>Custom</button>
-            </div>
+          {/* Error message */}
+          {(uploadError ?? submitAction.error) && (
+            <p className="text-xs font-medium text-destructive">{uploadError ?? submitAction.error}</p>
+          )}
 
-            {themeKind === "preset" ? (
-              <div className="grid grid-cols-2 gap-2">
-                {THEME_PRESET_OPTIONS.map((preset) => {
-                  const selected = themePreset === preset.id;
-                  return (
-                    <button
-                      key={preset.id}
-                      type="button"
-                      onClick={() => setThemePreset(preset.id)}
-                      className={`rounded-md border p-2 text-left transition-all ${selected ? "border-primary bg-primary/10 shadow-sm" : "border-border hover:border-primary/40 hover:bg-accent/5"}`}
-                    >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <span className="text-xs font-semibold flex items-center gap-1.5">
-                          <preset.Icon className="h-3.5 w-3.5" />
-                          {preset.label}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: preset.accent }} />
-                        <span className="h-3 w-3 rounded-full border border-white/20" style={{ backgroundColor: preset.surface }} />
-                        <span className="text-[10px] text-muted-foreground">Paleta</span>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Accent</label>
-                  <input type="color" value={themeAccent} onChange={(e) => setThemeAccent(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background" />
-                </div>
-                <div className="space-y-1">
-                  <label className="text-[11px] text-muted-foreground">Surface</label>
-                  <input type="color" value={themeSurface} onChange={(e) => setThemeSurface(e.target.value)} className="h-9 w-full rounded-md border border-input bg-background" />
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
+          {/* Actions */}
+          <div className="flex justify-end gap-2 pt-1 border-t border-border/50">
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
-              className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
+              disabled={submitAction.isPending}
+              className="inline-flex h-9 items-center justify-center rounded-md px-4 text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-50"
             >
               {tCommon("actions.cancel")}
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || isSubmitting || isUploadingCover || isUploadingBackground}
-              className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
+              disabled={!name.trim() || submitAction.isPending || isUploadingBg}
+              className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {t("createBoard.creating")}
-                </>
-              ) : (
-                t("createBoard.create")
-              )}
+              {submitAction.isPending
+                ? <><Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />{t("createBoard.creating")}</>
+                : t("createBoard.create")
+              }
             </button>
           </div>
         </form>

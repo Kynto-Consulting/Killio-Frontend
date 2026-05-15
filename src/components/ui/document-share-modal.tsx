@@ -13,6 +13,7 @@ import {
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface DocumentShareModalProps {
   isOpen: boolean;
@@ -35,14 +36,40 @@ export function DocumentShareModal({
 }: DocumentShareModalProps) {
   const t = useTranslations("document-detail");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
-  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [members, setMembers] = useState<DocumentMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<DocumentMembershipRole>("viewer");
-  const [isInviting, setIsInviting] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isVisDropdownOpen, setIsVisDropdownOpen] = useState(false);
+
+  const inviteAction = useAsyncAction(
+    async (payload: { email: string; role: DocumentMembershipRole }) => {
+      await addDocumentMember(documentId, payload.email, payload.role, accessToken);
+      await loadMembers();
+      setInviteEmail("");
+      setInviteRole("viewer");
+      toast(t("shareSuccess", { email: payload.email }), "success");
+    },
+    { onError: (err) => toast(err.message || t("shareError"), "error") }
+  );
+
+  const visibilityAction = useAsyncAction(
+    async (newVis: "private" | "team" | "public_link") => {
+      await updateDocumentVisibility(documentId, newVis, accessToken);
+    },
+    {
+      onError: () => {
+        setVisibility(initialVisibility);
+        toast(t("shareModal.visibilityError") || "No se pudo actualizar el acceso.", "error");
+      },
+    }
+  );
+
+  const removeAction = useAsyncAction(async (memberId: string) => {
+    await removeDocumentMember(documentId, memberId, accessToken);
+    setMembers((current) => current.filter((member) => member.id !== memberId));
+  });
 
   const roleLabels: Record<DocumentMembershipRole, string> = {
     viewer: t("shareModal.viewer"),
@@ -70,45 +97,18 @@ export function DocumentShareModal({
     }
   };
 
-  const handleVisibilityChange = async (newVisibility: "private" | "team" | "public_link") => {
-    const previous = visibility;
+  const handleVisibilityChange = (newVisibility: "private" | "team" | "public_link") => {
     setVisibility(newVisibility);
-    setIsUpdatingVisibility(true);
-    try {
-      await updateDocumentVisibility(documentId, newVisibility, accessToken);
-    } catch (error) {
-      console.error("Failed to update document visibility", error);
-      setVisibility(previous);
-      toast(t("shareModal.visibilityError") || "No se pudo actualizar el acceso.", "error");
-    } finally {
-      setIsUpdatingVisibility(false);
-    }
+    visibilityAction.run(newVisibility);
   };
 
-  const handleInvite = async () => {
+  const handleInvite = () => {
     if (!inviteEmail.trim()) return;
-    setIsInviting(true);
-    try {
-      await addDocumentMember(documentId, inviteEmail.trim(), inviteRole, accessToken);
-      await loadMembers();
-      setInviteEmail("");
-      setInviteRole("viewer");
-      toast(t("shareSuccess", { email: inviteEmail.trim() }), "success");
-    } catch (error: any) {
-      console.error("Failed to invite document member", error);
-      toast(error?.message || t("shareError"), "error");
-    } finally {
-      setIsInviting(false);
-    }
+    inviteAction.run({ email: inviteEmail.trim(), role: inviteRole });
   };
 
-  const handleRemove = async (memberId: string) => {
-    try {
-      await removeDocumentMember(documentId, memberId, accessToken);
-      setMembers((current) => current.filter((member) => member.id !== memberId));
-    } catch (error) {
-      console.error("Failed to remove document member", error);
-    }
+  const handleRemove = (memberId: string) => {
+    removeAction.run(memberId);
   };
 
   const copyPublicLink = async () => {
@@ -169,10 +169,10 @@ export function DocumentShareModal({
               </div>
               <button
                 onClick={handleInvite}
-                disabled={isInviting || !inviteEmail.trim()}
+                disabled={inviteAction.isPending || !inviteEmail.trim()}
                 className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center"
               >
-                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
+                {inviteAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
               </button>
             </div>
           </div>
@@ -187,8 +187,8 @@ export function DocumentShareModal({
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => !isUpdatingVisibility && setIsVisDropdownOpen((current) => !current)}
-                    disabled={isUpdatingVisibility}
+                    onClick={() => !visibilityAction.isPending && setIsVisDropdownOpen((current) => !current)}
+                    disabled={visibilityAction.isPending}
                     className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0"
                   >
                     <span>

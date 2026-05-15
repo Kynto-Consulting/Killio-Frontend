@@ -9,6 +9,7 @@ import {
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface MeshShareModalProps {
   isOpen: boolean;
@@ -26,14 +27,37 @@ export function MeshShareModal({
 }: MeshShareModalProps) {
   const t = useTranslations("modals");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
-  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [members, setMembers] = useState<MeshMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
-  const [isInviting, setIsInviting] = useState(false);
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isVisDropdownOpen, setIsVisDropdownOpen] = useState(false);
+
+  const inviteAction = useAsyncAction(
+    async (payload: { email: string; role: string }) => {
+      await addMeshMember(meshId, payload.email, payload.role, accessToken);
+      setInviteEmail("");
+      await loadMembers();
+    },
+    { onError: () => toast(t("meshShareModal.toastInviteError"), "error") }
+  );
+
+  const visibilityAction = useAsyncAction(
+    async (newVis: "private" | "team" | "public_link") => {
+      await updateMeshVisibility(meshId, newVis, accessToken);
+      setIsVisDropdownOpen(false);
+    },
+    { onError: () => { setVisibility(initialVisibility); toast(t("meshShareModal.toastVisibilityError"), "error"); } }
+  );
+
+  const removeAction = useAsyncAction(
+    async (memberId: string) => {
+      await removeMeshMember(meshId, memberId, accessToken);
+      setMembers(members.filter(m => m.id !== memberId));
+    },
+    { onError: () => toast(t("meshShareModal.toastRemoveError"), "error") }
+  );
 
   const roleLabels: Record<string, string> = {
     viewer: t("meshShareModal.roles.viewer"),
@@ -52,31 +76,18 @@ export function MeshShareModal({
     finally { setIsLoadingMembers(false); }
   };
 
-  const handleVisibilityChange = async (newVis: "private" | "team" | "public_link") => {
-    const prev = visibility;
+  const handleVisibilityChange = (newVis: "private" | "team" | "public_link") => {
     setVisibility(newVis);
-    setIsUpdatingVisibility(true);
-    try { await updateMeshVisibility(meshId, newVis, accessToken); }
-    catch { setVisibility(prev); toast(t("meshShareModal.toastVisibilityError"), "error"); }
-    finally { setIsUpdatingVisibility(false); setIsVisDropdownOpen(false); }
+    visibilityAction.run(newVis);
   };
 
-  const handleInvite = async () => {
+  const handleInvite = () => {
     if (!inviteEmail.trim()) return;
-    setIsInviting(true);
-    try {
-      await addMeshMember(meshId, inviteEmail, inviteRole, accessToken);
-      setInviteEmail("");
-      await loadMembers();
-    } catch { toast(t("meshShareModal.toastInviteError"), "error"); }
-    finally { setIsInviting(false); }
+    inviteAction.run({ email: inviteEmail, role: inviteRole });
   };
 
-  const handleRemove = async (memberId: string) => {
-    try {
-      await removeMeshMember(meshId, memberId, accessToken);
-      setMembers(members.filter(m => m.id !== memberId));
-    } catch { toast(t("meshShareModal.toastRemoveError"), "error"); }
+  const handleRemove = (memberId: string) => {
+    removeAction.run(memberId);
   };
 
   const publicUrl = typeof window !== "undefined" ? `${window.location.origin}/public-mesh/${meshId}` : "";
@@ -128,9 +139,9 @@ export function MeshShareModal({
                   </div>
                 )}
               </div>
-              <button onClick={handleInvite} disabled={isInviting || !inviteEmail.trim()}
+              <button onClick={handleInvite} disabled={inviteAction.isPending || !inviteEmail.trim()}
                 className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center">
-                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("meshShareModal.invite")}
+                {inviteAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("meshShareModal.invite")}
               </button>
             </div>
 
@@ -177,10 +188,10 @@ export function MeshShareModal({
               </div>
               <div className="relative">
                 <button type="button"
-                  onClick={() => !isUpdatingVisibility && setIsVisDropdownOpen(!isVisDropdownOpen)}
-                  disabled={isUpdatingVisibility}
+                  onClick={() => !visibilityAction.isPending && setIsVisDropdownOpen(!isVisDropdownOpen)}
+                  disabled={visibilityAction.isPending}
                   className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0">
-                  {isUpdatingVisibility && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+                  {visibilityAction.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
                   <span>
                     {visibility === "private" && t("meshShareModal.visibility.private")}
                     {visibility === "team" && t("meshShareModal.visibility.teamShort", { teamName })}

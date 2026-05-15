@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { X, UserPlus, Check, Mail, Shield, Loader2 } from "lucide-react";
 import { createInvite, TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useForm } from "@/hooks/ui";
+import { Select } from "@/components/ui/select";
 
 export function InviteMemberModal({
   isOpen,
@@ -23,28 +25,58 @@ export function InviteMemberModal({
   onInvited?: () => void | Promise<void>;
 }) {
   const t = useTranslations("modals");
-  const [email, setEmail] = useState("");
-  const [role, setRole] = useState<Exclude<TeamRole, 'owner'>>('member');
+  const [role, setRole] = useState<Exclude<TeamRole, "owner">>("member");
   const [invited, setInvited] = useState(false);
-  const [isInviting, setIsInviting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const roleOptionsByInviter: Record<TeamRole, Array<{ value: Exclude<TeamRole, 'owner'>; label: string; help: string }>> = {
+  const form = useForm({
+    fields: {
+      email: {
+        type: "email" as const,
+        transform: "trim-lower" as const,
+        constraints: { required: true, email: true, maxLength: 255 },
+        messages: {
+          required: t("inviteMember.emailLabel"),
+          email: t("inviteMember.emailInvalid"),
+        },
+      },
+    },
+    submit: async ({ values, reset }) => {
+      const invite = await createInvite({ email: values.email as string, role }, teamId, accessToken);
+      if (invite.deliveryStatus !== "sent") {
+        throw new Error(
+          invite.deliveryStatus === "skipped"
+            ? t("inviteMember.deliverySkipped")
+            : t("inviteMember.deliveryFailed"),
+        );
+      }
+      setInvited(true);
+      reset();
+      if (onInvited) await onInvited();
+      setTimeout(() => { setInvited(false); onClose(); }, 900);
+    },
+  });
+
+  const roleOptionsByInviter: Record<
+    TeamRole,
+    Array<{ value: Exclude<TeamRole, "owner">; label: string; help: string }>
+  > = {
     owner: [
-      { value: 'admin', label: 'Admin', help: 'Gestiona miembros, invitaciones y contenido del workspace.' },
-      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
-      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+      { value: "admin",  label: t("inviteMember.roles.admin"),  help: t("inviteMember.roles.adminHelp") },
+      { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
+      { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
     ],
     admin: [
-      { value: 'admin', label: 'Admin', help: 'Gestiona miembros, invitaciones y contenido del workspace.' },
-      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
-      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+      { value: "admin",  label: t("inviteMember.roles.admin"),  help: t("inviteMember.roles.adminHelp") },
+      { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
+      { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
     ],
     member: [
-      { value: 'member', label: 'Member', help: 'Puede crear tableros e invitar miembros y guests.' },
-      { value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' },
+      { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
+      { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
     ],
-    guest: [{ value: 'guest', label: 'Guest', help: 'Acceso limitado. No puede invitar ni crear tableros.' }],
+    guest: [
+      { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
+    ],
   };
 
   const allowedRoleOptions = roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest;
@@ -59,55 +91,14 @@ export function InviteMemberModal({
 
   if (!isOpen) return null;
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim() || isInviting) return;
-
-    setIsInviting(true);
-    setError(null);
-
-    try {
-      const invite = await createInvite({ email: email.trim(), role }, teamId, accessToken);
-      if (invite.deliveryStatus !== "sent") {
-        setError(
-          invite.deliveryStatus === "skipped"
-            ? t("inviteMember.deliverySkipped")
-            : t("inviteMember.deliveryFailed"),
-        );
-        if (onInvited) {
-          await onInvited();
-        }
-        return;
-      }
-
-      setInvited(true);
-      setEmail("");
-      if (onInvited) {
-        await onInvited();
-      }
-      setTimeout(() => {
-        setInvited(false);
-        onClose();
-      }, 900);
-    } catch (err: any) {
-      const message = typeof err?.message === 'string' ? err.message : t("inviteMember.errorDefault");
-      setError(message);
-    } finally {
-      setIsInviting(false);
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
-      <div 
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onClose}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-      {/* Modal Container */}
+      {/* Modal */}
       <div className="relative w-full max-w-md bg-background border border-border rounded-xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-200">
-        
+
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border/50">
           <div className="flex items-center space-x-2">
@@ -119,7 +110,7 @@ export function InviteMemberModal({
               <p className="text-xs text-muted-foreground">{t("inviteMember.subtitle")}</p>
             </div>
           </div>
-          <button 
+          <button
             onClick={onClose}
             className="p-2 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
           >
@@ -127,74 +118,69 @@ export function InviteMemberModal({
           </button>
         </div>
 
-        {/* Content */}
-        <form onSubmit={handleInvite} className="p-6 space-y-5">
+        {/* Form */}
+        <form onSubmit={form.submit} className="p-6 space-y-5">
           <div className="space-y-4">
+
+            {/* Email */}
             <div className="space-y-2">
-              <label htmlFor="email" className="text-sm font-medium">
+              <label htmlFor={form.fields.email.id} className="text-sm font-medium">
                 {t("inviteMember.emailLabel")}
               </label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                <input 
-                  id="email"
-                  type="email"
+                <input
+                  {...form.fields.email.inputProps}
                   placeholder={t("inviteMember.emailPlaceholder")}
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full flex h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full flex h-10 rounded-md border border-input bg-background pl-10 pr-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
                   autoFocus
                 />
               </div>
+              {form.fields.email.error && (
+                <p {...form.fields.email.errorProps} className="text-xs text-destructive">
+                  {form.fields.email.error}
+                </p>
+              )}
             </div>
 
+            {/* Role */}
             <div className="space-y-2">
-              <label htmlFor="role" className="text-sm font-medium">
-                {t("inviteMember.roleLabel")}
-              </label>
-              <select 
-                id="role"
+              <label className="text-sm font-medium">{t("inviteMember.roleLabel")}</label>
+              <Select
                 value={role}
-                onChange={(e) => setRole(e.target.value as Exclude<TeamRole, 'owner'>)}
-                className="w-full flex h-10 items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {allowedRoleOptions.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
+                onChange={(e) => setRole(e.target.value as Exclude<TeamRole, "owner">)}
+                disabled={form.isSubmitting}
+                options={allowedRoleOptions.map((o) => ({ value: o.value, label: o.label }))}
+              />
               <div className="space-y-1.5 rounded-md border border-border/60 bg-muted/20 p-2">
                 {allowedRoleOptions.map((option) => (
                   <div key={option.value} className="text-xs text-muted-foreground flex items-start gap-2">
-                    <Shield className="w-3.5 h-3.5 mt-0.5 text-muted-foreground" />
-                    <span><strong className="text-foreground">{option.label}:</strong> {option.help}</span>
+                    <Shield className="w-3.5 h-3.5 mt-0.5 text-muted-foreground shrink-0" />
+                    <span>
+                      <strong className="text-foreground">{option.label}:</strong> {option.help}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
           </div>
 
-          {error && (
+          {form.formError && (
             <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-              {error}
+              {form.formError}
             </div>
           )}
 
           <div className="pt-2">
-            <button 
+            <button
               type="submit"
-              disabled={!email || invited || isInviting}
+              disabled={invited || form.isSubmitting}
               className="w-full inline-flex h-10 items-center justify-center rounded-md bg-primary text-primary-foreground text-sm font-medium transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
               {invited ? (
-                <>
-                  <Check className="w-4 h-4 mr-2" />
-                  {t("inviteMember.inviteSent")}
-                </>
-              ) : isInviting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {t("inviteMember.sending")}
-                </>
+                <><Check className="w-4 h-4 mr-2" />{t("inviteMember.inviteSent")}</>
+              ) : form.isSubmitting ? (
+                <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("inviteMember.sending")}</>
               ) : (
                 t("inviteMember.send")
               )}
@@ -202,7 +188,7 @@ export function InviteMemberModal({
           </div>
         </form>
 
-        <div className="px-6 py-4 bg-muted/30 border-t border-border/50 text-sm">
+        <div className="px-6 py-4 bg-muted/30 border-t border-border/50">
           <span className="text-muted-foreground text-xs">{t("createWorkspace.allowedByRole")}</span>
         </div>
       </div>

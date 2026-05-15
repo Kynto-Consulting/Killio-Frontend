@@ -14,6 +14,7 @@ import {
   markAllAsRead,
 } from "@/lib/api/notifications";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
 
 export function NotificationCenter() {
   const t = useTranslations("notifications");
@@ -48,29 +49,21 @@ export function NotificationCenter() {
     }
   });
 
-  const handleMarkAsRead = async (id: string) => {
+  const markAsReadAction = useAsyncAction(async (id: string) => {
     if (!accessToken) return;
-    try {
-      await markAsRead(id, accessToken);
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
-      );
-      setUnreadCount((c) => Math.max(0, c - 1));
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    await markAsRead(id, accessToken);
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, isRead: true } : n))
+    );
+    setUnreadCount((c) => Math.max(0, c - 1));
+  });
 
-  const handleMarkAllRead = async () => {
+  const markAllReadAction = useAsyncAction<void>(async () => {
     if (!accessToken) return;
-    try {
-      await markAllAsRead(accessToken);
-      setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-      setUnreadCount(0);
-    } catch (error) {
-      console.error(error);
-    }
-  };
+    await markAllAsRead(accessToken);
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    setUnreadCount(0);
+  });
 
   const resolveNotificationTitle = (notification: Notification): string => {
     const key = notification.i18n?.titleKey;
@@ -120,7 +113,7 @@ export function NotificationCenter() {
               </span>
               {unreadCount > 0 && (
                 <button
-                  onClick={handleMarkAllRead}
+                  onClick={() => void markAllReadAction.run()}
                   className="text-xs text-accent hover:underline font-medium"
                 >
                   {t("markAllRead")}
@@ -156,7 +149,7 @@ export function NotificationCenter() {
                         <span className="font-semibold">{resolveNotificationTitle(notif)}</span>
                         {!notif.isRead && (
                           <button
-                            onClick={() => handleMarkAsRead(notif.id)}
+                            onClick={() => void markAsReadAction.run(notif.id)}
                             className="text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity hover:text-accent"
                             title={t("markAsRead")}
                           >

@@ -228,7 +228,7 @@ export default function WorkspacesPage() {
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
         onSubmit={handleCreateBoardSubmit}
-        onUploadCoverImage={handleUploadBoardCover}
+        onUploadBackground={handleUploadBoardCover}
       />
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
         <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useAsyncAction } from "@/hooks/ui";
 import { ArrowLeft, FileText, Layers, LayoutGrid, Loader2, Search, X } from "lucide-react";
 import { getBoard, getCard, getMesh, listTeamCatalog, type CardView, type TeamCatalog } from "@/lib/api/contracts";
 import { getDocument, type DocumentBrick } from "@/lib/api/documents";
@@ -209,18 +210,21 @@ export function EntitySelectorModal({
   const t = useTranslations("common");
   const [catalog, setCatalog] = useState<TeamCatalog | null>(null);
   const [loading, setLoading] = useState(false);
-  const [detailLoading, setDetailLoading] = useState(false);
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<"all" | "boards" | "docs" | "cards">("all");
   const [step, setStep] = useState<SelectorStep>({ kind: "entity" });
   const searchRef = useRef<HTMLInputElement>(null);
+
+  const detailLoadAction = useAsyncAction(async (fn: () => Promise<void>) => {
+    await fn();
+  });
 
   useEffect(() => {
     if (!isOpen) {
       setQuery("");
       setCatalog(null);
       setStep({ kind: "entity" });
-      setDetailLoading(false);
+      detailLoadAction.reset();
       return;
     }
     setLoading(true);
@@ -247,14 +251,13 @@ export function EntitySelectorModal({
     setStep({ kind: "entity" });
   };
 
-  const handleEntitySelect = async (entity: { id: string; type: EntitySelectorResult["type"]; label: string; context?: string }) => {
+  const handleEntitySelect = (entity: { id: string; type: EntitySelectorResult["type"]; label: string; context?: string }) => {
     if (selectionMode === "portal") {
       onSelect(entity);
       return;
     }
 
-    setDetailLoading(true);
-    try {
+    void detailLoadAction.run(async () => {
       if (entity.type === "document") {
         const doc = await getDocument(entity.id, accessToken);
         setStep({
@@ -298,9 +301,7 @@ export function EntitySelectorModal({
           contextPath: `${entity.context || "Board"} / ${card.title}`,
         });
       }
-    } finally {
-      setDetailLoading(false);
-    }
+    });
   };
 
   const q = query.toLowerCase();
@@ -389,7 +390,7 @@ export function EntitySelectorModal({
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-2">
-          {loading || detailLoading ? (
+          {loading || detailLoadAction.isPending ? (
             <div className="flex h-full items-center justify-center">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </div>
@@ -423,26 +424,21 @@ export function EntitySelectorModal({
                     key={card.id}
                     type="button"
                     className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-muted transition-colors"
-                    onClick={async () => {
-                      setDetailLoading(true);
-                      try {
-                        const fullCard = await getCard(card.id, accessToken);
-                        setStep({
-                          kind: "brick",
-                          sourceType: "card",
-                          sourceId: fullCard.id,
-                          sourceLabel: fullCard.title,
-                          bricks: (fullCard.blocks || []).map(getBoardBrickPreview),
-                          sourceListId: step.listId,
-                          sourceListLabel: step.listName,
-                          sourceCardId: fullCard.id,
-                          sourceCardLabel: fullCard.title,
-                          contextPath: `${step.boardName} / ${step.listName} / ${fullCard.title}`,
-                        });
-                      } finally {
-                        setDetailLoading(false);
-                      }
-                    }}
+                    onClick={() => void detailLoadAction.run(async () => {
+                      const fullCard = await getCard(card.id, accessToken);
+                      setStep({
+                        kind: "brick",
+                        sourceType: "card",
+                        sourceId: fullCard.id,
+                        sourceLabel: fullCard.title,
+                        bricks: (fullCard.blocks || []).map(getBoardBrickPreview),
+                        sourceListId: step.listId,
+                        sourceListLabel: step.listName,
+                        sourceCardId: fullCard.id,
+                        sourceCardLabel: fullCard.title,
+                        contextPath: `${step.boardName} / ${step.listName} / ${fullCard.title}`,
+                      });
+                    })}
                   >
                     <LayoutGrid className="h-4 w-4 shrink-0 text-emerald-400" />
                     <span className="flex-1 truncate text-foreground">{card.title || t("untitled")}</span>

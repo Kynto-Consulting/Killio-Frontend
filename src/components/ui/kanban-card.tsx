@@ -11,13 +11,24 @@ import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useAsyncAction, useConfirm } from "@/hooks/ui";
 
 export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
   const t = useTranslations("board-detail");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const { accessToken } = useSession();
+  const { ask: askDeleteCard, ConfirmDialog: DeleteCardConfirmDialog } = useConfirm();
+  const deleteCardAction = useAsyncAction(
+    async () => {
+      if (!accessToken) throw new Error("Missing access token for deleteCard");
+      await deleteCard(card.id, accessToken);
+      window.dispatchEvent(new Event('board:refresh'));
+    },
+    {
+      onError: (err) => console.error("Failed to delete card", err),
+    }
+  );
   const isGuest = !canEdit;
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -123,32 +134,20 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
               <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
               <div className="my-1 border-t border-border" />
               <button
-                disabled={isDeleting}
+                disabled={deleteCardAction.isPending}
                 onClick={async (e) => {
                   e.stopPropagation();
                   setIsMenuOpen(false);
-
-                  if (!accessToken) {
-                    console.error("Missing access token for deleteCard");
-                    return;
-                  }
-
-                  const confirmed = window.confirm(t("card.deleteConfirm"));
-                  if (!confirmed) return;
-
-                  setIsDeleting(true);
-                  try {
-                    await deleteCard(card.id, accessToken);
-                    window.dispatchEvent(new Event('board:refresh'));
-                  } catch (err) {
-                    console.error("Failed to delete card", err);
-                  } finally {
-                    setIsDeleting(false);
-                  }
+                  const ok = await askDeleteCard({
+                    title: t("card.deleteConfirm"),
+                    confirmLabel: t("card.delete"),
+                    variant: "destructive",
+                  });
+                  if (ok) deleteCardAction.run(undefined);
                 }}
                 className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isDeleting ? '...' : t("card.delete")}
+                {deleteCardAction.isPending ? '...' : t("card.delete")}
               </button>
             </div>
           )}
@@ -246,6 +245,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         teamDocs={teamDocs}
         teamBoards={teamBoards}
       />
+      <DeleteCardConfirmDialog />
     </>
   );
 }

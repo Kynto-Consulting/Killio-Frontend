@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
 
 type CoverKind = "none" | "preset" | "image" | "color" | "gradient";
 
@@ -159,10 +160,27 @@ export function BoardSettingsModalWeb({
   const [themePreset, setThemePreset] = useState<string>(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
   const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
   const [themeSurface, setThemeSurface] = useState<string>(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
-  const [isSavingGeneral, setIsSavingGeneral] = useState(false);
-  const [isSavingAppearance, setIsSavingAppearance] = useState(false);
-  const [isUploadingImage, setIsUploadingImage] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const saveGeneralAction = useAsyncAction(async (payload: { name: string; description: string | null }) => {
+    await onSaveGeneral(payload);
+    onClose();
+  });
+
+  const saveAppearanceAction = useAsyncAction(async (payload: BoardAppearanceDraft) => {
+    await onSaveAppearance(payload);
+    onClose();
+  });
+
+  const uploadAction = useAsyncAction(async ({ file, target }: { file: File; target: "cover" | "background" }) => {
+    if (!onUploadImage) return;
+    const uploadedUrl = await onUploadImage(file);
+    if (target === "cover") {
+      setCoverKind("image");
+      setCoverImage(uploadedUrl);
+    } else {
+      setBackgroundKind("image");
+      setImageBackground(uploadedUrl);
+    }
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -184,7 +202,6 @@ export function BoardSettingsModalWeb({
     setThemePreset(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
     setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
     setThemeSurface(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
-    setError(null);
   }, [isOpen, boardName, boardDescription, boardAppearance]);
 
   if (!isOpen) return null;
@@ -207,87 +224,46 @@ export function BoardSettingsModalWeb({
           : coverPreset;
   const coverPreview = resolveCoverPreview(coverKind, currentCover);
 
-  const handleUpload = async (file: File, target: "cover" | "background") => {
+  const handleUpload = (file: File, target: "cover" | "background") => {
     if (!onUploadImage) return;
-    if (!file.type.startsWith("image/")) {
-      setError(t("boardSettingsModal.appearance.upload.invalidImage"));
-      return;
-    }
-
-    setError(null);
-    setIsUploadingImage(true);
-    try {
-      const uploadedUrl = await onUploadImage(file);
-      if (target === "cover") {
-        setCoverKind("image");
-        setCoverImage(uploadedUrl);
-      } else {
-        setBackgroundKind("image");
-        setImageBackground(uploadedUrl);
-      }
-    } catch (err: any) {
-      setError(err?.message || t("boardSettingsModal.appearance.upload.uploadError"));
-    } finally {
-      setIsUploadingImage(false);
-    }
+    if (!file.type.startsWith("image/")) return;
+    void uploadAction.run({ file, target });
   };
 
-  const saveGeneral = async () => {
-    if (!name.trim()) {
-      setError(t("boardSettingsModal.general.nameEmptyError"));
-      return;
-    }
-
-    setError(null);
-    setIsSavingGeneral(true);
-    try {
-      await onSaveGeneral({ name: name.trim(), description: description.trim() || null });
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || t("boardSettingsModal.general.saveError"));
-    } finally {
-      setIsSavingGeneral(false);
-    }
+  const saveGeneral = () => {
+    if (!name.trim()) return;
+    void saveGeneralAction.run({ name: name.trim(), description: description.trim() || null });
   };
 
-  const saveAppearance = async () => {
-    setError(null);
-    setIsSavingAppearance(true);
-    try {
-      const payload: BoardAppearanceDraft = {
-        coverImageUrl: serializeCoverValue(coverKind, currentCover),
-        backgroundKind,
-        themeKind,
+  const saveAppearance = () => {
+    const payload: BoardAppearanceDraft = {
+      coverImageUrl: serializeCoverValue(coverKind, currentCover),
+      backgroundKind,
+      themeKind,
+    };
+
+    if (backgroundKind === "none") {
+      payload.backgroundValue = null;
+      payload.backgroundImageUrl = null;
+      payload.backgroundGradient = null;
+    }
+    if (backgroundKind === "preset") payload.backgroundValue = presetBackground;
+    if (backgroundKind === "image") payload.backgroundImageUrl = imageBackground || null;
+    if (backgroundKind === "color") payload.backgroundValue = colorBackground;
+    if (backgroundKind === "gradient") payload.backgroundGradient = gradientBackground;
+
+    if (themeKind === "preset") {
+      payload.themePreset = themePreset;
+      payload.themeCustom = {};
+    } else {
+      payload.themePreset = null;
+      payload.themeCustom = {
+        accent: themeAccent,
+        surface: themeSurface,
       };
-
-      if (backgroundKind === "none") {
-        payload.backgroundValue = null;
-        payload.backgroundImageUrl = null;
-        payload.backgroundGradient = null;
-      }
-      if (backgroundKind === "preset") payload.backgroundValue = presetBackground;
-      if (backgroundKind === "image") payload.backgroundImageUrl = imageBackground || null;
-      if (backgroundKind === "color") payload.backgroundValue = colorBackground;
-      if (backgroundKind === "gradient") payload.backgroundGradient = gradientBackground;
-
-      if (themeKind === "preset") {
-        payload.themePreset = themePreset;
-        payload.themeCustom = {};
-      } else {
-        payload.themePreset = null;
-        payload.themeCustom = {
-          accent: themeAccent,
-          surface: themeSurface,
-        };
-      }
-
-      await onSaveAppearance(payload);
-      onClose();
-    } catch (err: any) {
-      setError(err?.message || t("boardSettingsModal.appearance.saveError"));
-    } finally {
-      setIsSavingAppearance(false);
     }
+
+    void saveAppearanceAction.run(payload);
   };
 
   return (
@@ -332,8 +308,8 @@ export function BoardSettingsModalWeb({
                 />
               </div>
               <div className="flex justify-end">
-                <button onClick={saveGeneral} disabled={isSavingGeneral || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-                  {isSavingGeneral ? t("boardSettingsModal.general.saving") : t("boardSettingsModal.general.save")}
+                <button onClick={saveGeneral} disabled={saveGeneralAction.isPending || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                  {saveGeneralAction.isPending ? t("boardSettingsModal.general.saving") : t("boardSettingsModal.general.save")}
                 </button>
               </div>
             </div>
@@ -384,7 +360,7 @@ export function BoardSettingsModalWeb({
                         event.target.value = "";
                       }}
                     />
-                    <button onClick={() => coverFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
+                    <button onClick={() => coverFileInputRef.current?.click()} type="button" disabled={!onUploadImage || uploadAction.isPending || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
                       <ImagePlus className="h-3.5 w-3.5" /> {t("boardSettingsModal.appearance.upload.uploadCover")}
                     </button>
                   </>
@@ -440,7 +416,7 @@ export function BoardSettingsModalWeb({
                         event.target.value = "";
                       }}
                     />
-                    <button onClick={() => backgroundFileInputRef.current?.click()} type="button" disabled={!onUploadImage || isUploadingImage || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
+                    <button onClick={() => backgroundFileInputRef.current?.click()} type="button" disabled={!onUploadImage || uploadAction.isPending || !canEdit} className="h-9 px-3 rounded-md border border-input text-xs inline-flex items-center gap-1.5 disabled:opacity-50">
                       <ImagePlus className="h-3.5 w-3.5" /> {t("boardSettingsModal.appearance.upload.uploadBackground")}
                     </button>
                   </>
@@ -495,8 +471,8 @@ export function BoardSettingsModalWeb({
               </div>
 
               <div className="flex justify-end">
-                <button onClick={saveAppearance} disabled={isSavingAppearance || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
-                  {isSavingAppearance ? t("boardSettingsModal.appearance.saving") : t("boardSettingsModal.appearance.save")}
+                <button onClick={saveAppearance} disabled={saveAppearanceAction.isPending || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
+                  {saveAppearanceAction.isPending ? t("boardSettingsModal.appearance.saving") : t("boardSettingsModal.appearance.save")}
                 </button>
               </div>
             </div>
@@ -534,7 +510,9 @@ export function BoardSettingsModalWeb({
             </div>
           )}
 
-          {error ? <div className="text-sm text-red-500">{error}</div> : null}
+          {(saveGeneralAction.error || saveAppearanceAction.error || uploadAction.error) ? (
+            <div className="text-sm text-red-500">{saveGeneralAction.error ?? saveAppearanceAction.error ?? uploadAction.error}</div>
+          ) : null}
         </div>
       </div>
     </div>

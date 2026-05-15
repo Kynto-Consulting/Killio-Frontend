@@ -5,6 +5,7 @@ import { X, ArrowRightLeft, Loader2, UserPlus, CheckCircle2 } from "lucide-react
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface SwitchAccountModalProps {
   isOpen: boolean;
@@ -15,26 +16,22 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
   const { user, accounts, switchAccount } = useSession();
   const t = useTranslations("modals");
   const tCommon = useTranslations("common");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(user?.id || null);
+
+  const switchAction = useAsyncAction(async (userId: string) => {
+    switchAccount(userId);
+    // Wait a moment for redirect/reload to happen gracefully
+    await new Promise(r => setTimeout(r, 500));
+  });
 
   if (!isOpen) return null;
 
-  const handleSwitch = async () => {
+  const handleSwitch = () => {
     if (!selectedUserId || selectedUserId === user?.id) {
       onClose();
       return;
     }
-    
-    setIsSubmitting(true);
-    try {
-      switchAccount(selectedUserId);
-      // Wait a moment for redirect/reload to happen gracefully
-      await new Promise(r => setTimeout(r, 500));
-    } catch (e) {
-      console.error(e);
-      setIsSubmitting(false);
-    }
+    switchAction.run(selectedUserId);
   };
 
   return (
@@ -115,7 +112,7 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
           <button
             type="button"
             onClick={onClose}
-            disabled={isSubmitting}
+            disabled={switchAction.isPending}
             className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
           >
               {tCommon("actions.cancel")}
@@ -123,10 +120,10 @@ export function SwitchAccountModal({ isOpen, onClose }: SwitchAccountModalProps)
           <button
             type="button"
             onClick={handleSwitch}
-            disabled={isSubmitting || selectedUserId === user?.id}
+            disabled={switchAction.isPending || selectedUserId === user?.id}
             className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
           >
-            {isSubmitting ? (
+            {switchAction.isPending ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {t("switchAccount.switching")}

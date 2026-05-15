@@ -22,6 +22,7 @@ import { ReferenceTokenInput } from "./reference-token-input";
 import { RefPill } from "./ref-pill";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
+import { useAsyncAction } from "@/hooks/ui";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } from "@/lib/workspace-members";
@@ -172,7 +173,6 @@ export function CardDetailModal({
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity' | 'copilot'>('details');
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
   const router = useRouter();
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
@@ -1206,30 +1206,32 @@ export function CardDetailModal({
     await toggleAssignee(currentUserAsAssignee);
   };
 
-  const handleAddComment = async () => {
-    if (!newComment.trim() || !card?.id || !accessToken || isSubmittingComment) return;
-    setIsSubmittingComment(true);
-
-    if (!canComment) {
-      toast(t("card.commentPermissionError"), "error");
-      setIsSubmittingComment(false);
-      return;
-    }
-
-    try {
+  const submitComment = useAsyncAction(
+    async (_: void) => {
+      if (!canComment) {
+        toast(t("card.commentPermissionError"), "error");
+        return;
+      }
+      if (!newComment.trim() || !card?.id || !accessToken) return;
       await addCardComment(card.id, newComment.trim(), accessToken);
       setNewComment("");
       const logs = await getCardActivity(card.id, accessToken);
       setActivities(logs);
       router.refresh();
       window.dispatchEvent(new Event('board:refresh'));
-    } catch (err) {
-      console.error("Failed to add comment", err);
-      const message = err instanceof ApiError ? err.message : "No se pudo enviar el comentario.";
-      toast(message, "error");
-    } finally {
-      setIsSubmittingComment(false);
+    },
+    {
+      onError: (err) => {
+        console.error("Failed to add comment", err);
+        const message = err instanceof ApiError ? err.message : "No se pudo enviar el comentario.";
+        toast(message, "error");
+      },
     }
+  );
+
+  const handleAddComment = () => {
+    if (!newComment.trim() || !card?.id || !accessToken || submitComment.isPending) return;
+    void submitComment.run(undefined);
   };
 
   const debounceTimer = useRef<NodeJS.Timeout | null>(null);
@@ -2179,8 +2181,8 @@ export function CardDetailModal({
                   className="w-full"
                   inputClassName="rounded-lg min-h-[56px] py-2 pr-10 leading-relaxed focus:border-primary/50"
                 />
-                <button onClick={handleAddComment} disabled={!newComment.trim() || isSubmittingComment || !canComment} className="absolute right-2 bottom-2 p-1.5 rounded-md transition-colors bg-primary text-primary-foreground hover:bg-primary/90">
-                  {isSubmittingComment ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
+                <button onClick={handleAddComment} disabled={!newComment.trim() || submitComment.isPending || !canComment} className="absolute right-2 bottom-2 p-1.5 rounded-md transition-colors bg-primary text-primary-foreground hover:bg-primary/90">
+                  {submitComment.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CornerDownRight className="w-3.5 h-3.5" />}
                 </button>
               </div>
             </div>

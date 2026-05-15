@@ -1,6 +1,6 @@
-import { useState } from "react";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface ConfirmDeleteModalProps {
   isOpen: boolean;
@@ -20,21 +20,15 @@ export function ConfirmDeleteModal({
   itemName
 }: ConfirmDeleteModalProps) {
   const t = useTranslations("modals");
-  const [isDeleting, setIsDeleting] = useState(false);
+  const confirmAction = useAsyncAction(
+    async () => { await onConfirm(); },
+    { onSuccess: onClose, onError: (e) => console.error(e) }
+  );
+  const isDeleting = confirmAction.isPending;
 
   if (!isOpen) return null;
 
-  const handleConfirm = async () => {
-    setIsDeleting(true);
-    try {
-      await onConfirm();
-      onClose();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+  const handleConfirm = () => confirmAction.run(undefined);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm">

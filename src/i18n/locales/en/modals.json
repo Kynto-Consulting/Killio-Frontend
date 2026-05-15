@@ -7,7 +7,15 @@
     "backgroundLabel": "Background",
     "create": "Create Board",
     "creating": "Creating...",
-    "createError": "An error occurred while creating the board."
+    "createError": "An error occurred while creating the board.",
+    "uploadBackground": "Upload image",
+    "removeBackground": "Remove image",
+    "uploading": "Uploading...",
+    "gradient": "Gradient",
+    "color": "Color",
+    "image": "Image",
+    "fileNotImage": "The file must be an image.",
+    "uploadBackgroundError": "Could not upload background image."
   },
   "createWorkspace": {
     "title": "Create Workspace",
@@ -28,13 +36,22 @@
     "subtitle": "Add new members to your workspace",
     "emailLabel": "Email address",
     "emailPlaceholder": "colleague@example.com",
+    "emailInvalid": "Must be a valid email address.",
     "roleLabel": "Role",
     "inviteSent": "Invite sent!",
     "sending": "Sending invite...",
     "send": "Send invite",
     "errorDefault": "Could not send invite.",
     "deliverySkipped": "Invite was created, but email was not sent because the email provider is not configured.",
-    "deliveryFailed": "Invite was created, but email delivery failed. Check email provider configuration."
+    "deliveryFailed": "Invite was created, but email delivery failed. Check email provider configuration.",
+    "roles": {
+      "admin": "Admin",
+      "member": "Member",
+      "guest": "Guest",
+      "adminHelp": "Manages members, invitations and workspace content.",
+      "memberHelp": "Can create boards and invite members and guests.",
+      "guestHelp": "Limited access. Cannot invite or create boards."
+    }
   },
   "switchAccount": {
     "title": "Switch Account",

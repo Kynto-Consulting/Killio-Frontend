@@ -1341,6 +1341,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchPointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
   const pinchStateRef = useRef<PinchGestureState | null>(null);
+  const flushPenRef = useRef<(() => void) | null>(null);
 
   // Restore pen settings from localStorage safely on client.
   useEffect(() => {
@@ -1523,6 +1524,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     if (next.size === 1) {
       pinchStateRef.current = null;
+
+      if (toolMode === "pen") {
+        const { x, y } = fromEv(e);
+        setActivePen([{ x, y, t: Date.now() }]);
+        return;
+      }
+
+      if (toolMode === "select") {
+        const { x, y } = fromEv(e);
+        const rect = { x1: x, y1: y, x2: x, y2: y };
+        selRectRef.current = rect;
+        setSelRect(rect);
+        setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
+        return;
+      }
+
+      // pan mode (default)
       setPanDragState({
         startMouse: { x: e.clientX, y: e.clientY },
         startViewport: { x: viewport.x, y: viewport.y },
@@ -1543,7 +1561,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         centerScreen: { x: centerX, y: centerY },
       };
     }
-  }, [mobileMode, viewport.x, viewport.y, viewport.zoom]);
+  }, [mobileMode, viewport.x, viewport.y, viewport.zoom, toolMode, fromEv]);
 
   const onCanvasPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!mobileMode || e.pointerType !== "touch") return;
@@ -1576,8 +1594,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         y: panDragState.startViewport.y + (e.clientY - panDragState.startMouse.y),
         zoom: viewport.zoom,
       });
+      return;
     }
-  }, [mobileMode, panDragState, viewport.zoom]);
+
+    if (next.size === 1 && toolMode === "pen" && activePen) {
+      const { x, y } = fromEv(e);
+      setActivePen((p) => p ? [...p, { x, y, t: Date.now() }] : p);
+      return;
+    }
+
+    if (next.size === 1 && toolMode === "select" && selRectRef.current) {
+      const { x, y } = fromEv(e);
+      const updated = { ...selRectRef.current, x2: x, y2: y };
+      selRectRef.current = updated;
+      setSelRect(updated);
+      return;
+    }
+  }, [mobileMode, panDragState, viewport.zoom, toolMode, activePen, fromEv]);
 
   const onCanvasPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!mobileMode || e.pointerType !== "touch") return;
@@ -1587,6 +1620,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (next.size === 0) {
       pinchStateRef.current = null;
       setPanDragState(null);
+      if (toolMode === "pen") flushPenRef.current?.();
       return;
     }
 
@@ -1598,7 +1632,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         startViewport: { x: viewport.x, y: viewport.y },
       });
     }
-  }, [mobileMode, viewport.x, viewport.y]);
+  }, [mobileMode, viewport.x, viewport.y, toolMode]);
 
   const gPos = useCallback((id: string) => resolveGlobal(state.bricksById, id), [state.bricksById]);
 
@@ -2470,6 +2504,149 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
   }, [toolMode, fromEv, panDragState, activePen, vecDragState, resizeState, dragState, connSrcId, bezierCpDrag, publishCursor]);
 
+  // ── Pen flush (shared between mouse-up and touch pointer-up) ─────────────────
+  const flushPen = useCallback(() => {
+    if (!(activePen && activePen.length > 1)) return;
+    const stroke: PenStroke = { points: activePen, color: penColor, width: penStrokeWidth };
+    setActivePen(null);
+    penStrokesRef.current = [...penStrokesRef.current, stroke];
+    setPenStrokes([...penStrokesRef.current]);
+    if (penTimer.current) clearTimeout(penTimer.current);
+    penTimer.current = setTimeout(() => {
+      const strokes = penStrokesRef.current;
+      penStrokesRef.current = [];
+      setPenStrokes([]);
+      if (!strokes.length) return;
+
+      const rawDrawTarget = (() => {
+        const bb = strokesBBox(strokes);
+        const mid = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
+        return findRawDrawAt(state.bricksById, mid.x, mid.y);
+      })();
+
+      if (rawDrawTarget) {
+        setState((cur) => {
+          const b = cur.bricksById[rawDrawTarget.id];
+          if (!b) return cur;
+          const c = asRec(b.content);
+          const current = Array.isArray(c.manualStrokes) ? [...(c.manualStrokes as unknown[])] : [];
+          const g = resolveGlobal(cur.bricksById, b.id);
+          const normalizedBatch = strokes.map((s) => ({
+            points: s.points.map((p) => ({
+              x: +Math.max(0, Math.min(1, (p.x - g.x) / Math.max(b.size.w, 1))).toFixed(4),
+              y: +Math.max(0, Math.min(1, (p.y - g.y) / Math.max(b.size.h, 1))).toFixed(4),
+            })),
+            color: s.color ?? penColor,
+            width: s.width ?? penStrokeWidth,
+          }));
+          return {
+            ...cur,
+            bricksById: {
+              ...cur.bricksById,
+              [b.id]: { ...b, content: { ...c, manualStrokes: [...current, ...normalizedBatch] } },
+            },
+          };
+        });
+        return;
+      }
+
+      const el = canvasRef.current;
+      const cw = el ? el.clientWidth / Math.max(viewport.zoom, 0.01) : 1600;
+      const ch = el ? el.clientHeight / Math.max(viewport.zoom, 0.01) : 900;
+      setRecognizing(true);
+      callIink(strokes, cw, ch, accessToken ?? "").then((result) => {
+        setRecognizing(false);
+        if (!result) { toast(tMesh("errors.iinkNoResponse"), "error"); return; }
+        const { text, shapes } = result;
+        console.log("[iink]", { text, shapes });
+        const primaryShape = shapes[0];
+        const mapped = primaryShape ? shapeKindToBrick(primaryShape.kind) : null;
+        if (!mapped && (!text || !text.trim())) {
+          // Try line-to-connection: if stroke endpoints are near two different bricks
+          const allPts = strokes.flatMap((s) => s.points);
+          if (allPts.length >= 2) {
+            const start = allPts[0], end = allPts[allPts.length - 1];
+            setState((cur) => {
+              let srcId: string | null = null, tgtId: string | null = null, srcD = 100, tgtD = 100;
+              Object.values(cur.bricksById).forEach((b) => {
+                const g = resolveGlobal(cur.bricksById, b.id);
+                const cx = g.x + b.size.w / 2, cy = g.y + b.size.h / 2;
+                const ds = Math.hypot(cx - start.x, cy - start.y);
+                const de = Math.hypot(cx - end.x, cy - end.y);
+                if (ds < srcD) { srcD = ds; srcId = b.id; }
+                if (de < tgtD) { tgtD = de; tgtId = b.id; }
+              });
+              if (srcId && tgtId && srcId !== tgtId) {
+                const conn: MeshConnection = { id: mkId("conn"), cons: [srcId, tgtId], label: { type: "doc", content: [] }, style: { ...connStyle(connPreset) } };
+                toast(tMesh("feedback.connByStroke"), "success");
+                return { ...cur, connectionsById: { ...cur.connectionsById, [conn.id]: conn } };
+              }
+              return cur;
+            });
+          }
+          return;
+        }
+        const bbox = strokesBBox(strokes);
+        setState((cur) => {
+          const mid = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
+          const board = boardAt(cur.bricksById, mid.x, mid.y, "");
+          const parentId = board?.id ?? null;
+          let pos = { x: bbox.x, y: bbox.y };
+          if (parentId && board) { const pg = resolveGlobal(cur.bricksById, parentId); pos = { x: bbox.x - pg.x, y: bbox.y - pg.y }; }
+          let nb: MeshBrick;
+          if (mapped) {
+            const sz = primaryShape?.bbox
+              ? { w: Math.max(mapped.meshKind === "board_empty" ? 240 : 150, primaryShape.bbox.w),
+                  h: Math.max(mapped.meshKind === "board_empty" ? 160 : 110, primaryShape.bbox.h) }
+              : undefined;
+            nb = mkBrick(mapped.meshKind, Object.keys(cur.bricksById).length, parentId, pos, mapped.preset);
+            if (sz) nb = { ...nb, size: sz };
+            if (mapped.meshKind === "draw" || mapped.meshKind === "frame") {
+              const content = asRec(nb.content);
+              const style = asRec(content.style);
+              nb = {
+                ...nb,
+                content: {
+                  ...content,
+                  style: {
+                    ...style,
+                    stroke: penColor,
+                    strokeWidth: penStrokeWidth,
+                  },
+                  strokeColor: penColor,
+                  strokeWidth: penStrokeWidth,
+                },
+              };
+            }
+          } else {
+            // Phase 4: Derive size from bbox height, bold from stroke width, color from pen
+            const baseText = text!.trim();
+            // bbox height (canvas px) → rem: ~40px = 1rem, clamped 0.6–5
+            const sizeRem = Math.max(0.6, Math.min(5, bbox.h / 40)).toFixed(2);
+            // stroke width ≥ 3 → bold markdown
+            const styledText = penStrokeWidth >= 3 ? `**${baseText}**` : baseText;
+            // wrap with properly-closed tags
+            const isDefaultColor = penColor === "#ffffff" || penColor === "#fff" || !penColor;
+            const textWithTokens = isDefaultColor
+              ? `[size:${sizeRem}rem]${styledText}[/size]`
+              : `[size:${sizeRem}rem][color:${penColor}]${styledText}[/color][/size]`;
+            nb = setMd(mkBrick("text", Object.keys(cur.bricksById).length, parentId, pos), textWithTokens);
+          }
+          const by = { ...cur.bricksById, [nb.id]: nb };
+          let root = cur.rootOrder;
+          if (!parentId) root = [...root, nb.id];
+          if (parentId && board) by[board.id] = withChildOrder(board, [...childOrder(board), nb.id]);
+          return { ...cur, bricksById: by, rootOrder: root };
+        });
+        if (mapped) toast(tMesh("feedback.shapeRecognized", { kind: primaryShape!.kind }), "success");
+        else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
+      });
+    }, 900);
+  }, [activePen, penColor, penStrokeWidth, state.bricksById, viewport.zoom, accessToken, connPreset]);
+
+  // Keep flushPenRef current so onCanvasPointerUp (defined earlier) can call it
+  flushPenRef.current = flushPen;
+
   // ── Mouse up ──────────────────────────────────────────────────────────────────
   const onMouseUp = useCallback(() => {
     if (bezierCpDrag) { setBezierCpDrag(null); return; }
@@ -2477,141 +2654,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     // pen flush — use ref to avoid React Strict Mode double-invoke
     if (toolMode === "pen" && activePen && activePen.length > 1) {
-      const stroke: PenStroke = { points: activePen, color: penColor, width: penStrokeWidth };
-      setActivePen(null);
-      penStrokesRef.current = [...penStrokesRef.current, stroke];
-      setPenStrokes([...penStrokesRef.current]);
-      if (penTimer.current) clearTimeout(penTimer.current);
-      penTimer.current = setTimeout(() => {
-        const strokes = penStrokesRef.current;
-        penStrokesRef.current = [];
-        setPenStrokes([]);
-        if (!strokes.length) return;
-
-        const rawDrawTarget = (() => {
-          const bb = strokesBBox(strokes);
-          const mid = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
-          return findRawDrawAt(state.bricksById, mid.x, mid.y);
-        })();
-
-        if (rawDrawTarget) {
-          setState((cur) => {
-            const b = cur.bricksById[rawDrawTarget.id];
-            if (!b) return cur;
-            const c = asRec(b.content);
-            const current = Array.isArray(c.manualStrokes) ? [...(c.manualStrokes as unknown[])] : [];
-            const g = resolveGlobal(cur.bricksById, b.id);
-            const normalizedBatch = strokes.map((s) => ({
-              points: s.points.map((p) => ({
-                x: +Math.max(0, Math.min(1, (p.x - g.x) / Math.max(b.size.w, 1))).toFixed(4),
-                y: +Math.max(0, Math.min(1, (p.y - g.y) / Math.max(b.size.h, 1))).toFixed(4),
-              })),
-              color: s.color ?? penColor,
-              width: s.width ?? penStrokeWidth,
-            }));
-            return {
-              ...cur,
-              bricksById: {
-                ...cur.bricksById,
-                [b.id]: { ...b, content: { ...c, manualStrokes: [...current, ...normalizedBatch] } },
-              },
-            };
-          });
-          return;
-        }
-
-        const el = canvasRef.current;
-        const cw = el ? el.clientWidth / Math.max(viewport.zoom, 0.01) : 1600;
-        const ch = el ? el.clientHeight / Math.max(viewport.zoom, 0.01) : 900;
-        setRecognizing(true);
-        callIink(strokes, cw, ch, accessToken ?? "").then((result) => {
-          setRecognizing(false);
-          if (!result) { toast(tMesh("errors.iinkNoResponse"), "error"); return; }
-          const { text, shapes } = result;
-          console.log("[iink]", { text, shapes });
-          const primaryShape = shapes[0];
-          const mapped = primaryShape ? shapeKindToBrick(primaryShape.kind) : null;
-          if (!mapped && (!text || !text.trim())) {
-            // Try line-to-connection: if stroke endpoints are near two different bricks
-            const allPts = strokes.flatMap((s) => s.points);
-            if (allPts.length >= 2) {
-              const start = allPts[0], end = allPts[allPts.length - 1];
-              setState((cur) => {
-                let srcId: string | null = null, tgtId: string | null = null, srcD = 100, tgtD = 100;
-                Object.values(cur.bricksById).forEach((b) => {
-                  const g = resolveGlobal(cur.bricksById, b.id);
-                  const cx = g.x + b.size.w / 2, cy = g.y + b.size.h / 2;
-                  const ds = Math.hypot(cx - start.x, cy - start.y);
-                  const de = Math.hypot(cx - end.x, cy - end.y);
-                  if (ds < srcD) { srcD = ds; srcId = b.id; }
-                  if (de < tgtD) { tgtD = de; tgtId = b.id; }
-                });
-                if (srcId && tgtId && srcId !== tgtId) {
-                  const conn: MeshConnection = { id: mkId("conn"), cons: [srcId, tgtId], label: { type: "doc", content: [] }, style: { ...connStyle(connPreset) } };
-                  toast(tMesh("feedback.connByStroke"), "success");
-                  return { ...cur, connectionsById: { ...cur.connectionsById, [conn.id]: conn } };
-                }
-                return cur;
-              });
-            }
-            return;
-          }
-          const bbox = strokesBBox(strokes);
-          setState((cur) => {
-            const mid = { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 };
-            const board = boardAt(cur.bricksById, mid.x, mid.y, "");
-            const parentId = board?.id ?? null;
-            let pos = { x: bbox.x, y: bbox.y };
-            if (parentId && board) { const pg = resolveGlobal(cur.bricksById, parentId); pos = { x: bbox.x - pg.x, y: bbox.y - pg.y }; }
-            let nb: MeshBrick;
-            if (mapped) {
-              const sz = primaryShape?.bbox
-                ? { w: Math.max(mapped.meshKind === "board_empty" ? 240 : 150, primaryShape.bbox.w),
-                    h: Math.max(mapped.meshKind === "board_empty" ? 160 : 110, primaryShape.bbox.h) }
-                : undefined;
-              nb = mkBrick(mapped.meshKind, Object.keys(cur.bricksById).length, parentId, pos, mapped.preset);
-              if (sz) nb = { ...nb, size: sz };
-              if (mapped.meshKind === "draw" || mapped.meshKind === "frame") {
-                const content = asRec(nb.content);
-                const style = asRec(content.style);
-                nb = {
-                  ...nb,
-                  content: {
-                    ...content,
-                    style: {
-                      ...style,
-                      stroke: penColor,
-                      strokeWidth: penStrokeWidth,
-                    },
-                    strokeColor: penColor,
-                    strokeWidth: penStrokeWidth,
-                  },
-                };
-              }
-            } else {
-              // Phase 4: Derive size from bbox height, bold from stroke width, color from pen
-              const baseText = text!.trim();
-              // bbox height (canvas px) → rem: ~40px = 1rem, clamped 0.6–5
-              const sizeRem = Math.max(0.6, Math.min(5, bbox.h / 40)).toFixed(2);
-              // stroke width ≥ 3 → bold markdown
-              const styledText = penStrokeWidth >= 3 ? `**${baseText}**` : baseText;
-              // wrap with properly-closed tags
-              const isDefaultColor = penColor === "#ffffff" || penColor === "#fff" || !penColor;
-              const textWithTokens = isDefaultColor
-                ? `[size:${sizeRem}rem]${styledText}[/size]`
-                : `[size:${sizeRem}rem][color:${penColor}]${styledText}[/color][/size]`;
-              nb = setMd(mkBrick("text", Object.keys(cur.bricksById).length, parentId, pos), textWithTokens);
-            }
-            const by = { ...cur.bricksById, [nb.id]: nb };
-            let root = cur.rootOrder;
-            if (!parentId) root = [...root, nb.id];
-            if (parentId && board) by[board.id] = withChildOrder(board, [...childOrder(board), nb.id]);
-            return { ...cur, bricksById: by, rootOrder: root };
-          });
-          if (mapped) toast(tMesh("feedback.shapeRecognized", { kind: primaryShape!.kind }), "success");
-          else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
-        });
-      }, 900);
+      flushPen();
       return;
     }
     setActivePen(null);
@@ -2670,10 +2713,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     setDragState(null);
     setResizeState(null);
     setVecDragState(null);
-  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, resizeState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom, publishUnlock]);
+  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, resizeState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom, publishUnlock, flushPen]);
 
   // ── Drag start ─────────────────────────────────────────────────────────────────
-  const startDrag = useCallback((e: React.MouseEvent, brickId: string) => {
+  const startDrag = useCallback((e: React.PointerEvent, brickId: string) => {
     if (toolMode !== "select") return;
     if (editingBrickId === brickId) return;
     e.stopPropagation();
@@ -2692,7 +2735,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     setSelectedConnId(null);
   }, [toolMode, fromEv, state.bricksById, editingBrickId, brickLocks, publishLock]);
 
-  const startResize = useCallback((e: React.MouseEvent, brickId: string) => {
+  const startResize = useCallback((e: React.PointerEvent, brickId: string) => {
     e.stopPropagation();
     const existingLock = brickLocks.get(brickId);
     if (existingLock) {
@@ -2770,7 +2813,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     });
   }, []);
 
-  const startVecDrag = useCallback((e: React.MouseEvent, brickId: string, idx: number) => {
+  const startVecDrag = useCallback((e: React.PointerEvent, brickId: string, idx: number) => {
     e.stopPropagation();
     setVecDragState({ brickId, pointIndex: idx, startMouse: fromEv(e) });
   }, [fromEv]);
@@ -2993,7 +3036,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             backgroundColor: bFill ?? undefined,
             cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: collapsed ? "hidden" : "visible" }}
           onClick={(e) => onBrickClick(e, brick.id)}
-          onMouseDown={(e) => startDrag(e, brick.id)}
+          onPointerDown={(e) => startDrag(e, brick.id)}
         >
           {/* Board header */}
           <div className="relative z-20 flex h-7 items-center justify-between border-b border-cyan-400/20 px-2 text-[10px] font-bold uppercase tracking-widest text-cyan-200 select-none">
@@ -3014,12 +3057,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {!collapsed && kids.map((child) => renderBrick(child))}
           {!collapsed && isSel && (
             <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50"
-              onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />
+              onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />
           )}
           {/* Quick-add bar for selected board */}
           {isSel && !collapsed && (
             <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
-              onMouseDown={(e) => e.stopPropagation()}>
+              onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
                 <button key={entry.kind} type="button" title={entry.label}
@@ -3061,7 +3104,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
             cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "visible" }}
           onClick={(e) => { if (e.altKey && toolMode === "vec" && isSel) { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); addCustomPort(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } onBrickClick(e, brick.id); }}
-          onMouseDown={(e) => startDrag(e, brick.id)}
+          onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
           {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} />}
@@ -3115,7 +3158,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <div
               className="absolute inset-0 z-20"
               style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px` }}
-              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
             >
               <div className="h-full w-full overflow-auto rounded bg-slate-950/75 px-1 py-0.5">
                 <UnifiedTextBrick
@@ -3142,7 +3185,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {/* Quick-add bar when selected container */}
           {isSel && isCont && !collapsed && (
             <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
-              onMouseDown={(e) => e.stopPropagation()}>
+              onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
                 <button key={entry.kind} type="button" title={entry.label}
@@ -3153,12 +3196,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               ))}
             </div>
           )}
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {isSel && toolMode === "vec" && vecPts?.map((pt, i) => (
             <div key={i} className="absolute z-40 h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-yellow-300 ring-1 ring-black/60"
               style={{ left: pt.x * brick.size.w, top: pt.y * brick.size.h }}
               title="Arrastrar para mover · Clic derecho para eliminar"
-              onMouseDown={(e) => startVecDrag(e, brick.id, i)}
+              onPointerDown={(e) => startVecDrag(e, brick.id, i)}
               onContextMenu={(e) => { e.preventDefault(); e.stopPropagation(); deleteVecPoint(brick.id, i); }} />
           ))}
           {vecCustomPortDots}
@@ -3197,7 +3240,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onMouseEnter={() => setHoveredRawDrawId(brick.id)}
           onMouseLeave={() => setHoveredRawDrawId((cur) => (cur === brick.id ? null : cur))}
           onClick={(e) => onBrickClick(e, brick.id)}
-          onMouseDown={(e) => startDrag(e, brick.id)}
+          onPointerDown={(e) => startDrag(e, brick.id)}
         >
           {manualStrokes.length > 0 && (
             <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
@@ -3228,7 +3271,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {isCont && kids.map((child) => renderBrick(child))}
           {isSel && isCont && (
             <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
-              onMouseDown={(e) => e.stopPropagation()}>
+              onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
                 <button key={entry.kind} type="button" title={entry.label}
@@ -3239,7 +3282,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               ))}
             </div>
           )}
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {vecCustomPortDots}
           {magnetDots}
           {lockOverlay}
@@ -3269,7 +3312,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             background: "rgba(15,23,42,0.92)",
             cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
           onClick={(e) => onBrickClick(e, brick.id)}
-          onMouseDown={(e) => startDrag(e, brick.id)}
+          onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => {
             e.stopPropagation();
             if (toolMode !== "select") return;
@@ -3297,7 +3340,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
           <div className="h-[calc(100%-28px)]">
             {isEditing ? (
-              <div className="flex w-full flex-col gap-2 p-2.5" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="flex w-full flex-col gap-2 p-2.5" onPointerDown={(e) => e.stopPropagation()}>
                 <select className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground pointer-events-auto"
                   defaultValue={targetType}
                   onChange={(e) => setState((cur) => {
@@ -3378,7 +3421,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             )}
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3408,7 +3451,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             background: "transparent",
             cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
           onClick={(e) => onBrickClick(e, brick.id)}
-          onMouseDown={(e) => startDrag(e, brick.id)}
+          onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
         >
           <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
@@ -3419,7 +3462,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           </div>
           <div className="flex h-[calc(100%-28px)] flex-col overflow-hidden">
             {isEditing ? (
-              <div className="flex flex-col gap-2 p-3" onMouseDown={(e) => e.stopPropagation()}>
+              <div className="flex flex-col gap-2 p-3" onPointerDown={(e) => e.stopPropagation()}>
                 <input autoFocus type="text" placeholder="Nombre de la fuente…"
                   className="rounded border border-border bg-background px-2 py-1 text-[10px] text-foreground outline-none pointer-events-auto"
                   value={editingValue} onChange={(e) => setEditingValue(e.target.value)}
@@ -3464,7 +3507,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             )}
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3484,7 +3527,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onMouseEnter={(e) => { if (!isSel && !isMultiSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "rgba(34,211,238,0.35)"; }}
           onMouseLeave={(e) => { if (!isSel && !isMultiSel && !isConnected) (e.currentTarget as HTMLElement).style.outlineColor = "transparent"; }}
           onClick={(e) => onBrickClick(e, brick.id)}
-          onMouseDown={(e) => { if (isEditing) { e.stopPropagation(); return; } startDrag(e, brick.id); }}
+          onPointerDown={(e) => { if (isEditing) { e.stopPropagation(); return; } startDrag(e, brick.id); }}
           onDoubleClick={(e) => onBrickDblClick(e, brick.id)}
         >
           <div className={`h-full w-full overflow-auto ${isEditing ? "pointer-events-auto" : "pointer-events-none"}`}>
@@ -3499,7 +3542,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               isCompact
             />
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3515,13 +3558,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           borderColor: "rgba(100,180,255,0.25)", borderWidth: 1,
           cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab }}
         onClick={(e) => onBrickClick(e, brick.id)}
-        onMouseDown={(e) => startDrag(e, brick.id)}
+        onPointerDown={(e) => startDrag(e, brick.id)}
       >
         <div className="p-2">
           <p className="text-[10px] font-bold uppercase text-cyan-100">{brick.kind}</p>
           <p className="text-[9px] opacity-30">{brick.id.slice(-8)}</p>
         </div>
-        {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onMouseDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+        {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
       </div>
     );
   }

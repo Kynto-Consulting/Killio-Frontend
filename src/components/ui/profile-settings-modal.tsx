@@ -7,6 +7,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { getOtpLoginPreference, setOtpLoginPreference, updateProfile } from "@/lib/api/contracts";
 import { uploadFile } from "@/lib/api/uploads";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface ProfileSettingsModalProps {
   isOpen: boolean;
@@ -18,13 +19,43 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const [name, setName] = useState(user?.displayName || "");
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOtpLoading, setIsOtpLoading] = useState(false);
-  const [isOtpSaving, setIsOtpSaving] = useState(false);
   const [otpLoginEnabled, setOtpLoginEnabledState] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(user?.avatarUrl || null);
+  const [fileError, setFileError] = useState<string | null>(null);
+
+  const saveAction = useAsyncAction(async (_: void) => {
+    if (!name.trim() || !accessToken || !user) return;
+    let avatarUrl = user.avatarUrl || "";
+
+    // 1. Upload if file selected
+    if (selectedFile) {
+      const uploadResult = await uploadFile(selectedFile, accessToken, {
+        ownerScopeType: "user",
+        ownerScopeId: user.id,
+        usage: "avatar"
+      });
+      avatarUrl = uploadResult.url;
+    }
+
+    // 2. Update profile
+    await updateProfile(accessToken, {
+      name: name.trim(),
+      avatarUrl
+    });
+
+    // 3. Optional: local state sync (user might need to refresh or we can try to force it)
+    // For now, let's just close and hope Ably or a refresh handles it, or trigger a reload.
+    window.location.reload();
+    onClose();
+  });
+
+  const otpAction = useAsyncAction(async (enabled: boolean) => {
+    if (!accessToken) return;
+    const result = await setOtpLoginPreference(accessToken, enabled);
+    setOtpLoginEnabledState(Boolean(result.enabled));
+  });
 
   useEffect(() => {
     if (!isOpen || !accessToken) return;
@@ -55,26 +86,12 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
   if (!isOpen) return null;
 
-  const handleToggleOtp = async (enabled: boolean) => {
-    if (!accessToken) return;
-    setIsOtpSaving(true);
-    setError(null);
-    try {
-      const result = await setOtpLoginPreference(accessToken, enabled);
-      setOtpLoginEnabledState(Boolean(result.enabled));
-    } catch (err: any) {
-      setError(err?.message || t("updateError"));
-    } finally {
-      setIsOtpSaving(false);
-    }
-  };
-
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (file.size > 5 * 1024 * 1024) {
-      setError(t("avatarTooLarge") || "Image must be less than 5MB");
+      setFileError(t("avatarTooLarge") || "Image must be less than 5MB");
       return;
     }
 
@@ -86,40 +103,9 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !accessToken || !user) return;
-    
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      let avatarUrl = user.avatarUrl || "";
-
-      // 1. Upload if file selected
-      if (selectedFile) {
-        const uploadResult = await uploadFile(selectedFile, accessToken, {
-          ownerScopeType: "user",
-          ownerScopeId: user.id,
-          usage: "avatar"
-        });
-        avatarUrl = uploadResult.url;
-      }
-
-      // 2. Update profile
-      await updateProfile(accessToken, { 
-        name: name.trim(), 
-        avatarUrl 
-      });
-
-      // 3. Optional: local state sync (user might need to refresh or we can try to force it)
-      // For now, let's just close and hope Ably or a refresh handles it, or trigger a reload.
-      window.location.reload();
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || t("updateError"));
-      setIsSubmitting(false);
-    }
+    void saveAction.run(undefined);
   };
 
   return (
@@ -189,11 +175,11 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                 placeholder={t("displayNamePlaceholder")}
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isSubmitting}
+                disabled={saveAction.isPending}
                 className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transition-all focus:border-primary"
               />
-              {error && (
-                <p className="text-sm font-medium text-destructive mt-1">{error}</p>
+              {(fileError || saveAction.error || otpAction.error) && (
+                <p className="text-sm font-medium text-destructive mt-1">{fileError ?? saveAction.error ?? otpAction.error}</p>
               )}
             </div>
             
@@ -205,8 +191,8 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                   id="otp-login-enabled"
                   type="checkbox"
                   checked={otpLoginEnabled}
-                  onChange={(e) => void handleToggleOtp(e.target.checked)}
-                  disabled={isOtpLoading || isOtpSaving || !accessToken}
+                  onChange={(e) => void otpAction.run(e.target.checked)}
+                  disabled={isOtpLoading || otpAction.isPending || !accessToken}
                   className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-white"
                 />
                 <span className="leading-6">
@@ -214,7 +200,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                   <span className="block text-xs text-muted-foreground">{t("otpLogin.description")}</span>
                 </span>
               </label>
-              {(isOtpLoading || isOtpSaving) && (
+              {(isOtpLoading || otpAction.isPending) && (
                 <div className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                   <span>{tCommon("actions.loading")}</span>
@@ -227,17 +213,17 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={saveAction.isPending}
               className="inline-flex h-10 items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors hover:bg-accent/10 hover:text-accent disabled:pointer-events-none disabled:opacity-50"
             >
               {tCommon("actions.cancel")}
             </button>
             <button
               type="submit"
-              disabled={(!name.trim() || isSubmitting) || (name === user?.displayName && !selectedFile)}
+              disabled={(!name.trim() || saveAction.isPending) || (name === user?.displayName && !selectedFile)}
               className="inline-flex h-10 items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50"
             >
-              {isSubmitting ? (
+              {saveAction.isPending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   {tCommon("actions.saving")}

@@ -166,7 +166,7 @@ export default function BoardsPageMobile() {
         isOpen={isCreateOpen}
         onClose={() => setIsCreateOpen(false)}
         onSubmit={handleCreateSubmit}
-        onUploadCoverImage={handleUploadCover}
+        onUploadBackground={handleUploadCover}
       />
       <ConfirmDeleteModal
         isOpen={!!boardToDelete}

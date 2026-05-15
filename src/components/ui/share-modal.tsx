@@ -6,6 +6,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useAsyncAction } from "@/hooks/ui";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -20,13 +21,11 @@ interface ShareModalProps {
 export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Workspace Team", initialVisibility = "team", accessToken }: ShareModalProps) {
   const t = useTranslations("board-detail");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
-  const [isUpdatingVisibility, setIsUpdatingVisibility] = useState(false);
   const [members, setMembers] = useState<BoardMemberSummary[]>([]);
   const [isLoadingMembers, setIsLoadingMembers] = useState(false);
-  
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("viewer");
-  const [isInviting, setIsInviting] = useState(false);
 
   const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isVisDropdownOpen, setIsVisDropdownOpen] = useState(false);
@@ -35,6 +34,38 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [isSuggestingDocs, setIsSuggestingDocs] = useState(false);
+
+  const inviteAction = useAsyncAction(
+    async (payload: { email: string; role: string }) => {
+      await addBoardMember(boardId, payload.email, payload.role, accessToken);
+      for (const docId of selectedDocuments) {
+        try {
+          await addDocumentMember(docId, payload.email, payload.role as any, accessToken);
+        } catch (e) {
+          console.error("Failed to share document", docId, e);
+        }
+      }
+      setInviteEmail("");
+      setSelectedDocuments([]);
+      await loadMembers();
+    },
+    { onError: () => toast(t("shareModal.inviteError"), "error") }
+  );
+
+  const visibilityAction = useAsyncAction(
+    async (newVis: "private" | "team" | "public_link") => {
+      await updateBoardVisibility(boardId, newVis, accessToken);
+    },
+    {
+      onError: () => setVisibility(visibility),
+    }
+  );
+
+  const removeAction = useAsyncAction(async (memberId: string) => {
+    await removeBoardMember(boardId, memberId, accessToken);
+    setMembers(members.filter(m => m.id !== memberId));
+  });
+
   const roleLabels: Record<string, string> = {
     viewer: t("shareModal.viewer"),
     commenter: t("shareModal.commenter"),
@@ -64,54 +95,18 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
     }
   };
 
-  const handleVisibilityChange = async (newVis: "private" | "team" | "public_link") => {
+  const handleVisibilityChange = (newVis: "private" | "team" | "public_link") => {
     setVisibility(newVis);
-    setIsUpdatingVisibility(true);
-    try {
-      await updateBoardVisibility(boardId, newVis, accessToken);
-    } catch (err) {
-      console.error("Failed to update visibility", err);
-      // Revert if failed
-      setVisibility(visibility);
-    } finally {
-      setIsUpdatingVisibility(false);
-    }
+    visibilityAction.run(newVis);
   };
 
-  const handleInvite = async () => {
+  const handleInvite = () => {
     if (!inviteEmail.trim()) return;
-    setIsInviting(true);
-    try {
-      await addBoardMember(boardId, inviteEmail, inviteRole, accessToken);
-      
-      // Auto share selected documents
-      for (const docId of selectedDocuments) {
-        try {
-          // Grant standard equivalent permissions for the newly added board user
-          await addDocumentMember(docId, inviteEmail, inviteRole as any, accessToken);
-        } catch (e) {
-          console.error("Failed to share document", docId, e);
-        }
-      }
-
-      setInviteEmail("");
-      setSelectedDocuments([]);
-      await loadMembers();
-    } catch (err) {
-      console.error("Failed to invite", err);
-      toast(t("shareModal.inviteError"), "error");
-    } finally {
-      setIsInviting(false);
-    }
+    inviteAction.run({ email: inviteEmail, role: inviteRole });
   };
 
-  const handleRemove = async (memberId: string) => {
-    try {
-      await removeBoardMember(boardId, memberId, accessToken);
-      setMembers(members.filter(m => m.id !== memberId));
-    } catch (err) {
-      console.error(err);
-    }
+  const handleRemove = (memberId: string) => {
+    removeAction.run(memberId);
   };
 
   if (!isOpen) return null;
@@ -169,10 +164,10 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
               </div>
               <button 
                 onClick={handleInvite}
-                disabled={isInviting || !inviteEmail.trim()}
+                disabled={inviteAction.isPending || !inviteEmail.trim()}
                 className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center"
               >
-                {isInviting ? <Loader2 className="h-4 w-4 animate-spin" /> : t("shareModal.invite")}
+                {inviteAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : t("shareModal.invite")}
               </button>
             </div>
             
@@ -249,8 +244,8 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                 <div className="relative">
                   <button
                     type="button"
-                    onClick={() => !isUpdatingVisibility && setIsVisDropdownOpen(!isVisDropdownOpen)}
-                    disabled={isUpdatingVisibility}
+                    onClick={() => !visibilityAction.isPending && setIsVisDropdownOpen(!isVisDropdownOpen)}
+                    disabled={visibilityAction.isPending}
                     className="flex items-center gap-1 text-sm font-medium bg-transparent border-none focus:outline-none cursor-pointer p-0"
                   >
                     <span>

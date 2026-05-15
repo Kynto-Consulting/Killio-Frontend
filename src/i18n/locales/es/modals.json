@@ -7,34 +7,51 @@
     "backgroundLabel": "Fondo",
     "create": "Crear tablero",
     "creating": "Creando...",
-    "createError": "Ocurrio un error al crear el tablero."
+    "createError": "Ocurrió un error al crear el tablero.",
+    "uploadBackground": "Subir imagen",
+    "removeBackground": "Quitar imagen",
+    "uploading": "Subiendo...",
+    "gradient": "Gradiente",
+    "color": "Color",
+    "image": "Imagen",
+    "fileNotImage": "El archivo debe ser una imagen.",
+    "uploadBackgroundError": "No se pudo subir la imagen de fondo."
   },
   "createWorkspace": {
     "title": "Crear workspace",
     "subtitle": "Agrega un nuevo workspace para organizar equipos.",
     "nameAndIcon": "Nombre e icono del workspace",
-    "namePlaceholder": "Ej: Acme Corp, Equipo de ingenieria",
+    "namePlaceholder": "Ej: Acme Corp, Equipo de ingeniería",
     "inviteMembers": "Invitar miembros",
     "optional": "Opcional",
     "inviteEmailPlaceholder": "colega@acme.com",
     "add": "Agregar",
     "create": "Crear workspace",
     "creating": "Creando...",
-    "createError": "Ocurrio un error al crear el workspace.",
-    "allowedByRole": "Las invitaciones se envian por email y respetan los permisos del rol seleccionado."
+    "createError": "Ocurrió un error al crear el workspace.",
+    "allowedByRole": "Las invitaciones se envían por email y respetan los permisos del rol seleccionado."
   },
   "inviteMember": {
     "title": "Invitar a {{teamName}}",
     "subtitle": "Agrega nuevos miembros a tu workspace",
-    "emailLabel": "Correo",
+    "emailLabel": "Correo electrónico",
     "emailPlaceholder": "colega@ejemplo.com",
+    "emailInvalid": "Debe ser un correo electrónico válido.",
     "roleLabel": "Rol",
-    "inviteSent": "Invitacion enviada!",
-    "sending": "Enviando invitacion...",
-    "send": "Enviar invitacion",
-    "errorDefault": "No se pudo enviar la invitacion.",
-    "deliverySkipped": "La invitacion se creo, pero el correo no se envio porque el proveedor de email no esta configurado.",
-    "deliveryFailed": "La invitacion se creo, pero el correo fallo al enviarse. Revisa configuracion de email."
+    "inviteSent": "¡Invitación enviada!",
+    "sending": "Enviando invitación...",
+    "send": "Enviar invitación",
+    "errorDefault": "No se pudo enviar la invitación.",
+    "deliverySkipped": "La invitación se creó, pero el correo no se envió porque el proveedor de email no está configurado.",
+    "deliveryFailed": "La invitación se creó, pero el correo falló al enviarse. Revisa la configuración de email.",
+    "roles": {
+      "admin": "Admin",
+      "member": "Miembro",
+      "guest": "Invitado",
+      "adminHelp": "Gestiona miembros, invitaciones y contenido del workspace.",
+      "memberHelp": "Puede crear tableros e invitar miembros e invitados.",
+      "guestHelp": "Acceso limitado. No puede invitar ni crear tableros."
+    }
   },
   "switchAccount": {
     "title": "Cambiar cuenta",

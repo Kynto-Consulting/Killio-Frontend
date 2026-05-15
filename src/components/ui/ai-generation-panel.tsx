@@ -2,7 +2,8 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useState, useEffect, useRef } from "react";
-import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, ChevronDown, Wrench } from "lucide-react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench } from "lucide-react";
+import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope } from "@/lib/api/contracts";
 import { CardDetailModal } from "./card-detail-modal";
@@ -1310,35 +1311,23 @@ ${finalContent}
                   {generationType === 'cards' && (
                     <div className="bg-card border border-border rounded-lg p-4 flex flex-col md:flex-row gap-3 md:items-center">
                       <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold md:min-w-[150px]">Paso 2: Destino</div>
-                      <div className="flex-1 min-w-[160px] relative">
-                        <select
-                          className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
-                          value={defaultBoardId}
-                          onChange={(e) => setDefaultBoardId(e.target.value)}
-                        >
-                          <option value="" disabled>Selecciona tablero...</option>
-                          {boards.map((board) => (
-                            <option key={board.id} value={board.id}>{board.name}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                      </div>
-                      <div className="flex-1 min-w-[160px] relative">
-                        <select
-                          className="w-full h-9 appearance-none bg-background border border-input rounded-md pl-3 pr-8 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
-                          value={defaultListId}
-                          onChange={(e) => setDefaultListId(e.target.value)}
-                          disabled={!defaultBoardId || defaultLists.length === 0}
-                        >
-                          <option value="" disabled>
-                            {!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
-                          </option>
-                          {defaultLists.map((list) => (
-                            <option key={list.id} value={list.id}>{list.name}</option>
-                          ))}
-                        </select>
-                        <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                      </div>
+                      <Select
+                        sizeVariant="sm"
+                        wrapperClassName="flex-1 min-w-[160px]"
+                        value={defaultBoardId}
+                        onChange={(e) => setDefaultBoardId(e.target.value)}
+                        placeholder="Selecciona tablero..."
+                        options={boards.map((board) => ({ value: board.id, label: board.name }))}
+                      />
+                      <Select
+                        sizeVariant="sm"
+                        wrapperClassName="flex-1 min-w-[160px]"
+                        value={defaultListId}
+                        onChange={(e) => setDefaultListId(e.target.value)}
+                        disabled={!defaultBoardId || defaultLists.length === 0}
+                        placeholder={!defaultBoardId ? "Tablero primero" : defaultLists.length === 0 ? "Sin listas" : "Selecciona lista..."}
+                        options={defaultLists.map((list) => ({ value: list.id, label: list.name }))}
+                      />
                     <button
                       onClick={handleDispatchSelected}
                       disabled={isDispatchingSelected || !defaultBoardId || !defaultListId || !previewCards.some((card) => card.isSelected)}
@@ -1491,33 +1480,21 @@ ${finalContent}
 
                         {card.customBoardId && (
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            <div className="relative">
-                              <select
-                                className="w-full h-8 appearance-none bg-background border border-input rounded-md pl-2.5 pr-7 text-xs focus-visible:ring-1 focus-visible:ring-accent font-medium text-muted-foreground"
-                                value={card.customBoardId}
-                                onChange={(e) => handleCustomBoardChange(card.id, e.target.value)}
-                              >
-                                <option value="" disabled>Tablero...</option>
-                                {boards.map((board) => (
-                                  <option key={board.id} value={board.id}>{board.name}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                            </div>
-                            <div className="relative">
-                              <select
-                                className="w-full h-8 appearance-none bg-background border border-input rounded-md pl-2.5 pr-7 text-xs focus-visible:ring-1 focus-visible:ring-accent disabled:opacity-50 font-medium text-muted-foreground"
-                                value={card.customListId || ""}
-                                onChange={(e) => handleCustomListChange(card.id, e.target.value)}
-                                disabled={!card.customBoardId || (card.availableLists || []).length === 0}
-                              >
-                                <option value="" disabled>Lista...</option>
-                                {(card.availableLists || []).map((list) => (
-                                  <option key={list.id} value={list.id}>{list.name}</option>
-                                ))}
-                              </select>
-                              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground pointer-events-none" />
-                            </div>
+                            <Select
+                              sizeVariant="sm"
+                              value={card.customBoardId}
+                              onChange={(e) => handleCustomBoardChange(card.id, e.target.value)}
+                              placeholder="Tablero..."
+                              options={boards.map((board) => ({ value: board.id, label: board.name }))}
+                            />
+                            <Select
+                              sizeVariant="sm"
+                              value={card.customListId || ""}
+                              onChange={(e) => handleCustomListChange(card.id, e.target.value)}
+                              disabled={!card.customBoardId || (card.availableLists || []).length === 0}
+                              placeholder="Lista..."
+                              options={(card.availableLists || []).map((list) => ({ value: list.id, label: list.name }))}
+                            />
                           </div>
                         )}
                       </div>

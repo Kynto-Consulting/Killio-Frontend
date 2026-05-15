@@ -7,7 +7,6 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { ShareModal } from "@/components/ui/share-modal";
-import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { MessageSquare } from "lucide-react";
 import { useBoardRealtime, BoardEvent } from "@/hooks/useBoardRealtime";
@@ -26,6 +25,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { ApiError } from "@/lib/api/client";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
+import { useAsyncAction, useConfirm } from "@/hooks/ui";
 
 type BoardListState = {
   id: string;
@@ -727,10 +727,9 @@ export default function BoardPage() {
   const [realtimeLog, setRealtimeLog] = useState<string[]>([]);
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
-  const [isDeleting, setIsDeleting] = useState(false);
   const [boardTeamId, setBoardTeamId] = useState<string | null>(null);
   const permissions = usePermissions(boardId, boardTeamId, user?.id, accessToken);
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const { ask: askDeleteBoard, ConfirmDialog: DeleteBoardConfirmDialog } = useConfirm();
   const [dragVisual, setDragVisual] = useState<{
     activeId: string | null;
     activeTitle: string | null;
@@ -762,18 +761,28 @@ export default function BoardPage() {
   const lastOverIdRef = useRef<string | null>(null);
   const dragStateRef = useRef<{ activeId: string; sourceListId: string | null; targetListId: string | null; targetIndex: number | null } | null>(null);
 
-  const handleDeleteBoard = async () => {
-    if (!accessToken) return;
-    setIsDeleting(true);
-    try {
+  const deleteBoardAction = useAsyncAction(
+    async () => {
+      if (!accessToken) return;
       await deleteBoard(boardId, accessToken);
-      router.push("/");
-    } catch (e) {
-      console.error(e);
-      const detail = e instanceof ApiError ? e.message : null;
-      toast(detail ? `${t("deleteBoardError")}: ${detail}` : t("deleteBoardError"), "error");
-      setIsDeleting(false);
+    },
+    {
+      onSuccess: () => router.push("/"),
+      onError: (e) => {
+        const detail = e instanceof ApiError ? e.message : null;
+        toast(detail ? `${t("deleteBoardError")}: ${detail}` : t("deleteBoardError"), "error");
+      },
     }
+  );
+
+  const handleDeleteBoard = async () => {
+    const ok = await askDeleteBoard({
+      title: t("confirmDelete.title"),
+      description: t("confirmDelete.description"),
+      confirmLabel: t("header.deleteBoard"),
+      variant: "destructive",
+    });
+    if (ok) deleteBoardAction.run(undefined);
   };
 
   const handleAddList = async () => {
@@ -1564,9 +1573,9 @@ export default function BoardPage() {
                         onClick={() => {
                           setIsBoardMenuOpen(false);
                           setIsFilterMenuOpen(false);
-                          setIsDeleteModalOpen(true);
+                          handleDeleteBoard();
                         }}
-                        disabled={isDeleting}
+                        disabled={deleteBoardAction.isPending}
                         className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-red-500/10 hover:text-red-500 text-muted-foreground disabled:opacity-50"
                       >
                         <Trash2 className="h-4 w-4 mr-2" />
@@ -1950,7 +1959,7 @@ export default function BoardPage() {
         onSaveGeneral={handleSaveBoardGeneral}
         onSaveAppearance={handleSaveBoardAppearance}
         onOpenShare={() => setIsShareModalOpen(true)}
-        onOpenDelete={() => setIsDeleteModalOpen(true)}
+        onOpenDelete={handleDeleteBoard}
         onUploadImage={handleUploadBoardImage}
       />
 
@@ -1963,13 +1972,7 @@ export default function BoardPage() {
         accessToken={accessToken!}
       />
 
-      <ConfirmDeleteModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => setIsDeleteModalOpen(false)}
-        onConfirm={handleDeleteBoard}
-        title={t("confirmDelete.title")}
-        description={t("confirmDelete.description")}
-      />
+      <DeleteBoardConfirmDialog />
 
       {selectedGanttCard ? (
         <CardDetailModal

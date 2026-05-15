@@ -6,6 +6,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { Folder } from "@/lib/api/folders";
 import { DocumentSummary } from "@/lib/api/documents";
 import { FolderSelect } from "@/components/ui/folder-select";
+import { useForm } from "@/hooks/ui";
 
 interface EditDocumentModalProps {
   isOpen: boolean;
@@ -18,41 +19,30 @@ interface EditDocumentModalProps {
 export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit }: EditDocumentModalProps) {
   const t = useTranslations("documents");
   const tCommon = useTranslations("common");
-  const [title, setTitle] = useState("");
   const [folderId, setFolderId] = useState<string | null>(null);
-  
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const form = useForm({
+    fields: {
+      title: { type: "text", transform: "trim", constraints: { required: true, minLength: 1 } },
+    },
+    submit: async ({ values, reset }) => {
+      await onSubmit(document!.id, { title: values.title, folderId });
+      reset();
+      onClose();
+    },
+  });
 
   useEffect(() => {
     if (!isOpen || !document) return;
-    setTitle(document.title || "");
+    // Seed the title field value through the inputProps onChange
+    form.fields.title.inputProps.onChange?.({ target: { value: document.title || "" } } as any);
     setFolderId(document.folderId || null);
-    setError(null);
-    setIsSubmitting(false);
     const id = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(id);
   }, [isOpen, document]);
 
   if (!isOpen || !document) return null;
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!title.trim()) return;
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      await onSubmit(document.id, { title: title.trim(), folderId });
-      onClose();
-    } catch (err: any) {
-      console.error(err);
-      setError(err?.message || t("updateError"));
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -74,45 +64,46 @@ export function EditDocumentModal({ isOpen, onClose, document, folders, onSubmit
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={form.submit} className="space-y-6">
           <div className="space-y-2">
             <label className="text-sm font-medium">{t("documentName")}</label>
             <input
               ref={inputRef}
               type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              disabled={isSubmitting}
+              {...form.fields.title.inputProps}
+              disabled={form.isSubmitting}
               className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50"
             />
           </div>
 
           <div className="space-y-2">
             <label className="text-sm font-medium flex items-center"><FolderIcon className="w-4 h-4 mr-2"/> {t("selectDestinationFolder")}</label>
-            <FolderSelect 
+            <FolderSelect
               value={folderId}
               onChange={setFolderId}
               folders={folders}
-              disabled={isSubmitting}
+              disabled={form.isSubmitting}
             />
-            {error && <p className="text-sm text-destructive font-medium">{error}</p>}
+            {(form.fields.title.error || form.formError) && (
+              <p className="text-sm text-destructive font-medium">{form.fields.title.error || form.formError}</p>
+            )}
           </div>
 
           <div className="flex w-full items-center justify-end gap-3 pt-2">
             <button
               type="button"
               onClick={onClose}
-              disabled={isSubmitting}
+              disabled={form.isSubmitting}
               className="h-10 px-4 py-2 rounded-md border border-input hover:bg-accent/10 transition-colors"
             >
               {t("cancel")}
             </button>
             <button
               type="submit"
-              disabled={!title.trim() || isSubmitting}
+              disabled={!form.fields.title.inputProps.value?.toString().trim() || form.isSubmitting}
               className="h-10 px-4 py-2 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 text-sm font-medium flex transition-colors"
             >
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {form.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("saveChanges")}
             </button>
           </div>

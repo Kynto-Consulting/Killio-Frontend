@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useAsyncAction } from "@/hooks/ui";
 import { Check, ChevronDown, ChevronUp, Clock3, Expand, Loader2, Square } from "lucide-react";
 
 import { getActiveCardTimers, getCard, updateCard, type ActiveCardTimer, type CardView } from "@/lib/api/contracts";
@@ -42,8 +43,6 @@ export function CardTimerWidget({
   const { accessToken } = useSession();
   const [timers, setTimers] = useState<ActiveCardTimer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOpening, setIsOpening] = useState(false);
-  const [isUpdating, setIsUpdating] = useState<"cancel" | "finish" | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const [activeTimerId, setActiveTimerId] = useState<string | null>(null);
   const [isMinimized, setIsMinimized] = useState(false);
@@ -115,65 +114,46 @@ export function CardTimerWidget({
     return new Date(activeTimer.dueAt).toLocaleString(locale);
   }, [activeTimer?.dueAt, locale]);
 
-  const handleOpenDetail = useCallback(async () => {
-    if (!activeTimer || !accessToken || isOpening) return;
-    setIsOpening(true);
-    try {
-      const card = await getCard(activeTimer.cardId, accessToken);
-      setDetailCard(card);
-      setIsDetailOpen(true);
-    } catch (error) {
-      console.error("Failed to open timer card detail", error);
-    } finally {
-      setIsOpening(false);
-    }
-  }, [accessToken, activeTimer, isOpening]);
-
   const emitRefresh = useCallback(() => {
     window.dispatchEvent(new Event("board:refresh"));
     window.dispatchEvent(new Event("card-timer:refresh"));
   }, []);
 
-  const handleCancel = useCallback(async () => {
-    if (!activeTimer || !accessToken || isUpdating) return;
-    setIsUpdating("cancel");
-    try {
-      await updateCard(activeTimer.cardId, {
-        status: "active",
-        start_at: null,
-        due_at: null,
-        completed_at: null,
-      }, accessToken);
-      toast(t("cardModal.timer.cancelledSuccess"), "info");
-      emitRefresh();
-      setTimers((prev) => prev.filter((item) => item.cardId !== activeTimer.cardId));
-    } catch (error) {
-      console.error("Failed to cancel timer from widget", error);
-      toast(t("cardModal.timer.cancelledError"), "error");
-    } finally {
-      setIsUpdating(null);
-    }
-  }, [accessToken, activeTimer, emitRefresh, isUpdating, t]);
+  const openDetailAction = useAsyncAction<void>(async () => {
+    if (!activeTimer || !accessToken) return;
+    const card = await getCard(activeTimer.cardId, accessToken);
+    setDetailCard(card);
+    setIsDetailOpen(true);
+  });
 
-  const handleFinish = useCallback(async () => {
-    if (!activeTimer || !accessToken || isUpdating) return;
-    setIsUpdating("finish");
-    try {
-      const completedAt = new Date();
-      await updateCard(activeTimer.cardId, {
-        status: "done",
-        completed_at: completedAt.toISOString(),
-      }, accessToken);
-      toast(t("cardModal.timer.completedSuccess"), "success");
-      emitRefresh();
-      setTimers((prev) => prev.filter((item) => item.cardId !== activeTimer.cardId));
-    } catch (error) {
-      console.error("Failed to finish timer from widget", error);
-      toast(t("cardModal.timer.completedError"), "error");
-    } finally {
-      setIsUpdating(null);
-    }
-  }, [accessToken, activeTimer, emitRefresh, isUpdating, t]);
+  const cancelAction = useAsyncAction<void>(async () => {
+    if (!activeTimer || !accessToken) return;
+    await updateCard(activeTimer.cardId, {
+      status: "active",
+      start_at: null,
+      due_at: null,
+      completed_at: null,
+    }, accessToken);
+    toast(t("cardModal.timer.cancelledSuccess"), "info");
+    emitRefresh();
+    setTimers((prev) => prev.filter((item) => item.cardId !== activeTimer.cardId));
+  }, {
+    onError: () => toast(t("cardModal.timer.cancelledError"), "error"),
+  });
+
+  const finishAction = useAsyncAction<void>(async () => {
+    if (!activeTimer || !accessToken) return;
+    const completedAt = new Date();
+    await updateCard(activeTimer.cardId, {
+      status: "done",
+      completed_at: completedAt.toISOString(),
+    }, accessToken);
+    toast(t("cardModal.timer.completedSuccess"), "success");
+    emitRefresh();
+    setTimers((prev) => prev.filter((item) => item.cardId !== activeTimer.cardId));
+  }, {
+    onError: () => toast(t("cardModal.timer.completedError"), "error"),
+  });
 
   useEffect(() => {
     if (!activeTimerId && timers.length) {
@@ -266,29 +246,29 @@ export function CardTimerWidget({
             <div className="mt-4 grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2">
               <button
                 type="button"
-                onClick={() => void handleCancel()}
-                disabled={!activeTimer || isUpdating !== null}
+                onClick={() => void cancelAction.run()}
+                disabled={!activeTimer || cancelAction.isPending || finishAction.isPending}
                 className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground disabled:opacity-50"
               >
-                {isUpdating === "cancel" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
+                {cancelAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 {t("cardModal.widget.cancelTimer")}
               </button>
               <button
                 type="button"
-                onClick={() => void handleFinish()}
-                disabled={!activeTimer || isUpdating !== null}
+                onClick={() => void finishAction.run()}
+                disabled={!activeTimer || cancelAction.isPending || finishAction.isPending}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50"
               >
-                {isUpdating === "finish" ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                {finishAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {t("cardModal.widget.finishTask")}
               </button>
               <button
                 type="button"
-                onClick={() => void handleOpenDetail()}
-                disabled={!activeTimer || isOpening || isUpdating !== null}
+                onClick={() => void openDetailAction.run()}
+                disabled={!activeTimer || openDetailAction.isPending || cancelAction.isPending || finishAction.isPending}
                 className="inline-flex items-center justify-center rounded-xl border border-border/70 px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/10 disabled:opacity-50"
               >
-                {isOpening ? <Loader2 className="h-4 w-4 animate-spin" /> : <Expand className="h-4 w-4" />}
+                {openDetailAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Expand className="h-4 w-4" />}
               </button>
             </div>
 
