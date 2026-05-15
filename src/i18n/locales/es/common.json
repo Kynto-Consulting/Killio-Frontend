@@ -321,6 +321,7 @@
       "querying": "Consultando",
       "canvas": "Canvas",
       "batchExecution": "Lote",
+      "buildingToolCall": "Generando tool call…",
       "executionPlan": "Plan de Ejecución",
       "preThink": "Pre-análisis",
       "actions": "acciones"

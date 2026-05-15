@@ -321,6 +321,7 @@
       "querying": "Querying",
       "canvas": "Canvas",
       "batchExecution": "Batch",
+      "buildingToolCall": "Building tool call…",
       "executionPlan": "Execution Plan",
       "preThink": "Pre-think",
       "actions": "actions"

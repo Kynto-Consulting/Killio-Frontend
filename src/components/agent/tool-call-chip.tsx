@@ -283,8 +283,71 @@ function InputKV({ input }: { input: Record<string, unknown> }) {
   );
 }
 
+// ─── File diff renderer (edit_file output) ───────────────────────────────────
+
+type DiffLine = { type: 'removed' | 'added' | 'context'; content: string };
+
+function FileDiffOutput({ path, operation, diff }: { path?: string; operation?: string; diff: DiffLine[] }) {
+  const removedCount = diff.filter(l => l.type === 'removed').length;
+  const addedCount   = diff.filter(l => l.type === 'added').length;
+
+  return (
+    <div className="rounded-md overflow-hidden border border-neutral-200 dark:border-neutral-700 text-[10px] font-mono">
+      {/* Header bar */}
+      <div className="flex items-center justify-between gap-2 bg-neutral-100 dark:bg-neutral-800/80 px-2 py-1 font-sans">
+        <span className="text-neutral-500 dark:text-neutral-400 truncate">{path ?? "file"}</span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {operation && (
+            <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+              {operation.replace(/_/g, " ")}
+            </span>
+          )}
+          {removedCount > 0 && (
+            <span className="text-red-500 font-bold">−{removedCount}</span>
+          )}
+          {addedCount > 0 && (
+            <span className="text-emerald-500 font-bold">+{addedCount}</span>
+          )}
+        </div>
+      </div>
+      {/* Diff lines */}
+      <div className="max-h-48 overflow-y-auto">
+        {diff.map((line, i) => (
+          <div
+            key={i}
+            className={`flex gap-1 px-2 py-[1px] whitespace-pre-wrap break-all leading-[1.5] ${
+              line.type === 'removed' ? 'bg-red-500/10 text-red-400' :
+              line.type === 'added'   ? 'bg-emerald-500/10 text-emerald-400' :
+                                        'text-neutral-400 dark:text-neutral-500'
+            }`}
+          >
+            <span className="shrink-0 w-3 select-none opacity-70">
+              {line.type === 'removed' ? '−' : line.type === 'added' ? '+' : ' '}
+            </span>
+            <span>{line.content}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ─── Generic output summary ───────────────────────────────────────────────────
+
 function OutputSummary({ output, isError }: { output: unknown; isError: boolean }) {
   if (output === null || output === undefined) return null;
+
+  // edit_file diff output — render dedicated diff view
+  if (
+    typeof output === 'object' &&
+    output !== null &&
+    'diff' in output &&
+    Array.isArray((output as any).diff) &&
+    (output as any).diff.length > 0
+  ) {
+    const o = output as { path?: string; operation?: string; diff: DiffLine[] };
+    return <FileDiffOutput path={o.path} operation={o.operation} diff={o.diff} />;
+  }
 
   const formatPreviewItem = (item: unknown): string => {
     if (item === null || item === undefined) return "—";
