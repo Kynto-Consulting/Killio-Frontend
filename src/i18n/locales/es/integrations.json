@@ -69,7 +69,8 @@
   "tabs": {
     "integrations": "Integraciones",
     "scripts": "Scripts",
-    "table": "KillioTable"
+    "table": "KillioTable",
+    "envVars": "Variables de Entorno"
   },
   "callback": {
     "errors": {
@@ -974,5 +975,28 @@
     },
     "items": "{{count}} elemento(s)",
     "duration": "{{ms}}ms"
+  },
+  "envVars": {
+    "title": "Variables de entorno",
+    "subtitle": "Pares clave-valor secretos disponibles en todos tus scripts como env.NOMBRE_CLAVE.",
+    "add": "Agregar variable",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "keyLabel": "Clave (ej. SLACK_WEBHOOK_URL)",
+    "valueLabel": "Valor",
+    "descriptionLabel": "Descripción (opcional)",
+    "secretLabel": "Tratar como secreto",
+    "keyHint": "Letras mayúsculas, números y guiones bajos. Debe comenzar con una letra.",
+    "hasValue": "Valor configurado",
+    "noValue": "Sin valor",
+    "empty": "No hay variables configuradas.",
+    "deleteConfirm": "¿Eliminar \"{{key}}\"? Esta acción no se puede deshacer.",
+    "saveSuccess": "Variable guardada.",
+    "deleteSuccess": "Variable eliminada.",
+    "errorSave": "Error al guardar la variable.",
+    "errorDelete": "Error al eliminar la variable.",
+    "errorLoad": "Error al cargar las variables."
   }
 }

@@ -104,6 +104,12 @@
     "subtitle": "Necesitas controles avanzados, onboarding y soporte dedicado?",
     "cta": "Contactar ventas"
   },
+  "coupon": {
+    "placeholder": "Código de cupón",
+    "apply": "Aplicar",
+    "clear": "Quitar",
+    "validMsg": "¡Descuento de {{discount}} aplicado!"
+  },
   "common": {
     "unlimited": "Ilimitado",
     "na": "n/a",

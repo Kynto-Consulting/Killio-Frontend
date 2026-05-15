@@ -53,11 +53,12 @@ import { StripeIntegrationPanel } from "@/components/scripts/StripeIntegrationPa
 import { PaypalIntegrationPanel } from "@/components/scripts/PaypalIntegrationPanel";
 import { MercadopagoIntegrationPanel } from "@/components/scripts/MercadopagoIntegrationPanel";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
+import { EnvVarsPanel } from "@/components/scripts/EnvVarsPanel";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
 import { Zap, Loader2, BarChart3, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
 
-type Tab = "integrations" | "scripts" | "table";
+type Tab = "integrations" | "scripts" | "table" | "env";
 type ScriptSubView = "canvas" | "runs";
 
 interface CreateScriptForm {
@@ -98,6 +99,7 @@ const TABS: { id: Tab; label: string }[] = [
   { id: "integrations", label: "tabs.integrations" },
   { id: "scripts", label: "tabs.scripts" },
   { id: "table", label: "tabs.table" },
+  { id: "env", label: "tabs.envVars" },
 ];
 
 function ComingSoonIntegrationCard({
@@ -1245,6 +1247,13 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
               teamId={activeTeamId}
               accessToken={accessToken}
             />
+          </div>
+        )}
+
+        {/* ── Env Vars ─────────────────────────────────────────────────────── */}
+        {tab === "env" && (
+          <div className="flex-1 overflow-y-auto" style={{ background: "#020408" }}>
+            <EnvVarsPanel teamId={activeTeamId} accessToken={accessToken} />
           </div>
         )}
         </div>

@@ -420,3 +420,43 @@ export async function upsertSharedTableRow(
   if (!res.ok) throw new Error('Failed to upsert shared table row');
   return res.json();
 }
+
+// ─── Env Vars ──────────────────────────────────────────────────────────────
+
+export interface EnvVarSummary {
+  id: string;
+  key: string;
+  description: string | null;
+  isSecret: boolean;
+  hasValue: boolean;
+  updatedAt: string;
+}
+
+export async function listEnvVars(teamId: string, accessToken: string): Promise<EnvVarSummary[]> {
+  const res = await fetch(`${BASE_URL}/scripts/env-vars?teamId=${encodeURIComponent(teamId)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to load env vars');
+  return res.json();
+}
+
+export async function upsertEnvVar(
+  params: { teamId: string; key: string; value: string; description?: string; isSecret?: boolean },
+  accessToken: string,
+): Promise<{ id: string; key: string }> {
+  const res = await fetch(`${BASE_URL}/scripts/env-vars`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+
+export async function deleteEnvVar(teamId: string, varId: string, accessToken: string): Promise<void> {
+  const res = await fetch(`${BASE_URL}/scripts/env-vars/${varId}?teamId=${encodeURIComponent(teamId)}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to delete env var');
+}

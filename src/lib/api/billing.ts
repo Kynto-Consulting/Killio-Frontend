@@ -114,6 +114,22 @@ export interface TeamSubscriptionUpdateResponse {
   alreadyCancelled?: boolean;
 }
 
+export type CouponValidationResult =
+  | {
+      valid: true;
+      couponId: string;
+      code: string;
+      type: 'percent' | 'fixed' | 'grant_plan';
+      discountCents: number;
+      grantTier?: TeamPlanTier;
+      grantBillingCycle?: BillingCycle;
+      grantDurationMonths?: number | null;
+    }
+  | {
+      valid: false;
+      errorMessage: string;
+    };
+
 async function parseApiError(res: Response, fallbackMessage: string): Promise<never> {
   let message = fallbackMessage;
   try {
@@ -150,6 +166,7 @@ export async function createTeamCheckout(
   options?: {
     billingCycle?: BillingCycle;
     startTrial?: boolean;
+    couponCode?: string;
   },
 ): Promise<BillingCheckoutResponse> {
   const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/checkout`, {
@@ -162,6 +179,7 @@ export async function createTeamCheckout(
       targetPlanTier,
       billingCycle: options?.billingCycle,
       startTrial: options?.startTrial,
+      ...(options?.couponCode ? { couponCode: options.couponCode } : {}),
     }),
   });
 
@@ -203,6 +221,36 @@ export async function resumeTeamSubscription(
 
   if (!res.ok) {
     return parseApiError(res, 'Failed to resume subscription.');
+  }
+
+  return res.json();
+}
+
+export async function validateCoupon(
+  teamId: string,
+  code: string,
+  targetTier: string,
+  cycle: string,
+  accessToken: string,
+): Promise<CouponValidationResult> {
+  const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/coupon/validate`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ code, targetTier, cycle }),
+  });
+
+  if (!res.ok) {
+    let errorMessage = 'Invalid or expired coupon.';
+    try {
+      const payload = await res.json();
+      if (typeof payload?.message === 'string') errorMessage = payload.message;
+    } catch {
+      // keep fallback
+    }
+    return { valid: false, errorMessage };
   }
 
   return res.json();

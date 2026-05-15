@@ -2,17 +2,19 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowUpRight, CircleDollarSign, ClipboardCheck, Cpu, Headset, History, LayoutGrid, Loader2, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { CircleDollarSign, ClipboardCheck, Cpu, Headset, History, LayoutGrid, Loader2, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import {
   BillingCycle,
   cancelTeamSubscription,
+  CouponValidationResult,
   createTeamCheckout,
   getTeamBillingSummary,
   resumeTeamSubscription,
   TeamBillingSummary,
   TeamPlanTier,
+  validateCoupon,
 } from "@/lib/api/billing";
 import { getScriptsUsage, ScriptMonthlyUsage } from "@/lib/api/scripts";
 import { getTeamAiUsage, getTeamRagStatus, TeamAiUsage, TeamRagStatus } from "@/lib/api/contracts";
@@ -52,6 +54,9 @@ export default function PricingPage() {
   const [actionLoadingTier, setActionLoadingTier] = useState<TeamPlanTier | null>(null);
   const [subActionLoading, setSubActionLoading] = useState<"cancel" | "resume" | null>(null);
   const [notice, setNotice] = useState<{ type: NoticeType; message: string } | null>(null);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  const [couponLoading, setCouponLoading] = useState(false);
 
   const formatMoney = useCallback((amountCents: number | null, currency: "PEN" = "PEN") => {
     if (amountCents === null) return t("common.na");
@@ -122,6 +127,24 @@ export default function PricingPage() {
   const billingEmail = billing?.billingEmail || "killio@kynto.studio";
   const currentPlanTier = billing?.currentPlanTier || "free";
 
+  const applyOrClearCoupon = async () => {
+    if (couponResult) {
+      setCouponResult(null);
+      setCouponCode('');
+      return;
+    }
+    if (!couponCode.trim() || !activeTeamId || !accessToken) return;
+    setCouponLoading(true);
+    try {
+      const result = await validateCoupon(activeTeamId, couponCode.trim(), billingCycle === 'yearly' ? 'pro' : 'pro', billingCycle, accessToken);
+      setCouponResult(result);
+    } catch {
+      setCouponResult({ valid: false, errorMessage: t("checkout.failed") });
+    } finally {
+      setCouponLoading(false);
+    }
+  };
+
   const handlePlanAction = async (targetTier: TeamPlanTier) => {
     if (!activeTeamId || !accessToken) return;
 
@@ -141,6 +164,7 @@ export default function PricingPage() {
       const checkout = await createTeamCheckout(activeTeamId, targetTier, accessToken, {
         billingCycle,
         startTrial: canStartTrial,
+        ...(couponResult?.valid ? { couponCode: couponCode.trim() } : {}),
       });
 
       if (checkout.mode === "trial_activated") {
@@ -279,6 +303,33 @@ export default function PricingPage() {
             </div>
           </div>
 
+          {/* Coupon code section */}
+          <div className="mt-6 flex justify-center">
+            <div className="flex gap-2 items-center">
+              <input
+                type="text"
+                placeholder={t("coupon.placeholder")}
+                value={couponCode}
+                onChange={e => setCouponCode(e.target.value.toUpperCase())}
+                className="w-48 rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+              />
+              <button
+                onClick={() => applyOrClearCoupon()}
+                disabled={couponLoading || !couponCode.trim()}
+                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+              >
+                {couponResult ? t("coupon.clear") : t("coupon.apply")}
+              </button>
+            </div>
+          </div>
+          {couponResult && (
+            <div className={`mt-3 text-center text-sm font-medium ${couponResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
+              {couponResult.valid
+                ? t("coupon.validMsg", { discount: formatMoney(couponResult.discountCents) })
+                : couponResult.errorMessage}
+            </div>
+          )}
+
           {notice ? (
             <div
               className={`mt-4 rounded-xl border px-4 py-2 text-sm ${
@@ -326,7 +377,6 @@ export default function PricingPage() {
               ? t("common.unlimited")
               : String(plan.meshBoards.maxBoards);
 
-            const providerKey = plan.tier as "free" | "pro" | "max" | "enterprise";
             const planTitle = t(`plans.${plan.tier}.name`) || plan.label;
             const planHeadline = t(`plans.${plan.tier}.headline`);
             const badge = t(`plans.${plan.tier}.badge`);
@@ -373,7 +423,18 @@ export default function PricingPage() {
                 {/* Precio — altura fija para alinear botón */}
                 <div className="mt-6 border-b border-white/5 pb-6">
                   <div className="flex items-end gap-2">
-                    <span className="text-5xl font-black tracking-tighter leading-none">{formatMoney(planPrice)}</span>
+                    {couponResult?.valid && planPrice !== null ? (
+                      <>
+                        <span className="text-5xl font-black tracking-tighter leading-none text-emerald-300">
+                          {formatMoney(Math.max(0, planPrice - couponResult.discountCents))}
+                        </span>
+                        <span className="mb-1 text-xl font-bold text-slate-500 line-through">
+                          {formatMoney(planPrice)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-5xl font-black tracking-tighter leading-none">{formatMoney(planPrice)}</span>
+                    )}
                   </div>
                   <p className="mt-1.5 text-sm font-medium text-slate-400">
                     {billingCycle === "yearly" ? t("common.perUserYear") : t("common.perUserMonth")}
@@ -425,10 +486,6 @@ export default function PricingPage() {
                     <li className="flex items-start gap-3">
                       <CircleDollarSign className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
                       <span>{t("plans.credits", { value: plan.ai.monthlyCreditLimit.toFixed(2) })}</span>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <Cpu className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
-                      <span>{t("provider.label")}: <span className="text-white">{t(`provider.${providerKey}`)}</span></span>
                     </li>
                     <li className="flex items-start gap-3">
                       <History className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />

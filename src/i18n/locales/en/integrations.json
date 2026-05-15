@@ -69,7 +69,8 @@
   "tabs": {
     "integrations": "Integrations",
     "scripts": "Scripts",
-    "table": "KillioTable"
+    "table": "KillioTable",
+    "envVars": "Env Variables"
   },
   "callback": {
     "errors": {
@@ -974,5 +975,28 @@
     },
     "items": "{{count}} item(s)",
     "duration": "{{ms}}ms"
+  },
+  "envVars": {
+    "title": "Environment Variables",
+    "subtitle": "Secret key-value pairs available to all your scripts as env.KEY_NAME.",
+    "add": "Add variable",
+    "edit": "Edit",
+    "delete": "Delete",
+    "save": "Save",
+    "cancel": "Cancel",
+    "keyLabel": "Key (e.g. SLACK_WEBHOOK_URL)",
+    "valueLabel": "Value",
+    "descriptionLabel": "Description (optional)",
+    "secretLabel": "Treat as secret",
+    "keyHint": "Uppercase letters, numbers and underscores. Starts with a letter.",
+    "hasValue": "Value set",
+    "noValue": "No value",
+    "empty": "No variables configured yet.",
+    "deleteConfirm": "Delete \"{{key}}\"? This cannot be undone.",
+    "saveSuccess": "Variable saved.",
+    "deleteSuccess": "Variable deleted.",
+    "errorSave": "Failed to save variable.",
+    "errorDelete": "Failed to delete variable.",
+    "errorLoad": "Failed to load variables."
   }
 }

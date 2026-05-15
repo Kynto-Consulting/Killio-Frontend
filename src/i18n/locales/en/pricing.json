@@ -104,6 +104,12 @@
     "subtitle": "Need custom controls, onboarding, and dedicated support?",
     "cta": "Contact sales"
   },
+  "coupon": {
+    "placeholder": "Coupon code",
+    "apply": "Apply",
+    "clear": "Remove",
+    "validMsg": "{{discount}} discount applied!"
+  },
   "common": {
     "unlimited": "Unlimited",
     "na": "n/a",
