@@ -15,6 +15,12 @@ import {
   Grid3X3, Play, Search, List, Code, Globe, Wrench, Terminal,
   Check, X, Zap, FolderOpen, GitBranch, Tag, Layers, Database,
   ScanSearch,
+  // OS / file tools
+  FilePen, FileSearch, FilePlus2, FileDown, FileUp,
+  FolderPlus, FolderSymlink, FolderMinus,
+  // Git tools
+  GitCommit, GitMerge, GitPullRequestArrow, History, Archive, Activity,
+  ArrowUpFromLine, ArrowDownToLine, Copy, Plus, FileCode,
 } from "lucide-react";
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -76,7 +82,7 @@ export function getToolActionLabel(
   }
 
   // ── OS / Shell (specific) ─────────────────────────────────────────────────
-  if (n.includes("os_shell") || n.includes("shell_exec") || n.includes("run_command") || n.includes("execute_command") || n.includes("os_run")) {
+  if (n.includes("os_shell") || n.includes("os_execute") || n.includes("shell_exec") || n.includes("run_command") || n.includes("execute_command") || n.includes("os_run")) {
     const cmd = trunc(
       input?.command ?? input?.cmd ?? input?.shell ?? input?.script ?? input?.args,
       50
@@ -85,11 +91,23 @@ export function getToolActionLabel(
   }
 
   // ── Files (specific) ──────────────────────────────────────────────────────
-  if (n.includes("read_file")  || n.includes("os_read"))
+  if (n.includes("edit_file")     || n.includes("os_edit"))
+    return t("agent.toolAction.fileEdited", { file: file || "" });
+  if (n.includes("read_file")     || n.includes("os_read"))
     return t("agent.toolAction.fileRead", { file: file || "" });
-  if (n.includes("write_file") || n.includes("os_write"))
+  if (n.includes("write_file")    || n.includes("os_write"))
     return t("agent.toolAction.fileWritten", { file: file || "" });
-  if (n.includes("list_dir")   || n.includes("os_list"))
+  if (n.includes("download_file") || n.includes("os_download"))
+    return t("agent.toolAction.fileDownloaded", { file: file || "" });
+  if (n.includes("upload_file")   || n.includes("os_upload"))
+    return t("agent.toolAction.fileUploaded", { file: file || "" });
+  if (n.includes("os_mkdir")      || n.includes("make_dir") || n.includes("create_dir"))
+    return t("agent.toolAction.dirCreated", { file: file || "" });
+  if (n.includes("os_delete")     || n.includes("delete_file") || n.includes("remove_file"))
+    return t("agent.toolAction.fileDeleted", { file: file || "" });
+  if (n.includes("os_move")       || n.includes("move_file") || n.includes("rename_file"))
+    return t("agent.toolAction.fileMoved", { file: file || "" });
+  if (n.includes("list_dir")      || n.includes("os_list"))
     return t("agent.toolAction.dirListed", { file: file || "" });
   if (n.includes("os_"))
     return t("agent.toolAction.systemCommand");
@@ -507,6 +525,8 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
 
 function getToolIcon(toolName: string) {
   const n = toolName.toLowerCase();
+
+  // ── Cards ────────────────────────────────────────────────────────────────
   if (n.includes("card_create") || n.includes("create_card"))
     return <PlusCircle className="w-3 h-3" />;
   if (n.includes("card_move")   || n.includes("move_card"))
@@ -517,30 +537,94 @@ function getToolIcon(toolName: string) {
     return <Trash2 className="w-3 h-3" />;
   if (n.includes("card"))
     return <Layers className="w-3 h-3" />;
+
+  // ── Boards ───────────────────────────────────────────────────────────────
   if (n.includes("board_create") || n.includes("create_board"))
     return <LayoutDashboard className="w-3 h-3" />;
   if (n.includes("board"))
     return <LayoutDashboard className="w-3 h-3" />;
+
+  // ── Documents ────────────────────────────────────────────────────────────
   if (n.includes("document_create"))
     return <FileText className="w-3 h-3" />;
   if (n.includes("document"))
     return <FileText className="w-3 h-3" />;
+
+  // ── Mesh / Canvas ─────────────────────────────────────────────────────────
   if (n.includes("mesh") || n.includes("brick"))
     return <Grid3X3 className="w-3 h-3" />;
-  if (n.includes("script_run") || n.includes("execute"))
+
+  // ── Scripts ───────────────────────────────────────────────────────────────
+  if (n.includes("script_run") || n.includes("run_script") || n.includes("execute_script"))
     return <Play className="w-3 h-3" />;
   if (n.includes("script"))
     return <Code className="w-3 h-3" />;
-  if (n.includes("search") || n.includes("find"))
-    return <Search className="w-3 h-3" />;
+
+  // ── Search / Tool meta ────────────────────────────────────────────────────
   if (n.includes("tool_search"))
     return <ScanSearch className="w-3 h-3" />;
   if (n.includes("tool_load"))
     return <Zap className="w-3 h-3" />;
+  if (n.includes("web_search") || n.includes("search_web"))
+    return <Globe className="w-3 h-3" />;
+  if (n.includes("search") || n.includes("find"))
+    return <Search className="w-3 h-3" />;
+
+  // ── Git (granular) ────────────────────────────────────────────────────────
+  if (n.includes("git_commit"))
+    return <GitCommit className="w-3 h-3" />;
+  if (n.includes("git_push"))
+    return <ArrowUpFromLine className="w-3 h-3" />;
+  if (n.includes("git_pull"))
+    return <ArrowDownToLine className="w-3 h-3" />;
+  if (n.includes("git_merge") || n.includes("git_rebase"))
+    return <GitMerge className="w-3 h-3" />;
+  if (n.includes("git_clone"))
+    return <Copy className="w-3 h-3" />;
+  if (n.includes("git_checkout") || n.includes("git_switch") || n.includes("git_branch"))
+    return <GitBranch className="w-3 h-3" />;
+  if (n.includes("git_status"))
+    return <Activity className="w-3 h-3" />;
+  if (n.includes("git_log"))
+    return <History className="w-3 h-3" />;
+  if (n.includes("git_stash"))
+    return <Archive className="w-3 h-3" />;
+  if (n.includes("git_diff"))
+    return <FileCode className="w-3 h-3" />;
+  if (n.includes("git_add"))
+    return <Plus className="w-3 h-3" />;
+  if (n.includes("git_tag"))
+    return <Tag className="w-3 h-3" />;
+  if (n.includes("git_pr") || n.includes("pull_request"))
+    return <GitPullRequestArrow className="w-3 h-3" />;
   if (n.includes("git"))
     return <GitBranch className="w-3 h-3" />;
-  if (n.includes("os") || n.includes("file") || n.includes("read") || n.includes("write"))
+
+  // ── OS / File system (granular) ───────────────────────────────────────────
+  if (n.includes("edit_file") || n.includes("os_edit"))
+    return <FilePen className="w-3 h-3" />;
+  if (n.includes("read_file") || n.includes("os_read"))
+    return <FileSearch className="w-3 h-3" />;
+  if (n.includes("write_file") || n.includes("os_write"))
+    return <FilePlus2 className="w-3 h-3" />;
+  if (n.includes("download_file") || n.includes("os_download"))
+    return <FileDown className="w-3 h-3" />;
+  if (n.includes("upload_file") || n.includes("os_upload"))
+    return <FileUp className="w-3 h-3" />;
+  if (n.includes("os_mkdir") || n.includes("make_dir") || n.includes("create_dir"))
+    return <FolderPlus className="w-3 h-3" />;
+  if (n.includes("os_delete") || n.includes("delete_file") || n.includes("remove_file"))
+    return <FolderMinus className="w-3 h-3" />;
+  if (n.includes("os_move") || n.includes("move_file") || n.includes("rename_file"))
+    return <FolderSymlink className="w-3 h-3" />;
+  if (n.includes("list_dir") || n.includes("os_list"))
+    return <FolderOpen className="w-3 h-3" />;
+  if (n.includes("os_shell") || n.includes("os_execute") || n.includes("os_run") || n.includes("shell_exec") || n.includes("run_command"))
     return <Terminal className="w-3 h-3" />;
+  if (n.includes("os_"))
+    return <Terminal className="w-3 h-3" />;
+
+  // ── Misc ──────────────────────────────────────────────────────────────────
   if (n.includes("tag"))
     return <Tag className="w-3 h-3" />;
   if (n.includes("web"))
@@ -550,7 +634,7 @@ function getToolIcon(toolName: string) {
   if (n.includes("data") || n.includes("math"))
     return <Database className="w-3 h-3" />;
   if (n.includes("integration"))
-    return <FolderOpen className="w-3 h-3" />;
+    return <Zap className="w-3 h-3" />;
   return <Wrench className="w-3 h-3" />;
 }
 
