@@ -1,11 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions, ChevronLeft } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { Phone, PhoneOff, Bot, Users, Settings, Layout, FileText, GitBranch, Captions, ChevronLeft, Bell, Check } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
-import type { Room } from "@/lib/api/rooms";
+import type { Room, RoomNotificationPref } from "@/lib/api/rooms";
 import type { RoomPresenceMember } from "@/hooks/use-room-presence";
 import { usePlatform } from "@/components/providers/platform-provider";
+import { useRoomNotificationPref } from "@/hooks/use-room-notification-pref";
 
 type TFn = (key: string) => string;
 
@@ -23,6 +25,65 @@ interface RoomHeaderProps {
   onToggleMembersPanel: () => void;
   onOpenPermissions: () => void;
   t: TFn;
+}
+
+interface NotificationPrefButtonProps {
+  roomId: string;
+  t: TFn;
+}
+
+const NOTIF_OPTIONS: Array<{ pref: RoomNotificationPref; labelKey: string; icon: string }> = [
+  { pref: "all", labelKey: "header.notifAll", icon: "🔔" },
+  { pref: "mentions", labelKey: "header.notifMentions", icon: "🔕" },
+  { pref: "none", labelKey: "header.notifNone", icon: "🚫" },
+];
+
+function NotificationPrefButton({ roomId, t }: NotificationPrefButtonProps) {
+  const { pref, setPref } = useRoomNotificationPref(roomId);
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function onClickOutside(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onClickOutside);
+    return () => document.removeEventListener("mousedown", onClickOutside);
+  }, [open]);
+
+  return (
+    <div ref={containerRef} className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title={t("header.notifications")}
+        className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent/10 text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Bell className="w-3.5 h-3.5" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 w-44 rounded-md border border-border/60 bg-popover shadow-md py-1">
+          {NOTIF_OPTIONS.map((opt) => (
+            <button
+              key={opt.pref}
+              onClick={() => {
+                setPref(opt.pref);
+                setOpen(false);
+              }}
+              className="flex items-center gap-2 w-full px-3 py-1.5 text-xs text-left hover:bg-accent/10 transition-colors"
+            >
+              <span className="text-sm leading-none">{opt.icon}</span>
+              <span className="flex-1 text-foreground">{t(opt.labelKey)}</span>
+              {pref === opt.pref && <Check className="w-3 h-3 text-accent shrink-0" />}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const ENTITY_ICONS: Record<string, React.FC<{ className?: string }>> = {
@@ -210,6 +271,9 @@ export function RoomHeader({
         >
           <Users className="w-3.5 h-3.5" />
         </button>
+
+        {/* Notification preference button */}
+        <NotificationPrefButton roomId={room.id} t={t} />
 
         {/* Permissions button */}
         {canManage && (

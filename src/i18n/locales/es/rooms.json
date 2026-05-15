@@ -26,7 +26,11 @@
     "members": "Miembros",
     "permissions": "Permisos",
     "linkedTo": "Vinculado a",
-    "transcripts": "Transcripciones de llamada"
+    "transcripts": "Transcripciones de llamada",
+    "notifications": "Preferencias de notificación",
+    "notifAll": "Todos los mensajes",
+    "notifMentions": "Solo menciones",
+    "notifNone": "Nada"
   },
   "chat": {
     "inputPlaceholder": "Mensaje en {roomName}... (#AI para copiloto)",

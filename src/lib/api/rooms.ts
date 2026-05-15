@@ -363,6 +363,26 @@ export async function deleteRoomGroup(teamId: string, groupId: string, accessTok
   if (!res.ok) throw new Error('Failed to delete room group');
 }
 
+export type RoomNotificationPref = 'all' | 'mentions' | 'none';
+
+export async function getRoomNotificationPref(roomId: string, token: string): Promise<RoomNotificationPref> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/notification-pref`, { headers: authHeader(token) });
+  if (!res.ok) throw new Error('Failed to fetch notification preference');
+  const data = (await res.json()) as { pref: RoomNotificationPref };
+  return data.pref;
+}
+
+export async function setRoomNotificationPref(roomId: string, pref: RoomNotificationPref, token: string): Promise<RoomNotificationPref> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/notification-pref`, {
+    method: 'PUT',
+    headers: authHeader(token),
+    body: JSON.stringify({ pref }),
+  });
+  if (!res.ok) throw new Error('Failed to set notification preference');
+  const data = (await res.json()) as { pref: RoomNotificationPref };
+  return data.pref;
+}
+
 /**
  * Convert a call transcript into a Document.
  * Returns the new document's id and title.
