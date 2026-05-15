@@ -415,6 +415,17 @@ export async function markMessagesAsRead(
   if (!res.ok) throw new Error('Failed to mark messages as read');
 }
 
+export async function markAllMessagesAsRead(
+  roomId: string,
+  accessToken: string
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/rooms/${roomId}/messages/read/all`, {
+    method: 'POST',
+    headers: authHeader(accessToken),
+  });
+  if (!res.ok) throw new Error('Failed to mark all messages as read');
+}
+
 export async function getMessageInfo(
   roomId: string,
   messageId: string,

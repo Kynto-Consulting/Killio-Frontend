@@ -9,6 +9,7 @@ import {
   sendRoomMessage,
   addReaction,
   markMessagesAsRead,
+  markAllMessagesAsRead,
   RoomMessage,
   MessageStatus,
 } from "@/lib/api/rooms";
@@ -63,7 +64,7 @@ export function useRoomChat(
     setIsLoading(true);
     listRoomMessages(roomId, accessToken, 50)
       .then((msgs) => {
-        setMessages(msgs.map((m) => ({ ...m, status: "sent" as MessageStatus })));
+        setMessages(msgs); // Now msgs already have the correct status from backend
         setHasMore(msgs.length === 50);
       })
       .catch(console.error)
@@ -301,6 +302,16 @@ export function useRoomChat(
     [roomId, currentUser, accessToken]
   );
 
+  const markAllAsRead = useCallback(async () => {
+    if (!roomId || !accessToken) return;
+    try {
+      await markAllMessagesAsRead(roomId, accessToken);
+      setMessages(prev => prev.map(m => ({ ...m, status: 'read' })));
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  }, [roomId, accessToken]);
+
   const setTyping = useCallback(
     (isTyping: boolean) => {
       if (!roomId) return;
@@ -361,6 +372,7 @@ export function useRoomChat(
     loadMore,
     addReaction: handleAddReaction,
     markAsRead,
+    markAllAsRead,
     setTyping,
   };
 }

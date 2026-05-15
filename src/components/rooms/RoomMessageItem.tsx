@@ -264,7 +264,6 @@ export function RoomMessageItem({
   const [userCard, setUserCard] = useState<{ anchor: DOMRect } | null>(null);
   const [isInfoOpen, setIsInfoOpen] = useState(false);
 
-  const { accessToken } = useSession();
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
   const platform = usePlatform();
   const isMobile = platform === "mobile";
