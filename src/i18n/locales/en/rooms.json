@@ -182,7 +182,7 @@
       "member": "Member",
       "readonly": "Read-only"
     },
-    "removeConfirm": "Remove {name} from this channel?",
+    "removeConfirm": "Remove {{name}} from this channel?",
     "readReceipts": "Read receipts",
     "readReceiptsHint": "Show when messages are delivered and read",
     "save": "Save",

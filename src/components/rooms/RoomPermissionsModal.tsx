@@ -52,7 +52,7 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
   };
 
   const handleRemove = async (member: RoomMember) => {
-    if (!confirm(t("permissions.removeConfirm").replace("{name}", member.displayName))) return;
+    if (!confirm(t("permissions.removeConfirm", { name: member.displayName }))) return;
     setSaving(member.userId);
     try {
       await removeMember(roomId, member.userId, accessToken);

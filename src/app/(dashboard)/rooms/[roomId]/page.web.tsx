@@ -200,11 +200,11 @@ Team Context: ${activeTeamId}.`;
     // If it's an approval resumption, find the last bot message
     const existingBotMsg = approvalDecision ? chatHook.messages.slice().reverse().find(m => m.type === 'ai' && m.id.startsWith('bot-')) : null;
     const botMsgId = existingBotMsg?.id || `bot-${Date.now()}`;
-    const botUser = {
-      displayName: "AI Copilot",
-      email: "ai@killio.app",
-      avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=killio-ai&backgroundColor=c084fc",
-    };
+        user: {
+          displayName: t("ai.copilotName") || "AI Copilot",
+          email: "ai@killio.app",
+          avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9",
+        },
 
     if (!existingBotMsg) {
       chatHook.addLocalMessage({
@@ -323,15 +323,22 @@ Team Context: ${activeTeamId}.`;
             modelUsed: event.modelUsed
           };
           
-          chatHook.updateLocalMessage(botMsgId, { 
-            content: finalContent, 
-            status: "sent",
-            metadata: { 
-              toolEvents: [...toolEvents], 
-              toolResults: [...toolResults],
-              ...billingMetadata
-            } 
-          });
+    const botUser = {
+      displayName: "AI Copilot",
+      email: "ai@killio.app",
+      avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9",
+    };
+    
+    chatHook.updateLocalMessage(botMsgId, { 
+      content: finalContent, 
+      status: "sent",
+      user: botUser,
+      metadata: { 
+        toolEvents: [...toolEvents], 
+        toolResults: [...toolResults],
+        ...billingMetadata
+      } 
+    });
 
           // Save to DB and broadcast to others via backend
           sendAiRoomMessage(roomId, finalContent, accessToken, { 

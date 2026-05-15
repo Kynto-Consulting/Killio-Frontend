@@ -111,7 +111,7 @@ export function MessageInfoPanel({ roomId, message, onClose, onMarkRead }: Messa
               <span className="text-xs text-muted-foreground">{t("info.sentAt")}</span>
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-medium">
-                  {data?.createdAt ? format(new Date(data.createdAt), "HH:mm:ss") : "..."}
+                  {(data?.createdAt || message.createdAt) ? format(new Date(data?.createdAt || message.createdAt), "HH:mm:ss") : "..."}
                 </span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
               </div>
@@ -222,7 +222,7 @@ export function MessageInfoPanel({ roomId, message, onClose, onMarkRead }: Messa
       <div className="p-4 border-t border-border/50 bg-muted/20">
         <div className="flex items-center gap-2 text-[10px] text-muted-foreground italic">
           <Calendar className="w-3 h-3" />
-          {data?.createdAt && t("info.createdAt", { date: format(new Date(data.createdAt), "PPP p") })}
+          {(data?.createdAt || message.createdAt) && t("info.createdAt", { date: format(new Date(data?.createdAt || message.createdAt), "PPP p") })}
         </div>
       </div>
     </div>

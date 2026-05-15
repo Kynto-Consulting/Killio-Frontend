@@ -227,7 +227,7 @@ export function RoomInput({
         <ReferenceTokenInput
           value={value}
           onChange={handleChange}
-          placeholder={t("chat.inputPlaceholder").replace("{roomName}", roomName)}
+          placeholder={t("chat.inputPlaceholder", { roomName })}
           documents={documents}
           boards={boards}
           users={users}
