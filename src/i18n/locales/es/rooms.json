@@ -215,6 +215,7 @@
     "inCall": "En llamada",
     "you": "(tú)"
   },
+  "errors": {
     "recordFailed": "La grabación no está soportada en este navegador."
   },
   "info": {
