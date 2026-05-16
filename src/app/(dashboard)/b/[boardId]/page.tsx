@@ -1475,13 +1475,13 @@ export default function BoardPage() {
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isBoardMenuOpen ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
             >
               <Settings className="h-4 w-4 sm:mr-2" />
-              <span className="hidden sm:inline">Config</span>
+              <span className="hidden sm:inline">{t("header.config")}</span>
             </button>
 
             {isBoardMenuOpen && (
               <div className="absolute top-full right-0 mt-2 w-72 bg-card border border-border rounded-xl shadow-xl z-20 overflow-hidden">
                 <div className="p-3 border-b border-border bg-muted/20">
-                  <h4 className="text-sm font-semibold text-foreground">Configuración del board</h4>
+                  <h4 className="text-sm font-semibold text-foreground">{t("header.boardSettings")}</h4>
                 </div>
 
                 <div className="p-3 space-y-2">
@@ -1503,7 +1503,7 @@ export default function BoardPage() {
                     className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${isFilterMenuOpen || selectedTags.length > 0 ? "text-accent" : "text-foreground"}`}
                   >
                     <Filter className="h-4 w-4 mr-2" />
-                    <span>Filtros</span>
+                    <span>{t("header.filters")}</span>
                     {selectedTags.length > 0 ? (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
                         {selectedTags.length}
@@ -1566,7 +1566,7 @@ export default function BoardPage() {
                       className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
                     >
                       <Pencil className="h-4 w-4 mr-2" />
-                      Editar tablero
+                      {t("header.editBoard")}
                     </button>
                   )}
 

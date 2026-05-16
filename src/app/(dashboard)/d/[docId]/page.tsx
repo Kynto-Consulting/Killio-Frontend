@@ -1304,7 +1304,7 @@ export default function DocumentPage() {
           <div className="flex items-center text-sm">
             <Link href="/d" className="flex items-center gap-1.5 text-muted-foreground hover:text-foreground transition-colors mr-2">
               <FolderIcon className="h-4 w-4 opacity-70" />
-              <span className="hidden sm:inline">{t("allDocuments") || "Todos los documentos"}</span>
+              <span className="hidden sm:inline">{t("allDocuments")}</span>
             </Link>
 
             {parentDoc && (
@@ -1385,7 +1385,7 @@ export default function DocumentPage() {
 
           <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Download className="h-3.5 w-3.5" />
-            Descargar
+            {t("header.download")}
           </Button>
 
           {canManageDocument && (
@@ -1408,7 +1408,7 @@ export default function DocumentPage() {
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-bold flex items-center gap-2">
                 <Download className="h-5 w-5 text-accent" />
-                Exportar o Imprimir
+                {t("exportModal.title")}
               </h2>
               <button onClick={() => setIsExportModalOpen(false)} className="text-muted-foreground hover:text-foreground">
                 <X className="h-5 w-5" />
@@ -1417,7 +1417,7 @@ export default function DocumentPage() {
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Formato de Exportación</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.formatLabel")}</label>
                 <div className="flex gap-2">
                   <Button variant={exportFormat === 'pdf' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('pdf')}>PDF</Button>
                   <Button variant={exportFormat === 'docx' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('docx')}>Word (DOCX)</Button>
@@ -1425,15 +1425,15 @@ export default function DocumentPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Estilo Visual</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.styleLabel")}</label>
                 <div className="flex gap-2">
-                  <Button variant={exportStyle === 'carta' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('carta')}>Reporte Técnico</Button>
-                  <Button variant={exportStyle === 'harvard' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('harvard')}>Estilo Harvard</Button>
+                  <Button variant={exportStyle === 'carta' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('carta')}>{t("exportModal.styleTechnical")}</Button>
+                  <Button variant={exportStyle === 'harvard' ? 'default' : 'outline'} className="flex-1 text-xs px-2" onClick={() => setExportStyle('harvard')}>{t("exportModal.styleHarvard")}</Button>
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Tamaño de Hoja</label>
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.pageSizeLabel")}</label>
                 <div className="flex gap-2">
                   <Button variant={exportSize === 'A4' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportSize('A4')}>A4</Button>
                   <Button variant={exportSize === 'letter' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportSize('letter')}>Carta</Button>
@@ -1442,10 +1442,10 @@ export default function DocumentPage() {
             </div>
 
             <div className="mt-8 flex justify-end gap-2">
-              <Button variant="ghost" onClick={() => setIsExportModalOpen(false)}>Cancelar</Button>
+              <Button variant="ghost" onClick={() => setIsExportModalOpen(false)}>{t("exportModal.cancel")}</Button>
               <Button onClick={handleExport} disabled={isExporting}>
                 {isExporting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : <Download className="w-4 h-4 mr-2" />}
-                Descargar Documento
+                {t("exportModal.downloadBtn")}
               </Button>
             </div>
           </div>

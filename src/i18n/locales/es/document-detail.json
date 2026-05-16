@@ -32,7 +32,18 @@
   "header": {
     "copilot": "Copilot",
     "comments": "Comentarios",
-    "share": "Compartir"
+    "share": "Compartir",
+    "download": "Descargar"
+  },
+  "exportModal": {
+    "title": "Exportar o Imprimir",
+    "formatLabel": "Formato de Exportación",
+    "styleLabel": "Estilo Visual",
+    "pageSizeLabel": "Tamaño de Hoja",
+    "styleTechnical": "Reporte Técnico",
+    "styleHarvard": "Estilo Harvard",
+    "downloadBtn": "Descargar Documento",
+    "cancel": "Cancelar"
   },
   "shareModal": {
     "title": "Compartir documento",

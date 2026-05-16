@@ -17,6 +17,10 @@
     "filterByTags": "Filter by Tags",
     "noTags": "No tags in this board",
     "clearFilters": "Clear Filters",
+    "config": "Config",
+    "boardSettings": "Board Settings",
+    "filters": "Filters",
+    "editBoard": "Edit board",
     "share": "Share",
     "deleteBoard": "Delete Board",
     "connecting": "Connecting..."

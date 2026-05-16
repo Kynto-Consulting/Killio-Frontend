@@ -17,6 +17,10 @@
     "filterByTags": "Filtrar por etiquetas",
     "noTags": "No hay etiquetas en este tablero",
     "clearFilters": "Limpiar filtros",
+    "config": "Configurar",
+    "boardSettings": "Configuración del tablero",
+    "filters": "Filtros",
+    "editBoard": "Editar tablero",
     "share": "Compartir",
     "deleteBoard": "Eliminar tablero",
     "connecting": "Conectando..."
