@@ -660,19 +660,11 @@ export function AgentChatPanel({
           )}
         </div>
         <p className="mt-1 text-[10px] text-neutral-400 text-center">{t("agent.input.hint")}</p>
-        {aiUsage && (
-          <div className="mt-2 flex flex-col items-center justify-center gap-1 text-[10px] text-neutral-500">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-3 h-3" />
-              <span>{t("agent.credits.used", { used: aiUsage.creditsUsed.toFixed(2), limit: aiUsage.limit.toFixed(2) })}</span>
-            </div>
-            {aiUsage.remaining <= 0 && (
-              <span className="text-red-500 font-medium">{t("agent.errors.noCredits")}</span>
-            )}
-            {aiUsage.remaining > 0 && aiUsage.remaining < 1 && (
-              <span className="text-amber-500 font-medium">{t("agent.errors.lowCredits")}</span>
-            )}
-          </div>
+        {aiUsage && aiUsage.remaining <= 0 && (
+          <p className="mt-1 text-[10px] text-red-500 font-medium text-center">{t("agent.errors.noCredits")}</p>
+        )}
+        {aiUsage && aiUsage.remaining > 0 && aiUsage.remaining < 1 && (
+          <p className="mt-1 text-[10px] text-amber-500 font-medium text-center">{t("agent.errors.lowCredits")}</p>
         )}
       </div>
     </div>

@@ -200,11 +200,11 @@ Team Context: ${activeTeamId}.`;
     // If it's an approval resumption, find the last bot message
     const existingBotMsg = approvalDecision ? chatHook.messages.slice().reverse().find(m => m.type === 'ai' && m.id.startsWith('bot-')) : null;
     const botMsgId = existingBotMsg?.id || `bot-${Date.now()}`;
-        user: {
-          displayName: t("ai.copilotName") || "AI Copilot",
-          email: "ai@killio.app",
-          avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9",
-        },
+    const botUser = {
+      displayName: t("ai.copilotName") || "AI Copilot",
+      email: "ai@killio.app",
+      avatarUrl: "https://api.dicebear.com/7.x/bottts/svg?seed=ai-copilot&backgroundColor=6d28d9",
+    };
 
     if (!existingBotMsg) {
       chatHook.addLocalMessage({
@@ -341,12 +341,28 @@ Team Context: ${activeTeamId}.`;
     });
 
           // Save to DB and broadcast to others via backend
-          sendAiRoomMessage(roomId, finalContent, accessToken, { 
-            toolEvents, 
-            toolResults, 
+          sendAiRoomMessage(roomId, finalContent, accessToken, {
+            toolEvents,
+            toolResults,
             localBotId: botMsgId,
             ...billingMetadata
           }).catch(console.error);
+
+          // Speak AI response aloud when user is in an active call
+          if (call.isInCall && activeRoomId === roomId && typeof window !== 'undefined' && window.speechSynthesis) {
+            const plainText = finalContent
+              .replace(/```[\s\S]*?```/g, '')
+              .replace(/`[^`]*`/g, '')
+              .replace(/[#*_~>]/g, '')
+              .trim()
+              .slice(0, 800);
+            if (plainText) {
+              window.speechSynthesis.cancel();
+              const utter = new SpeechSynthesisUtterance(plainText);
+              utter.rate = 1.05;
+              window.speechSynthesis.speak(utter);
+            }
+          }
         } else if (event.type === "error") {
           chatHook.updateLocalMessage(botMsgId, { content: `Error: ${event.message}`, status: "failed" });
         }
@@ -545,6 +561,13 @@ Team Context: ${activeTeamId}.`;
               teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}
               showReadReceipts={showReadReceipts}
+              transcripts={(callHistoryHook.calls as any[]).map((c) => ({
+                callId: c.id,
+                roomId: roomId ?? "",
+                roomName: room?.name ?? "Room",
+                startedAt: c.startedAt,
+              }))}
+              activeCallId={(call.isInCall && activeRoomId === roomId) ? (call.callId ?? undefined) : undefined}
               t={t}
             />
           </div>

@@ -521,7 +521,15 @@ export class ReferenceResolver {
               : mentionType === "user"
                 ? context.users?.find((u) => u.id === id)?.name
                 : undefined;
-        const resolvedName = mentionType === "user" ? (fallbackName || nameRaw) : (nameRaw || fallbackName);
+        // For transcript tokens the nameRaw contains "callId:label" — strip the callId prefix
+        const resolvedNameRaw = (() => {
+          if (mentionType === "transcript" && nameRaw) {
+            const colonIdx = nameRaw.indexOf(':');
+            return colonIdx >= 0 ? nameRaw.slice(colonIdx + 1) : nameRaw;
+          }
+          return nameRaw;
+        })();
+        const resolvedName = mentionType === "user" ? (fallbackName || resolvedNameRaw) : (resolvedNameRaw || fallbackName);
         const name = String(resolvedName || "Referencia");
         return { type: 'mention', mentionType, id, name, key: i };
       }

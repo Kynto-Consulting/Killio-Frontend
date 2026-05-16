@@ -352,29 +352,6 @@ export function DocumentCommentsDrawer({
           ))}
         </div>
 
-        {activeTab === 'copilot' && aiUsage && (
-          <div className="px-3 pb-2">
-            <div className="text-[10px] text-muted-foreground font-semibold">
-              IA mensual: {aiUsage.creditsUsed.toFixed(2)} / {aiUsage.limit.toFixed(2)} creditos
-            </div>
-            <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all"
-                style={{ width: `${Math.min(100, (aiUsage.creditsUsed / Math.max(aiUsage.limit, 0.0001)) * 100)}%` }}
-              />
-            </div>
-            {typeof aiUsage.myCreditsUsed === 'number' && (
-              <div className="mt-1 text-[10px] text-muted-foreground">
-                Tu consumo asignado: {aiUsage.myCreditsUsed.toFixed(2)} creditos ({(aiUsage.mySharePct ?? 0).toFixed(1)}%)
-              </div>
-            )}
-            {Array.isArray(aiUsage.memberAllocations) && aiUsage.memberAllocations.length > 0 && (
-              <div className="mt-1 text-[10px] text-muted-foreground/90 truncate">
-                Team shared (paga {aiUsage.billingOwnerName || 'owner'}): {aiUsage.memberAllocations.slice(0, 3).map((entry) => `${entry.isCurrentUser ? 'Tu' : entry.name}: ${entry.creditsUsed.toFixed(2)} cr`).join(' · ')}
-              </div>
-            )}
-          </div>
-        )}
       </div>
       <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
         {activeTab === 'copilot' && activeTeamId && (

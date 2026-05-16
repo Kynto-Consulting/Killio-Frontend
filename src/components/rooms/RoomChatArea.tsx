@@ -41,6 +41,8 @@ interface RoomChatAreaProps {
   documents?: DocumentSummary[];
   boards?: any[];
   users?: any[];
+  transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
+  activeCallId?: string;
   resolverContext?: ResolverContext;
   availableTags?: any[];
   onOpenCopilot?: () => void;
@@ -94,6 +96,8 @@ export function RoomChatArea({
   documents,
   boards,
   users,
+  transcripts,
+  activeCallId,
   resolverContext,
   availableTags,
   onOpenCopilot,
@@ -317,6 +321,8 @@ export function RoomChatArea({
         documents={documents}
         boards={boards}
         users={users}
+        transcripts={transcripts}
+        activeCallId={activeCallId}
         onAiTrigger={onAiTrigger}
         replyTo={replyTo || undefined}
         teamId={teamId}

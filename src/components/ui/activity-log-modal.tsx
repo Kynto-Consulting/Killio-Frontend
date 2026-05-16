@@ -89,12 +89,11 @@ export function ActivityLogModal({
                     </div>
 
                     <div className="space-y-2">
-                      <p className="text-sm text-foreground/90 leading-relaxed">
-                        <span className="font-bold text-foreground">
+                      <p className="text-sm text-foreground/90 leading-relaxed flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center rounded border border-primary/25 bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-medium">
                           {actorLabel}
                         </span>
                         <span className="text-muted-foreground/80">
-                          {" "}
                           {prettifyAction(a.action)}
                         </span>
                       </p>

@@ -42,6 +42,9 @@ interface ReferenceTokenInputProps {
   folders?: any[];
   users?: WorkspaceMemberLike[];
   cards?: PickerCard[];
+  rooms?: Array<{ id: string; name: string; type: string }>;
+  transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
+  activeCallId?: string;
   activeBricks?: any[];
   onSubmit?: () => void;
   submitOnEnter?: boolean;
@@ -75,6 +78,9 @@ export function ReferenceTokenInput({
   folders = [],
   users = [],
   cards = [],
+  rooms = [],
+  transcripts = [],
+  activeCallId,
   activeBricks = [],
   onSubmit,
   submitOnEnter = true,
@@ -716,6 +722,9 @@ export function ReferenceTokenInput({
             folders={folders}
             users={users}
             cards={cards}
+            rooms={rooms}
+            transcripts={transcripts}
+            activeCallId={activeCallId}
             activeBricks={activeBricks}
             onClose={closePicker}
             onSelect={insertPickedToken}

@@ -30,6 +30,8 @@ interface RoomInputProps {
   documents?: DocumentSummary[];
   boards?: any[];
   users?: any[];
+  transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
+  activeCallId?: string;
   onAiTrigger?: (content: string) => void;
   replyTo?: RoomMessage;
   teamId?: string;
@@ -49,6 +51,8 @@ export function RoomInput({
   documents,
   boards,
   users,
+  transcripts,
+  activeCallId,
   onAiTrigger,
   replyTo,
   teamId,
@@ -231,6 +235,8 @@ export function RoomInput({
           documents={documents}
           boards={boards}
           users={users}
+          transcripts={transcripts}
+          activeCallId={activeCallId}
           onSubmit={handleSubmit}
           submitOnEnter
           focusSignal={replyTo?.id}

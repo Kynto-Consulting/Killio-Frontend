@@ -288,7 +288,7 @@ export function CreateBoardModal({
             </button>
             <button
               type="submit"
-              disabled={!name.trim() || submitAction.isPending || isUploadingBg}
+              disabled={!name.trim() || submitAction.isPending || isUploadingBg || (bgKind === "image" && !imageBg)}
               className="inline-flex h-9 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50"
             >
               {submitAction.isPending

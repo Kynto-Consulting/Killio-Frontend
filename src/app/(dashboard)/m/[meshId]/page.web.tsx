@@ -1293,6 +1293,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [updatedAt,  setUpdatedAt]  = useState<string | null>(null);
   const [isLoading,  setIsLoading]  = useState(false);
   const [isSaving,   setIsSaving]   = useState(false);
+  const [meshAppearance, setMeshAppearance] = useState<{
+    backgroundKind?: string;
+    backgroundValue?: string | null;
+    backgroundImageUrl?: string | null;
+    backgroundGradient?: string | null;
+  }>({});
 
   // entity selector modal state (portal / mirror double-click)
   const [selectorModalBrickId,   setSelectorModalBrickId]   = useState<string | null>(null);
@@ -1385,8 +1391,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   useEffect(() => {
     if (!meshId || !accessToken) return;
     setIsLoading(true);
-    getMesh(meshId, accessToken)
-      .then((s) => {
+    Promise.all([
+      getMesh(meshId, accessToken),
+      getBoard(meshId, accessToken).catch(() => null),
+    ])
+      .then(([s, board]) => {
         setState(s.state);
         setRevision(s.revision);
         setUpdatedAt(s.updatedAt);
@@ -1399,6 +1408,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         stateHashRef.current = initialHash;
         lastSavedHashRef.current = initialHash;
         revisionRef.current = s.revision;
+        if (board) {
+          setMeshAppearance({
+            backgroundKind: board.backgroundKind,
+            backgroundValue: board.backgroundValue,
+            backgroundImageUrl: board.backgroundImageUrl,
+            backgroundGradient: board.backgroundGradient,
+          });
+        }
       })
       .catch(() => toast(tMesh("errors.loadFailed"), "error"))
       .finally(() => setIsLoading(false));
@@ -3572,9 +3589,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const rootBricks = Object.values(state.bricksById).filter((b) => !b.parentId);
   const anyDrag    = !!(dragState || resizeState || vecDragState || panDragState || selRect);
 
+  const meshBgStyle: React.CSSProperties & { backgroundImage?: string; background?: string } = (() => {
+    const a = meshAppearance;
+    if (a.backgroundKind === "image" && a.backgroundImageUrl)
+      return { backgroundImage: `url(${a.backgroundImageUrl})`, backgroundSize: "cover", backgroundPosition: "center" };
+    if (a.backgroundKind === "color" && a.backgroundValue)
+      return { backgroundColor: a.backgroundValue };
+    if (a.backgroundKind === "gradient" && a.backgroundGradient && !a.backgroundGradient.startsWith("bg-"))
+      return { background: a.backgroundGradient };
+    return {};
+  })();
+  const meshBgClass = (() => {
+    const a = meshAppearance;
+    if (a.backgroundKind === "gradient" && a.backgroundGradient?.startsWith("bg-")) return a.backgroundGradient;
+    if (a.backgroundKind === "preset" && a.backgroundValue) return a.backgroundValue;
+    return "";
+  })();
+
   return (
     <>
-    <div className="relative flex h-full flex-col" style={{ userSelect: anyDrag ? "none" : undefined }}>
+    <div className={`relative flex h-full flex-col ${meshBgClass}`} style={{ userSelect: anyDrag ? "none" : undefined, ...meshBgStyle }}>
       {/* Phase 4: Pen Toolbar */}
       {toolMode === "pen" && (
         <PenToolbar

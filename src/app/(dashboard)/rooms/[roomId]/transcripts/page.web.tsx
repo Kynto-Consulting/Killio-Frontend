@@ -405,7 +405,7 @@ export default function RoomTranscriptsPage() {
                 onClose={() => setShowCopilot(false)}
                 initialMessage={
                   transcript && selectedCall
-                    ? `@[transcript:${roomId}:${selectedCall.id}:Transcript ${formatDate(selectedCall.startedAt)}]`
+                    ? `@[transcript:${roomId}:${selectedCall.id}:${room?.name ?? "Room"} · ${formatDate(selectedCall.startedAt)}]`
                     : undefined
                 }
               />

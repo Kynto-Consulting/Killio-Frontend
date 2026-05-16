@@ -2,6 +2,8 @@
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 import { useRef, useState, useCallback, useMemo, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
+import { NavbarAiCredits } from "@/components/ui/navbar-ai-credits";
 import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, Settings, Pencil, ChartGantt, SquareKanban, ChevronLeft, ChevronRight, CalendarDays, Clock3 } from "lucide-react";
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
@@ -713,7 +715,19 @@ export default function BoardPage() {
   const params = useParams();
   const router = useRouter();
   const boardId = params.boardId as string;
-  const { accessToken, user } = useSession();
+  const { accessToken, user, activeTeamId } = useSession();
+  const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
+
+  useEffect(() => {
+    const checkDomElement = () => {
+      const navSlot = document.getElementById("navbar-usage-slot");
+      setNavbarUsageSlotEl((prev) => (prev === navSlot ? prev : navSlot));
+    };
+    checkDomElement();
+    const observer = new MutationObserver(checkDomElement);
+    observer.observe(document.body, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, []);
 
   const members = useBoardPresence(boardId, user, accessToken);
 
@@ -1673,7 +1687,8 @@ export default function BoardPage() {
             permissions.canEdit && (
               <button
                 onClick={() => setIsAddingList(true)}
-                className="w-72 shrink-0 h-12 rounded-xl border border-dashed border-border/60 bg-transparent flex items-center justify-center text-muted-foreground hover:bg-accent/5 hover:border-accent hover:text-foreground transition-all"
+                className="w-72 shrink-0 h-12 rounded-xl border border-dashed border-border/60 bg-transparent flex items-center justify-center hover:bg-accent/5 hover:border-accent transition-all"
+                style={{ color: "var(--board-text, rgb(100 116 139))", opacity: 0.75 }}
               >
                 <Plus className="h-5 w-5 mr-2" />
                 {t("list.addAnother")}
@@ -1973,6 +1988,11 @@ export default function BoardPage() {
       />
 
       <DeleteBoardConfirmDialog />
+
+      {navbarUsageSlotEl && activeTeamId && accessToken ? createPortal(
+        <NavbarAiCredits teamId={activeTeamId} accessToken={accessToken} />,
+        navbarUsageSlotEl
+      ) : null}
 
       {selectedGanttCard ? (
         <CardDetailModal

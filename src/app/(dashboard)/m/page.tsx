@@ -94,11 +94,8 @@ export default function MeshBoardsPage() {
       router.push(`/m/${created.id}`);
     } catch (error) {
       console.error(error);
-      const message =
-        error instanceof ApiError
-          ? error.message
-          : t("mesh.createError");
-      toast(message, "error");
+      toast(error instanceof ApiError ? error.message : t("mesh.createError"), "error");
+      throw error;
     } finally {
       setIsCreating(false);
     }

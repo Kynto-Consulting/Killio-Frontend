@@ -11,13 +11,15 @@ import {
   ArrowLeft,
   Loader2,
   Folder,
+  ScrollText,
+  Radio,
 } from "lucide-react";
 import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
-type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
 type AllowedMentionType = MentionType | "document";
 
 type ActiveBrick = {
@@ -49,6 +51,8 @@ interface ReferencePickerProps {
   users: WorkspaceMemberLike[];
   cards?: Array<{ id: string; title: string }>;
   rooms?: Array<{ id: string; name: string; type: string }>;
+  transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
+  activeCallId?: string;
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
@@ -205,6 +209,8 @@ export function ReferencePicker({
   users,
   cards = [],
   rooms = [],
+  transcripts = [],
+  activeCallId,
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
@@ -353,6 +359,24 @@ export function ReferencePicker({
           mentionType: "thread" as const,
           search: `thread ${r.name} ${r.id}`.toLowerCase(),
         })),
+        ...(transcripts || []).map((tr) => {
+          const date = new Date(tr.startedAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' });
+          const label = `${tr.roomName} · ${date}`;
+          return {
+            token: `@[transcript:${tr.roomId}:${tr.callId}:${label}]`,
+            label,
+            category: "mention" as const,
+            mentionType: "transcript" as const,
+            search: `transcript ${tr.roomName} ${date} ${tr.callId}`.toLowerCase(),
+          };
+        }),
+        ...(activeCallId ? [{
+          token: `@[transcript:active:${activeCallId}:Llamada en curso]`,
+          label: "Llamada en curso",
+          category: "mention" as const,
+          mentionType: "transcript" as const,
+          search: "transcript llamada en curso active call live",
+        }] : []),
     ];
 
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
@@ -380,7 +404,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, cards, folders, rooms, query, normalizedAllowedTypes]);
+  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, query, normalizedAllowedTypes]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -786,6 +810,8 @@ export function ReferencePicker({
                   {item.category === "mention" && item.mentionType === "folder" && <Folder className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "user" &&
                     (item.avatarUrl ? <img src={item.avatarUrl} className="h-4 w-4 rounded-full" alt="avatar" /> : <User className="h-4 w-4 opacity-70" />)}
+                  {item.category === "mention" && item.mentionType === "transcript" && item.label === "Llamada en curso" && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
+                  {item.category === "mention" && item.mentionType === "transcript" && item.label !== "Llamada en curso" && <ScrollText className="h-4 w-4 opacity-70" />}
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-medium truncate">{item.label}</span>
                     <span className="text-[10px] uppercase tracking-wider opacity-50">{item.mentionType || item.category}</span>

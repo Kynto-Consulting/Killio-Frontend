@@ -272,7 +272,13 @@ export function useRoomCall(
       const { peerId } = msg.data;
       const pc = peerConnections.current.get(peerId);
       if (pc) { pc.close(); peerConnections.current.delete(peerId); }
-      setPeers((prev) => prev.filter((p) => p.peerId !== peerId));
+      setPeers((prev) => {
+        const next = prev.filter((p) => p.peerId !== peerId);
+        if (next.length === 0 && isInCallRef.current) {
+          setTimeout(() => leaveCallRef.current?.(), 500);
+        }
+        return next;
+      });
     };
 
     const onOffer = async (msg: any) => {
@@ -642,6 +648,7 @@ export function useRoomCall(
     localSegments.current = [];
     lastSubmittedSegmentIndex.current = 0;
     startSTT();
+    setCaptionSettings((prev) => ({ ...prev, enabled: true }));
 
     // Start progressive transcript submissions with per-participant jitter
     scheduleTranscriptSubmit();

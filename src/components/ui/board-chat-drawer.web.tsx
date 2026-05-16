@@ -148,29 +148,6 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
           ))}
         </div>
 
-        {activeTab === 'copilot' && aiUsage && (
-          <div className="px-3 pb-2">
-            <div className="text-[10px] text-muted-foreground font-semibold">
-              IA mensual: {aiUsage.creditsUsed.toFixed(2)} / {aiUsage.limit.toFixed(2)} creditos
-            </div>
-            <div className="mt-1 h-1.5 w-full rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full bg-amber-500 transition-all"
-                style={{ width: `${Math.min(100, (aiUsage.creditsUsed / Math.max(aiUsage.limit, 0.0001)) * 100)}%` }}
-              />
-            </div>
-            {typeof aiUsage.myCreditsUsed === 'number' && (
-              <div className="mt-1 text-[10px] text-muted-foreground">
-                Tu consumo asignado: {aiUsage.myCreditsUsed.toFixed(2)} creditos ({(aiUsage.mySharePct ?? 0).toFixed(1)}%)
-              </div>
-            )}
-            {Array.isArray(aiUsage.memberAllocations) && aiUsage.memberAllocations.length > 0 && (
-              <div className="mt-1 text-[10px] text-muted-foreground/90 truncate">
-                Team shared (paga {aiUsage.billingOwnerName || 'owner'}): {aiUsage.memberAllocations.slice(0, 3).map((entry) => `${entry.isCurrentUser ? 'Tu' : entry.name}: ${entry.creditsUsed.toFixed(2)} cr`).join(' · ')}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
@@ -274,9 +251,9 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs text-foreground/80 leading-relaxed">
-                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
-                        <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
+                      <p className="text-xs text-foreground/80 leading-relaxed flex items-center gap-1.5 flex-wrap">
+                        <span className="inline-flex items-center gap-1 rounded border border-primary/25 bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-medium">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
+                        <span className="text-muted-foreground/80">{prettifyAction(a.action)}</span>
                       </p>
 
                       {changedFields && (
