@@ -919,7 +919,7 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                 <div>
                   <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "#fff" }}>{t("title")}</div>
                   <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>
-                    {t("tabs.integrations")} · sync data across your stack
+                    {t("tabs.integrations")} · {t("stats.syncSubtitle")}
                   </div>
                 </div>
               </div>
@@ -928,24 +928,24 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>10</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Available</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.available")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>2</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Coming soon</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
                   <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "rgba(255,255,255,0.3)" : "#fff", lineHeight: 1 }}>
                     {usageLoading ? "—" : usage ? (usage.limit === null ? String(usage.executed) : `${usage.executed}/${usage.limit}`) : "—"}
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>Script runs</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.scriptRuns")}</div>
                 </div>
               </div>
 
               {/* Available integrations */}
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
-                  Available
+                  {t("stats.available")}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
                   <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
@@ -964,7 +964,7 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
               {/* Coming soon */}
               <div>
                 <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
-                  Coming soon
+                  {t("stats.comingSoon")}
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
                   <ComingSoonIntegrationCard

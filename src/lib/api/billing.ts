@@ -90,6 +90,9 @@ export type BillingCheckoutResponse =
       billingCycle: BillingCycle;
       checkoutKind: 'subscription' | 'one_time';
       amountCents: number;
+      originalAmountCents: number;
+      discountCents: number;
+      couponCode: string | null;
       currency: 'PEN';
       preferenceId: string;
       initPoint: string;
@@ -100,6 +103,19 @@ export type BillingCheckoutResponse =
       targetPlanTier: TeamPlanTier;
       billingCycle: BillingCycle;
       trialEndsAt: string;
+    }
+  | {
+      mode: 'coupon_granted';
+      targetPlanTier: TeamPlanTier;
+      billingCycle: BillingCycle;
+      periodEnd: string;
+      couponCode: string;
+      giftCoupon: {
+        code: string;
+        grantTier: string;
+        grantDurationMonths: number;
+        expiresAt: string | null;
+      } | null;
     }
   | {
       mode: 'contact_sales';
@@ -229,8 +245,8 @@ export async function resumeTeamSubscription(
 export async function validateCoupon(
   teamId: string,
   code: string,
-  targetTier: string,
-  cycle: string,
+  targetPlanTier: string,
+  billingCycle: BillingCycle,
   accessToken: string,
 ): Promise<CouponValidationResult> {
   const res = await fetch(`${BASE_URL}/billing/team/${encodeURIComponent(teamId)}/coupon/validate`, {
@@ -239,7 +255,7 @@ export async function validateCoupon(
       Authorization: `Bearer ${accessToken}`,
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ code, targetTier, cycle }),
+    body: JSON.stringify({ code, targetPlanTier, billingCycle }),
   });
 
   if (!res.ok) {

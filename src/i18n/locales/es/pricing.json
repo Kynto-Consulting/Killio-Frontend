@@ -108,7 +108,10 @@
     "placeholder": "Código de cupón",
     "apply": "Aplicar",
     "clear": "Quitar",
-    "validMsg": "¡Descuento de {{discount}} aplicado!"
+    "validMsg": "¡Descuento de {{discount}} aplicado!",
+    "appliedMsg": "Cupón \"{{code}}\" aplicado — mira los precios actualizados abajo.",
+    "granted": "🎉 Plan {{plan}} activado hasta {{date}}. ¡Bienvenido!",
+    "giftIssued": "De regalo, aquí tienes un cupón para otro workspace: {{code}} ({{months}} mes(es) de MAX — ¡compártelo con alguien!)"
   },
   "common": {
     "unlimited": "Ilimitado",
@@ -117,6 +120,7 @@
     "monthSuffix": "/ mes",
     "yearSuffix": "/ ano",
     "perUserMonth": "por espacio / mes",
-    "perUserYear": "por espacio / ano"
+    "perUserYear": "por espacio / ano",
+    "billedAnnually": "facturado anualmente"
   }
 }

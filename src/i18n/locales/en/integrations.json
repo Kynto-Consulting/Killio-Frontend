@@ -72,6 +72,12 @@
     "table": "KillioTable",
     "envVars": "Env Variables"
   },
+  "stats": {
+    "available": "Available",
+    "comingSoon": "Coming soon",
+    "scriptRuns": "Script runs",
+    "syncSubtitle": "Sync data across your stack"
+  },
   "callback": {
     "errors": {
       "sessionExpired": "Session expired. Please try connecting Trello again.",

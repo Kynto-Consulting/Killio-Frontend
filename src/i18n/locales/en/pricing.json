@@ -108,7 +108,10 @@
     "placeholder": "Coupon code",
     "apply": "Apply",
     "clear": "Remove",
-    "validMsg": "{{discount}} discount applied!"
+    "validMsg": "{{discount}} discount applied!",
+    "appliedMsg": "Coupon \"{{code}}\" applied — see updated prices below.",
+    "granted": "🎉 {{plan}} plan activated until {{date}}. Welcome aboard!",
+    "giftIssued": "As a thank-you, here's a gift coupon for another workspace: {{code}} ({{months}} month(s) of MAX — share it with a friend!)"
   },
   "common": {
     "unlimited": "Unlimited",
@@ -117,6 +120,7 @@
     "monthSuffix": "/ month",
     "yearSuffix": "/ year",
     "perUserMonth": "per workspace / month",
-    "perUserYear": "per workspace / year"
+    "perUserYear": "per workspace / year",
+    "billedAnnually": "billed annually"
   }
 }

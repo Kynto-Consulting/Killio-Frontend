@@ -55,8 +55,13 @@ export default function PricingPage() {
   const [subActionLoading, setSubActionLoading] = useState<"cancel" | "resume" | null>(null);
   const [notice, setNotice] = useState<{ type: NoticeType; message: string } | null>(null);
   const [couponCode, setCouponCode] = useState('');
-  const [couponResult, setCouponResult] = useState<CouponValidationResult | null>(null);
+  // Per-plan validation results: key is plan tier ('pro' | 'max')
+  const [couponResults, setCouponResults] = useState<Partial<Record<TeamPlanTier, CouponValidationResult>>>({});
   const [couponLoading, setCouponLoading] = useState(false);
+
+  // Derived: the first valid result (used for global feedback)
+  const couponResult = Object.values(couponResults).find((r) => r?.valid) ?? Object.values(couponResults)[0] ?? null;
+  const couponApplied = Object.values(couponResults).some((r) => r?.valid);
 
   const formatMoney = useCallback((amountCents: number | null, currency: "PEN" = "PEN") => {
     if (amountCents === null) return t("common.na");
@@ -127,19 +132,37 @@ export default function PricingPage() {
   const billingEmail = billing?.billingEmail || "killio@kynto.studio";
   const currentPlanTier = billing?.currentPlanTier || "free";
 
+  // Clear coupon when billing cycle changes
+  useEffect(() => {
+    if (couponApplied) {
+      setCouponResults({});
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [billingCycle]);
+
   const applyOrClearCoupon = async () => {
-    if (couponResult) {
-      setCouponResult(null);
+    if (couponApplied) {
+      setCouponResults({});
       setCouponCode('');
       return;
     }
     if (!couponCode.trim() || !activeTeamId || !accessToken) return;
     setCouponLoading(true);
     try {
-      const result = await validateCoupon(activeTeamId, couponCode.trim(), billingCycle === 'yearly' ? 'pro' : 'pro', billingCycle, accessToken);
-      setCouponResult(result);
+      // Validate against every paid plan in parallel so each card shows its own discount
+      const paidTiers: TeamPlanTier[] = ['pro', 'max'];
+      const results = await Promise.all(
+        paidTiers.map((tier) =>
+          validateCoupon(activeTeamId, couponCode.trim(), tier, billingCycle, accessToken).catch(
+            (): CouponValidationResult => ({ valid: false, errorMessage: t("checkout.failed") }),
+          ),
+        ),
+      );
+      const next: Partial<Record<TeamPlanTier, CouponValidationResult>> = {};
+      paidTiers.forEach((tier, i) => { next[tier] = results[i]; });
+      setCouponResults(next);
     } catch {
-      setCouponResult({ valid: false, errorMessage: t("checkout.failed") });
+      setCouponResults({ pro: { valid: false, errorMessage: t("checkout.failed") } });
     } finally {
       setCouponLoading(false);
     }
@@ -157,14 +180,34 @@ export default function PricingPage() {
       && plan.trialDays > 0
       && currentPlanTier === "free";
 
+    // Use the per-plan coupon result (only pass code if THIS plan's coupon is valid)
+    let planCoupon = couponResults[targetTier];
+    let activeCouponCode = planCoupon?.valid ? couponCode.trim() : undefined;
+
     setActionLoadingTier(targetTier);
     setNotice(null);
+
+    // Re-validate the coupon at checkout time (catches expired/exhausted state since Apply was clicked)
+    if (activeCouponCode) {
+      try {
+        const recheck = await validateCoupon(activeTeamId, activeCouponCode, targetTier, billingCycle, accessToken);
+        if (!recheck.valid) {
+          setCouponResults((prev) => ({ ...prev, [targetTier]: recheck }));
+          setNotice({ type: "error", message: recheck.errorMessage });
+          setActionLoadingTier(null);
+          return;
+        }
+        planCoupon = recheck;
+      } catch {
+        // Non-fatal: let backend validate at checkout and surface any error there
+      }
+    }
 
     try {
       const checkout = await createTeamCheckout(activeTeamId, targetTier, accessToken, {
         billingCycle,
         startTrial: canStartTrial,
-        ...(couponResult?.valid ? { couponCode: couponCode.trim() } : {}),
+        ...(activeCouponCode ? { couponCode: activeCouponCode } : {}),
       });
 
       if (checkout.mode === "trial_activated") {
@@ -174,6 +217,27 @@ export default function PricingPage() {
             date: formatIsoDate(checkout.trialEndsAt, locale),
           }),
         });
+        await reloadData();
+        return;
+      }
+
+      if (checkout.mode === "coupon_granted") {
+        const grantedMsg = t("coupon.granted", {
+          plan: checkout.targetPlanTier.toUpperCase(),
+          date: formatIsoDate(checkout.periodEnd, locale),
+        });
+        const giftMsg = checkout.giftCoupon
+          ? t("coupon.giftIssued", {
+              code: checkout.giftCoupon.code,
+              months: checkout.giftCoupon.grantDurationMonths,
+            })
+          : null;
+        setNotice({
+          type: "success",
+          message: giftMsg ? `${grantedMsg} ${giftMsg}` : grantedMsg,
+        });
+        setCouponResults({});
+        setCouponCode('');
         await reloadData();
         return;
       }
@@ -304,31 +368,36 @@ export default function PricingPage() {
           </div>
 
           {/* Coupon code section */}
-          <div className="mt-6 flex justify-center">
+          <div className="mt-6 flex flex-col items-center gap-3">
             <div className="flex gap-2 items-center">
               <input
                 type="text"
                 placeholder={t("coupon.placeholder")}
                 value={couponCode}
-                onChange={e => setCouponCode(e.target.value.toUpperCase())}
-                className="w-48 rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400"
+                onChange={e => { setCouponCode(e.target.value.toUpperCase()); if (couponApplied) setCouponResults({}); }}
+                disabled={couponApplied}
+                className="w-48 rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
               />
               <button
+                type="button"
                 onClick={() => applyOrClearCoupon()}
-                disabled={couponLoading || !couponCode.trim()}
-                className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+                disabled={couponLoading || (!couponApplied && !couponCode.trim())}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-40"
               >
-                {couponResult ? t("coupon.clear") : t("coupon.apply")}
+                {couponLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                {couponApplied ? t("coupon.clear") : t("coupon.apply")}
               </button>
             </div>
+            {/* Per-plan coupon feedback */}
+            {couponResult && !couponApplied && !couponResult.valid && (
+              <p className="text-sm font-medium text-red-400">{couponResult.errorMessage}</p>
+            )}
+            {couponApplied && (
+              <p className="text-sm font-medium text-emerald-400">
+                {t("coupon.appliedMsg", { code: couponCode })}
+              </p>
+            )}
           </div>
-          {couponResult && (
-            <div className={`mt-3 text-center text-sm font-medium ${couponResult.valid ? 'text-emerald-400' : 'text-red-400'}`}>
-              {couponResult.valid
-                ? t("coupon.validMsg", { discount: formatMoney(couponResult.discountCents) })
-                : couponResult.errorMessage}
-            </div>
-          )}
 
           {notice ? (
             <div
@@ -423,18 +492,22 @@ export default function PricingPage() {
                 {/* Precio — altura fija para alinear botón */}
                 <div className="mt-6 border-b border-white/5 pb-6">
                   <div className="flex items-end gap-2">
-                    {couponResult?.valid && planPrice !== null ? (
-                      <>
-                        <span className="text-5xl font-black tracking-tighter leading-none text-emerald-300">
-                          {formatMoney(Math.max(0, planPrice - couponResult.discountCents))}
-                        </span>
-                        <span className="mb-1 text-xl font-bold text-slate-500 line-through">
-                          {formatMoney(planPrice)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-5xl font-black tracking-tighter leading-none">{formatMoney(planPrice)}</span>
-                    )}
+                    {(() => {
+                      const planCoupon = couponResults[plan.tier];
+                      if (planCoupon?.valid && planPrice !== null) {
+                        return (
+                          <>
+                            <span className="text-5xl font-black tracking-tighter leading-none text-emerald-300">
+                              {formatMoney(Math.max(0, planPrice - planCoupon.discountCents))}
+                            </span>
+                            <span className="mb-1 text-xl font-bold text-slate-500 line-through">
+                              {formatMoney(planPrice)}
+                            </span>
+                          </>
+                        );
+                      }
+                      return <span className="text-5xl font-black tracking-tighter leading-none">{formatMoney(planPrice)}</span>;
+                    })()}
                   </div>
                   <p className="mt-1.5 text-sm font-medium text-slate-400">
                     {billingCycle === "yearly" ? t("common.perUserYear") : t("common.perUserMonth")}
@@ -442,7 +515,7 @@ export default function PricingPage() {
                   <div className="mt-1 h-5">
                     {billingCycle === "yearly" && hasYearlyPrice && plan.priceCentsYearly !== null ? (
                       <p className="text-xs font-semibold uppercase tracking-wider text-indigo-300">
-                        {formatMoney(Math.round(plan.priceCentsYearly / 12))}{t("common.monthSuffix")} billed annually
+                        {formatMoney(Math.round(plan.priceCentsYearly / 12))}{t("common.monthSuffix")} {t("common.billedAnnually")}
                       </p>
                     ) : null}
                   </div>

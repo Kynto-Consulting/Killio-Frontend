@@ -72,6 +72,12 @@
     "table": "KillioTable",
     "envVars": "Variables de Entorno"
   },
+  "stats": {
+    "available": "Disponible",
+    "comingSoon": "Próximamente",
+    "scriptRuns": "Ejecuciones",
+    "syncSubtitle": "Sincroniza datos en todo tu stack"
+  },
   "callback": {
     "errors": {
       "sessionExpired": "La sesion expiro. Vuelve a conectar Trello.",
