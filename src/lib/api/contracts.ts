@@ -24,6 +24,8 @@ export type TeamView = {
   icon?: string | null;
   isPersonal?: boolean;
   planTier?: 'free' | 'pro' | 'max' | 'enterprise';
+  isArchived?: boolean;
+  myRole?: string | null;
 };
 
 export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';
@@ -1453,6 +1455,21 @@ export async function updateTeamMemberAlias(
 
 export async function removeTeamMember(teamId: string, memberId: string, accessToken: string): Promise<RemoveTeamMemberResult> {
   return request<RemoveTeamMemberResult>(`/teams/${teamId}/members/${memberId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function renameTeam(teamId: string, name: string, accessToken: string): Promise<{ teamId: string; name: string; updated: true }> {
+  return request(`/teams/${teamId}`, {
+    method: 'PATCH',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function deleteTeam(teamId: string, accessToken: string): Promise<{ teamId: string; deleted: true }> {
+  return request(`/teams/${teamId}`, {
     method: 'DELETE',
     headers: authHeaders(accessToken),
   });

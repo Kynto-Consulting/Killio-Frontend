@@ -58,7 +58,6 @@
     "activityHistory": "Historial de actividad: {{value}}",
     "meshBoards": "Mesh Boards: {{value}}",
     "prioritySupport": "Soporte prioritario",
-    "customSupport": "Soporte custom",
     "ssoScim": "SSO / SCIM",
     "auditLogs": "Audit logs"
   },

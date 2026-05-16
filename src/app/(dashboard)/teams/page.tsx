@@ -16,6 +16,8 @@ import {
   InviteSummary,
   updateTeamMemberAlias,
   updateTeamMemberRole,
+  renameTeam,
+  deleteTeam,
 } from "@/lib/api/contracts";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
 import { UserProfileCard } from "@/components/rooms/UserProfileCard";
@@ -61,6 +63,12 @@ export default function TeamsPage() {
   const [editingAliasMemberId, setEditingAliasMemberId] = useState<string | null>(null);
   const [aliasDraft, setAliasDraft] = useState("");
   const [profileCard, setProfileCard] = useState<{ member: TeamMemberSummary; anchor: { x: number; y: number } } | null>(null);
+
+  // Workspace settings
+  const [nameDraft, setNameDraft] = useState("");
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [deleteConfirmName, setDeleteConfirmName] = useState("");
+  const [isDeletingWorkspace, setIsDeletingWorkspace] = useState(false);
 
   const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
@@ -187,7 +195,7 @@ export default function TeamsPage() {
     setIsLoading(true);
     listTeams(accessToken).then((teams) => {
       const team = teams.find((t) => t.id === activeTeamId);
-      if (team) setActiveTeam(team);
+      if (team) { setActiveTeam(team); setNameDraft(team.name); }
     }).catch(console.error);
     listTeamMembers(activeTeamId, accessToken).then((nextMembers) => {
       setMembers(nextMembers);
@@ -202,6 +210,33 @@ export default function TeamsPage() {
   const pendingInvites = invites.filter((i) => i.status === "pending");
   const activeMembers = members.filter((m) => m.status === "active");
   const adminCount = members.filter((m) => ["admin", "owner"].includes(m.role)).length;
+
+  const handleRenameWorkspace = async () => {
+    if (!accessToken || !activeTeamId || isSavingName) return;
+    setIsSavingName(true);
+    try {
+      const result = await renameTeam(activeTeamId, nameDraft.trim(), accessToken);
+      setActiveTeam((prev) => prev ? { ...prev, name: result.name } : prev);
+      toast(t("workspaceNameSaved"), "success");
+    } catch (err: any) {
+      toast(typeof err?.message === "string" ? err.message : t("workspaceNameError"), "error");
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  const handleDeleteWorkspace = async () => {
+    if (!accessToken || !activeTeamId || isDeletingWorkspace) return;
+    if (deleteConfirmName.trim() !== (activeTeam?.name ?? "")) return;
+    setIsDeletingWorkspace(true);
+    try {
+      await deleteTeam(activeTeamId, accessToken);
+      window.location.href = "/";
+    } catch (err: any) {
+      toast(typeof err?.message === "string" ? err.message : t("deleteWorkspaceError"), "error");
+      setIsDeletingWorkspace(false);
+    }
+  };
 
   // ── STYLES ────────────────────────────────────────────────────────────────
   const surface: React.CSSProperties = { background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14 };
@@ -559,6 +594,78 @@ export default function TeamsPage() {
             ))}
           </div>
         </div>
+
+        {/* ── WORKSPACE SETTINGS (admin + owner only) ── */}
+        {["owner", "admin"].includes(myRole) && !activeTeam?.isPersonal && (
+          <div style={surface}>
+            <div style={cardHeader}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("workspaceSettings")}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                  {myRole === "owner" ? t("deleteWorkspace") + " · " : ""}{t("workspaceName")}
+                </div>
+              </div>
+            </div>
+            <div style={cardBody}>
+
+              {/* Rename */}
+              <div style={{ marginBottom: 24 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>
+                  {t("workspaceName")}
+                </label>
+                <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                  <input
+                    type="text"
+                    value={nameDraft}
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleRenameWorkspace()}
+                    maxLength={64}
+                    placeholder={t("workspaceNamePlaceholder")}
+                    style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
+                  />
+                  <button
+                    onClick={handleRenameWorkspace}
+                    disabled={isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name}
+                    style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "none", background: "#d8ff72", color: "#0a1200", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name) ? 0.5 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
+                  >
+                    {isSavingName ? t("savingWorkspaceName") : t("saveWorkspaceName")}
+                  </button>
+                </div>
+              </div>
+
+              {/* Delete — owner only */}
+              {myRole === "owner" && (
+                <div style={{ borderTop: "1px solid rgba(248,113,113,0.15)", paddingTop: 20 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+                    {t("dangerZone")}
+                  </div>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, lineHeight: 1.6 }}>
+                    {t("deleteWorkspaceHint")}
+                  </p>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>
+                    {t("confirmDeleteWorkspace")} <span style={{ color: "#f87171", fontFamily: "monospace" }}>{activeTeam?.name}</span>
+                  </label>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+                    <input
+                      type="text"
+                      value={deleteConfirmName}
+                      onChange={(e) => setDeleteConfirmName(e.target.value)}
+                      placeholder={activeTeam?.name ?? ""}
+                      style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.04)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
+                    />
+                    <button
+                      onClick={handleDeleteWorkspace}
+                      disabled={isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")}
+                      style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.12)", color: "#f87171", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")) ? 0.4 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
+                    >
+                      {isDeletingWorkspace ? "..." : t("confirmDeleteWorkspaceBtn")}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
 

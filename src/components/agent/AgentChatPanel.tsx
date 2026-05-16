@@ -437,7 +437,7 @@ export function AgentChatPanel({
   );
 
   return (
-    <div className={`flex flex-col h-full bg-white dark:bg-neutral-900 relative ${className}`}>
+    <div className={`flex flex-col bg-white dark:bg-neutral-900 relative overflow-hidden ${className || 'h-full'}`}>
 
 
       {/* ── History overlay ───────────────────────────────────────────────── */}

@@ -151,6 +151,10 @@
     "selectWorkspace": "Select Workspace",
     "yourWorkspaces": "Your Workspaces",
     "createWorkspace": "Create Workspace",
-    "upgrade": "Upgrade"
+    "upgrade": "Upgrade",
+    "archivedBadge": "deleted",
+    "archivedTooltip": "Deleted workspace — only Teams settings are accessible",
+    "archivedBannerTitle": "Workspace deleted",
+    "archivedBannerBody": "You can only access the settings for this workspace."
   }
 }

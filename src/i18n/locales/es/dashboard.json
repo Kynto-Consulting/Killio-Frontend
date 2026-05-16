@@ -151,6 +151,10 @@
     "selectWorkspace": "Seleccionar espacio",
     "yourWorkspaces": "Tus espacios",
     "createWorkspace": "Crear espacio",
-    "upgrade": "Upgrade"
+    "upgrade": "Upgrade",
+    "archivedBadge": "eliminado",
+    "archivedTooltip": "Workspace eliminado — solo puedes acceder a la configuracion de Teams",
+    "archivedBannerTitle": "Workspace eliminado",
+    "archivedBannerBody": "Solo puedes acceder a la configuracion de este workspace."
   }
 }

@@ -579,12 +579,6 @@ export default function PricingPage() {
                             <span>{t("plans.prioritySupport")}</span>
                           </li>
                         )}
-                        {plan.support.custom && (
-                          <li className="flex items-start gap-3">
-                            <Headset className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-slate-400"}`} />
-                            <span>{t("plans.customSupport")}</span>
-                          </li>
-                        )}
                         {plan.support.ssoScim && (
                           <li className="flex items-start gap-3">
                             <ShieldCheck className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-slate-400"}`} />

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare, Lock, AlertTriangle } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -107,7 +107,8 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
   const activeTeam = teams.find(t => t.id === activeTeamId);
   const currentPlan = activeTeam?.planTier || 'free';
-  const showUpgradeBanner = currentPlan === 'free' && !dismissedBanners.includes('upgrade_to_pro') && !isSidebarCollapsed;
+  const isActiveTeamArchived = !!activeTeam?.isArchived;
+  const showUpgradeBanner = currentPlan === 'free' && !dismissedBanners.includes('upgrade_to_pro') && !isSidebarCollapsed && !isActiveTeamArchived;
 
   useEffect(() => {
     if (isPathActive("/b")) {
@@ -396,11 +397,34 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
         <div className="flex-1 overflow-y-auto py-4">
           <nav className="space-y-1 px-2">
+            {/* Archived workspace banner */}
+            {isActiveTeamArchived && (
+              <div className="mb-3 mx-1 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5">
+                <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-[11px] font-bold text-red-300">{tDashboard("teamSwitcher.archivedBannerTitle")}</p>
+                  <p className="text-[10px] text-red-400/80 leading-snug mt-0.5">{tDashboard("teamSwitcher.archivedBannerBody")}</p>
+                </div>
+              </div>
+            )}
+
             {navigationItems.map((item) => {
               const isActive = isPathActive(item.href);
               const isScriptsMenu = item.href === "/integrations";
               const isMarketplaceMenu = item.href === "/marketplace";
               const isNestedMenu = isScriptsMenu || isMarketplaceMenu;
+              // Archived workspace: only /teams is accessible
+              const isBlockedByArchive = isActiveTeamArchived && item.href !== "/teams";
+
+              if (isBlockedByArchive) {
+                return (
+                  <div key={item.name} title={tDashboard("teamSwitcher.archivedTooltip")}
+                    className={`flex items-center space-x-3 rounded-md py-2 text-sm font-medium cursor-not-allowed opacity-35 ${isSidebarCollapsed ? "justify-center px-0" : "px-3"} text-muted-foreground`}>
+                    <Lock className="h-4 w-4 opacity-60" />
+                    {!isSidebarCollapsed && <span>{item.name}</span>}
+                  </div>
+                );
+              }
 
               if (item.href === "/b") {
                 return renderExpandableItem({
@@ -639,11 +663,14 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                 onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
                 className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
               >
-                <div className="h-5 w-5 rounded bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                  {teams.find(t => t.id === activeTeamId)?.icon || teams.find(t => t.id === activeTeamId)?.name.substring(0, 1).toUpperCase() || "W"}
+                <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${isActiveTeamArchived ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"}`}>
+                  {isActiveTeamArchived
+                    ? <Lock className="h-3 w-3" />
+                    : (activeTeam?.icon || activeTeam?.name.substring(0, 1).toUpperCase() || "W")
+                  }
                 </div>
-                <span className="text-sm font-medium hidden sm:inline-block max-w-[120px] truncate">
-                  {teams.find(t => t.id === activeTeamId)?.name || tDashboard("teamSwitcher.selectWorkspace")}
+                <span className={`text-sm font-medium hidden sm:inline-block max-w-[120px] truncate ${isActiveTeamArchived ? "line-through text-muted-foreground" : ""}`}>
+                  {activeTeam?.name || tDashboard("teamSwitcher.selectWorkspace")}
                 </span>
                 <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -659,11 +686,15 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                           setActiveTeamId(team.id);
                           setIsTeamSwitcherOpen(false);
                         }}
-                        className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center justify-between"
+                        className={`w-full text-left px-2 py-2 text-sm rounded-md transition-colors flex items-center justify-between ${team.isArchived ? "opacity-60 hover:bg-red-500/10" : "hover:bg-accent/10"}`}
                       >
-                        <div className="flex items-center truncate">
-                          <span className="mr-2 text-base leading-none">{team.icon || team.name.charAt(0).toUpperCase()}</span>
-                          <span className="truncate pr-2">{team.name}</span>
+                        <div className="flex items-center truncate gap-2">
+                          {team.isArchived
+                            ? <Lock className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                            : <span className="text-base leading-none">{team.icon || team.name.charAt(0).toUpperCase()}</span>
+                          }
+                          <span className={`truncate pr-2 ${team.isArchived ? "line-through text-muted-foreground" : ""}`}>{team.name}</span>
+                          {team.isArchived && <span className="text-[9px] font-bold uppercase tracking-wider text-red-400 shrink-0">{tDashboard("teamSwitcher.archivedBadge")}</span>}
                         </div>
                         {activeTeamId === team.id && <Check className="h-4 w-4 text-primary shrink-0" />}
                       </button>
