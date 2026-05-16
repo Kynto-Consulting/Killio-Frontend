@@ -810,7 +810,7 @@ ${finalContent}
       setIsDispatchingSelected(true);
       try {
         for (const docDraft of selectedDocs) {
-          const doc = await createDocument({ teamId: activeTeamId, title: docDraft.title }, accessToken);
+          const doc = await createDocument({ teamId: activeTeamId, title: docDraft.title?.trim() || 'Untitled Document' }, accessToken);
           if (docDraft.bricks) {
             for (let i = 0; i < docDraft.bricks.length; i++) {
               const b = docDraft.bricks[i];

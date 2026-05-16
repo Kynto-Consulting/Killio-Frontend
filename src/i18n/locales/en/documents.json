@@ -52,5 +52,8 @@
   "noFolder": "No folder",
   "noFoldersFound": "No folders found",
   "noFoldersAvailable": "No folders available",
-  "documentCount": "{{count}} documents"
+  "documentCount": "{{count}} documents",
+  "newFolder": "New Folder",
+  "editFolder": "Edit Folder",
+  "goUpLevel": "Go up"
 }

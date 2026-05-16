@@ -125,12 +125,16 @@ export async function listAllTeamDocuments(teamId: string, accessToken: string):
 }
 
 export async function createDocument(
-  payload: { teamId: string; title: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string },
+  payload: { teamId: string; title?: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string },
   accessToken: string
 ): Promise<DocumentSummary> {
+  const body = {
+    ...payload,
+    title: payload.title?.trim() || 'Untitled Document',
+  };
   return fetchApi('/documents', {
     method: 'POST',
-    body: JSON.stringify(payload),
+    body: JSON.stringify(body),
     accessToken,
   });
 }

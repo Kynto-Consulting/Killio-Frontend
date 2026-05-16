@@ -52,5 +52,8 @@
   "noFolder": "Sin carpeta",
   "noFoldersFound": "No se encontraron carpetas",
   "noFoldersAvailable": "No hay carpetas disponibles",
-  "documentCount": "{{count}} documentos"
+  "documentCount": "{{count}} documentos",
+  "newFolder": "Nueva Carpeta",
+  "editFolder": "Editar Carpeta",
+  "goUpLevel": "Subir nivel"
 }

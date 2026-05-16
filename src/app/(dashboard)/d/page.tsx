@@ -262,7 +262,7 @@ function DocumentsPageContent() {
           className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-secondary hover:bg-secondary/80 text-secondary-foreground shadow-sm h-9 px-4"
         >
           <Plus className="mr-2 h-4 w-4" />
-          Nueva Carpeta
+          {t("newFolder")}
         </button>
         {activeFolderId && (
            <>
@@ -273,7 +273,7 @@ function DocumentsPageContent() {
                }}
                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
              >
-               Editar Carpeta
+               {t("editFolder")}
              </button>
              <button
                onClick={() => {
@@ -281,7 +281,7 @@ function DocumentsPageContent() {
                }}
                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
              >
-               Subir de nivel
+               {t("goUpLevel")}
              </button>
            </>
         )}
