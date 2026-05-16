@@ -60,7 +60,7 @@ export default function RoomsPageMobile() {
       <div className="px-4 py-3 border-b border-border/50 bg-background/70 backdrop-blur shrink-0 flex items-center justify-between">
         <div>
           <h1 className="text-sm font-semibold">{t("title")}</h1>
-          <p className="text-xs text-muted-foreground">{rooms.length} rooms</p>
+          <p className="text-xs text-muted-foreground">{t("roomsCount", { count: rooms.length })}</p>
         </div>
         {isAdmin && (
           <div className="flex items-center gap-1.5">

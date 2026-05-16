@@ -1,5 +1,6 @@
 {
   "title": "Rooms",
+  "roomsCount": "{{count}} rooms",
   "ai": {
     "copilotName": "AI Copilot"
   },

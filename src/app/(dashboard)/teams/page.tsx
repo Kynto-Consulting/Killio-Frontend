@@ -245,9 +245,9 @@ export default function TeamsPage() {
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
           {[
             { v: members.length, l: t("members") },
-            { v: activeMembers.length, l: "Active this week" },
-            { v: pendingInvites.length, l: "Pending invites" },
-            { v: adminCount, l: "Admins" },
+            { v: activeMembers.length, l: t("activeThisWeek") },
+            { v: pendingInvites.length, l: t("pendingInvites") },
+            { v: adminCount, l: t("admins") },
           ].map((tile, i) => (
             <div key={i} style={{ ...surface, padding: "18px 20px" }}>
               <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>{tile.v}</div>
@@ -304,7 +304,7 @@ export default function TeamsPage() {
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{t("members")}</span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{members.length} total · sorted by role</span>
+            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{members.length} {t("total")} · {t("sortedByRole")}</span>
           </div>
 
           {isLoading ? (
@@ -367,11 +367,11 @@ export default function TeamsPage() {
                     {/* Mini stat grid */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>Status</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: isActive ? "#4ade80" : "rgba(255,255,255,0.42)" }}>{isActive ? "Active" : "Away"}</div>
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>{t("statusLabel")}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: isActive ? "#4ade80" : "rgba(255,255,255,0.42)" }}>{isActive ? t("statusActive") : t("statusAway")}</div>
                       </div>
                       <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>Alias</div>
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>{t("aliasBadge")}</div>
                         <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: member.alias ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.25)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {member.alias || "—"}
                         </div>
@@ -482,9 +482,9 @@ export default function TeamsPage() {
           <div style={surface}>
             <div style={cardHeader}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>Pending invites</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("pendingInvitesTitle")}</div>
                 <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
-                  {isLoadingInvites ? "Loading..." : `${pendingInvites.length} awaiting response`}
+                  {isLoadingInvites ? t("loadingInvites") : t("awaitingResponse", { count: pendingInvites.length })}
                 </div>
               </div>
               <Shield style={{ width: 16, height: 16, color: "rgba(255,255,255,0.3)" }} />
@@ -498,8 +498,8 @@ export default function TeamsPage() {
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
                     <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-                      {["Email", "Role", "Status", "Delivery", "Action"].map((h) => (
-                        <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", padding: "10px 20px", textAlign: "left" }}>{h}</th>
+                      {(["email", "role", "status", "delivery", "action"] as const).map((h) => (
+                        <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", padding: "10px 20px", textAlign: "left" }}>{t(`tableHeaders.${h}`)}</th>
                       ))}
                     </tr>
                   </thead>

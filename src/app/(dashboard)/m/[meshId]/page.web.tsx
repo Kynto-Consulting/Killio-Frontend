@@ -2860,7 +2860,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setActivePen([{ x, y, t: Date.now() }]);
       return;
     }
-    if (toolMode === "select" && e.button === 0) {
+    if (toolMode === "select" && e.button === 0 && e.target === e.currentTarget) {
       const { x, y } = fromEv(e);
       const rect = { x1: x, y1: y, x2: x, y2: y };
       selRectRef.current = rect;
