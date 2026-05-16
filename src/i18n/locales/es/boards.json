@@ -1,4 +1,5 @@
 {
+  "sessionExpired": "Sesión expirada. Inicia sesión nuevamente.",
   "title": "Tableros",
   "subtitle": "Gestiona los tableros y proyectos de tu espacio.",
   "searchPlaceholder": "Buscar tableros...",

@@ -53,7 +53,7 @@ export default function BoardsPage() {
 
   const handleUploadBoardCover = async (file: File): Promise<string> => {
     if (!accessToken) {
-      throw new Error("Sesión expirada. Inicia sesión nuevamente.");
+      throw new Error(t("sessionExpired"));
     }
     const uploaded = await uploadFile(
       file,
@@ -109,6 +109,9 @@ export default function BoardsPage() {
     }
 
     if (kind === "preset") {
+      if (value.startsWith("#") || value.startsWith("rgb")) {
+        return { className: "bg-slate-800", style: { backgroundColor: value } };
+      }
       return { className: value };
     }
 
@@ -159,6 +162,10 @@ export default function BoardsPage() {
     }
 
     if (board.backgroundKind === "preset" && board.backgroundValue) {
+      // Presets are now stored as hex colors; legacy boards may have Tailwind class names
+      if (board.backgroundValue.startsWith("#") || board.backgroundValue.startsWith("rgb")) {
+        return { className: "bg-slate-800", style: { backgroundColor: board.backgroundValue } };
+      }
       return { className: board.backgroundValue };
     }
 

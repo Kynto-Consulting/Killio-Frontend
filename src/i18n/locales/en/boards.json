@@ -1,4 +1,5 @@
 {
+  "sessionExpired": "Session expired. Please sign in again.",
   "title": "Boards",
   "subtitle": "Manage your workspace boards and projects.",
   "searchPlaceholder": "Search boards...",
