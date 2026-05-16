@@ -20,6 +20,7 @@ interface ListColumnProps {
   canComment?: boolean;
   teamDocs?: any[];
   teamBoards?: any[];
+  accentColor?: string;
 }
 
 const WebVariant = dynamic(() => import("./list-column.web").then((m) => m.ListColumnWeb));

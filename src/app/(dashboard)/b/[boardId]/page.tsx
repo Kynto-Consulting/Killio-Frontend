@@ -832,8 +832,8 @@ export default function BoardPage() {
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
   const [boardAppearance, setBoardAppearance] = useState<BoardAppearanceState>({
-    backgroundKind: "preset",
-    backgroundValue: "bg-background",
+    backgroundKind: "color",
+    backgroundValue: "#000000",
   });
   const [boardView, setBoardView] = useState<BoardViewMode>("kanban");
   const [ganttViewMode, setGanttViewMode] = useState<"day" | "week" | "month">("week");
@@ -1353,6 +1353,10 @@ export default function BoardPage() {
     }
 
     if (appearance.backgroundKind === "preset" && appearance.backgroundValue) {
+      // preset is now stored as a hex color (not a Tailwind class)
+      if (appearance.backgroundValue.startsWith("#") || appearance.backgroundValue.startsWith("rgb")) {
+        return { className: "bg-slate-950", style: { backgroundColor: appearance.backgroundValue } };
+      }
       return { className: appearance.backgroundValue };
     }
 
@@ -1634,6 +1638,7 @@ export default function BoardPage() {
                 canComment={permissions.canComment}
                 teamDocs={teamDocs}
                 teamBoards={teamBoards}
+                accentColor={(boardAppearance.themeCustom as any)?.listColors?.[list.id]}
               />
             ))}
 
@@ -1976,6 +1981,7 @@ export default function BoardPage() {
         onOpenShare={() => setIsShareModalOpen(true)}
         onOpenDelete={handleDeleteBoard}
         onUploadImage={handleUploadBoardImage}
+        kanbanLists={lists.map(l => ({ id: l.id, name: l.title }))}
       />
 
       <ShareModal

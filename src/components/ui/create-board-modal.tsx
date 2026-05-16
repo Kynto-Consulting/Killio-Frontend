@@ -30,14 +30,21 @@ interface CreateBoardModalProps {
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const PRESET_BACKGROUNDS = [
-  "bg-gradient-to-tr from-blue-500 to-purple-500",
-  "bg-gradient-to-tr from-orange-400 to-red-500",
-  "bg-gradient-to-tr from-emerald-400 to-teal-500",
-  "bg-gradient-to-tr from-pink-500 to-rose-500",
-  "bg-gradient-to-tr from-slate-700 to-slate-900",
-  "bg-gradient-to-tr from-indigo-500 to-cyan-400",
-] as const;
+// Solid color presets — stored as hex, rendered via backgroundValue + backgroundKind:"color"
+const PRESET_COLORS: { label: string; value: string }[] = [
+  { label: "Black",      value: "#000000" },
+  { label: "Dark",       value: "#0a0a0a" },
+  { label: "Slate",      value: "#1e293b" },
+  { label: "Gray",       value: "#374151" },
+  { label: "White",      value: "#ffffff" },
+  { label: "Indigo",     value: "#312e81" },
+  { label: "Purple",     value: "#4c1d95" },
+  { label: "Blue",       value: "#1e3a5f" },
+  { label: "Green",      value: "#14532d" },
+  { label: "Red",        value: "#7f1d1d" },
+  { label: "Amber",      value: "#78350f" },
+  { label: "Teal",       value: "#134e4a" },
+];
 
 type BackgroundKind = "preset" | "image" | "color" | "gradient";
 
@@ -54,9 +61,9 @@ export function CreateBoardModal({
   const bgInputRef = useRef<HTMLInputElement>(null);
 
   const [name,           setName]           = useState("");
-  const [bgKind,         setBgKind]         = useState<BackgroundKind>("preset");
-  const [presetBg,       setPresetBg]       = useState<string>(PRESET_BACKGROUNDS[0]);
-  const [colorBg,        setColorBg]        = useState("#0f172a");
+  const [bgKind,         setBgKind]         = useState<BackgroundKind>("color");
+  const [selectedColor,  setSelectedColor]  = useState<string>(PRESET_COLORS[0].value);
+  const [colorBg,        setColorBg]        = useState("#000000");
   const [gradientBg,     setGradientBg]     = useState("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
   const [imageBg,        setImageBg]        = useState("");
   const [isUploadingBg,  setIsUploadingBg]  = useState(false);
@@ -64,16 +71,17 @@ export function CreateBoardModal({
 
   const submitAction = useAsyncAction(async (_: void) => {
     if (!name.trim()) return;
+    // Always use "color" kind — selectedColor picks from presets or custom
+    const finalColor = bgKind === "color" ? colorBg : selectedColor;
     const payload: CreateBoardSubmitPayload = {
       name: name.trim(),
-      backgroundKind: bgKind,
+      backgroundKind: "color",
+      backgroundValue: finalColor,
       themeKind: "preset",
       themePreset: "killio-default",
     };
-    if (bgKind === "preset")   payload.backgroundValue    = presetBg;
-    if (bgKind === "color")    payload.backgroundValue    = colorBg;
-    if (bgKind === "gradient") payload.backgroundGradient = gradientBg;
-    if (bgKind === "image")    payload.backgroundImageUrl = imageBg;
+    if (bgKind === "gradient") { payload.backgroundKind = "gradient"; payload.backgroundGradient = gradientBg; }
+    if (bgKind === "image")    { payload.backgroundKind = "image";    payload.backgroundImageUrl = imageBg; }
     await onSubmit(payload);
     onClose();
   });
@@ -82,9 +90,9 @@ export function CreateBoardModal({
   useEffect(() => {
     if (!isOpen) {
       setName("");
-      setBgKind("preset");
-      setPresetBg(PRESET_BACKGROUNDS[0] as string);
-      setColorBg("#0f172a");
+      setBgKind("color");
+      setSelectedColor(PRESET_COLORS[0].value);
+      setColorBg("#000000");
       setGradientBg("linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)");
       setImageBg("");
       setUploadError(null);
@@ -176,17 +184,19 @@ export function CreateBoardModal({
           <div className="space-y-2">
             <label className="text-sm font-medium">{t("createBoard.backgroundLabel")}</label>
 
-            {/* 6 preset swatches */}
+            {/* Solid color preset swatches */}
             <div className="grid grid-cols-6 gap-1.5">
-              {PRESET_BACKGROUNDS.map((bg) => (
+              {PRESET_COLORS.map((c) => (
                 <button
-                  key={bg}
+                  key={c.value}
                   type="button"
-                  onClick={() => { setPresetBg(bg); setBgKind("preset"); }}
-                  className={`h-8 w-full rounded-lg ${bg} ring-offset-background transition-all hover:scale-105 focus:outline-none ${
-                    bgKind === "preset" && presetBg === bg
-                      ? "ring-2 ring-primary ring-offset-2 scale-105 shadow-md"
-                      : "opacity-70 hover:opacity-100"
+                  title={c.label}
+                  onClick={() => { setSelectedColor(c.value); setColorBg(c.value); setBgKind("color"); }}
+                  style={{ background: c.value }}
+                  className={`h-8 w-full rounded-lg border ring-offset-background transition-all hover:scale-105 focus:outline-none ${
+                    bgKind === "color" && colorBg === c.value
+                      ? "ring-2 ring-primary ring-offset-2 scale-105 shadow-md border-transparent"
+                      : "border-border/40 opacity-80 hover:opacity-100"
                   }`}
                 />
               ))}

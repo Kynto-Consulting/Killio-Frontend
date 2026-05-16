@@ -26,6 +26,7 @@ export function ListColumnWeb({
   canComment = true,
   teamDocs = [],
   teamBoards = [],
+  accentColor,
 }: {
   list: ListData;
   boardName?: string;
@@ -37,6 +38,7 @@ export function ListColumnWeb({
   canComment?: boolean;
   teamDocs?: any[];
   teamBoards?: any[];
+  accentColor?: string;
 }) {
   const t = useTranslations("board-detail");
   const { setNodeRef } = useDroppable({ id: list.id });
@@ -60,10 +62,16 @@ export function ListColumnWeb({
       className="w-[280px] shrink-0 flex flex-col rounded-xl bg-[#f1f2f4] dark:bg-[#101204] text-foreground max-h-full transition-all border-none shadow-sm"
       style={containerStyle}
     >
-      <div 
-        className="px-3 py-2 flex items-center justify-between group"
+      <div
+        className="px-3 py-2 flex items-center justify-between group rounded-t-xl"
+        style={accentColor ? { borderTop: `3px solid ${accentColor}` } : undefined}
       >
-        <h3 className="font-semibold text-sm pl-1">{list.title}</h3>
+        <div className="flex items-center gap-2">
+          {accentColor && (
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: accentColor }} />
+          )}
+          <h3 className="font-semibold text-sm">{list.title}</h3>
+        </div>
         <div className="flex items-center space-x-1 relative">
           <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full mr-1">
             {list.cards.length}

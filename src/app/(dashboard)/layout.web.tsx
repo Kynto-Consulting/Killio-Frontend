@@ -567,7 +567,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                 <div className="flex flex-col items-start overflow-hidden">
                   <span className="text-sm font-medium w-full text-left truncate">{user?.username || user?.displayName || "Loading..."}</span>
                   <span className="text-xs text-muted-foreground w-full text-left truncate capitalize">
-                    {currentPlan} {tDashboard("accountMenu.plan")}
+                    {currentPlan === 'max' ? 'Max' : currentPlan === 'pro' ? 'Pro' : currentPlan === 'enterprise' ? 'Enterprise' : 'Free'} {tDashboard("accountMenu.plan")}
                   </span>
                 </div>
               )}

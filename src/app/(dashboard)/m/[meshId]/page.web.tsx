@@ -13,7 +13,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
-  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2,
+  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -29,6 +29,8 @@ import { PenToolbar } from "@/components/ui/pen-toolbar";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { AgentChatPanel } from "@/components/agent";
 import { MeshShareModal } from "@/components/ui/mesh-share-modal";
+import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
+import { updateBoardDetails, updateBoardAppearance } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
@@ -1298,7 +1300,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     backgroundValue?: string | null;
     backgroundImageUrl?: string | null;
     backgroundGradient?: string | null;
-  }>({});
+    themeKind?: "preset" | "custom";
+    themePreset?: string | null;
+    themeCustom?: Record<string, unknown>;
+    coverImageUrl?: string | null;
+  }>({ backgroundKind: "color", backgroundValue: "#000000" });
 
   // entity selector modal state (portal / mirror double-click)
   const [selectorModalBrickId,   setSelectorModalBrickId]   = useState<string | null>(null);
@@ -1409,11 +1415,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         lastSavedHashRef.current = initialHash;
         revisionRef.current = s.revision;
         if (board) {
+          setMeshBoardName(board.name);
+          setMeshBoardDescription(board.description ?? null);
           setMeshAppearance({
             backgroundKind: board.backgroundKind,
             backgroundValue: board.backgroundValue,
             backgroundImageUrl: board.backgroundImageUrl,
             backgroundGradient: board.backgroundGradient,
+            themeKind: board.themeKind ?? undefined,
+            themePreset: board.themePreset ?? undefined,
+            themeCustom: board.themeCustom ?? undefined,
           });
         }
       })
@@ -1666,6 +1677,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
+  const [meshBoardName, setMeshBoardName] = useState("Mesh");
+  const [meshBoardDescription, setMeshBoardDescription] = useState<string | null>(null);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
   const portalHydrationAttemptRef = useRef<Record<string, string>>({});
   const portalScreenshotInFlightRef = useRef<Set<string>>(new Set());
@@ -3597,12 +3611,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       return { backgroundColor: a.backgroundValue };
     if (a.backgroundKind === "gradient" && a.backgroundGradient && !a.backgroundGradient.startsWith("bg-"))
       return { background: a.backgroundGradient };
+    // preset is now stored as a hex color
+    if (a.backgroundKind === "preset" && a.backgroundValue &&
+        (a.backgroundValue.startsWith("#") || a.backgroundValue.startsWith("rgb")))
+      return { backgroundColor: a.backgroundValue };
     return {};
   })();
   const meshBgClass = (() => {
     const a = meshAppearance;
     if (a.backgroundKind === "gradient" && a.backgroundGradient?.startsWith("bg-")) return a.backgroundGradient;
-    if (a.backgroundKind === "preset" && a.backgroundValue) return a.backgroundValue;
+    // only use preset value as class if it's a Tailwind class (legacy)
+    if (a.backgroundKind === "preset" && a.backgroundValue && a.backgroundValue.startsWith("bg-")) return a.backgroundValue;
     return "";
   })();
 
@@ -3734,6 +3753,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
           >
             <Share2 className="h-3 w-3" /> Share
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setIsBoardSettingsOpen(true)}
+            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            title="Configuración del tablero"
+          >
+            <Settings2 className="h-3 w-3" /> Settings
           </button>
 
           <button type="button" onClick={handleSave} disabled={isSaving || isLoading}
@@ -4477,6 +4505,32 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       meshId={meshId ?? ""}
       meshName={`Mesh ${(meshId ?? "").slice(0, 8)}`}
       accessToken={accessToken ?? ""}
+    />
+
+    {/* ── Board settings modal ─────────────────────────────────────────────────────── */}
+    <BoardSettingsModal
+      isOpen={isBoardSettingsOpen}
+      onClose={() => setIsBoardSettingsOpen(false)}
+      boardName={meshBoardName}
+      boardDescription={meshBoardDescription}
+      boardAppearance={meshAppearance as any}
+      canManageBoard={true}
+      canEdit={true}
+      onSaveGeneral={async ({ name, description }) => {
+        if (!meshId || !accessToken) return;
+        await updateBoardDetails(meshId, { name, description }, accessToken);
+        setMeshBoardName(name);
+        setMeshBoardDescription(description);
+        toast("Board updated", "success");
+      }}
+      onSaveAppearance={async (payload) => {
+        if (!meshId || !accessToken) return;
+        await updateBoardAppearance(meshId, payload as any, accessToken);
+        setMeshAppearance(prev => ({ ...prev, ...payload }));
+        toast("Appearance saved", "success");
+      }}
+      onOpenShare={() => { setIsBoardSettingsOpen(false); setIsShareModalOpen(true); }}
+      onOpenDelete={() => { setIsBoardSettingsOpen(false); }}
     />
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}

@@ -18,13 +18,19 @@ type BoardAppearanceDraft = {
   themeCustom?: Record<string, unknown>;
 };
 
-const BACKGROUND_PRESETS = [
-  "bg-gradient-to-tr from-blue-500 to-purple-500",
-  "bg-gradient-to-tr from-orange-400 to-red-500",
-  "bg-gradient-to-tr from-emerald-400 to-teal-500",
-  "bg-gradient-to-tr from-pink-500 to-rose-500",
-  "bg-gradient-to-tr from-slate-700 to-slate-900",
-  "bg-gradient-to-tr from-indigo-500 to-cyan-400",
+const BACKGROUND_PRESETS: { label: string; value: string }[] = [
+  { label: "Black",  value: "#000000" },
+  { label: "Dark",   value: "#0a0a0a" },
+  { label: "Slate",  value: "#1e293b" },
+  { label: "Gray",   value: "#374151" },
+  { label: "White",  value: "#ffffff" },
+  { label: "Indigo", value: "#312e81" },
+  { label: "Purple", value: "#4c1d95" },
+  { label: "Blue",   value: "#1e3a5f" },
+  { label: "Green",  value: "#14532d" },
+  { label: "Red",    value: "#7f1d1d" },
+  { label: "Amber",  value: "#78350f" },
+  { label: "Teal",   value: "#134e4a" },
 ];
 
 const DEFAULT_GRADIENT = "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)";
@@ -85,7 +91,8 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
   }
 
   if (kind === "preset") {
-    return { className: value || BACKGROUND_PRESETS[0] };
+    // preset value is now a hex color
+    return { className: "bg-slate-900", style: { backgroundColor: value || BACKGROUND_PRESETS[0].value } };
   }
 
   if (kind === "color") {
@@ -118,7 +125,23 @@ export type BoardSettingsModalProps = {
   onOpenShare: () => void;
   onOpenDelete: () => void;
   onUploadImage?: (file: File) => Promise<string>;
+  /** Kanban-only: list data to enable per-column color pickers */
+  kanbanLists?: Array<{ id: string; name: string }>;
 };
+
+const COLUMN_PALETTE_COLORS = [
+  { label: "None",    value: "" },
+  { label: "Slate",   value: "#64748b" },
+  { label: "Red",     value: "#ef4444" },
+  { label: "Orange",  value: "#f97316" },
+  { label: "Amber",   value: "#f59e0b" },
+  { label: "Green",   value: "#22c55e" },
+  { label: "Teal",    value: "#14b8a6" },
+  { label: "Cyan",    value: "#06b6d4" },
+  { label: "Blue",    value: "#3b82f6" },
+  { label: "Violet",  value: "#8b5cf6" },
+  { label: "Pink",    value: "#ec4899" },
+];
 
 export function BoardSettingsModalWeb({
   isOpen,
@@ -133,6 +156,7 @@ export function BoardSettingsModalWeb({
   onOpenShare,
   onOpenDelete,
   onUploadImage,
+  kanbanLists,
 }: BoardSettingsModalProps) {
   const t = useTranslations("board-detail");
   const coverFileInputRef = useRef<HTMLInputElement>(null);
@@ -143,14 +167,14 @@ export function BoardSettingsModalWeb({
   const [name, setName] = useState(boardName);
   const [description, setDescription] = useState(boardDescription ?? "");
   const [coverKind, setCoverKind] = useState<CoverKind>(initialCover.kind);
-  const [coverPreset, setCoverPreset] = useState(initialCover.kind === "preset" ? (initialCover.value || BACKGROUND_PRESETS[0]) : BACKGROUND_PRESETS[0]);
+  const [coverPreset, setCoverPreset] = useState(initialCover.kind === "preset" ? (initialCover.value || BACKGROUND_PRESETS[0].value) : BACKGROUND_PRESETS[0].value);
   const [coverImage, setCoverImage] = useState(initialCover.kind === "image" ? initialCover.value : "");
   const [coverColor, setCoverColor] = useState(initialCover.kind === "color" ? initialCover.value : DEFAULT_COLOR);
   const [coverGradient, setCoverGradient] = useState(initialCover.kind === "gradient" ? initialCover.value : DEFAULT_GRADIENT);
   const [backgroundKind, setBackgroundKind] = useState<"none" | "preset" | "image" | "color" | "gradient">(
-    boardAppearance.backgroundKind ?? "preset",
+    boardAppearance.backgroundKind ?? "color",
   );
-  const [presetBackground, setPresetBackground] = useState(boardAppearance.backgroundValue ?? BACKGROUND_PRESETS[0]);
+  const [presetBackground, setPresetBackground] = useState(boardAppearance.backgroundValue ?? BACKGROUND_PRESETS[0].value);
   const [imageBackground, setImageBackground] = useState(boardAppearance.backgroundImageUrl ?? "");
   const [colorBackground, setColorBackground] = useState(boardAppearance.backgroundValue ?? "#0f172a");
   const [gradientBackground, setGradientBackground] = useState(
@@ -160,6 +184,9 @@ export function BoardSettingsModalWeb({
   const [themePreset, setThemePreset] = useState<string>(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
   const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
   const [themeSurface, setThemeSurface] = useState<string>(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
+  const [listColors, setListColors] = useState<Record<string, string>>(
+    ((boardAppearance.themeCustom as any)?.listColors as Record<string, string>) ?? {},
+  );
   const saveGeneralAction = useAsyncAction(async (payload: { name: string; description: string | null }) => {
     await onSaveGeneral(payload);
     onClose();
@@ -189,12 +216,12 @@ export function BoardSettingsModalWeb({
     setName(boardName);
     setDescription(boardDescription ?? "");
     setCoverKind(parsedCover.kind);
-    setCoverPreset(parsedCover.kind === "preset" ? (parsedCover.value || BACKGROUND_PRESETS[0]) : BACKGROUND_PRESETS[0]);
+    setCoverPreset(parsedCover.kind === "preset" ? (parsedCover.value || BACKGROUND_PRESETS[0].value) : BACKGROUND_PRESETS[0].value);
     setCoverImage(parsedCover.kind === "image" ? parsedCover.value : "");
     setCoverColor(parsedCover.kind === "color" ? parsedCover.value : DEFAULT_COLOR);
     setCoverGradient(parsedCover.kind === "gradient" ? parsedCover.value : DEFAULT_GRADIENT);
-    setBackgroundKind(boardAppearance.backgroundKind ?? "preset");
-    setPresetBackground(boardAppearance.backgroundValue ?? BACKGROUND_PRESETS[0]);
+    setBackgroundKind(boardAppearance.backgroundKind ?? "color");
+    setPresetBackground(boardAppearance.backgroundValue ?? BACKGROUND_PRESETS[0].value);
     setImageBackground(boardAppearance.backgroundImageUrl ?? "");
     setColorBackground(boardAppearance.backgroundValue ?? DEFAULT_COLOR);
     setGradientBackground(boardAppearance.backgroundGradient ?? DEFAULT_GRADIENT);
@@ -202,6 +229,7 @@ export function BoardSettingsModalWeb({
     setThemePreset(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
     setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
     setThemeSurface(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
+    setListColors(((boardAppearance.themeCustom as any)?.listColors as Record<string, string>) ?? {});
   }, [isOpen, boardName, boardDescription, boardAppearance]);
 
   if (!isOpen) return null;
@@ -254,12 +282,13 @@ export function BoardSettingsModalWeb({
 
     if (themeKind === "preset") {
       payload.themePreset = themePreset;
-      payload.themeCustom = {};
+      payload.themeCustom = { listColors };
     } else {
       payload.themePreset = null;
       payload.themeCustom = {
         accent: themeAccent,
         surface: themeSurface,
+        listColors,
       };
     }
 
@@ -340,8 +369,17 @@ export function BoardSettingsModalWeb({
 
                 {coverKind === "preset" && (
                   <div className="grid grid-cols-6 gap-2">
-                    {BACKGROUND_PRESETS.map((bg) => (
-                      <button key={bg} type="button" onClick={() => setCoverPreset(bg)} className={`h-9 rounded-md ${bg} border ${coverPreset === bg ? "ring-2 ring-primary" : "opacity-80"}`} />
+                    {BACKGROUND_PRESETS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        title={c.label}
+                        onClick={() => setCoverPreset(c.value)}
+                        style={{ background: c.value }}
+                        className={`h-9 rounded-md border ring-offset-background transition-all hover:scale-105 focus:outline-none ${
+                          coverPreset === c.value ? "ring-2 ring-primary ring-offset-1 border-transparent" : "border-border/40 opacity-80 hover:opacity-100"
+                        }`}
+                      />
                     ))}
                   </div>
                 )}
@@ -396,8 +434,17 @@ export function BoardSettingsModalWeb({
 
                 {backgroundKind === "preset" && (
                   <div className="grid grid-cols-6 gap-2">
-                    {BACKGROUND_PRESETS.map((bg) => (
-                      <button key={bg} type="button" onClick={() => setPresetBackground(bg)} className={`h-9 rounded-md ${bg} border ${presetBackground === bg ? "ring-2 ring-primary" : "opacity-80"}`} />
+                    {BACKGROUND_PRESETS.map((c) => (
+                      <button
+                        key={c.value}
+                        type="button"
+                        title={c.label}
+                        onClick={() => setPresetBackground(c.value)}
+                        style={{ background: c.value }}
+                        className={`h-9 rounded-md border ring-offset-background transition-all hover:scale-105 focus:outline-none ${
+                          presetBackground === c.value ? "ring-2 ring-primary ring-offset-1 border-transparent" : "border-border/40 opacity-80 hover:opacity-100"
+                        }`}
+                      />
                     ))}
                   </div>
                 )}
@@ -469,6 +516,50 @@ export function BoardSettingsModalWeb({
                   </div>
                 )}
               </div>
+
+              {/* ── Column Colors (Kanban only) ── */}
+              {kanbanLists && kanbanLists.length > 0 && (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Column Colors</label>
+                  <p className="text-xs text-muted-foreground">Set an accent color for each column header.</p>
+                  <div className="space-y-2">
+                    {kanbanLists.map((list) => {
+                      const current = listColors[list.id] ?? "";
+                      return (
+                        <div key={list.id} className="flex items-center gap-3">
+                          <span
+                            className="w-3 h-3 rounded-full flex-shrink-0 border border-white/20"
+                            style={{ background: current || "transparent", borderColor: current ? "transparent" : undefined }}
+                          />
+                          <span className="text-sm text-foreground flex-1 truncate">{list.name}</span>
+                          <div className="flex items-center gap-1 flex-wrap justify-end">
+                            {COLUMN_PALETTE_COLORS.map((col) => (
+                              <button
+                                key={col.value}
+                                type="button"
+                                title={col.label}
+                                onClick={() => setListColors(prev => {
+                                  const next = { ...prev };
+                                  if (col.value) next[list.id] = col.value;
+                                  else delete next[list.id];
+                                  return next;
+                                })}
+                                className={`w-5 h-5 rounded-full border-2 transition-all flex-shrink-0 ${
+                                  current === col.value ? "border-primary scale-110" : "border-transparent hover:border-border"
+                                }`}
+                                style={{
+                                  background: col.value || "transparent",
+                                  border: col.value ? undefined : "1px dashed var(--border)",
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end">
                 <button onClick={saveAppearance} disabled={saveAppearanceAction.isPending || !canEdit} className="h-10 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">
