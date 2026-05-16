@@ -3652,33 +3652,25 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       {!mobileMode && (
       <>
       {/* ── Top bar ── */}
-      <div className="flex shrink-0 items-center gap-3 border-b border-border bg-card/70 px-4 py-1.5">
-        <span className="text-sm font-semibold text-foreground">Mesh</span>
-        <span className="text-[10px] text-muted-foreground">rev {revision}</span>
-        <div className="ml-auto flex items-center gap-2">
-          <div className="hidden items-center -space-x-1.5 pr-1 sm:flex">
-            {presenceMembers.slice(0, 5).map((member) => (
-              <img
-                key={member.clientId}
-                src={getUserAvatarUrl(member.data.avatar_url, member.data.email, 24)}
-                alt={member.data.displayName}
-                title={member.data.displayName}
-                className="h-6 w-6 rounded-full border border-background ring-1 ring-border/50 object-cover bg-muted"
-              />
-            ))}
-            {presenceMembers.length > 5 && (
-              <div className="h-6 min-w-6 rounded-full border border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center">
-                +{presenceMembers.length - 5}
-              </div>
-            )}
-            {presenceMembers.length === 0 && (
-              <div className="h-6 min-w-6 rounded-full border border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center">
-                ...
-              </div>
-            )}
-          </div>
+      <div className="flex shrink-0 items-center justify-between border-b border-border bg-card/70 px-5 py-2.5">
+        {/* Left: board name + live indicator */}
+        <div className="flex items-center gap-3">
+          <h1 className="text-base font-bold tracking-tight text-foreground truncate max-w-[220px]" title={meshBoardName}>
+            {meshBoardName || "Mesh Board"}
+          </h1>
+          <div className="h-4 w-px bg-border/60" />
+          <span className="inline-flex items-center gap-1.5 rounded-md border border-green-500/20 bg-green-500/10 px-2 py-0.5 text-[11px] font-medium text-green-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse" />
+            Live
+          </span>
+          <span className="hidden sm:inline text-[11px] text-muted-foreground">
+            {Object.keys(state.bricksById).length} {tMesh("header.bricks")}
+          </span>
+        </div>
 
-          {selectedConnId && <span className="text-[10px] text-muted-foreground">Doble clic en label de conector para editar con toolbar</span>}
+        {/* Right: action buttons */}
+        <div className="flex items-center gap-1.5">
+          {/* Selection context actions */}
           {selectedId && (() => {
             const selB = state.bricksById[selectedId];
             const hasStrokes = selB?.kind === "draw" && !asRec(selB.content).shapePreset &&
@@ -3686,8 +3678,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               (asRec(selB.content).manualStrokes as unknown[]).length > 0;
             return hasStrokes ? (
               <button type="button" onClick={() => clearDrawStrokes(selectedId)}
-                className="inline-flex h-7 items-center gap-1 rounded-md border border-orange-500/40 bg-orange-950/30 px-2 text-xs text-orange-300 hover:bg-orange-900/40">
-                <Trash2 className="h-3 w-3" /> Borrar trazos
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-950/30 px-2.5 text-xs text-orange-300 hover:bg-orange-900/40">
+                <Trash2 className="h-3.5 w-3.5" /> Clear strokes
               </button>
             ) : null;
           })()}
@@ -3700,76 +3692,102 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast(tMesh("feedback.deleted"), "success"); }
                 if (selectedConnId) { setState((c) => deleteConn(c, selectedConnId)); setSelectedConnId(null); }
               }
-            }} className="inline-flex h-7 items-center gap-1 rounded-md border border-red-500/40 bg-red-950/30 px-2 text-xs text-red-300 hover:bg-red-900/40">
-              <Trash2 className="h-3 w-3" /> {selectedIds.size > 1 ? `${selectedIds.size} sel.` : "Eliminar"}
+            }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/40 bg-red-950/30 px-2.5 text-xs text-red-300 hover:bg-red-900/40">
+              <Trash2 className="h-3.5 w-3.5" /> {selectedIds.size > 1 ? tMesh("feedback.deletedCount", { count: selectedIds.size }) : tMesh("feedback.deleted")}
             </button>
           )}
 
+          {/* Presence avatars */}
+          <div className="hidden items-center -space-x-1.5 px-1 sm:flex">
+            {presenceMembers.slice(0, 5).map((member) => (
+              <img
+                key={member.clientId}
+                src={getUserAvatarUrl(member.data.avatar_url, member.data.email, 24)}
+                alt={member.data.displayName}
+                title={member.data.displayName}
+                className="h-6 w-6 rounded-full border-2 border-background ring-1 ring-border/40 object-cover bg-muted shadow-sm"
+              />
+            ))}
+            {presenceMembers.length > 5 && (
+              <div className="h-6 min-w-6 rounded-full border-2 border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center shadow-sm">
+                +{presenceMembers.length - 5}
+              </div>
+            )}
+            {presenceMembers.length === 0 && (
+              <div className="h-6 min-w-6 rounded-full border-2 border-background bg-muted px-1.5 text-[10px] font-semibold text-muted-foreground inline-flex items-center justify-center animate-pulse shadow-sm">
+                ...
+              </div>
+            )}
+          </div>
+
+          <div className="h-5 w-px bg-border/60 mx-0.5" />
+
+          {/* Copilot */}
           <button
             type="button"
-            onClick={() => {
-              setSidebarTab("copilot");
-              setIsAiDrawerOpen(false);
-              setIsCommentsOpen(true);
-            }}
-            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
+            onClick={() => { setSidebarTab("copilot"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
               isCommentsOpen && sidebarTab === "copilot"
-                ? "border-accent/20 bg-accent/10 text-accent"
-                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                ? "border-accent/30 bg-accent/10 text-accent"
+                : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
             }`}
-            title="Copilot"
           >
-            <Sparkles className="h-3 w-3" /> Copilot
+            <Sparkles className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Copilot</span>
           </button>
 
+          {/* Team chat */}
           <button
             type="button"
-            onClick={() => {
-              setSidebarTab("chat");
-              setIsAiDrawerOpen(false);
-              setIsCommentsOpen(true);
-            }}
-            className={`inline-flex h-7 items-center gap-1 rounded-md border px-2 text-xs transition-colors ${
+            onClick={() => { setSidebarTab("chat"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
+            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
               isCommentsOpen && sidebarTab === "chat"
-                ? "border-accent/20 bg-accent/10 text-accent"
-                : "border-border bg-card text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+                ? "border-accent/30 bg-accent/10 text-accent"
+                : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
             }`}
-            title="Comments"
           >
-            <MessageSquare className="h-3 w-3" /> Comments
+            <MessageSquare className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Chat</span>
           </button>
 
-          <button
-            type="button"
-            onClick={handleDownloadMesh}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-          >
-            <Download className="h-3 w-3" /> Descargar
-          </button>
-
+          {/* Share */}
           <button
             type="button"
             onClick={handleShareMesh}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
           >
-            <Share2 className="h-3 w-3" /> Share
+            <Share2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Share</span>
           </button>
 
+          {/* Download */}
+          <button
+            type="button"
+            onClick={handleDownloadMesh}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
+          >
+            <Download className="h-3.5 w-3.5" />
+          </button>
+
+          {/* Settings (rename, appearance, delete) */}
           <button
             type="button"
             onClick={() => setIsBoardSettingsOpen(true)}
-            className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-card px-2 text-xs text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-            title="Configuración del tablero"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
           >
-            <Settings2 className="h-3 w-3" /> Settings
+            <Settings2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Settings</span>
           </button>
 
+          {/* Save */}
           <button type="button" onClick={handleSave} disabled={isSaving || isLoading}
-            className="inline-flex h-7 items-center gap-1 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">
-            {isSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />} Guardar
+            className="inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-xs font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50 transition-colors">
+            {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Save</span>
           </button>
 
-          <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "Usuario"}>
+          {/* User avatar */}
+          <div className="h-7 w-7 shrink-0 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "User"}>
             {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
           </div>
         </div>

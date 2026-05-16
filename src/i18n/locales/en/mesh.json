@@ -1,4 +1,14 @@
 {
+  "header": {
+    "bricks": "bricks",
+    "live": "Live",
+    "save": "Save",
+    "settings": "Settings",
+    "share": "Share",
+    "copilot": "Copilot",
+    "chat": "Chat",
+    "clearStrokes": "Clear strokes"
+  },
   "toolbar": {
     "modeLabel": "Mode",
     "modes": {

@@ -1,4 +1,14 @@
 {
+  "header": {
+    "bricks": "bloques",
+    "live": "En vivo",
+    "save": "Guardar",
+    "settings": "Ajustes",
+    "share": "Compartir",
+    "copilot": "Copilot",
+    "chat": "Chat",
+    "clearStrokes": "Borrar trazos"
+  },
   "toolbar": {
     "modeLabel": "Modo",
     "modes": {
