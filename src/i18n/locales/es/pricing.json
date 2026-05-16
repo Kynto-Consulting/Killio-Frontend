@@ -97,12 +97,16 @@
     "title": "Cuota extra",
     "subtitle": "Necesitas mas capacidad este mes? Compra paquetes extra de scripts y creditos IA.",
     "scripts": "Comprar extra scripts calls",
-    "credits": "Comprar extra AI credits"
+    "credits": "Comprar extra AI credits",
+    "emailSubject": "Killio - Cuota extra",
+    "emailBody": "Hola equipo, quiero comprar cuota extra de ejecuciones de scripts y creditos de IA para mi workspace."
   },
   "enterprise": {
     "title": "Enterprise",
     "subtitle": "Necesitas controles avanzados, onboarding y soporte dedicado?",
-    "cta": "Contactar ventas"
+    "cta": "Contactar ventas",
+    "emailSubject": "Killio Enterprise",
+    "emailBody": "Hola, quiero evaluar Enterprise para mi workspace."
   },
   "coupon": {
     "placeholder": "Código de cupón",

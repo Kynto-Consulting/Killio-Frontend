@@ -58,6 +58,121 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
   const cancelRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef<string>("");
 
+  /**
+   * Shared streaming event handler factory.
+   * Returns an `onEvent` callback that wires tool/delta/done/error events into
+   * the given mutable `toolEvts` array and the `assistantId` message slot.
+   * Extracting this avoids duplicating the entire switch in both sendMessage
+   * and sendToolApproval.
+   */
+  const makeStreamHandler = useCallback(
+    (assistantId: string, toolEvts: ToolEvent[], accTextRef: { current: string }) =>
+      (event: AgentStreamEvent) => {
+        switch (event.type) {
+          case "tool_start":
+            toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+            );
+            break;
+
+          case "tool_done": {
+            // Find the most-recent matching start event (handles same tool called multiple times)
+            const idx = [...toolEvts].reverse().findIndex(
+              (e) => e.tool === event.tool && e.phase === "start",
+            );
+            if (idx !== -1) {
+              toolEvts[toolEvts.length - 1 - idx] = {
+                tool: event.tool,
+                // Prefer the backend-supplied input; fall back to the start event's input
+                input: event.input ?? toolEvts[toolEvts.length - 1 - idx].input,
+                output: event.output,
+                phase: "done",
+                success: event.success,
+                durationMs: event.durationMs,
+              };
+            } else {
+              // No matching start found — push a new done entry with whatever data we have
+              toolEvts.push({
+                tool: event.tool,
+                input: event.input,
+                output: event.output,
+                phase: "done",
+                success: event.success,
+                durationMs: event.durationMs,
+              });
+            }
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+            );
+            break;
+          }
+
+          case "tool_result":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] }
+                  : m,
+              ),
+            );
+            break;
+
+          case "delta":
+            accTextRef.current += event.text;
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, text: accTextRef.current } : m),
+            );
+            break;
+
+          case "done":
+            conversationIdRef.current = event.conversationId;
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? {
+                      ...m,
+                      text: event.text || accTextRef.current,
+                      isStreaming: false,
+                      toolsUsed: event.toolsUsed,
+                      toolExecution: event.toolExecution,
+                    }
+                  : m,
+              ),
+            );
+            setIsLoading(false);
+            setActiveToolEvents([]);
+            break;
+
+          case "tool_approval_request":
+            toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
+            setActiveToolEvents([...toolEvts]);
+            setMessages((prev) =>
+              prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
+            );
+            setIsLoading(false);
+            break;
+
+          case "error":
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === assistantId
+                  ? { ...m, text: `Error: ${event.message}`, isStreaming: false }
+                  : m,
+              ),
+            );
+            setIsLoading(false);
+            setActiveToolEvents([]);
+            break;
+        }
+      },
+    // conversationIdRef and setters are stable refs — no deps needed beyond the hook's own state setters
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
   const sendMessage = useCallback(
     async (text?: string) => {
       const rawMessage = (text ?? inputValue).trim();
@@ -89,108 +204,18 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
 
       setMessages((prev) => [...prev, userMsg, assistantMsg]);
 
-      let accText = "";
+      const accTextRef = { current: "" };
       const toolEvts: ToolEvent[] = [];
 
       const cancel = streamAgentChat(
         { conversationId: conversationIdRef.current, teamId, entityType, entityId, message },
         accessToken!,
-        (event: AgentStreamEvent) => {
-          switch (event.type) {
-            case "tool_start":
-              toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
-              setActiveToolEvents([...toolEvts]);
-              setMessages((prev) =>
-                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
-              );
-              break;
-
-            case "tool_done": {
-              const idx = [...toolEvts].reverse().findIndex(
-                (e) => e.tool === event.tool && e.phase === "start",
-              );
-              if (idx !== -1) {
-                toolEvts[toolEvts.length - 1 - idx] = {
-                  tool: event.tool,
-                  input: event.input ?? toolEvts[toolEvts.length - 1 - idx].input,
-                  output: event.output,
-                  phase: "done",
-                  success: event.success,
-                  durationMs: event.durationMs,
-                };
-              } else {
-                toolEvts.push({ tool: event.tool, phase: "done", success: event.success, durationMs: event.durationMs, output: event.output });
-              }
-              setActiveToolEvents([...toolEvts]);
-              setMessages((prev) =>
-                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
-              );
-              break;
-            }
-
-            case "tool_result":
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] }
-                    : m,
-                ),
-              );
-              break;
-
-            case "delta":
-              accText += event.text;
-              setMessages((prev) =>
-                prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)),
-              );
-              break;
-
-            case "done":
-              conversationIdRef.current = event.conversationId;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { 
-                        ...m, 
-                        text: event.text || accText, 
-                        isStreaming: false, 
-                        toolsUsed: event.toolsUsed,
-                        toolExecution: event.toolExecution // Store complete tool execution metadata
-                      }
-                    : m,
-                ),
-              );
-              setIsLoading(false);
-              setActiveToolEvents([]);
-              break;
-
-            case "tool_approval_request":
-              toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
-              setActiveToolEvents([...toolEvts]);
-              setMessages((prev) =>
-                prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
-              );
-              setIsLoading(false); // Stop loading so user can interact
-              break;
-
-            case "error":
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantId
-                    ? { ...m, text: `Error: ${event.message}`, isStreaming: false }
-                    : m,
-                ),
-              );
-              setIsLoading(false);
-              setActiveToolEvents([]);
-              break;
-          }
-        },
+        makeStreamHandler(assistantId, toolEvts, accTextRef),
       );
 
       cancelRef.current = cancel;
     },
-    [inputValue, isLoading, accessToken, teamId, entityType, entityId, resolverContext],
+    [inputValue, isLoading, accessToken, teamId, entityType, entityId, resolverContext, makeStreamHandler],
   );
 
   const retryMessage = useCallback(() => {
@@ -307,60 +332,32 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
 
   const sendToolApproval = useCallback(async (toolName: string, input: any, decision: 'approved' | 'rejected') => {
     if (isLoading || !accessToken) return;
-    
-    // Resume chat with approval decision
-    setIsLoading(true);
-    const assistantId = messages[messages.length - 1]?.id;
-    if (!assistantId) return;
 
-    let accText = messages[messages.length - 1].text;
-    const toolEvts = [...(messages[messages.length - 1].toolEvents || [])];
+    const lastMsg = messages[messages.length - 1];
+    if (!lastMsg || lastMsg.role !== "assistant") return;
+
+    const assistantId = lastMsg.id;
+    setIsLoading(true);
+
+    // Continue existing text + tool events from the paused assistant message
+    const accTextRef = { current: lastMsg.text };
+    const toolEvts: ToolEvent[] = [...(lastMsg.toolEvents ?? [])];
 
     const cancel = streamAgentChat(
-      { 
-        conversationId: conversationIdRef.current, 
-        teamId, 
-        entityType, 
-        entityId, 
+      {
+        conversationId: conversationIdRef.current,
+        teamId,
+        entityType,
+        entityId,
         message: lastUserTextRef.current,
         approvalDecision: decision,
-        approvalToolCall: { name: toolName, input }
+        approvalToolCall: { name: toolName, input },
       },
       accessToken!,
-      (event: AgentStreamEvent) => {
-        // Same logic as sendMessage Switch
-        switch (event.type) {
-          case "tool_start":
-            toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
-            setActiveToolEvents([...toolEvts]);
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m));
-            break;
-          case "tool_done":
-            // ... (Simplified for brevity, but I should probably abstract the handler)
-            break;
-          case "tool_approval_request":
-            toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
-            setActiveToolEvents([...toolEvts]);
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m));
-            setIsLoading(false);
-            break;
-          case "tool_result":
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolResults: [...(m.toolResults ?? []), { tool: event.tool, data: event.data }] } : m));
-            break;
-          case "delta":
-            accText += event.text;
-            setMessages((prev) => prev.map((m) => (m.id === assistantId ? { ...m, text: accText } : m)));
-            break;
-          case "done":
-            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, text: event.text || accText, isStreaming: false, toolsUsed: event.toolsUsed, toolExecution: event.toolExecution } : m));
-            setIsLoading(false);
-            setActiveToolEvents([]);
-            break;
-        }
-      }
+      makeStreamHandler(assistantId, toolEvts, accTextRef),
     );
     cancelRef.current = cancel;
-  }, [messages, isLoading, accessToken, teamId, entityType, entityId]);
+  }, [messages, isLoading, accessToken, teamId, entityType, entityId, makeStreamHandler]);
 
   const clearConversation = useCallback(() => {
     setMessages([]);

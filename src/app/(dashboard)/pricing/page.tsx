@@ -294,12 +294,8 @@ export default function PricingPage() {
     }
   };
 
-  const extraQuotaSubject = encodeURIComponent("Killio - Extra quota");
-  const extraQuotaBody = encodeURIComponent(
-    locale === "es"
-      ? "Hola equipo, quiero comprar cuota extra de ejecuciones de scripts y creditos de IA para mi workspace."
-      : "Hi team, I want to purchase extra script calls and AI credits for my workspace.",
-  );
+  const extraQuotaSubject = encodeURIComponent(t("extraQuota.emailSubject"));
+  const extraQuotaBody = encodeURIComponent(t("extraQuota.emailBody"));
 
   if (loading) {
     return (
@@ -715,7 +711,7 @@ export default function PricingPage() {
           <h3 className="text-lg font-extrabold text-white">{t("enterprise.title")}</h3>
           <p className="mt-1 text-sm text-slate-300">{t("enterprise.subtitle")}</p>
           <a
-            href={`mailto:${billingEmail}?subject=${encodeURIComponent("Killio Enterprise")}&body=${encodeURIComponent("Hola, quiero evaluar Enterprise para mi workspace.")}`}
+            href={`mailto:${billingEmail}?subject=${encodeURIComponent(t("enterprise.emailSubject"))}&body=${encodeURIComponent(t("enterprise.emailBody"))}`}
             className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm font-semibold text-white hover:bg-black/30"
           >
             <Mail className="h-4 w-4" />

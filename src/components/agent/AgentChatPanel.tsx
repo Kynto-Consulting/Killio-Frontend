@@ -841,7 +841,35 @@ function AssistantMessage({
       </div>
 
       <div className="max-w-[85%] flex flex-col gap-1.5 min-w-0">
-        {markupBlocks.map((block, index) => {
+        {(() => {
+          // Pre-compute occurrence counters so same-named tools get the correct done event
+          const toolOccurrenceCounter = new Map<string, number>();
+          const getOccurrence = (name: string): number => {
+            const n = (name ?? "").toLowerCase();
+            const idx = toolOccurrenceCounter.get(n) ?? 0;
+            toolOccurrenceCounter.set(n, idx + 1);
+            return idx;
+          };
+          // First pass: count occurrences in document order (batch_tool sub-chips + direct chips)
+          const blockOccurrences: Array<{ blockIndex: number; subIndex?: number; occurrence: number }> = [];
+          markupBlocks.forEach((block, blockIndex) => {
+            if (block.tag === "batch_tool") {
+              const { blocks: subBlocks } = parseAiMarkup(block.content);
+              subBlocks.filter(b => b.tag === 'tool_call').forEach((sub, subIndex) => {
+                try {
+                  const d = JSON.parse(sub.content);
+                  blockOccurrences.push({ blockIndex, subIndex, occurrence: getOccurrence(d.name) });
+                } catch { blockOccurrences.push({ blockIndex, subIndex, occurrence: 0 }); }
+              });
+            } else if (block.tag === "tool_call") {
+              try {
+                const d = JSON.parse(block.content);
+                blockOccurrences.push({ blockIndex, occurrence: getOccurrence(d.name) });
+              } catch { blockOccurrences.push({ blockIndex, occurrence: 0 }); }
+            }
+          });
+
+          return markupBlocks.map((block, index) => {
           const key = `${block.tag}-${index}`;
           const isExpanded = expandedMarkup.has(key);
 
@@ -855,13 +883,16 @@ function AssistantMessage({
                 return events.some(e => e.tool?.toLowerCase() === d.name?.toLowerCase() && e.phase === "start");
               } catch { return false; }
             });
+            // Map sub-chip occurrence for this batch block
+            const batchChipOccurrences = blockOccurrences.filter(o => o.blockIndex === index && o.subIndex !== undefined);
             return (
               <div key={key} className="my-1">
                 <BatchToolChip t={t} count={toolCalls.length} defaultOpen={anyRunning}>
                   {toolCalls.map((sub, i) => {
                     try {
                       const data = JSON.parse(sub.content);
-                      return <AgentToolCallChip key={`${key}-${i}`} t={t} data={data} message={message} onToolApproval={onToolApproval} />;
+                      const occurrence = batchChipOccurrences.find(o => o.subIndex === i)?.occurrence ?? i;
+                      return <AgentToolCallChip key={`${key}-${i}`} t={t} data={data} message={message} occurrenceIndex={occurrence} onToolApproval={onToolApproval} />;
                     } catch { return null; }
                   })}
                 </BatchToolChip>
@@ -872,9 +903,10 @@ function AssistantMessage({
           if (block.tag === "tool_call") {
             try {
               const data = JSON.parse(block.content);
+              const occurrence = blockOccurrences.find(o => o.blockIndex === index && o.subIndex === undefined)?.occurrence ?? 0;
               return (
                 <div key={key} className="my-0.5">
-                  <AgentToolCallChip t={t} data={data} message={message} onToolApproval={onToolApproval} />
+                  <AgentToolCallChip t={t} data={data} message={message} occurrenceIndex={occurrence} onToolApproval={onToolApproval} />
                 </div>
               );
             } catch { return null; }
@@ -1197,7 +1229,8 @@ function AssistantMessage({
               )}
             </div>
           );
-        })}
+        });
+        })()}
 
         {doneEvents.length > 0 && (
           <button
@@ -1434,19 +1467,26 @@ function AgentToolCallChip({
   t,
   data,
   message,
+  occurrenceIndex = 0,
   onToolApproval,
 }: {
   t: TFn;
   data: any;
   message: AgentMessage;
+  /** Which occurrence of this tool name this chip represents (0-based). Used to disambiguate when the same tool runs multiple times. */
+  occurrenceIndex?: number;
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
 }) {
   const searchName = (data.name ?? "").toLowerCase();
   const events = message.toolEvents ?? [];
-  const doneEvent   = events.find(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
+  // Filter all done events for this tool name — pick the Nth one matching the chip's occurrence
+  const allDoneForTool = events.filter(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
+  const doneEvent   = allDoneForTool[occurrenceIndex] ?? allDoneForTool[allDoneForTool.length - 1];
   const isDone      = !!doneEvent;
   const isError     = doneEvent?.success === false;
-  const isRunning   = !isDone && events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "start");
+  // For isRunning: check that the Nth start event exists but no done event yet for this occurrence
+  const allStartForTool = events.filter(e => e.tool?.toLowerCase() === searchName && e.phase === "start");
+  const isRunning   = !isDone && allStartForTool.length > occurrenceIndex;
   const needsApproval = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "waiting_for_approval");
   const output      = doneEvent?.output ?? data.output;
   const input       = doneEvent?.input  ?? data.input;
