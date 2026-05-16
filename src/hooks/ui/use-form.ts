@@ -239,27 +239,35 @@ export function useForm<TFields extends FormFieldSchemas>(
       e?.preventDefault();
       if (isSubmitting) return;
 
-      // 1. Touch and validate all fields
+      // 1. Read current values and validate synchronously from closure (NOT inside a state updater,
+      //    which runs lazily in React 18 and would make snapValues/allValid stale).
       let allValid = true;
       const snapValues: Record<string, string | number> = {};
 
+      for (const key of fieldKeys) {
+        const currentValue = fieldStates[key].value;
+        const err =
+          runFieldValidation(key, currentValue) ??
+          runMatchValidation(key, currentValue, fieldStates);
+        if (err) allValid = false;
+        snapValues[key] = currentValue;
+      }
+
+      // Touch all fields to surface validation errors in the UI (pure state update, no side effects)
       setFieldStates((prev) => {
         const next = { ...prev };
         for (const key of fieldKeys) {
-          const current = prev[key];
           const err =
-            runFieldValidation(key, current.value) ??
-            runMatchValidation(key, current.value, prev);
-          if (err) allValid = false;
-          next[key] = { ...current, touched: true, error: err };
-          snapValues[key] = current.value;
+            runFieldValidation(key, prev[key].value) ??
+            runMatchValidation(key, prev[key].value, prev);
+          next[key] = { ...prev[key], touched: true, error: err };
         }
         return next;
       });
 
       if (!allValid) return;
 
-      // 2. Cross-field validation
+      // 2. Cross-field validation (snapValues is already populated above)
       if (schema.crossValidate) {
         const crossErrors = schema.crossValidate(
           snapValues as FormValues<TFields>
@@ -295,8 +303,7 @@ export function useForm<TFields extends FormFieldSchemas>(
         setIsSubmitting(false);
       }
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [isSubmitting, fieldKeys, runFieldValidation, runMatchValidation, schema, reset]
+    [isSubmitting, fieldKeys, fieldStates, runFieldValidation, runMatchValidation, schema, reset]
   );
 
   // ── Derived state ────────────────────────────────────────────────────────
