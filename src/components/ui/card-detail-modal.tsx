@@ -2167,7 +2167,7 @@ export function CardDetailModal({
             <div className="p-4 border-t bg-background/50 shrink-0 relative">
               <div className="relative">
                 <ReferenceTokenInput
-                  placeholder={canComment ? "Escribe un comentario o menciona con @..." : "No tienes permiso para comentar"}
+                  placeholder={canComment ? t("card.commentPlaceholder") : t("card.commentNoPermission")}
                   value={newComment}
                   onChange={setNewComment}
                   onSubmit={() => {

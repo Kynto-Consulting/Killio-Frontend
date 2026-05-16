@@ -63,7 +63,9 @@
     "comments": "Comentarios",
     "attachments": "Adjuntos",
     "archived": "Archivada",
-    "commentPermissionError": "No tienes permisos para comentar en esta tarjeta."
+    "commentPermissionError": "No tienes permisos para comentar en esta tarjeta.",
+    "commentPlaceholder": "Escribe un comentario o menciona con @...",
+    "commentNoPermission": "No tienes permiso para comentar"
   },
   "cardModal": {
     "archiveCard": "Archivar tarjeta",

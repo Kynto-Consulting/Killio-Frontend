@@ -63,7 +63,9 @@
     "comments": "Comments",
     "attachments": "Attachments",
     "archived": "Archived",
-    "commentPermissionError": "You don't have permission to comment on this card."
+    "commentPermissionError": "You don't have permission to comment on this card.",
+    "commentPlaceholder": "Write a comment or mention with @...",
+    "commentNoPermission": "You don't have permission to comment"
   },
   "cardModal": {
     "archiveCard": "Archive card",
