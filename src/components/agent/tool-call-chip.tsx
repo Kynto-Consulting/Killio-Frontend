@@ -21,6 +21,8 @@ import {
   // Git tools
   GitCommit, GitMerge, GitPullRequestArrow, History, Archive, Activity,
   ArrowUpFromLine, ArrowDownToLine, Copy, Plus, FileCode,
+  // Room / Chat tools
+  MessageSquare, Hash, Send,
 } from "lucide-react";
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -138,6 +140,16 @@ export function getToolActionLabel(
   if (n.includes("board"))
     return t("agent.toolAction.board");
 
+  // ── Rooms / Chat ────────────────────────────────────────────────────────────
+  if (n.includes("room_create"))
+    return t("agent.toolAction.roomCreated", { name: title || (input?.name as string) || "" });
+  if (n.includes("room_list"))
+    return t("agent.toolAction.roomListed");
+  if (n.includes("room_send_message") || n.includes("room_send"))
+    return t("agent.toolAction.messageSent");
+  if (n.includes("room_"))
+    return t("agent.toolAction.room");
+
   // ── Lists ──────────────────────────────────────────────────────────────────
   if (n.includes("list_create") || n.includes("create_list"))
     return t("agent.toolAction.listCreated", { name: title || "" });
@@ -161,6 +173,8 @@ export function getToolActionLabel(
     return t("agent.toolAction.document");
 
   // ── Mesh / Canvas ──────────────────────────────────────────────────────────
+  if (n.includes("mesh_board_create") || n.includes("create_mesh_board"))
+    return t("agent.toolAction.meshBoardCreated", { name: title || (input?.name as string) || "" });
   if (n.includes("create_brick")   || n.includes("mesh_create_brick"))
     return t("agent.toolAction.brickCreated");
   if (n.includes("update_brick")   || n.includes("mesh_update_brick"))
@@ -544,6 +558,14 @@ function getToolIcon(toolName: string) {
   if (n.includes("board"))
     return <LayoutDashboard className="w-3 h-3" />;
 
+  // ── Rooms / Chat ──────────────────────────────────────────────────────────
+  if (n.includes("room_send_message") || n.includes("room_send"))
+    return <Send className="w-3 h-3" />;
+  if (n.includes("room_create"))
+    return <Hash className="w-3 h-3" />;
+  if (n.includes("room_"))
+    return <MessageSquare className="w-3 h-3" />;
+
   // ── Documents ────────────────────────────────────────────────────────────
   if (n.includes("document_create"))
     return <FileText className="w-3 h-3" />;
@@ -551,6 +573,8 @@ function getToolIcon(toolName: string) {
     return <FileText className="w-3 h-3" />;
 
   // ── Mesh / Canvas ─────────────────────────────────────────────────────────
+  if (n.includes("mesh_board_create") || n.includes("create_mesh_board"))
+    return <Grid3X3 className="w-3 h-3" />;
   if (n.includes("mesh") || n.includes("brick"))
     return <Grid3X3 className="w-3 h-3" />;
 
