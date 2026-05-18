@@ -24,6 +24,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { API_BASE_URL } from "@/lib/api/client";
 import { MessageInfoPanel } from "./MessageInfoPanel";
 import { Portal } from "@/components/ui/portal";
+import { parseInlineToolEvents, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 
 const resolveAssetUrl = (url: string) => {
   if (!url) return "";
@@ -930,13 +931,22 @@ function RoomToolCallChip({
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
 }) {
   const searchName = (data.name ?? "").toLowerCase();
-  const rawEvents = (message.metadata as any)?.toolEvents || [];
-  const rawResults = (message.metadata as any)?.toolResults || [];
-  const normalizeToolName = (value: string) => value.toLowerCase().replace(/[^a-z0-9]+/g, "");
-  const normalizeToolWords = (value: string) => {
-    const parts = value.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean).map((part) => part.endsWith("s") ? part.slice(0, -1) : part);
-    return parts.sort().join("|");
-  };
+  const inlineEvents = useMemo(() => parseInlineToolEvents(message.content), [message.content]);
+  const legacyEvents = (message.metadata as any)?.toolEvents || [];
+  const legacyResults = (message.metadata as any)?.toolResults || [];
+  const events = inlineEvents.length > 0 ? inlineEvents : (legacyEvents.length > 0 ? legacyEvents : (() => {
+    const syn: any[] = [];
+    const calls = (message as any).tool_calls || [];
+    const results = (message as any).tool_results || [];
+    calls.forEach((c: any) => {
+      const res = results.find((r: any) => r.tool_use_id === c.id || r.tool === c.name);
+      syn.push({ tool: c.name, phase: "done", success: res ? !res.is_error : true, output: res?.content });
+    });
+    return syn;
+  })());
+  const state = resolveToolCallRenderState(data, events);
+  const matchingResult = legacyResults.length > 0 ? [...legacyResults].reverse().find((r: any) => String(r.toolName || r.tool || "").toLowerCase() === searchName) ?? legacyResults[0] ?? null : null;
+
   const hasUsefulOutput = (value: unknown) => {
     if (value === null || value === undefined) return false;
     if (typeof value === "string") return value.trim().length > 0;
@@ -944,60 +954,22 @@ function RoomToolCallChip({
     if (typeof value === "object") return Object.keys(value as Record<string, unknown>).length > 0;
     return true;
   };
-  const findMatchingResult = () => {
-    if (rawResults.length === 0) return null;
-    const results = [...rawResults].reverse() as any[];
-    const exact = results.find((r) => (r.toolName || r.tool || "").toLowerCase() === searchName);
-    if (exact) return exact;
-    const normalizedName = normalizeToolName(searchName);
-    const wordName = normalizeToolWords(searchName);
-    const fuzzy = results.find((r) => {
-      const candidate = String(r.toolName || r.tool || "");
-      return normalizeToolName(candidate) === normalizedName || normalizeToolWords(candidate) === wordName;
-    });
-    return fuzzy || results[0] || null;
-  };
-  const matchingResult = findMatchingResult();
 
-  // Synthesize events from DB columns when live events aren't available (post-refresh)
-  const events = rawEvents.length > 0 ? rawEvents : rawResults.length > 0 ? rawResults.map((r: any) => ({
-    tool: r.toolName || r.tool,
-    phase: "done",
-    success: r.success !== false,
-    result: r.data ?? r.output ?? r.content,
-    output: r.data ?? r.output ?? r.content,
-  })) : (() => {
-    const syn: any[] = [];
-    const calls = (message as any).tool_calls || [];
-    const results = (message as any).tool_results || [];
-    calls.forEach((c: any) => {
-      const res = results.find((r: any) => r.tool_use_id === c.id || r.tool === c.name);
-      syn.push({ tool: c.name, phase: "done", success: res ? !res.is_error : true, result: res?.content });
-    });
-    return syn;
-  })();
-
-  const event = [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName && e.phase === "done")
-    ?? [...events].reverse().find((e: any) => e.tool?.toLowerCase() === searchName);
-  const isDone = !!event && event.phase === "done";
-  const isError = isDone && event.success === false;
-  const isRunning = !!event && event.phase === "start";
-  const needsApproval = !!event && event.phase === "waiting_for_approval";
-  const candidateOutputs = [event?.result, event?.output, matchingResult?.data, matchingResult?.output, matchingResult?.content];
+  const candidateOutputs = [state.output, matchingResult?.data, matchingResult?.output, matchingResult?.content];
   const output = candidateOutputs.find(hasUsefulOutput);
 
   return (
     <ToolCallChip
       t={t}
       toolName={data.name ?? ""}
-      input={data.input}
-      isDone={isDone}
-      isRunning={isRunning}
-      isError={isError}
-      needsApproval={needsApproval}
+      input={state.input ?? data.input}
+      isDone={state.isDone}
+      isRunning={state.isRunning}
+      isError={state.isError}
+      needsApproval={state.needsApproval}
       output={output}
-      onApprove={onToolApproval ? () => onToolApproval(data.name, data.input, 'approved') : undefined}
-      onReject={onToolApproval ? () => onToolApproval(data.name, data.input, 'rejected') : undefined}
+      onApprove={onToolApproval ? () => onToolApproval(data.name, state.input ?? data.input, 'approved') : undefined}
+      onReject={onToolApproval ? () => onToolApproval(data.name, state.input ?? data.input, 'rejected') : undefined}
     />
   );
 }

@@ -9,6 +9,62 @@ export type ParsedAiMarkup = {
   blocks: AiMarkupBlock[];
 };
 
+function parseInvokeParameters(rawValue: string): unknown {
+  const source = String(rawValue || "").trim();
+  if (!source) return {};
+
+  if (source.startsWith("{") || source.startsWith("[")) {
+    try {
+      return JSON.parse(source);
+    } catch {
+      return source;
+    }
+  }
+
+  const tagPattern = /<([a-zA-Z_][\w-]*)>([\s\S]*?)<\/\1>/g;
+  const result: Record<string, unknown> = {};
+  let match: RegExpExecArray | null;
+  let foundAny = false;
+
+  while ((match = tagPattern.exec(source)) !== null) {
+    foundAny = true;
+    const key = match[1]!;
+    const value = coerceInvokeParameterValue(match[2]!.trim());
+    const existing = result[key];
+    if (existing === undefined) {
+      result[key] = value;
+    } else if (Array.isArray(existing)) {
+      existing.push(value);
+    } else {
+      result[key] = [existing, value];
+    }
+  }
+
+  return foundAny ? result : source;
+}
+
+function coerceInvokeParameterValue(rawValue: string): unknown {
+  const value = String(rawValue || "").trim();
+  if (!value) return "";
+
+  if (value.startsWith("{") || value.startsWith("[")) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // fall through
+    }
+  }
+
+  if (/<([a-zA-Z_][\w-]*)>([\s\S]*?)<\/\1>/.test(value)) {
+    return parseInvokeParameters(value);
+  }
+
+  if (/^(true|false)$/i.test(value)) return value.toLowerCase() === "true";
+  if (/^null$/i.test(value)) return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+  return value;
+}
+
 const COLLAPSIBLE_AI_TAGS = [
   "pre_think",
   "plan",
@@ -16,6 +72,7 @@ const COLLAPSIBLE_AI_TAGS = [
   "tool_plan",
   "tool_result",
   "tool_results",
+  "tool_status",
   "tool_output",
   "reasoning",
   "edit",
@@ -24,6 +81,8 @@ const COLLAPSIBLE_AI_TAGS = [
   "batch_tool",
   "batch_invoke",
 ];
+
+const INLINE_TOOL_META_TAGS = new Set(["tool_status", "tool_output"]);
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   const source = String(value || "");
@@ -98,33 +157,37 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     if (match.kind === "tool_call") {
       const name = match.raw[2]?.trim() || "";
       let rawInput = match.raw[4]?.trim() || "";
+      const idMatch = match.raw[0]?.match(/\bid\s*=\s*(["'])([^"']+)\1/i);
+      const id = idMatch ? idMatch[2] : undefined;
 
       // Greedy match fix: If we over-captured, trim to last }
       if (rawInput.includes('}')) {
         rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
       }
 
-      let parsedInput: any = rawInput;
-      try { parsedInput = JSON.parse(rawInput); } catch (e) {}
-      blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });
+      const parsedInput = parseInvokeParameters(rawInput);
+      blocks.push({ tag: "tool_call", content: JSON.stringify({ id, name, input: parsedInput }) });
     } else if (match.kind === "invoke") {
       // <invoke name="tool_name"> or <invoke id="tc-1" name="tool_name"> — any attr order
       const attrsStr = match.raw[1] || "";
       const nameMatch = attrsStr.match(/name\s*=\s*(["'])([\w_]+)\1/);
+      const idMatch = attrsStr.match(/id\s*=\s*(["'])([^"']+)\1/);
       const name = nameMatch ? nameMatch[2] : (attrsStr.trim() || "");
+      const id = idMatch ? idMatch[2] : undefined;
       const innerContent = match.raw[2] || "";
       // Extract content from <parameters>...</parameters>
       const paramsMatch = innerContent.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
       let rawInput = paramsMatch ? paramsMatch[1].trim() : innerContent.trim();
-      if (rawInput.includes('}')) {
-        rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
-      }
-      let parsedInput: any = rawInput;
-      try { parsedInput = JSON.parse(rawInput); } catch (e) {}
+      const parsedInput = parseInvokeParameters(rawInput);
       // Normalize to same "tool_call" block so the rest of the UI renders unchanged
-      blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });
+      blocks.push({ tag: "tool_call", content: JSON.stringify({ id, name, input: parsedInput }) });
     } else {
       const tag = match.raw[1].toLowerCase();
+      if (INLINE_TOOL_META_TAGS.has(tag)) {
+        lastIndex = match.end;
+        continue;
+      }
+
       const rawAttrs = (match.raw[2] || "").trim();
       const content = (match.raw[3] || "").trim();
 
@@ -195,7 +258,7 @@ function escapeLooseXmlTags(value: string): string {
   return value.replace(/<\/?([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/gi, (match, tagName) => {
     const tag = String(tagName || "").toLowerCase();
     if (isCommonMarkdownHtmlTag(tag)) return match;
-    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call" || tag === "invoke" || tag === "parameters" || tag === "tool_output") return match;
+    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call" || tag === "invoke" || tag === "parameters" || tag === "tool_output" || tag === "tool_status") return match;
     return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   });
 }

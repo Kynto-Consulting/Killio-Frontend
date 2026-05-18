@@ -33,6 +33,7 @@ export interface AgentMessage {
 }
 
 export interface ToolEvent {
+  id?: string;
   tool: string;
   input?: Record<string, unknown>;
   output?: Record<string, unknown>;
@@ -41,11 +42,202 @@ export interface ToolEvent {
   phase: "start" | "done" | "waiting_for_approval";
 }
 
+export interface ToolCallRenderState {
+  matchedEvent?: ToolEvent;
+  isDone: boolean;
+  isRunning: boolean;
+  isError: boolean;
+  needsApproval: boolean;
+  input?: Record<string, unknown>;
+  output?: Record<string, unknown>;
+}
+
+export function resolveToolCallRenderState(
+  data: { id?: string; name?: string; input?: Record<string, unknown>; output?: Record<string, unknown> },
+  events: ToolEvent[],
+  occurrenceIndex = 0,
+): ToolCallRenderState {
+  const searchName = String(data.name ?? "").toLowerCase();
+  const searchId = String(data.id ?? "").trim();
+
+  if (searchId) {
+    const matchedEvent = events.find((event) => event.id === searchId);
+    const isDone = matchedEvent?.phase === "done";
+    const isRunning = matchedEvent?.phase === "start";
+    const needsApproval = matchedEvent?.phase === "waiting_for_approval";
+    return {
+      matchedEvent,
+      isDone,
+      isRunning,
+      isError: matchedEvent?.success === false,
+      needsApproval,
+      input: matchedEvent?.input ?? data.input,
+      output: matchedEvent?.output ?? data.output,
+    };
+  }
+
+  const allDoneForTool = events.filter((event) => event.tool?.toLowerCase() === searchName && event.phase === "done");
+  const doneEvent = allDoneForTool[occurrenceIndex] ?? allDoneForTool[allDoneForTool.length - 1];
+  const allStartForTool = events.filter((event) => event.tool?.toLowerCase() === searchName && event.phase === "start");
+  const waitingApproval = events.some((event) => event.tool?.toLowerCase() === searchName && event.phase === "waiting_for_approval");
+
+  return {
+    matchedEvent: doneEvent,
+    isDone: !!doneEvent,
+    isRunning: !doneEvent && allStartForTool.length > occurrenceIndex,
+    isError: doneEvent?.success === false,
+    needsApproval: waitingApproval,
+    input: doneEvent?.input ?? data.input,
+    output: doneEvent?.output ?? data.output,
+  };
+}
+
 export interface UseAgentChatOptions {
   teamId: string;
   entityType?: AgentEntityScope;
   entityId?: string;
   resolverContext?: ResolverContext;
+}
+
+function parseInvokeParameters(inputStr: string): Record<string, unknown> {
+  const source = String(inputStr || "").trim();
+  if (!source) return {};
+
+  if (source.startsWith("{") || source.startsWith("[")) {
+    try {
+      return JSON.parse(source);
+    } catch {
+      return {};
+    }
+  }
+
+  const tagPattern = /<([a-zA-Z_][\w-]*)>([\s\S]*?)<\/\1>/g;
+  const result: Record<string, unknown> = {};
+  let match: RegExpExecArray | null;
+  let foundAny = false;
+
+  while ((match = tagPattern.exec(source)) !== null) {
+    foundAny = true;
+    const key = match[1]!;
+    const rawValue = match[2]!.trim();
+    const parsedValue = coerceInvokeParameterValue(rawValue);
+    const existing = result[key];
+    if (existing === undefined) {
+      result[key] = parsedValue;
+    } else if (Array.isArray(existing)) {
+      existing.push(parsedValue);
+    } else {
+      result[key] = [existing, parsedValue];
+    }
+  }
+
+  return foundAny ? result : {};
+}
+
+function coerceInvokeParameterValue(rawValue: string): unknown {
+  const value = String(rawValue || "").trim();
+  if (!value) return "";
+
+  if (value.startsWith("{") || value.startsWith("[")) {
+    try {
+      return JSON.parse(value);
+    } catch {
+      // fall through
+    }
+  }
+
+  if (/<([a-zA-Z_][\w-]*)>([\s\S]*?)<\/\1>/.test(value)) {
+    return parseInvokeParameters(value);
+  }
+
+  if (/^(true|false)$/i.test(value)) return value.toLowerCase() === "true";
+  if (/^null$/i.test(value)) return null;
+  if (/^-?\d+(?:\.\d+)?$/.test(value)) return Number(value);
+  return value;
+}
+
+export function parseInlineToolEvents(content: string): ToolEvent[] {
+  const events: ToolEvent[] = [];
+  if (!content) return events;
+
+  const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
+  let m: RegExpExecArray | null;
+  const invokeById = new Map<string, { id: string; tool: string; input: Record<string, unknown> }>();
+
+  while ((m = invokeRe.exec(content)) !== null) {
+    const attrsStr = m[1] ?? "";
+    const inner = m[2] ?? "";
+    const nameMatch = attrsStr.match(/name\s*=\s*["']([\w_]+)["']/);
+    const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
+    if (!nameMatch) continue;
+    const toolName = nameMatch[1]!;
+    const id = idMatch ? idMatch[1]! : toolName;
+    const paramsMatch = inner.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
+    const inputStr = paramsMatch ? paramsMatch[1].trim() : inner.trim();
+    const input = parseInvokeParameters(inputStr);
+    invokeById.set(id, { id, tool: toolName, input });
+  }
+
+  const eventById = new Map<string, ToolEvent>();
+
+  const statusRe = /<tool_status\s+([^>]+?)\/?>/gi;
+  while ((m = statusRe.exec(content)) !== null) {
+    const attrsStr = m[1] ?? "";
+    const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
+    const statusMatch = attrsStr.match(/status\s*=\s*["']([^"']+)["']/);
+    const successMatch = attrsStr.match(/success\s*=\s*["']?(true|false)["']?/);
+    const durationMatch = attrsStr.match(/duration_ms\s*=\s*["']?(\d+)["']?/);
+    const id = idMatch ? idMatch[1]! : "";
+    const status = statusMatch ? statusMatch[1]! : "done";
+    const success = successMatch ? successMatch[1] === "true" : undefined;
+    const durationMs = durationMatch ? parseInt(durationMatch[1], 10) : undefined;
+    const invokeMeta = invokeById.get(id);
+
+    const phase: ToolEvent["phase"] =
+      status === "waiting_for_approval"
+        ? "waiting_for_approval"
+        : status === "running" || status === "start"
+          ? "start"
+          : "done";
+
+      const existing = eventById.get(id);
+      eventById.set(id, {
+      id: id || invokeMeta?.id,
+      tool: invokeMeta?.tool ?? existing?.tool ?? id,
+      input: invokeMeta?.input ?? existing?.input,
+      output: existing?.output,
+      success: success ?? existing?.success,
+      durationMs: durationMs ?? existing?.durationMs,
+      phase,
+    });
+  }
+
+  const outputRe = /<tool_output\s+([^>]+?)>([\s\S]*?)<\/tool_output>/gi;
+  while ((m = outputRe.exec(content)) !== null) {
+    const attrsStr = m[1] ?? "";
+    const data = m[2]?.trim() ?? "";
+    const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
+    const successMatch = attrsStr.match(/success\s*=\s*["']?(true|false)["']?/);
+    const durationMatch = attrsStr.match(/duration_ms\s*=\s*["']?(\d+)["']?/);
+    const id = idMatch ? idMatch[1]! : "";
+    const success = successMatch ? successMatch[1] === "true" : true;
+    const durationMs = durationMatch ? parseInt(durationMatch[1], 10) : undefined;
+    const invokeMeta = invokeById.get(id);
+    let output: Record<string, unknown> = {};
+    try { output = JSON.parse(data); } catch { output = { raw: data }; }
+    eventById.set(id, {
+      id: id || invokeMeta?.id,
+      tool: invokeMeta?.tool ?? eventById.get(id)?.tool ?? id,
+      input: invokeMeta?.input ?? eventById.get(id)?.input,
+      output,
+      success,
+      durationMs,
+      phase: "done",
+    });
+  }
+
+  events.push(...eventById.values());
+  return events;
 }
 
 export function useAgentChat({ teamId, entityType, entityId, resolverContext }: UseAgentChatOptions) {
@@ -70,7 +262,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
       (event: AgentStreamEvent) => {
         switch (event.type) {
           case "tool_start":
-            toolEvts.push({ tool: event.tool, input: event.input, phase: "start" });
+            toolEvts.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: "start" });
             setActiveToolEvents([...toolEvts]);
             setMessages((prev) =>
               prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
@@ -84,6 +276,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             );
             if (idx !== -1) {
               toolEvts[toolEvts.length - 1 - idx] = {
+                id: (event as any).id ?? toolEvts[toolEvts.length - 1 - idx].id,
                 tool: event.tool,
                 // Prefer the backend-supplied input; fall back to the start event's input
                 input: event.input ?? toolEvts[toolEvts.length - 1 - idx].input,
@@ -95,6 +288,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             } else {
               // No matching start found — push a new done entry with whatever data we have
               toolEvts.push({
+                id: (event as any).id,
                 tool: event.tool,
                 input: event.input,
                 output: event.output,
@@ -127,13 +321,15 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             );
             break;
 
-          case "done":
+          case "done": {
             conversationIdRef.current = event.conversationId;
+            const realAssistantId = event.messageId ?? assistantId;
             setMessages((prev) =>
               prev.map((m) =>
                 m.id === assistantId
                   ? {
                       ...m,
+                      id: realAssistantId,
                       text: event.text || accTextRef.current,
                       isStreaming: false,
                       toolsUsed: event.toolsUsed,
@@ -145,9 +341,10 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             setIsLoading(false);
             setActiveToolEvents([]);
             break;
+          }
 
           case "tool_approval_request":
-            toolEvts.push({ tool: event.tool, input: event.input, phase: "waiting_for_approval" });
+            toolEvts.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: "waiting_for_approval" });
             setActiveToolEvents([...toolEvts]);
             setMessages((prev) =>
               prev.map((m) => m.id === assistantId ? { ...m, toolEvents: [...toolEvts] } : m),
@@ -245,59 +442,10 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
   }, []);
 
   /**
-   * Parse toolEvents from message content that contains inline <invoke> and <tool_output> blocks.
-   * This is the new format: <invoke id="tc-1" name="tool">...</invoke> + <tool_output id="tc-1" ...>data</tool_output>
+   * Parse toolEvents from message content that contains inline tool markup.
+   * Source of truth: <invoke id="tc-1" name="tool">...</invoke> + <tool_status ... /> + <tool_output ...>...</tool_output>
    */
-  const parseToolEventsFromContent = useCallback((content: string): ToolEvent[] => {
-    const events: ToolEvent[] = [];
-    if (!content) return events;
-
-    // Parse all <invoke> blocks (any attr order)
-    const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
-    let m: RegExpExecArray | null;
-    const invokeById = new Map<string, { tool: string; input: Record<string, unknown> }>();
-
-    while ((m = invokeRe.exec(content)) !== null) {
-      const attrsStr = m[1] ?? "";
-      const inner = m[2] ?? "";
-      const nameMatch = attrsStr.match(/name\s*=\s*["']([\w_]+)["']/);
-      const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
-      if (!nameMatch) continue;
-      const toolName = nameMatch[1]!;
-      const id = idMatch ? idMatch[1]! : toolName;
-      const paramsMatch = inner.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
-      const inputStr = paramsMatch ? paramsMatch[1].trim() : inner.trim();
-      let input: Record<string, unknown> = {};
-      try { input = JSON.parse(inputStr); } catch { /* ignore */ }
-      invokeById.set(id, { tool: toolName, input });
-    }
-
-    // Parse all <tool_output> blocks and match by id
-    const outputRe = /<tool_output\s+([^>]+?)>([\s\S]*?)<\/tool_output>/gi;
-    while ((m = outputRe.exec(content)) !== null) {
-      const attrsStr = m[1] ?? "";
-      const data = m[2]?.trim() ?? "";
-      const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
-      const successMatch = attrsStr.match(/success\s*=\s*["']?(true|false)["']?/);
-      const durationMatch = attrsStr.match(/duration_ms\s*=\s*["']?(\d+)["']?/);
-      const id = idMatch ? idMatch[1]! : "";
-      const success = successMatch ? successMatch[1] === "true" : true;
-      const durationMs = durationMatch ? parseInt(durationMatch[1], 10) : undefined;
-      const invokeMeta = invokeById.get(id);
-      let output: Record<string, unknown> = {};
-      try { output = JSON.parse(data); } catch { output = { raw: data }; }
-      events.push({
-        tool: invokeMeta?.tool ?? id,
-        input: invokeMeta?.input,
-        output,
-        success,
-        durationMs,
-        phase: "done",
-      });
-    }
-
-    return events;
-  }, []);
+  const parseToolEventsFromContent = useCallback((content: string): ToolEvent[] => parseInlineToolEvents(content), []);
 
   const loadConversation = useCallback(async (conversationId: string) => {
     if (!accessToken) return;
@@ -314,47 +462,19 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
             role: m.role,
             text: m.content || "",
             toolEvents: contentToolEvents,
-            toolExecution: m.metadata?.toolExecution,
             toolResults: contentToolEvents.map(e => ({ tool: e.tool, data: e.output ?? {} })),
-            toolsUsed: m.metadata?.toolsExecuted,
             isStreaming: false,
           };
         }
 
-        // 2. Try to use enriched toolExecution metadata (previous format)
-        if (m.metadata?.toolExecution) {
-          const toolResults: ToolResult[] = m.metadata.toolExecution
-            .filter((exe: any) => exe.output)
-            .map((exe: any) => ({ tool: exe.toolName, data: exe.output }));
-
-          const toolEvents: ToolEvent[] = m.metadata.toolExecution.map((exe: any) => ({
-            tool: exe.toolName,
-            input: exe.input,
-            output: exe.output,
-            success: exe.success,
-            durationMs: exe.durationMs,
-            phase: "done" as const,
-          }));
-
-          return {
-            id: m.id,
-            role: m.role,
-            text: m.content || "",
-            toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
-            toolExecution: m.metadata.toolExecution,
-            toolResults: toolResults.length > 0 ? toolResults : undefined,
-            toolsUsed: m.metadata.toolsExecuted,
-            isStreaming: false,
-          };
-        }
-
-        // 3. Fall back to synthesizing from tool_calls/tool_results columns (legacy)
+        // 2. Fall back to synthesizing from tool_calls/tool_results columns (legacy)
         const toolEvents: ToolEvent[] = [];
         const calls = m.tool_calls || [];
         const results = m.tool_results || [];
 
         calls.forEach((call: any) => {
           toolEvents.push({
+            id: call.id || call.tool_use_id,
             tool: call.function?.name || call.tool || call.name,
             input: call.function?.arguments ? JSON.parse(call.function.arguments) : (call.input || {}),
             phase: "done",
@@ -387,8 +507,8 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
           toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           isStreaming: false,
-        };
-      });
+          };
+        });
       setMessages(mapped);
     } catch (err) {
       console.error("Failed to load agent history", err);
@@ -403,7 +523,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     setActiveToolEvents([]);
   }, []);
 
-  const sendToolApproval = useCallback(async (toolName: string, input: any, decision: 'approved' | 'rejected') => {
+  const sendToolApproval = useCallback(async (toolName: string, input: any, decision: 'approved' | 'rejected', toolId?: string) => {
     if (isLoading || !accessToken) return;
 
     const lastMsg = messages[messages.length - 1];
@@ -424,7 +544,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
         entityId,
         message: lastUserTextRef.current,
         approvalDecision: decision,
-        approvalToolCall: { name: toolName, input },
+        approvalToolCall: { id: toolId, name: toolName, input },
       },
       accessToken!,
       makeStreamHandler(assistantId, toolEvts, accTextRef),

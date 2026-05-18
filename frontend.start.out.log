@@ -1,0 +1,10 @@
+
+> killio-frontend@0.1.0 start
+> next start -p 3001
+
+   ▲ Next.js 15.5.12
+   - Local:        http://localhost:3001
+   - Network:      http://172.16.0.2:3001
+
+ ✓ Starting...
+ ✓ Ready in 3.1s

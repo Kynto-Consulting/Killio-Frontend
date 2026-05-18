@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
-import { useAgentChat, AgentMessage, ToolEvent, ToolResult } from "@/hooks/use-agent-chat";
+import { useAgentChat, AgentMessage, ToolEvent, ToolResult, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
@@ -804,7 +804,7 @@ function AssistantMessage({
   copied: boolean;
   onThumb: (v: "up" | "down") => void;
   onRetry: () => void;
-  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
+  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected', toolId?: string) => void;
   resolverContext?: ResolverContext;
   availableTags?: any[];
 }) {
@@ -879,8 +879,7 @@ function AssistantMessage({
             const anyRunning = toolCalls.some(sub => {
               try {
                 const d = JSON.parse(sub.content);
-                const events = message.toolEvents ?? [];
-                return events.some(e => e.tool?.toLowerCase() === d.name?.toLowerCase() && e.phase === "start");
+                return resolveToolCallRenderState(d, message.toolEvents ?? []).isRunning;
               } catch { return false; }
             });
             // Map sub-chip occurrence for this batch block
@@ -1475,34 +1474,23 @@ function AgentToolCallChip({
   message: AgentMessage;
   /** Which occurrence of this tool name this chip represents (0-based). Used to disambiguate when the same tool runs multiple times. */
   occurrenceIndex?: number;
-  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
+  onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected', toolId?: string) => void;
 }) {
-  const searchName = (data.name ?? "").toLowerCase();
   const events = message.toolEvents ?? [];
-  // Filter all done events for this tool name — pick the Nth one matching the chip's occurrence
-  const allDoneForTool = events.filter(e => e.tool?.toLowerCase() === searchName && e.phase === "done");
-  const doneEvent   = allDoneForTool[occurrenceIndex] ?? allDoneForTool[allDoneForTool.length - 1];
-  const isDone      = !!doneEvent;
-  const isError     = doneEvent?.success === false;
-  // For isRunning: check that the Nth start event exists but no done event yet for this occurrence
-  const allStartForTool = events.filter(e => e.tool?.toLowerCase() === searchName && e.phase === "start");
-  const isRunning   = !isDone && allStartForTool.length > occurrenceIndex;
-  const needsApproval = events.some(e => e.tool?.toLowerCase() === searchName && e.phase === "waiting_for_approval");
-  const output      = doneEvent?.output ?? data.output;
-  const input       = doneEvent?.input  ?? data.input;
+  const state = resolveToolCallRenderState(data, events, occurrenceIndex);
 
   return (
     <ToolCallChip
       t={t}
       toolName={data.name ?? ""}
-      input={input}
-      isDone={isDone}
-      isRunning={isRunning}
-      isError={isError}
-      needsApproval={needsApproval}
-      output={output}
-      onApprove={onToolApproval ? () => onToolApproval(data.name, data.input, 'approved') : undefined}
-      onReject={onToolApproval  ? () => onToolApproval(data.name, data.input, 'rejected') : undefined}
+      input={state.input}
+      isDone={state.isDone}
+      isRunning={state.isRunning}
+      isError={state.isError}
+      needsApproval={state.needsApproval}
+      output={state.output}
+      onApprove={onToolApproval ? () => onToolApproval(data.name, data.input, 'approved', data.id) : undefined}
+      onReject={onToolApproval  ? () => onToolApproval(data.name, data.input, 'rejected', data.id) : undefined}
     />
   );
 }

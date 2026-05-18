@@ -32,6 +32,45 @@ import { CreateRoomModal } from "@/components/rooms/CreateRoomModal";
 import { CreateRoomGroupModal } from "@/components/rooms/CreateRoomGroupModal";
 import { Loader2, Phone, X } from "lucide-react";
 
+const escapeXmlAttr = (value: string) => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+const buildRoomAiContent = (text: string, toolEvents: any[]): string => {
+  const blocks: string[] = [];
+  const baseText = String(text || "").trim();
+  if (baseText) blocks.push(baseText);
+
+  for (const event of toolEvents) {
+    const id = String(event.id ?? `tc-${event.tool ?? event.toolName ?? "tool"}`);
+    const toolName = String(event.tool ?? event.toolName ?? "tool");
+    const input = event.input ?? {};
+    const output = event.output ?? event.result ?? event.data;
+
+    blocks.push(`<invoke id="${escapeXmlAttr(id)}" name="${escapeXmlAttr(toolName)}"><parameters>${JSON.stringify(input)}</parameters></invoke>`);
+
+    if (event.phase === "waiting_for_approval") {
+      blocks.push(`<tool_status id="${escapeXmlAttr(id)}" status="waiting_for_approval" />`);
+      continue;
+    }
+
+    if (event.phase === "start") {
+      blocks.push(`<tool_status id="${escapeXmlAttr(id)}" status="running" />`);
+      continue;
+    }
+
+    if (event.phase === "done") {
+      const success = event.success !== false;
+      const durationMs = typeof event.durationMs === "number" ? event.durationMs : 0;
+      blocks.push(`<tool_status id="${escapeXmlAttr(id)}" status="${success ? "done" : "error"}" success="${success}" duration_ms="${durationMs}" />`);
+      if (output !== undefined) {
+        const outputText = typeof output === "string" ? output : JSON.stringify(output);
+        blocks.push(`<tool_output id="${escapeXmlAttr(id)}" success="${success}" duration_ms="${durationMs}">${outputText}</tool_output>`);
+      }
+    }
+  }
+
+  return blocks.join("\n");
+};
+
 export default function RoomDetailWeb() {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -224,7 +263,6 @@ Team Context: ${activeTeamId}.`;
     // 3. Stream response
     let accText = existingBotMsg?.content || "";
     const toolEvents: any[] = (existingBotMsg?.metadata?.toolEvents as any[]) || [];
-    const toolResults: Array<{ tool: string; toolName?: string; data: Record<string, unknown>; output?: Record<string, unknown>; content?: unknown }> = (existingBotMsg?.metadata?.toolResults as any[]) || [];
 
     streamAgentChat(
       {
@@ -240,34 +278,35 @@ Team Context: ${activeTeamId}.`;
         if (event.type === "delta") {
           accText += event.text;
           chatHook.updateLocalMessage(botMsgId, { 
-            content: accText || "AI_THINKING",
-            metadata: { toolEvents: [...toolEvents] } 
+            content: buildRoomAiContent(accText || "AI_THINKING", toolEvents),
+            metadata: { ...((existingBotMsg?.metadata as any) || {}) }
           });
         } else if (event.type === "tool_start") {
-          toolEvents.push({ tool: event.tool, input: event.input, phase: "start" });
+          toolEvents.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: "start" });
           chatHook.updateLocalMessage(botMsgId, { 
-            content: accText || `AI_THINKING_TOOL:${event.tool}`,
-            metadata: { toolEvents: [...toolEvents] } 
+            content: buildRoomAiContent(accText || `AI_THINKING_TOOL:${event.tool}`, toolEvents),
+            metadata: { ...((existingBotMsg?.metadata as any) || {}) }
           });
         } else if (event.type === "tool_approval_request") {
-          const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && e.phase === "start");
+          const idx = [...toolEvents].reverse().findIndex(e => (e.id && e.id === (event as any).id) || (e.tool === event.tool && e.phase === "start"));
           if (idx !== -1) {
             const actualIdx = toolEvents.length - 1 - idx;
-            toolEvents[actualIdx] = { ...toolEvents[actualIdx], phase: "waiting_for_approval" };
+            toolEvents[actualIdx] = { ...toolEvents[actualIdx], id: (event as any).id ?? toolEvents[actualIdx].id, phase: "waiting_for_approval" };
           }
           chatHook.updateLocalMessage(botMsgId, { 
-            content: accText, 
+            content: buildRoomAiContent(accText, toolEvents), 
             status: 'sent',
-            metadata: { toolEvents: [...toolEvents] } 
+            metadata: { ...((existingBotMsg?.metadata as any) || {}) } 
           });
         } else if (event.type === "tool_done") {
           const incomingOutput = (event as any).output ?? (event as any).result ?? (event as any).data;
-          const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && (e.phase === "start" || e.phase === "waiting_for_approval"));
+          const idx = [...toolEvents].reverse().findIndex(e => (e.id && e.id === (event as any).id) || (e.tool === event.tool && (e.phase === "start" || e.phase === "waiting_for_approval")));
           if (idx !== -1) {
             const actualIdx = toolEvents.length - 1 - idx;
             const previousOutput = toolEvents[actualIdx]?.output ?? toolEvents[actualIdx]?.result ?? toolEvents[actualIdx]?.data;
             toolEvents[actualIdx] = { 
               ...toolEvents[actualIdx], 
+              id: (event as any).id ?? toolEvents[actualIdx].id,
               phase: "done", 
               success: event.success, 
               durationMs: event.durationMs,
@@ -276,6 +315,7 @@ Team Context: ${activeTeamId}.`;
             };
           } else {
             toolEvents.push({ 
+              id: (event as any).id,
               tool: event.tool, 
               phase: "done", 
               success: event.success, 
@@ -285,35 +325,37 @@ Team Context: ${activeTeamId}.`;
             });
           }
           chatHook.updateLocalMessage(botMsgId, { 
-            content: accText || "AI_THINKING",
-            metadata: { toolEvents: [...toolEvents], toolResults: [...toolResults] } 
+            content: buildRoomAiContent(accText || "AI_THINKING", toolEvents),
+            metadata: { ...((existingBotMsg?.metadata as any) || {}) }
           });
         } else if (event.type === "tool_result") {
-          toolResults.push({ tool: event.tool, toolName: event.tool, data: event.data, output: event.data, content: event.data });
-          const idx = [...toolEvents].reverse().findIndex(e => e.tool === event.tool && (e.phase === "start" || e.phase === "waiting_for_approval" || e.phase === "done"));
+          const incomingOutput = event.data;
+          const idx = [...toolEvents].reverse().findIndex(e => (e.id && e.id === (event as any).id) || (e.tool === event.tool && (e.phase === "start" || e.phase === "waiting_for_approval" || e.phase === "done")));
           if (idx !== -1) {
             const actualIdx = toolEvents.length - 1 - idx;
             toolEvents[actualIdx] = {
               ...toolEvents[actualIdx],
-              output: event.data,
-              result: event.data,
+              id: (event as any).id ?? toolEvents[actualIdx].id,
+              output: incomingOutput,
+              result: incomingOutput,
               phase: "done",
               success: event.success !== false,
               durationMs: event.durationMs ?? toolEvents[actualIdx]?.durationMs,
             };
           } else {
             toolEvents.push({
+              id: (event as any).id,
               tool: event.tool,
               phase: "done",
               success: event.success !== false,
               durationMs: event.durationMs,
-              output: event.data,
-              result: event.data,
+              output: incomingOutput,
+              result: incomingOutput,
             });
           }
           chatHook.updateLocalMessage(botMsgId, {
-            content: accText || "AI_THINKING",
-            metadata: { toolEvents: [...toolEvents], toolResults: [...toolResults] }
+            content: buildRoomAiContent(accText || "AI_THINKING", toolEvents),
+            metadata: { ...((existingBotMsg?.metadata as any) || {}) }
           });
         } else if (event.type === "done") {
           const finalContent = event.text || accText;
@@ -330,21 +372,14 @@ Team Context: ${activeTeamId}.`;
     };
     
     chatHook.updateLocalMessage(botMsgId, { 
-      content: finalContent, 
+      content: buildRoomAiContent(finalContent, toolEvents), 
       status: "sent",
       user: botUser,
-      metadata: { 
-        toolEvents: [...toolEvents], 
-        toolResults: [...toolResults],
-        ...billingMetadata
-      } 
+      metadata: { ...billingMetadata } 
     });
 
           // Save to DB and broadcast to others via backend
-          sendAiRoomMessage(roomId, finalContent, accessToken, {
-            toolEvents,
-            toolResults,
-            localBotId: botMsgId,
+          sendAiRoomMessage(roomId, buildRoomAiContent(finalContent, toolEvents), accessToken, {
             ...billingMetadata
           }).catch(console.error);
 

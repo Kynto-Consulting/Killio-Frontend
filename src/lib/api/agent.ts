@@ -14,15 +14,16 @@ export interface AgentConversation {
 }
 
 export type AgentStreamEvent =
-  | { type: 'tool_start'; tool: string; input?: Record<string, unknown> }
-  | { type: 'tool_done'; tool: string; success: boolean; durationMs: number; input?: Record<string, unknown>; output?: Record<string, unknown> }
-  | { type: 'tool_approval_request'; tool: string; input: Record<string, unknown> }
-  | { type: 'tool_result'; tool: string; data: Record<string, unknown>; success?: boolean; durationMs?: number }
+  | { type: 'tool_start'; id?: string; tool: string; input?: Record<string, unknown> }
+  | { type: 'tool_done'; id?: string; tool: string; success: boolean; durationMs: number; input?: Record<string, unknown>; output?: Record<string, unknown> }
+  | { type: 'tool_approval_request'; id?: string; tool: string; input: Record<string, unknown> }
+  | { type: 'tool_result'; id?: string; tool: string; data: Record<string, unknown>; success?: boolean; durationMs?: number }
   | { type: 'delta'; text: string }
   | { 
       type: 'done'; 
       text: string; 
       conversationId: string; 
+      messageId?: string;
       toolsUsed: string[];
       toolExecution?: Array<{
         toolName: string;
@@ -52,7 +53,7 @@ export function streamAgentChat(
     teamId: string;
     message: string;
     approvalDecision?: 'approved' | 'rejected';
-    approvalToolCall?: { name: string; input: any };
+    approvalToolCall?: { id?: string; name: string; input: any };
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

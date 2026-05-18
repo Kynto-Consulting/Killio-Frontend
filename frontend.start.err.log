@@ -1,0 +1,23 @@
+ ⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of D:\Github\Kynto\package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * D:\Github\Kynto\Killio\Killio-Frontend\package-lock.json
+
+[@serwist/next] WARNING: You are using '@serwist/next' with `next dev --turbopack`, but it doesn't support Turbopack. Do one of the following:
+
+- Set `disable` to `process.env.NODE_ENV !== "production"`.
+
+- Use webpack by running `next dev --webpack` instead of `next dev --turbopack`.
+
+- Migrate to '@serwist/turbopack' which has experimental support for Turbopack. See https://serwist.pages.dev/docs/next/turbo for more information.
+
+- Migrate to configurator mode which has support for Turbopack. See https://serwist.pages.dev/docs/next/config for more information. 
+
+Follow https://github.com/serwist/serwist/issues/54 for progress on Serwist + Turbopack. You can also suppress this warning by setting SERWIST_SUPPRESS_TURBOPACK_WARNING=1.
+
+ ⚠ Webpack is configured while Turbopack is not, which may cause problems.
+ ⚠ See instructions if you need to configure Turbopack:
+  https://nextjs.org/docs/app/api-reference/next-config-js/turbopack
+
