@@ -16,11 +16,13 @@ const COLLAPSIBLE_AI_TAGS = [
   "tool_plan",
   "tool_result",
   "tool_results",
+  "tool_output",
   "reasoning",
   "edit",
   "asset",
   "poll",
   "batch_tool",
+  "batch_invoke",
 ];
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
@@ -39,18 +41,18 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
 
   const tagList = COLLAPSIBLE_AI_TAGS.join("|");
 
-  // Two separate patterns to avoid backreference numbering issues:
-  // Pattern A: tool_call self-closing
-  // Pattern B: collapsible tags — self-closing OR paired with explicit closing tag list
-  //   closing tag: </tagname> with optional trailing whitespace/backslash
+  // Pattern A: legacy tool_call self-closing — <tool_call name="x" input='...' />
   const toolCallRe = /<tool(?:_call)?\s+(?:name\s*=?\s*(["'])([^"']+)\1\s+)?input\s*=\s*(["'])([\s\S]*?)\3\s*\/?>/gi;
+  // Pattern B: new Anthropic invoke format — <invoke name="x"> or <invoke id="tc-1" name="x"> (any attr order)
+  const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
+  // Pattern C: collapsible tags (batch_tool, batch_invoke, pre_think, plan, etc.)
   const collapsibleRe = new RegExp(
     `<(${tagList})\\b([^>]*?)(?:\\s*\\/>|>([\\s\\S]*?)<\\s*\\/\\s*(?:${tagList})\\s*>\\\\?)`,
     "gi"
   );
 
-  // Merge both into a single scan by collecting all matches with positions
-  type RawMatch = { index: number; end: number; kind: "tool_call" | "tag"; raw: RegExpExecArray };
+  // Merge all into a single scan by collecting all matches with positions
+  type RawMatch = { index: number; end: number; kind: "tool_call" | "invoke" | "tag"; raw: RegExpExecArray };
   const allMatches: RawMatch[] = [];
 
   let m: RegExpExecArray | null;
@@ -58,6 +60,12 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   while ((m = toolCallRe.exec(source)) !== null) {
     if (!isInsideCode(m.index)) {
       allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "tool_call", raw: m });
+    }
+  }
+  invokeRe.lastIndex = 0;
+  while ((m = invokeRe.exec(source)) !== null) {
+    if (!isInsideCode(m.index)) {
+      allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "invoke", raw: m });
     }
   }
   collapsibleRe.lastIndex = 0;
@@ -90,7 +98,7 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     if (match.kind === "tool_call") {
       const name = match.raw[2]?.trim() || "";
       let rawInput = match.raw[4]?.trim() || "";
-      
+
       // Greedy match fix: If we over-captured, trim to last }
       if (rawInput.includes('}')) {
         rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
@@ -98,6 +106,22 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
 
       let parsedInput: any = rawInput;
       try { parsedInput = JSON.parse(rawInput); } catch (e) {}
+      blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });
+    } else if (match.kind === "invoke") {
+      // <invoke name="tool_name"> or <invoke id="tc-1" name="tool_name"> — any attr order
+      const attrsStr = match.raw[1] || "";
+      const nameMatch = attrsStr.match(/name\s*=\s*(["'])([\w_]+)\1/);
+      const name = nameMatch ? nameMatch[2] : (attrsStr.trim() || "");
+      const innerContent = match.raw[2] || "";
+      // Extract content from <parameters>...</parameters>
+      const paramsMatch = innerContent.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
+      let rawInput = paramsMatch ? paramsMatch[1].trim() : innerContent.trim();
+      if (rawInput.includes('}')) {
+        rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
+      }
+      let parsedInput: any = rawInput;
+      try { parsedInput = JSON.parse(rawInput); } catch (e) {}
+      // Normalize to same "tool_call" block so the rest of the UI renders unchanged
       blocks.push({ tag: "tool_call", content: JSON.stringify({ name, input: parsedInput }) });
     } else {
       const tag = match.raw[1].toLowerCase();
@@ -171,7 +195,7 @@ function escapeLooseXmlTags(value: string): string {
   return value.replace(/<\/?([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/gi, (match, tagName) => {
     const tag = String(tagName || "").toLowerCase();
     if (isCommonMarkdownHtmlTag(tag)) return match;
-    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call") return match;
+    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call" || tag === "invoke" || tag === "parameters" || tag === "tool_output") return match;
     return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   });
 }
@@ -184,14 +208,15 @@ function isCommonMarkdownHtmlTag(tag: string): boolean {
 }
 
 /**
- * Splits text content at the start of an incomplete `<tool_call` or `<batch_tool` tag.
+ * Splits text content at the start of an incomplete tool-call tag.
+ * Handles both legacy `<tool_call` / `<batch_tool` and new `<invoke` / `<batch_invoke` formats.
  * During streaming, the model may emit partial opening tags before they are fully
  * closed — these fall through `parseAiMarkup` as plain text blocks.
  * Call this on any text block content to strip the partial XML and signal that a
  * "Building tool call…" placeholder should be rendered instead.
  */
 export function splitAtPartialToolTag(content: string): { clean: string; hasPartial: boolean } {
-  const idx = content.search(/<(?:batch_tool|tool_call)\b/i);
+  const idx = content.search(/<(?:batch_invoke|batch_tool|invoke|tool_call)\b/i);
   if (idx === -1) return { clean: content, hasPartial: false };
   return {
     clean: content.slice(0, idx).trimEnd(),

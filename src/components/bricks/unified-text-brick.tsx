@@ -61,11 +61,7 @@ const toMathMarkdown = (formula: string, mode: MathMode): string => {
 
 
 
-const logPasteDebug = (...args: unknown[]) => {
-  if (process.env.NODE_ENV !== "production") {
-    console.log("[TextBrickPaste]", ...args);
-  }
-};
+const logPasteDebug = (..._args: unknown[]) => { /* removed debug logging */ };
 
 export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   id,
@@ -1821,7 +1817,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 contentRef.current.innerHTML = processMarkdownWithPills(sizeMd);
               }
             } else {
-              console.log('Action clicked:', action);
+              void action;
             }
             }}
           />

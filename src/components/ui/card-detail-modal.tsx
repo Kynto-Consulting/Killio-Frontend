@@ -732,15 +732,11 @@ export function CardDetailModal({
 
   const handleUpdateBrick = async (brickId: string, input: Partial<BrickMutationInput>) => {
     if (!accessToken) {
-      console.log('[UpdateBrick] early exit: missing accessToken');
       return;
     }
 
-    console.log('[UpdateBrick] updating brick', { brickId, input });
-
     // Handle legacy summary fallback: dynamically convert to a real database brick
     if (brickId.endsWith(':summary') && card?.id) {
-      console.log('[UpdateBrick] converting :summary fallback to a real brick');
       try {
         const fullInput: BrickMutationInput = {
           ...input,
@@ -749,7 +745,6 @@ export function CardDetailModal({
         } as BrickMutationInput;
         const res = await createCardBrick(card.id, fullInput, accessToken);
         setLocalBlocks(prev => prev.map(b => (b.id === brickId ? res.brick : b)));
-        console.log('[UpdateBrick] server fallback conversion complete', res.brick);
         return;
       } catch (err) {
         console.error("Failed to convert fallback summary to brick", err);
@@ -771,17 +766,13 @@ export function CardDetailModal({
       return { ...b, ...input };
     }) as BoardBrick[]);
 
-    console.log('[UpdateBrick] local update complete');
-
     // If we have card.id, also sync with server
     if (!card?.id) {
-      console.log('[UpdateBrick] no card.id, updated locally only (optimistic)');
       return;
     }
 
     try {
       await updateCardBrick(card.id, brickId, input as any, accessToken);
-      console.log('[UpdateBrick] server update complete');
     } catch (err) {
       console.error("Failed to update brick on server", err);
     }
@@ -964,32 +955,13 @@ export function CardDetailModal({
     cursorOffset: number;
     markdown: string;
   }) => {
-    if (process.env.NODE_ENV !== 'production') {
-      console.log('[CardTextPaste] start', {
-        brickId,
-        fileName: file?.name,
-        fileType: file?.type,
-        fileSize: file?.size,
-        cursorOffset,
-        markdownLength: markdown?.length ?? 0,
-      });
-    }
-
     const targetIndex = localBlocks.findIndex((block) => block.id === brickId);
     if (targetIndex < 0) {
-      console.log('[CardTextPaste] early exit: brick not found', {
-        brickId,
-        availableBrickIds: localBlocks.map((b) => b.id),
-      });
       return;
     }
 
     const target = localBlocks[targetIndex] as any;
     if (target.kind !== 'text') {
-      console.log('[CardTextPaste] early exit: brick is not text kind', {
-        brickId,
-        actualKind: target.kind,
-      });
       return;
     }
 
@@ -1001,14 +973,6 @@ export function CardDetailModal({
     const isAtEnd = safeCursor >= sourceMarkdown.length;
     const isAtMiddle = !isAtStart && !isAtEnd;
 
-    console.log('[CardTextPaste] cursor position', {
-      cursorOffset: safeCursor,
-      textLength: sourceMarkdown.length,
-      isAtStart,
-      isAtEnd,
-      isAtMiddle,
-    });
-
     try {
       let imageUrl: string | null = null;
       let assetKey: string | null = null;
@@ -1016,15 +980,10 @@ export function CardDetailModal({
 
       if (accessToken) {
         try {
-          console.log('[CardTextPaste] attempting upload...');
           const uploaded = await uploadFile(file, accessToken);
           imageUrl = uploaded.url;
           assetKey = uploaded.key;
           uploadedToServer = true;
-          console.log('[CardTextPaste] upload successful', {
-            url: uploaded.url,
-            key: uploaded.key,
-          });
         } catch (uploadErr) {
           console.error('[CardTextPaste] upload failed, using local blob fallback', uploadErr);
           imageUrl = URL.createObjectURL(file);
@@ -1034,7 +993,6 @@ export function CardDetailModal({
       } else {
         imageUrl = URL.createObjectURL(file);
         assetKey = null;
-        console.log('[CardTextPaste] using local blob URL (no card.id/accessToken)');
       }
 
       if (!imageUrl) {
@@ -1061,17 +1019,14 @@ export function CardDetailModal({
 
       if (isAtStart) {
         // Insert media brick BEFORE text brick
-        console.log('[CardTextPaste] inserting media brick at start');
         mediaBrick.position = target.position - 0.5; // Between previous and current
         newBlocks.splice(targetIndex, 0, mediaBrick);
       } else if (isAtEnd) {
         // Insert media brick AFTER text brick
-        console.log('[CardTextPaste] inserting media brick at end');
         mediaBrick.position = target.position + 0.5; // Between current and next
         newBlocks.splice(targetIndex + 1, 0, mediaBrick);
       } else if (isAtMiddle) {
         // Split text brick and insert media brick in the middle
-        console.log('[CardTextPaste] splitting text brick and inserting media in middle');
         const beforeText = sourceMarkdown.slice(0, safeCursor).trimEnd();
         const afterText = sourceMarkdown.slice(safeCursor).trimStart();
 
@@ -1107,8 +1062,6 @@ export function CardDetailModal({
 
       // If card has an ID, persist to server
       if (card?.id && accessToken && uploadedToServer) {
-        console.log('[CardTextPaste] persisting to server...');
-
         // Create or update each brick on server
         for (const block of newBlocks) {
           if (block.id.startsWith('temp-')) {
@@ -1140,13 +1093,8 @@ export function CardDetailModal({
         );
       }
 
-      console.log('[CardTextPaste] image paste complete');
       return; // Success, no string return needed since we created new bricks
     } catch (err) {
-      console.error('[CardTextPaste] EXCEPTION caught', {
-        error: err instanceof Error ? err.message : String(err),
-        errorFull: err,
-      });
       console.error('Failed to paste image into text block', err);
       toast('No se pudo pegar la imagen.', 'error');
       return;

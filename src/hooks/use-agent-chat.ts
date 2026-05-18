@@ -244,6 +244,61 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     );
   }, []);
 
+  /**
+   * Parse toolEvents from message content that contains inline <invoke> and <tool_output> blocks.
+   * This is the new format: <invoke id="tc-1" name="tool">...</invoke> + <tool_output id="tc-1" ...>data</tool_output>
+   */
+  const parseToolEventsFromContent = useCallback((content: string): ToolEvent[] => {
+    const events: ToolEvent[] = [];
+    if (!content) return events;
+
+    // Parse all <invoke> blocks (any attr order)
+    const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
+    let m: RegExpExecArray | null;
+    const invokeById = new Map<string, { tool: string; input: Record<string, unknown> }>();
+
+    while ((m = invokeRe.exec(content)) !== null) {
+      const attrsStr = m[1] ?? "";
+      const inner = m[2] ?? "";
+      const nameMatch = attrsStr.match(/name\s*=\s*["']([\w_]+)["']/);
+      const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
+      if (!nameMatch) continue;
+      const toolName = nameMatch[1]!;
+      const id = idMatch ? idMatch[1]! : toolName;
+      const paramsMatch = inner.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
+      const inputStr = paramsMatch ? paramsMatch[1].trim() : inner.trim();
+      let input: Record<string, unknown> = {};
+      try { input = JSON.parse(inputStr); } catch { /* ignore */ }
+      invokeById.set(id, { tool: toolName, input });
+    }
+
+    // Parse all <tool_output> blocks and match by id
+    const outputRe = /<tool_output\s+([^>]+?)>([\s\S]*?)<\/tool_output>/gi;
+    while ((m = outputRe.exec(content)) !== null) {
+      const attrsStr = m[1] ?? "";
+      const data = m[2]?.trim() ?? "";
+      const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
+      const successMatch = attrsStr.match(/success\s*=\s*["']?(true|false)["']?/);
+      const durationMatch = attrsStr.match(/duration_ms\s*=\s*["']?(\d+)["']?/);
+      const id = idMatch ? idMatch[1]! : "";
+      const success = successMatch ? successMatch[1] === "true" : true;
+      const durationMs = durationMatch ? parseInt(durationMatch[1], 10) : undefined;
+      const invokeMeta = invokeById.get(id);
+      let output: Record<string, unknown> = {};
+      try { output = JSON.parse(data); } catch { output = { raw: data }; }
+      events.push({
+        tool: invokeMeta?.tool ?? id,
+        input: invokeMeta?.input,
+        output,
+        success,
+        durationMs,
+        phase: "done",
+      });
+    }
+
+    return events;
+  }, []);
+
   const loadConversation = useCallback(async (conversationId: string) => {
     if (!accessToken) return;
     conversationIdRef.current = conversationId;
@@ -251,20 +306,41 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     try {
       const raw = await getAgentMessages(conversationId, accessToken);
       const mapped: AgentMessage[] = raw.map((m) => {
-        // Try to use enriched toolExecution metadata first (new structure)
+        // 1. Try parsing toolEvents from inline <invoke>/<tool_output> content (new format)
+        const contentToolEvents = m.content ? parseToolEventsFromContent(m.content) : [];
+        if (contentToolEvents.length > 0) {
+          return {
+            id: m.id,
+            role: m.role,
+            text: m.content || "",
+            toolEvents: contentToolEvents,
+            toolExecution: m.metadata?.toolExecution,
+            toolResults: contentToolEvents.map(e => ({ tool: e.tool, data: e.output ?? {} })),
+            toolsUsed: m.metadata?.toolsExecuted,
+            isStreaming: false,
+          };
+        }
+
+        // 2. Try to use enriched toolExecution metadata (previous format)
         if (m.metadata?.toolExecution) {
-          // Extract tool results from metadata for display
           const toolResults: ToolResult[] = m.metadata.toolExecution
             .filter((exe: any) => exe.output)
-            .map((exe: any) => ({
-              tool: exe.toolName,
-              data: exe.output,
-            }));
+            .map((exe: any) => ({ tool: exe.toolName, data: exe.output }));
+
+          const toolEvents: ToolEvent[] = m.metadata.toolExecution.map((exe: any) => ({
+            tool: exe.toolName,
+            input: exe.input,
+            output: exe.output,
+            success: exe.success,
+            durationMs: exe.durationMs,
+            phase: "done" as const,
+          }));
 
           return {
             id: m.id,
             role: m.role,
             text: m.content || "",
+            toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
             toolExecution: m.metadata.toolExecution,
             toolResults: toolResults.length > 0 ? toolResults : undefined,
             toolsUsed: m.metadata.toolsExecuted,
@@ -272,7 +348,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
           };
         }
 
-        // Fall back to synthesizing toolEvents from tool_calls and tool_results columns (legacy)
+        // 3. Fall back to synthesizing from tool_calls/tool_results columns (legacy)
         const toolEvents: ToolEvent[] = [];
         const calls = m.tool_calls || [];
         const results = m.tool_results || [];
@@ -280,38 +356,35 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
         calls.forEach((call: any) => {
           toolEvents.push({
             tool: call.function?.name || call.tool || call.name,
-            input: call.function?.arguments ? JSON.parse(call.function.arguments) : call.input || {},
+            input: call.function?.arguments ? JSON.parse(call.function.arguments) : (call.input || {}),
             phase: "done",
             success: true,
           });
         });
 
         results.forEach((res: any) => {
-          const match = toolEvents.find(e => e.tool === res.tool_use_id || e.tool === res.tool || e.tool === res.toolName);
+          const match = toolEvents.find(e =>
+            e.tool === res.tool_use_id || e.tool === res.tool || e.tool === res.toolName,
+          );
           if (match) {
             match.success = !res.is_error && res.success !== false;
-            if (res.output) {
-              match.output = res.output;
-            }
-            if (res.durationMs) {
-              match.durationMs = res.durationMs;
-            }
+            if (res.output) match.output = res.output;
+            if (res.durationMs) match.durationMs = res.durationMs;
           }
         });
 
-        // Also extract tool results for legacy format
         const toolResults: ToolResult[] = results
-          .filter((res: any) => res.content)
+          .filter((res: any) => res.content || res.output)
           .map((res: any) => ({
             tool: res.toolName || res.tool,
-            data: res.output || (typeof res.content === 'string' ? JSON.parse(res.content) : res.content),
+            data: res.output || (typeof res.content === "string" ? JSON.parse(res.content) : res.content),
           }));
 
         return {
           id: m.id,
           role: m.role,
           text: m.content || "",
-          toolEvents,
+          toolEvents: toolEvents.length > 0 ? toolEvents : undefined,
           toolResults: toolResults.length > 0 ? toolResults : undefined,
           isStreaming: false,
         };
@@ -322,7 +395,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken]);
+  }, [accessToken, parseToolEventsFromContent]);
 
   const cancel = useCallback(() => {
     cancelRef.current?.();

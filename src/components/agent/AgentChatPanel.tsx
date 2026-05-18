@@ -850,10 +850,10 @@ function AssistantMessage({
             toolOccurrenceCounter.set(n, idx + 1);
             return idx;
           };
-          // First pass: count occurrences in document order (batch_tool sub-chips + direct chips)
+          // First pass: count occurrences in document order (batch sub-chips + direct chips)
           const blockOccurrences: Array<{ blockIndex: number; subIndex?: number; occurrence: number }> = [];
           markupBlocks.forEach((block, blockIndex) => {
-            if (block.tag === "batch_tool") {
+            if (block.tag === "batch_tool" || block.tag === "batch_invoke") {
               const { blocks: subBlocks } = parseAiMarkup(block.content);
               subBlocks.filter(b => b.tag === 'tool_call').forEach((sub, subIndex) => {
                 try {
@@ -873,7 +873,7 @@ function AssistantMessage({
           const key = `${block.tag}-${index}`;
           const isExpanded = expandedMarkup.has(key);
 
-          if (block.tag === "batch_tool") {
+          if (block.tag === "batch_tool" || block.tag === "batch_invoke") {
             const { blocks: subBlocks } = parseAiMarkup(block.content);
             const toolCalls = subBlocks.filter(b => b.tag === 'tool_call');
             const anyRunning = toolCalls.some(sub => {

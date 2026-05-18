@@ -2589,7 +2589,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         setRecognizing(false);
         if (!result) { toast(tMesh("errors.iinkNoResponse"), "error"); return; }
         const { text, shapes } = result;
-        console.log("[iink]", { text, shapes });
         const primaryShape = shapes[0];
         const mapped = primaryShape ? shapeKindToBrick(primaryShape.kind) : null;
         if (!mapped && (!text || !text.trim())) {
