@@ -828,10 +828,10 @@ export async function login(payload: LoginPayload): Promise<AuthResponse | OtpRe
   });
 }
 
-export async function refresh(refreshToken: string): Promise<AuthResponse> {
+export async function refresh(refreshToken: string, rememberMe?: boolean): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/refresh', {
     method: 'POST',
-    body: JSON.stringify({ refreshToken }),
+    body: JSON.stringify({ refreshToken, rememberMe }),
   });
 }
 

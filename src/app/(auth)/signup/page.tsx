@@ -81,7 +81,7 @@ function SignupPageContent() {
       localStorage.setItem("killio_refresh", data.refreshToken);
       localStorage.setItem("killio_user", JSON.stringify(data.user));
 
-      login(data.user, data.accessToken, data.refreshToken);
+      login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
       router.push(safeFrom);
     } catch (unknownError: unknown) {
       const message = unknownError instanceof Error ? unknownError.message : t("signup.serverError");

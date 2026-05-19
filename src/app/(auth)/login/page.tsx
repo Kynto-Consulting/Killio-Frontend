@@ -53,7 +53,7 @@ function LoginPageContent() {
     document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
     localStorage.setItem("killio_refresh", data.refreshToken);
     localStorage.setItem("killio_user", JSON.stringify(data.user));
-    login(data.user, data.accessToken, data.refreshToken);
+    login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
     router.push(safeFrom);
   }
 

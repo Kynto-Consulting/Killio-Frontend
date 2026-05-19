@@ -49,7 +49,7 @@ function VerifyOtpContent() {
           document.cookie = `killio_token=${result.accessToken}; path=/; max-age=${result.expiresInSeconds}`;
           localStorage.setItem("killio_refresh", result.refreshToken);
           localStorage.setItem("killio_user", JSON.stringify(result.user));
-          login(result.user, result.accessToken, result.refreshToken);
+          login(result.user, result.accessToken, result.refreshToken, result.expiresInSeconds);
           setStatus("success");
           router.replace(safeFrom);
           return;
