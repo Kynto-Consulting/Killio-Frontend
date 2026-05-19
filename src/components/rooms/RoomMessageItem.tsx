@@ -634,6 +634,14 @@ export function RoomMessageItem({
                     steps.push({ id: match[1], status: match[2], content: match[3].trim() });
                   }
 
+                  // Collect step IDs marked done via complete_step tool calls embedded in the message
+                  const inlineToolEventsForPlan = parseInlineToolEvents(message.content);
+                  const completedByTool = new Set(
+                    [...inlineToolEventsForPlan, ...((message.metadata as any)?.toolEvents ?? [])]
+                      .filter((e: any) => e.tool === 'complete_step' && e.input?.slot !== undefined)
+                      .map((e: any) => String(e.input.slot)),
+                  );
+
                   return (
                     <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm max-w-full overflow-hidden">
                       <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
@@ -641,32 +649,36 @@ export function RoomMessageItem({
                         <span>Execution Plan</span>
                       </div>
                       <div className="space-y-2">
-                        {steps.map((step) => (
-                          <div key={step.id} className="flex gap-2. group/step">
-                            <div className="shrink-0 mt-0.5">
-                              {step.status === "done" ? (
-                                <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                                  <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
-                                </div>
-                              ) : step.status === "doing" || step.status === "active" ? (
-                                <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                                  <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
-                                </div>
-                              ) : (
-                                <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
-                                  <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
-                                </div>
-                              )}
+                        {steps.map((step) => {
+                          const isDone = step.status === "done" || completedByTool.has(step.id);
+                          const isActive = !isDone && (step.status === "doing" || step.status === "active");
+                          return (
+                            <div key={step.id} className="flex gap-2 group/step">
+                              <div className="shrink-0 mt-0.5">
+                                {isDone ? (
+                                  <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                                    <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                                  </div>
+                                ) : isActive ? (
+                                  <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                                    <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
+                                    <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className={`flex-1 text-[12px] leading-snug ${isDone ? "text-muted-foreground line-through decoration-border" : "text-foreground"}`}>
+                                <RichText
+                                  content={step.content}
+                                  context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                                  availableTags={availableTags}
+                                />
+                              </div>
                             </div>
-                            <div className={`flex-1 text-[12px] leading-snug ${step.status === "done" ? "text-muted-foreground line-through decoration-border" : "text-foreground"}`}>
-                              <RichText
-                                content={step.content}
-                                context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
-                                availableTags={availableTags}
-                              />
-                            </div>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   );

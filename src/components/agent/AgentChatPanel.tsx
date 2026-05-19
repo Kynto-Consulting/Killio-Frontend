@@ -811,6 +811,12 @@ function AssistantMessage({
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
 
   const { visibleText: rawVisibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+  // If the message text already contains inline tool_call/batch_tool chips, suppress the
+  // doneEvents summary section below to prevent the same tools appearing twice.
+  const hasInlineToolChips = useMemo(
+    () => markupBlocks.some(b => b.tag === 'tool_call' || b.tag === 'batch_tool' || b.tag === 'batch_invoke'),
+    [markupBlocks],
+  );
   const { clean: visibleText, hasPartial: hasPartialToolCall } = useMemo(
     () => splitAtPartialToolTag(rawVisibleText),
     [rawVisibleText],
@@ -1096,6 +1102,13 @@ function AssistantMessage({
               steps.push({ id: match[1], status: match[2], content: match[3].trim() });
             }
 
+            // Collect step IDs marked done via complete_step tool calls
+            const completedByTool = new Set(
+              (message.toolEvents ?? [])
+                .filter(e => e.tool === 'complete_step' && e.input?.slot !== undefined)
+                .map(e => String(e.input!.slot)),
+            );
+
             return (
               <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm">
                 <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
@@ -1103,32 +1116,36 @@ function AssistantMessage({
                   <span>{t("agent.tools.executionPlan")}</span>
                 </div>
                 <div className="space-y-2">
-                  {steps.map((step) => (
-                    <div key={step.id} className="flex gap-2.5 group/step">
-                      <div className="shrink-0 mt-0.5">
-                        {step.status === "done" ? (
-                          <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
-                          </div>
-                        ) : step.status === "doing" || step.status === "active" ? (
-                          <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                            <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
-                          </div>
-                        ) : (
-                          <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
-                            <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
-                          </div>
-                        )}
+                  {steps.map((step) => {
+                    const isDone = step.status === "done" || completedByTool.has(step.id);
+                    const isActive = !isDone && (step.status === "doing" || step.status === "active");
+                    return (
+                      <div key={step.id} className="flex gap-2.5 group/step">
+                        <div className="shrink-0 mt-0.5">
+                          {isDone ? (
+                            <div className="w-4 h-4 rounded-full bg-emerald-100 dark:bg-emerald-900/40 flex items-center justify-center">
+                              <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
+                            </div>
+                          ) : isActive ? (
+                            <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
+                              <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
+                            </div>
+                          ) : (
+                            <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
+                              <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
+                            </div>
+                          )}
+                        </div>
+                        <div className={`flex-1 text-[12px] leading-snug ${isDone ? "text-neutral-400 line-through decoration-neutral-300 dark:decoration-neutral-700" : "text-neutral-700 dark:text-neutral-300"}`}>
+                          <RichText
+                            content={step.content}
+                            context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
+                            availableTags={availableTags}
+                          />
+                        </div>
                       </div>
-                      <div className={`flex-1 text-[12px] leading-snug ${step.status === "done" ? "text-neutral-400 line-through decoration-neutral-300 dark:decoration-neutral-700" : "text-neutral-700 dark:text-neutral-300"}`}>
-                        <RichText
-                          content={step.content}
-                          context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
-                          availableTags={availableTags}
-                        />
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -1231,7 +1248,7 @@ function AssistantMessage({
         });
         })()}
 
-        {doneEvents.length > 0 && (
+        {!hasInlineToolChips && doneEvents.length > 0 && (
           <button
             onClick={onToggleTools}
             className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors self-start"
@@ -1252,7 +1269,7 @@ function AssistantMessage({
           </button>
         )}
 
-        {toolsExpanded && doneEvents.length > 0 && (
+        {!hasInlineToolChips && toolsExpanded && doneEvents.length > 0 && (
           <div className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 py-2 space-y-1.5">
             {doneEvents.map((e, i) => {
               const meta = getToolMeta(t, e.tool);
@@ -1307,7 +1324,7 @@ function AssistantMessage({
           </div>
         )}
 
-        {message.toolResults && message.toolResults.length > 0 && (
+        {!hasInlineToolChips && message.toolResults && message.toolResults.length > 0 && (
           <ToolResultCards t={t} results={message.toolResults} />
         )}
 
