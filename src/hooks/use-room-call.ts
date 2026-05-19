@@ -631,10 +631,16 @@ export function useRoomCall(
     }
 
     let call;
+    let joinedExisting = false;
     try {
       // Join existing active call if one is ongoing, otherwise start a new one
       const existing = await getActiveCall(roomId, accessToken);
-      call = existing ?? await createCallRecord(roomId, accessToken);
+      if (existing) {
+        call = existing;
+        joinedExisting = true;
+      } else {
+        call = await createCallRecord(roomId, accessToken);
+      }
     } catch {
       call = { id: `local-${Date.now()}`, roomId, startedAt: new Date().toISOString(), participants: [], transcriptStatus: "none" as const, initiatorUserId: user.id ?? myPeerId };
     }
@@ -651,6 +657,22 @@ export function useRoomCall(
       avatarUrl: user.avatarUrl,
       callId: call.id,
     }).catch(() => {});
+
+    // If we joined an existing call but nobody responds within 5s, the call was stale —
+    // end that record and promote ourselves as the new call initiator.
+    if (joinedExisting) {
+      setTimeout(async () => {
+        if (!isInCallRef.current || peerConnections.current.size > 0) return;
+        const staleId = callIdRef.current;
+        if (!staleId || !roomId || !accessToken) return;
+        try {
+          await endCallRecord(roomId, staleId, accessToken);
+          const fresh = await createCallRecord(roomId, accessToken);
+          callIdRef.current = fresh.id;
+          setCallId(fresh.id);
+        } catch { /* keep going with the existing id if cleanup fails */ }
+      }, 5000);
+    }
 
     localSegments.current = [];
     lastSubmittedSegmentIndex.current = 0;
