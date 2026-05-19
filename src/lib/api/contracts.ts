@@ -712,6 +712,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const defaultHeaders: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    credentials: 'include',
     ...init,
     headers: {
       ...defaultHeaders,
@@ -828,18 +829,17 @@ export async function login(payload: LoginPayload): Promise<AuthResponse | OtpRe
   });
 }
 
-export async function refresh(refreshToken: string, rememberMe?: boolean): Promise<AuthResponse> {
+// refreshToken param kept for signature compat but not sent — backend reads HttpOnly cookie
+export async function refresh(_refreshToken?: string, rememberMe?: boolean): Promise<AuthResponse> {
   return request<AuthResponse>('/auth/refresh', {
     method: 'POST',
-    body: JSON.stringify({ refreshToken, rememberMe }),
+    body: JSON.stringify({ rememberMe }),
   });
 }
 
-export async function logout(refreshToken: string): Promise<void> {
-  await request<void>('/auth/logout', {
-    method: 'POST',
-    body: JSON.stringify({ refreshToken }),
-  });
+export async function logout(_refreshToken?: string): Promise<void> {
+  // Backend reads and clears the HttpOnly cookie; no need to send token in body
+  await request<void>('/auth/logout', { method: 'POST' });
 }
 
 export async function requestOtp(payload: RequestOtpPayload): Promise<{ ok: true; expiresInMinutes: number; delivery: 'otp' | 'magic_link' }> {

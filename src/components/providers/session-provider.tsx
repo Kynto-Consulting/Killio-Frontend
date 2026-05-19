@@ -93,8 +93,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const clearAuthState = () => {
+    // Clear legacy readable cookie if present
     document.cookie = "killio_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    localStorage.removeItem("killio_refresh");
+    // HttpOnly killio_refresh cookie is cleared server-side via /auth/logout
     localStorage.removeItem("killio_user");
     localStorage.removeItem("killio_active_team");
     setUser(null);
@@ -136,7 +137,6 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         const storedUser = localStorage.getItem("killio_user");
         const parsedUser = storedUser ? normalizeSessionUser(JSON.parse(storedUser)) : null;
         const storedTeam = localStorage.getItem("killio_active_team");
-        const refreshToken = localStorage.getItem("killio_refresh");
         const cookieToken = readTokenFromCookie();
 
         if (parsedUser && !cancelled) setUser(parsedUser);
@@ -147,7 +147,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           const legacyAccount: SessionAccount = {
             user: parsedUser,
             accessToken: cookieToken,
-            refreshToken,
+            refreshToken: null,
             activeTeamId: storedTeam,
             expiresInSeconds: REMEMBER_ME_TTL_SECONDS,
           };
@@ -164,27 +164,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           return;
         }
 
-        // ── 4. No valid cookie — attempt refresh if we have a refresh token ──
-        // This is the critical path: covers both "cookie expired" AND "no cookie after redeploy".
-        if (!refreshToken) {
-          // Nothing to recover with — clear stale user data to avoid ghost UI.
-          if (parsedUser) clearAuthState();
-          return;
-        }
+        // ── 4. No valid access token — attempt silent refresh via HttpOnly cookie ──
+        // If there's no stored user, there's nothing to recover (fresh browser / never logged in).
+        if (!parsedUser) return;
 
-        // Recover stored expiresInSeconds for this user so we restore the correct TTL.
         const existingAccount = loadedAccounts.find((a) => a.user.id === parsedUser?.id);
         const storedExpiresInSeconds = existingAccount?.expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS;
         const rememberMe = storedExpiresInSeconds >= REMEMBER_ME_TTL_SECONDS;
 
         try {
-          const rotated = await refresh(refreshToken, rememberMe);
+          // refresh() sends no token in body — the HttpOnly killio_refresh cookie is sent automatically
+          const rotated = await refresh(undefined, rememberMe);
           const normalizedRotatedUser = normalizeSessionUser(rotated.user);
           if (!normalizedRotatedUser) throw new Error("Rotated session user payload is invalid");
 
           const newExpiresInSeconds = rotated.expiresInSeconds ?? storedExpiresInSeconds;
-          writeTokenCookie(rotated.accessToken, newExpiresInSeconds);
-          localStorage.setItem("killio_refresh", rotated.refreshToken);
+          // Backend already set the new HttpOnly refresh cookie; just store access token in memory
           localStorage.setItem("killio_user", JSON.stringify(normalizedRotatedUser));
 
           const map = readLastTeamByUser();
@@ -202,7 +197,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
                 {
                   user: normalizedRotatedUser,
                   accessToken: rotated.accessToken,
-                  refreshToken: rotated.refreshToken,
+                  refreshToken: null,
                   activeTeamId: restoredTeamId,
                   expiresInSeconds: newExpiresInSeconds,
                 },
@@ -317,14 +312,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setAccessToken(target.accessToken);
     setActiveTeamId(target.activeTeamId);
 
-    const ttl = target.expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS;
-    writeTokenCookie(target.accessToken, ttl);
     localStorage.setItem("killio_user", JSON.stringify(normalizedUser));
-    if (target.refreshToken) {
-      localStorage.setItem("killio_refresh", target.refreshToken);
-    } else {
-      localStorage.removeItem("killio_refresh");
-    }
 
     if (target.activeTeamId) {
       localStorage.setItem("killio_active_team", target.activeTeamId);

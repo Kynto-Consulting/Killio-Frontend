@@ -76,11 +76,8 @@ function SignupPageContent() {
         acceptedTerms: form.acceptedTerms,
         allowCommunications: form.allowCommunications,
       });
-      // Persist session exactly like the login page
-      document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
-      localStorage.setItem("killio_refresh", data.refreshToken);
+      // Refresh token is set as HttpOnly cookie by the backend — only store user info
       localStorage.setItem("killio_user", JSON.stringify(data.user));
-
       login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
       router.push(safeFrom);
     } catch (unknownError: unknown) {

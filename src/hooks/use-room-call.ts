@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
 import {
@@ -101,9 +101,16 @@ export function useRoomCall(
     font: "sans" as "sans" | "serif" | "mono",
   });
 
-  // Tab-stable suffix so the same user on multiple devices gets distinct peer IDs
-  const tabIdRef = useRef(Math.random().toString(36).slice(2, 8));
-  const myPeerId = user?.id ? `${user.id}-${tabIdRef.current}` : "";
+  // Tab-stable suffix persisted in sessionStorage so page refresh keeps the same peerId
+  const tabId = useMemo(() => {
+    if (typeof window === "undefined") return Math.random().toString(36).slice(2, 8);
+    const stored = sessionStorage.getItem("killio_call_tab_id");
+    if (stored) return stored;
+    const id = Math.random().toString(36).slice(2, 8);
+    sessionStorage.setItem("killio_call_tab_id", id);
+    return id;
+  }, []);
+  const myPeerId = user?.id ? `${user.id}-${tabId}` : "";
   const myDisplayName = user?.displayName || user?.username || user?.email || "Unknown";
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -166,7 +173,15 @@ export function useRoomCall(
       };
 
       pc.onconnectionstatechange = () => {
-        if (pc.connectionState === "disconnected" || pc.connectionState === "failed") {
+        if (pc.connectionState === "disconnected") {
+          // Give the network 4 seconds to recover before trying ICE restart
+          setTimeout(() => {
+            if (pc.connectionState !== "disconnected" && pc.connectionState !== "failed") return;
+            pc.restartIce();
+            sendOffer(peerId).catch(() => {});
+          }, 4000);
+        }
+        if (pc.connectionState === "failed") {
           peerConnections.current.delete(peerId);
           setPeers((prev) => prev.filter((p) => p.peerId !== peerId));
           pc.close();

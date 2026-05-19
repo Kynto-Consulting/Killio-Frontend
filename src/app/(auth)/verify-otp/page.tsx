@@ -20,6 +20,8 @@ function VerifyOtpContent() {
 
   const token = searchParams.get("token") || "";
   const from = searchParams.get("from") || "/";
+  // purpose drives autoRegister: only "register" flows should create new accounts from OTP links
+  const purpose = (searchParams.get("purpose") || "login") as "login" | "register";
   const safeFrom = useMemo(() => {
     if (!from || !from.startsWith("/")) {
       return "/";
@@ -40,14 +42,13 @@ function VerifyOtpContent() {
       try {
         const result = await verifyOtp({
           token,
-          purpose: "login",
-          autoRegister: true,
+          purpose,
+          autoRegister: purpose === "register",
           rememberMe: true,
         });
 
         if (!cancelled && "accessToken" in result) {
-          document.cookie = `killio_token=${result.accessToken}; path=/; max-age=${result.expiresInSeconds}`;
-          localStorage.setItem("killio_refresh", result.refreshToken);
+          // Refresh token is set as HttpOnly cookie by the backend — only store user info
           localStorage.setItem("killio_user", JSON.stringify(result.user));
           login(result.user, result.accessToken, result.refreshToken, result.expiresInSeconds);
           setStatus("success");

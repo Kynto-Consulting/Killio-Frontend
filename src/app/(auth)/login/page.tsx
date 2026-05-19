@@ -50,8 +50,7 @@ function LoginPageContent() {
   }, [isSessionLoading, user, accessToken, router, safeFrom]);
 
   function persistLogin(data: any) {
-    document.cookie = `killio_token=${data.accessToken}; path=/; max-age=${data.expiresInSeconds}`;
-    localStorage.setItem("killio_refresh", data.refreshToken);
+    // Refresh token is set as HttpOnly cookie by the backend — only store user info
     localStorage.setItem("killio_user", JSON.stringify(data.user));
     login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
     router.push(safeFrom);
