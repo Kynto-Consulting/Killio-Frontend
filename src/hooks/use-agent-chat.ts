@@ -175,7 +175,11 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
     const paramsMatch = inner.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);
     const inputStr = paramsMatch ? paramsMatch[1].trim() : inner.trim();
     const input = parseInvokeParameters(inputStr);
-    invokeById.set(id, { id, tool: toolName, input });
+    // Keep first occurrence — duplicates arise when plan continuation loops
+    // re-emit the same invoke IDs; the first one has the correct inline position.
+    if (!invokeById.has(id)) {
+      invokeById.set(id, { id, tool: toolName, input });
+    }
   }
 
   const eventById = new Map<string, ToolEvent>();
@@ -200,16 +204,17 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
           ? "start"
           : "done";
 
-      const existing = eventById.get(id);
+    if (!eventById.has(id)) {
       eventById.set(id, {
-      id: id || invokeMeta?.id,
-      tool: invokeMeta?.tool ?? existing?.tool ?? id,
-      input: invokeMeta?.input ?? existing?.input,
-      output: existing?.output,
-      success: success ?? existing?.success,
-      durationMs: durationMs ?? existing?.durationMs,
-      phase,
-    });
+        id: id || invokeMeta?.id,
+        tool: invokeMeta?.tool ?? id,
+        input: invokeMeta?.input,
+        output: undefined,
+        success,
+        durationMs,
+        phase,
+      });
+    }
   }
 
   const outputRe = /<tool_output\s+([^>]+?)>([\s\S]*?)<\/tool_output>/gi;
@@ -223,17 +228,21 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
     const success = successMatch ? successMatch[1] === "true" : true;
     const durationMs = durationMatch ? parseInt(durationMatch[1], 10) : undefined;
     const invokeMeta = invokeById.get(id);
-    let output: Record<string, unknown> = {};
-    try { output = JSON.parse(data); } catch { output = { raw: data }; }
-    eventById.set(id, {
-      id: id || invokeMeta?.id,
-      tool: invokeMeta?.tool ?? eventById.get(id)?.tool ?? id,
-      input: invokeMeta?.input ?? eventById.get(id)?.input,
-      output,
-      success,
-      durationMs,
-      phase: "done",
-    });
+    const existing = eventById.get(id);
+    // Only set output if we haven't seen this ID yet, or if the existing entry has no output
+    if (!existing?.output) {
+      let output: Record<string, unknown> = {};
+      try { output = JSON.parse(data); } catch { output = { raw: data }; }
+      eventById.set(id, {
+        id: id || invokeMeta?.id,
+        tool: invokeMeta?.tool ?? existing?.tool ?? id,
+        input: invokeMeta?.input ?? existing?.input,
+        output,
+        success,
+        durationMs,
+        phase: "done",
+      });
+    }
   }
 
   events.push(...eventById.values());
