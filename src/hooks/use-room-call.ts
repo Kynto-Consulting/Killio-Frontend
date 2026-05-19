@@ -6,9 +6,12 @@ import { realtimeChannel } from "@/lib/realtime/channels";
 import {
   createCallRecord,
   endCallRecord,
+  getActiveCall,
   submitCallTranscript,
   CallTranscriptSegment,
 } from "@/lib/api/rooms";
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 import { getFilterStyle } from "@/components/rooms/RoomCallEffectsPanel";
 import { VideoEffectsProcessor } from "@/lib/video-effects-processor";
 
@@ -98,7 +101,9 @@ export function useRoomCall(
     font: "sans" as "sans" | "serif" | "mono",
   });
 
-  const myPeerId = user?.id || "";
+  // Tab-stable suffix so the same user on multiple devices gets distinct peer IDs
+  const tabIdRef = useRef(Math.random().toString(36).slice(2, 8));
+  const myPeerId = user?.id ? `${user.id}-${tabIdRef.current}` : "";
   const myDisplayName = user?.displayName || user?.username || user?.email || "Unknown";
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
@@ -627,9 +632,11 @@ export function useRoomCall(
 
     let call;
     try {
-      call = await createCallRecord(roomId, accessToken);
+      // Join existing active call if one is ongoing, otherwise start a new one
+      const existing = await getActiveCall(roomId, accessToken);
+      call = existing ?? await createCallRecord(roomId, accessToken);
     } catch {
-      call = { id: `local-${Date.now()}`, roomId, startedAt: new Date().toISOString(), participants: [], transcriptStatus: "none" as const, initiatorUserId: myPeerId };
+      call = { id: `local-${Date.now()}`, roomId, startedAt: new Date().toISOString(), participants: [], transcriptStatus: "none" as const, initiatorUserId: user.id ?? myPeerId };
     }
     callIdRef.current = call.id;
     callStartTimeRef.current = Date.now();
@@ -846,6 +853,23 @@ export function useRoomCall(
       }
     };
   }, []);
+
+  // End the call record when the tab/browser closes without an explicit leaveCall
+  useEffect(() => {
+    if (!roomId || !accessToken) return;
+    const handleBeforeUnload = () => {
+      const cId = callIdRef.current;
+      if (!isInCallRef.current || !cId) return;
+      fetch(`${API_BASE_URL}/rooms/${roomId}/calls/${cId}`, {
+        method: "PATCH",
+        keepalive: true,
+        headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ endedAt: new Date().toISOString() }),
+      }).catch(() => {});
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [roomId, accessToken]);
 
   return {
     isInCall,
