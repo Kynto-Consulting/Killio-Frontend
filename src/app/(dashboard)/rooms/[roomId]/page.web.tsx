@@ -34,9 +34,16 @@ import { Loader2, Phone, X } from "lucide-react";
 
 const escapeXmlAttr = (value: string) => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
+const hasCompleteInlineToolMarkup = (value: string): boolean =>
+  /<invoke\b[^>]*>[\s\S]*?<\/invoke>/i.test(value) ||
+  /<tool_status\b[^>]*\/?>/i.test(value) ||
+  /<tool_output\b[^>]*>[\s\S]*?<\/tool_output>/i.test(value) ||
+  /<batch_invoke\b[^>]*>[\s\S]*?<\/batch_invoke>/i.test(value);
+
 const buildRoomAiContent = (text: string, toolEvents: any[]): string => {
   const blocks: string[] = [];
   const baseText = String(text || "").trim();
+  if (hasCompleteInlineToolMarkup(baseText)) return baseText;
   if (baseText) blocks.push(baseText);
 
   for (const event of toolEvents) {

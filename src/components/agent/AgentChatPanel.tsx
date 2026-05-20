@@ -817,6 +817,32 @@ function AssistantMessage({
     () => markupBlocks.some(b => b.tag === 'tool_call' || b.tag === 'batch_tool' || b.tag === 'batch_invoke'),
     [markupBlocks],
   );
+  const dedupedMarkupBlocks = useMemo(() => {
+    const seenIds = new Set<string>();
+    return markupBlocks.filter((block) => {
+      if (block.tag !== "tool_call" && block.tag !== "batch_tool" && block.tag !== "batch_invoke") {
+        return true;
+      }
+
+      const candidateId = (() => {
+        if (block.tag === "tool_call") {
+          try {
+            const data = JSON.parse(block.content);
+            return String(data?.id ?? "").trim();
+          } catch {
+            return "";
+          }
+        }
+
+        return String(block.attributes?.id ?? "").trim();
+      })();
+
+      if (!candidateId) return true;
+      if (seenIds.has(candidateId)) return false;
+      seenIds.add(candidateId);
+      return true;
+    });
+  }, [markupBlocks]);
   const { clean: visibleText, hasPartial: hasPartialToolCall } = useMemo(
     () => splitAtPartialToolTag(rawVisibleText),
     [rawVisibleText],
@@ -858,12 +884,16 @@ function AssistantMessage({
           };
           // First pass: count occurrences in document order (batch sub-chips + direct chips)
           const blockOccurrences: Array<{ blockIndex: number; subIndex?: number; occurrence: number }> = [];
-          markupBlocks.forEach((block, blockIndex) => {
+          dedupedMarkupBlocks.forEach((block, blockIndex) => {
             if (block.tag === "batch_tool" || block.tag === "batch_invoke") {
               const { blocks: subBlocks } = parseAiMarkup(block.content);
+              const seenSubIds = new Set<string>();
               subBlocks.filter(b => b.tag === 'tool_call').forEach((sub, subIndex) => {
                 try {
                   const d = JSON.parse(sub.content);
+                  const subId = String(d?.id ?? "").trim();
+                  if (subId && seenSubIds.has(subId)) return;
+                  if (subId) seenSubIds.add(subId);
                   blockOccurrences.push({ blockIndex, subIndex, occurrence: getOccurrence(d.name) });
                 } catch { blockOccurrences.push({ blockIndex, subIndex, occurrence: 0 }); }
               });
@@ -875,13 +905,26 @@ function AssistantMessage({
             }
           });
 
-          return markupBlocks.map((block, index) => {
+          return dedupedMarkupBlocks.map((block, index) => {
           const key = `${block.tag}-${index}`;
           const isExpanded = expandedMarkup.has(key);
 
           if (block.tag === "batch_tool" || block.tag === "batch_invoke") {
             const { blocks: subBlocks } = parseAiMarkup(block.content);
-            const toolCalls = subBlocks.filter(b => b.tag === 'tool_call');
+            const seenSubIds = new Set<string>();
+            const toolCalls = subBlocks.filter(b => {
+              if (b.tag !== 'tool_call') return false;
+              try {
+                const d = JSON.parse(b.content);
+                const subId = String(d?.id ?? "").trim();
+                if (!subId) return true;
+                if (seenSubIds.has(subId)) return false;
+                seenSubIds.add(subId);
+                return true;
+              } catch {
+                return true;
+              }
+            });
             const anyRunning = toolCalls.some(sub => {
               try {
                 const d = JSON.parse(sub.content);

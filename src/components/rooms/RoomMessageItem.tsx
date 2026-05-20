@@ -636,8 +636,11 @@ export function RoomMessageItem({
 
                   // Collect step IDs marked done via complete_step tool calls embedded in the message
                   const inlineToolEventsForPlan = parseInlineToolEvents(message.content);
+                  const toolEventsForPlan = inlineToolEventsForPlan.length > 0
+                    ? inlineToolEventsForPlan
+                    : ((message.metadata as any)?.toolEvents ?? []);
                   const completedByTool = new Set(
-                    [...inlineToolEventsForPlan, ...((message.metadata as any)?.toolEvents ?? [])]
+                    toolEventsForPlan
                       .filter((e: any) => e.tool === 'complete_step' && e.input?.slot !== undefined)
                       .map((e: any) => String(e.input.slot)),
                   );
@@ -957,7 +960,9 @@ function RoomToolCallChip({
     return syn;
   })());
   const state = resolveToolCallRenderState(data, events);
-  const matchingResult = legacyResults.length > 0 ? [...legacyResults].reverse().find((r: any) => String(r.toolName || r.tool || "").toLowerCase() === searchName) ?? legacyResults[0] ?? null : null;
+  const matchingResult = inlineEvents.length > 0
+    ? null
+    : (legacyResults.length > 0 ? [...legacyResults].reverse().find((r: any) => String(r.toolName || r.tool || "").toLowerCase() === searchName) ?? legacyResults[0] ?? null : null);
 
   const hasUsefulOutput = (value: unknown) => {
     if (value === null || value === undefined) return false;
