@@ -1,15 +1,29 @@
 {
-  "title": "Profile Settings",
+  "title": "Account settings",
   "subtitle": "Manage your public information.",
-  "avatar": "Avatar",
-  "avatarHint": "JPG, GIF or PNG. Max size of 800K.",
-  "changePhoto": "Change Profile Photo",
-  "displayName": "Display Name",
-  "displayNamePlaceholder": "e.g. Jane Doe",
-  "otpLogin": {
-    "title": "Enable optional login OTP (2FA)",
-    "description": "When enabled, you can use OTP/magic link for sign-in as an extra security layer."
+  "tabs": {
+    "profile": "Profile",
+    "security": "Security"
   },
-  "saveChanges": "Save Changes",
+  "avatar": "Profile image",
+  "avatarHint": "JPG, PNG or GIF. Max size 5 MB.",
+  "changePhoto": "Change photo",
+  "avatarTooLarge": "Image must be less than 5 MB",
+  "displayName": "Display name",
+  "displayNamePlaceholder": "e.g. Jane Doe",
+  "bio": "Bio",
+  "bioPlaceholder": "Tell your team a little about yourself",
+  "email": "Email address",
+  "timezone": "Timezone",
+  "locale": "Language",
+  "locales": {
+    "en": "English",
+    "es": "Español"
+  },
+  "otpLogin": {
+    "title": "One-time password login",
+    "description": "When enabled, you can use OTP / magic link for sign-in as an extra security layer."
+  },
+  "saveChanges": "Save changes",
   "updateError": "An error occurred while updating your profile."
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { X, Loader2, Upload, User, Shield, Camera, Check } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { X, Loader2, Upload, User, Shield, Camera, Check, Globe, Clock } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -16,6 +16,15 @@ interface ProfileSettingsModalProps {
   onClose: () => void;
 }
 
+function useSavedFeedback() {
+  const [saved, setSaved] = useState(false);
+  const show = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+  return { saved, show };
+}
+
 export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
   const { user, accessToken, updateUser } = useSession();
   const t = useTranslations("profile");
@@ -23,35 +32,71 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [activeTab, setActiveTab] = useState<Tab>("profile");
-  const [name, setName] = useState(user?.displayName || "");
-  const [savedName, setSavedName] = useState(false);
-  const [isOtpLoading, setIsOtpLoading] = useState(false);
-  const [otpLoginEnabled, setOtpLoginEnabledState] = useState(false);
+
+  // Profile fields
+  const [name, setName] = useState("");
+  const [bio, setBio] = useState("");
+  const [timezone, setTimezone] = useState("");
+  const [locale, setLocale] = useState("");
+
+  // Avatar
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
 
-  // Reset form when modal opens
+  // OTP
+  const [isOtpLoading, setIsOtpLoading] = useState(false);
+  const [otpLoginEnabled, setOtpLoginEnabledState] = useState(false);
+
+  // Save feedback
+  const nameSaved = useSavedFeedback();
+  const infoSaved = useSavedFeedback();
+
+  const allTimezones = useMemo(() => {
+    try {
+      return (Intl as any).supportedValuesOf?.("timeZone") as string[] ?? [];
+    } catch {
+      return ["UTC", "America/New_York", "America/Los_Angeles", "America/Chicago", "America/Denver",
+        "America/Lima", "America/Bogota", "America/Mexico_City", "America/Sao_Paulo",
+        "Europe/London", "Europe/Madrid", "Europe/Paris", "Europe/Berlin",
+        "Asia/Tokyo", "Asia/Shanghai", "Asia/Kolkata", "Asia/Dubai",
+        "Australia/Sydney", "Pacific/Auckland"];
+    }
+  }, []);
+
+  // Reset on open
   useEffect(() => {
     if (isOpen) {
-      setName(user?.displayName || "");
+      setName(user?.displayName || user?.name || "");
+      setBio(user?.bio || "");
+      setTimezone(user?.timezone || "");
+      setLocale(user?.locale || "");
       setSelectedFile(null);
       setPreviewUrl(null);
       setFileError(null);
-      setSavedName(false);
       setActiveTab("profile");
     }
-  }, [isOpen, user?.displayName]);
+  }, [isOpen, user?.displayName, user?.name, user?.bio, user?.timezone, user?.locale]);
+
+  // OTP preference
+  useEffect(() => {
+    if (!isOpen || !accessToken) return;
+    let cancelled = false;
+    setIsOtpLoading(true);
+    getOtpLoginPreference(accessToken)
+      .then((result) => { if (!cancelled) setOtpLoginEnabledState(Boolean(result.enabled)); })
+      .catch(() => { if (!cancelled) setOtpLoginEnabledState(false); })
+      .finally(() => { if (!cancelled) setIsOtpLoading(false); });
+    return () => { cancelled = true; };
+  }, [isOpen, accessToken]);
 
   const saveAvatarAction = useAsyncAction(async (_: void) => {
     if (!accessToken || !user || !selectedFile) return;
-
     const uploadResult = await uploadFile(selectedFile, accessToken, {
       ownerScopeType: "user",
       ownerScopeId: user.id,
-      usage: "avatar"
+      usage: "avatar",
     });
-
     await updateProfile(accessToken, { name: name.trim() || user.name || "", avatarUrl: uploadResult.url });
     updateUser({ avatarUrl: uploadResult.url });
     setSelectedFile(null);
@@ -60,11 +105,20 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
 
   const saveNameAction = useAsyncAction(async (_: void) => {
     if (!name.trim() || !accessToken || !user) return;
-
-    await updateProfile(accessToken, { name: name.trim(), avatarUrl: user.avatarUrl || "" });
+    await updateProfile(accessToken, { name: name.trim() });
     updateUser({ name: name.trim(), displayName: name.trim() });
-    setSavedName(true);
-    setTimeout(() => setSavedName(false), 2000);
+    nameSaved.show();
+  });
+
+  const saveInfoAction = useAsyncAction(async (_: void) => {
+    if (!accessToken || !user) return;
+    await updateProfile(accessToken, {
+      bio: bio.trim(),
+      timezone: timezone || undefined,
+      locale: locale || undefined,
+    });
+    updateUser({ bio: bio.trim() || null, timezone: timezone || null, locale: locale || null });
+    infoSaved.show();
   });
 
   const otpAction = useAsyncAction(async (enabled: boolean) => {
@@ -73,31 +127,16 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
     setOtpLoginEnabledState(Boolean(result.enabled));
   });
 
-  useEffect(() => {
-    if (!isOpen || !accessToken) return;
-
-    let cancelled = false;
-    setIsOtpLoading(true);
-    getOtpLoginPreference(accessToken)
-      .then((result) => { if (!cancelled) setOtpLoginEnabledState(Boolean(result.enabled)); })
-      .catch(() => { if (!cancelled) setOtpLoginEnabledState(false); })
-      .finally(() => { if (!cancelled) setIsOtpLoading(false); });
-
-    return () => { cancelled = true; };
-  }, [isOpen, accessToken]);
-
   if (!isOpen) return null;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileError(null);
-
     if (file.size > 5 * 1024 * 1024) {
-      setFileError(t("avatarTooLarge") || "Image must be less than 5MB");
+      setFileError(t("avatarTooLarge") || "Image must be less than 5 MB");
       return;
     }
-
     setSelectedFile(file);
     const reader = new FileReader();
     reader.onloadend = () => setPreviewUrl(reader.result as string);
@@ -105,9 +144,13 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   };
 
   const avatarSrc = previewUrl || getUserAvatarUrl(user?.avatarUrl, user?.email, 96);
-  const displayName = user?.displayName || user?.username || "";
+  const displayName = user?.displayName || user?.name || "";
   const email = user?.email || user?.primaryEmail || "";
   const nameHasChanged = name.trim() !== (user?.displayName || user?.name || "");
+  const infoHasChanged =
+    bio.trim() !== (user?.bio || "") ||
+    timezone !== (user?.timezone || "") ||
+    locale !== (user?.locale || "");
 
   const tabs: { id: Tab; label: string; icon: React.ElementType }[] = [
     { id: "profile", label: t("tabs.profile") || "Profile", icon: User },
@@ -115,10 +158,11 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 p-4">
-      <div className="relative w-full max-w-2xl rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 p-0 sm:p-4">
+      <div className="relative w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl border border-border bg-card shadow-2xl animate-in slide-in-from-bottom sm:zoom-in-95 duration-200 flex flex-col max-h-[92dvh] sm:max-h-[88vh]">
+
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border shrink-0">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border shrink-0">
           <h2 className="text-base font-semibold tracking-tight">{t("title") || "Account settings"}</h2>
           <button
             onClick={onClose}
@@ -128,9 +172,27 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
           </button>
         </div>
 
+        {/* Tab bar — shown inline on mobile, as sidebar on desktop */}
+        <div className="flex sm:hidden border-b border-border shrink-0 px-2 gap-1 bg-muted/20">
+          {tabs.map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground"
+              }`}
+            >
+              <Icon className="h-3.5 w-3.5" />
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="flex flex-1 min-h-0">
-          {/* Sidebar */}
-          <aside className="w-44 shrink-0 border-r border-border bg-muted/20 p-2 flex flex-col gap-0.5">
+          {/* Sidebar — desktop only */}
+          <aside className="hidden sm:flex w-44 shrink-0 border-r border-border bg-muted/20 p-2 flex-col gap-0.5">
             {tabs.map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
@@ -147,154 +209,207 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
             ))}
           </aside>
 
-          {/* Content */}
-          <div className="flex-1 overflow-y-auto p-6 min-h-0">
-            {activeTab === "profile" && (
-              <div className="space-y-6">
-                {/* User identity card */}
-                <div className="flex items-center gap-4 p-4 rounded-xl border border-border/60 bg-background/50">
-                  <div className="relative group shrink-0">
-                    <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-border shadow-sm bg-accent/10">
-                      <img
-                        src={avatarSrc}
-                        alt={displayName}
-                        className="h-full w-full object-cover"
-                      />
-                    </div>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold text-base truncate">{displayName || "—"}</p>
-                    {email && <p className="text-sm text-muted-foreground truncate">{email}</p>}
-                  </div>
-                </div>
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto min-h-0">
+            <div className="p-5 space-y-6">
 
-                {/* Avatar section */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                    {t("avatar") || "Profile image"}
-                  </p>
-                  <div className="flex items-center gap-4">
-                    <div
-                      className="group relative h-20 w-20 rounded-full overflow-hidden border-2 border-border cursor-pointer shrink-0 bg-accent/10"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <img
-                        src={avatarSrc}
-                        alt={displayName}
-                        className="h-full w-full object-cover group-hover:brightness-75 transition-all"
-                      />
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Camera className="h-5 w-5 text-white drop-shadow" />
-                      </div>
+              {activeTab === "profile" && (
+                <>
+                  {/* Identity card */}
+                  <div className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-background/50">
+                    <div className="h-12 w-12 rounded-full overflow-hidden border border-border shrink-0 bg-accent/10">
+                      <img src={avatarSrc} alt={displayName} className="h-full w-full object-cover" />
                     </div>
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground max-w-[200px]">
-                        {t("avatarHint") || "JPG, PNG or GIF. Max 5MB."}
-                      </p>
-                      <button
-                        type="button"
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm truncate">{displayName || "—"}</p>
+                      {email && <p className="text-xs text-muted-foreground truncate">{email}</p>}
+                    </div>
+                  </div>
+
+                  {/* Avatar section */}
+                  <section>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      {t("avatar") || "Profile image"}
+                    </p>
+                    <div className="flex items-start gap-4">
+                      <div
+                        className="group relative h-16 w-16 rounded-full overflow-hidden border-2 border-border cursor-pointer shrink-0 bg-accent/10"
                         onClick={() => fileInputRef.current?.click()}
-                        className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border border-border hover:bg-accent/10 transition-colors"
                       >
-                        <Upload className="h-3.5 w-3.5" />
-                        {t("changePhoto") || "Change photo"}
-                      </button>
-                      {selectedFile && (
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground truncate max-w-[140px]">{selectedFile.name}</span>
-                          <button
-                            type="button"
-                            disabled={saveAvatarAction.isPending}
-                            onClick={() => void saveAvatarAction.run(undefined)}
-                            className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
-                          >
-                            {saveAvatarAction.isPending ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <Check className="h-3 w-3" />
-                            )}
-                            {tCommon("actions.save") || "Save"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
-                            className="text-xs text-muted-foreground hover:text-foreground"
-                          >
-                            {tCommon("actions.cancel") || "Cancel"}
-                          </button>
+                        <img
+                          src={avatarSrc}
+                          alt={displayName}
+                          className="h-full w-full object-cover group-hover:brightness-75 transition-all"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Camera className="h-4 w-4 text-white drop-shadow" />
                         </div>
-                      )}
-                      {fileError && <p className="text-xs text-destructive">{fileError}</p>}
-                      {saveAvatarAction.error && <p className="text-xs text-destructive">{saveAvatarAction.error}</p>}
+                      </div>
+                      <div className="space-y-2 min-w-0">
+                        <p className="text-xs text-muted-foreground">{t("avatarHint") || "JPG, PNG or GIF. Max 5 MB."}</p>
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border border-border hover:bg-accent/10 transition-colors"
+                        >
+                          <Upload className="h-3 w-3" />
+                          {t("changePhoto") || "Change photo"}
+                        </button>
+                        {selectedFile && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{selectedFile.name}</span>
+                            <button
+                              type="button"
+                              disabled={saveAvatarAction.isPending}
+                              onClick={() => void saveAvatarAction.run(undefined)}
+                              className="inline-flex items-center gap-1 text-xs font-semibold text-primary hover:underline disabled:opacity-50"
+                            >
+                              {saveAvatarAction.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                              {tCommon("actions.save") || "Save"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => { setSelectedFile(null); setPreviewUrl(null); }}
+                              className="text-xs text-muted-foreground hover:text-foreground"
+                            >
+                              {tCommon("actions.cancel") || "Cancel"}
+                            </button>
+                          </div>
+                        )}
+                        {(fileError || saveAvatarAction.error) && (
+                          <p className="text-xs text-destructive">{fileError ?? saveAvatarAction.error}</p>
+                        )}
+                      </div>
+                      <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
                     </div>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileChange}
-                    />
-                  </div>
-                </div>
+                  </section>
 
-                {/* Display name section */}
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                    {t("displayName") || "Display name"}
-                  </p>
-                  <div className="flex gap-2 items-start">
-                    <div className="flex-1">
+                  {/* Display name */}
+                  <section>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                      {t("displayName") || "Display name"}
+                    </p>
+                    <div className="flex gap-2 items-start">
                       <input
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
                         disabled={saveNameAction.isPending}
                         placeholder={t("displayNamePlaceholder") || "Your name"}
-                        className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50 transition-all"
+                        className="flex-1 h-9 rounded-lg border border-input bg-background px-3 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 disabled:opacity-50 transition-all min-w-0"
                       />
-                      {saveNameAction.error && (
-                        <p className="text-xs text-destructive mt-1">{saveNameAction.error}</p>
-                      )}
+                      <button
+                        type="button"
+                        disabled={!nameHasChanged || !name.trim() || saveNameAction.isPending}
+                        onClick={() => void saveNameAction.run(undefined)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors shrink-0"
+                      >
+                        {saveNameAction.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : nameSaved.saved ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : null}
+                        {nameSaved.saved ? (tCommon("actions.saved") || "Saved!") : (tCommon("actions.save") || "Save")}
+                      </button>
                     </div>
-                    <button
-                      type="button"
-                      disabled={!nameHasChanged || !name.trim() || saveNameAction.isPending}
-                      onClick={() => void saveNameAction.run(undefined)}
-                      className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors shrink-0"
-                    >
-                      {saveNameAction.isPending ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : savedName ? (
-                        <Check className="h-3.5 w-3.5" />
-                      ) : null}
-                      {savedName ? (tCommon("actions.saved") || "Saved!") : (tCommon("actions.save") || "Save")}
-                    </button>
-                  </div>
-                </div>
+                    {saveNameAction.error && <p className="text-xs text-destructive mt-1">{saveNameAction.error}</p>}
+                  </section>
 
-                {/* Email (read-only) */}
-                {email && (
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                      {t("email") || "Email address"}
+                  {/* Email read-only */}
+                  {email && (
+                    <section>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                        {t("email") || "Email address"}
+                      </p>
+                      <div className="flex h-9 w-full items-center rounded-lg border border-input bg-muted/40 px-3 text-sm text-muted-foreground select-all">
+                        {email}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Bio + Timezone + Locale — group saved together */}
+                  <section className="space-y-4">
+                    <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      {t("subtitle") || "Public information"}
                     </p>
-                    <div className="flex h-9 w-full items-center rounded-lg border border-input bg-muted/40 px-3 text-sm text-muted-foreground">
-                      {email}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
 
-            {activeTab === "security" && (
-              <div className="space-y-6">
-                <div>
+                    {/* Bio */}
+                    <div>
+                      <label className="block text-sm font-medium mb-1.5">{t("bio") || "Bio"}</label>
+                      <textarea
+                        value={bio}
+                        onChange={(e) => setBio(e.target.value)}
+                        placeholder={t("bioPlaceholder") || "Tell your team a little about yourself"}
+                        rows={3}
+                        maxLength={300}
+                        className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 resize-none transition-all"
+                      />
+                      <p className="text-xs text-muted-foreground text-right mt-0.5">{bio.length}/300</p>
+                    </div>
+
+                    {/* Timezone */}
+                    <div>
+                      <label className="flex items-center gap-1.5 text-sm font-medium mb-1.5">
+                        <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("timezone") || "Timezone"}
+                      </label>
+                      <select
+                        value={timezone}
+                        onChange={(e) => setTimezone(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-all"
+                      >
+                        <option value="">— {t("timezone") || "Timezone"} —</option>
+                        {allTimezones.map((tz) => (
+                          <option key={tz} value={tz}>{tz}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    {/* Locale */}
+                    <div>
+                      <label className="flex items-center gap-1.5 text-sm font-medium mb-1.5">
+                        <Globe className="h-3.5 w-3.5 text-muted-foreground" />
+                        {t("locale") || "Language"}
+                      </label>
+                      <select
+                        value={locale}
+                        onChange={(e) => setLocale(e.target.value)}
+                        className="w-full h-9 rounded-lg border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 transition-all"
+                      >
+                        <option value="">— {t("locale") || "Language"} —</option>
+                        <option value="en">{t("locales.en") || "English"}</option>
+                        <option value="es">{t("locales.es") || "Español"}</option>
+                      </select>
+                    </div>
+
+                    <div className="flex items-center justify-end gap-3">
+                      {saveInfoAction.error && <p className="text-xs text-destructive flex-1">{saveInfoAction.error}</p>}
+                      <button
+                        type="button"
+                        disabled={!infoHasChanged || saveInfoAction.isPending}
+                        onClick={() => void saveInfoAction.run(undefined)}
+                        className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-40 disabled:pointer-events-none transition-colors"
+                      >
+                        {saveInfoAction.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : infoSaved.saved ? (
+                          <Check className="h-3.5 w-3.5" />
+                        ) : null}
+                        {infoSaved.saved ? (tCommon("actions.saved") || "Saved!") : (tCommon("actions.save") || "Save")}
+                      </button>
+                    </div>
+                  </section>
+                </>
+              )}
+
+              {activeTab === "security" && (
+                <section>
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
-                    {t("otpLogin.title") || "Login options"}
+                    {t("tabs.security") || "Security"}
                   </p>
                   <div className="rounded-xl border border-border/70 bg-background/50 p-4">
                     <label className="flex items-start gap-3 cursor-pointer" htmlFor="otp-login-enabled">
-                      <div className="relative mt-0.5">
+                      <div className="relative mt-0.5 shrink-0">
                         <input
                           id="otp-login-enabled"
                           type="checkbox"
@@ -303,13 +418,13 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                           disabled={isOtpLoading || otpAction.isPending || !accessToken}
                           className="sr-only peer"
                         />
-                        <div className="h-5 w-9 rounded-full border border-input bg-muted peer-checked:bg-primary transition-colors peer-disabled:opacity-50">
+                        <div className="h-5 w-9 rounded-full border border-input bg-muted peer-checked:bg-primary peer-disabled:opacity-50 transition-colors">
                           <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${otpLoginEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                         </div>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-foreground">{t("otpLogin.title") || "One-time password login"}</p>
-                        <p className="text-xs text-muted-foreground mt-0.5">{t("otpLogin.description") || "Receive a code by email each time you log in"}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{t("otpLogin.description") || "Receive a code by email each time you log in"}</p>
                       </div>
                     </label>
                     {(isOtpLoading || otpAction.isPending) && (
@@ -318,18 +433,17 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                         <span>{tCommon("actions.loading")}</span>
                       </div>
                     )}
-                    {otpAction.error && (
-                      <p className="mt-2 text-xs text-destructive">{otpAction.error}</p>
-                    )}
+                    {otpAction.error && <p className="mt-2 text-xs text-destructive">{otpAction.error}</p>}
                   </div>
-                </div>
-              </div>
-            )}
+                </section>
+              )}
+
+            </div>
           </div>
         </div>
 
         {/* Footer */}
-        <div className="flex justify-end px-6 py-3 border-t border-border shrink-0">
+        <div className="flex justify-end px-5 py-3 border-t border-border shrink-0 bg-card">
           <button
             type="button"
             onClick={onClose}

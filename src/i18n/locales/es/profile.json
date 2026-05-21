@@ -1,15 +1,29 @@
 {
-  "title": "Configuracion de perfil",
-  "subtitle": "Administra tu informacion publica.",
-  "avatar": "Avatar",
-  "avatarHint": "JPG, GIF o PNG. Tamano maximo de 800K.",
-  "changePhoto": "Cambiar foto de perfil",
+  "title": "Configuración de cuenta",
+  "subtitle": "Administra tu información pública.",
+  "tabs": {
+    "profile": "Perfil",
+    "security": "Seguridad"
+  },
+  "avatar": "Imagen de perfil",
+  "avatarHint": "JPG, PNG o GIF. Máximo 5 MB.",
+  "changePhoto": "Cambiar foto",
+  "avatarTooLarge": "La imagen debe ser menor a 5 MB",
   "displayName": "Nombre visible",
   "displayNamePlaceholder": "Ej: Jane Doe",
+  "bio": "Bio",
+  "bioPlaceholder": "Cuéntale a tu equipo un poco sobre ti",
+  "email": "Correo electrónico",
+  "timezone": "Zona horaria",
+  "locale": "Idioma",
+  "locales": {
+    "en": "English",
+    "es": "Español"
+  },
   "otpLogin": {
-    "title": "Habilitar OTP opcional en login (2FA)",
-    "description": "Cuando este activo, podras usar OTP/magic link para iniciar sesion con una capa extra de seguridad."
+    "title": "Inicio de sesión con contraseña de un solo uso",
+    "description": "Cuando esté activo, podrás usar OTP / enlace mágico para iniciar sesión con una capa extra de seguridad."
   },
   "saveChanges": "Guardar cambios",
-  "updateError": "Ocurrio un error al actualizar tu perfil."
+  "updateError": "Ocurrió un error al actualizar tu perfil."
 }

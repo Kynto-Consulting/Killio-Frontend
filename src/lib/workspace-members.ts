@@ -9,6 +9,9 @@ export type SessionUser = AuthResponse["user"] & {
   username?: string | null;
   avatarUrl?: string | null;
   avatar_url?: string | null;
+  bio?: string | null;
+  timezone?: string | null;
+  locale?: string | null;
 };
 
 export type WorkspaceMemberLike = Partial<TeamMemberSummary> &
@@ -141,5 +144,8 @@ export function normalizeSessionUser(input: unknown): SessionUser | null {
     username: alias || name,
     avatarUrl: pickFirst(raw.avatarUrl),
     avatar_url: pickFirst(raw.avatar_url),
+    bio: asCleanString(raw.bio),
+    timezone: asCleanString(raw.timezone),
+    locale: asCleanString(raw.locale),
   };
 }

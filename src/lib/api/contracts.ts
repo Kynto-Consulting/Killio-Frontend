@@ -529,6 +529,9 @@ export type AuthResponse = {
     id: string;
     name: string;
     alias: string | null;
+    bio?: string | null;
+    timezone?: string | null;
+    locale?: string | null;
   };
   session: {
     id: string;
@@ -878,7 +881,7 @@ export async function setOtpLoginPreference(accessToken: string, enabled: boolea
 
 export async function updateProfile(
   accessToken: string,
-  data: { name?: string; avatarUrl?: string }
+  data: { name?: string; avatarUrl?: string; bio?: string; timezone?: string; locale?: string }
 ): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/auth/profile', {
     method: 'POST',
