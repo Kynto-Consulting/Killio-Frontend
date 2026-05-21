@@ -80,6 +80,7 @@ export type SessionContextType = {
   logout: () => void;
   login: (userData: AuthResponse["user"], token: string, refreshToken?: string, expiresInSeconds?: number) => void;
   switchAccount: (userId: string) => void;
+  updateUser: (patch: Partial<SessionUser>) => void;
 };
 
 const SessionContext = createContext<SessionContextType | undefined>(undefined);
@@ -304,6 +305,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const updateUser = (patch: Partial<SessionUser>) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...patch };
+      localStorage.setItem("killio_user", JSON.stringify(updated));
+      setAccounts((prevAccs) => {
+        const newAccs = prevAccs.map((acc) =>
+          acc.user.id === prev.id ? { ...acc, user: updated } : acc
+        );
+        localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+        return newAccs;
+      });
+      return updated;
+    });
+  };
+
   const switchAccount = (userId: string) => {
     const target = accounts.find((a) => a.user.id === userId);
     if (!target) return;
@@ -338,6 +355,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
         logout,
         login,
         switchAccount,
+        updateUser,
       }}
     >
       {children}

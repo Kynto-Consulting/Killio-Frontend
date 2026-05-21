@@ -15,7 +15,7 @@ interface ProfileSettingsModalProps {
 }
 
 export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
-  const { user, accessToken } = useSession();
+  const { user, accessToken, updateUser } = useSession();
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const [name, setName] = useState(user?.displayName || "");
@@ -45,9 +45,8 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
       avatarUrl
     });
 
-    // 3. Optional: local state sync (user might need to refresh or we can try to force it)
-    // For now, let's just close and hope Ably or a refresh handles it, or trigger a reload.
-    window.location.reload();
+    // 3. Sync session state + localStorage without full reload
+    updateUser({ name: name.trim(), displayName: name.trim(), avatarUrl: avatarUrl || null });
     onClose();
   });
 
