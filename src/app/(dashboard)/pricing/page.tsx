@@ -174,15 +174,16 @@ export default function PricingPage() {
     const plan = orderedPlans.find((item) => item.tier === targetTier);
     if (!plan) return;
 
+    // Use the per-plan coupon result (only pass code if THIS plan's coupon is valid)
+    let planCoupon = couponResults[targetTier];
+    let activeCouponCode = planCoupon?.valid ? couponCode.trim() : undefined;
+
     const canStartTrial = targetTier !== "free"
       && targetTier !== "enterprise"
       && Boolean(billing?.trial?.eligible?.[targetTier as "pro" | "max"])
       && plan.trialDays > 0
-      && currentPlanTier === "free";
-
-    // Use the per-plan coupon result (only pass code if THIS plan's coupon is valid)
-    let planCoupon = couponResults[targetTier];
-    let activeCouponCode = planCoupon?.valid ? couponCode.trim() : undefined;
+      && currentPlanTier === "free"
+      && !activeCouponCode;
 
     setActionLoadingTier(targetTier);
     setNotice(null);
@@ -424,7 +425,8 @@ export default function PricingPage() {
               && plan.tier !== "enterprise"
               && Boolean(billing?.trial?.eligible?.[plan.tier as "pro" | "max"])
               && plan.trialDays > 0
-              && currentPlanTier === "free";
+              && currentPlanTier === "free"
+              && !couponResults[plan.tier]?.valid;
 
             const scriptsValue = plan.scripts.monthlyRunLimit === null
               ? t("common.unlimited")
