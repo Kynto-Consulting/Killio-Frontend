@@ -48,16 +48,17 @@ function writeTokenCookie(token: string, maxAgeSeconds: number) {
   document.cookie = `killio_token=${encodeURIComponent(token)}; path=/; max-age=${maxAgeSeconds}`;
 }
 
-async function validateAccessToken(token: string): Promise<boolean> {
+async function fetchFreshUser(token: string): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(`${API_BASE_URL}/auth/me`, {
       method: "GET",
       headers: { Authorization: `Bearer ${token}` },
       cache: "no-store",
     });
-    return res.ok;
+    if (!res.ok) return null;
+    return (await res.json()) as Record<string, unknown>;
   } catch {
-    return false;
+    return null;
   }
 }
 
@@ -157,11 +158,26 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           if (!cancelled) setAccounts(loadedAccounts);
         }
 
-        // ── 3. Validate existing cookie if present ───────────────────────────
-        const tokenIsValid = cookieToken ? await validateAccessToken(cookieToken) : false;
+        // ── 3. Validate existing cookie + refresh user data from server ─────
+        const freshUserRaw = cookieToken ? await fetchFreshUser(cookieToken) : null;
 
-        if (tokenIsValid && cookieToken) {
-          if (!cancelled) setAccessToken(cookieToken);
+        if (freshUserRaw && cookieToken) {
+          const freshUser = normalizeSessionUser(freshUserRaw);
+          if (freshUser && !cancelled) {
+            // Merge fresh server data over stale localStorage (cross-device sync)
+            localStorage.setItem("killio_user", JSON.stringify(freshUser));
+            setUser(freshUser);
+            setAccounts((prev) => {
+              const updated = prev.map((acc) =>
+                acc.user.id === freshUser.id ? { ...acc, user: freshUser } : acc
+              );
+              localStorage.setItem("killio_accounts", JSON.stringify(updated));
+              return updated;
+            });
+            setAccessToken(cookieToken);
+          } else if (!cancelled) {
+            setAccessToken(cookieToken);
+          }
           return;
         }
 

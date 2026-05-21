@@ -55,5 +55,16 @@ export function useBoardPresence(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [boardId, user?.id, realtime]);
 
+  useEffect(() => {
+    if (!boardId || !user?.id || !realtime) return;
+    const channel = realtime.getChannel(realtimeChannel.board(boardId));
+    channel.presence.update({
+      displayName: user.displayName,
+      email: user.email,
+      avatar_url: user.avatarUrl ?? user.avatar_url,
+    }).catch(() => {/* not yet entered — no-op */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.avatarUrl, user?.displayName]);
+
   return members;
 }

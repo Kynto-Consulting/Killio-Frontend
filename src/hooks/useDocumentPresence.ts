@@ -55,5 +55,16 @@ export function useDocumentPresence(
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentId, user?.id, realtime]);
 
+  useEffect(() => {
+    if (!documentId || !user?.id || !realtime) return;
+    const channel = realtime.getChannel(realtimeChannel.document(documentId));
+    channel.presence.update({
+      displayName: user.displayName,
+      email: user.email,
+      avatar_url: user.avatarUrl ?? user.avatar_url,
+    }).catch(() => {/* not yet entered — no-op */});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.avatarUrl, user?.displayName]);
+
   return members;
 }

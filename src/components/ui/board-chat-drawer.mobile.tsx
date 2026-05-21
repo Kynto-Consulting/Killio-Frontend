@@ -169,8 +169,8 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm overflow-hidden"
                 style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text }}
               >
-                {(msg.avatarUrl || msg.email) ? (
-                  <img src={getUserAvatarUrl(msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
+                {(user?.avatarUrl || msg.avatarUrl || msg.email) ? (
+                  <img src={getUserAvatarUrl(user?.avatarUrl ?? msg.avatarUrl, msg.email || user?.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
                 ) : ( msg.avatar || (user?.displayName?.[0] || 'U') )}
               </div>
               <div
