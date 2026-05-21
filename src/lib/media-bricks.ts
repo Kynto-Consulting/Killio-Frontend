@@ -44,7 +44,7 @@ export function buildMediaCaption(meta: MediaMeta): string {
 export type UploadFileFn = (
   file: File,
   accessToken: string
-) => Promise<{ key: string; url: string; isPrivate: boolean }>;
+) => Promise<{ id?: string; key: string; url: string; isPrivate: boolean }>;
 
 export async function uploadFilesAsMediaItems(params: {
   files: File[];
@@ -65,23 +65,25 @@ export async function uploadFilesAsMediaItems(params: {
 
   for (const file of files) {
     let uploadedUrl = "";
-    let uploadedKey: string | null = null;
+    let uploadedId: string | null = null;
 
     if (accessToken) {
       try {
         const uploaded = await uploadFile(file, accessToken);
         uploadedUrl = uploaded.url;
-        uploadedKey = uploaded.key;
+        // Prioritize the UUID returned by the backend. 
+        // If not present, we must pass null to prevent DB foreign-key crashes.
+        uploadedId = uploaded.id || null;
       } catch (error) {
         onUploadError?.(error, file);
         if (allowLocalBlobFallback) {
           uploadedUrl = URL.createObjectURL(file);
-          uploadedKey = null;
+          uploadedId = null;
         }
       }
     } else if (allowLocalBlobFallback) {
       uploadedUrl = URL.createObjectURL(file);
-      uploadedKey = null;
+      uploadedId = null;
     }
 
     if (!uploadedUrl) continue;
@@ -91,7 +93,7 @@ export async function uploadFilesAsMediaItems(params: {
       title: file.name,
       mimeType: file.type || null,
       sizeBytes: file.size || null,
-      assetId: uploadedKey,
+      assetId: uploadedId,
     });
   }
 

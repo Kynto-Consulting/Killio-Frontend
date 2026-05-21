@@ -1115,7 +1115,7 @@ export default function DocumentPage() {
         mimeType: file.type || null,
         sizeBytes: file.size || null,
         caption: '',
-        assetId: uploaded.key,
+        assetId: uploaded.id || null,
       };
 
       if (isAtMiddle) {
