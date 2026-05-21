@@ -115,7 +115,7 @@ export default function RoomDetailWeb() {
       displayName: user.displayName ?? user.username ?? undefined,
       username: user.username ?? undefined,
       email: user.email ?? undefined,
-      avatarUrl: undefined as string | undefined,
+      avatarUrl: user.avatarUrl ?? undefined,
     }
     : null;
 

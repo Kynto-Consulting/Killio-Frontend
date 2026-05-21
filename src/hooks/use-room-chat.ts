@@ -24,6 +24,7 @@ type CurrentUser = {
   displayName?: string | null;
   name?: string | null;
   username?: string | null;
+  avatarUrl?: string | null;
 };
 
 function statusPriority(s?: MessageStatus): number {
@@ -230,6 +231,7 @@ export function useRoomChat(
         user: {
           displayName: currentUser?.displayName ?? currentUser?.name ?? currentUser?.username ?? "You",
           email: "",
+          avatarUrl: currentUser?.avatarUrl ?? undefined,
         },
       };
       setMessages((prev) => [...prev, optimistic]);

@@ -30,6 +30,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     displayName: user.displayName || undefined,
     username: user.username || undefined,
     email: user.email || undefined,
+    avatarUrl: user.avatarUrl || undefined,
   } : null;
 
   const call = useRoomCall(activeRoomId, userInfo, accessToken);
