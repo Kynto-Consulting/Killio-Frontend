@@ -286,7 +286,6 @@ export type MediaBrick = BrickBase & {
   mimeType: string | null;
   sizeBytes: number | null;
   caption: string | null;
-  assetId: string | null;
 };
 
 export type AiBrick = BrickBase & {
@@ -382,7 +381,6 @@ export type BrickMutationInput =
     mimeType: string | null;
     sizeBytes: number | null;
     caption: string | null;
-    assetId: string | null;
   }
   | {
     kind: 'ai';

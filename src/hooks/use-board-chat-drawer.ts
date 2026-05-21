@@ -129,7 +129,6 @@ function toCardBrickMutationInput(kind: string, content: any): BrickMutationInpu
       mimeType: content?.mimeType ?? null,
       sizeBytes: content?.sizeBytes ?? null,
       caption: content?.caption ?? null,
-      assetId: content?.assetId ?? null,
     };
   }
   if (normalizedKind === "graph") {

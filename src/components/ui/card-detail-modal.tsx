@@ -521,7 +521,6 @@ export function CardDetailModal({
         mimeType: input.mimeType,
         sizeBytes: input.sizeBytes,
         caption: input.caption,
-        assetId: input.assetId,
         position,
         parentBlockId: null,
         content: baseContent,
@@ -631,7 +630,6 @@ export function CardDetailModal({
         mimeType: brick.mimeType,
         sizeBytes: brick.sizeBytes,
         caption: brick.caption,
-        assetId: brick.assetId,
       };
     }
     if (brick.kind === 'ai') {
@@ -913,7 +911,6 @@ export function CardDetailModal({
       title: target.title || '',
       mimeType: target.mimeType || null,
       sizeBytes: target.sizeBytes || null,
-      assetId: target.assetId || null,
     };
     const existingMeta = parseMediaMeta(target.caption, fallback);
 
@@ -940,7 +937,6 @@ export function CardDetailModal({
       mimeType: first?.mimeType || null,
       sizeBytes: first?.sizeBytes || null,
       caption: buildMediaCaption({ subtitle: existingMeta.subtitle || '', items: nextItems }),
-      assetId: first?.assetId || null,
     } as Partial<BrickMutationInput>);
   }, [accessToken, handleUpdateBrick, localBlocks, toast]);
 
@@ -982,17 +978,14 @@ export function CardDetailModal({
         try {
           const uploaded = await uploadFile(file, accessToken);
           imageUrl = uploaded.url;
-          assetKey = uploaded.key;
           uploadedToServer = true;
         } catch (uploadErr) {
           console.error('[CardTextPaste] upload failed, using local blob fallback', uploadErr);
           imageUrl = URL.createObjectURL(file);
-          assetKey = null;
           toast('No se pudo subir la imagen. Se mostrara localmente en esta sesion.', 'error');
         }
       } else {
         imageUrl = URL.createObjectURL(file);
-        assetKey = null;
       }
 
       if (!imageUrl) {
@@ -1010,7 +1003,6 @@ export function CardDetailModal({
         mimeType: file.type,
         sizeBytes: file.size,
         caption: null,
-        assetId: assetKey,
         position: 0, // Will be set correctly below
         parentBlockId: null,
       };
@@ -1062,11 +1054,12 @@ export function CardDetailModal({
 
       // If card has an ID, persist to server
       if (card?.id && accessToken && uploadedToServer) {
-        // Create or update each brick on server
+        const persistedBlocks: BoardBrick[] = [];
+
+        // Create temporary bricks on server and keep the real IDs in order.
         for (const block of newBlocks) {
           if (block.id.startsWith('temp-')) {
-            // New brick, create it
-            await createCardBrick(card.id, {
+            const created = await createCardBrick(card.id, {
               kind: block.kind,
               ...(block.kind === 'text' ? {
                 displayStyle: (block as any).displayStyle,
@@ -1079,16 +1072,22 @@ export function CardDetailModal({
                 mimeType: (block as any).mimeType,
                 sizeBytes: (block as any).sizeBytes,
                 caption: (block as any).caption,
-                assetId: (block as any).assetId,
               } : {}),
             } as BrickMutationInput, accessToken);
+
+            persistedBlocks.push(created.brick);
+            continue;
           }
+
+          persistedBlocks.push(block);
         }
+
+        setLocalBlocks(persistedBlocks);
 
         // Reorder all bricks
         await reorderCardBricks(
           card.id,
-          { clientId: crypto.randomUUID(), brickIds: newBlocks.map(b => b.id) },
+          { clientId: crypto.randomUUID(), brickIds: persistedBlocks.map((brick) => brick.id) },
           accessToken
         );
       }
@@ -1948,7 +1947,6 @@ export function CardDetailModal({
                           mimeType: null,
                           sizeBytes: null,
                           caption: null,
-                          assetId: null,
                         };
                       } else {
                         input = { kind: 'text', displayStyle: 'paragraph', markdown: '' };

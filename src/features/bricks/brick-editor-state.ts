@@ -10,7 +10,6 @@ export type BrickFormState = {
   mimeType: string;
   sizeBytes: string;
   caption: string;
-  assetId: string;
   status: 'idle' | 'running' | 'done' | 'error';
   prompt: string;
   response: string;
@@ -29,7 +28,6 @@ export function createDefaultBrickForm(kind: BrickMutationInput['kind']): BrickF
     mimeType: '',
     sizeBytes: '',
     caption: '',
-    assetId: '',
     status: 'idle',
     prompt: '',
     response: '',
@@ -57,7 +55,6 @@ export function brickFormFromBrick(brick: BoardBrick): BrickFormState {
         mimeType: brick.mimeType ?? '',
         sizeBytes: brick.sizeBytes !== null ? String(brick.sizeBytes) : '',
         caption: brick.caption ?? '',
-        assetId: brick.assetId ?? '',
       };
     case 'ai':
       return {
@@ -92,7 +89,6 @@ export function brickFormToMutationInput(form: BrickFormState): BrickMutationInp
         mimeType: nullIfBlank(form.mimeType),
         sizeBytes: parseOptionalNumber(form.sizeBytes),
         caption: nullIfBlank(form.caption),
-        assetId: nullIfBlank(form.assetId),
       };
     case 'ai':
       return {

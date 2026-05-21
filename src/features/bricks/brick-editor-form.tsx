@@ -173,10 +173,6 @@ function MediaFields({ form, setForm }: FieldProps) {
         <span>Caption</span>
         <textarea value={form.caption} onChange={(event) => setForm((current) => ({ ...current, caption: event.target.value }))} />
       </label>
-      <label className={styles.field}>
-        <span>Asset ID</span>
-        <input value={form.assetId} onChange={(event) => setForm((current) => ({ ...current, assetId: event.target.value }))} />
-      </label>
     </>
   );
 }

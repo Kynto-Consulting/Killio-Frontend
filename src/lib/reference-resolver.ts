@@ -270,7 +270,6 @@ export class ReferenceResolver {
     if (selector === "caption") return String(payload.caption ?? "");
     if (selector === "mime") return String(payload.mimeType ?? "");
     if (selector === "size") return String(payload.sizeBytes ?? "");
-    if (selector === "asset") return String(payload.assetId ?? "");
     return String(payload.url ?? payload.title ?? payload.caption ?? "");
   }
 

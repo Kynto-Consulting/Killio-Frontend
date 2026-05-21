@@ -291,7 +291,7 @@ Selectores comunes:
 ## Bricks y Estructuras JSON (Cards/Documents)
 
 - \`text\`: \`{ "displayStyle": "paragraph|checklist|quote|code|callout", "markdown": "...", "tasks": [] }\`
-- \`media\`: \`{ "mediaType": "image|file", "title": "...", "url": "...", "mimeType": "...", "sizeBytes": 0, "caption": "...", "assetId": "..." }\`
+- \`media\`: \`{ "mediaType": "image|file", "title": "...", "url": "...", "mimeType": "...", "sizeBytes": 0, "caption": "..."}\`
 - \`ai\`: \`{ "status": "idle|running|done|error", "title": "...", "prompt": "...", "response": "...", "model": "...", "confidence": 0.0 }\`
 
 ## User Mode Patterns

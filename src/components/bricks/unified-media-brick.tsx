@@ -9,7 +9,6 @@ export type MediaCarouselItem = {
   title?: string | null;
   mimeType?: string | null;
   sizeBytes?: number | null;
-  assetId?: string | null;
 };
 
 export type MediaMeta = {
@@ -76,7 +75,6 @@ export const UnifiedMediaBrick: React.FC<{
     title: content.title || "",
     mimeType: content.mimeType || null,
     sizeBytes: content.sizeBytes || null,
-    assetId: content.assetId || null,
   };
 
   const meta = parseMediaMeta(content.caption, fallback);
@@ -121,7 +119,6 @@ export const UnifiedMediaBrick: React.FC<{
       url: first?.url || "",
       mimeType: first?.mimeType || null,
       sizeBytes: first?.sizeBytes || null,
-      assetId: first?.assetId || null,
       caption: buildMediaCaption(nextMeta),
     });
     setActiveIndex(nextIndex);
@@ -243,7 +240,6 @@ export const UnifiedMediaBrick: React.FC<{
                         title: kind === "bookmark" ? "Bookmark" : "",
                         mimeType: kind === "bookmark" ? "text/html" : undefined,
                         sizeBytes: null,
-                        assetId: null,
                       };
                       
                       if (meta.items.length === 0) {

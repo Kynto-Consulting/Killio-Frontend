@@ -3,7 +3,6 @@ export type MediaCarouselItem = {
   title?: string | null;
   mimeType?: string | null;
   sizeBytes?: number | null;
-  assetId?: string | null;
 };
 
 export type MediaMeta = {
@@ -92,8 +91,7 @@ export async function uploadFilesAsMediaItems(params: {
       url: uploadedUrl,
       title: file.name,
       mimeType: file.type || null,
-      sizeBytes: file.size || null,
-      assetId: uploadedId,
+      sizeBytes: file.size || null
     });
   }
 

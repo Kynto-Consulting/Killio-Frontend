@@ -83,7 +83,6 @@ function toBoardBrickPreviewContent(brick: CardView["blocks"][number]): Record<s
       mimeType: (brick as any).mimeType,
       sizeBytes: (brick as any).sizeBytes,
       caption: (brick as any).caption,
-      assetId: (brick as any).assetId,
     };
   }
 

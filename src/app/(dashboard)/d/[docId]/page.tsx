@@ -1012,7 +1012,6 @@ export default function DocumentPage() {
       title: target.content?.title || '',
       mimeType: target.content?.mimeType || null,
       sizeBytes: target.content?.sizeBytes || null,
-      assetId: target.content?.assetId || null,
     };
 
     const existingMeta = parseMediaMeta(target.content?.caption, fallback);
@@ -1044,7 +1043,6 @@ export default function DocumentPage() {
       url: first?.url || target.content?.url || '',
       mimeType: first?.mimeType || null,
       sizeBytes: first?.sizeBytes || null,
-      assetId: first?.assetId || null,
       caption: buildMediaCaption({ subtitle: existingMeta.subtitle || '', items: nextItems }),
     }, accessToken);
 
@@ -1115,7 +1113,6 @@ export default function DocumentPage() {
         mimeType: file.type || null,
         sizeBytes: file.size || null,
         caption: '',
-        assetId: uploaded.id || null,
       };
 
       if (isAtMiddle) {
