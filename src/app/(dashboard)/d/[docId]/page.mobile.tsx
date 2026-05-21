@@ -1,22 +1,11 @@
 "use client";
 
-/**
- * Mobile document view — PAR-02
- *
- * Differences from web:
- * - Compact header: back + title + 3-dot menu (no row of 5 buttons)
- * - Copilot / Comments open as a bottom sheet instead of a side drawer
- * - Export/Share actions inside the overflow menu
- * - Full-width content area (no horizontal margin compression from drawers)
- * - Touch-friendly brick toolbar (shown at bottom when text is selected)
- */
-
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
   ArrowLeft, MoreVertical, Sparkles, MessageSquare,
-  Download, Share2, FileText, X, Check,
+  Download, Share2, FileText, X, Check, Loader2,
 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
@@ -31,6 +20,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
+import { DocumentShareModal } from "@/components/ui/document-share-modal";
+import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
 
 export default function DocumentMobilePage() {
   const t = useTranslations("document-detail");
@@ -44,6 +35,12 @@ export default function DocumentMobilePage() {
   const [activeSheet, setActiveSheet] = useState<"copilot" | "comments" | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [exportFormat, setExportFormat] = useState<"pdf" | "docx">("pdf");
+  const [exportStyle, setExportStyle] = useState<"carta" | "harvard">("carta");
+  const [exportSize, setExportSize] = useState<"letter" | "A4">("A4");
+  const [isExporting, setIsExporting] = useState(false);
 
   const documentBricksRef = useRef<DocumentBrick[]>([]);
   useEffect(() => {
@@ -93,7 +90,7 @@ export default function DocumentMobilePage() {
     }
   });
 
-  const handleAddBrick = useCallback(async (kind: string, afterBrickId?: string, parentProps?: any, initialContent?: any) => {
+  const handleAddBrick = useCallback(async (kind: string, afterBrickId?: string, _parentProps?: any, initialContent?: any) => {
     if (!accessToken || !document) return;
     const topLevel = document.bricks.filter(b => getTopLevelBrickIds(document.bricks).has(b.id)).sort((a, b) => a.position - b.position);
     let position = 1000;
@@ -103,8 +100,7 @@ export default function DocumentMobilePage() {
     } else {
       position = topLevel.length > 0 ? topLevel[topLevel.length - 1].position + 1000 : 1000;
     }
-    let content: any = initialContent || {};
-    if (!initialContent && kind === "text") content = { text: "" };
+    const content: any = initialContent || (kind === "text" ? { text: "" } : {});
     try {
       const newBrick = await createDocumentBrick(docId, { kind: kind === "code" || kind === "math" ? "text" : kind, position, content }, accessToken);
       setDocument(prev => prev ? { ...prev, bricks: sanitize([...prev.bricks, newBrick]).sort((a, b) => a.position - b.position) } : prev);
@@ -142,9 +138,34 @@ export default function DocumentMobilePage() {
     catch { setDocument(prev => prev ? { ...prev, title: original } : null); }
   };
 
+  const handleExport = async () => {
+    if (!accessToken || !document) return;
+    setIsExporting(true);
+    try {
+      const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
+      const url = `${API_BASE}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}`;
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+      if (!res.ok) throw new Error("export failed");
+      const blob = await res.blob();
+      const downloadUrl = window.URL.createObjectURL(blob);
+      const a = window.document.createElement("a");
+      a.href = downloadUrl;
+      a.download = `${document.title || "Document"}.${exportFormat}`;
+      window.document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(downloadUrl);
+      setIsExportModalOpen(false);
+      toast(t("exportModal.downloadBtn"), "success");
+    } catch {
+      toast(t("loadError"), "error");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const canEdit = document?.role === "owner" || document?.role === "editor";
 
-  // ─── Loading skeleton ────────────────────────────────────────────────────────
   if (isLoading) {
     return (
       <div className="flex flex-col h-full bg-background">
@@ -184,7 +205,6 @@ export default function DocumentMobilePage() {
           <ArrowLeft className="h-4 w-4" />
         </Link>
 
-        {/* Title — tap to edit */}
         {isEditingTitle ? (
           <div className="flex-1 flex items-center gap-1 min-w-0">
             <input
@@ -207,23 +227,21 @@ export default function DocumentMobilePage() {
           </button>
         )}
 
-        {/* Quick action buttons */}
         <button
           onClick={() => setActiveSheet(s => s === "copilot" ? null : "copilot")}
           className={cn("p-1.5 rounded-lg transition-colors shrink-0", activeSheet === "copilot" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/10")}
-          aria-label="Copilot"
+          aria-label={t("header.copilot")}
         >
           <Sparkles className="h-4 w-4" />
         </button>
         <button
           onClick={() => setActiveSheet(s => s === "comments" ? null : "comments")}
           className={cn("p-1.5 rounded-lg transition-colors shrink-0", activeSheet === "comments" ? "bg-accent/10 text-accent" : "text-muted-foreground hover:text-foreground hover:bg-accent/10")}
-          aria-label="Comments"
+          aria-label={t("header.comments")}
         >
           <MessageSquare className="h-4 w-4" />
         </button>
 
-        {/* Overflow menu */}
         <div className="relative shrink-0">
           <button onClick={() => setIsMenuOpen(o => !o)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors">
             <MoreVertical className="h-4 w-4" />
@@ -232,27 +250,19 @@ export default function DocumentMobilePage() {
             <>
               <div className="fixed inset-0 z-40" onClick={() => setIsMenuOpen(false)} />
               <div className="absolute right-0 top-full mt-1 w-44 rounded-xl border border-border bg-card shadow-xl z-50 overflow-hidden">
-                <Link
-                  href={`/d/${docId}`}
-                  className="flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-accent/5 transition-colors"
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  Vista completa
-                </Link>
                 <button
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-accent/5 transition-colors"
-                  onClick={() => { setIsMenuOpen(false); /* trigger share */ }}
+                  onClick={() => { setIsMenuOpen(false); setIsShareModalOpen(true); }}
                 >
                   <Share2 className="h-4 w-4 text-muted-foreground" />
                   {t("header.share")}
                 </button>
                 <button
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm hover:bg-accent/5 transition-colors"
-                  onClick={() => { setIsMenuOpen(false); /* trigger export */ }}
+                  onClick={() => { setIsMenuOpen(false); setIsExportModalOpen(true); }}
                 >
                   <Download className="h-4 w-4 text-muted-foreground" />
-                  Descargar
+                  {t("header.download")}
                 </button>
               </div>
             </>
@@ -262,7 +272,6 @@ export default function DocumentMobilePage() {
 
       {/* Document content */}
       <main className="flex-1 overflow-y-auto px-4 py-6">
-        {/* Inline title */}
         <h1
           onClick={() => { if (canEdit) { setTempTitle(document.title); setIsEditingTitle(true); } }}
           className={cn("text-2xl font-bold tracking-tight mb-6 pb-4 border-b border-border/40", canEdit && "cursor-pointer")}
@@ -288,43 +297,107 @@ export default function DocumentMobilePage() {
           onAiAction={() => {}}
         />
 
-        {/* Bottom padding for safe area */}
         <div className="h-20" />
       </main>
 
-      {/* Bottom sheet for Copilot / Comments */}
+      {/* Comments / Copilot drawer rendered as bottom sheet */}
       {activeSheet && (
-        <>
+        <DocumentCommentsDrawer
+          isOpen
+          onClose={() => setActiveSheet(null)}
+          docId={docId}
+          initialTab={activeSheet}
+          bricks={document.bricks}
+        />
+      )}
+
+      {/* Export modal */}
+      {isExportModalOpen && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-background/60 backdrop-blur-sm p-0 animate-in fade-in duration-200"
+          onClick={() => setIsExportModalOpen(false)}
+        >
           <div
-            className="fixed inset-0 bg-background/60 backdrop-blur-sm z-40"
-            onClick={() => setActiveSheet(null)}
-          />
-          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-2xl shadow-2xl max-h-[70vh] flex flex-col animate-in slide-in-from-bottom-4 duration-200">
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-              <div className="flex items-center gap-2">
-                {activeSheet === "copilot" ? <Sparkles className="h-4 w-4 text-accent" /> : <MessageSquare className="h-4 w-4 text-accent" />}
-                <span className="text-sm font-semibold">
-                  {activeSheet === "copilot" ? t("header.copilot") : t("header.comments")}
-                </span>
-              </div>
-              <button onClick={() => setActiveSheet(null)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
+            className="bg-card w-full border-t border-border shadow-2xl rounded-t-2xl overflow-hidden p-6 animate-in slide-in-from-bottom-4 duration-200"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                <Download className="h-4 w-4 text-accent" />
+                {t("exportModal.title")}
+              </h2>
+              <button onClick={() => setIsExportModalOpen(false)} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <p className="text-sm text-muted-foreground text-center py-8">
-                {activeSheet === "copilot" ? "Abre la vista completa para usar el Copilot completo." : "Abre la vista completa para ver y añadir comentarios."}
-              </p>
-              <Link
-                href={`/d/${docId}`}
-                className="flex items-center justify-center gap-2 w-full py-3 rounded-xl bg-accent/10 text-accent text-sm font-medium hover:bg-accent/20 transition-colors"
+
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.formatLabel")}</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExportFormat("pdf")}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors", exportFormat === "pdf" ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground hover:bg-accent/5")}
+                  >
+                    PDF
+                  </button>
+                  <button
+                    onClick={() => setExportFormat("docx")}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors", exportFormat === "docx" ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground hover:bg-accent/5")}
+                  >
+                    Word (DOCX)
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.styleLabel")}</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExportStyle("carta")}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors", exportStyle === "carta" ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground hover:bg-accent/5")}
+                  >
+                    {t("exportModal.styleCarta")}
+                  </button>
+                  <button
+                    onClick={() => setExportStyle("harvard")}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors", exportStyle === "harvard" ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground hover:bg-accent/5")}
+                  >
+                    {t("exportModal.styleHarvard")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-2">
+              <button
+                onClick={() => setIsExportModalOpen(false)}
+                className="px-4 py-2 rounded-lg text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-accent/5 transition-colors"
               >
-                <FileText className="h-4 w-4" />
-                Abrir vista completa
-              </Link>
+                {t("exportModal.cancel")}
+              </button>
+              <button
+                onClick={handleExport}
+                disabled={isExporting}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-60 transition-colors"
+              >
+                {isExporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+                {t("exportModal.downloadBtn")}
+              </button>
             </div>
           </div>
-        </>
+        </div>
+      )}
+
+      {/* Share modal */}
+      {isShareModalOpen && (
+        <DocumentShareModal
+          isOpen
+          onClose={() => setIsShareModalOpen(false)}
+          documentId={docId}
+          documentName={document.title}
+          accessToken={accessToken ?? ""}
+        />
       )}
     </div>
   );
