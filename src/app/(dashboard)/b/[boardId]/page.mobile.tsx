@@ -2,16 +2,16 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, MoreVertical, Check, X, Loader2 } from "lucide-react";
+import { useParams } from "next/navigation";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Check, X, Archive, ArchiveRestore } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { getBoard, updateCard } from "@/lib/api/contracts";
+import { getBoard, getArchivedLists, archiveList, ArchivedListSummary } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
-
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { Skeleton } from "@/components/ui/skeleton";
+import { CardDetailModal } from "@/components/ui/card-detail-modal";
 
 type CardRow = {
   id: string;
@@ -20,6 +20,8 @@ type CardRow = {
   tags?: { id: string; name: string; color?: string }[];
   dueAt?: string | null;
   priority?: string | null;
+  archivedAt?: string | null;
+  status?: string;
 };
 
 type ListCol = {
@@ -28,7 +30,6 @@ type ListCol = {
   cards: CardRow[];
 };
 
-/** Priority dot color */
 function priorityColor(p?: string | null) {
   if (p === "urgent") return "bg-red-500";
   if (p === "high") return "bg-orange-400";
@@ -40,7 +41,6 @@ export default function BoardMobilePage() {
   const { boardId } = useParams() as { boardId: string };
   const { accessToken, user } = useSession();
   const t = useTranslations("board-detail");
-  const router = useRouter();
 
   const [boardName, setBoardName] = useState("");
   const [lists, setLists] = useState<ListCol[]>([]);
@@ -48,6 +48,10 @@ export default function BoardMobilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [selectedCard, setSelectedCard] = useState<{ card: CardRow; listId: string; listName: string } | null>(null);
+  const [showArchivedLists, setShowArchivedLists] = useState(false);
+  const [archivedLists, setArchivedLists] = useState<ArchivedListSummary[]>([]);
+  const [archivedListsLoading, setArchivedListsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const loadBoard = useCallback(() => {
@@ -73,16 +77,46 @@ export default function BoardMobilePage() {
   useEffect(() => { loadBoard(); }, [loadBoard]);
 
   useBoardRealtime(boardId, (evt) => {
-    if (["card.moved", "card.created", "card.updated", "card.assignee_added", "card.assignee_removed"].includes(evt.type)) {
+    if (["card.moved", "card.created", "card.updated", "card.assignee_added", "card.assignee_removed", "list.updated"].includes(evt.type)) {
       loadBoard();
     }
   }, accessToken);
 
+  const handleToggleArchivedLists = useCallback(async () => {
+    if (showArchivedLists) {
+      setShowArchivedLists(false);
+      return;
+    }
+    if (!accessToken) return;
+    setShowArchivedLists(true);
+    setArchivedListsLoading(true);
+    try {
+      const data = await getArchivedLists(boardId, accessToken);
+      setArchivedLists(data);
+    } catch {
+      toast(t("list.archiveError"), "error");
+    } finally {
+      setArchivedListsLoading(false);
+    }
+  }, [showArchivedLists, accessToken, boardId, t]);
+
+  const handleUnarchiveList = useCallback(async (listId: string) => {
+    if (!accessToken) return;
+    try {
+      await archiveList(boardId, listId, false, accessToken);
+      setArchivedLists(prev => prev.filter(l => l.id !== listId));
+      toast(t("list.unarchiveSuccess"), "success");
+      loadBoard();
+    } catch {
+      toast(t("list.unarchiveError"), "error");
+    }
+  }, [accessToken, boardId, t, loadBoard]);
+
   const activeList = lists[activeListIndex] ?? null;
+  const visibleCards = (activeList?.cards ?? []).filter(c => !c.archivedAt);
 
   const handleAddCard = async () => {
     if (!newCardTitle.trim() || !accessToken || !activeList) return;
-    // Optimistic add
     const tempId = `tmp-${Date.now()}`;
     const tempCard: CardRow = { id: tempId, title: newCardTitle.trim() };
     setLists(prev => prev.map((l, i) => i === activeListIndex ? { ...l, cards: [...l.cards, tempCard] } : l));
@@ -115,18 +149,21 @@ export default function BoardMobilePage() {
 
   return (
     <div className="flex flex-col h-full bg-background overflow-hidden">
-      {/* Compact header */}
+      {/* Header */}
       <header className="flex items-center gap-2 px-3 py-2.5 border-b border-border/50 bg-background/90 backdrop-blur shrink-0">
         <Link href="/b" className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent/10 transition-colors">
           <ArrowLeft className="h-4 w-4" />
         </Link>
-        <h1 className="flex-1 text-sm font-semibold truncate">{boardName || <Skeleton className="h-4 w-32 inline-block" />}</h1>
-        <Link
-          href={`/b/${boardId}`}
-          className="text-[10px] font-medium text-muted-foreground hover:text-foreground px-2 py-1 rounded border border-border/60 hover:border-accent/40 transition-colors"
+        <h1 className="flex-1 text-sm font-semibold truncate">
+          {boardName || <Skeleton className="h-4 w-32 inline-block" />}
+        </h1>
+        <button
+          onClick={handleToggleArchivedLists}
+          className={`p-1.5 rounded-lg transition-colors ${showArchivedLists ? "text-accent bg-accent/10" : "text-muted-foreground hover:text-foreground hover:bg-accent/10"}`}
+          title={showArchivedLists ? t("list.hideArchived") : t("list.viewArchived")}
         >
-          Vista completa
-        </Link>
+          <Archive className="h-4 w-4" />
+        </button>
       </header>
 
       {isLoading && lists.length === 0 ? (
@@ -136,18 +173,14 @@ export default function BoardMobilePage() {
         </div>
       ) : lists.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-          <p className="text-sm font-medium text-muted-foreground">Este board no tiene listas aún.</p>
-          <Link href={`/b/${boardId}`} className="mt-3 text-xs text-accent">Abrir vista completa para crear listas</Link>
+          <p className="text-sm font-medium text-muted-foreground">{t("list.noArchivedLists")}</p>
+          <Link href={`/b/${boardId}`} className="mt-3 text-xs text-accent">{t("list.addAnother")}</Link>
         </div>
       ) : (
         <>
-          {/* List selector: horizontal chip scroll */}
+          {/* List selector chips */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40 shrink-0 overflow-x-auto scrollbar-none">
-            <button
-              onClick={prevList}
-              disabled={activeListIndex === 0}
-              className="shrink-0 p-1 rounded disabled:opacity-30 text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={prevList} disabled={activeListIndex === 0} className="shrink-0 p-1 rounded disabled:opacity-30 text-muted-foreground hover:text-foreground">
               <ChevronLeft className="h-4 w-4" />
             </button>
             {lists.map((list, i) => (
@@ -155,30 +188,25 @@ export default function BoardMobilePage() {
                 key={list.id}
                 onClick={() => setActiveListIndex(i)}
                 className={`shrink-0 px-3 py-1 rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                  i === activeListIndex
-                    ? "bg-accent text-accent-foreground"
-                    : "bg-muted/40 text-muted-foreground hover:bg-muted"
+                  i === activeListIndex ? "bg-accent text-accent-foreground" : "bg-muted/40 text-muted-foreground hover:bg-muted"
                 }`}
               >
                 {list.title}
-                <span className="ml-1.5 opacity-60">{list.cards.length}</span>
+                <span className="ml-1.5 opacity-60">{list.cards.filter(c => !c.archivedAt).length}</span>
               </button>
             ))}
-            <button
-              onClick={nextList}
-              disabled={activeListIndex === lists.length - 1}
-              className="shrink-0 p-1 rounded disabled:opacity-30 text-muted-foreground hover:text-foreground"
-            >
+            <button onClick={nextList} disabled={activeListIndex === lists.length - 1} className="shrink-0 p-1 rounded disabled:opacity-30 text-muted-foreground hover:text-foreground">
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
 
           {/* Cards */}
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
-            {activeList?.cards.map((card) => (
-              <div
+            {visibleCards.map((card) => (
+              <button
                 key={card.id}
-                className="flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 active:scale-[0.98] transition-transform"
+                onClick={() => setSelectedCard({ card, listId: activeList!.id, listName: activeList!.title })}
+                className="w-full flex items-start gap-3 rounded-xl border border-border bg-card px-4 py-3 active:scale-[0.98] transition-transform text-left"
               >
                 <div className={`mt-1.5 h-2 w-2 rounded-full shrink-0 ${priorityColor(card.priority)}`} />
                 <div className="flex-1 min-w-0">
@@ -198,7 +226,7 @@ export default function BoardMobilePage() {
                   )}
                   {card.dueAt && (
                     <p className="text-[10px] text-muted-foreground mt-1">
-                      Vence {new Date(card.dueAt).toLocaleDateString()}
+                      {new Date(card.dueAt).toLocaleDateString()}
                     </p>
                   )}
                 </div>
@@ -215,17 +243,15 @@ export default function BoardMobilePage() {
                     ))}
                   </div>
                 )}
-              </div>
+              </button>
             ))}
 
-            {/* Empty state */}
-            {activeList?.cards.length === 0 && !isAddingCard && (
+            {visibleCards.length === 0 && !isAddingCard && (
               <div className="flex flex-col items-center justify-center py-10 text-center">
-                <p className="text-xs text-muted-foreground">Sin tarjetas en esta lista</p>
+                <p className="text-xs text-muted-foreground">{t("list.addCard")}</p>
               </div>
             )}
 
-            {/* Inline add-card form */}
             {isAddingCard && (
               <div className="rounded-xl border border-accent/40 bg-card px-4 py-3 space-y-2">
                 <input
@@ -233,22 +259,19 @@ export default function BoardMobilePage() {
                   autoFocus
                   value={newCardTitle}
                   onChange={e => setNewCardTitle(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") handleAddCard(); if (e.key === "Escape") { setIsAddingCard(false); setNewCardTitle(""); } }}
-                  placeholder="Nombre de la tarjeta…"
+                  onKeyDown={e => {
+                    if (e.key === "Enter") handleAddCard();
+                    if (e.key === "Escape") { setIsAddingCard(false); setNewCardTitle(""); }
+                  }}
+                  placeholder={t("list.placeholder")}
                   className="w-full text-sm bg-transparent focus:outline-none placeholder:text-muted-foreground"
                 />
                 <div className="flex items-center gap-2 pt-1">
-                  <button
-                    onClick={handleAddCard}
-                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-accent text-accent-foreground text-xs font-medium"
-                  >
+                  <button onClick={handleAddCard} className="flex items-center gap-1 px-3 py-1 rounded-lg bg-accent text-accent-foreground text-xs font-medium">
                     <Check className="h-3.5 w-3.5" />
-                    Agregar
+                    {t("list.add")}
                   </button>
-                  <button
-                    onClick={() => { setIsAddingCard(false); setNewCardTitle(""); }}
-                    className="p-1 rounded-lg text-muted-foreground hover:text-foreground"
-                  >
+                  <button onClick={() => { setIsAddingCard(false); setNewCardTitle(""); }} className="p-1 rounded-lg text-muted-foreground hover:text-foreground">
                     <X className="h-4 w-4" />
                   </button>
                 </div>
@@ -256,7 +279,7 @@ export default function BoardMobilePage() {
             )}
           </div>
 
-          {/* FAB — add card */}
+          {/* FAB */}
           {!isAddingCard && (
             <div className="px-4 pb-6 pt-2 shrink-0">
               <button
@@ -264,11 +287,56 @@ export default function BoardMobilePage() {
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl border-2 border-dashed border-accent/30 text-accent/70 text-sm font-medium hover:border-accent/60 hover:text-accent transition-colors active:scale-[0.98]"
               >
                 <Plus className="h-4 w-4" />
-                Agregar tarjeta a {activeList?.title}
+                {t("list.addCard")} — {activeList?.title}
               </button>
             </div>
           )}
         </>
+      )}
+
+      {/* Archived lists panel */}
+      {showArchivedLists && (
+        <div className="shrink-0 border-t border-border/60 bg-muted/20 px-4 py-3">
+          <div className="flex items-center gap-2 mb-2">
+            <Archive className="h-3.5 w-3.5 text-muted-foreground" />
+            <span className="text-xs font-semibold text-foreground">{t("list.archivedLists")}</span>
+          </div>
+          {archivedListsLoading ? (
+            <Skeleton className="h-8 w-full rounded-lg" />
+          ) : archivedLists.length === 0 ? (
+            <p className="text-xs text-muted-foreground">{t("list.noArchivedLists")}</p>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              {archivedLists.map(al => (
+                <div key={al.id} className="flex items-center justify-between px-3 py-2 rounded-lg border border-border bg-card">
+                  <span className="text-sm font-medium text-foreground truncate">{al.name}</span>
+                  <button
+                    onClick={() => handleUnarchiveList(al.id)}
+                    className="flex items-center gap-1 ml-3 shrink-0 text-xs text-accent hover:text-accent/80"
+                  >
+                    <ArchiveRestore className="h-3.5 w-3.5" />
+                    {t("list.unarchiveList")}
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Card detail modal */}
+      {selectedCard && (
+        <CardDetailModal
+          isOpen
+          onClose={() => { setSelectedCard(null); loadBoard(); }}
+          card={selectedCard.card}
+          listId={selectedCard.listId}
+          listName={selectedCard.listName}
+          boardName={boardName}
+          boardId={boardId}
+          teamDocs={[]}
+          teamBoards={[]}
+        />
       )}
     </div>
   );
