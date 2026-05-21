@@ -33,13 +33,63 @@
   "create": {
     "title": "Crea un nuevo pack"
   },
+  "profile": {
+    "title": "Vender y publicar",
+    "subtitle": "Publica packs y compártelos con el mundo.",
+    "statPacks": "Packs",
+    "statInstalls": "Instalaciones",
+    "newPack": "Nuevo pack",
+    "myPacksTitle": "Mis packs",
+    "packsPublished": "{{count}} packs publicados",
+    "createFirst": "Crea tu primer pack y compártelo con el mundo.",
+    "publishSnapshot": "Publicar snapshot",
+    "optional": "(opcional)",
+    "visibility": "Visibilidad",
+    "locale": "Idioma",
+    "status": "Estado",
+    "statusPublished": "Publicado",
+    "statusDraft": "Borrador",
+    "statusArchived": "Archivado",
+    "releaseKey": "Clave de versión",
+    "snapshotTitle": "Título del snapshot",
+    "includeAssets": "Incluir assets",
+    "selectAssets": "Selecciona los assets a incluir en el primer snapshot de tu pack.",
+    "addAssetsLater": "Siempre puedes agregar más assets publicando un nuevo snapshot.",
+    "noAssetsSelected": "Sin assets seleccionados — el pack se creará sin snapshot inicial. Puedes publicar uno después.",
+    "packSummary": "Resumen del pack",
+    "noDescription": "Sin descripción",
+    "back": "Volver",
+    "continue": "Continuar",
+    "publishing": "Publicando…",
+    "wizard": {
+      "eyebrow": "Nuevo pack",
+      "step1": "Detalles del pack",
+      "step2": "Elegir assets",
+      "step3": "Primera versión"
+    }
+  },
   "myPacks": {
     "title": "Packs de tu equipo",
     "count": "{{count}} packs"
   },
   "publicPacks": {
     "title": "Marketplace publico",
-    "search": "Buscar packs"
+    "search": "Buscar packs",
+    "tagline": "Encuentra packs creados por la comunidad o publica el tuyo.",
+    "categories": "Categorías populares",
+    "count": "{{count}} packs disponibles",
+    "refresh": "Actualizar",
+    "checkBack": "Vuelve más tarde o publica el tuyo."
+  },
+  "categories": {
+    "document": "Documentos",
+    "documentSub": "Guías, especificaciones, docs",
+    "mesh": "Meshes",
+    "meshSub": "Pizarras y diagramas",
+    "board": "Kanban",
+    "boardSub": "Tableros y flujos de trabajo",
+    "script": "Scripts",
+    "scriptSub": "Automatizaciones y herramientas"
   },
   "snapshot": {
     "title": "Version Snapshot",

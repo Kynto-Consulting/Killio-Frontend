@@ -981,6 +981,19 @@ export async function updateList(
   });
 }
 
+export type ArchivedListSummary = {
+  id: string;
+  name: string;
+  updatedAt: string;
+};
+
+export async function getArchivedLists(boardId: string, accessToken: string): Promise<ArchivedListSummary[]> {
+  return request<ArchivedListSummary[]>(`/boards/${boardId}/archived-lists`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export async function archiveList(
   boardId: string,
   listId: string,
