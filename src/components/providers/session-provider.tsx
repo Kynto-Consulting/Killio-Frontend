@@ -187,6 +187,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           if (restoredTeamId) localStorage.setItem("killio_active_team", restoredTeamId);
 
           if (!cancelled) {
+            writeTokenCookie(rotated.accessToken, newExpiresInSeconds);
             setUser(normalizedRotatedUser);
             setAccessToken(rotated.accessToken);
             setActiveTeamId(restoredTeamId);
@@ -272,6 +273,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
     const ttl = expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS;
 
+    writeTokenCookie(token, ttl);
     setUser(normalizedUser);
     setAccessToken(token);
     const existingAccount = accounts.find((account) => account.user.id === normalizedUser.id);
@@ -311,6 +313,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(normalizedUser);
     setAccessToken(target.accessToken);
     setActiveTeamId(target.activeTeamId);
+    writeTokenCookie(target.accessToken, target.expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS);
 
     localStorage.setItem("killio_user", JSON.stringify(normalizedUser));
 
