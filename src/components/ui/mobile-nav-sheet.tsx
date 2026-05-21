@@ -25,6 +25,7 @@ export function MobileNavSheet({
   user,
   logout,
   onCreateWorkspace,
+  onOpenSettings,
   boardName,
   documentName
 }: {
@@ -39,6 +40,7 @@ export function MobileNavSheet({
   user: any;
   logout: () => void;
   onCreateWorkspace?: () => void;
+  onOpenSettings?: () => void;
   boardName?: string;
   documentName?: string;
 }) {
@@ -389,7 +391,7 @@ export function MobileNavSheet({
             <div className="border-t border-border/50 p-2">
                <button
                   className="flex w-full items-center justify-between rounded-lg hover:bg-accent/5 p-2 transition-colors focus:outline-none"
-                  onClick={() => setIsOpen(false)}
+                  onClick={() => { setIsOpen(false); onOpenSettings?.(); }}
                 >
                   <div className="flex items-center space-x-2 overflow-hidden">
                     <div className="h-7 w-7 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">

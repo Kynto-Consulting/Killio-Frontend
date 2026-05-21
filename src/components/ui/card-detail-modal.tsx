@@ -256,14 +256,30 @@ export function CardDetailModal({
 
       getBoardMembers(boardId, accessToken).then((res) => {
         const normalized = normalizeWorkspaceMembers(res as any[]);
-        setBoardMembers(normalized.map((member) => ({
+        const mapped = normalized.map((member) => ({
           ...member,
           email: member.primaryEmail || "",
           name: member.name,
           alias: member.alias,
           avatar_url: member.avatarUrl,
           initials: (member.name || member.primaryEmail || "??").substring(0, 2).toUpperCase(),
-        })));
+        }));
+        // Ensure current user is always in the list (backend may omit the owner)
+        if (user?.id && !mapped.some((m) => m.id === user.id)) {
+          mapped.unshift({
+            id: user.id,
+            primaryEmail: user.email || "",
+            email: user.email || "",
+            name: user.name || user.displayName || user.email || "Me",
+            alias: user.alias ?? null,
+            role: null,
+            status: null,
+            avatar_url: user.avatarUrl ?? null,
+            avatarUrl: user.avatarUrl ?? null,
+            initials: (user.name || user.displayName || "Me").substring(0, 2).toUpperCase(),
+          });
+        }
+        setBoardMembers(mapped);
       }).catch(console.error);
     }
 

@@ -45,7 +45,7 @@ export function useDocumentPresence(
     channel.presence.enter({
       displayName: user.displayName,
       email: user.email,
-      avatar_url: user.avatar_url,
+      avatar_url: user.avatarUrl ?? user.avatar_url,
     }).then(updateMembers).catch(console.error);
 
     return () => {
