@@ -655,24 +655,51 @@ function applyBoardUpdated(
   }
 
   const listCreated = changes.listCreated as Record<string, unknown> | undefined;
-  if (!listCreated) {
-    return { nextLists: lists, needsFallback: false };
+  if (listCreated) {
+    const createdListId = asString(listCreated.id);
+    const createdListName = asString(listCreated.name);
+    if (createdListId && createdListName && !lists.some((list) => list.id === createdListId)) {
+      return {
+        nextLists: dedupeListsById([...lists, { id: createdListId, title: createdListName, cards: [] }]),
+        needsFallback: false,
+      };
+    }
   }
 
-  const createdListId = asString(listCreated.id);
-  const createdListName = asString(listCreated.name);
-  if (!createdListId || !createdListName) {
-    return { nextLists: lists, needsFallback: true };
+  const listDeleted = changes.listDeleted as Record<string, unknown> | undefined;
+  if (listDeleted) {
+    const deletedListId = asString(listDeleted.id);
+    if (deletedListId) {
+      return {
+        nextLists: lists.filter(l => l.id !== deletedListId),
+        needsFallback: false,
+      };
+    }
   }
 
-  if (lists.some((list) => list.id === createdListId)) {
-    return { nextLists: lists, needsFallback: false };
+  const listUpdated = changes.listUpdated as Record<string, unknown> | undefined;
+  if (listUpdated) {
+    const updatedListId = asString(listUpdated.id);
+    const updatedListName = asString(listUpdated.name);
+    const isArchived = listUpdated.isArchived;
+
+    if (updatedListId) {
+      if (isArchived === true) {
+        return {
+          nextLists: lists.filter(l => l.id !== updatedListId),
+          needsFallback: false,
+        };
+      }
+      if (updatedListName) {
+        return {
+          nextLists: lists.map(l => l.id === updatedListId ? { ...l, title: updatedListName } : l),
+          needsFallback: false,
+        };
+      }
+    }
   }
 
-  return {
-    nextLists: dedupeListsById([...lists, { id: createdListId, title: createdListName, cards: [] }]),
-    needsFallback: false,
-  };
+  return { nextLists: lists, needsFallback: false };
 }
 
 function applyRealtimeEventToLists(

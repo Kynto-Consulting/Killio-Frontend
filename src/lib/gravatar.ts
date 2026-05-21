@@ -36,9 +36,10 @@ export function getUserAvatarUrl(
 ): string {
   // Si hay una URL de avatar personalizada, usar esa
   if (avatarUrl) {
-    if (avatarUrl.startsWith('/uploads/')) {
+    if (avatarUrl.startsWith('/uploads/') || avatarUrl.startsWith('uploads/')) {
       const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
-      return `${baseUrl}${avatarUrl}`;
+      const normalizedPath = avatarUrl.startsWith('/') ? avatarUrl : `/${avatarUrl}`;
+      return `${baseUrl}${normalizedPath}`;
     }
     return avatarUrl;
   }

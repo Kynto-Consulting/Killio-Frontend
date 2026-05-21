@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
@@ -17,6 +18,8 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
   const t = useTranslations("board-detail");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
   const { accessToken } = useSession();
   const { ask: askDeleteCard, ConfirmDialog: DeleteCardConfirmDialog } = useConfirm();
   const deleteCardAction = useAsyncAction(
@@ -119,8 +122,12 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
           {!isGuest && (
             <button
+              ref={menuButtonRef}
               onClick={(e) => {
                 e.stopPropagation();
+                if (!isMenuOpen && menuButtonRef.current) {
+                  setMenuRect(menuButtonRef.current.getBoundingClientRect());
+                }
                 setIsMenuOpen(!isMenuOpen);
               }}
               className="h-6 w-6 rounded bg-background/80 hover:bg-muted flex items-center justify-center text-muted-foreground"
@@ -128,28 +135,38 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
               <MoreHorizontal className="h-4 w-4" />
             </button>
           )}
-          {isMenuOpen && (
-            <div className="absolute right-0 top-8 w-40 bg-popover border border-border rounded-md shadow-lg py-1 z-50 text-sm">
-              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editCard")}</button>
-              <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
-              <div className="my-1 border-t border-border" />
-              <button
-                disabled={deleteCardAction.isPending}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  setIsMenuOpen(false);
-                  const ok = await askDeleteCard({
-                    title: t("card.deleteConfirm"),
-                    confirmLabel: t("card.delete"),
-                    variant: "destructive",
-                  });
-                  if (ok) deleteCardAction.run(undefined);
+          {isMenuOpen && menuRect && typeof document !== 'undefined' && createPortal(
+            <>
+              <div className="fixed inset-0 z-[99]" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }} />
+              <div 
+                className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-[100] text-sm w-40"
+                style={{
+                  top: menuRect.bottom + 4,
+                  left: menuRect.right - 160,
                 }}
-                className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {deleteCardAction.isPending ? '...' : t("card.delete")}
-              </button>
-            </div>
+                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editCard")}</button>
+                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
+                <div className="my-1 border-t border-border" />
+                <button
+                  disabled={deleteCardAction.isPending}
+                  onClick={async (e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                    const ok = await askDeleteCard({
+                      title: t("card.deleteConfirm"),
+                      confirmLabel: t("card.delete"),
+                      variant: "destructive",
+                    });
+                    if (ok) deleteCardAction.run(undefined);
+                  }}
+                  className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {deleteCardAction.isPending ? '...' : t("card.delete")}
+                </button>
+              </div>
+            </>,
+            document.body
           )}
         </div>
 
