@@ -460,6 +460,31 @@
       "newestOldest": "Newest → Oldest"
     },
     "group": "Group",
+    "views": {
+      "addView": "+ View",
+      "switchLayout": "Switch layout",
+      "rename": "Rename",
+      "duplicate": "Duplicate",
+      "delete": "Delete view",
+      "groupBy": "Group by",
+      "dateBy": "Date by",
+      "pickColumn": "Pick column",
+      "noGroupCols": "No groupable columns",
+      "noDateCols": "No date columns",
+      "boardPickGroup": "Select a grouping column in the settings bar above",
+      "noStatus": "No status",
+      "calendarPickDate": "Select a date column in the settings bar above",
+      "timelinePickDate": "Select a date column in the settings bar above",
+      "timelineNoDates": "No rows have dates assigned",
+      "layouts": {
+        "table": "Table",
+        "board": "Board",
+        "gallery": "Gallery",
+        "list": "List",
+        "calendar": "Calendar",
+        "timeline": "Timeline"
+      }
+    },
     "calculate": "Calculate",
     "fix": "Fix",
     "aiAutocomplete": "AI Autocomplete",

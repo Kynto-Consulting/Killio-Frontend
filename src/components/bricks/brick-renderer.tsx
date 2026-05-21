@@ -226,6 +226,7 @@ export function UnifiedBrickRenderer({
           title={content.title}
           columns={(content.columns || []) as any}
           rows={(content.rows || []) as any}
+          views={(content.views || []) as any}
           readonly={!canEdit}
           onUpdate={(c) => onUpdate({ ...content, ...c })}
           onPatchCell={onPatchCell ? (rowId, colId, cell, rowMeta) =>

@@ -460,6 +460,31 @@
       "newestOldest": "Más reciente → Más antiguo"
     },
     "group": "Grupo",
+    "views": {
+      "addView": "+ Vista",
+      "switchLayout": "Cambiar diseño",
+      "rename": "Renombrar",
+      "duplicate": "Duplicar",
+      "delete": "Eliminar vista",
+      "groupBy": "Agrupar por",
+      "dateBy": "Fecha por",
+      "pickColumn": "Elegir columna",
+      "noGroupCols": "Sin columnas agrupables",
+      "noDateCols": "Sin columnas de fecha",
+      "boardPickGroup": "Selecciona una columna de agrupación en la barra de ajustes",
+      "noStatus": "Sin estado",
+      "calendarPickDate": "Selecciona una columna de fecha en la barra de ajustes",
+      "timelinePickDate": "Selecciona una columna de fecha en la barra de ajustes",
+      "timelineNoDates": "Ninguna fila tiene fechas asignadas",
+      "layouts": {
+        "table": "Tabla",
+        "board": "Tablero",
+        "gallery": "Galería",
+        "list": "Lista",
+        "calendar": "Calendario",
+        "timeline": "Línea de tiempo"
+      }
+    },
     "calculate": "Calcular",
     "fix": "Fijar",
     "aiAutocomplete": "Autocompletado con IA",

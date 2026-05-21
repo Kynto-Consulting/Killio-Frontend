@@ -13,6 +13,7 @@ import {
   Sigma, RotateCw, LayoutDashboard, CreditCard, MoreHorizontal,
   Circle, GripVertical, Pin, WrapText, Wand2, Sparkles, Play,
   ArrowUp, ArrowDown, Filter,
+  LayoutGrid, BarChart2, AlignLeft, Pencil, Check,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { RefPill } from "../ui/ref-pill";
@@ -104,6 +105,19 @@ export interface BountifulRow {
   _lastEditedBy?: string;
 }
 
+export type BountifulViewLayout = "table" | "board" | "gallery" | "list" | "calendar" | "timeline";
+
+export interface BountifulView {
+  id: string;
+  name: string;
+  layout: BountifulViewLayout;
+  filters?: { colId: string; operator: string; value: string }[];
+  sorts?: { colId: string; direction: "asc" | "desc" }[];
+  groupByColId?: string;
+  dateColId?: string;
+  hiddenColIds?: string[];
+}
+
 // Constants for AI Usage
 const AI_MONTHLY_LIMIT = 10.00; // $10 USD
 const AI_COST_PER_RECORD = 0.005; // $0.005 per row roughly
@@ -113,8 +127,9 @@ interface UnifiedBountifulTableProps {
   title?: string;
   columns: BountifulColumn[];
   rows: BountifulRow[];
+  views?: BountifulView[];
   readonly?: boolean;
-  onUpdate?: (content: { title?: string; columns: BountifulColumn[]; rows: BountifulRow[] }) => void;
+  onUpdate?: (content: { title?: string; columns: BountifulColumn[]; rows: BountifulRow[]; views?: BountifulView[] }) => void;
   onPatchCell?: (rowId: string, colId: string, cell: BountifulCell, rowMeta: { _lastEditedAt: string; _lastEditedBy: string }) => void;
   onPatchColumn?: (colId: string, updates: Partial<BountifulColumn>) => void;
   onAddColumn?: (column: BountifulColumn, atIndex: number) => void;
@@ -185,6 +200,15 @@ const COL_TYPE_ICONS: Record<string, React.ReactNode> = {
 const colTypeIcon: Record<string, React.ReactNode> = Object.fromEntries(
   Object.entries(COL_TYPE_ICONS).map(([k, v]) => [k, React.cloneElement(v as React.ReactElement<{ className?: string }>, { className: "h-3 w-3" })])
 );
+
+const VIEW_LAYOUT_ICONS: Record<BountifulViewLayout, React.ReactNode> = {
+  table: <TableIcon className="h-3.5 w-3.5" />,
+  board: <LayoutDashboard className="h-3.5 w-3.5" />,
+  gallery: <LayoutGrid className="h-3.5 w-3.5" />,
+  list: <AlignLeft className="h-3.5 w-3.5" />,
+  calendar: <Calendar className="h-3.5 w-3.5" />,
+  timeline: <BarChart2 className="h-3.5 w-3.5" />,
+};
 
 /** Hook to get translated column types list */
 function useColumnTypes() {
@@ -3392,10 +3416,667 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   );
 }
 
+// ─── View Tab Bar ───────────────────────────────────────────────────────────
+
+function ViewTabBar({
+  views, activeId, onSelect, onAdd, onRename, onDelete, onDuplicate, onChangeLayout, readonly,
+}: {
+  views: BountifulView[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
+  onAdd: () => void;
+  onRename: (id: string, name: string) => void;
+  onDelete: (id: string) => void;
+  onDuplicate: (id: string) => void;
+  onChangeLayout: (id: string, layout: BountifulViewLayout) => void;
+  readonly: boolean;
+}) {
+  const t = useTranslations("document-detail");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [menuState, setMenuState] = useState<{ id: string; rect: DOMRect } | null>(null);
+
+  if (views.length === 0) return null;
+
+  return (
+    <>
+      <div className="flex items-center border-b border-border bg-muted/5 overflow-x-auto shrink-0">
+        {views.map(v => (
+          <div
+            key={v.id}
+            onClick={() => onSelect(v.id)}
+            className={cn(
+              "group/vtab flex items-center gap-1.5 px-3 py-2 border-r border-border text-xs cursor-pointer shrink-0 transition-colors relative",
+              v.id === activeId
+                ? "bg-card text-foreground font-medium border-b-2 border-b-accent -mb-px z-10"
+                : "text-muted-foreground hover:bg-muted/30"
+            )}
+          >
+            {VIEW_LAYOUT_ICONS[v.layout]}
+            {editingId === v.id ? (
+              <input
+                autoFocus
+                value={editName}
+                onChange={e => setEditName(e.target.value)}
+                onBlur={() => { if (editName.trim()) onRename(v.id, editName.trim()); setEditingId(null); }}
+                onKeyDown={e => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") { if (editName.trim()) onRename(v.id, editName.trim()); setEditingId(null); }
+                  if (e.key === "Escape") setEditingId(null);
+                }}
+                onClick={e => e.stopPropagation()}
+                className="w-20 bg-transparent outline-none border-b border-accent text-xs"
+              />
+            ) : (
+              <span
+                onDoubleClick={e => { if (!readonly) { e.stopPropagation(); setEditName(v.name); setEditingId(v.id); } }}
+              >
+                {v.name}
+              </span>
+            )}
+            {!readonly && (
+              <button
+                className="opacity-0 group-hover/vtab:opacity-100 h-4 w-4 flex items-center justify-center rounded hover:bg-muted/60 transition-colors ml-0.5"
+                onClick={e => {
+                  e.stopPropagation();
+                  setMenuState({ id: v.id, rect: e.currentTarget.getBoundingClientRect() });
+                }}
+              >
+                <MoreHorizontal className="h-3 w-3" />
+              </button>
+            )}
+          </div>
+        ))}
+        {!readonly && (
+          <button
+            onClick={onAdd}
+            className="px-2.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors shrink-0 flex items-center gap-1"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {menuState && createPortal(
+        <>
+          <div className="fixed inset-0 z-[400]" onClick={() => setMenuState(null)} />
+          <div
+            className="fixed z-[401] min-w-[180px] rounded-lg border border-border bg-card shadow-xl py-1 text-sm animate-in fade-in zoom-in-95 duration-100"
+            style={{ top: menuState.rect.bottom + 4, left: menuState.rect.left }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60 border-b border-border mb-1">
+              {t("bountifulTable.views.switchLayout" as any)}
+            </div>
+            {(["table", "board", "gallery", "list", "calendar", "timeline"] as BountifulViewLayout[]).map(layout => {
+              const view = views.find(v => v.id === menuState.id);
+              return (
+                <button
+                  key={layout}
+                  onClick={() => { onChangeLayout(menuState.id, layout); setMenuState(null); }}
+                  className={cn(
+                    "w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 transition-colors text-sm",
+                    view?.layout === layout && "text-accent font-medium"
+                  )}
+                >
+                  {VIEW_LAYOUT_ICONS[layout]}
+                  <span className="capitalize">{t(`bountifulTable.views.layouts.${layout}` as any)}</span>
+                  {view?.layout === layout && <Check className="h-3.5 w-3.5 ml-auto text-accent" />}
+                </button>
+              );
+            })}
+            <div className="border-t border-border mt-1 pt-1">
+              <button
+                onClick={() => {
+                  setEditName(views.find(v => v.id === menuState.id)?.name || "");
+                  setEditingId(menuState.id);
+                  setMenuState(null);
+                }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 transition-colors"
+              >
+                <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                {t("bountifulTable.views.rename" as any)}
+              </button>
+              <button
+                onClick={() => { onDuplicate(menuState.id); setMenuState(null); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 transition-colors"
+              >
+                <Copy className="h-3.5 w-3.5 text-muted-foreground" />
+                {t("bountifulTable.views.duplicate" as any)}
+              </button>
+              {views.length > 1 && (
+                <button
+                  onClick={() => { onDelete(menuState.id); setMenuState(null); }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted/60 text-destructive transition-colors"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  {t("bountifulTable.views.delete" as any)}
+                </button>
+              )}
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
+    </>
+  );
+}
+
+// ─── Board / Kanban View ─────────────────────────────────────────────────────
+
+function BoardView({
+  columns, sortedRows, groupByColId, visibleColumns, readonly, onCellChange, users, onOpenReferencePicker,
+}: {
+  columns: BountifulColumn[];
+  sortedRows: BountifulRow[];
+  groupByColId: string | null;
+  visibleColumns: BountifulColumn[];
+  readonly: boolean;
+  onCellChange: (rowId: string, colId: string, cell: BountifulCell) => void;
+  users: WorkspaceMemberLike[];
+  onOpenReferencePicker: (state: any) => void;
+}) {
+  const t = useTranslations("document-detail");
+  const groupCol = groupByColId ? columns.find(c => c.id === groupByColId) : null;
+
+  if (!groupCol || !["select", "status", "multi_select"].includes(groupCol.type)) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+        <LayoutDashboard className="h-8 w-8 opacity-30" />
+        <p>{t("bountifulTable.views.boardPickGroup" as any)}</p>
+      </div>
+    );
+  }
+
+  const options = groupCol.options || [];
+  const grouped: Record<string, BountifulRow[]> = { __none__: [] };
+  options.forEach(opt => { grouped[opt.id] = []; });
+
+  sortedRows.forEach(row => {
+    const cell = row.cells[groupCol.id];
+    if (!cell || (!cell.name && !(cell.items?.length))) {
+      grouped.__none__.push(row);
+    } else if (groupCol.type === "multi_select") {
+      const matched = (cell.items ?? []).filter(i => options.some(o => o.name === i.name));
+      if (matched.length === 0) grouped.__none__.push(row);
+      else matched.forEach(i => {
+        const opt = options.find(o => o.name === i.name);
+        if (opt) { if (!grouped[opt.id]) grouped[opt.id] = []; grouped[opt.id].push(row); }
+      });
+    } else {
+      const opt = options.find(o => o.name === cell.name);
+      if (opt) grouped[opt.id].push(row);
+      else grouped.__none__.push(row);
+    }
+  });
+
+  const titleCol = visibleColumns.find(c => ["title", "rich_text"].includes(c.type)) || visibleColumns[0];
+  const propCols = visibleColumns.filter(c => c.id !== groupCol.id && c.id !== titleCol?.id).slice(0, 4);
+
+  const renderCard = (row: BountifulRow) => (
+    <div key={row.id} className="rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow">
+      {titleCol && (
+        <div className="text-sm font-medium mb-2 text-foreground line-clamp-2">
+          {row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || (
+            <span className="text-muted-foreground/40 italic text-xs">{t("bountifulTable.empty" as any)}</span>
+          )}
+        </div>
+      )}
+      {propCols.map(col => {
+        const cell = row.cells[col.id];
+        if (!cell) return null;
+        const val = cell.text || cell.name || cell.value ||
+          (cell.items?.length ? cell.items.map(i => i.name).join(", ") : "") ||
+          (cell.checked !== undefined ? (cell.checked ? "✓" : "") : "") ||
+          (cell.number !== undefined ? String(cell.number) : "") ||
+          (cell.start || "");
+        if (!val) return null;
+        return (
+          <div key={col.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+            <span className="opacity-50 shrink-0">{colTypeIcon[col.type]}</span>
+            {col.type === "select" || col.type === "status" ? (
+              <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name}</span>
+            ) : col.type === "multi_select" ? (
+              <div className="flex flex-wrap gap-1">
+                {cell.items?.slice(0, 2).map((i, idx) => (
+                  <span key={idx} className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(i.color))}>{i.name}</span>
+                ))}
+              </div>
+            ) : (
+              <span className="truncate max-w-[160px]">{val}</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div className="overflow-x-auto custom-scrollbar">
+      <div className="flex gap-4 p-4 min-w-max min-h-[200px]">
+        {options.map(opt => {
+          const groupRows = grouped[opt.id] || [];
+          return (
+            <div key={opt.id} className="flex flex-col gap-2 w-64 shrink-0">
+              <div className="flex items-center gap-2 px-1 mb-1">
+                <span className={cn("h-2.5 w-2.5 rounded-full shrink-0", getPillClass(opt.color).split(" ")[0])} />
+                <span className="text-xs font-semibold text-foreground truncate">{opt.name}</span>
+                <span className="ml-auto text-[10px] text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded-full">{groupRows.length}</span>
+              </div>
+              <div className="flex flex-col gap-2">{groupRows.map(row => renderCard(row))}</div>
+            </div>
+          );
+        })}
+        {grouped.__none__ && grouped.__none__.length > 0 && (
+          <div className="flex flex-col gap-2 w-64 shrink-0">
+            <div className="flex items-center gap-2 px-1 mb-1">
+              <span className="h-2.5 w-2.5 rounded-full shrink-0 bg-muted-foreground/30" />
+              <span className="text-xs font-semibold text-muted-foreground/60">{t("bountifulTable.views.noStatus" as any)}</span>
+              <span className="ml-auto text-[10px] text-muted-foreground/60 bg-muted/60 px-1.5 py-0.5 rounded-full">{grouped.__none__.length}</span>
+            </div>
+            <div className="flex flex-col gap-2">{grouped.__none__.map(row => renderCard(row))}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── Gallery View ─────────────────────────────────────────────────────────────
+
+function GalleryView({ sortedRows, visibleColumns }: {
+  sortedRows: BountifulRow[];
+  visibleColumns: BountifulColumn[];
+}) {
+  const t = useTranslations("document-detail");
+  const titleCol = visibleColumns[0];
+  const propCols = visibleColumns.slice(1, 6);
+
+  if (sortedRows.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+        <LayoutGrid className="h-8 w-8 opacity-30" />
+        <p>{t("bountifulTable.noResults" as any)}</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="p-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+      {sortedRows.map(row => (
+        <div key={row.id} className="rounded-xl border border-border bg-card shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+          <div className="p-3">
+            {titleCol && (
+              <div className="text-sm font-semibold mb-2 text-foreground line-clamp-2">
+                {row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || (
+                  <span className="text-muted-foreground/40 italic text-xs">{t("bountifulTable.empty" as any)}</span>
+                )}
+              </div>
+            )}
+            <div className="space-y-1">
+              {propCols.map(col => {
+                const cell = row.cells[col.id];
+                if (!cell) return null;
+                const hasValue = cell.text || cell.name || cell.items?.length || cell.number !== undefined || cell.start;
+                if (!hasValue) return null;
+                return (
+                  <div key={col.id} className="flex items-center gap-1.5 text-[11px]">
+                    <span className="text-muted-foreground/50 shrink-0">{colTypeIcon[col.type]}</span>
+                    {col.type === "select" || col.type === "status" ? (
+                      <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name}</span>
+                    ) : col.type === "multi_select" ? (
+                      <div className="flex flex-wrap gap-1">
+                        {cell.items?.slice(0, 2).map((i, idx) => (
+                          <span key={idx} className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(i.color))}>{i.name}</span>
+                        ))}
+                      </div>
+                    ) : col.type === "checkbox" ? (
+                      <span className="text-muted-foreground">{cell.checked ? "✓" : "—"}</span>
+                    ) : (
+                      <span className="text-muted-foreground truncate">{cell.text || cell.name || cell.value || cell.start || (cell.number !== undefined ? String(cell.number) : "")}</span>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── List View ────────────────────────────────────────────────────────────────
+
+function ListView({ sortedRows, visibleColumns }: {
+  sortedRows: BountifulRow[];
+  visibleColumns: BountifulColumn[];
+}) {
+  const t = useTranslations("document-detail");
+  const titleCol = visibleColumns[0];
+  const propCols = visibleColumns.slice(1, 5);
+
+  return (
+    <div className="divide-y divide-border">
+      {sortedRows.length === 0 ? (
+        <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">{t("bountifulTable.noResults" as any)}</div>
+      ) : sortedRows.map(row => (
+        <div key={row.id} className="flex items-center gap-4 px-4 py-2.5 hover:bg-muted/10 transition-colors">
+          <div className="flex-1 min-w-0">
+            <span className="text-sm font-medium text-foreground truncate">
+              {titleCol ? (row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || "") : ""}
+            </span>
+          </div>
+          {propCols.map(col => {
+            const cell = row.cells[col.id];
+            return (
+              <div key={col.id} className="w-28 shrink-0 text-xs">
+                {!cell ? <span className="text-muted-foreground/30">—</span> :
+                  col.type === "select" || col.type === "status" ? (
+                    <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name || <span className="text-muted-foreground/30">—</span>}</span>
+                  ) : col.type === "checkbox" ? (
+                    <span className="text-muted-foreground">{cell.checked ? "✓" : "—"}</span>
+                  ) : (
+                    <span className="text-muted-foreground truncate block">{cell.text || cell.name || cell.value || cell.start || (cell.number !== undefined ? String(cell.number) : "") || "—"}</span>
+                  )}
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ─── Calendar View ────────────────────────────────────────────────────────────
+
+function CalendarView({ sortedRows, columns, dateColId }: {
+  sortedRows: BountifulRow[];
+  columns: BountifulColumn[];
+  dateColId: string | null;
+}) {
+  const t = useTranslations("document-detail");
+  const [viewMonth, setViewMonth] = useState(new Date());
+  const dateCol = dateColId ? columns.find(c => c.id === dateColId) : columns.find(c => c.type === "date" || c.type === "created_time");
+
+  if (!dateCol) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+        <Calendar className="h-8 w-8 opacity-30" />
+        <p>{t("bountifulTable.views.calendarPickDate" as any)}</p>
+      </div>
+    );
+  }
+
+  const year = viewMonth.getFullYear();
+  const month = viewMonth.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const firstDay = new Date(year, month, 1).getDay();
+  const monthNames = [0,1,2,3,4,5,6,7,8,9,10,11].map(m => t(`bountifulTable.months.${m}` as any));
+
+  const dayItems: Record<number, BountifulRow[]> = {};
+  sortedRows.forEach(row => {
+    const cell = row.cells[dateCol.id];
+    if (!cell?.start) return;
+    const d = new Date(cell.start);
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      const day = d.getDate();
+      if (!dayItems[day]) dayItems[day] = [];
+      dayItems[day].push(row);
+    }
+  });
+
+  const titleCol = columns.find(c => ["title", "rich_text"].includes(c.type)) || columns[0];
+  const today = new Date();
+
+  return (
+    <div className="p-4">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => setViewMonth(new Date(year, month - 1, 1))} className="p-1.5 rounded hover:bg-muted transition-colors">
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+        <span className="text-sm font-semibold">{monthNames[month]} {year}</span>
+        <button onClick={() => setViewMonth(new Date(year, month + 1, 1))} className="p-1.5 rounded hover:bg-muted transition-colors">
+          <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
+      <div className="grid grid-cols-7 gap-px bg-border rounded-lg overflow-hidden">
+        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d => (
+          <div key={d} className="bg-muted/30 text-center text-[10px] font-bold text-muted-foreground py-2">{d}</div>
+        ))}
+        {Array.from({ length: firstDay }).map((_, i) => (
+          <div key={`empty-${i}`} className="bg-card min-h-[80px]" />
+        ))}
+        {Array.from({ length: daysInMonth }).map((_, i) => {
+          const day = i + 1;
+          const items = dayItems[day] || [];
+          const isToday = today.getDate() === day && today.getMonth() === month && today.getFullYear() === year;
+          return (
+            <div key={day} className="bg-card min-h-[80px] p-1">
+              <div className={cn(
+                "text-[10px] font-medium w-5 h-5 flex items-center justify-center rounded-full mb-1",
+                isToday ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+              )}>
+                {day}
+              </div>
+              {items.slice(0, 3).map(row => (
+                <div key={row.id} className="text-[10px] truncate rounded px-1 py-0.5 bg-accent/10 text-accent mb-0.5">
+                  {(titleCol && (row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name)) || "—"}
+                </div>
+              ))}
+              {items.length > 3 && <div className="text-[9px] text-muted-foreground/60 px-1">+{items.length - 3}</div>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ─── Timeline / Gantt View ────────────────────────────────────────────────────
+
+function TimelineView({ sortedRows, columns, dateColId }: {
+  sortedRows: BountifulRow[];
+  columns: BountifulColumn[];
+  dateColId: string | null;
+}) {
+  const t = useTranslations("document-detail");
+  const dateCol = dateColId ? columns.find(c => c.id === dateColId) : columns.find(c => c.type === "date");
+  const titleCol = columns.find(c => ["title", "rich_text"].includes(c.type)) || columns[0];
+
+  if (!dateCol) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+        <BarChart2 className="h-8 w-8 opacity-30" />
+        <p>{t("bountifulTable.views.timelinePickDate" as any)}</p>
+      </div>
+    );
+  }
+
+  const rowsWithDates = sortedRows.filter(r => r.cells[dateCol.id]?.start);
+  if (rowsWithDates.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 text-muted-foreground text-sm gap-2">
+        <BarChart2 className="h-8 w-8 opacity-30" />
+        <p>{t("bountifulTable.views.timelineNoDates" as any)}</p>
+      </div>
+    );
+  }
+
+  const now = new Date();
+  const minDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const maxDate = new Date(now.getFullYear(), now.getMonth() + 3, 0);
+  const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
+  const DAY_W = 28;
+  const NAME_W = 200;
+
+  const months: { label: string; days: number }[] = [];
+  let cur = new Date(minDate);
+  while (cur < maxDate) {
+    const daysInM = new Date(cur.getFullYear(), cur.getMonth() + 1, 0).getDate();
+    const startOff = Math.max(0, Math.floor((cur.getTime() - minDate.getTime()) / 86400000));
+    const remaining = totalDays - startOff;
+    months.push({ label: `${t(`bountifulTable.months.${cur.getMonth()}` as any)} ${cur.getFullYear()}`, days: Math.min(daysInM, remaining) });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+
+  const todayOffset = Math.floor((new Date().getTime() - minDate.getTime()) / 86400000);
+
+  return (
+    <div className="overflow-auto custom-scrollbar">
+      <div className="flex" style={{ minWidth: NAME_W + totalDays * DAY_W }}>
+        {/* Name column */}
+        <div className="shrink-0 sticky left-0 z-10 bg-card border-r border-border" style={{ width: NAME_W }}>
+          <div className="h-8 border-b border-border bg-muted/30 flex items-center px-3">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">{titleCol?.name || "—"}</span>
+          </div>
+          {sortedRows.map(row => (
+            <div key={row.id} className="h-10 flex items-center px-3 border-b border-border hover:bg-muted/10 transition-colors">
+              <span className="text-xs truncate text-foreground">
+                {(titleCol && (row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name)) || <span className="text-muted-foreground/40">—</span>}
+              </span>
+            </div>
+          ))}
+        </div>
+        {/* Timeline grid */}
+        <div className="relative" style={{ width: totalDays * DAY_W }}>
+          {/* Month headers */}
+          <div className="flex h-8 border-b border-border bg-muted/30 sticky top-0 z-10">
+            {months.map((m, i) => (
+              <div key={i} className="border-r border-border/50 flex items-center px-2 overflow-hidden" style={{ width: m.days * DAY_W, minWidth: 0 }}>
+                <span className="text-[10px] font-semibold text-muted-foreground whitespace-nowrap">{m.label}</span>
+              </div>
+            ))}
+          </div>
+          {/* Today indicator */}
+          {todayOffset >= 0 && todayOffset <= totalDays && (
+            <div className="absolute top-8 bottom-0 w-px bg-accent/60 z-10 pointer-events-none" style={{ left: todayOffset * DAY_W }} />
+          )}
+          {/* Row bars */}
+          {sortedRows.map(row => {
+            const cell = row.cells[dateCol.id];
+            if (!cell?.start) return <div key={row.id} className="h-10 border-b border-border" />;
+            const startD = new Date(cell.start);
+            const endD = cell.end ? new Date(cell.end) : startD;
+            const startOff = Math.max(0, Math.floor((startD.getTime() - minDate.getTime()) / 86400000));
+            const endOff = Math.min(totalDays, Math.ceil((endD.getTime() - minDate.getTime()) / 86400000) + 1);
+            const barW = Math.max(1, endOff - startOff) * DAY_W;
+            const barL = startOff * DAY_W;
+            return (
+              <div key={row.id} className="relative h-10 border-b border-border hover:bg-muted/5 transition-colors">
+                <div
+                  className="absolute top-1/2 -translate-y-1/2 h-6 rounded-full bg-accent/20 border border-accent/40 flex items-center px-2 overflow-hidden"
+                  style={{ left: barL, width: Math.max(barW, 8) }}
+                >
+                  {barW > 40 && (
+                    <span className="text-[10px] text-accent font-medium truncate">
+                      {(titleCol && (row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name)) || ""}
+                    </span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── View Settings Bar ────────────────────────────────────────────────────────
+
+function ViewSettingsBar({ view, columns, onUpdateView }: {
+  view: BountifulView;
+  columns: BountifulColumn[];
+  onUpdateView: (updates: Partial<BountifulView>) => void;
+}) {
+  const t = useTranslations("document-detail");
+  const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const groupButtonRef = useRef<HTMLButtonElement | null>(null);
+  const dateButtonRef = useRef<HTMLButtonElement | null>(null);
+
+  const groupCols = columns.filter(c => ["select", "status", "multi_select"].includes(c.type));
+  const dateCols = columns.filter(c => ["date", "created_time", "last_edited_time"].includes(c.type));
+
+  if (view.layout !== "board" && view.layout !== "calendar" && view.layout !== "timeline") return null;
+
+  return (
+    <div className="flex items-center gap-2 border-b border-border bg-muted/5 px-3 py-1.5 text-xs text-muted-foreground">
+      {(view.layout === "board") && (
+        <div className="relative">
+          <button
+            ref={groupButtonRef}
+            onClick={() => setShowGroupPicker(v => !v)}
+            className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/60 transition-colors", view.groupByColId && "text-accent")}
+          >
+            <LayoutDashboard className="h-3 w-3" />
+            <span>{t("bountifulTable.views.groupBy" as any)}:</span>
+            <span className="font-medium">{view.groupByColId ? columns.find(c => c.id === view.groupByColId)?.name : t("bountifulTable.views.pickColumn" as any)}</span>
+            <ChevronDown className="h-3 w-3 opacity-50" />
+          </button>
+          {showGroupPicker && createPortal(
+            <>
+              <div className="fixed inset-0 z-[400]" onClick={() => setShowGroupPicker(false)} />
+              <div className="fixed z-[401] min-w-[160px] rounded-lg border border-border bg-card shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100"
+                style={{ top: (groupButtonRef.current?.getBoundingClientRect().bottom ?? 0) + 4, left: groupButtonRef.current?.getBoundingClientRect().left ?? 0 }}>
+                {groupCols.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">{t("bountifulTable.views.noGroupCols" as any)}</div>
+                ) : groupCols.map(col => (
+                  <button key={col.id} onClick={() => { onUpdateView({ groupByColId: col.id }); setShowGroupPicker(false); }}
+                    className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors", view.groupByColId === col.id && "text-accent font-medium")}>
+                    {COL_TYPE_ICONS[col.type] || <FileText className="h-3.5 w-3.5" />}
+                    {col.name}
+                    {view.groupByColId === col.id && <Check className="h-3.5 w-3.5 ml-auto text-accent" />}
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body
+          )}
+        </div>
+      )}
+      {(view.layout === "calendar" || view.layout === "timeline") && (
+        <div className="relative">
+          <button
+            ref={dateButtonRef}
+            onClick={() => setShowDatePicker(v => !v)}
+            className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md hover:bg-muted/60 transition-colors", view.dateColId && "text-accent")}
+          >
+            <Calendar className="h-3 w-3" />
+            <span>{t("bountifulTable.views.dateBy" as any)}:</span>
+            <span className="font-medium">{view.dateColId ? columns.find(c => c.id === view.dateColId)?.name : t("bountifulTable.views.pickColumn" as any)}</span>
+            <ChevronDown className="h-3 w-3 opacity-50" />
+          </button>
+          {showDatePicker && createPortal(
+            <>
+              <div className="fixed inset-0 z-[400]" onClick={() => setShowDatePicker(false)} />
+              <div className="fixed z-[401] min-w-[160px] rounded-lg border border-border bg-card shadow-xl py-1 animate-in fade-in zoom-in-95 duration-100"
+                style={{ top: (dateButtonRef.current?.getBoundingClientRect().bottom ?? 0) + 4, left: dateButtonRef.current?.getBoundingClientRect().left ?? 0 }}>
+                {dateCols.length === 0 ? (
+                  <div className="px-3 py-2 text-xs text-muted-foreground">{t("bountifulTable.views.noDateCols" as any)}</div>
+                ) : dateCols.map(col => (
+                  <button key={col.id} onClick={() => { onUpdateView({ dateColId: col.id }); setShowDatePicker(false); }}
+                    className={cn("w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-muted/60 transition-colors", view.dateColId === col.id && "text-accent font-medium")}>
+                    {COL_TYPE_ICONS[col.type] || <Calendar className="h-3.5 w-3.5" />}
+                    {col.name}
+                    {view.dateColId === col.id && <Check className="h-3.5 w-3.5 ml-auto text-accent" />}
+                  </button>
+                ))}
+              </div>
+            </>,
+            document.body
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Component ─────────────────────────────────────────────────────────
 
 export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
-  id, title, columns: initColumns, rows: initRows, readonly = false,
+  id, title, columns: initColumns, rows: initRows, views: initViews = [], readonly = false,
   onUpdate, onPatchCell, onPatchColumn, onAddColumn, onRemoveColumn, onDuplicateColumn,
   documents = [], boards = [], users = [], activeBricks = [],
 }) => {
@@ -3404,6 +4085,8 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   const currentUserId = user?.id ?? user?.name ?? "unknown";
   const [columns, setColumns] = useState<BountifulColumn[]>(() => normalizeColumnOptions(initColumns));
   const [rows, setRows] = useState<BountifulRow[]>(initRows);
+  const [views, setViews] = useState<BountifulView[]>(initViews);
+  const [activeViewId, setActiveViewId] = useState<string | null>(() => initViews[0]?.id ?? null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [draftTitle, setDraftTitle] = useState(title || "");
   const headerRefs = useRef<Record<string, HTMLTableCellElement | null>>({});
@@ -3417,6 +4100,10 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     if (isInternalUpdate.current) { isInternalUpdate.current = false; return; }
     setRows(initRows);
   }, [initRows]);
+  useEffect(() => {
+    if (isInternalUpdate.current) return;
+    setViews(initViews);
+  }, [initViews]);
   const displayedColumns = columns.filter(c => !c.hidden);
 
   const [headerMenu, setHeaderMenu] = useState<{ colId: string; rect: DOMRect } | null>(null);
@@ -3445,26 +4132,78 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     }
   }, [showAIModalColId, activeTeamId, accessToken]);
 
-  const onUpdateDocument = (updates: Partial<{ title: string; columns: BountifulColumn[]; rows: BountifulRow[] }>) => {
-    onUpdate?.({ title: title || "", columns, rows, ...updates });
+  const onUpdateDocument = (updates: Partial<{ title: string; columns: BountifulColumn[]; rows: BountifulRow[]; views: BountifulView[] }>) => {
+    onUpdate?.({ title: title || "", columns, rows, views, ...updates });
   };
 
   useEffect(() => { setDraftTitle(title || ""); }, [title]);
 
-  const emitUpdate = useCallback((cols: BountifulColumn[], rws: BountifulRow[], ttl?: string) => {
+  const emitUpdate = useCallback((cols: BountifulColumn[], rws: BountifulRow[], ttl?: string, vws?: BountifulView[]) => {
     isInternalUpdate.current = true;
-    onUpdate?.({ title: ttl ?? draftTitle, columns: cols, rows: rws });
-  }, [onUpdate, draftTitle]);
+    onUpdate?.({ title: ttl ?? draftTitle, columns: cols, rows: rws, views: vws ?? views });
+  }, [onUpdate, draftTitle, views]);
 
   // Debounced version for high-frequency edits (cell typing, option editing)
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncedEmitUpdate = useCallback((cols: BountifulColumn[], rws: BountifulRow[], ttl?: string) => {
-    // Update local state immediately (already done by callers), but delay the API call
+  const debouncedEmitUpdate = useCallback((cols: BountifulColumn[], rws: BountifulRow[], ttl?: string, vws?: BountifulView[]) => {
     if (debounceTimer.current) clearTimeout(debounceTimer.current);
     debounceTimer.current = setTimeout(() => {
-      emitUpdate(cols, rws, ttl);
+      emitUpdate(cols, rws, ttl, vws);
     }, 300);
   }, [emitUpdate]);
+
+  // ─── Active view helpers ───────────────────────────────────────────────────
+  const activeView = useMemo(() => views.find(v => v.id === activeViewId) ?? null, [views, activeViewId]);
+
+  const updateActiveView = useCallback((updates: Partial<BountifulView>) => {
+    if (!activeView) return;
+    const nv = views.map(v => v.id === activeView.id ? { ...v, ...updates } : v);
+    setViews(nv);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [activeView, views, columns, rows, draftTitle, onUpdate]);
+
+  const addView = useCallback((layout: BountifulViewLayout = "table") => {
+    const newView: BountifulView = { id: `view-${Date.now()}`, name: layout.charAt(0).toUpperCase() + layout.slice(1), layout };
+    const nv = [...views, newView];
+    setViews(nv);
+    setActiveViewId(newView.id);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [views, columns, rows, draftTitle, onUpdate]);
+
+  const deleteView = useCallback((id: string) => {
+    const nv = views.filter(v => v.id !== id);
+    setViews(nv);
+    if (activeViewId === id) setActiveViewId(nv[0]?.id ?? null);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [views, activeViewId, columns, rows, draftTitle, onUpdate]);
+
+  const renameView = useCallback((id: string, name: string) => {
+    const nv = views.map(v => v.id === id ? { ...v, name } : v);
+    setViews(nv);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [views, columns, rows, draftTitle, onUpdate]);
+
+  const duplicateView = useCallback((id: string) => {
+    const src = views.find(v => v.id === id);
+    if (!src) return;
+    const newView: BountifulView = { ...src, id: `view-${Date.now()}`, name: `${src.name} (copy)` };
+    const nv = [...views, newView];
+    setViews(nv);
+    setActiveViewId(newView.id);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [views, columns, rows, draftTitle, onUpdate]);
+
+  const changeViewLayout = useCallback((id: string, layout: BountifulViewLayout) => {
+    const nv = views.map(v => v.id === id ? { ...v, layout } : v);
+    setViews(nv);
+    isInternalUpdate.current = true;
+    onUpdate?.({ title: draftTitle, columns, rows, views: nv });
+  }, [views, columns, rows, draftTitle, onUpdate]);
 
   const handleReferenceSelect = (item: ReferencePickerSelection) => {
     if (!pickerState) return;
@@ -3507,18 +4246,26 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   };
 
   const handleFilterChange = (colId: string, operator: string, value: string) => {
-    let nf = [...filterConfig].filter(f => f.colId !== colId);
-    if (value || ["empty", "not_empty", "date_today", "date_this_week"].includes(operator)) {
-      nf.push({ colId, operator, value });
+    if (activeView) {
+      let nf = [...(activeView.filters ?? [])].filter(f => f.colId !== colId);
+      if (value || ["empty", "not_empty", "date_today", "date_this_week"].includes(operator)) nf.push({ colId, operator, value });
+      updateActiveView({ filters: nf });
+    } else {
+      let nf = [...filterConfig].filter(f => f.colId !== colId);
+      if (value || ["empty", "not_empty", "date_today", "date_this_week"].includes(operator)) nf.push({ colId, operator, value });
+      setFilterConfig(nf);
     }
-    setFilterConfig(nf);
   };
 
   const removeFilter = (colId: string) => {
-    setFilterConfig(prev => prev.filter(f => f.colId !== colId));
+    if (activeView) updateActiveView({ filters: (activeView.filters ?? []).filter(f => f.colId !== colId) });
+    else setFilterConfig(prev => prev.filter(f => f.colId !== colId));
   };
 
-  const clearAllFilters = () => setFilterConfig([]);
+  const clearAllFilters = () => {
+    if (activeView) updateActiveView({ filters: [] });
+    else setFilterConfig([]);
+  };
 
   const openFilterWorkbench = (colId?: string, rect?: DOMRect | null) => {
     const fallbackColId = colId || filterConfig[0]?.colId || displayedColumns[0]?.id || columns[0]?.id || null;
@@ -3699,6 +4446,14 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
 
   const [sortConfig, setSortConfig] = useState<{ colId: string; direction: "asc" | "desc" } | null>(null);
   const [filterConfig, setFilterConfig] = useState<{ colId: string; value: string; operator: string }[]>([]);
+
+  // When a view is active, its filters/sorts override the local state
+  const effectiveFilterConfig = useMemo(() =>
+    activeView?.filters ?? filterConfig,
+  [activeView, filterConfig]);
+  const effectiveSortConfig = useMemo(() =>
+    activeView ? (activeView.sorts?.[0] ?? null) : sortConfig,
+  [activeView, sortConfig]);
   const [draggedColIdx, setDraggedColIdx] = useState<number | null>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
 
@@ -3706,9 +4461,9 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     let result = [...rows];
 
     // ── Filtering logic ──
-    if (filterConfig.length > 0) {
+    if (effectiveFilterConfig.length > 0) {
       result = result.filter(row => {
-        return filterConfig.every(f => {
+        return effectiveFilterConfig.every(f => {
           const cell = row.cells[f.colId] ?? null;
           const col = columns.find(c => c.id === f.colId);
           if (!col) return true;
@@ -3863,11 +4618,11 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     }
 
     // ── Sorting logic ──
-    if (sortConfig) {
+    if (effectiveSortConfig) {
       result.sort((a, b) => {
-        const cellA = a.cells[sortConfig.colId];
-        const cellB = b.cells[sortConfig.colId];
-        const col = columns.find(c => c.id === sortConfig.colId);
+        const cellA = a.cells[effectiveSortConfig.colId];
+        const cellB = b.cells[effectiveSortConfig.colId];
+        const col = columns.find(c => c.id === effectiveSortConfig.colId);
 
         let valA: any = cellA?.number ?? cellA?.text ?? cellA?.name ?? cellA?.value ?? "";
         let valB: any = cellB?.number ?? cellB?.text ?? cellB?.name ?? cellB?.value ?? "";
@@ -3878,12 +4633,12 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         }
 
         if (valA === valB) return 0;
-        if (valA < valB) return sortConfig.direction === "asc" ? -1 : 1;
-        return sortConfig.direction === "asc" ? 1 : -1;
+        if (valA < valB) return effectiveSortConfig.direction === "asc" ? -1 : 1;
+        return effectiveSortConfig.direction === "asc" ? 1 : -1;
       });
     }
     return result;
-  }, [rows, sortConfig, filterConfig, columns]);
+  }, [rows, effectiveSortConfig, effectiveFilterConfig, columns]);
 
   const onColumnDragStart = (idx: number) => setDraggedColIdx(idx);
   const onColumnDragOver = (e: React.DragEvent, idx: number) => {
@@ -4095,20 +4850,30 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           )}
         </div>
         <div className="flex items-center gap-1">
+          {!readonly && (
+            <button
+              onClick={() => addView("table")}
+              className="h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center text-muted-foreground"
+              title={t("bountifulTable.views.addView" as any)}
+            >
+              <Eye className="h-3 w-3" />
+              {views.length > 0 ? `${views.length}` : t("bountifulTable.views.addView" as any)}
+            </button>
+          )}
           <button
             onClick={(e) => {
               openFilterWorkbench(undefined, e.currentTarget.getBoundingClientRect());
             }}
-            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", filterConfig.length > 0 ? "text-accent bg-accent/10" : "text-muted-foreground")}
+            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", effectiveFilterConfig.length > 0 ? "text-accent bg-accent/10" : "text-muted-foreground")}
           >
             <Filter className="h-3 w-3" />
-            {t("bountifulTable.filterTitle" as any)}{filterConfig.length > 0 ? ` (${filterConfig.length})` : ""}
+            {t("bountifulTable.filterTitle" as any)}{effectiveFilterConfig.length > 0 ? ` (${effectiveFilterConfig.length})` : ""}
           </button>
           <button
             onClick={(e) => {
               openSortWorkbench(e.currentTarget.getBoundingClientRect());
             }}
-            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", sortConfig ? "text-accent bg-accent/10" : "text-muted-foreground")}
+            className={cn("h-7 px-2 gap-1 text-[10px] rounded-md hover:bg-muted transition-colors flex items-center", effectiveSortConfig ? "text-accent bg-accent/10" : "text-muted-foreground")}
           >
             <ArrowUp className="h-3 w-3" />
             {t("bountifulTable.sort.title" as any)}
@@ -4133,12 +4898,34 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         </div>
       </div>
 
-      {(filterConfig.length > 0 || sortConfig) && (
+      {/* View Tab Bar */}
+      <ViewTabBar
+        views={views}
+        activeId={activeViewId}
+        onSelect={setActiveViewId}
+        onAdd={() => addView("table")}
+        onRename={renameView}
+        onDelete={deleteView}
+        onDuplicate={duplicateView}
+        onChangeLayout={changeViewLayout}
+        readonly={readonly}
+      />
+
+      {/* View Settings Bar (groupBy / dateBy for board/calendar/timeline) */}
+      {activeView && (
+        <ViewSettingsBar
+          view={activeView}
+          columns={columns}
+          onUpdateView={updateActiveView}
+        />
+      )}
+
+      {(effectiveFilterConfig.length > 0 || effectiveSortConfig) && (
         <div className="flex flex-wrap items-center gap-2 border-b border-border bg-muted/10 px-3 py-2 text-xs">
-          {filterConfig.length > 0 && (
+          {effectiveFilterConfig.length > 0 && (
             <>
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t("bountifulTable.filterBarLabel" as any)}</span>
-              {filterConfig.map(f => {
+              {effectiveFilterConfig.map(f => {
                 const col = columns.find(c => c.id === f.colId);
                 if (!col) return null;
                 return (
@@ -4155,26 +4942,66 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             </>
           )}
 
-          {sortConfig && (
+          {effectiveSortConfig && (
             <>
               <span className="mx-1 h-4 w-px bg-border/70" />
               <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/60">{t("bountifulTable.sortBarLabel" as any)}</span>
               {(() => {
-                const sortCol = columns.find(c => c.id === sortConfig.colId);
+                const sortCol = columns.find(c => c.id === effectiveSortConfig.colId);
                 return sortCol ? (
                   <button onClick={(e) => { setSortWorkbenchRect(e.currentTarget.getBoundingClientRect()); openSortWorkbench(); }} className="inline-flex items-center gap-1 rounded-full border border-border/60 bg-card px-2 py-1 text-[11px] hover:bg-muted/40 transition-colors">
                     <span className="font-medium text-foreground">{sortCol.name}</span>
-                    <span className="text-muted-foreground">{sortConfig.direction === "asc" ? t("bountifulTable.sortBarAsc" as any) : t("bountifulTable.sortBarDesc" as any)}</span>
+                    <span className="text-muted-foreground">{effectiveSortConfig.direction === "asc" ? t("bountifulTable.sortBarAsc" as any) : t("bountifulTable.sortBarDesc" as any)}</span>
                   </button>
                 ) : null;
               })()}
-              <button onClick={() => setSortConfig(null)} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">{t("bountifulTable.sortBarRemove" as any)}</button>
+              <button onClick={() => {
+                if (activeView) updateActiveView({ sorts: [] });
+                else setSortConfig(null);
+              }} className="text-[11px] text-muted-foreground hover:text-destructive transition-colors">{t("bountifulTable.sortBarRemove" as any)}</button>
             </>
           )}
         </div>
       )}
 
-      {/* Table */}
+      {/* View-specific content */}
+      {activeView?.layout === "board" && (
+        <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
+          <BoardView
+            columns={columns}
+            sortedRows={sortedRows}
+            groupByColId={activeView.groupByColId ?? null}
+            visibleColumns={visibleColumns}
+            readonly={readonly}
+            onCellChange={handleCellChange}
+            users={users}
+            onOpenReferencePicker={setPickerState}
+          />
+        </div>
+      )}
+      {activeView?.layout === "gallery" && (
+        <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
+          <GalleryView sortedRows={sortedRows} visibleColumns={visibleColumns} />
+        </div>
+      )}
+      {activeView?.layout === "list" && (
+        <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
+          <ListView sortedRows={sortedRows} visibleColumns={visibleColumns} />
+        </div>
+      )}
+      {activeView?.layout === "calendar" && (
+        <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
+          <CalendarView sortedRows={sortedRows} columns={columns} dateColId={activeView.dateColId ?? null} />
+        </div>
+      )}
+      {activeView?.layout === "timeline" && (
+        <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
+          <TimelineView sortedRows={sortedRows} columns={columns} dateColId={activeView.dateColId ?? null} />
+        </div>
+      )}
+
+      {/* Table (default or explicit table view) */}
+      {(!activeView || activeView.layout === "table") && (
       <div className={cn("overflow-auto custom-scrollbar", isFullscreen && "flex-1")}>
         <table className="w-full text-sm text-left whitespace-nowrap border-collapse">
           <thead className="bg-muted/30 sticky top-0 z-10">
@@ -4200,9 +5027,9 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                     <div className="flex items-center gap-1.5 pointer-events-none">
                       <span className="opacity-50">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
                       <span className="text-xs truncate">{col.name}</span>
-                      {sortConfig?.colId === col.id && (
+                      {effectiveSortConfig?.colId === col.id && (
                         <span className="ml-auto text-accent px-1 bg-accent/10 rounded">
-                          {sortConfig.direction === "asc" ? "↑" : "↓"}
+                          {effectiveSortConfig.direction === "asc" ? "↑" : "↓"}
                         </span>
                       )}
                     </div>
@@ -4246,15 +5073,17 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
           </tbody>
         </table>
       </div>
+      )}
 
-      {/* Footer */}
-      {!readonly && (
-        <div className="flex items-center gap-2 border-t border-border bg-muted/5 p-2 shrink-0">
+      {(!activeView || activeView.layout === "table") && (
+      <div className="flex items-center gap-2 border-t border-border bg-muted/5 p-2 shrink-0">
+        {!readonly && (
           <button onClick={addRow} className="h-7 px-3 gap-1.5 text-[11px] rounded-md border border-border hover:bg-muted transition-colors flex items-center text-muted-foreground">
             <Plus className="h-3 w-3" /> {t("bountifulTable.newRow" as any)}
           </button>
-          <div className="ml-auto text-[10px] text-muted-foreground/50">{rows.length} {t("bountifulTable.rows" as any)} · {visibleColumns.length} {t("bountifulTable.columns" as any)}</div>
-        </div>
+        )}
+        <div className="ml-auto text-[10px] text-muted-foreground/50">{rows.length} {t("bountifulTable.rows" as any)} · {visibleColumns.length} {t("bountifulTable.columns" as any)}</div>
+      </div>
       )}
 
       {/* Column Header Menu */}
@@ -4269,11 +5098,14 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
             onAIAutocomplete={() => { setShowAIModalColId(headerMenu.colId); setHeaderMenu(null); }}
             onRename={name => renameColumn(headerMenu.colId, name)}
             onChangeType={type => changeColumnType(headerMenu.colId, type)}
-            onSort={dir => setSortConfig(dir ? { colId: headerMenu.colId, direction: dir } : null)}
-            sortDir={sortConfig?.colId === headerMenu.colId ? sortConfig.direction : null}
+            onSort={dir => {
+              if (activeView) updateActiveView({ sorts: dir ? [{ colId: headerMenu.colId, direction: dir }] : [] });
+              else setSortConfig(dir ? { colId: headerMenu.colId, direction: dir } : null);
+            }}
+            sortDir={effectiveSortConfig?.colId === headerMenu.colId ? effectiveSortConfig.direction : null}
             onFilterChange={(op, val) => handleFilterChange(headerMenu.colId, op, val)}
-            filterValue={filterConfig.find(f => f.colId === headerMenu.colId)?.value}
-            filterOperator={filterConfig.find(f => f.colId === headerMenu.colId)?.operator}
+            filterValue={effectiveFilterConfig.find(f => f.colId === headerMenu.colId)?.value}
+            filterOperator={effectiveFilterConfig.find(f => f.colId === headerMenu.colId)?.operator}
             onUpdateOptions={opts => updateColumnOptions(headerMenu.colId, opts)}
             onUpdateColumn={updates => {
               const nc = columns.map(c => c.id === headerMenu.colId ? { ...c, ...updates } : c);
@@ -4293,7 +5125,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         <FilterWorkbenchFlyout
           anchorRect={filterWorkbenchRect}
           columns={columns}
-          filterConfig={filterConfig}
+          filterConfig={effectiveFilterConfig}
           initialColId={filterWorkbenchColId}
           onMouseEnter={() => setShowFilterWorkbench(true)}
           onClose={() => setShowFilterWorkbench(false)}
@@ -4307,12 +5139,12 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         <SortWorkbenchFlyout
           anchorRect={sortWorkbenchRect}
           columns={columns}
-          sortConfig={sortConfig}
+          sortConfig={effectiveSortConfig}
           onMouseEnter={() => setShowSortWorkbench(true)}
           onClose={() => setShowSortWorkbench(false)}
           onSortChange={(colId, direction) => {
-            if (!colId || !direction) setSortConfig(null);
-            else setSortConfig({ colId, direction });
+            if (activeView) updateActiveView({ sorts: colId && direction ? [{ colId, direction }] : [] });
+            else { if (!colId || !direction) setSortConfig(null); else setSortConfig({ colId, direction }); }
           }}
         />
       )}
