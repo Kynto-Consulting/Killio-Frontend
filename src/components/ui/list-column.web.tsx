@@ -3,11 +3,13 @@
 import { useState, type CSSProperties } from "react";
 import { useDroppable } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal } from "lucide-react";
+import { Plus, MoreHorizontal, Archive, Trash2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { archiveList, deleteList } from "@/lib/api/contracts";
+import { useSession } from "@/components/providers/session-provider";
 
 interface ListData {
   id: string;
@@ -44,7 +46,29 @@ export function ListColumnWeb({
   const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const { accessToken } = useSession();
   const isGuest = !canEdit;
+
+  const handleArchive = async () => {
+    setIsMenuOpen(false);
+    try {
+      await archiveList(boardId, list.id, true, accessToken ?? undefined);
+      toast(t("list.archivedSuccess") ?? "List archived", "success");
+    } catch (err) {
+      toast(t("list.archiveError") ?? "Failed to archive list", "error");
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsMenuOpen(false);
+    if (!window.confirm(t("list.deleteConfirm") ?? "Are you sure you want to delete this list? All cards will be lost.")) return;
+    try {
+      await deleteList(boardId, list.id, accessToken ?? undefined);
+      toast(t("list.deletedSuccess") ?? "List deleted", "success");
+    } catch (err) {
+      toast(t("list.deleteError") ?? "Failed to delete list", "error");
+    }
+  };
   const containerStyle: CSSProperties = isDropTarget
     ? {
       backgroundColor: "transparent",
@@ -89,13 +113,22 @@ export function ListColumnWeb({
             <div className="absolute right-0 top-8 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
               <button 
                 onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} 
-                className="w-full text-left px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">{t("list.addCardMenu")}
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
+                <Plus className="w-3.5 h-3.5" />
+                {t("list.addCardMenu")}
               </button>
               <div className="my-1 border-t border-border" />
               <button 
-                onClick={(e) => { e.stopPropagation(); toast(t("list.archiveComingSoon"), "info"); }} 
-                className="w-full text-left px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
+                onClick={(e) => { e.stopPropagation(); handleArchive(); }} 
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
+                <Archive className="w-3.5 h-3.5" />
                 {t("list.archiveList")}
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); handleDelete(); }} 
+                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
+                <Trash2 className="w-3.5 h-3.5" />
+                {t("list.deleteList") ?? "Delete List"}
               </button>
             </div>
           )}

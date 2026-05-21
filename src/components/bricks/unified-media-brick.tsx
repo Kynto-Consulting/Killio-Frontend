@@ -131,6 +131,15 @@ export const UnifiedMediaBrick: React.FC<{
   const border = meta.border || "soft";
   const shadow = meta.shadow || "none";
 
+  const resolveUrl = (url: string | null | undefined) => {
+    if (!url) return "";
+    if (url.startsWith('/uploads/')) {
+      const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:4000';
+      return `${baseUrl}${url}`;
+    }
+    return url;
+  };
+
   const getContainerClassName = () => {
     let classes = "relative group flex flex-col my-4 ";
     if (layout === "left") classes += "items-start ";
@@ -162,7 +171,7 @@ export const UnifiedMediaBrick: React.FC<{
         {/* MEDIA RENDER */}
         {activeItem?.url ? (
           isWebBookmark ? (
-            <a href={activeItem.url} target="_blank" rel="noreferrer" className="block w-full max-w-lg mx-auto bg-card border border-border/50 rounded-lg overflow-hidden hover:border-accent/50 transition-colors shadow-sm">
+            <a href={resolveUrl(activeItem.url)} target="_blank" rel="noreferrer" className="block w-full max-w-lg mx-auto bg-card border border-border/50 rounded-lg overflow-hidden hover:border-accent/50 transition-colors shadow-sm">
               <div className="p-4 flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
                   <LinkIcon className="w-3 h-3" />
@@ -173,14 +182,14 @@ export const UnifiedMediaBrick: React.FC<{
               </div>
             </a>
           ) : isVideo ? (
-            <video src={activeItem.url} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
+            <video src={resolveUrl(activeItem.url)} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
           ) : isAudio ? (
             <div className="flex flex-col items-center justify-center p-6 bg-muted/10 gap-4 min-w-[300px]">
-              <audio src={activeItem.url} controls className="w-full" />
+              <audio src={resolveUrl(activeItem.url)} controls className="w-full" />
               {activeItem.title && <span className="text-xs text-muted-foreground">{activeItem.title}</span>}
             </div>
           ) : isImage ? (
-            <img src={activeItem.url} alt={activeItem.title || content.title || "Media"} className={`bg-transparent ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[70vh] object-contain w-auto mx-auto"}`} />
+            <img src={resolveUrl(activeItem.url)} alt={activeItem.title || content.title || "Media"} className={`bg-transparent ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[70vh] object-contain w-auto mx-auto"}`} />
           ) : (
             <div className="flex items-center justify-between p-4 bg-muted/10 border border-border/50 rounded-md min-w-[300px] gap-4">
               <div className="flex items-center gap-3">
@@ -190,7 +199,7 @@ export const UnifiedMediaBrick: React.FC<{
                   {activeItem.sizeBytes && <span className="text-xs text-muted-foreground">{(activeItem.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>}
                 </div>
               </div>
-              <a href={activeItem.url} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
+              <a href={resolveUrl(activeItem.url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
                 {t("brickRenderer.download")}
               </a>
             </div>
@@ -428,7 +437,7 @@ export const UnifiedMediaBrick: React.FC<{
                     className={`h-12 w-16 shrink-0 overflow-hidden rounded-md border ${idx === activeIndex ? "border-primary border-2" : "border-border/60"}`}
                   >
                     {thumbImage ? (
-                      <img src={item.url} alt={item.title || `Media ${idx + 1}`} className="h-full w-full object-cover" />
+                      <img src={resolveUrl(item.url)} alt={item.title || `Media ${idx + 1}`} className="h-full w-full object-cover" />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-muted/20 text-[9px] font-semibold">FILE</div>
                     )}

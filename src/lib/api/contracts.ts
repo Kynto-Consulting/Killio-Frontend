@@ -983,6 +983,30 @@ export async function updateList(
   });
 }
 
+export async function archiveList(
+  boardId: string,
+  listId: string,
+  isArchived: boolean,
+  accessToken?: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}/archive`, {
+    method: 'PATCH',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify({ isArchived }),
+  });
+}
+
+export async function deleteList(
+  boardId: string,
+  listId: string,
+  accessToken?: string
+): Promise<{ success: boolean }> {
+  return request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}`, {
+    method: 'DELETE',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+  });
+}
+
 
 export async function createCard(body: { listId: string; title: string; dueAt?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards`, {
