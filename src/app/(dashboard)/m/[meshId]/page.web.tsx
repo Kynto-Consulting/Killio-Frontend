@@ -836,7 +836,7 @@ function mkBrick(
 type IinkShape = { kind: string; bbox: { x: number; y: number; w: number; h: number } | null };
 type IinkResult = { text: string | null; shapes: IinkShape[] };
 
-async function callIink(strokes: PenStroke[], w: number, h: number, token: string): Promise<IinkResult | null> {
+async function callIink(strokes: PenStroke[], w: number, h: number, token: string, meshId: string): Promise<IinkResult | null> {
   if (!strokes.length) return null;
   const payload = {
     strokes: strokes.map((s) => ({
@@ -848,7 +848,7 @@ async function callIink(strokes: PenStroke[], w: number, h: number, token: strin
     height: Math.round(h),
   };
   try {
-    const res = await fetch(`${API_BASE}/meshes/iink`, {
+    const res = await fetch(`${API_BASE}/meshes/${meshId}/iink`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
       body: JSON.stringify(payload),
@@ -2585,7 +2585,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const cw = el ? el.clientWidth / Math.max(viewport.zoom, 0.01) : 1600;
       const ch = el ? el.clientHeight / Math.max(viewport.zoom, 0.01) : 900;
       setRecognizing(true);
-      callIink(strokes, cw, ch, accessToken ?? "").then((result) => {
+      callIink(strokes, cw, ch, accessToken ?? "", meshId ?? "").then((result) => {
         setRecognizing(false);
         if (!result) { toast(tMesh("errors.iinkNoResponse"), "error"); return; }
         const { text, shapes } = result;
