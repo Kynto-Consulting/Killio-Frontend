@@ -394,7 +394,7 @@ export function MobileNavSheet({
                   <div className="flex items-center space-x-2 overflow-hidden">
                     <div className="h-7 w-7 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
                       <img 
-                        src={getUserAvatarUrl(undefined, user?.email, 32)} 
+                        src={getUserAvatarUrl(user?.avatarUrl, user?.email, 32)} 
                         alt={user?.displayName || "User"} 
                         className="h-full w-full object-cover"
                       />

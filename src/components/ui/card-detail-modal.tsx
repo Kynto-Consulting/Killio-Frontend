@@ -1381,9 +1381,11 @@ export function CardDetailModal({
 
       router.refresh();
       window.dispatchEvent(new Event('board:refresh'));
+      toast(t('createCardSuccess', { title: createdCard?.title || localTitle || 'New Card' }), 'success');
       onClose();
     } catch (err) {
       console.error("Failed to create card", err);
+      toast(t('createCardError'), 'error');
     } finally {
       setIsCreating(false);
     }

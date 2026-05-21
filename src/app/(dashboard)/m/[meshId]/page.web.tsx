@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 // ─── Mesh Board – Miro/Excalidraw-style canvas ────────────────────────────────
 // Modes: select · pan · pen (iinkTS → bricks)
@@ -1286,7 +1286,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     meshId ?? null,
     user?.id ?? null,
     user?.displayName ?? user?.name ?? user?.email ?? "User",
-    user?.email ? getUserAvatarUrl(undefined, user.email, 24) : undefined,
+    user?.email ? getUserAvatarUrl(user?.avatarUrl, user.email, 24) : undefined,
     accessToken,
   );
 

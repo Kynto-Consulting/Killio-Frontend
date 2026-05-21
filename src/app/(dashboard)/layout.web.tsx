@@ -582,7 +582,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
             <div className={`flex items-center space-x-2 ${isSidebarCollapsed ? "" : "overflow-hidden"}`}>
               <div className={`h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10 ${isSidebarCollapsed ? "mx-auto" : ""}`}>
                 <img
-                  src={user?.avatarUrl || getUserAvatarUrl(undefined, user?.email, 32)}
+                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 32)}
                   alt={user?.username || user?.displayName || tCommon("account.fallbackUser")}
                   className="h-full w-full object-cover"
                 />

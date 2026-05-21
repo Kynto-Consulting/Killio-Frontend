@@ -136,7 +136,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
               onClick={() => document.getElementById("avatar-upload")?.click()}
             >
                 <img 
-                  src={previewUrl || getUserAvatarUrl(undefined, user?.email, 80)} 
+                  src={previewUrl || getUserAvatarUrl(user?.avatarUrl, user?.email, 80)} 
                   alt={user?.displayName || tCommon("account.fallbackUser")} 
                   className="h-full w-full object-cover group-hover:opacity-40 transition-opacity"
                 />

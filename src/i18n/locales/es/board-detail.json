@@ -4,6 +4,7 @@
   "deleteBoardError": "No se pudo eliminar el tablero",
   "createListError": "No se pudo crear la lista",
   "createCardError": "No se pudo crear la tarjeta",
+  "createCardSuccess": "Tarjeta creada: {{title}}",
   "settingsUpdated": "Configuración general actualizada.",
   "appearanceUpdated": "Apariencia actualizada.",
   "header": {
