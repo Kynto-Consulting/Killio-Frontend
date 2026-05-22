@@ -3617,37 +3617,17 @@ function BoardView({
     <div key={row.id} className="rounded-lg border border-border bg-card p-3 shadow-sm hover:shadow-md transition-shadow">
       {titleCol && (
         <div className="text-sm font-medium mb-2 text-foreground line-clamp-2">
-          {row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || (
-            <span className="text-muted-foreground/40 italic text-xs">{t("bountifulTable.empty" as any)}</span>
-          )}
+          <CellRenderer cell={row.cells?.[titleCol.id] ?? null} column={titleCol} row={row} readonly />
         </div>
       )}
-      {propCols.map(col => {
-        const cell = row.cells[col.id];
-        if (!cell) return null;
-        const val = cell.text || cell.name || cell.value ||
-          (cell.items?.length ? cell.items.map(i => i.name).join(", ") : "") ||
-          (cell.checked !== undefined ? (cell.checked ? "✓" : "") : "") ||
-          (cell.number !== undefined ? String(cell.number) : "") ||
-          (cell.start || "");
-        if (!val) return null;
-        return (
-          <div key={col.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
-            <span className="opacity-50 shrink-0">{colTypeIcon[col.type]}</span>
-            {col.type === "select" || col.type === "status" ? (
-              <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name}</span>
-            ) : col.type === "multi_select" ? (
-              <div className="flex flex-wrap gap-1">
-                {cell.items?.slice(0, 2).map((i, idx) => (
-                  <span key={idx} className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(i.color))}>{i.name}</span>
-                ))}
-              </div>
-            ) : (
-              <span className="truncate max-w-[160px]">{val}</span>
-            )}
+      {propCols.map(col => (
+        <div key={col.id} className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+          <span className="opacity-50 shrink-0">{colTypeIcon[col.type]}</span>
+          <div className="truncate max-w-[160px] overflow-hidden">
+            <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly />
           </div>
-        );
-      })}
+        </div>
+      ))}
     </div>
   );
 
@@ -3708,36 +3688,18 @@ function GalleryView({ sortedRows, visibleColumns }: {
           <div className="p-3">
             {titleCol && (
               <div className="text-sm font-semibold mb-2 text-foreground line-clamp-2">
-                {row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || (
-                  <span className="text-muted-foreground/40 italic text-xs">{t("bountifulTable.empty" as any)}</span>
-                )}
+                <CellRenderer cell={row.cells?.[titleCol.id] ?? null} column={titleCol} row={row} readonly />
               </div>
             )}
             <div className="space-y-1">
-              {propCols.map(col => {
-                const cell = row.cells[col.id];
-                if (!cell) return null;
-                const hasValue = cell.text || cell.name || cell.items?.length || cell.number !== undefined || cell.start;
-                if (!hasValue) return null;
-                return (
-                  <div key={col.id} className="flex items-center gap-1.5 text-[11px]">
-                    <span className="text-muted-foreground/50 shrink-0">{colTypeIcon[col.type]}</span>
-                    {col.type === "select" || col.type === "status" ? (
-                      <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name}</span>
-                    ) : col.type === "multi_select" ? (
-                      <div className="flex flex-wrap gap-1">
-                        {cell.items?.slice(0, 2).map((i, idx) => (
-                          <span key={idx} className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(i.color))}>{i.name}</span>
-                        ))}
-                      </div>
-                    ) : col.type === "checkbox" ? (
-                      <span className="text-muted-foreground">{cell.checked ? "✓" : "—"}</span>
-                    ) : (
-                      <span className="text-muted-foreground truncate">{cell.text || cell.name || cell.value || cell.start || (cell.number !== undefined ? String(cell.number) : "")}</span>
-                    )}
+              {propCols.map(col => (
+                <div key={col.id} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="text-muted-foreground/50 shrink-0">{colTypeIcon[col.type]}</span>
+                  <div className="text-muted-foreground truncate overflow-hidden">
+                    <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly />
                   </div>
-                );
-              })}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -3762,26 +3724,26 @@ function ListView({ sortedRows, visibleColumns }: {
         <div className="flex items-center justify-center py-8 text-muted-foreground text-sm">{t("bountifulTable.noResults" as any)}</div>
       ) : sortedRows.map(row => (
         <div key={row.id} className="flex items-center gap-4 px-4 py-2.5 hover:bg-muted/10 transition-colors">
-          <div className="flex-1 min-w-0">
-            <span className="text-sm font-medium text-foreground truncate">
-              {titleCol ? (row.cells[titleCol.id]?.text || row.cells[titleCol.id]?.name || "") : ""}
-            </span>
+          <div className="flex-1 min-w-0 text-sm font-medium text-foreground truncate">
+            {titleCol ? (
+              <CellRenderer
+                cell={row.cells?.[titleCol.id] ?? null}
+                column={titleCol}
+                row={row}
+                readonly
+              />
+            ) : null}
           </div>
-          {propCols.map(col => {
-            const cell = row.cells[col.id];
-            return (
-              <div key={col.id} className="w-28 shrink-0 text-xs">
-                {!cell ? <span className="text-muted-foreground/30">—</span> :
-                  col.type === "select" || col.type === "status" ? (
-                    <span className={cn("px-1.5 py-0.5 rounded-full text-[10px] font-medium", getPillClass(cell.color))}>{cell.name || <span className="text-muted-foreground/30">—</span>}</span>
-                  ) : col.type === "checkbox" ? (
-                    <span className="text-muted-foreground">{cell.checked ? "✓" : "—"}</span>
-                  ) : (
-                    <span className="text-muted-foreground truncate block">{cell.text || cell.name || cell.value || cell.start || (cell.number !== undefined ? String(cell.number) : "") || "—"}</span>
-                  )}
-              </div>
-            );
-          })}
+          {propCols.map(col => (
+            <div key={col.id} className="w-32 shrink-0 text-xs overflow-hidden">
+              <CellRenderer
+                cell={row.cells?.[col.id] ?? null}
+                column={col}
+                row={row}
+                readonly
+              />
+            </div>
+          ))}
         </div>
       ))}
     </div>

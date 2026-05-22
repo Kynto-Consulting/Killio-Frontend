@@ -209,6 +209,26 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     blocks.push({ tag: "text", content: remainingText.trim() });
   }
 
+  // Safety net: if AI used room_send_message as a reply (no visible text),
+  // extract the message/content param and promote it to a text block.
+  const hasVisibleText = blocks.some((b) => b.tag === "text");
+  if (!hasVisibleText) {
+    for (const block of blocks) {
+      if (block.tag === "tool_call" && typeof block.content === "string") {
+        try {
+          const parsed = JSON.parse(block.content);
+          if (parsed?.name === "room_send_message") {
+            const text = parsed?.input?.content ?? parsed?.input?.message ?? parsed?.input?.text ?? "";
+            if (text) {
+              blocks.unshift({ tag: "text", content: String(text).trim() });
+              break;
+            }
+          }
+        } catch { /* ignore */ }
+      }
+    }
+  }
+
   return {
     visibleText: blocks
       .filter((b) => b.tag === "text")
