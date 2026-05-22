@@ -7,6 +7,7 @@ import {
   Calendar, ShieldCheck, Eye, EyeOff
 } from "lucide-react";
 import { getMessageInfo, type RoomMessage } from "@/lib/api/rooms";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useRealtime } from "@/components/providers/realtime-provider";
@@ -201,11 +202,11 @@ export function MessageInfoPanel({ roomId, message, onClose, onMarkRead }: Messa
                 <div key={reader.userId} className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-2">
                     <div className="w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-[10px] font-bold text-accent overflow-hidden">
-                      {reader.avatarUrl ? (
-                        <img src={reader.avatarUrl} alt={reader.displayName} className="w-full h-full object-cover" />
-                      ) : (
-                        reader.displayName.charAt(0)
-                      )}
+                      <img
+                        src={getUserAvatarUrl(reader.avatarUrl, undefined, 24)}
+                        alt={reader.displayName}
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                     <span className="text-xs font-medium">{reader.displayName}</span>
                   </div>
