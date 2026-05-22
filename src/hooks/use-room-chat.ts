@@ -86,8 +86,15 @@ export function useRoomChat(
         if (nonceId) {
           const nonceIdx = prev.findIndex((m) => m.id === nonceId);
           if (nonceIdx !== -1) {
+            const existing = prev[nonceIdx];
             const updated = [...prev];
-            updated[nonceIdx] = { ...payload, status: "sent" };
+            updated[nonceIdx] = {
+              ...payload,
+              status: "sent",
+              user: payload.user
+                ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
+                : existing.user,
+            };
             return updated;
           }
         }
@@ -99,15 +106,29 @@ export function useRoomChat(
             Math.abs(new Date(m.createdAt).getTime() - new Date(payload.createdAt).getTime()) < 30_000
         );
         if (tempIdx !== -1) {
+          const existing = prev[tempIdx];
           const updated = [...prev];
-          updated[tempIdx] = { ...payload, status: "sent" };
+          updated[tempIdx] = {
+            ...payload,
+            status: "sent",
+            user: payload.user
+              ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
+              : existing.user,
+          };
           return updated;
         }
 
         const existingIdx = prev.findIndex((m) => m.id === payload.id);
         if (existingIdx !== -1) {
+          const existing = prev[existingIdx];
           const updated = [...prev];
-          updated[existingIdx] = { ...payload, status: "sent" };
+          updated[existingIdx] = {
+            ...payload,
+            status: "sent",
+            user: payload.user
+              ? { ...payload.user, avatarUrl: payload.user.avatarUrl ?? existing.user?.avatarUrl }
+              : existing.user,
+          };
           return updated;
         }
 
@@ -237,7 +258,16 @@ export function useRoomChat(
       setMessages((prev) => [...prev, optimistic]);
       try {
         const real = await sendRoomMessage(roomId, content, accessToken, metadata);
-        setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...real, status: "sent" } : m)));
+        setMessages((prev) => prev.map((m) => {
+          if (m.id !== tempId) return m;
+          return {
+            ...real,
+            status: "sent",
+            user: real.user
+              ? { ...real.user, avatarUrl: real.user.avatarUrl ?? m.user?.avatarUrl }
+              : m.user,
+          };
+        }));
       } catch {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
       } finally {
