@@ -45,7 +45,22 @@ function readTokenFromCookie(): string | null {
 }
 
 function writeTokenCookie(token: string, maxAgeSeconds: number) {
-  document.cookie = `killio_token=${encodeURIComponent(token)}; path=/; max-age=${maxAgeSeconds}`;
+  document.cookie = `killio_token=${encodeURIComponent(token)}; path=/; max-age=${maxAgeSeconds}; SameSite=Strict`;
+}
+
+/** Decodes the JWT payload (no library) and returns true if the token is expired. */
+function isJwtExpired(token: string): boolean {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return true;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as unknown;
+    if (!payload || typeof payload !== "object") return true;
+    const exp = (payload as Record<string, unknown>).exp;
+    if (typeof exp !== "number") return false; // no exp claim → treat as non-expiring
+    return exp * 1000 < Date.now();
+  } catch {
+    return true;
+  }
 }
 
 async function fetchFreshUser(token: string): Promise<Record<string, unknown> | null> {
@@ -132,6 +147,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
                 } satisfies SessionAccount;
               })
               .filter(Boolean) as SessionAccount[];
+            // Drop accounts whose access token is already expired
+            loadedAccounts = loadedAccounts.filter((acc) => !isJwtExpired(acc.accessToken));
           }
           if (!cancelled) setAccounts(loadedAccounts);
         }
