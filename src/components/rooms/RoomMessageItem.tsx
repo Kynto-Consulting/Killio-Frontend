@@ -101,7 +101,9 @@ const PollRenderer = ({
 
   useEffect(() => {
     if (!expiresAt) return;
-    const timer = setInterval(() => setNow(new Date()), 1000);
+    const msUntilExpiry = new Date(expiresAt).getTime() - Date.now();
+    const intervalMs = msUntilExpiry > 60_000 ? 15_000 : 5_000;
+    const timer = setInterval(() => setNow(new Date()), intervalMs);
     return () => clearInterval(timer);
   }, [expiresAt]);
 

@@ -2573,9 +2573,133 @@ function AIAutocompleteModal({
   );
 }
 
+// ─── Module-scope pure helpers (moved out of CellRenderer to avoid re-creation per render) ─
+
+function parseDateInput(raw: string): Date | null {
+  const source = raw.trim();
+  if (!source) return null;
+
+  const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(source);
+  if (isIsoDate) {
+    const dateOnly = new Date(`${source}T00:00:00`);
+    return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
+  }
+
+  const parsed = new Date(source);
+  if (!Number.isNaN(parsed.getTime())) return parsed;
+
+  const slashDate = source.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+  if (slashDate) {
+    const day = Number(slashDate[1]);
+    const month = Number(slashDate[2]) - 1;
+    const year = Number(slashDate[3]);
+    const hour = Number(slashDate[4] || "0");
+    const minute = Number(slashDate[5] || "0");
+    const local = new Date(year, month, day, hour, minute);
+    if (!Number.isNaN(local.getTime())) return local;
+  }
+
+  const monthMap: Record<string, number> = {
+    jan: 0, ene: 0,
+    feb: 1,
+    mar: 2,
+    apr: 3, abr: 3,
+    may: 4,
+    jun: 5,
+    jul: 6,
+    aug: 7, ago: 7,
+    sep: 8, set: 8,
+    oct: 9,
+    nov: 10,
+    dec: 11, dic: 11,
+  };
+  const textDate = source.toLowerCase().match(/^(\d{1,2})\s+([a-z.]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
+  if (textDate) {
+    const day = Number(textDate[1]);
+    const monthKey = textDate[2].replace(/\./g, "");
+    const month = monthMap[monthKey];
+    const year = Number(textDate[3]);
+    const hour = Number(textDate[4] || "0");
+    const minute = Number(textDate[5] || "0");
+    if (month !== undefined) {
+      const local = new Date(year, month, day, hour, minute);
+      if (!Number.isNaN(local.getTime())) return local;
+    }
+  }
+
+  return null;
+}
+
+function formatDate(d: string | undefined, column: BountifulColumn, includeTimeOverride?: boolean): string {
+  if (!d) return "";
+  try {
+    const dateObj = parseDateInput(d);
+    if (!dateObj) return d;
+
+    const hasExplicitTime = /T\d{2}:\d{2}|\s\d{1,2}:\d{2}/.test(d);
+    const includeTime = includeTimeOverride ?? (column.dateFormat?.includeTime ?? false);
+    const showTime = includeTime && hasExplicitTime;
+    const format = column.dateFormat?.format || "friendly";
+
+    if (format === "iso") {
+      const yyyy = String(dateObj.getFullYear());
+      const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const dd = String(dateObj.getDate()).padStart(2, "0");
+      const dateIso = `${yyyy}-${mm}-${dd}`;
+      if (!showTime) return dateIso;
+      const hh = String(dateObj.getHours()).padStart(2, "0");
+      const min = String(dateObj.getMinutes()).padStart(2, "0");
+      return `${dateIso} ${hh}:${min}`;
+    }
+
+    if (format === "relative") {
+      const diffMs = dateObj.getTime() - Date.now();
+      const absMs = Math.abs(diffMs);
+      const rtf = new Intl.RelativeTimeFormat("es-PE", { numeric: "auto" });
+
+      let relativeText: string;
+      if (absMs < 3_600_000) {
+        relativeText = rtf.format(Math.round(diffMs / 60_000), "minute");
+      } else if (absMs < 86_400_000) {
+        relativeText = rtf.format(Math.round(diffMs / 3_600_000), "hour");
+      } else if (absMs < 2_592_000_000) {
+        relativeText = rtf.format(Math.round(diffMs / 86_400_000), "day");
+      } else if (absMs < 31_536_000_000) {
+        relativeText = rtf.format(Math.round(diffMs / 2_592_000_000), "month");
+      } else {
+        relativeText = rtf.format(Math.round(diffMs / 31_536_000_000), "year");
+      }
+
+      if (!showTime) return relativeText;
+      const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+      return `${relativeText} · ${timeText}`;
+    }
+
+    if (format === "short") {
+      const shortDate = dateObj.toLocaleDateString("es-PE", {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      if (!showTime) return shortDate;
+      const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
+      return `${shortDate} ${timeText}`;
+    }
+
+    return dateObj.toLocaleString("es-PE", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      ...(showTime ? { hour: "2-digit", minute: "2-digit" } : {}),
+    });
+  } catch {
+    return d;
+  }
+}
+
 // ─── Cell Renderer ──────────────────────────────────────────────────────────
 
-function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferencePicker, users = [] }: {
+const CellRenderer = React.memo(function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferencePicker, users = [] }: {
   cell: BountifulCell | null; column: BountifulColumn; row: BountifulRow; readonly?: boolean;
   onCellChange?: (newCell: BountifulCell) => void;
   onOpenReferencePicker?: (state: { rowId: string; colId: string; rect: DOMRect; type: "user" | "doc" | "board" | "card" }) => void;
@@ -2584,128 +2708,6 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   const t = useTranslations("document-detail");
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
   const [isEditing, setIsEditing] = useState(false);
-
-  const parseDateInput = (raw: string): Date | null => {
-    const source = raw.trim();
-    if (!source) return null;
-
-    const isIsoDate = /^\d{4}-\d{2}-\d{2}$/.test(source);
-    if (isIsoDate) {
-      const dateOnly = new Date(`${source}T00:00:00`);
-      return Number.isNaN(dateOnly.getTime()) ? null : dateOnly;
-    }
-
-    const parsed = new Date(source);
-    if (!Number.isNaN(parsed.getTime())) return parsed;
-
-    const slashDate = source.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
-    if (slashDate) {
-      const day = Number(slashDate[1]);
-      const month = Number(slashDate[2]) - 1;
-      const year = Number(slashDate[3]);
-      const hour = Number(slashDate[4] || "0");
-      const minute = Number(slashDate[5] || "0");
-      const local = new Date(year, month, day, hour, minute);
-      if (!Number.isNaN(local.getTime())) return local;
-    }
-
-    const monthMap: Record<string, number> = {
-      jan: 0, ene: 0,
-      feb: 1,
-      mar: 2,
-      apr: 3, abr: 3,
-      may: 4,
-      jun: 5,
-      jul: 6,
-      aug: 7, ago: 7,
-      sep: 8, set: 8,
-      oct: 9,
-      nov: 10,
-      dec: 11, dic: 11,
-    };
-    const textDate = source.toLowerCase().match(/^(\d{1,2})\s+([a-z.]+)\s+(\d{4})(?:\s+(\d{1,2}):(\d{2}))?$/);
-    if (textDate) {
-      const day = Number(textDate[1]);
-      const monthKey = textDate[2].replace(/\./g, "");
-      const month = monthMap[monthKey];
-      const year = Number(textDate[3]);
-      const hour = Number(textDate[4] || "0");
-      const minute = Number(textDate[5] || "0");
-      if (month !== undefined) {
-        const local = new Date(year, month, day, hour, minute);
-        if (!Number.isNaN(local.getTime())) return local;
-      }
-    }
-
-    return null;
-  };
-
-  const formatDate = (d: string | undefined, includeTimeOverride?: boolean) => {
-    if (!d) return "";
-    try {
-      const dateObj = parseDateInput(d);
-      if (!dateObj) return d;
-
-      const hasExplicitTime = /T\d{2}:\d{2}|\s\d{1,2}:\d{2}/.test(d);
-      const includeTime = includeTimeOverride ?? (column.dateFormat?.includeTime ?? false);
-      const showTime = includeTime && hasExplicitTime;
-      const format = column.dateFormat?.format || "friendly";
-
-      if (format === "iso") {
-        const yyyy = String(dateObj.getFullYear());
-        const mm = String(dateObj.getMonth() + 1).padStart(2, "0");
-        const dd = String(dateObj.getDate()).padStart(2, "0");
-        const dateIso = `${yyyy}-${mm}-${dd}`;
-        if (!showTime) return dateIso;
-        const hh = String(dateObj.getHours()).padStart(2, "0");
-        const min = String(dateObj.getMinutes()).padStart(2, "0");
-        return `${dateIso} ${hh}:${min}`;
-      }
-
-      if (format === "relative") {
-        const diffMs = dateObj.getTime() - Date.now();
-        const absMs = Math.abs(diffMs);
-        const rtf = new Intl.RelativeTimeFormat("es-PE", { numeric: "auto" });
-
-        let relativeText: string;
-        if (absMs < 3_600_000) {
-          relativeText = rtf.format(Math.round(diffMs / 60_000), "minute");
-        } else if (absMs < 86_400_000) {
-          relativeText = rtf.format(Math.round(diffMs / 3_600_000), "hour");
-        } else if (absMs < 2_592_000_000) {
-          relativeText = rtf.format(Math.round(diffMs / 86_400_000), "day");
-        } else if (absMs < 31_536_000_000) {
-          relativeText = rtf.format(Math.round(diffMs / 2_592_000_000), "month");
-        } else {
-          relativeText = rtf.format(Math.round(diffMs / 31_536_000_000), "year");
-        }
-
-        if (!showTime) return relativeText;
-        const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-        return `${relativeText} · ${timeText}`;
-      }
-
-      if (format === "short") {
-        const shortDate = dateObj.toLocaleDateString("es-PE", {
-          year: "numeric",
-          month: "2-digit",
-          day: "2-digit",
-        });
-        if (!showTime) return shortDate;
-        const timeText = dateObj.toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit" });
-        return `${shortDate} ${timeText}`;
-      }
-
-      return dateObj.toLocaleString("es-PE", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-        ...(showTime ? { hour: "2-digit", minute: "2-digit" } : {}),
-      });
-    } catch {
-      return d;
-    }
-  };
   const [editText, setEditText] = useState("");
   const [showSelect, setShowSelect] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -2840,7 +2842,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   // ── Magic / Metadata Columns (Read-only) ──
   if (colType === "created_time" || colType === "last_edited_time") {
     const val = colType === "created_time" ? row._createdAt : row._lastEditedAt;
-    return <span className="text-xs text-muted-foreground/60">{formatDate(val, column.dateFormat?.includeTime ?? true)}</span>;
+    return <span className="text-xs text-muted-foreground/60">{formatDate(val, column, column.dateFormat?.includeTime ?? true)}</span>;
   }
   if (colType === "created_by" || colType === "last_edited_by") {
     const val = colType === "created_by" ? row._createdBy : row._lastEditedBy;
@@ -2864,7 +2866,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       <div ref={cellRef} className={cn("w-full min-h-[24px] flex items-center cursor-pointer", column.wrap && "py-1")}
         onClick={() => { if (!readonly) setShowDatePicker(true); }}>
         {hasVal ? (
-          <span className="text-xs text-muted-foreground">{formatDate(cell!.start)}{cell!.end ? ` → ${formatDate(cell!.end)}` : ""}</span>
+          <span className="text-xs text-muted-foreground">{formatDate(cell!.start, column)}{cell!.end ? ` → ${formatDate(cell!.end, column)}` : ""}</span>
         ) : cell && (cell.text || cell.value) ? (
           <span className="text-sm truncate max-w-[280px]">{cell.text || cell.value}</span>
         ) : (
@@ -3379,7 +3381,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
   }
 
   // Magic columns (read-only metadata)
-  if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, column.dateFormat?.includeTime ?? true)}</div>;
+  if (column.type === "created_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._createdAt, column, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "created_by") {
     const metaUser = toMetaUserRef(row._createdBy)!;
     return (
@@ -3388,7 +3390,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       </div>
     );
   }
-  if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, column.dateFormat?.includeTime ?? true)}</div>;
+  if (column.type === "last_edited_time") return <div className="text-xs text-muted-foreground/60">{formatDate(row._lastEditedAt, column, column.dateFormat?.includeTime ?? true)}</div>;
   if (column.type === "last_edited_by") {
     const metaUser = toMetaUserRef(row._lastEditedBy)!;
     
@@ -3414,7 +3416,7 @@ function CellRenderer({ cell, column, row, readonly, onCellChange, onOpenReferen
       <span className="text-muted-foreground truncate max-w-[200px] text-sm">{displayFallback}</span>
     </div>
   );
-}
+});
 
 // ─── View Tab Bar ───────────────────────────────────────────────────────────
 
@@ -4243,7 +4245,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     setShowFilterWorkbench(false);
   };
 
-  const handleCellChange = (rowId: string, colId: string, newCell: BountifulCell) => {
+  const handleCellChange = useCallback((rowId: string, colId: string, newCell: BountifulCell) => {
     const now = new Date().toISOString();
     const enriched = { ...newCell, _lastEditedAt: now, _createdAt: newCell._createdAt || now };
     const rowMeta = { _lastEditedAt: now, _lastEditedBy: currentUserId };
@@ -4258,7 +4260,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
     } else {
       emitUpdate(columns, nr);
     }
-  };
+  }, [rows, columns, currentUserId, onPatchCell, emitUpdate]);
 
   const addRow = () => {
     const now = new Date().toISOString();
@@ -4686,12 +4688,12 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         e.preventDefault();
         const newRows = [...rows];
         let hasChanges = false;
-        
+        const rowIndexMap = new Map(newRows.map((r, i) => [r.id, i]));
+
         selectedCells.forEach(key => {
           const [rowId, colId] = key.split(":");
-          const rIndex = newRows.findIndex(r => r.id === rowId);
-          if (rIndex >= 0) {
-            const colInfo = columns.find(c => c.id === colId);
+          const rIndex = rowIndexMap.get(rowId);
+          if (rIndex !== undefined) {
             newRows[rIndex] = {
               ...newRows[rIndex],
               cells: { ...newRows[rIndex].cells, [colId]: null }
