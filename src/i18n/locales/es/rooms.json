@@ -2,7 +2,24 @@
   "title": "Salas",
   "roomsCount": "{{count}} salas",
   "ai": {
-    "copilotName": "AI Copilot"
+    "copilotName": "AI Copilot",
+    "bot": "Bot",
+    "unknown": "Desconocido",
+    "activateLiveView": "Activar Vista en Vivo",
+    "executionPlan": "Plan de Ejecución",
+    "preThink": "Pre-análisis",
+    "assumptions": "Suposiciones",
+    "risks": "Riesgos",
+    "strategy": "Estrategia",
+    "thinking": "Razonamiento"
+  },
+  "poll": {
+    "label": "Encuesta",
+    "closed": "Cerrada",
+    "close": "Cerrar",
+    "totalVotes": "{{count}} votos totales",
+    "multipleVotes": "Multivoto",
+    "alreadyVoted": "Ya participaste"
   },
   "emptyState": {
     "title": "Sin salas aún",
@@ -49,6 +66,9 @@
     "replyingTo": "Respondiendo a {{name}}",
     "cancelReply": "Cancelar respuesta",
     "thinking": "Killio está pensando",
+    "aiCopilotMode": "Modo Copilot IA — presiona Enter para enviar al chat",
+    "attachImage": "Adjuntar imagen",
+    "attachFile": "Adjuntar archivo",
     "asset": {
       "document": "Documento",
       "file": "Archivo",

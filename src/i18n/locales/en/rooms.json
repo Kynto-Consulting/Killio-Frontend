@@ -2,7 +2,24 @@
   "title": "Rooms",
   "roomsCount": "{{count}} rooms",
   "ai": {
-    "copilotName": "AI Copilot"
+    "copilotName": "AI Copilot",
+    "bot": "Bot",
+    "unknown": "Unknown",
+    "activateLiveView": "Activate Live View",
+    "executionPlan": "Execution Plan",
+    "preThink": "Pre-think",
+    "assumptions": "Assumptions",
+    "risks": "Risks",
+    "strategy": "Strategy",
+    "thinking": "Thinking"
+  },
+  "poll": {
+    "label": "Poll",
+    "closed": "Closed",
+    "close": "Close",
+    "totalVotes": "{{count}} total votes",
+    "multipleVotes": "Multiple votes",
+    "alreadyVoted": "You already voted"
   },
   "emptyState": {
     "title": "No rooms yet",
@@ -49,6 +66,9 @@
     "replyingTo": "Replying to {{name}}",
     "cancelReply": "Cancel reply",
     "thinking": "Killio is thinking",
+    "aiCopilotMode": "AI Copilot mode — press Enter to send to chat",
+    "attachImage": "Attach image",
+    "attachFile": "Attach file",
     "asset": {
       "document": "Document",
       "file": "File",

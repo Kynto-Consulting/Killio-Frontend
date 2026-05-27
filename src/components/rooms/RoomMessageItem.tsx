@@ -33,7 +33,7 @@ const resolveAssetUrl = (url: string) => {
   return url;
 };
 
-const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, title?: string, height: string, screenshot?: string }) => {
+const IframeWithPreview = ({ src, title, height, screenshot, t }: { src: string, title?: string, height: string, screenshot?: string, t: TFn }) => {
   const [isLive, setIsLive] = useState(false);
 
   if (isLive) {
@@ -63,7 +63,7 @@ const IframeWithPreview = ({ src, title, height, screenshot }: { src: string, ti
       <div className="relative z-10 w-16 h-16 rounded-full bg-blue-500/20 backdrop-blur-sm flex items-center justify-center text-blue-400 group-hover/iframe:scale-110 transition-transform">
         <Play className="w-8 h-8 ml-1" />
       </div>
-      <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">Activar Vista en Vivo</div>
+      <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">{t("ai.activateLiveView")}</div>
       <div className="relative z-10 mt-1 text-[10px] text-blue-500/60 font-mono truncate max-w-[80%]">
         {src.startsWith('/') ? window.location.hostname : (src.startsWith('http') ? new URL(src).hostname : src)}
       </div>
@@ -77,7 +77,8 @@ const PollRenderer = ({
   onVote,
   onClose,
   currentUserId,
-  creatorId
+  creatorId,
+  t,
 }: {
   content: string;
   metadata: any;
@@ -85,6 +86,7 @@ const PollRenderer = ({
   onClose?: () => void;
   currentUserId?: string;
   creatorId?: string;
+  t: TFn;
 }) => {
   const lines = content.includes('|')
     ? content.split('|').map(l => l.trim()).filter(Boolean)
@@ -122,7 +124,7 @@ const PollRenderer = ({
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2 text-violet-600 dark:text-violet-400">
           <ListChecks className="w-4 h-4" />
-          <span className="text-[11px] font-bold uppercase tracking-widest">{question || "Encuesta"}</span>
+          <span className="text-[11px] font-bold uppercase tracking-widest">{question || t("poll.label")}</span>
         </div>
         <div className="flex items-center gap-2">
           {expiresAt && !isClosed && (
@@ -134,7 +136,7 @@ const PollRenderer = ({
           {isClosed && (
             <div className="flex items-center gap-1 text-[10px] font-bold text-neutral-500 uppercase tracking-tighter bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded-md">
               <ShieldCheck className="w-3 h-3" />
-              Cerrada
+              {t("poll.closed")}
             </div>
           )}
           {!isClosed && currentUserId === creatorId && (
@@ -142,7 +144,7 @@ const PollRenderer = ({
               onClick={(e) => { e.stopPropagation(); onClose?.(); }}
               className="text-[10px] font-bold text-neutral-400 hover:text-red-500 transition-colors uppercase tracking-tighter bg-neutral-100 dark:bg-neutral-900 px-1.5 py-0.5 rounded-md"
             >
-              Cerrar
+              {t("poll.close")}
             </button>
           )}
         </div>
@@ -179,11 +181,11 @@ const PollRenderer = ({
 
       <div className="mt-3 flex items-center justify-between text-[10px] text-muted-foreground font-medium opacity-60">
         <div className="flex items-center gap-2">
-          <span>{totalVotes} votos totales</span>
-          {isMultiple && <span className="bg-violet-100 dark:bg-violet-900/50 text-violet-600 px-1 rounded">Multivoto</span>}
+          <span>{t("poll.totalVotes", { count: totalVotes })}</span>
+          {isMultiple && <span className="bg-violet-100 dark:bg-violet-900/50 text-violet-600 px-1 rounded">{t("poll.multipleVotes")}</span>}
         </div>
         {currentUserId && Object.values(votes).some((v: any) => v.includes(currentUserId)) && (
-          <span className="text-violet-500">Ya participaste</span>
+          <span className="text-violet-500">{t("poll.alreadyVoted")}</span>
         )}
       </div>
     </div>
@@ -306,7 +308,7 @@ export function RoomMessageItem({
   const isAi = message.type === "ai";
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
-  const displayName = isAi ? (t("ai.copilotName") || "AI Copilot") : (message.user?.displayName ?? "Unknown");
+  const displayName = isAi ? (t("ai.copilotName") || "AI Copilot") : (message.user?.displayName ?? t("ai.unknown"));
   const userId = message.userId ?? (isAi ? "000" : "");
   const canOpenDm = teamId && userId && userId !== currentUserId;
 
@@ -370,7 +372,7 @@ export function RoomMessageItem({
               {isAi && (
                 <span className="bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 text-[8px] font-bold px-1 rounded flex items-center gap-0.5 uppercase tracking-tighter">
                   <Bot className="w-2 h-2" />
-                  Bot
+                  {t("ai.bot")}
                 </span>
               )}
             </div>
@@ -501,6 +503,7 @@ export function RoomMessageItem({
                                 title={title || "Portal Content"}
                                 height={height || '400px'}
                                 screenshot={screenshot}
+                                t={t}
                               />
                             </div>
                           ) : (
@@ -585,7 +588,7 @@ export function RoomMessageItem({
                               target="_blank"
                               rel="noopener noreferrer"
                               className="p-2 bg-white/20 hover:bg-white/40 rounded-full text-white transition-all backdrop-blur-sm pointer-events-auto"
-                              title="Ver original"
+                              title={t("chat.asset.original")}
                             >
                               <ExternalLink className="w-4 h-4" />
                             </a>
@@ -649,7 +652,7 @@ export function RoomMessageItem({
                     <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm max-w-full overflow-hidden">
                       <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
                         <ListChecks className="w-3 h-3" />
-                        <span>Execution Plan</span>
+                        <span>{t("ai.executionPlan")}</span>
                       </div>
                       <div className="space-y-2">
                         {steps.map((step) => {
@@ -690,10 +693,10 @@ export function RoomMessageItem({
                 if (block.tag === "pre_think") {
                   const sections = parsePreThinkSections(block.content);
                   const sectionMeta: Record<string, { icon: React.ReactNode; label: string; color: string; bg: string }> = {
-                    assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: "Assumptions", color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
-                    risks: { icon: <ShieldCheck className="w-3 h-3" />, label: "Risks", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
-                    strategy: { icon: <Lightbulb className="w-3 h-3" />, label: "Strategy", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-                    raw: { icon: <Brain className="w-3 h-3" />, label: "Thinking", color: "text-muted-foreground", bg: "bg-muted/40" },
+                    assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: t("ai.assumptions"), color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
+                    risks: { icon: <ShieldCheck className="w-3 h-3" />, label: t("ai.risks"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
+                    strategy: { icon: <Lightbulb className="w-3 h-3" />, label: t("ai.strategy"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
+                    raw: { icon: <Brain className="w-3 h-3" />, label: t("ai.thinking"), color: "text-muted-foreground", bg: "bg-muted/40" },
                   };
                   return (
                     <div key={key} className="mb-2 rounded-lg border border-border/60 bg-background/50 overflow-hidden">
@@ -703,7 +706,7 @@ export function RoomMessageItem({
                       >
                         <div className="flex items-center gap-1.5">
                           <Brain className="w-3 h-3 shrink-0" />
-                          <span className="uppercase">Pre-think</span>
+                          <span className="uppercase">{t("ai.preThink")}</span>
                         </div>
                         {isExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                       </button>
@@ -808,6 +811,7 @@ export function RoomMessageItem({
                       metadata={message.metadata}
                       currentUserId={currentUserId}
                       creatorId={message.userId}
+                      t={t}
                       onVote={handleVote}
                       onClose={async () => {
                         if (!accessToken) return;

@@ -191,6 +191,8 @@ export function CardDetailModal({
   const addTagButtonRef = useRef<HTMLButtonElement>(null);
   const tagChipRefs = useRef<Map<string, HTMLSpanElement>>(new Map());
   const [visibleTagCount, setVisibleTagCount] = useState(0);
+  // Tracks the current open session so board refreshes don't reset local block state
+  const openSessionRef = useRef<{ cardId: string | null; initialized: boolean }>({ cardId: null, initialized: false });
 
   const syncTitleDom = useCallback((value: string) => {
     if (!titleRef.current) return;
@@ -295,37 +297,53 @@ export function CardDetailModal({
   }, []);
 
   useEffect(() => {
-    if (isOpen) {
-      if (card) {
-        const nextTitle = card.title || "";
-        setLocalTitle(nextTitle);
-        syncTitleDom(nextTitle);
-        setLocalDueAt(normalizeDueDateInputValue(card.dueAt));
-        setLocalStartAt(card.startAt || null);
-        setLocalDueAtTimestamp(card.dueAt || null);
-        setLocalCompletedAt(card.completedAt || null);
-        setLocalArchivedAt(card.archivedAt || null);
-        setLocalTags(card.tags || []);
-        setLocalAssignees((card.assignees || []).map(normalizeAssignee));
-        setLocalBlocks(card.blocks || []);
-      } else {
-        setLocalTitle("New Card");
-        syncTitleDom("New Card");
-        setLocalDueAt("");
-        setLocalStartAt(null);
-        setLocalDueAtTimestamp(null);
-        setLocalCompletedAt(null);
-        setLocalArchivedAt(null);
-        setLocalTags([]);
-        setLocalAssignees([]);
-        setLocalBlocks([createEmptyTextBrick()]);
-      }
-      setTagSearch("");
-      setNewTagColor('#3b82f6');
-      setAreTagsExpanded(false);
-      setIsAssigneeDropdownOpen(false);
-      setIsTimerDropdownOpen(false);
+    if (!isOpen) {
+      // Reset session tracker when modal closes so next open always reinitializes
+      openSessionRef.current = { cardId: null, initialized: false };
+      return;
     }
+
+    const cardId = card?.id ?? null;
+    const session = openSessionRef.current;
+
+    // Skip full reinit when the board refreshes and sends us a new card object
+    // reference for the same card that's already open — this prevents erasing
+    // locally-added blocks with the (often empty) card.blocks from the board state.
+    if (session.initialized && session.cardId === cardId) {
+      return;
+    }
+
+    openSessionRef.current = { cardId, initialized: true };
+
+    if (card) {
+      const nextTitle = card.title || "";
+      setLocalTitle(nextTitle);
+      syncTitleDom(nextTitle);
+      setLocalDueAt(normalizeDueDateInputValue(card.dueAt));
+      setLocalStartAt(card.startAt || null);
+      setLocalDueAtTimestamp(card.dueAt || null);
+      setLocalCompletedAt(card.completedAt || null);
+      setLocalArchivedAt(card.archivedAt || null);
+      setLocalTags(card.tags || []);
+      setLocalAssignees((card.assignees || []).map(normalizeAssignee));
+      setLocalBlocks(card.blocks || []);
+    } else {
+      setLocalTitle("New Card");
+      syncTitleDom("New Card");
+      setLocalDueAt("");
+      setLocalStartAt(null);
+      setLocalDueAtTimestamp(null);
+      setLocalCompletedAt(null);
+      setLocalArchivedAt(null);
+      setLocalTags([]);
+      setLocalAssignees([]);
+      setLocalBlocks([createEmptyTextBrick()]);
+    }
+    setTagSearch("");
+    setNewTagColor('#3b82f6');
+    setAreTagsExpanded(false);
+    setIsAssigneeDropdownOpen(false);
+    setIsTimerDropdownOpen(false);
   }, [isOpen, card, createEmptyTextBrick, normalizeAssignee, syncTitleDom]);
 
   useEffect(() => {

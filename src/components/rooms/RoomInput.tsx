@@ -195,7 +195,7 @@ export function RoomInput({
       {isAiQuery && (
         <div className="flex items-center gap-1 text-[10px] text-violet-400 font-medium mb-1 px-1">
           <Bot className="w-3 h-3" />
-          <span>AI Copilot mode — press Enter to send to chat</span>
+          <span>{t("chat.aiCopilotMode")}</span>
         </div>
       )}
       <div className="relative flex items-center">
@@ -211,7 +211,7 @@ export function RoomInput({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           className="p-1.5 rounded-lg hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
-          title="Adjuntar imagen"
+          title={t("chat.attachImage")}
         >
           <ImageIcon className="w-4 h-4" />
         </button>
@@ -221,7 +221,7 @@ export function RoomInput({
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
           className="p-1.5 rounded-lg hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
-          title="Adjuntar archivo"
+          title={t("chat.attachFile")}
         >
           <div className="relative">
             <FileText className="w-4 h-4" />
