@@ -17,7 +17,9 @@ import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
+import { RefreshCw } from "lucide-react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -75,6 +77,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
   const [hasTimers, setHasTimers] = useState(false);
   const { call, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef } = useCall();
+  const { updateAvailable } = useVersionCheck();
   const [dismissedBanners, setDismissedBanners] = useState<string[]>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem("killio_dismissed_banners");
@@ -723,6 +726,20 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
             <NotificationCenter />
           </div>
         </header>
+
+        {/* New version banner */}
+        {updateAvailable && (
+          <div className="flex items-center justify-center gap-3 bg-accent text-accent-foreground px-4 py-2 text-sm font-medium animate-in slide-in-from-top-1 duration-300 shrink-0">
+            <RefreshCw className="w-4 h-4 shrink-0" />
+            <span>Nueva versión disponible.</span>
+            <button
+              onClick={() => window.location.reload()}
+              className="underline underline-offset-2 font-semibold hover:opacity-80 transition-opacity"
+            >
+              Refrescar
+            </button>
+          </div>
+        )}
 
         {/* Global Push Permission Banner */}
         <PushPermissionBanner accessToken={accessToken} />
