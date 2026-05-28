@@ -49,5 +49,14 @@
     "downloadFailed": "No se pudo descargar la mesh.",
     "iinkNoResponse": "iink: sin respuesta",
     "portalSelf": "El portal no puede apuntar a esta misma mesh."
+  },
+  "hints": {
+    "dblClickPreview": "Doble clic para previsualizar",
+    "dblClickConfigPortal": "Doble clic para configurar el portal",
+    "dblClickConfigMirror": "Doble clic para configurar el mirror",
+    "toolbar": "Usa el toolbar inferior · Lápiz (P) para iinkTS · Doble clic en brick para editar",
+    "noDocContent": "Sin contenido visible en el documento.",
+    "noCardContent": "Sin cards con contenido visible.",
+    "noMeshContent": "Sin contenido visible en la mesh."
   }
 }

@@ -43,13 +43,7 @@ export function useMeshCursors(
   toolModeRef.current = toolMode;
   displayNameRef.current = displayName;
 
-  let realtime: ReturnType<typeof useRealtime> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    realtime = useRealtime();
-  } catch {
-    // Provider not mounted yet — no-op
-  }
+  const realtime = useRealtime();
 
   useEffect(() => {
     if (!meshId || !userId || !realtime) return;

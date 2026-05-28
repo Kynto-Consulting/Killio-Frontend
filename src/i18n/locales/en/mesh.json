@@ -49,5 +49,14 @@
     "downloadFailed": "Could not download mesh.",
     "iinkNoResponse": "iink: no response",
     "portalSelf": "A portal cannot point to the same mesh."
+  },
+  "hints": {
+    "dblClickPreview": "Double-click to preview",
+    "dblClickConfigPortal": "Double-click to configure portal",
+    "dblClickConfigMirror": "Double-click to configure mirror",
+    "toolbar": "Use the bottom toolbar · Pen (P) for iink · Double-click on brick to edit",
+    "noDocContent": "No visible content in document.",
+    "noCardContent": "No visible card content.",
+    "noMeshContent": "No visible content in mesh."
   }
 }

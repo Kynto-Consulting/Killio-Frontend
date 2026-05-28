@@ -1345,6 +1345,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
   const [snapTarget,   setSnapTarget]   = useState<{ brickId: string; port: Port } | null>(null);
   const [viewport, setViewport] = useState<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
+  const viewportRef = useRef(viewport);
+  viewportRef.current = viewport;
   const [showGrid,     setShowGrid]     = useState(true);
   // bezier cp drag: { connId, cp: 1|2, startMouse, startCp }
   const [bezierCpDrag, setBezierCpDrag] = useState<{ connId: string; cp: 1 | 2; startMouse: { x: number; y: number }; startCp: { x: number; y: number } } | null>(null);
@@ -1466,7 +1468,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     const payloadState: MeshState = {
       ...nextState,
-      viewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom },
+      viewport: { x: viewportRef.current.x, y: viewportRef.current.y, zoom: viewportRef.current.zoom },
     };
     const snapshotHash = JSON.stringify(payloadState);
     isSavingRef.current = true;
@@ -1504,7 +1506,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [meshId, accessToken, viewport.x, viewport.y, viewport.zoom]);
+  }, [meshId, accessToken]);
 
   // ── Canvas coords ────────────────────────────────────────────────────────────
   const toCanvas = useCallback((cx: number, cy: number) => {
@@ -1835,7 +1837,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const firstBrick = (doc.bricks || []).find((b) => extractMarkdown(b.content).trim().length > 0) ?? (doc.bricks || [])[0];
         const markdown = firstBrick ? extractMarkdown(firstBrick.content).trim() : "";
         return {
-          markdown: markdown || "Sin contenido visible en el documento.",
+          markdown: markdown || tMesh("hints.noDocContent"),
           kind: firstBrick?.kind ?? "text",
           subtitle: "Documento",
           title: doc.title || fallbackLabel || targetId,
@@ -1848,7 +1850,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const firstBlock = firstCard?.blocks?.find((blk) => extractMarkdown(blk).trim().length > 0) ?? firstCard?.blocks?.[0];
         const markdown = extractMarkdown(firstBlock).trim() || firstCard?.summary?.trim() || firstCard?.title || "";
         return {
-          markdown: markdown || "Sin cards con contenido visible.",
+          markdown: markdown || tMesh("hints.noCardContent"),
           kind: firstBlock?.kind ?? "text",
           subtitle: `Board${firstCard?.title ? ` · ${firstCard.title}` : ""}`,
           title: board.name || fallbackLabel || targetId,
@@ -1866,7 +1868,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         .find((b) => b && extractMarkdown(b.content).trim().length > 0) ?? orderedIds.map((id) => byId[id]).find(Boolean);
       const markdown = firstBrick ? extractMarkdown(firstBrick.content).trim() : "";
       return {
-        markdown: markdown || "Sin contenido visible en la mesh.",
+        markdown: markdown || tMesh("hints.noMeshContent"),
         kind: firstBrick?.kind ?? "text",
         subtitle: "Mesh",
         title: fallbackLabel || targetId,
@@ -3436,7 +3438,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 ) : (
                   <div className="flex h-full flex-col items-center justify-center gap-1.5">
                     <ExternalLink className="h-8 w-8 text-blue-400/25" />
-                    <p className="text-[9px] text-blue-400/40">Doble clic para previsualizar</p>
+                    <p className="text-[9px] text-blue-400/40">{tMesh("hints.dblClickPreview")}</p>
                   </div>
                 )}
                 {/* Hover overlay with subtitle info */}
@@ -3447,7 +3449,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             ) : (
               <div className="flex h-full items-center justify-center">
-                <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el portal</p>
+                <p className="text-center text-[10px] text-muted-foreground/40">{tMesh("hints.dblClickConfigPortal")}</p>
               </div>
             )}
           </div>
@@ -3533,7 +3535,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             ) : (
               <div className="flex h-full items-center justify-center">
-                <p className="text-center text-[10px] text-muted-foreground/40">Doble clic para configurar el mirror</p>
+                <p className="text-center text-[10px] text-muted-foreground/40">{tMesh("hints.dblClickConfigMirror")}</p>
               </div>
             )}
           </div>
@@ -3956,7 +3958,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
               {rootBricks.length === 0 && (
                 <div className="pointer-events-none absolute left-8 top-8 z-10 flex items-center gap-2 rounded border border-dashed border-border/60 bg-card/50 px-3 py-2 text-xs text-muted-foreground/60">
-                  <AlertTriangle className="h-4 w-4" /> Usa el toolbar inferior · Lápiz (P) para iinkTS · Doble clic en brick para editar
+                  <AlertTriangle className="h-4 w-4" /> {tMesh("hints.toolbar")}
                 </div>
               )}
 
