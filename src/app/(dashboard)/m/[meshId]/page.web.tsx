@@ -13,7 +13,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, LayoutTemplate, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
-  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2,
+  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2, Upload,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -37,6 +37,7 @@ import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
+import { serializeMeshToKm, deserializeKmToMesh, downloadKm, kmFilename, KM_EXT } from "@/lib/mesh-file";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1691,6 +1692,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
+  const kmImportInputRef = useRef<HTMLInputElement | null>(null);
   const [meshBoardName, setMeshBoardName] = useState("Mesh");
   const [meshBoardDescription, setMeshBoardDescription] = useState<string | null>(null);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
@@ -2270,29 +2272,40 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const handleDownloadMesh = useCallback(() => {
     if (!meshId) return;
     try {
-      const payload = {
-        meshId,
-        revision,
-        updatedAt,
-        state: {
-          ...state,
-          viewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom },
-        },
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
-      const url = URL.createObjectURL(blob);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `mesh-${meshId}-rev-${revision}.json`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      document.body.removeChild(anchor);
-      URL.revokeObjectURL(url);
+      const km = serializeMeshToKm(
+        { ...state, viewport: { x: viewportRef.current.x, y: viewportRef.current.y, zoom: viewportRef.current.zoom } },
+        { meshId, title: meshBoardName },
+      );
+      downloadKm(km, kmFilename(meshBoardName, meshId));
       toast(tMesh("feedback.downloaded"), "success");
     } catch {
       toast(tMesh("errors.downloadFailed"), "error");
     }
-  }, [meshId, revision, updatedAt, state, viewport.x, viewport.y, viewport.zoom]);
+  }, [meshId, state, meshBoardName]);
+
+  // Import a .km file → replace current mesh state (after confirm) and persist
+  // so the server revision is bumped (otherwise autosave conflicts and reverts).
+  const handleImportMeshFile = useCallback((file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const { state: imported } = deserializeKmToMesh(JSON.parse(String(reader.result)));
+        const count = Object.keys(imported.bricksById).length;
+        if (typeof window !== "undefined" && !window.confirm(tMesh("file.importConfirm", { count }))) return;
+        setState(imported);
+        setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
+        if (imported.viewport) setViewport(imported.viewport);
+        // Persist immediately with the current revision so subsequent autosaves
+        // don't hit MESH_REVISION_CONFLICT and clobber the import.
+        void saveMeshState(imported, { silent: true });
+        toast(tMesh("file.imported", { count }), "success");
+      } catch {
+        toast(tMesh("file.importFailed"), "error");
+      }
+    };
+    reader.onerror = () => toast(tMesh("file.importFailed"), "error");
+    reader.readAsText(file);
+  }, [saveMeshState, tMesh]);
 
   const handleShareMesh = useCallback(() => {
     setIsShareModalOpen(true);
@@ -4039,14 +4052,34 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <span className="hidden sm:inline">Share</span>
           </button>
 
-          {/* Download */}
+          {/* Export .km */}
           <button
             type="button"
             onClick={handleDownloadMesh}
+            title={tMesh("file.export")}
+            aria-label={tMesh("file.export")}
             className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
           >
             <Download className="h-3.5 w-3.5" />
           </button>
+
+          {/* Import .km */}
+          <button
+            type="button"
+            onClick={() => kmImportInputRef.current?.click()}
+            title={tMesh("file.import")}
+            aria-label={tMesh("file.import")}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
+          >
+            <Upload className="h-3.5 w-3.5" />
+          </button>
+          <input
+            ref={kmImportInputRef}
+            type="file"
+            accept={`${KM_EXT},application/json`}
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportMeshFile(f); e.target.value = ""; }}
+          />
 
           {/* Settings (rename, appearance, delete) */}
           <button
@@ -4547,7 +4580,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           >
             <div className="pointer-events-auto flex max-w-full flex-col items-center gap-2">
               {toolbarPanel && (
-                <div className={`rounded-2xl border border-cyan-300/20 bg-slate-950/88 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
+                <div className={`max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/20 bg-slate-950/88 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
                   {toolbarPanel === "mode" && (
                     <div>
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Modo</p>
@@ -4859,7 +4892,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <button type="button" title="Básicos" aria-label="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
                 <button type="button" title="Contenido" aria-label="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
                 <button type="button" title="Formas" aria-label="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
-                <button type="button" title="Texto a diagrama (IA)" aria-label="Texto a diagrama" onClick={() => setIsTextToDiagramOpen(true)} className={dockBtnClass(isTextToDiagramOpen)}><Sparkles className="h-4 w-4" /></button>
+                <button type="button" title="Texto a diagrama (IA)" aria-label="Texto a diagrama (IA)" onClick={() => setIsTextToDiagramOpen((v) => !v)} className={dockBtnClass(isTextToDiagramOpen)}><Sparkles className="h-4 w-4" /></button>
                 <button type="button" title="Plantillas" aria-label="Plantillas" onClick={() => setToolbarPanel((current) => current === "templates" ? null : "templates")} className={dockBtnClass(toolbarPanel === "templates")}><LayoutTemplate className="h-4 w-4" /></button>
                 {selectedId && (() => {
                   const sb = state.bricksById[selectedId];

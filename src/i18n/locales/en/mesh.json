@@ -79,6 +79,13 @@
     "forward": "Bring forward",
     "toFront": "Bring to front"
   },
+  "file": {
+    "export": "Export as .km",
+    "import": "Import .km",
+    "importConfirm": "Replace the current board with the imported file ({{count}} elements)?",
+    "imported": "Imported · {{count}} elements",
+    "importFailed": "Could not import the .km file."
+  },
   "textToDiagram": {
     "title": "Text to diagram",
     "tabAi": "AI prompt",

@@ -79,6 +79,13 @@
     "forward": "Traer adelante",
     "toFront": "Traer al frente"
   },
+  "file": {
+    "export": "Exportar como .km",
+    "import": "Importar .km",
+    "importConfirm": "¿Reemplazar el tablero actual con el archivo importado ({{count}} elementos)?",
+    "imported": "Importado · {{count}} elementos",
+    "importFailed": "No se pudo importar el archivo .km."
+  },
   "textToDiagram": {
     "title": "Texto a diagrama",
     "tabAi": "Prompt IA",
