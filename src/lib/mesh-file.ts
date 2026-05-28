@@ -1,14 +1,11 @@
 import type { MeshState, MeshBrick, MeshConnection } from "@/lib/api/contracts";
 
-// Killio Mesh local-file format (.km). Matches the local-first spec
-// (capabilities/plans/11-local-first-offline-crdt.md): a portable JSON document
-// holding a single mesh board. We add `rootOrder` (an in-house extension) so the
-// top-level z-order roundtrips losslessly, since runtime state stores bricks as
-// maps + an order array rather than a flat list.
+// Mesh ↔ .km object adapter. This module maps runtime MeshState (bricks stored
+// as maps + order arrays) to/from the portable .km payload shape (flat arrays,
+// per the local-first spec capabilities/plans/11-local-first-offline-crdt.md).
+// Binary transport (encode/decode/download/read) lives in src/lib/killio-file.
 
-export const KM_EXT = ".km";
 export const KM_SCHEMA_VERSION = "2026-v1";
-export const KM_MIME = "application/json";
 
 export type KmFile = {
   id: string;
@@ -98,36 +95,3 @@ export function deserializeKmToMesh(raw: unknown): { state: MeshState; meta: { i
   };
 }
 
-export function parseKmText(text: string): KmFile {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    throw new KmParseError("Invalid JSON");
-  }
-  // validate by running the deserializer (throws on bad shape)
-  deserializeKmToMesh(parsed);
-  return parsed as KmFile;
-}
-
-/** Build a filesystem-safe .km filename from a board title. */
-export function kmFilename(title: string, fallbackId: string): string {
-  const slug = (s: string) =>
-    s.toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 48);
-  const base = slug(title) || slug(fallbackId) || "mesh";
-  return `${base}${KM_EXT}`;
-}
-
-/** Trigger a browser download of a .km file. Side-effecting (DOM). */
-export function downloadKm(km: KmFile, filename: string): void {
-  if (typeof window === "undefined") return;
-  const blob = new Blob([JSON.stringify(km, null, 2)], { type: KM_MIME });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename.endsWith(KM_EXT) ? filename : `${filename}${KM_EXT}`;
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
-}

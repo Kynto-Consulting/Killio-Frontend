@@ -37,7 +37,8 @@ import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
-import { serializeMeshToKm, deserializeKmToMesh, downloadKm, kmFilename, KM_EXT } from "@/lib/mesh-file";
+import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
+import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT } from "@/lib/killio-file";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -2276,35 +2277,30 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         { ...state, viewport: { x: viewportRef.current.x, y: viewportRef.current.y, zoom: viewportRef.current.zoom } },
         { meshId, title: meshBoardName },
       );
-      downloadKm(km, kmFilename(meshBoardName, meshId));
+      downloadKillioFile(
+        { kind: "km", schemaVersion: km.schemaVersion, payload: km },
+        killioFilename("km", meshBoardName, meshId),
+      );
       toast(tMesh("feedback.downloaded"), "success");
     } catch {
       toast(tMesh("errors.downloadFailed"), "error");
     }
   }, [meshId, state, meshBoardName]);
 
-  // Import a .km file → replace current mesh state (after confirm) and persist
-  // so the server revision is bumped (otherwise autosave conflicts and reverts).
+  // Import a .km binary file → replace current mesh state (after confirm) and
+  // persist so the server revision is bumped (otherwise autosave conflict-reverts).
   const handleImportMeshFile = useCallback((file: File) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const { state: imported } = deserializeKmToMesh(JSON.parse(String(reader.result)));
-        const count = Object.keys(imported.bricksById).length;
-        if (typeof window !== "undefined" && !window.confirm(tMesh("file.importConfirm", { count }))) return;
-        setState(imported);
-        setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
-        if (imported.viewport) setViewport(imported.viewport);
-        // Persist immediately with the current revision so subsequent autosaves
-        // don't hit MESH_REVISION_CONFLICT and clobber the import.
-        void saveMeshState(imported, { silent: true });
-        toast(tMesh("file.imported", { count }), "success");
-      } catch {
-        toast(tMesh("file.importFailed"), "error");
-      }
-    };
-    reader.onerror = () => toast(tMesh("file.importFailed"), "error");
-    reader.readAsText(file);
+    readKillioFile(file).then((kf) => {
+      if (kf.kind !== "km") { toast(tMesh("file.importWrongKind"), "error"); return; }
+      const { state: imported } = deserializeKmToMesh(kf.payload);
+      const count = Object.keys(imported.bricksById).length;
+      if (typeof window !== "undefined" && !window.confirm(tMesh("file.importConfirm", { count }))) return;
+      setState(imported);
+      setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
+      if (imported.viewport) setViewport(imported.viewport);
+      void saveMeshState(imported, { silent: true });
+      toast(tMesh("file.imported", { count }), "success");
+    }).catch(() => toast(tMesh("file.importFailed"), "error"));
   }, [saveMeshState, tMesh]);
 
   const handleShareMesh = useCallback(() => {
@@ -4076,7 +4072,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           <input
             ref={kmImportInputRef}
             type="file"
-            accept={`${KM_EXT},application/json`}
+            accept={KILLIO_EXT.km}
             className="hidden"
             onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImportMeshFile(f); e.target.value = ""; }}
           />

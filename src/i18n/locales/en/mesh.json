@@ -84,7 +84,8 @@
     "import": "Import .km",
     "importConfirm": "Replace the current board with the imported file ({{count}} elements)?",
     "imported": "Imported · {{count}} elements",
-    "importFailed": "Could not import the .km file."
+    "importFailed": "Could not import the .km file.",
+    "importWrongKind": "That file is not a mesh (.km)."
   },
   "textToDiagram": {
     "title": "Text to diagram",

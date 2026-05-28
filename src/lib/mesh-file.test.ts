@@ -4,8 +4,6 @@ import test from "node:test";
 import {
   serializeMeshToKm,
   deserializeKmToMesh,
-  parseKmText,
-  kmFilename,
   KmParseError,
   KM_SCHEMA_VERSION,
 } from "./mesh-file.ts";
@@ -76,23 +74,6 @@ test("deserialize rebuilds rootOrder when missing", () => {
 test("deserialize throws on bad input", () => {
   assert.throws(() => deserializeKmToMesh(null), KmParseError);
   assert.throws(() => deserializeKmToMesh({ title: "x" }), KmParseError);
-});
-
-test("parseKmText rejects invalid JSON", () => {
-  assert.throws(() => parseKmText("{not json"), KmParseError);
-});
-
-test("parseKmText accepts a valid serialized file", () => {
-  const km = serializeMeshToKm(sampleState(), { meshId: "m1", title: "X" });
-  const text = JSON.stringify(km);
-  const back = parseKmText(text);
-  assert.equal(back.id, "m1");
-});
-
-test("kmFilename slugifies + appends .km", () => {
-  assert.equal(kmFilename("My Cool Mesh!", "id1"), "my-cool-mesh.km");
-  assert.equal(kmFilename("", "id1"), "id1.km");
-  assert.equal(kmFilename("   ", "fallback-id"), "fallback-id.km");
 });
 
 test("deserialize drops connections with non-string cons", () => {

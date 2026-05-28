@@ -84,7 +84,8 @@
     "import": "Importar .km",
     "importConfirm": "¿Reemplazar el tablero actual con el archivo importado ({{count}} elementos)?",
     "imported": "Importado · {{count}} elementos",
-    "importFailed": "No se pudo importar el archivo .km."
+    "importFailed": "No se pudo importar el archivo .km.",
+    "importWrongKind": "Ese archivo no es una mesh (.km)."
   },
   "textToDiagram": {
     "title": "Texto a diagrama",
