@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useRef } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useMemo } from "react";
 import { useSession } from "./session-provider";
 import { useRoomCall, type VideoFilter } from "@/hooks/use-room-call";
 import { useTranslations } from "./i18n-provider";
@@ -63,17 +63,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   }, [activeRoomId, shouldJoin, call]);
 
+  const ctxValue = useMemo(() => ({
+    activeRoomId,
+    joinRoomCall,
+    leaveRoomCall,
+    call,
+    settingsModalOpen,
+    setSettingsModalOpen,
+    canvasRef,
+    localVideoRef,
+  }), [activeRoomId, joinRoomCall, leaveRoomCall, call, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef]);
+
   return (
-    <CallContext.Provider value={{
-      activeRoomId,
-      joinRoomCall,
-      leaveRoomCall,
-      call,
-      settingsModalOpen,
-      setSettingsModalOpen,
-      canvasRef,
-      localVideoRef
-    }}>
+    <CallContext.Provider value={ctxValue}>
       {children}
     </CallContext.Provider>
   );

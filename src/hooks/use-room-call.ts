@@ -132,6 +132,11 @@ export function useRoomCall(
   const lastSubmittedSegmentIndex = useRef(0);
   const transcriptSubmitTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Timeout refs for cleanup
+  const iceRestartTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const peersCheckTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const staleCallTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Canvas filter refs
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const localVideoRef = useRef<HTMLVideoElement>(null);
@@ -173,7 +178,8 @@ export function useRoomCall(
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === "disconnected") {
           // Give the network 4 seconds to recover before trying ICE restart
-          setTimeout(() => {
+          if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+          iceRestartTimeoutRef.current = setTimeout(() => {
             if (pc.connectionState !== "disconnected" && pc.connectionState !== "failed") return;
             pc.restartIce();
             sendOffer(peerId).catch(() => {});
@@ -293,7 +299,8 @@ export function useRoomCall(
       setPeers((prev) => {
         const next = prev.filter((p) => p.peerId !== peerId);
         if (next.length === 0 && isInCallRef.current) {
-          setTimeout(() => leaveCallRef.current?.(), 500);
+          if (peersCheckTimeoutRef.current) clearTimeout(peersCheckTimeoutRef.current);
+          peersCheckTimeoutRef.current = setTimeout(() => leaveCallRef.current?.(), 500);
         }
         return next;
       });
@@ -674,7 +681,8 @@ export function useRoomCall(
     // If we joined an existing call but nobody responds within 5s, the call was stale —
     // end that record and promote ourselves as the new call initiator.
     if (joinedExisting) {
-      setTimeout(async () => {
+      if (staleCallTimeoutRef.current) clearTimeout(staleCallTimeoutRef.current);
+      staleCallTimeoutRef.current = setTimeout(async () => {
         if (!isInCallRef.current || peerConnections.current.size > 0) return;
         const staleId = callIdRef.current;
         if (!staleId || !roomId || !accessToken) return;
@@ -883,6 +891,9 @@ export function useRoomCall(
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      if (iceRestartTimeoutRef.current) clearTimeout(iceRestartTimeoutRef.current);
+      if (peersCheckTimeoutRef.current) clearTimeout(peersCheckTimeoutRef.current);
+      if (staleCallTimeoutRef.current) clearTimeout(staleCallTimeoutRef.current);
       if (isInCallRef.current) {
         leaveCall();
       }

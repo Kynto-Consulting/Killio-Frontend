@@ -89,11 +89,7 @@ export function useRoomNotifications({
 }: NotificationOptions) {
   const isRinging = useRef(false);
 
-  let realtime: ReturnType<typeof useRealtime> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    realtime = useRealtime();
-  } catch {}
+  const realtime = useRealtime();
 
   // Request notification permission once
   useEffect(() => {

@@ -14,13 +14,7 @@ export function useDocumentRealtime(documentId: string, onEvent?: (event: Docume
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
 
-  let realtime: ReturnType<typeof useRealtime> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    realtime = useRealtime();
-  } catch {
-    // Provider not mounted yet — no-op
-  }
+  const realtime = useRealtime();
 
   useEffect(() => {
     if (!user || !documentId || !realtime) return;
