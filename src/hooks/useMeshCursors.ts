@@ -65,8 +65,8 @@ export function useMeshCursors(
     }, 2000);
 
     const onCursorMove = (msg: { name: string; data: unknown; clientId?: string }) => {
-      const d = msg.data as any;
-      if (!d) return;
+      if (!msg.data || typeof msg.data !== "object") return;
+      const d = msg.data as Record<string, unknown>;
       const clientId: string = msg.clientId ?? d.clientId ?? "";
       if (!clientId || clientId === userId) return;
       setCursors((prev) => {

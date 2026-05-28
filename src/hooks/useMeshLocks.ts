@@ -51,8 +51,9 @@ export function useMeshLocks(
     }, 1000);
 
     const onBrickLocked = (msg: { name: string; data: unknown; clientId?: string }) => {
-      const d = msg.data as any;
-      if (!d?.brickId) return;
+      if (!msg.data || typeof msg.data !== "object") return;
+      const d = msg.data as Record<string, unknown>;
+      if (!d.brickId) return;
       const clientId: string = msg.clientId ?? d.userId ?? "";
       if (!clientId || clientId === userId) return;
       setLocks((prev) => {
@@ -70,8 +71,9 @@ export function useMeshLocks(
     };
 
     const onBrickUnlocked = (msg: { name: string; data: unknown; clientId?: string }) => {
-      const d = msg.data as any;
-      if (!d?.brickId) return;
+      if (!msg.data || typeof msg.data !== "object") return;
+      const d = msg.data as Record<string, unknown>;
+      if (!d.brickId) return;
       const clientId: string = msg.clientId ?? d.userId ?? "";
       if (!clientId || clientId === userId) return;
       setLocks((prev) => {

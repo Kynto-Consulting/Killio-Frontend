@@ -1878,6 +1878,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
   }, [accessToken]);
 
+  const portalBrickSignatures = useMemo(
+    () => Object.values(state.bricksById)
+      .filter((b) => b.kind === "portal")
+      .map((b) => {
+        const c = (b.content as Record<string, unknown>) ?? {};
+        return `${b.id}:${c.targetId ?? ""}:${c.targetType ?? ""}`;
+      })
+      .sort()
+      .join("|"),
+    [state.bricksById],
+  );
+
   useEffect(() => {
     if (!accessToken) return;
 
@@ -2002,7 +2014,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           portalHydrationInFlightRef.current.delete(portalBrick.id);
         });
     });
-  }, [accessToken, buildPortalFallbackImageDataUrl, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, state.bricksById]);
+  }, [accessToken, buildPortalFallbackImageDataUrl, buildPortalHref, capturePortalScreenshot, loadPortalArtifact, portalBrickSignatures]);
 
   // Keep the refresh-ref in sync whenever bricks change (no interval restart needed)
   useEffect(() => {
@@ -2057,6 +2069,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   // ── Mirror hydration (option 1: fetch on mount / when brick is added) ─────────
   const mirrorHydrationAttemptRef = useRef<Record<string, string>>({});
   const mirrorHydrationInFlightRef = useRef<Set<string>>(new Set());
+
+  const mirrorBrickSignatures = useMemo(
+    () => Object.values(state.bricksById)
+      .filter((b) => b.kind === "mirror")
+      .map((b) => {
+        const c = (b.content as Record<string, unknown>) ?? {};
+        return `${b.id}:${c.sourceId ?? ""}:${c.sourceType ?? ""}`;
+      })
+      .sort()
+      .join("|"),
+    [state.bricksById],
+  );
 
   useEffect(() => {
     if (!accessToken) return;
@@ -2116,7 +2140,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         }
       })();
     });
-  }, [accessToken, state.bricksById]);
+  }, [accessToken, mirrorBrickSignatures]);
 
   // ── Mirror WS refresh (option 3: subscribe to source mesh channel) ────────────
   useEffect(() => {
@@ -3808,6 +3832,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               disabled={isSaving || isLoading}
               className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-cyan-300/30 bg-cyan-500/15 text-cyan-100 disabled:opacity-50"
               title="Guardar"
+              aria-label="Guardar"
             >
               {isSaving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
             </button>
@@ -4466,25 +4491,25 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               )}
 
               <div className={`flex max-w-full items-center gap-1 border px-2 shadow-[0_18px_36px_rgba(0,0,0,0.5)] backdrop-blur-md ${mobileMode ? "rounded-3xl border-cyan-200/35 bg-slate-950/70 py-2" : "rounded-2xl border-cyan-300/20 bg-slate-950/88 py-1"}`}>
-                <button type="button" title="Select (S)" onClick={() => { setToolMode("select"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "select")}><MousePointer className="h-4 w-4" /></button>
-                <button type="button" title="Pan (H)" onClick={() => { setToolMode("pan"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pan")}><Hand className="h-4 w-4" /></button>
-                <button type="button" title="Pen (P)" onClick={() => { setToolMode("pen"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pen")}><Pencil className="h-4 w-4" /></button>
-                <button type="button" title="Conectores" onClick={() => setToolbarPanel((current) => current === "conn" ? null : "conn")} className={dockBtnClass(toolMode === "conn" || toolbarPanel === "conn")}><Link2 className="h-4 w-4" /></button>
-                <button type="button" title="Vector" onClick={() => { setToolMode("vec"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "vec")}><Edit3 className="h-4 w-4" /></button>
+                <button type="button" title="Select (S)" aria-label="Select (S)" onClick={() => { setToolMode("select"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "select")}><MousePointer className="h-4 w-4" /></button>
+                <button type="button" title="Pan (H)" aria-label="Pan (H)" onClick={() => { setToolMode("pan"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pan")}><Hand className="h-4 w-4" /></button>
+                <button type="button" title="Pen (P)" aria-label="Pen (P)" onClick={() => { setToolMode("pen"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pen")}><Pencil className="h-4 w-4" /></button>
+                <button type="button" title="Conectores" aria-label="Conectores" onClick={() => setToolbarPanel((current) => current === "conn" ? null : "conn")} className={dockBtnClass(toolMode === "conn" || toolbarPanel === "conn")}><Link2 className="h-4 w-4" /></button>
+                <button type="button" title="Vector" aria-label="Vector" onClick={() => { setToolMode("vec"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "vec")}><Edit3 className="h-4 w-4" /></button>
 
                 <div className="mx-1 h-6 w-px bg-white/10" />
 
-                <button type="button" title="Modos" onClick={() => setToolbarPanel((current) => current === "mode" ? null : "mode")} className={dockBtnClass(toolbarPanel === "mode")}><Wand2 className="h-4 w-4" /></button>
-                <button type="button" title="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
-                <button type="button" title="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
-                <button type="button" title="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
+                <button type="button" title="Modos" aria-label="Modos" onClick={() => setToolbarPanel((current) => current === "mode" ? null : "mode")} className={dockBtnClass(toolbarPanel === "mode")}><Wand2 className="h-4 w-4" /></button>
+                <button type="button" title="Básicos" aria-label="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
+                <button type="button" title="Contenido" aria-label="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
+                <button type="button" title="Formas" aria-label="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
                 {selectedId && (() => {
                   const sb = state.bricksById[selectedId];
                   return sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame") ? (
-                    <button type="button" title="Estilo" onClick={() => setToolbarPanel((current) => current === "style" ? null : "style")} className={dockBtnClass(toolbarPanel === "style")}><Palette className="h-4 w-4" /></button>
+                    <button type="button" title="Estilo" aria-label="Estilo" onClick={() => setToolbarPanel((current) => current === "style" ? null : "style")} className={dockBtnClass(toolbarPanel === "style")}><Palette className="h-4 w-4" /></button>
                   ) : null;
                 })()}
-                <button type="button" title="Más" onClick={() => setToolbarPanel((current) => current === "status" ? null : "status")} className={dockBtnClass(toolbarPanel === "status")}><MoreHorizontal className="h-4 w-4" /></button>
+                <button type="button" title="Más" aria-label="Más" onClick={() => setToolbarPanel((current) => current === "status" ? null : "status")} className={dockBtnClass(toolbarPanel === "status")}><MoreHorizontal className="h-4 w-4" /></button>
               </div>
             </div>
           </div>
