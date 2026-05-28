@@ -18,6 +18,7 @@ export type {
 // with a different shape (userId vs clientId). Export both under distinct names.
 export type { PresenceMember as PresenceMemberLegacy } from "./types";
 export { createAblyProvider } from "./ably-provider";
+export { createPulseProvider } from "./pulse-provider";
 export { realtimeChannel } from "./channels";
 
 // ── New flat-API abstractions (IRealtimeProviderV2) ───────────────────────────

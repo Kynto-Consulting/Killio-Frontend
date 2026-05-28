@@ -29,6 +29,7 @@ import type {
 } from "@/lib/realtime/types";
 import type { IRealtimeProviderV2 } from "@/lib/realtime/realtime.interface";
 import { createAblyProvider } from "@/lib/realtime/ably-provider";
+import { createPulseProvider } from "@/lib/realtime/pulse-provider";
 import { AblyRealtimeProvider } from "@/lib/realtime/ably-realtime-provider";
 import { PulseRealtimeProvider } from "@/lib/realtime/pulse-realtime-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -115,9 +116,18 @@ interface RealtimeProviderProps {
 
 export function RealtimeProvider({
   children,
-  factory = createAblyProvider,
+  factory,
 }: RealtimeProviderProps) {
   const { accessToken } = useSession();
+  const apiUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    "http://localhost:4000";
+  const defaultFactory =
+    REALTIME_IMPL === "pulse"
+      ? (token: string) => createPulseProvider(token, apiUrl)
+      : createAblyProvider;
+  const resolvedFactory = factory ?? defaultFactory;
   const prevTokenRef = useRef<string | null>(null);
   const providerRef = useRef<IRealtimeProvider | null>(null);
 
@@ -130,11 +140,12 @@ export function RealtimeProvider({
     }
     // Disconnect old provider before creating a new one
     providerRef.current?.disconnect();
-    const p = factory(accessToken);
+    const p = resolvedFactory(accessToken);
     providerRef.current = p;
     prevTokenRef.current = accessToken;
     return p;
-  }, [accessToken, factory]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken]);
 
   // Disconnect on unmount
   useEffect(() => {
@@ -150,11 +161,6 @@ export function RealtimeProvider({
   const effectiveProvider = provider ?? NOOP_PROVIDER;
 
   // ── V2 (flat-API) provider ───────────────────────────────────────────────────
-  const apiUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ??
-    process.env.NEXT_PUBLIC_API_URL ??
-    "http://localhost:4000";
-
   const prevV2TokenRef = useRef<string | null>(null);
   const providerV2Ref = useRef<IRealtimeProviderV2 | null>(null);
 
