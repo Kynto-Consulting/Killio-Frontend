@@ -1385,6 +1385,35 @@ export async function generateBoardsWithAi(
   });
 }
 
+export type GeneratedMeshShape = 'rect' | 'rounded-rect' | 'ellipse' | 'diamond' | 'note' | 'cylinder';
+export interface GeneratedMeshNode {
+  ref: string;
+  kind: 'board' | 'shape' | 'text';
+  label: string;
+  shape?: GeneratedMeshShape;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+export interface GeneratedMeshEdge { from: string; to: string; label?: string }
+export interface GeneratedMesh { nodes: GeneratedMeshNode[]; edges: GeneratedMeshEdge[] }
+
+export async function generateMeshWithAi(
+  body: {
+    scope: 'personal' | 'team' | 'board' | 'list' | 'document';
+    scopeId: string;
+    prompt: string;
+  },
+  accessToken?: string,
+): Promise<GeneratedMesh> {
+  return request<GeneratedMesh>(`/ai/scope/${body.scope}/generate-mesh`, {
+    method: 'POST',
+    headers: accessToken ? authHeaders(accessToken) : undefined,
+    body: JSON.stringify(body),
+  });
+}
+
 export async function updateCard(cardId: string, updates: Record<string, any>, accessToken?: string): Promise<CardView> {
   return request<CardView>(`/cards/${cardId}`, {
     method: 'PATCH',

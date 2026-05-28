@@ -41,14 +41,25 @@
     "connCreated": "Conexión creada.",
     "connByStroke": "Conexión por trazo.",
     "shapeRecognized": "Figura: {{kind}}",
-    "lockedBy": "\"{{name}}\" está editando este elemento"
+    "lockedBy": "\"{{name}}\" está editando este elemento",
+    "diagramGenerated": "Diagrama generado · {{count}} elementos"
   },
   "errors": {
     "loadFailed": "No se pudo cargar la mesh.",
     "saveFailed": "Error al guardar.",
     "downloadFailed": "No se pudo descargar la mesh.",
     "iinkNoResponse": "iink: sin respuesta",
-    "portalSelf": "El portal no puede apuntar a esta misma mesh."
+    "portalSelf": "El portal no puede apuntar a esta misma mesh.",
+    "diagramEmpty": "La IA no devolvió ningún diagrama. Reformula la petición.",
+    "diagramFailed": "No se pudo generar el diagrama."
+  },
+  "textToDiagram": {
+    "title": "Texto a diagrama",
+    "hint": "Describe un flujo, proceso o estructura y la IA lo dibujará como formas conectadas en el lienzo.",
+    "placeholder": "ej. Flujo de registro: inicio, ingresar email, verificar código (decisión), luego panel",
+    "generate": "Generar",
+    "generating": "Generando…",
+    "cancel": "Cancelar"
   },
   "hints": {
     "dblClickPreview": "Doble clic para previsualizar",

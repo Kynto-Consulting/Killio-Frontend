@@ -41,14 +41,25 @@
     "connCreated": "Connection created.",
     "connByStroke": "Connection by stroke.",
     "shapeRecognized": "Shape: {{kind}}",
-    "lockedBy": "\"{{name}}\" is editing this element"
+    "lockedBy": "\"{{name}}\" is editing this element",
+    "diagramGenerated": "Diagram generated · {{count}} elements"
   },
   "errors": {
     "loadFailed": "Could not load mesh.",
     "saveFailed": "Could not save.",
     "downloadFailed": "Could not download mesh.",
     "iinkNoResponse": "iink: no response",
-    "portalSelf": "A portal cannot point to the same mesh."
+    "portalSelf": "A portal cannot point to the same mesh.",
+    "diagramEmpty": "The AI returned no diagram. Try rephrasing.",
+    "diagramFailed": "Could not generate the diagram."
+  },
+  "textToDiagram": {
+    "title": "Text to diagram",
+    "hint": "Describe a flow, process, or structure and AI will draw it as connected shapes on the canvas.",
+    "placeholder": "e.g. User signup flow: start, enter email, verify code (decision), then dashboard",
+    "generate": "Generate",
+    "generating": "Generating…",
+    "cancel": "Cancel"
   },
   "hints": {
     "dblClickPreview": "Double-click to preview",

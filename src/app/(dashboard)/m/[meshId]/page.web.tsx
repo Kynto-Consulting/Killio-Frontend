@@ -30,7 +30,7 @@ import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { AgentChatPanel } from "@/components/agent";
 import { MeshShareModal } from "@/components/ui/mesh-share-modal";
 import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
-import { updateBoardDetails, updateBoardAppearance } from "@/lib/api/contracts";
+import { updateBoardDetails, updateBoardAppearance, generateMeshWithAi, type GeneratedMesh } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import { strokeToFilledPath } from "@/lib/freehand";
@@ -1678,6 +1678,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }), []);
 
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  const [isTextToDiagramOpen, setIsTextToDiagramOpen] = useState(false);
+  const [diagramPrompt, setDiagramPrompt] = useState("");
+  const [diagramGenerating, setDiagramGenerating] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
@@ -2441,6 +2444,88 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       return { ...cur, connectionsById: { ...cur.connectionsById, [conn.id]: conn } };
     });
   }, [connPreset]);
+
+  // Convert an AI-generated diagram (nodes + edges) into bricks + connections,
+  // positioned at the current viewport center.
+  const applyGeneratedMesh = useCallback((mesh: GeneratedMesh) => {
+    if (!mesh.nodes.length) return 0;
+    const vp = viewportRef.current;
+    const el = canvasRef.current;
+    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
+    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
+    // center the generated layout around viewport center
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    mesh.nodes.forEach((n) => {
+      minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
+      maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h);
+    });
+    const offX = cx - (minX + maxX) / 2;
+    const offY = cy - (minY + maxY) / 2;
+
+    setState((cur) => {
+      const by = { ...cur.bricksById };
+      const root = [...cur.rootOrder];
+      const refToId: Record<string, string> = {};
+      let count = Object.keys(by).length;
+
+      mesh.nodes.forEach((n) => {
+        const pos = { x: Math.round(n.x + offX), y: Math.round(n.y + offY) };
+        let nb: MeshBrick;
+        if (n.kind === "board") {
+          nb = mkBrick("board_empty", count++, null, pos);
+        } else if (n.kind === "text") {
+          nb = setMd(mkBrick("text", count++, null, pos), n.label || "");
+        } else {
+          const preset = (n.shape ?? "rect") as ShapePreset;
+          nb = mkBrick("draw", count++, null, pos, preset);
+          if (n.label) nb = { ...nb, content: { ...asRec(nb.content), label: n.label } };
+        }
+        nb = { ...nb, size: { w: Math.round(n.w), h: Math.round(n.h) } };
+        by[nb.id] = nb;
+        root.push(nb.id);
+        refToId[n.ref] = nb.id;
+      });
+
+      const connectionsById = { ...cur.connectionsById };
+      mesh.edges.forEach((e) => {
+        const src = refToId[e.from];
+        const tgt = refToId[e.to];
+        if (!src || !tgt || src === tgt) return;
+        const style: Record<string, unknown> = { ...connStyle(connPreset) };
+        const label = e.label
+          ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: e.label }] }] }
+          : { type: "doc" as const, content: [] };
+        const conn: MeshConnection = { id: mkId("conn"), cons: [src, tgt], label, style };
+        connectionsById[conn.id] = conn;
+      });
+
+      return { ...cur, bricksById: by, rootOrder: root, connectionsById };
+    });
+    return mesh.nodes.length;
+  }, [connPreset]);
+
+  const handleGenerateDiagram = useCallback(async () => {
+    const prompt = diagramPrompt.trim();
+    if (!prompt || diagramGenerating) return;
+    setDiagramGenerating(true);
+    try {
+      const scope = activeTeamId ? "team" : "personal";
+      const scopeId = activeTeamId ?? (user?.id ?? "");
+      const mesh = await generateMeshWithAi({ scope, scopeId, prompt }, accessToken ?? undefined);
+      const n = applyGeneratedMesh(mesh);
+      if (n > 0) {
+        toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
+        setIsTextToDiagramOpen(false);
+        setDiagramPrompt("");
+      } else {
+        toast(tMesh("errors.diagramEmpty"), "error");
+      }
+    } catch {
+      toast(tMesh("errors.diagramFailed"), "error");
+    } finally {
+      setDiagramGenerating(false);
+    }
+  }, [diagramPrompt, diagramGenerating, activeTeamId, user?.id, accessToken, applyGeneratedMesh]);
 
   const startConnFromPort = useCallback((brickId: string, port: Port) => {
     if (toolMode !== "conn") return;
@@ -3700,6 +3785,42 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         />
       )}
 
+      {isTextToDiagramOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          onClick={() => { if (!diagramGenerating) setIsTextToDiagramOpen(false); }}>
+          <div className="w-[min(560px,92vw)] rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-cyan-300" />
+              <h2 className="text-sm font-semibold text-cyan-100">{tMesh("textToDiagram.title")}</h2>
+            </div>
+            <p className="mb-3 text-[11px] leading-relaxed text-slate-400">{tMesh("textToDiagram.hint")}</p>
+            <textarea
+              autoFocus
+              value={diagramPrompt}
+              onChange={(e) => setDiagramPrompt(e.target.value)}
+              onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleGenerateDiagram(); if (e.key === "Escape" && !diagramGenerating) setIsTextToDiagramOpen(false); }}
+              placeholder={tMesh("textToDiagram.placeholder")}
+              rows={4}
+              disabled={diagramGenerating}
+              className="w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60"
+            />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <button type="button" disabled={diagramGenerating}
+                onClick={() => setIsTextToDiagramOpen(false)}
+                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-50">
+                {tMesh("textToDiagram.cancel")}
+              </button>
+              <button type="button" disabled={diagramGenerating || !diagramPrompt.trim()}
+                onClick={handleGenerateDiagram}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500/90 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:cursor-not-allowed disabled:opacity-50">
+                {diagramGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {tMesh("textToDiagram.generating")}</> : <><Sparkles className="h-3.5 w-3.5" /> {tMesh("textToDiagram.generate")}</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {isAiDrawerOpen && activeTeamId && (
         <div className={`absolute right-0 top-0 z-40 h-full ${mobileMode ? "w-full max-w-full" : "w-[360px] max-w-[90vw]"} shadow-2xl`}>
           <AgentChatPanel
@@ -4577,6 +4698,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <button type="button" title="Básicos" aria-label="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
                 <button type="button" title="Contenido" aria-label="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
                 <button type="button" title="Formas" aria-label="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
+                <button type="button" title="Texto a diagrama (IA)" aria-label="Texto a diagrama" onClick={() => setIsTextToDiagramOpen(true)} className={dockBtnClass(isTextToDiagramOpen)}><Sparkles className="h-4 w-4" /></button>
                 {selectedId && (() => {
                   const sb = state.bricksById[selectedId];
                   return sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame") ? (
