@@ -156,7 +156,8 @@
     "copyLink": "Copiar enlace",
     "copiedToast": "Enlace copiado al portapapeles",
     "done": "Listo",
-    "inviteError": "Error al invitar usuario. Asegúrate de que el correo esté registrado."
+    "inviteError": "Error al invitar usuario. Asegúrate de que el correo esté registrado.",
+    "teamSuggestions": "Agregar del equipo"
   },
   "confirmDelete": {
     "title": "Eliminar tablero",

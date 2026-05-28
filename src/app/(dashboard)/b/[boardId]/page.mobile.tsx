@@ -12,11 +12,12 @@ import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
+import { getUserAvatarUrl } from "@/lib/gravatar";
 
 type CardRow = {
   id: string;
   title: string;
-  assignees?: { id: string; email?: string; name?: string }[];
+  assignees?: { id: string; email?: string; name?: string; avatarUrl?: string }[];
   tags?: { id: string; name: string; color?: string }[];
   dueAt?: string | null;
   priority?: string | null;
@@ -361,13 +362,13 @@ export default function BoardMobilePage() {
                     {card.assignees && card.assignees.length > 0 && (
                       <div className="flex -space-x-1 shrink-0">
                         {card.assignees.slice(0, 2).map(a => (
-                          <div
+                          <img
                             key={a.id}
-                            className="h-5 w-5 rounded-full bg-accent/40 border border-background flex items-center justify-center text-[9px] font-bold"
+                            src={getUserAvatarUrl(a.avatarUrl, a.email, 20)}
+                            alt={a.name ?? a.email ?? "?"}
                             title={a.name ?? a.email}
-                          >
-                            {(a.name ?? a.email ?? "?")[0].toUpperCase()}
-                          </div>
+                            className="h-5 w-5 rounded-full border border-background object-cover"
+                          />
                         ))}
                       </div>
                     )}

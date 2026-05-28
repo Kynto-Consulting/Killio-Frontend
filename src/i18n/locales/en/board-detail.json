@@ -156,7 +156,8 @@
     "copyLink": "Copy link",
     "copiedToast": "Link copied to clipboard!",
     "done": "Done",
-    "inviteError": "Error inviting user. Make sure the email is registered."
+    "inviteError": "Error inviting user. Make sure the email is registered.",
+    "teamSuggestions": "Add from team"
   },
   "confirmDelete": {
     "title": "Delete Board",

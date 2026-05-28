@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link, CheckCircle2, UserPlus, Loader2, Globe, Lock, Trash2, ChevronDown } from "lucide-react";
-import { updateBoardVisibility, getBoardMembers, addBoardMember, removeBoardMember, BoardMemberSummary } from "@/lib/api/contracts";
+import { updateBoardVisibility, getBoardMembers, addBoardMember, removeBoardMember, BoardMemberSummary, listTeamMembers, TeamMemberSummary } from "@/lib/api/contracts";
 import { listDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -34,6 +34,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [selectedDocuments, setSelectedDocuments] = useState<string[]>([]);
   const [isSuggestingDocs, setIsSuggestingDocs] = useState(false);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberSummary[]>([]);
 
   const inviteAction = useAsyncAction(
     async (payload: { email: string; role: string }) => {
@@ -78,6 +79,9 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
       if (activeTeamId) {
         listDocuments(activeTeamId, accessToken)
           .then(setDocuments)
+          .catch(console.error);
+        listTeamMembers(activeTeamId, accessToken)
+          .then(setTeamMembers)
           .catch(console.error);
       }
     }
@@ -200,6 +204,37 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* Team member suggestions */}
+            {teamMembers.filter(tm => !members.some(m => m.id === tm.id)).length > 0 && (
+              <div className="mt-2">
+                <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-semibold mb-2">{t("shareModal.teamSuggestions")}</p>
+                <div className="space-y-1 border border-border/50 rounded-lg p-2 bg-muted/10 max-h-36 overflow-y-auto">
+                  {teamMembers
+                    .filter(tm => !members.some(m => m.id === tm.id))
+                    .map(tm => (
+                      <button
+                        key={tm.id}
+                        type="button"
+                        onClick={() => inviteAction.run({ email: tm.primaryEmail, role: inviteRole })}
+                        disabled={inviteAction.isPending}
+                        className="w-full flex items-center gap-2 p-1.5 rounded-md hover:bg-accent/10 transition-colors text-left"
+                      >
+                        <img
+                          src={getUserAvatarUrl(tm.avatarUrl, tm.primaryEmail, 28)}
+                          alt={tm.displayName ?? tm.name ?? tm.primaryEmail}
+                          className="h-7 w-7 rounded-full border border-border object-cover shrink-0"
+                        />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-medium truncate">{tm.displayName ?? tm.name ?? tm.primaryEmail}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">{tm.primaryEmail}</p>
+                        </div>
+                        <UserPlus className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      </button>
+                    ))}
+                </div>
               </div>
             )}
 
