@@ -32,6 +32,7 @@ import { MeshShareModal } from "@/components/ui/mesh-share-modal";
 import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { updateBoardDetails, updateBoardAppearance } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1082,10 +1083,10 @@ function shapePortAbsPos(
 
 // ─── SVG renderers ────────────────────────────────────────────────────────────
 
-function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,238,0.07)", sw = 2, cr = 10 }: {
+function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,238,0.07)", sw = 2, cr = 10, dash }: {
   preset: ShapePreset; w: number; h: number;
   pts?: { x: number; y: number }[];
-  stroke?: string; fill?: string; sw?: number; cr?: number;
+  stroke?: string; fill?: string; sw?: number; cr?: number; dash?: string;
 }) {
   const vp = pts ?? SHAPE_PTS[preset];
 
@@ -1093,21 +1094,21 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
     const rx = preset === "flow-terminator" ? Math.min(w / 2, h / 2) : w / 2 - 2;
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <ellipse cx={w / 2} cy={h / 2} rx={rx} ry={h / 2 - 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={h / 2} rx={rx} ry={h / 2 - 2} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
   if (preset === "rect") {
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={1} width={w - 2} height={h - 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
   if (preset === "rounded-rect") {
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -1115,8 +1116,8 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
     const fold = Math.min(w * 0.18, 28);
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} />
+        <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -1124,11 +1125,11 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
     const ry = Math.max(5, h * 0.14);
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
-        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
+        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -1140,7 +1141,7 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}
       className="pointer-events-none absolute inset-0"
       style={{ overflow: "visible" }}>
-      <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} />
+      <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
     </svg>
   );
 }
@@ -2990,6 +2991,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const sStroke   = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
     const sFill     = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
     const sSW       = typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : 2;
+    const sDash     = dashArrayFor(styleR.strokeStyle as StrokeStyle | undefined, sSW);
+    const sOpacity  = opacityFor(styleR as { opacity?: number });
+    const sCr       = cornerRadiusFor(styleR.edges as EdgeStyle | undefined);
     const uKind     = typeof c.unifierKind === "string" ? c.unifierKind : null;
     const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
     const unifierKindFinal = uKind ?? (brick.kind === "mirror" ? "callout" : "text");
@@ -3085,13 +3089,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const bSR   = asRec(asRec(brick.content).style);
       const bStroke = typeof bSR.stroke === "string" ? bSR.stroke : (isSel ? "rgba(255,255,255,0.5)" : "rgba(34,211,238,0.6)");
       const bFill   = typeof bSR.fill   === "string" ? bSR.fill   : undefined;
+      const bDashStyle = bSR.strokeStyle === "dashed" ? "dashed" : bSR.strokeStyle === "dotted" ? "dotted" : "solid";
       return (
         <div
           key={brick.id}
           className={`group/board absolute rounded-xl border transition-[height] duration-150${ring}${bFill ? "" : " bg-cyan-950/10"}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: boardH,
-            borderColor: bStroke, borderWidth: 2,
-            backgroundColor: bFill ?? undefined,
+            borderColor: bStroke, borderWidth: 2, borderStyle: bDashStyle,
+            backgroundColor: bFill ?? undefined, opacity: sOpacity,
             cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: collapsed ? "hidden" : "visible" }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onPointerDown={(e) => startDrag(e, brick.id)}
@@ -3160,12 +3165,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         <div key={brick.id}
           className={`group absolute${ring}`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: shapeH,
-            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "visible" }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "visible", opacity: sOpacity }}
           onClick={(e) => { if (e.altKey && toolMode === "vec" && isSel) { e.stopPropagation(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); addCustomPort(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } onBrickClick(e, brick.id); }}
           onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
-          {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} />}
+          {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} dash={sDash} cr={sCr} />}
           {/* Header – only shown when collapsed OR when there's a label OR when it has children */}
           {(collapsed || shapeLabel || kids.length > 0) && (
             <div className="relative z-20 flex h-7 items-center justify-between border-b border-white/10 px-2 text-[10px] text-white/60 select-none"
@@ -4477,6 +4482,43 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 style={{ borderColor: v, background: "transparent" }} />
                             ))}
                         </div>
+                        {(() => {
+                          const curStrokeStyle = typeof sbStyle.strokeStyle === "string" ? sbStyle.strokeStyle : "solid";
+                          const curEdges = sbStyle.edges === "sharp" ? "sharp" : "round";
+                          const curOpacity = typeof sbStyle.opacity === "number" ? sbStyle.opacity : 1;
+                          const segBtn = (active: boolean) =>
+                            `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700"}`;
+                          return (
+                            <>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Trazo</span>
+                                <div className="flex gap-1">
+                                  {(["solid","dashed","dotted"] as const).map((s) => (
+                                    <button key={s} onClick={() => patchStyle({ strokeStyle: s })} className={segBtn(curStrokeStyle === s)}>
+                                      {s === "solid" ? "Sólido" : s === "dashed" ? "Guiones" : "Puntos"}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Esquinas</span>
+                                <div className="flex gap-1">
+                                  {(["round","sharp"] as const).map((s) => (
+                                    <button key={s} onClick={() => patchStyle({ edges: s })} className={segBtn(curEdges === s)}>
+                                      {s === "round" ? "Redondas" : "Rectas"}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              <div className="flex flex-col gap-1">
+                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Opacidad · {Math.round(curOpacity * 100)}%</span>
+                                <input type="range" min={0} max={100} step={5} value={Math.round(curOpacity * 100)}
+                                  onChange={(e) => patchStyle({ opacity: Number(e.target.value) / 100 })}
+                                  className="w-full accent-cyan-400" />
+                              </div>
+                            </>
+                          );
+                        })()}
                       </div>
                     );
                   })()}

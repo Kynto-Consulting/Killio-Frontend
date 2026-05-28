@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import type { DocumentBrick } from "@/lib/api/documents";
+import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 
 // ─── Types (from mesh-schema / page.web.tsx) ─────────────────────────────────
 
@@ -197,11 +198,11 @@ const SHAPE_PTS: Partial<Record<ShapePreset, { x: number; y: number }[]>> = {
 
 function ShapeSvg({
   preset, w, h, pts,
-  stroke = "#22d3ee", fill = "rgba(34,211,238,0.07)", sw = 2, cr = 10,
+  stroke = "#22d3ee", fill = "rgba(34,211,238,0.07)", sw = 2, cr = 10, dash,
 }: {
   preset: ShapePreset; w: number; h: number;
   pts?: { x: number; y: number }[];
-  stroke?: string; fill?: string; sw?: number; cr?: number;
+  stroke?: string; fill?: string; sw?: number; cr?: number; dash?: string;
 }) {
   const vp = pts ?? SHAPE_PTS[preset];
 
@@ -209,21 +210,21 @@ function ShapeSvg({
     const rx = preset === "flow-terminator" ? Math.min(w / 2, h / 2) : w / 2 - 2;
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <ellipse cx={w / 2} cy={h / 2} rx={rx} ry={h / 2 - 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <ellipse cx={w / 2} cy={h / 2} rx={rx} ry={h / 2 - 2} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
   if (preset === "rect") {
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={1} width={w - 2} height={h - 2} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
   if (preset === "rounded-rect") {
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} />
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={cr} ry={cr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -231,8 +232,8 @@ function ShapeSvg({
     const fold = Math.min(w * 0.18, 28);
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} />
+        <polygon points={`0,0 ${w - fold},0 ${w},${fold} ${w},${h} 0,${h}`} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <polyline points={`${w - fold},0 ${w - fold},${fold} ${w},${fold}`} stroke={stroke} fill="none" strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -240,11 +241,11 @@ function ShapeSvg({
     const ry = Math.max(5, h * 0.14);
     return (
       <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
-        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} />
-        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
-        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} />
+        <rect x={1} y={ry} width={w - 2} height={h - ry * 2} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <ellipse cx={w / 2} cy={ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+        <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+        <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }
@@ -254,7 +255,7 @@ function ShapeSvg({
     <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}
       className="pointer-events-none absolute inset-0"
       style={{ overflow: "visible" }}>
-      <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} />
+      <polygon points={pStr} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
     </svg>
   );
 }
@@ -781,6 +782,9 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
   const sStroke = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
   const sFill   = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
   const sSW     = typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : 2;
+  const sDash   = dashArrayFor(styleR.strokeStyle as StrokeStyle | undefined, sSW);
+  const sOpacity = opacityFor(styleR as { opacity?: number });
+  const sCr     = cornerRadiusFor(styleR.edges as EdgeStyle | undefined);
   const vecPts  = Array.isArray(c.vectorPoints) ? (c.vectorPoints as { x: number; y: number }[]) : undefined;
   const shapeP  = c.shapePreset as ShapePreset | undefined;
   const isVec = !!shapeP;
@@ -790,7 +794,7 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
   return (
     <div
       className="absolute"
-      style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}
+      style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h, opacity: sOpacity }}
     >
       {isVec && shapeP ? (
         <ShapeSvg
@@ -801,12 +805,14 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
           stroke={sStroke}
           fill={sFill}
           sw={sSW}
+          dash={sDash}
+          cr={sCr}
         />
       ) : (
         <div
           className="absolute inset-0 rounded-xl"
           style={{
-            border: `2px dashed ${sStroke}`,
+            border: `2px ${styleR.strokeStyle === "dotted" ? "dotted" : "dashed"} ${sStroke}`,
             background: sFill,
           }}
         />
@@ -830,6 +836,9 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
   const sStroke = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
   const sFill   = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
   const sSW     = typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : 2;
+  const sDash   = dashArrayFor(styleR.strokeStyle as StrokeStyle | undefined, sSW);
+  const sOpacity = opacityFor(styleR as { opacity?: number });
+  const sCr     = cornerRadiusFor(styleR.edges as EdgeStyle | undefined);
   const vecPts  = Array.isArray(c.vectorPoints) ? (c.vectorPoints as { x: number; y: number }[]) : undefined;
   const effectiveKind: MeshBrickKind = brick.kind === "decision" ? "draw" : brick.kind;
   const shapeP: ShapePreset | undefined = brick.kind === "decision" ? "diamond" : (c.shapePreset as ShapePreset | undefined);
@@ -895,6 +904,7 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
         width: brick.size.w,
         height: brick.size.h,
         outline: "1px solid transparent",
+        opacity: sOpacity,
       }}
     >
       <ShapeSvg
@@ -905,6 +915,8 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
         stroke={sStroke}
         fill={typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(0,0,0,0)"}
         sw={sSW}
+        dash={sDash}
+        cr={sCr}
       />
 
       {manualStrokes.length > 0 && (
