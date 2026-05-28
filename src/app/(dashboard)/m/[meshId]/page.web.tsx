@@ -34,6 +34,7 @@ import { updateBoardDetails, updateBoardAppearance, generateMeshWithAi, type Gen
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import { strokeToFilledPath } from "@/lib/freehand";
+import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1681,6 +1682,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [isTextToDiagramOpen, setIsTextToDiagramOpen] = useState(false);
   const [diagramPrompt, setDiagramPrompt] = useState("");
   const [diagramGenerating, setDiagramGenerating] = useState(false);
+  const [diagramMode, setDiagramMode] = useState<"ai" | "mermaid">("ai");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
@@ -2507,6 +2509,25 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const handleGenerateDiagram = useCallback(async () => {
     const prompt = diagramPrompt.trim();
     if (!prompt || diagramGenerating) return;
+
+    // Mermaid mode parses locally — no network call.
+    if (diagramMode === "mermaid") {
+      try {
+        const mesh = parseMermaidToMesh(prompt);
+        const n = applyGeneratedMesh(mesh);
+        if (n > 0) {
+          toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
+          setIsTextToDiagramOpen(false);
+          setDiagramPrompt("");
+        } else {
+          toast(tMesh("errors.diagramEmpty"), "error");
+        }
+      } catch {
+        toast(tMesh("errors.diagramFailed"), "error");
+      }
+      return;
+    }
+
     setDiagramGenerating(true);
     try {
       const scope = activeTeamId ? "team" : "personal";
@@ -2525,7 +2546,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     } finally {
       setDiagramGenerating(false);
     }
-  }, [diagramPrompt, diagramGenerating, activeTeamId, user?.id, accessToken, applyGeneratedMesh]);
+  }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, applyGeneratedMesh]);
 
   const startConnFromPort = useCallback((brickId: string, port: Port) => {
     if (toolMode !== "conn") return;
@@ -3794,16 +3815,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <Sparkles className="h-5 w-5 text-cyan-300" />
               <h2 className="text-sm font-semibold text-cyan-100">{tMesh("textToDiagram.title")}</h2>
             </div>
-            <p className="mb-3 text-[11px] leading-relaxed text-slate-400">{tMesh("textToDiagram.hint")}</p>
+            <div className="mb-3 flex gap-1 rounded-lg border border-white/10 bg-slate-900/60 p-0.5">
+              {(["ai", "mermaid"] as const).map((mode) => (
+                <button key={mode} type="button" disabled={diagramGenerating}
+                  onClick={() => setDiagramMode(mode)}
+                  className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${diagramMode === mode ? "bg-cyan-500/25 text-cyan-100" : "text-slate-400 hover:text-cyan-100"}`}>
+                  {mode === "ai" ? tMesh("textToDiagram.tabAi") : tMesh("textToDiagram.tabMermaid")}
+                </button>
+              ))}
+            </div>
+            <p className="mb-3 text-[11px] leading-relaxed text-slate-400">{diagramMode === "ai" ? tMesh("textToDiagram.hint") : tMesh("textToDiagram.mermaidHint")}</p>
             <textarea
               autoFocus
               value={diagramPrompt}
               onChange={(e) => setDiagramPrompt(e.target.value)}
               onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === "Enter") handleGenerateDiagram(); if (e.key === "Escape" && !diagramGenerating) setIsTextToDiagramOpen(false); }}
-              placeholder={tMesh("textToDiagram.placeholder")}
-              rows={4}
+              placeholder={diagramMode === "ai" ? tMesh("textToDiagram.placeholder") : tMesh("textToDiagram.mermaidPlaceholder")}
+              rows={diagramMode === "mermaid" ? 7 : 4}
               disabled={diagramGenerating}
-              className="w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60"
+              spellCheck={diagramMode === "ai"}
+              className={`w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60 ${diagramMode === "mermaid" ? "font-mono text-[12px]" : ""}`}
             />
             <div className="mt-4 flex items-center justify-end gap-2">
               <button type="button" disabled={diagramGenerating}

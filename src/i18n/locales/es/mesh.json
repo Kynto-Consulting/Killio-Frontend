@@ -55,8 +55,12 @@
   },
   "textToDiagram": {
     "title": "Texto a diagrama",
+    "tabAi": "Prompt IA",
+    "tabMermaid": "Mermaid",
     "hint": "Describe un flujo, proceso o estructura y la IA lo dibujará como formas conectadas en el lienzo.",
+    "mermaidHint": "Pega sintaxis de diagrama Mermaid. Se renderiza localmente como formas conectadas — sin gastar créditos de IA.",
     "placeholder": "ej. Flujo de registro: inicio, ingresar email, verificar código (decisión), luego panel",
+    "mermaidPlaceholder": "flowchart TD\n  A[Inicio] --> B{Decisión}\n  B -->|sí| C[(Base de datos)]\n  B -->|no| D((Fin))",
     "generate": "Generar",
     "generating": "Generando…",
     "cancel": "Cancelar"
