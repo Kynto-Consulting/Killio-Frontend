@@ -42,7 +42,9 @@
     "connByStroke": "Connection by stroke.",
     "shapeRecognized": "Shape: {{kind}}",
     "lockedBy": "\"{{name}}\" is editing this element",
-    "diagramGenerated": "Diagram generated · {{count}} elements"
+    "diagramGenerated": "Diagram generated · {{count}} elements",
+    "templateInserted": "Template inserted.",
+    "templateSaved": "Template saved."
   },
   "errors": {
     "loadFailed": "Could not load mesh.",
@@ -51,7 +53,23 @@
     "iinkNoResponse": "iink: no response",
     "portalSelf": "A portal cannot point to the same mesh.",
     "diagramEmpty": "The AI returned no diagram. Try rephrasing.",
-    "diagramFailed": "Could not generate the diagram."
+    "diagramFailed": "Could not generate the diagram.",
+    "templateNoSelection": "Select one or more elements first."
+  },
+  "templates": {
+    "title": "Templates",
+    "builtIn": "Built-in",
+    "mine": "My templates",
+    "empty": "No saved templates yet. Select elements and save.",
+    "saveSelection": "Save selection",
+    "namePrompt": "Template name:",
+    "delete": "Delete",
+    "names": {
+      "flowStarter": "Flowchart",
+      "swot": "SWOT 2×2",
+      "kanban": "Kanban",
+      "mindmap": "Mind map"
+    }
   },
   "textToDiagram": {
     "title": "Text to diagram",

@@ -11,7 +11,7 @@ import { useParams } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
-  Download, Image, Layers, LayoutGrid, Link2, Loader2, MessageSquare,
+  Download, Image, Layers, LayoutGrid, LayoutTemplate, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
   Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2,
 } from "lucide-react";
@@ -35,6 +35,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
+import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1317,7 +1318,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
   const [connSrcAnchor,  setConnSrcAnchor]  = useState<AnchorNorm | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
-  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | "style" | null>(null);
+  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | "style" | "templates" | null>(null);
 
   // drag state
   const [dragState,    setDragState]    = useState<DragState | null>(null);
@@ -1683,6 +1684,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [diagramPrompt, setDiagramPrompt] = useState("");
   const [diagramGenerating, setDiagramGenerating] = useState(false);
   const [diagramMode, setDiagramMode] = useState<"ai" | "mermaid">("ai");
+  const [userTemplates, setUserTemplates] = useState<MeshTemplate[]>([]);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
@@ -2547,6 +2549,47 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setDiagramGenerating(false);
     }
   }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, applyGeneratedMesh]);
+
+  // Load saved user templates on mount.
+  useEffect(() => { setUserTemplates(loadUserTemplates()); }, []);
+
+  // Insert a saved (full-fidelity) template at viewport center.
+  const insertUserTemplate = useCallback((tpl: MeshTemplate) => {
+    const vp = viewportRef.current;
+    const el = canvasRef.current;
+    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
+    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
+    // center the template around viewport center using its bbox
+    let maxX = 0, maxY = 0;
+    tpl.bricks.forEach((b) => { if (!b.parentId) { maxX = Math.max(maxX, b.position.x + b.size.w); maxY = Math.max(maxY, b.position.y + b.size.h); } });
+    const offset = { x: Math.round(cx - maxX / 2), y: Math.round(cy - maxY / 2) };
+    const { bricks, connections } = instantiateTemplate(tpl, offset, mkId);
+    setState((cur) => {
+      const by = { ...cur.bricksById };
+      const root = [...cur.rootOrder];
+      bricks.forEach((b) => { by[b.id] = b; if (!b.parentId) root.push(b.id); });
+      const connectionsById = { ...cur.connectionsById };
+      connections.forEach((c) => { connectionsById[c.id] = c; });
+      return { ...cur, bricksById: by, rootOrder: root, connectionsById };
+    });
+    toast(tMesh("feedback.templateInserted"), "success");
+    setToolbarPanel(null);
+  }, []);
+
+  const saveSelectionAsTemplate = useCallback(() => {
+    const ids = selectedIds.size ? selectedIds : (selectedId ? new Set([selectedId]) : new Set<string>());
+    if (!ids.size) { toast(tMesh("errors.templateNoSelection"), "error"); return; }
+    const name = (typeof window !== "undefined" ? window.prompt(tMesh("templates.namePrompt")) : "") ?? "";
+    if (!name.trim()) return;
+    const tpl = captureTemplate(name, ids, state.bricksById, state.connectionsById, mkId);
+    if (!tpl) { toast(tMesh("errors.templateNoSelection"), "error"); return; }
+    setUserTemplates((cur) => { const next = [tpl, ...cur]; persistUserTemplates(next); return next; });
+    toast(tMesh("feedback.templateSaved"), "success");
+  }, [selectedIds, selectedId, state.bricksById, state.connectionsById]);
+
+  const deleteUserTemplate = useCallback((id: string) => {
+    setUserTemplates((cur) => { const next = cur.filter((t) => t.id !== id); persistUserTemplates(next); return next; });
+  }, []);
 
   const startConnFromPort = useCallback((brickId: string, port: Port) => {
     if (toolMode !== "conn") return;
@@ -4705,6 +4748,51 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     );
                   })()}
 
+                  {toolbarPanel === "templates" && (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("templates.title")}</p>
+                        <button type="button" onClick={saveSelectionAsTemplate}
+                          className="rounded-md border border-cyan-400/30 bg-cyan-500/15 px-2 py-1 text-[9px] font-medium text-cyan-100 hover:bg-cyan-500/25">
+                          {tMesh("templates.saveSelection")}
+                        </button>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[9px] uppercase tracking-wider text-slate-400">{tMesh("templates.builtIn")}</p>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {BUILT_IN_TEMPLATES.map((t) => (
+                            <button key={t.id} type="button"
+                              onClick={() => { const n = applyGeneratedMesh(t.mesh); if (n > 0) toast(tMesh("feedback.templateInserted"), "success"); setToolbarPanel(null); }}
+                              className="rounded-lg border border-white/10 bg-slate-800 px-2 py-1.5 text-left text-[10px] text-slate-200 hover:border-cyan-300/40 hover:bg-slate-700">
+                              {tMesh(`templates.names.${t.nameKey}`)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[9px] uppercase tracking-wider text-slate-400">{tMesh("templates.mine")}</p>
+                        {userTemplates.length === 0 ? (
+                          <p className="text-[10px] text-slate-500">{tMesh("templates.empty")}</p>
+                        ) : (
+                          <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                            {userTemplates.map((t) => (
+                              <div key={t.id} className="flex items-center gap-1">
+                                <button type="button" onClick={() => insertUserTemplate(t)}
+                                  className="flex-1 truncate rounded-lg border border-white/10 bg-slate-800 px-2 py-1.5 text-left text-[10px] text-slate-200 hover:border-cyan-300/40 hover:bg-slate-700">
+                                  {t.name}
+                                </button>
+                                <button type="button" title={tMesh("templates.delete")} onClick={() => deleteUserTemplate(t.id)}
+                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-slate-400 hover:border-rose-400/40 hover:text-rose-300">
+                                  <X className="h-3.5 w-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {toolbarPanel === "status" && (
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 sm:grid-cols-4">
                       <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Bricks: <span className="font-semibold text-cyan-100">{Object.keys(state.bricksById).length}</span></div>
@@ -4730,6 +4818,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <button type="button" title="Contenido" aria-label="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
                 <button type="button" title="Formas" aria-label="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>
                 <button type="button" title="Texto a diagrama (IA)" aria-label="Texto a diagrama" onClick={() => setIsTextToDiagramOpen(true)} className={dockBtnClass(isTextToDiagramOpen)}><Sparkles className="h-4 w-4" /></button>
+                <button type="button" title="Plantillas" aria-label="Plantillas" onClick={() => setToolbarPanel((current) => current === "templates" ? null : "templates")} className={dockBtnClass(toolbarPanel === "templates")}><LayoutTemplate className="h-4 w-4" /></button>
                 {selectedId && (() => {
                   const sb = state.bricksById[selectedId];
                   return sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame") ? (

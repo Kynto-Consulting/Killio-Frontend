@@ -42,7 +42,9 @@
     "connByStroke": "Conexión por trazo.",
     "shapeRecognized": "Figura: {{kind}}",
     "lockedBy": "\"{{name}}\" está editando este elemento",
-    "diagramGenerated": "Diagrama generado · {{count}} elementos"
+    "diagramGenerated": "Diagrama generado · {{count}} elementos",
+    "templateInserted": "Plantilla insertada.",
+    "templateSaved": "Plantilla guardada."
   },
   "errors": {
     "loadFailed": "No se pudo cargar la mesh.",
@@ -51,7 +53,23 @@
     "iinkNoResponse": "iink: sin respuesta",
     "portalSelf": "El portal no puede apuntar a esta misma mesh.",
     "diagramEmpty": "La IA no devolvió ningún diagrama. Reformula la petición.",
-    "diagramFailed": "No se pudo generar el diagrama."
+    "diagramFailed": "No se pudo generar el diagrama.",
+    "templateNoSelection": "Selecciona uno o más elementos primero."
+  },
+  "templates": {
+    "title": "Plantillas",
+    "builtIn": "Predefinidas",
+    "mine": "Mis plantillas",
+    "empty": "Aún no hay plantillas guardadas. Selecciona elementos y guarda.",
+    "saveSelection": "Guardar selección",
+    "namePrompt": "Nombre de la plantilla:",
+    "delete": "Eliminar",
+    "names": {
+      "flowStarter": "Diagrama de flujo",
+      "swot": "FODA 2×2",
+      "kanban": "Kanban",
+      "mindmap": "Mapa mental"
+    }
   },
   "textToDiagram": {
     "title": "Texto a diagrama",
