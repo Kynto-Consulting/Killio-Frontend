@@ -4,7 +4,7 @@ import { useActionTheme } from "@/hooks/use-action-theme";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, getCardActivity, addCardComment, createTag, updateList, uploadFile, ApiError } from "../../lib/api/contracts";
+import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, listTeamMembers, getCardActivity, addCardComment, createTag, updateList, uploadFile, ApiError } from "../../lib/api/contracts";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -256,7 +256,7 @@ export function CardDetailModal({
         setAvailableTags(res);
       }).catch(console.error);
 
-      getBoardMembers(boardId, accessToken).then((res) => {
+      listTeamMembers(activeTeamId!, accessToken!).then((res) => {
         const normalized = normalizeWorkspaceMembers(res as any[]);
         const mapped = normalized.map((member) => ({
           ...member,
