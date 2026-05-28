@@ -11,6 +11,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TagBadge } from "@/components/ui/tag-badge";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
@@ -343,13 +344,7 @@ export default function BoardMobilePage() {
                       {card.tags && card.tags.length > 0 && (
                         <div className="flex flex-wrap gap-1 mt-1.5">
                           {card.tags.slice(0, 3).map(tag => (
-                            <span
-                              key={tag.id}
-                              className="px-1.5 py-0.5 rounded-full text-[10px] font-medium"
-                              style={{ backgroundColor: tag.color ? `${tag.color}22` : undefined, color: tag.color ?? undefined }}
-                            >
-                              {tag.name}
-                            </span>
+                            <TagBadge key={tag.id} tag={tag} className="text-[10px] py-0 px-1.5" />
                           ))}
                         </div>
                       )}
