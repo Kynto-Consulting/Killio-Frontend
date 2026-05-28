@@ -139,7 +139,7 @@ export function DocumentCommentsDrawer({
   // Room-backed chat
   const { roomId: autoLinkedRoomId } = useLinkedRoom(activeTeamId, "document", docId, accessToken, !!docId);
   const effectiveRoomId = linkedRoomId ?? autoLinkedRoomId;
-  const roomChat = useRoomChat(effectiveRoomId, accessToken);
+  const roomChat = useRoomChat(effectiveRoomId, accessToken, user);
   const [roomInput, setRoomInput] = useState("");
 
   // Legacy comments state (kept for the activity tab resolver context)

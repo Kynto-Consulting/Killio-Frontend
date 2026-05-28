@@ -59,7 +59,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
   );
   const effectiveRoomId = linkedRoomIdProp ?? autoLinkedRoomId;
 
-  const roomChat = useRoomChat(effectiveRoomId, accessToken);
+  const roomChat = useRoomChat(effectiveRoomId, accessToken, sessionUser);
   const [roomInput, setRoomInput] = useState("");
 
   const router = useRouter();
