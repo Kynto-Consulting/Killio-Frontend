@@ -21,6 +21,7 @@ export function ListColumnMobile({
   list,
   boardName,
   boardId,
+  teamId,
   isDropTarget,
   dropHintIndex,
   draggingCardId,
@@ -32,6 +33,7 @@ export function ListColumnMobile({
   list: ListData;
   boardName?: string;
   boardId: string;
+  teamId?: string;
   isDropTarget?: boolean;
   dropHintIndex?: number | null;
   draggingCardId?: string | null;
@@ -190,6 +192,7 @@ export function ListColumnMobile({
       listName={list.title}
       boardName={boardName || ""}
       boardId={boardId}
+      teamId={teamId}
       teamDocs={teamDocs}
       teamBoards={teamBoards}
     />

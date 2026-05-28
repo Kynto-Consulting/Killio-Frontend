@@ -55,6 +55,7 @@ export default function BoardMobilePage() {
   const t = useTranslations("board-detail");
 
   const [boardName, setBoardName] = useState("");
+  const [boardTeamId, setBoardTeamId] = useState<string | null>(null);
   const [lists, setLists] = useState<ListCol[]>([]);
   const [activeListIndex, setActiveListIndex] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -87,6 +88,7 @@ export default function BoardMobilePage() {
       .then((board) => {
         apiCache.set(cacheKey.board(boardId), board, CACHE_TTL.BOARD_DETAIL);
         setBoardName(board.name);
+        setBoardTeamId(board.teamId ?? null);
         setLists(board.lists.map((l: any) => ({ id: l.id, title: l.name, cards: l.cards })));
         setIsLoading(false);
       })
@@ -511,6 +513,7 @@ export default function BoardMobilePage() {
           listName={selectedCard.listName}
           boardName={boardName}
           boardId={boardId}
+          teamId={boardTeamId ?? undefined}
           teamDocs={[]}
           teamBoards={[]}
         />

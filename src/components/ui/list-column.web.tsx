@@ -21,6 +21,7 @@ export function ListColumnWeb({
   list,
   boardName,
   boardId,
+  teamId,
   isDropTarget,
   dropHintIndex,
   draggingCardId,
@@ -33,6 +34,7 @@ export function ListColumnWeb({
   list: ListData;
   boardName?: string;
   boardId: string;
+  teamId?: string;
   isDropTarget?: boolean;
   dropHintIndex?: number | null;
   draggingCardId?: string | null;
@@ -151,14 +153,15 @@ export function ListColumnWeb({
                   <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
                 </div>
               ) : null}
-          <KanbanCard 
-            card={card} 
-            listId={list.id} 
-            listName={list.title} 
-            boardName={boardName || ""} 
-            boardId={boardId} 
-            canEdit={canEdit} 
-            canComment={canComment} 
+          <KanbanCard
+            card={card}
+            listId={list.id}
+            listName={list.title}
+            boardName={boardName || ""}
+            boardId={boardId}
+            teamId={teamId}
+            canEdit={canEdit}
+            canComment={canComment}
             teamDocs={teamDocs}
             teamBoards={teamBoards}
           />
@@ -198,6 +201,7 @@ export function ListColumnWeb({
       listName={list.title}
       boardName={boardName || ""}
       boardId={boardId}
+      teamId={teamId}
       teamDocs={teamDocs}
       teamBoards={teamBoards}
     />

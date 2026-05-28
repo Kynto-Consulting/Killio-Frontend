@@ -14,7 +14,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useAsyncAction, useConfirm } from "@/hooks/ui";
 
-export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
+export function KanbanCard({ card, listId, listName, boardName, boardId, teamId, canEdit = true, canComment = true, teamDocs = [], teamBoards = [] }: { card: CardView, listId?: string, listName?: string, boardName?: string, boardId?: string, teamId?: string, canEdit?: boolean, canComment?: boolean, teamDocs?: any[], teamBoards?: any[] }) {
   const t = useTranslations("board-detail");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -257,6 +257,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, canEdit
         listName={listName || ""}
         boardName={boardName || ""}
         boardId={boardId}
+        teamId={teamId}
         readonly={!canEdit}
         canComment={canComment}
         teamDocs={teamDocs}

@@ -270,6 +270,7 @@ export function BoardShell({ board, onCreateBrick, onUpdateBrick, onReorderBrick
           onClose={() => setSelectedCardId(null)}
           card={selectedCard}
           boardId={board.id}
+          teamId={board.teamId}
           boardName={board.name}
         />
       ) : null}

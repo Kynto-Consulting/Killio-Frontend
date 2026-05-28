@@ -1702,6 +1702,7 @@ export default function BoardPage() {
                 key={list.id}
                 list={list}
                 boardId={boardId}
+                teamId={boardTeamId ?? undefined}
                 boardName={boardName}
                 isDropTarget={dragVisual.targetListId === list.id}
                 dropHintIndex={dragVisual.targetListId === list.id ? dragVisual.targetIndex : null}
@@ -2119,6 +2120,7 @@ export default function BoardPage() {
           listName={selectedGanttCard.listName}
           boardName={boardName}
           boardId={boardId}
+          teamId={boardTeamId ?? undefined}
           readonly={!permissions.canEdit}
           canComment={permissions.canComment}
           teamDocs={teamDocs}

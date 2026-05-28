@@ -108,6 +108,7 @@ export function CardDetailModal({
   listName,
   boardName,
   boardId,
+  teamId,
   readonly = false,
   canComment = true,
   teamDocs = [],
@@ -120,6 +121,8 @@ export function CardDetailModal({
   listName?: string;
   boardName?: string;
   boardId?: string;
+  /** The team that owns the board — used to load the full member list */
+  teamId?: string;
   readonly?: boolean;
   canComment?: boolean;
   teamDocs?: any[];
@@ -256,9 +259,10 @@ export function CardDetailModal({
         setAvailableTags(res);
       }).catch(console.error);
 
+      const resolvedTeamId = teamId || activeTeamId;
       Promise.all([
-        activeTeamId
-          ? listTeamMembers(activeTeamId, accessToken!).catch(() => [])
+        resolvedTeamId
+          ? listTeamMembers(resolvedTeamId, accessToken!).catch(() => [])
           : Promise.resolve([]),
         getBoardMembers(boardId!, accessToken!).catch(() => []),
       ]).then(([teamRes, boardRes]) => {
@@ -301,7 +305,7 @@ export function CardDetailModal({
     if (card?.id) {
       getCardActivity(card.id, accessToken).then(setActivities).catch(console.error);
     }
-  }, [isOpen, boardId, accessToken, activeTeamId, card?.id]);
+  }, [isOpen, boardId, teamId, accessToken, activeTeamId, card?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;

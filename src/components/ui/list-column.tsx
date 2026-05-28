@@ -13,6 +13,7 @@ interface ListColumnProps {
   list: ListData;
   boardName?: string;
   boardId: string;
+  teamId?: string;
   isDropTarget?: boolean;
   dropHintIndex?: number | null;
   draggingCardId?: string | null;
