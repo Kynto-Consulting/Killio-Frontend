@@ -285,6 +285,12 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  useEffect(() => {
+    const handler = () => logout();
+    window.addEventListener('auth:unauthorized', handler);
+    return () => window.removeEventListener('auth:unauthorized', handler);
+  }, [logout]);
+
   const logout = useCallback(() => {
     clearAuthState();
 

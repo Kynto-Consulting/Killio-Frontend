@@ -47,6 +47,11 @@ export async function fetchApi<T>(
     } catch (e) {
       // Ignore parsing errors
     }
+    if (res.status === 401) {
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      }
+    }
     throw new ApiError(message, res.status);
   }
 
