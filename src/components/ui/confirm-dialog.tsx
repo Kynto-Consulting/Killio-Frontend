@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlertTriangle } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
 
 interface ConfirmDialogProps {
   isOpen: boolean;
@@ -24,11 +25,12 @@ export function ConfirmDialog({
   title,
   description,
   confirmText,
-  confirmLabel = "Confirmar",
-  cancelLabel = "Cancelar",
+  confirmLabel,
+  cancelLabel,
   variant = "default",
   children,
 }: ConfirmDialogProps) {
+  const t = useTranslations("modals");
   const [typed, setTyped] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -98,7 +100,9 @@ export function ConfirmDialog({
         {confirmText && (
           <div className="px-6 py-2">
             <label className="block text-sm text-muted-foreground mb-1.5">
-              Escribe <strong className="text-foreground">{confirmText}</strong> para confirmar:
+              {t("confirmDialog.typeToConfirm").split("{{confirmText}}")[0]}
+              <strong className="text-foreground">{confirmText}</strong>
+              {t("confirmDialog.typeToConfirm").split("{{confirmText}}")[1]}
             </label>
             <input
               ref={inputRef}
@@ -118,7 +122,7 @@ export function ConfirmDialog({
             disabled={isLoading}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium h-9 px-4 border border-border bg-background hover:bg-muted transition-colors disabled:opacity-50"
           >
-            {cancelLabel}
+            {cancelLabel ?? t("confirmDialog.cancel")}
           </button>
           <button
             onClick={handleConfirm}
@@ -128,10 +132,10 @@ export function ConfirmDialog({
             {isLoading ? (
               <span className="flex items-center gap-2">
                 <span className="h-3.5 w-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                Procesando...
+                {t("confirmDialog.processing")}
               </span>
             ) : (
-              confirmLabel
+              confirmLabel ?? t("confirmDialog.confirm")
             )}
           </button>
         </div>

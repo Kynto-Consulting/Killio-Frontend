@@ -70,7 +70,7 @@ function SidebarTranscript({
         )}
         {transcriptSegments.map((seg, i) => (
           <p
-            key={i}
+            key={seg.ts ?? i}
             className={`${FONT_SIZE_MAP[captionStyle.fontSize]} ${FONT_MAP[captionStyle.font]} leading-snug`}
             style={{ color: captionStyle.color }}
           >

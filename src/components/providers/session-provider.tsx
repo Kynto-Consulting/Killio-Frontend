@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AuthResponse, refresh } from "@/lib/api/contracts";
 import { normalizeSessionUser, type SessionUser } from "@/lib/workspace-members";
@@ -109,7 +109,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const clearAuthState = () => {
+  const clearAuthState = useCallback(() => {
     // Clear legacy readable cookie if present
     document.cookie = "killio_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
     // HttpOnly killio_refresh cookie is cleared server-side via /auth/logout
@@ -118,7 +118,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setActiveTeamId(null);
     setAccessToken(null);
-  };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -255,7 +255,7 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, []);
 
-  const handleSetActiveTeam = (id: string | null) => {
+  const handleSetActiveTeam = useCallback((id: string | null) => {
     setActiveTeamId(id);
     if (id) {
       localStorage.setItem("killio_active_team", id);
@@ -263,40 +263,46 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       localStorage.removeItem("killio_active_team");
     }
 
-    if (user) {
-      const map = readLastTeamByUser();
-      if (id) {
-        map[user.id] = id;
-      } else {
-        delete map[user.id];
+    setUser((prevUser) => {
+      if (prevUser) {
+        const map = readLastTeamByUser();
+        if (id) {
+          map[prevUser.id] = id;
+        } else {
+          delete map[prevUser.id];
+        }
+        writeLastTeamByUser(map);
+
+        setAccounts((prev) => {
+          const newAccs = prev.map((acc) =>
+            acc.user.id === prevUser.id ? { ...acc, activeTeamId: id } : acc
+          );
+          localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+          return newAccs;
+        });
       }
-      writeLastTeamByUser(map);
+      return prevUser;
+    });
+  }, []);
 
-      setAccounts((prev) => {
-        const newAccs = prev.map((acc) =>
-          acc.user.id === user.id ? { ...acc, activeTeamId: id } : acc
-        );
-        localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
-        return newAccs;
-      });
-    }
-  };
-
-  const logout = () => {
+  const logout = useCallback(() => {
     clearAuthState();
 
-    if (user) {
-      setAccounts((prev) => {
-        const newAccs = prev.filter((a) => a.user.id !== user.id);
-        localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
-        return newAccs;
-      });
-    }
+    setUser((prevUser) => {
+      if (prevUser) {
+        setAccounts((prev) => {
+          const newAccs = prev.filter((a) => a.user.id !== prevUser.id);
+          localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
+          return newAccs;
+        });
+      }
+      return null;
+    });
 
     router.push("/login");
-  };
+  }, [clearAuthState, router]);
 
-  const login = (
+  const login = useCallback((
     userData: AuthResponse["user"],
     token: string,
     refreshToken?: string,
@@ -310,18 +316,19 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     writeTokenCookie(token, ttl);
     setUser(normalizedUser);
     setAccessToken(token);
-    const existingAccount = accounts.find((account) => account.user.id === normalizedUser.id);
-    const map = readLastTeamByUser();
-    const restoredTeamId = existingAccount?.activeTeamId ?? map[normalizedUser.id] ?? null;
-    setActiveTeamId(restoredTeamId);
-
-    if (restoredTeamId) {
-      localStorage.setItem("killio_active_team", restoredTeamId);
-    } else {
-      localStorage.removeItem("killio_active_team");
-    }
 
     setAccounts((prev) => {
+      const existingAccount = prev.find((account) => account.user.id === normalizedUser.id);
+      const map = readLastTeamByUser();
+      const restoredTeamId = existingAccount?.activeTeamId ?? map[normalizedUser.id] ?? null;
+
+      setActiveTeamId(restoredTeamId);
+      if (restoredTeamId) {
+        localStorage.setItem("killio_active_team", restoredTeamId);
+      } else {
+        localStorage.removeItem("killio_active_team");
+      }
+
       const existing = prev.filter((a) => a.user.id !== normalizedUser.id);
       const newAccs: SessionAccount[] = [
         ...existing,
@@ -336,9 +343,9 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem("killio_accounts", JSON.stringify(newAccs));
       return newAccs;
     });
-  };
+  }, []);
 
-  const updateUser = (patch: Partial<SessionUser>) => {
+  const updateUser = useCallback((patch: Partial<SessionUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...patch };
@@ -352,45 +359,51 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
       });
       return updated;
     });
-  };
+  }, []);
 
-  const switchAccount = (userId: string) => {
-    const target = accounts.find((a) => a.user.id === userId);
-    if (!target) return;
-    const normalizedUser = normalizeSessionUser(target.user);
-    if (!normalizedUser) return;
+  const switchAccount = useCallback((userId: string) => {
+    setAccounts((prev) => {
+      const target = prev.find((a) => a.user.id === userId);
+      if (!target) return prev;
+      const normalizedUser = normalizeSessionUser(target.user);
+      if (!normalizedUser) return prev;
 
-    setUser(normalizedUser);
-    setAccessToken(target.accessToken);
-    setActiveTeamId(target.activeTeamId);
-    writeTokenCookie(target.accessToken, target.expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS);
+      setUser(normalizedUser);
+      setAccessToken(target.accessToken);
+      setActiveTeamId(target.activeTeamId);
+      writeTokenCookie(target.accessToken, target.expiresInSeconds ?? REMEMBER_ME_TTL_SECONDS);
 
-    localStorage.setItem("killio_user", JSON.stringify(normalizedUser));
+      localStorage.setItem("killio_user", JSON.stringify(normalizedUser));
 
-    if (target.activeTeamId) {
-      localStorage.setItem("killio_active_team", target.activeTeamId);
-    } else {
-      localStorage.removeItem("killio_active_team");
-    }
+      if (target.activeTeamId) {
+        localStorage.setItem("killio_active_team", target.activeTeamId);
+      } else {
+        localStorage.removeItem("killio_active_team");
+      }
 
-    window.location.href = "/";
-  };
+      window.location.href = "/";
+      return prev;
+    });
+  }, []);
+
+  const contextValue = useMemo(
+    () => ({
+      user,
+      activeTeamId,
+      accessToken,
+      accounts,
+      setActiveTeamId: handleSetActiveTeam,
+      isLoading,
+      logout,
+      login,
+      switchAccount,
+      updateUser,
+    }),
+    [user, activeTeamId, accessToken, accounts, handleSetActiveTeam, isLoading, logout, login, switchAccount, updateUser],
+  );
 
   return (
-    <SessionContext.Provider
-      value={{
-        user,
-        activeTeamId,
-        accessToken,
-        accounts,
-        setActiveTeamId: handleSetActiveTeam,
-        isLoading,
-        logout,
-        login,
-        switchAccount,
-        updateUser,
-      }}
-    >
+    <SessionContext.Provider value={contextValue}>
       {children}
     </SessionContext.Provider>
   );

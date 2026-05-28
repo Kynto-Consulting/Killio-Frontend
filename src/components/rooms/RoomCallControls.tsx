@@ -57,6 +57,7 @@ export function RoomCallControls({
       <button
         onClick={onToggleAudio}
         title={t("call.controls.toggleMic")}
+        aria-label={isAudioMuted ? "Unmute microphone" : "Mute microphone"}
         className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
           isAudioMuted ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
         }`}
@@ -68,6 +69,7 @@ export function RoomCallControls({
       <button
         onClick={onToggleVideo}
         title={t("call.controls.toggleCamera")}
+        aria-label={isVideoMuted ? "Turn on camera" : "Turn off camera"}
         className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
           isVideoMuted ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
         }`}
@@ -79,6 +81,7 @@ export function RoomCallControls({
       <button
         onClick={onOpenSettings}
         title={t("call.settings.title")}
+        aria-label="Call settings"
         className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
           isCameraFilterActive
             ? "bg-violet-600 text-white shadow-[0_0_10px_rgba(139,92,246,0.5)]"
@@ -92,6 +95,7 @@ export function RoomCallControls({
       <button
         onClick={onToggleScreenShare}
         title={isScreenSharing ? t("call.controls.stopScreen") : t("call.controls.screen")}
+        aria-label={isScreenSharing ? "Stop screen share" : "Share screen"}
         className={`flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
           isScreenSharing
             ? "bg-accent text-accent-foreground"
@@ -106,6 +110,7 @@ export function RoomCallControls({
         <button
           onClick={onToggleRecording}
           title={isRecording ? t("call.controls.stopRecord") : t("call.controls.record")}
+          aria-label={isRecording ? "Stop recording" : "Start recording"}
           className={`flex items-center gap-1.5 px-3 h-9 rounded-full text-xs font-medium transition-colors ${
             isRecording ? "bg-red-600 text-white" : "bg-zinc-700 text-zinc-100 hover:bg-zinc-600"
           }`}
@@ -125,6 +130,7 @@ export function RoomCallControls({
       <button
         onClick={onLeave}
         title={t("call.controls.hangUp")}
+        aria-label="End call"
         className="flex items-center justify-center w-10 h-9 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors ml-2"
       >
         <PhoneOff className="w-4 h-4" />

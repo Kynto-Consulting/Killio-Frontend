@@ -36,12 +36,20 @@ export interface CaptionStyle {
 function useAudioLevel(stream: MediaStream | undefined, muted: boolean): number {
   const [level, setLevel] = useState(0);
   const animRef = useRef<number>(0);
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
   useEffect(() => {
     if (!stream || muted) { setLevel(0); return; }
     const audioTracks = stream.getAudioTracks();
     if (audioTracks.length === 0) return;
-    const ctx = new AudioContext();
+
+    // Reuse existing AudioContext or create one if needed — avoids a new
+    // context being created (and leaked) on every stream/muted change.
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioContext();
+    }
+    const ctx = audioCtxRef.current;
+
     const source = ctx.createMediaStreamSource(stream);
     const analyser = ctx.createAnalyser();
     analyser.fftSize = 256;
@@ -55,8 +63,21 @@ function useAudioLevel(stream: MediaStream | undefined, muted: boolean): number 
       animRef.current = requestAnimationFrame(tick);
     };
     animRef.current = requestAnimationFrame(tick);
-    return () => { cancelAnimationFrame(animRef.current); ctx.close().catch(() => {}); };
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      // Disconnect nodes but keep the context alive for reuse.
+      try { source.disconnect(); } catch { /* ignore */ }
+    };
   }, [stream, muted]);
+
+  // Close the AudioContext when the component unmounts.
+  useEffect(() => {
+    return () => {
+      cancelAnimationFrame(animRef.current);
+      audioCtxRef.current?.close().catch(() => {});
+      audioCtxRef.current = null;
+    };
+  }, []);
 
   return level;
 }

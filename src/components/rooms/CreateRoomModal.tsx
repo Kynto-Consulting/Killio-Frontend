@@ -34,11 +34,13 @@ export function CreateRoomModal({
   const [description, setDescription] = useState("");
   const [groupId, setGroupId] = useState<string | undefined>(initialGroupId);
   const [isCreating, setIsCreating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
     setIsCreating(true);
+    setError(null);
     try {
       const input: CreateRoomInput = {
         name: name.trim().toLowerCase().replace(/\s+/g, "-"),
@@ -53,6 +55,7 @@ export function CreateRoomModal({
       onCreated(room.id);
     } catch (e) {
       console.error(e);
+      setError(t("createRoom.createError"));
     } finally {
       setIsCreating(false);
     }
@@ -127,6 +130,10 @@ export function CreateRoomModal({
               className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent"
             />
           </div>
+
+          {error && (
+            <p className="text-xs text-destructive">{error}</p>
+          )}
 
           <div className="flex gap-2 pt-1">
             <button

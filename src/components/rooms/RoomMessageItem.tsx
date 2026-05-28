@@ -160,7 +160,7 @@ const PollRenderer = ({
 
           return (
             <button
-              key={i}
+              key={opt}
               disabled={isClosed}
               onClick={() => onVote(i, Boolean(hasVoted && isMultiple))}
               className={`w-full relative group/opt overflow-hidden rounded-xl border transition-all ${isClosed ? 'cursor-default' : ''} ${hasVoted ? 'border-violet-500 bg-violet-500/5' : 'border-border/50 hover:border-violet-400 hover:bg-violet-400/5'}`}

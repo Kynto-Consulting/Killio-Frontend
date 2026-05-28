@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { usePlatform } from "@/components/providers/platform-provider";
-import { Loader2, X } from "lucide-react";
+import { Loader2, X, MessageSquare } from "lucide-react";
 import type { RoomMessage, RoomCall } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
@@ -218,8 +218,9 @@ export function RoomChatArea({
         )}
 
         {!isLoading && messages.length === 0 && (
-          <div className="flex items-center justify-center h-full text-sm text-muted-foreground opacity-60">
-            {t("chat.noMessages")}
+          <div className="flex flex-col items-center justify-center h-full gap-3 py-16 text-muted-foreground opacity-60">
+            <MessageSquare className="w-10 h-10" />
+            <span className="text-sm">{t("chat.noMessages")}</span>
           </div>
         )}
 

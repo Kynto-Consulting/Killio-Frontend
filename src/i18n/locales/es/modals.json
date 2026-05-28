@@ -66,6 +66,12 @@
     "delete": "Eliminar",
     "deleting": "Eliminando..."
   },
+  "confirmDialog": {
+    "confirm": "Confirmar",
+    "cancel": "Cancelar",
+    "processing": "Procesando...",
+    "typeToConfirm": "Escribe <strong>{{confirmText}}</strong> para confirmar:"
+  },
   "meshShareModal": {
     "title": "Compartir \"{{name}}\"",
     "description": "Controla quién puede ver y editar este Mesh Board.",

@@ -204,6 +204,8 @@
       "readonly": "Solo lectura"
     },
     "removeConfirm": "¿Eliminar a {{name}} de este canal?",
+    "cancelRemove": "Cancelar",
+    "confirmRemove": "Confirmar eliminación",
     "readReceipts": "Confirmaciones de lectura",
     "readReceiptsHint": "Mostrar cuándo los mensajes se entregan y se leen",
     "save": "Guardar",
@@ -221,7 +223,8 @@
     "descriptionLabel": "Descripción",
     "descriptionPlaceholder": "¿De qué trata este canal?",
     "submitButton": "Crear",
-    "cancel": "Cancelar"
+    "cancel": "Cancelar",
+    "createError": "Ocurrió un error al crear la sala."
   },
   "createGroup": {
     "title": "Nueva categoría",

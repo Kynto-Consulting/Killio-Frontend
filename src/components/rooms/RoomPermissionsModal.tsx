@@ -27,6 +27,7 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
   const [members, setMembers] = useState<RoomMember[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [saving, setSaving] = useState<string | null>(null);
+  const [confirmingRemove, setConfirmingRemove] = useState<string | null>(null);
   const [showReceipts, setShowReceipts] = useState(initialShowReadReceipts ?? true);
   const [savingSettings, setSavingSettings] = useState(false);
 
@@ -52,7 +53,11 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
   };
 
   const handleRemove = async (member: RoomMember) => {
-    if (!confirm(t("permissions.removeConfirm", { name: member.displayName }))) return;
+    if (confirmingRemove !== member.userId) {
+      setConfirmingRemove(member.userId);
+      return;
+    }
+    setConfirmingRemove(null);
     setSaving(member.userId);
     try {
       await removeMember(roomId, member.userId, accessToken);
@@ -119,17 +124,39 @@ export function RoomPermissionsModal({ isOpen, onClose, roomId, accessToken, cur
                       ))}
                     </select>
                     {m.userId !== currentUserId && (
-                      <button
-                        onClick={() => handleRemove(m)}
-                        disabled={saving === m.userId}
-                        className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-40 transition-colors"
-                      >
-                        {saving === m.userId ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-3.5 h-3.5" />
-                        )}
-                      </button>
+                      confirmingRemove === m.userId ? (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setConfirmingRemove(null)}
+                            className="text-xs px-2 py-0.5 rounded-md border border-border text-muted-foreground hover:bg-muted/50 transition-colors"
+                          >
+                            {t("permissions.cancelRemove")}
+                          </button>
+                          <button
+                            onClick={() => handleRemove(m)}
+                            disabled={saving === m.userId}
+                            className="text-xs px-2 py-0.5 rounded-md bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-40 transition-colors"
+                          >
+                            {saving === m.userId ? (
+                              <Loader2 className="w-3 h-3 animate-spin" />
+                            ) : (
+                              t("permissions.confirmRemove")
+                            )}
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleRemove(m)}
+                          disabled={saving === m.userId}
+                          className="p-1 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive disabled:opacity-40 transition-colors"
+                        >
+                          {saving === m.userId ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-3.5 h-3.5" />
+                          )}
+                        </button>
+                      )
                     )}
                   </div>
                 ))

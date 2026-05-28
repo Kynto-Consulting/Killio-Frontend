@@ -204,6 +204,8 @@
       "readonly": "Read-only"
     },
     "removeConfirm": "Remove {{name}} from this channel?",
+    "cancelRemove": "Cancel",
+    "confirmRemove": "Confirm remove",
     "readReceipts": "Read receipts",
     "readReceiptsHint": "Show when messages are delivered and read",
     "save": "Save",
@@ -221,7 +223,8 @@
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "What is this channel about?",
     "submitButton": "Create",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "createError": "An error occurred while creating the room."
   },
   "createGroup": {
     "title": "New Category",

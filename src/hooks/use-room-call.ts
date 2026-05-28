@@ -66,11 +66,9 @@ export function useRoomCall(
   const roomType = options?.roomType ?? "channel";
   const isDm = roomType === "dm";
 
-  let realtime: ReturnType<typeof useRealtime> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    realtime = useRealtime();
-  } catch {}
+  // Called unconditionally at top level to satisfy Rules of Hooks.
+  // useRealtime() may return null when the provider is not yet mounted.
+  const realtime = useRealtime();
 
   const [isInCall, setIsInCall] = useState(false);
   const [callId, setCallId] = useState<string | null>(null);
@@ -476,7 +474,7 @@ export function useRoomCall(
         }
       });
     }
-  }, [activeFilter, backgroundBlur, skinSmooth]);
+  }, [activeFilter, backgroundBlur, skinSmooth, backgroundRemoval, virtualBackgroundUrl, backgroundColor]);
 
   const stopFilterLoop = useCallback(() => {
     if (filterRafRef.current) {

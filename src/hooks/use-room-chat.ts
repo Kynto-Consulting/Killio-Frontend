@@ -51,13 +51,9 @@ export function useRoomChat(
   const isTypingRef = useRef(false);
   const channelRef = useRef<IRealtimeChannel | null>(null);
 
-  let realtime: ReturnType<typeof useRealtime> | null = null;
-  try {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    realtime = useRealtime();
-  } catch {
-    // Provider not mounted yet — no-op
-  }
+  // Called unconditionally at top level to satisfy Rules of Hooks.
+  // useRealtime() may return null when the provider is not yet mounted.
+  const realtime = useRealtime();
 
   // Initial load
   useEffect(() => {
