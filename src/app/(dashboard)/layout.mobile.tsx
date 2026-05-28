@@ -191,7 +191,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
             type="button"
             onClick={onToggle}
             aria-label={isOpen ? `Collapse ${name}` : `Expand ${name}`}
-            className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+            className="ml-1 flex h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
           >
             <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isOpen ? "rotate-90" : ""}`} />
           </button>
@@ -381,10 +381,12 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
             className="flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent"
           >
             <div className="flex items-center space-x-2 overflow-hidden">
-              <div className="h-8 w-8 shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
-                <img 
-                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 32)} 
-                  alt={user?.displayName || user?.username || tCommon("account.fallbackUser")} 
+              <div className="h-11 w-11 min-h-[44px] min-w-[44px] shrink-0 rounded-full overflow-hidden border border-border shadow-sm bg-accent/10">
+                <Image
+                  src={getUserAvatarUrl(user?.avatarUrl, user?.email, 44)}
+                  alt={user?.displayName || user?.username || tCommon("account.fallbackUser")}
+                  width={44}
+                  height={44}
                   className="h-full w-full object-cover"
                 />
               </div>

@@ -144,7 +144,7 @@ export default function BoardsPageMobile() {
                 <p className="text-sm font-semibold truncate">{board.name}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                   <Clock className="h-3 w-3" />
-                  {new Date(board.updatedAt).toLocaleDateString()}
+                  {new Date(board.updatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' })}
                 </p>
               </Link>
               <div className="flex items-center gap-1 pr-3">

@@ -23,38 +23,42 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 class AblyChannel implements IRealtimeChannel {
   private readonly _ch: Ably.RealtimeChannel;
+  private readonly listenerMap = new Map<Function, Function>();
 
   constructor(ch: Ably.RealtimeChannel) {
     this._ch = ch;
   }
 
   subscribe(eventName: string, listener: MessageListener): void {
-    this._ch.subscribe(eventName, (msg) => {
+    const wrapped = (msg: Ably.Message) =>
       listener({ name: msg.name ?? eventName, data: msg.data, clientId: msg.clientId ?? undefined });
-    });
+    this.listenerMap.set(listener, wrapped);
+    this._ch.subscribe(eventName, wrapped as any);
   }
 
   subscribeAll(listener: MessageListener): void {
-    this._ch.subscribe((msg) => {
+    const wrapped = (msg: Ably.Message) =>
       listener({ name: msg.name ?? "", data: msg.data, clientId: msg.clientId ?? undefined });
-    });
+    this.listenerMap.set(listener, wrapped);
+    this._ch.subscribe(wrapped as any);
   }
 
   unsubscribe(eventName: string, listener: MessageListener): void {
-    // Ably's unsubscribe matches by reference — we need the wrapped version.
-    // Since wrapping loses reference, we use unsubscribe(eventName) to remove all
-    // listeners for that event when no specific reference is available.
-    // For named unsubscribes that need reference matching, callers should
-    // store the wrapper. Here we provide a safe fallback.
-    try {
-      this._ch.unsubscribe(eventName);
-    } catch {}
+    const wrapped = this.listenerMap.get(listener);
+    if (wrapped) {
+      try { this._ch.unsubscribe(eventName, wrapped as any); } catch {}
+      this.listenerMap.delete(listener);
+    }
   }
 
   unsubscribeAll(listener: MessageListener): void {
-    try {
-      this._ch.unsubscribe();
-    } catch {}
+    const wrapped = this.listenerMap.get(listener);
+    if (wrapped) {
+      try { this._ch.unsubscribe(wrapped as any); } catch {}
+      this.listenerMap.delete(listener);
+    } else {
+      try { this._ch.unsubscribe(); } catch {}
+    }
   }
 
   async publish(eventName: string, data: unknown): Promise<void> {

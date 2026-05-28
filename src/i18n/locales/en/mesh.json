@@ -26,6 +26,12 @@
       "vec": ""
     }
   },
+  "footer": {
+    "bricks": "Bricks",
+    "conns": "Conns",
+    "saved": "Saved",
+    "connecting": "Connecting…"
+  },
   "feedback": {
     "saved": "Saved.",
     "conflictResolved": "Revision conflict — state updated from server.",

@@ -49,6 +49,7 @@ class PulseChannel {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private intentionalClose = false;
+  private reconnectAttempt = 0;
 
   constructor(
     private readonly channelName: string,
@@ -64,6 +65,7 @@ class PulseChannel {
     this.ws = new WebSocket(wsUrl);
 
     this.ws.onopen = () => {
+      this.reconnectAttempt = 0;
       this.startHeartbeat();
     };
 
@@ -93,7 +95,13 @@ class PulseChannel {
     this.ws.onclose = () => {
       this.stopHeartbeat();
       if (!this.intentionalClose) {
-        this.reconnectTimer = setTimeout(() => void this.connect(), 3_000);
+        this.reconnectAttempt += 1;
+        if (this.reconnectAttempt > 10) {
+          console.error("[Pulse] Reconnect failed after 10 attempts. Giving up.");
+          return;
+        }
+        const delay = Math.min(1_000 * Math.pow(2, this.reconnectAttempt - 1), 30_000);
+        this.reconnectTimer = setTimeout(() => void this.connect(), delay);
       }
     };
 
@@ -175,6 +183,8 @@ class PulseChannel {
   send(eventName: string, payload: unknown): void {
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify({ event: eventName, payload }));
+    } else {
+      throw new Error(`[Pulse] Cannot publish "${eventName}": WebSocket is not OPEN (state=${this.ws?.readyState ?? "null"})`);
     }
   }
 
@@ -268,19 +278,29 @@ export class PulseRealtimeProvider implements IRealtimeProviderV2 {
     ch.send(eventName, data);
   }
 
-  /**
-   * Presence is handled by the Pulse worker on connect (via the JWT).
-   * Explicit enter/leave are no-ops here — the worker tracks connection lifecycle.
-   */
   async enterPresence(
-    _channelName: string,
-    _data?: Record<string, unknown>
+    channelName: string,
+    data?: Record<string, unknown>
   ): Promise<void> {
-    // no-op: managed by worker
+    const ch = this.channels.get(channelName);
+    if (ch?.["ws"] && (ch["ws"] as WebSocket).readyState === WebSocket.OPEN) {
+      (ch["ws"] as WebSocket).send(
+        JSON.stringify({ type: "presence", action: "enter", roomId: channelName, metadata: data })
+      );
+    } else {
+      console.warn(`[Pulse] enterPresence called for "${channelName}" but WebSocket is not OPEN — presence not sent`);
+    }
   }
 
-  async leavePresence(_channelName: string): Promise<void> {
-    // no-op: handled on WebSocket close
+  async leavePresence(channelName: string): Promise<void> {
+    const ch = this.channels.get(channelName);
+    if (ch?.["ws"] && (ch["ws"] as WebSocket).readyState === WebSocket.OPEN) {
+      (ch["ws"] as WebSocket).send(
+        JSON.stringify({ type: "presence", action: "leave", roomId: channelName })
+      );
+    } else {
+      console.warn(`[Pulse] leavePresence called for "${channelName}" but WebSocket is not OPEN — presence not sent`);
+    }
   }
 
   subscribePresence(

@@ -4493,11 +4493,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       <>
       {/* ── Footer ── */}
       <div className="flex shrink-0 items-center gap-4 border-t border-border bg-card/40 px-4 py-1 text-[10px] text-muted-foreground">
-        <span>Bricks: {Object.keys(state.bricksById).length}</span>
-        <span>Conns: {Object.keys(state.connectionsById).length}</span>
-        {updatedAt && <span>Saved: {new Date(updatedAt).toLocaleTimeString()}</span>}
+        <span>{tMesh("footer.bricks")}: {Object.keys(state.bricksById).length}</span>
+        <span>{tMesh("footer.conns")}: {Object.keys(state.connectionsById).length}</span>
+        {updatedAt && <span>{tMesh("footer.saved")}: {new Date(updatedAt).toLocaleTimeString()}</span>}
         {toolMode === "vec"  && <span className="text-yellow-400">● Vec edit</span>}
-        {toolMode === "conn" && <span className="text-cyan-400">● {connSrcId ? "Conectando…" : "Conn"}</span>}
+        {toolMode === "conn" && <span className="text-cyan-400">● {connSrcId ? tMesh("footer.connecting") : "Conn"}</span>}
         {toolMode === "pen"  && <span className="text-purple-400">● Pen{recognizing ? " (reconociendo…)" : ""}</span>}
         {selectedIds.size > 1 && <span className="text-white/50">● {selectedIds.size} sel.</span>}
         {(selectedId || selectedConnId || selectedIds.size > 0) && <span className="ml-auto opacity-40">Del = eliminar</span>}

@@ -115,6 +115,16 @@ export function RoomChatArea({
   const bottomRef = useRef<HTMLDivElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const isAtBottomRef = useRef(true);
+  const [viewportHeight, setViewportHeight] = useState<number | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isMobile) return;
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const onResize = () => setViewportHeight(vv.height);
+    vv.addEventListener("resize", onResize);
+    return () => vv.removeEventListener("resize", onResize);
+  }, [isMobile]);
 
   // Scroll to bottom when new messages arrive (only if already at bottom)
   useEffect(() => {
@@ -193,7 +203,10 @@ export function RoomChatArea({
   };
 
   return (
-    <div className="flex flex-1 flex-col overflow-hidden min-h-0">
+    <div
+      className="flex flex-1 flex-col overflow-hidden min-h-0"
+      style={isMobile && viewportHeight !== undefined ? { height: viewportHeight } : undefined}
+    >
       {/* Message list */}
       <div
         ref={scrollRef}
