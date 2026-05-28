@@ -71,6 +71,14 @@
       "mindmap": "Mind map"
     }
   },
+  "layers": {
+    "title": "Layers",
+    "selectHint": "Select an element to reorder it.",
+    "toBack": "Send to back",
+    "backward": "Send backward",
+    "forward": "Bring forward",
+    "toFront": "Bring to front"
+  },
   "textToDiagram": {
     "title": "Text to diagram",
     "tabAi": "AI prompt",

@@ -9,7 +9,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useParams } from "next/navigation";
 import {
-  AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, Code2,
+  AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, ChevronUp, ChevronsDown, ChevronsUp, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, LayoutTemplate, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
@@ -36,6 +36,7 @@ import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeS
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
+import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1318,7 +1319,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
   const [connSrcAnchor,  setConnSrcAnchor]  = useState<AnchorNorm | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
-  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | "style" | "templates" | null>(null);
+  const [toolbarPanel,   setToolbarPanel]   = useState<"mode" | "basics" | "content" | "shapes" | "conn" | "status" | "style" | "templates" | "layers" | null>(null);
 
   // drag state
   const [dragState,    setDragState]    = useState<DragState | null>(null);
@@ -2590,6 +2591,27 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const deleteUserTemplate = useCallback((id: string) => {
     setUserTemplates((cur) => { const next = cur.filter((t) => t.id !== id); persistUserTemplates(next); return next; });
   }, []);
+
+  // Z-order: reorder the selected brick within its sibling list (root or parent's children).
+  const changeLayer = useCallback((op: ZOrderOp) => {
+    const id = selectedId;
+    if (!id) return;
+    setState((cur) => {
+      const b = cur.bricksById[id];
+      if (!b) return cur;
+      if (!b.parentId) {
+        const next = reorderInList(cur.rootOrder, id, op);
+        if (next === cur.rootOrder) return cur;
+        return { ...cur, rootOrder: next };
+      }
+      const parent = cur.bricksById[b.parentId];
+      if (!parent) return cur;
+      const co = childOrder(parent);
+      const next = reorderInList(co, id, op);
+      if (next === co) return cur;
+      return { ...cur, bricksById: { ...cur.bricksById, [parent.id]: withChildOrder(parent, next) } };
+    });
+  }, [selectedId]);
 
   const startConnFromPort = useCallback((brickId: string, port: Port) => {
     if (toolMode !== "conn") return;
@@ -4793,6 +4815,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     </div>
                   )}
 
+                  {toolbarPanel === "layers" && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("layers.title")}</p>
+                      {!selectedId ? (
+                        <p className="text-[10px] text-slate-400">{tMesh("layers.selectHint")}</p>
+                      ) : (
+                        <div className="grid grid-cols-4 gap-1.5">
+                          <button type="button" title={tMesh("layers.toBack")} onClick={() => changeLayer("back")}
+                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsDown className="h-4 w-4" /></button>
+                          <button type="button" title={tMesh("layers.backward")} onClick={() => changeLayer("backward")}
+                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronDown className="h-4 w-4" /></button>
+                          <button type="button" title={tMesh("layers.forward")} onClick={() => changeLayer("forward")}
+                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronUp className="h-4 w-4" /></button>
+                          <button type="button" title={tMesh("layers.toFront")} onClick={() => changeLayer("front")}
+                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsUp className="h-4 w-4" /></button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {toolbarPanel === "status" && (
                     <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 sm:grid-cols-4">
                       <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Bricks: <span className="font-semibold text-cyan-100">{Object.keys(state.bricksById).length}</span></div>
@@ -4825,6 +4867,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     <button type="button" title="Estilo" aria-label="Estilo" onClick={() => setToolbarPanel((current) => current === "style" ? null : "style")} className={dockBtnClass(toolbarPanel === "style")}><Palette className="h-4 w-4" /></button>
                   ) : null;
                 })()}
+                {selectedId && (
+                  <button type="button" title="Capas" aria-label="Capas" onClick={() => setToolbarPanel((current) => current === "layers" ? null : "layers")} className={dockBtnClass(toolbarPanel === "layers")}><Layers className="h-4 w-4" /></button>
+                )}
                 <button type="button" title="Más" aria-label="Más" onClick={() => setToolbarPanel((current) => current === "status" ? null : "status")} className={dockBtnClass(toolbarPanel === "status")}><MoreHorizontal className="h-4 w-4" /></button>
               </div>
             </div>

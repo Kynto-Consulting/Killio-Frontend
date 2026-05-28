@@ -71,6 +71,14 @@
       "mindmap": "Mapa mental"
     }
   },
+  "layers": {
+    "title": "Capas",
+    "selectHint": "Selecciona un elemento para reordenarlo.",
+    "toBack": "Enviar al fondo",
+    "backward": "Enviar atrás",
+    "forward": "Traer adelante",
+    "toFront": "Traer al frente"
+  },
   "textToDiagram": {
     "title": "Texto a diagrama",
     "tabAi": "Prompt IA",
