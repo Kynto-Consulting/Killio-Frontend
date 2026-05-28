@@ -1347,6 +1347,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [viewport, setViewport] = useState<{ x: number; y: number; zoom: number }>({ x: 0, y: 0, zoom: 1 });
   const viewportRef = useRef(viewport);
   viewportRef.current = viewport;
+  const bricksByIdRef = useRef(state.bricksById);
+  bricksByIdRef.current = state.bricksById;
   const [showGrid,     setShowGrid]     = useState(true);
   // bezier cp drag: { connId, cp: 1|2, startMouse, startCp }
   const [bezierCpDrag, setBezierCpDrag] = useState<{ connId: string; cp: 1 | 2; startMouse: { x: number; y: number }; startCp: { x: number; y: number } } | null>(null);
@@ -1573,7 +1575,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       // pan mode (default)
       setPanDragState({
         startMouse: { x: e.clientX, y: e.clientY },
-        startViewport: { x: viewport.x, y: viewport.y },
+        startViewport: { x: viewportRef.current.x, y: viewportRef.current.y },
       });
       return;
     }
@@ -1587,11 +1589,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const centerY = (p1.y + p2.y) / 2;
       pinchStateRef.current = {
         startDistance: Math.max(1, Math.hypot(dx, dy)),
-        startViewport: { x: viewport.x, y: viewport.y, zoom: viewport.zoom },
+        startViewport: { x: viewportRef.current.x, y: viewportRef.current.y, zoom: viewportRef.current.zoom },
         centerScreen: { x: centerX, y: centerY },
       };
     }
-  }, [mobileMode, viewport.x, viewport.y, viewport.zoom, toolMode, fromEv]);
+  }, [mobileMode, toolMode, fromEv]);
 
   const onCanvasPointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!mobileMode || e.pointerType !== "touch") return;
@@ -1622,7 +1624,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setViewport({
         x: panDragState.startViewport.x + (e.clientX - panDragState.startMouse.x),
         y: panDragState.startViewport.y + (e.clientY - panDragState.startMouse.y),
-        zoom: viewport.zoom,
+        zoom: viewportRef.current.zoom,
       });
       return;
     }
@@ -1640,7 +1642,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setSelRect(updated);
       return;
     }
-  }, [mobileMode, panDragState, viewport.zoom, toolMode, activePen, fromEv]);
+  }, [mobileMode, panDragState, toolMode, activePen, fromEv]);
 
   const onCanvasPointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (!mobileMode || e.pointerType !== "touch") return;
@@ -1659,10 +1661,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const [remaining] = Array.from(next.values());
       setPanDragState({
         startMouse: { x: remaining.x, y: remaining.y },
-        startViewport: { x: viewport.x, y: viewport.y },
+        startViewport: { x: viewportRef.current.x, y: viewportRef.current.y },
       });
     }
-  }, [mobileMode, viewport.x, viewport.y, toolMode]);
+  }, [mobileMode, toolMode]);
 
   const gPos = useCallback((id: string) => resolveGlobal(state.bricksById, id), [state.bricksById]);
 
@@ -2479,9 +2481,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     // Update snap target when mid-connection
     if (toolMode === "conn" && connSrcId) {
       let bestId: string | null = null, bestPort: Port | null = null, bestDist = SNAP_R;
-      Object.values(state.bricksById).forEach((b) => {
+      Object.values(bricksByIdRef.current).forEach((b) => {
         if (b.id === connSrcId) return;
-        const g = gPos(b.id);
+        const g = resolveGlobal(bricksByIdRef.current, b.id);
         const bPreset = asRec(b.content).shapePreset as ShapePreset | undefined;
         const bVecPts = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
         ALL_PORTS.forEach((port) => {
@@ -2877,7 +2879,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   // ── Canvas mouse down ────────────────────────────────────────────────────────
   const onCanvasMouseDown = useCallback((e: React.MouseEvent) => {
     if (toolMode === "pan") {
-      setPanDragState({ startMouse: { x: e.clientX, y: e.clientY }, startViewport: { x: viewport.x, y: viewport.y } });
+      setPanDragState({ startMouse: { x: e.clientX, y: e.clientY }, startViewport: { x: viewportRef.current.x, y: viewportRef.current.y } });
       return;
     }
     if (toolMode === "pen") {
@@ -2892,7 +2894,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setSelRect(rect);
       setSelectedId(null); setSelectedIds(new Set()); setSelectedConnId(null);
     }
-  }, [toolMode, fromEv, viewport.x, viewport.y]);
+  }, [toolMode, fromEv]);
 
   // ── Canvas clicks ────────────────────────────────────────────────────────────
   const onCanvasClick = useCallback((e: React.MouseEvent) => {
