@@ -17,6 +17,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
+import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
@@ -76,7 +77,18 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!accessToken) return;
 
+    const key = cacheKey.teams();
+
+    // Show cached teams instantly (no skeleton on revisit)
+    const cachedTeams = apiCache.get<TeamView[]>(key);
+    if (cachedTeams && cachedTeams.length > 0) {
+      setTeams(cachedTeams);
+      const hasValidActiveTeam = !!activeTeamId && cachedTeams.some((team) => team.id === activeTeamId);
+      if (!hasValidActiveTeam) setActiveTeamId(cachedTeams[0].id);
+    }
+
     listTeams(accessToken).then((fetchedTeams) => {
+      apiCache.set(key, fetchedTeams, CACHE_TTL.TEAMS);
       setTeams(fetchedTeams);
       if (fetchedTeams.length === 0) {
         if (activeTeamId) {

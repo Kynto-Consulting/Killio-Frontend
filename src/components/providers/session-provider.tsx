@@ -160,6 +160,10 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
 
         if (parsedUser && !cancelled) setUser(parsedUser);
         if (storedTeam && !cancelled) setActiveTeamId(storedTeam);
+        // Set accessToken early so layouts can start fetching without waiting for /auth/me
+        if (cookieToken && !isJwtExpired(cookieToken) && !cancelled) {
+          setAccessToken(cookieToken);
+        }
 
         // ── 2. Migrate legacy single account ────────────────────────────────
         if (parsedUser && cookieToken && loadedAccounts.length === 0) {
