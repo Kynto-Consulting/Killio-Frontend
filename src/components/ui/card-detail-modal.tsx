@@ -256,11 +256,22 @@ export function CardDetailModal({
         setAvailableTags(res);
       }).catch(console.error);
 
-      listTeamMembers(activeTeamId!, accessToken!).then((res) => {
-        const normalized = normalizeWorkspaceMembers(res as any[]);
-        const mapped = normalized.map((member) => ({
+      Promise.all([
+        listTeamMembers(activeTeamId!, accessToken!).catch(() => []),
+        getBoardMembers(boardId!, accessToken!).catch(() => []),
+      ]).then(([teamRes, boardRes]) => {
+        const normalizedTeam = normalizeWorkspaceMembers(teamRes as any[]);
+        const normalizedBoard = normalizeWorkspaceMembers(boardRes as any[]);
+        // Union: team first, then board members not already in team (external board members)
+        const seen = new Set<string>();
+        const allMembers = [...normalizedTeam, ...normalizedBoard].filter((m) => {
+          if (seen.has(m.id)) return false;
+          seen.add(m.id);
+          return true;
+        });
+        const mapped = allMembers.map((member) => ({
           ...member,
-          email: member.primaryEmail || "",
+          email: member.primaryEmail || (member as any).email || "",
           name: member.name,
           alias: member.alias,
           avatar_url: member.avatarUrl,
