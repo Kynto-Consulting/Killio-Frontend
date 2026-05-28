@@ -257,7 +257,9 @@ export function CardDetailModal({
       }).catch(console.error);
 
       Promise.all([
-        listTeamMembers(activeTeamId!, accessToken!).catch(() => []),
+        activeTeamId
+          ? listTeamMembers(activeTeamId, accessToken!).catch(() => [])
+          : Promise.resolve([]),
         getBoardMembers(boardId!, accessToken!).catch(() => []),
       ]).then(([teamRes, boardRes]) => {
         const normalizedTeam = normalizeWorkspaceMembers(teamRes as any[]);
@@ -299,7 +301,7 @@ export function CardDetailModal({
     if (card?.id) {
       getCardActivity(card.id, accessToken).then(setActivities).catch(console.error);
     }
-  }, [isOpen, boardId, accessToken, card?.id]);
+  }, [isOpen, boardId, accessToken, activeTeamId, card?.id]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -1823,11 +1825,11 @@ export function CardDetailModal({
                     {isAssigneeDropdownOpen && (
                       <div className="absolute right-0 top-9 z-30 w-72 rounded-xl border border-border/80 bg-card shadow-2xl p-2 space-y-1">
                         <div className="px-2 pb-2 border-b border-border/50">
-                          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">Asignar miembros</p>
+                          <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground">{t('cardModal.assignMembers')}</p>
                         </div>
                         <div className="max-h-56 overflow-y-auto space-y-1 py-1">
                           {boardMembers.length === 0 ? (
-                            <div className="px-2 py-3 text-xs text-muted-foreground">No hay miembros disponibles en este board.</div>
+                            <div className="px-2 py-3 text-xs text-muted-foreground">{t('cardModal.noMembersAvailable')}</div>
                           ) : (
                             boardMembers.map((member) => {
                               const isAssigned = localAssignees.some((assignee) => assignee.id === member.id);
@@ -1848,7 +1850,7 @@ export function CardDetailModal({
                                     <p className="truncate text-xs text-muted-foreground">{member.email}</p>
                                   </div>
                                   {isAssigned ? (
-                                    <span className="text-[10px] font-bold uppercase tracking-wide text-accent">Asignado</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wide text-accent">{t('cardModal.assigned')}</span>
                                   ) : null}
                                 </button>
                               );

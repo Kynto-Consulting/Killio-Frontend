@@ -84,6 +84,9 @@
   "cardModal": {
     "archiveCard": "Archivar tarjeta",
     "unarchiveCard": "Desarchivar tarjeta",
+    "assignMembers": "Asignar miembros",
+    "noMembersAvailable": "No hay miembros disponibles en este board.",
+    "assigned": "Asignado",
     "dueDateEditor": {
       "title": "Fecha límite",
       "description": "Configura la fecha y hora exactas para esta tarjeta.",

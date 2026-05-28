@@ -84,6 +84,9 @@
   "cardModal": {
     "archiveCard": "Archive card",
     "unarchiveCard": "Restore card",
+    "assignMembers": "Assign members",
+    "noMembersAvailable": "No members available in this board.",
+    "assigned": "Assigned",
     "dueDateEditor": {
       "title": "Due date",
       "description": "Set the exact date and time for this card.",
