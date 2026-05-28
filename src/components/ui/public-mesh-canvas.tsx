@@ -742,173 +742,106 @@ function renderMd(text: string): string {
 
 // ─── Brick Renderer (read-only) ───────────────────────────────────────────────
 
-function RenderBrick({
-  brick,
-  bricksById,
-  connectedIds,
-}: {
-  brick: MeshBrick;
-  bricksById: Record<string, MeshBrick>;
-  connectedIds: Set<string>;
-}) {
+function renderBoardEmptyBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
+  const title = typeof c.title === "string" ? c.title : typeof c.name === "string" ? c.name : "";
+  const kids = childOrder(brick).map((id) => bricksById[id]).filter(Boolean);
+  return (
+    <div
+      className="absolute overflow-visible rounded-xl border"
+      style={{
+        left: g.x,
+        top: g.y,
+        width: brick.size.w,
+        height: brick.size.h,
+        borderColor: typeof asRec(c.style).stroke === "string" ? (asRec(c.style).stroke as string) : "rgba(34,211,238,0.6)",
+        borderWidth: 2,
+        background: typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(15,23,42,0.35)",
+      }}
+    >
+      <div
+        className="flex h-7 items-center px-3 text-[10px] font-bold uppercase tracking-widest text-cyan-300 select-none rounded-t-xl"
+        style={{ background: "rgba(34,211,238,0.06)", borderBottom: "1px solid rgba(34,211,238,0.2)" }}
+      >
+        <span className="truncate">{title || "Board"}</span>
+      </div>
 
-  // Treat "decision" as a diamond draw brick
-  const effectiveKind: MeshBrickKind =
-    brick.kind === "decision" ? "draw" : brick.kind;
-  const shapeP: ShapePreset | undefined =
-    brick.kind === "decision"
-      ? "diamond"
-      : (c.shapePreset as ShapePreset | undefined);
+      {kids.map((kid) => (
+        <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
+      ))}
+    </div>
+  );
+}
 
+function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+  const g = resolveGlobal(bricksById, brick.id);
+  const c = asRec(brick.content);
   const styleR = asRec(c.style);
   const sStroke = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
   const sFill   = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
   const sSW     = typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : 2;
-  const vecPts  = Array.isArray(c.vectorPoints)
-    ? (c.vectorPoints as { x: number; y: number }[])
-    : undefined;
-
-  const isConnected = connectedIds.has(brick.id);
-  const uKind = typeof c.unifierKind === "string" ? c.unifierKind : null;
-  const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
-  const unifierKindFinal = uKind ?? (brick.kind === "mirror" ? "callout" : "text");
-  const docBrick = isUnifier ? toDocBrick(brick, unifierKindFinal) : null;
-
+  const vecPts  = Array.isArray(c.vectorPoints) ? (c.vectorPoints as { x: number; y: number }[]) : undefined;
+  const shapeP  = c.shapePreset as ShapePreset | undefined;
+  const isVec = !!shapeP;
   const text = getMd(brick);
-
-  // ── board_empty ────────────────────────────────────────────────────────────
-  if (effectiveKind === "board_empty") {
-    const title = typeof c.title === "string" ? c.title : typeof c.name === "string" ? c.name : "";
-    const kids = childOrder(brick)
-      .map((id) => bricksById[id])
-      .filter(Boolean);
-
-    return (
-      <div
-        className="absolute overflow-visible rounded-xl border"
-        style={{
-          left: g.x,
-          top: g.y,
-          width: brick.size.w,
-          height: brick.size.h,
-          borderColor: typeof asRec(c.style).stroke === "string" ? (asRec(c.style).stroke as string) : "rgba(34,211,238,0.6)",
-          borderWidth: 2,
-          background: typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(15,23,42,0.35)",
-        }}
-      >
+  const label = text || (typeof c.title === "string" ? c.title : "");
+  const kids = childOrder(brick).map((id) => bricksById[id]).filter(Boolean);
+  return (
+    <div
+      className="absolute"
+      style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}
+    >
+      {isVec && shapeP ? (
+        <ShapeSvg
+          preset={shapeP}
+          w={brick.size.w}
+          h={brick.size.h}
+          pts={vecPts}
+          stroke={sStroke}
+          fill={sFill}
+          sw={sSW}
+        />
+      ) : (
         <div
-          className="flex h-7 items-center px-3 text-[10px] font-bold uppercase tracking-widest text-cyan-300 select-none rounded-t-xl"
-          style={{ background: "rgba(34,211,238,0.06)", borderBottom: "1px solid rgba(34,211,238,0.2)" }}
-        >
-          <span className="truncate">{title || "Board"}</span>
-        </div>
-
-        {kids.map((kid) => (
-          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
-        ))}
-      </div>
-    );
-  }
-
-  // ── frame ──────────────────────────────────────────────────────────────────
-  if (effectiveKind === "frame") {
-    const isVec = !!shapeP;
-    const label = text || (typeof c.title === "string" ? c.title : "");
-    const kids = childOrder(brick).map((id) => bricksById[id]).filter(Boolean);
-
-    return (
-      <div
-        className="absolute"
-        style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}
-      >
-        {isVec && shapeP ? (
-          <ShapeSvg
-            preset={shapeP}
-            w={brick.size.w}
-            h={brick.size.h}
-            pts={vecPts}
-            stroke={sStroke}
-            fill={sFill}
-            sw={sSW}
-          />
-        ) : (
-          <div
-            className="absolute inset-0 rounded-xl"
-            style={{
-              border: `2px dashed ${sStroke}`,
-              background: sFill,
-            }}
-          />
-        )}
-        {label && (
-          <div className="absolute left-2 top-1.5 text-[10px] font-semibold text-cyan-200/70 select-none pointer-events-none">
-            {label}
-          </div>
-        )}
-        {kids.map((kid) => (
-          <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
-        ))}
-      </div>
-    );
-  }
-
-  // ── draw / decision ────────────────────────────────────────────────────────
-  if (effectiveKind === "draw") {
-    const hasShape = !!shapeP;
-    const isContainer = !!c.isContainer;
-    const kids = isContainer
-      ? childOrder(brick).map((id) => bricksById[id]).filter(Boolean)
-      : [];
-
-    const manualStrokes = normalizeManualStrokes(c.manualStrokes);
-
-    if (!hasShape) {
-      return (
-        <div
-          className="absolute rounded-xl"
+          className="absolute inset-0 rounded-xl"
           style={{
-            left: g.x,
-            top: g.y,
-            width: brick.size.w,
-            height: brick.size.h,
-            background: "transparent",
-            outline: (isConnected) ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+            border: `2px dashed ${sStroke}`,
+            background: sFill,
           }}
-        >
-          {manualStrokes.length > 0 && (
-            <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
-              {manualStrokes.map((stroke, idx) => {
-                if (!stroke.points.length) return null;
-                const d = stroke.points
-                  .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
-                  .join(" ");
-                return (
-                  <path
-                    key={idx}
-                    d={d}
-                    fill="none"
-                    stroke={stroke.color ?? "#67e8f9"}
-                    strokeWidth={stroke.width ?? 2}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity={0.95}
-                  />
-                );
-              })}
-            </svg>
-          )}
-          {isContainer && kids.map((kid) => (
-            <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
-          ))}
+        />
+      )}
+      {label && (
+        <div className="absolute left-2 top-1.5 text-[10px] font-semibold text-cyan-200/70 select-none pointer-events-none">
+          {label}
         </div>
-      );
-    }
+      )}
+      {kids.map((kid) => (
+        <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
+      ))}
+    </div>
+  );
+}
 
-    const tPadX = Math.round(brick.size.w * 0.18);
-    const tPadY = Math.round(brick.size.h * 0.18);
+function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+  const g = resolveGlobal(bricksById, brick.id);
+  const c = asRec(brick.content);
+  const styleR = asRec(c.style);
+  const sStroke = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
+  const sFill   = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
+  const sSW     = typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : 2;
+  const vecPts  = Array.isArray(c.vectorPoints) ? (c.vectorPoints as { x: number; y: number }[]) : undefined;
+  const effectiveKind: MeshBrickKind = brick.kind === "decision" ? "draw" : brick.kind;
+  const shapeP: ShapePreset | undefined = brick.kind === "decision" ? "diamond" : (c.shapePreset as ShapePreset | undefined);
+  const isConnected = connectedIds.has(brick.id);
+  const text = getMd(brick);
+  const hasShape = !!shapeP;
+  const isContainer = !!c.isContainer;
+  const kids = isContainer ? childOrder(brick).map((id) => bricksById[id]).filter(Boolean) : [];
+  const manualStrokes = normalizeManualStrokes(c.manualStrokes);
+  void effectiveKind;
 
+  if (!hasShape) {
     return (
       <div
         className="absolute rounded-xl"
@@ -917,19 +850,10 @@ function RenderBrick({
           top: g.y,
           width: brick.size.w,
           height: brick.size.h,
-          outline: "1px solid transparent",
+          background: "transparent",
+          outline: (isConnected) ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
         }}
       >
-        <ShapeSvg
-          preset={shapeP!}
-          w={brick.size.w}
-          h={brick.size.h}
-          pts={vecPts}
-          stroke={sStroke}
-          fill={typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(0,0,0,0)"}
-          sw={sSW}
-        />
-
         {manualStrokes.length > 0 && (
           <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
             {manualStrokes.map((stroke, idx) => {
@@ -952,19 +876,6 @@ function RenderBrick({
             })}
           </svg>
         )}
-
-        {text && (
-          <div
-            className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
-            style={{ padding: `${tPadY}px ${tPadX}px`, zIndex: 10 }}
-          >
-            <p
-              className="text-center text-xs leading-snug text-slate-100"
-              dangerouslySetInnerHTML={{ __html: renderMd(text) }}
-            />
-          </div>
-        )}
-
         {isContainer && kids.map((kid) => (
           <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
         ))}
@@ -972,158 +883,260 @@ function RenderBrick({
     );
   }
 
-  // ── text + unifier bricks (original unified renderer path) ─────────────────
-  if (docBrick) {
-    return (
-      <div
-        className="absolute overflow-hidden rounded-md"
-        style={{
-          left: g.x,
-          top: g.y,
-          width: brick.size.w,
-          height: brick.size.h,
-          outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
-          borderRadius: 6,
-        }}
-      >
-        <div className="h-full w-full overflow-auto pointer-events-none">
-          <UnifiedBrickRenderer
-            brick={docBrick}
-            canEdit={false}
-            onUpdate={() => undefined}
-            documents={[]}
-            boards={[]}
-            activeBricks={[docBrick]}
-            users={[]}
-            isCompact
+  const tPadX = Math.round(brick.size.w * 0.18);
+  const tPadY = Math.round(brick.size.h * 0.18);
+
+  return (
+    <div
+      className="absolute rounded-xl"
+      style={{
+        left: g.x,
+        top: g.y,
+        width: brick.size.w,
+        height: brick.size.h,
+        outline: "1px solid transparent",
+      }}
+    >
+      <ShapeSvg
+        preset={shapeP!}
+        w={brick.size.w}
+        h={brick.size.h}
+        pts={vecPts}
+        stroke={sStroke}
+        fill={typeof asRec(c.style).fill === "string" ? (asRec(c.style).fill as string) : "rgba(0,0,0,0)"}
+        sw={sSW}
+      />
+
+      {manualStrokes.length > 0 && (
+        <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
+          {manualStrokes.map((stroke, idx) => {
+            if (!stroke.points.length) return null;
+            const d = stroke.points
+              .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
+              .join(" ");
+            return (
+              <path
+                key={idx}
+                d={d}
+                fill="none"
+                stroke={stroke.color ?? "#67e8f9"}
+                strokeWidth={stroke.width ?? 2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                opacity={0.95}
+              />
+            );
+          })}
+        </svg>
+      )}
+
+      {text && (
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center overflow-hidden"
+          style={{ padding: `${tPadY}px ${tPadX}px`, zIndex: 10 }}
+        >
+          <p
+            className="text-center text-xs leading-snug text-slate-100"
+            dangerouslySetInnerHTML={{ __html: renderMd(text) }}
           />
         </div>
+      )}
+
+      {isContainer && kids.map((kid) => (
+        <RenderBrick key={kid.id} brick={kid} bricksById={bricksById} connectedIds={connectedIds} />
+      ))}
+    </div>
+  );
+}
+
+function renderTextUnifierBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+  const g = resolveGlobal(bricksById, brick.id);
+  const c = asRec(brick.content);
+  const isConnected = connectedIds.has(brick.id);
+  const uKind = typeof c.unifierKind === "string" ? c.unifierKind : null;
+  const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
+  const unifierKindFinal = uKind ?? (brick.kind === "mirror" ? "callout" : "text");
+  const docBrick = isUnifier ? toDocBrick(brick, unifierKindFinal) : null;
+  void bricksById;
+  void connectedIds;
+  if (!docBrick) return <></>;
+  return (
+    <div
+      className="absolute overflow-hidden rounded-md"
+      style={{
+        left: g.x,
+        top: g.y,
+        width: brick.size.w,
+        height: brick.size.h,
+        outline: isConnected ? "2px solid rgba(34,211,238,0.55)" : "1px solid transparent",
+        borderRadius: 6,
+      }}
+    >
+      <div className="h-full w-full overflow-auto pointer-events-none">
+        <UnifiedBrickRenderer
+          brick={docBrick}
+          canEdit={false}
+          onUpdate={() => undefined}
+          documents={[]}
+          boards={[]}
+          activeBricks={[docBrick]}
+          users={[]}
+          isCompact
+        />
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // ── portal (classic) ───────────────────────────────────────────────────────
-  if (brick.kind === "portal" && !uKind) {
-    const targetLabel = typeof c.targetLabel === "string" ? c.targetLabel : "";
-    const targetType = typeof c.targetType === "string" ? c.targetType : "mesh";
-    const targetId = typeof c.targetId === "string" ? c.targetId : "";
-    const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
-    const previewKind = typeof c.previewKind === "string" ? c.previewKind : "text";
-    const previewImageDataUrl = typeof c.previewImageDataUrl === "string" ? c.previewImageDataUrl : "";
-    const portalPreviewBrick = previewMd.trim() ? mkPreviewBrick(`portal_${brick.id}`, previewKind, previewMd) : null;
-
-    return (
-      <div
-        className="absolute overflow-hidden rounded-xl border-2"
-        style={{
-          left: g.x,
-          top: g.y,
-          width: brick.size.w,
-          height: brick.size.h,
-          borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(59,130,246,0.55)",
-          background: "rgba(15,23,42,0.92)",
-        }}
-      >
-        <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
-          {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
-        </div>
-        <div className="relative h-[calc(100%-28px)] w-full overflow-hidden bg-slate-900/60">
-          {previewImageDataUrl ? (
-            <img
-              src={previewImageDataUrl}
-              alt="Portal preview"
-              className="w-full"
-              style={{ display: "block" }}
-              loading="lazy"
+function renderPortalBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+  const g = resolveGlobal(bricksById, brick.id);
+  const c = asRec(brick.content);
+  const isConnected = connectedIds.has(brick.id);
+  void bricksById;
+  const targetLabel = typeof c.targetLabel === "string" ? c.targetLabel : "";
+  const targetType = typeof c.targetType === "string" ? c.targetType : "mesh";
+  const targetId = typeof c.targetId === "string" ? c.targetId : "";
+  const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+  const previewKind = typeof c.previewKind === "string" ? c.previewKind : "text";
+  const previewImageDataUrl = typeof c.previewImageDataUrl === "string" ? c.previewImageDataUrl : "";
+  const portalPreviewBrick = previewMd.trim() ? mkPreviewBrick(`portal_${brick.id}`, previewKind, previewMd) : null;
+  return (
+    <div
+      className="absolute overflow-hidden rounded-xl border-2"
+      style={{
+        left: g.x,
+        top: g.y,
+        width: brick.size.w,
+        height: brick.size.h,
+        borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(59,130,246,0.55)",
+        background: "rgba(15,23,42,0.92)",
+      }}
+    >
+      <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
+        <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
+        {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
+      </div>
+      <div className="relative h-[calc(100%-28px)] w-full overflow-hidden bg-slate-900/60">
+        {previewImageDataUrl ? (
+          <img
+            src={previewImageDataUrl}
+            alt="Portal preview"
+            className="w-full"
+            style={{ display: "block" }}
+            loading="lazy"
+          />
+        ) : portalPreviewBrick ? (
+          <div className="pointer-events-none h-full overflow-hidden p-1.5">
+            <UnifiedBrickRenderer
+              brick={portalPreviewBrick}
+              canEdit={false}
+              onUpdate={() => undefined}
+              documents={[]}
+              boards={[]}
+              activeBricks={[portalPreviewBrick]}
+              users={[]}
+              isCompact
             />
-          ) : portalPreviewBrick ? (
-            <div className="pointer-events-none h-full overflow-hidden p-1.5">
-              <UnifiedBrickRenderer
-                brick={portalPreviewBrick}
-                canEdit={false}
-                onUpdate={() => undefined}
-                documents={[]}
-                boards={[]}
-                activeBricks={[portalPreviewBrick]}
-                users={[]}
-                isCompact
-              />
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center px-3">
-              <p className="text-[10px] text-blue-400/30 text-center">
-                {targetLabel || targetId || (targetType === "board" ? "Kanban Board" : targetType === "document" ? "Documento" : "Mesh Board")}
-              </p>
-            </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center px-3">
+            <p className="text-[10px] text-blue-400/30 text-center">
+              {targetLabel || targetId || (targetType === "board" ? "Kanban Board" : targetType === "document" ? "Documento" : "Mesh Board")}
+            </p>
+          </div>
+        )}
       </div>
-    );
-  }
+    </div>
+  );
+}
 
-  // ── mirror (classic) ───────────────────────────────────────────────────────
-  if (brick.kind === "mirror" && !uKind) {
-    const sourceId = typeof c.sourceId === "string" ? c.sourceId : "";
-    const sourceLabel = typeof c.sourceLabel === "string" ? c.sourceLabel : "";
-    const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
-    const previewContent = c.previewContent && typeof c.previewContent === "object" ? c.previewContent as Record<string, unknown> : null;
-    const sourceBrickKind = typeof c.sourceBrickKind === "string" ? c.sourceBrickKind : "text";
-    const previewKind = !previewContent && ["beautiful_table", "bountiful_table", "database", "tabs", "columns", "accordion"].includes(sourceBrickKind)
-      ? "text"
-      : sourceBrickKind;
-    const mirrorPreviewBrick = (previewContent || previewMd.trim())
-      ? mkPreviewBrick(`mirror_${brick.id}`, previewKind, previewMd, previewContent)
-      : null;
-
-    return (
-      <div
-        className="absolute overflow-hidden rounded-xl border"
-        style={{
-          left: g.x,
-          top: g.y,
-          width: brick.size.w,
-          height: brick.size.h,
-          borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(168,85,247,0.35)",
-          background: "transparent",
-        }}
-      >
-        <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
-          <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
-          {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
-          <span className="ml-1 text-[7px] text-purple-400/30">read-only</span>
-        </div>
-        <div className="flex h-[calc(100%-28px)] flex-col overflow-hidden">
-          {(previewMd || sourceId) ? (
-            <div className="pointer-events-none overflow-auto p-2 opacity-95 h-full">
-              {mirrorPreviewBrick ? (
-                <div className="h-full w-full overflow-hidden rounded-md border border-white/10 bg-transparent">
-                  <UnifiedBrickRenderer
-                    brick={mirrorPreviewBrick}
-                    canEdit={false}
-                    onUpdate={() => undefined}
-                    documents={[]}
-                    boards={[]}
-                    activeBricks={[mirrorPreviewBrick]}
-                    users={[]}
-                    isCompact
-                  />
-                </div>
-              ) : (
-                <p className="text-[10px] text-muted-foreground/60">Fuente: {sourceLabel || sourceId.slice(0, 30)}</p>
-              )}
-            </div>
-          ) : (
-            <div className="flex h-full items-center justify-center">
-              <p className="text-center text-[10px] text-muted-foreground/40">Mirror sin contenido</p>
-            </div>
-          )}
-        </div>
+function renderMirrorBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+  const g = resolveGlobal(bricksById, brick.id);
+  const c = asRec(brick.content);
+  const isConnected = connectedIds.has(brick.id);
+  void bricksById;
+  const sourceId = typeof c.sourceId === "string" ? c.sourceId : "";
+  const sourceLabel = typeof c.sourceLabel === "string" ? c.sourceLabel : "";
+  const previewMd = typeof c.previewMarkdown === "string" ? c.previewMarkdown : "";
+  const previewContent = c.previewContent && typeof c.previewContent === "object" ? c.previewContent as Record<string, unknown> : null;
+  const sourceBrickKind = typeof c.sourceBrickKind === "string" ? c.sourceBrickKind : "text";
+  const previewKind = !previewContent && ["beautiful_table", "bountiful_table", "database", "tabs", "columns", "accordion"].includes(sourceBrickKind)
+    ? "text"
+    : sourceBrickKind;
+  const mirrorPreviewBrick = (previewContent || previewMd.trim())
+    ? mkPreviewBrick(`mirror_${brick.id}`, previewKind, previewMd, previewContent)
+    : null;
+  return (
+    <div
+      className="absolute overflow-hidden rounded-xl border"
+      style={{
+        left: g.x,
+        top: g.y,
+        width: brick.size.w,
+        height: brick.size.h,
+        borderColor: isConnected ? "rgba(34,211,238,0.55)" : "rgba(168,85,247,0.35)",
+        background: "transparent",
+      }}
+    >
+      <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
+        <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
+        {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
+        <span className="ml-1 text-[7px] text-purple-400/30">read-only</span>
       </div>
-    );
-  }
+      <div className="flex h-[calc(100%-28px)] flex-col overflow-hidden">
+        {(previewMd || sourceId) ? (
+          <div className="pointer-events-none overflow-auto p-2 opacity-95 h-full">
+            {mirrorPreviewBrick ? (
+              <div className="h-full w-full overflow-hidden rounded-md border border-white/10 bg-transparent">
+                <UnifiedBrickRenderer
+                  brick={mirrorPreviewBrick}
+                  canEdit={false}
+                  onUpdate={() => undefined}
+                  documents={[]}
+                  boards={[]}
+                  activeBricks={[mirrorPreviewBrick]}
+                  users={[]}
+                  isCompact
+                />
+              </div>
+            ) : (
+              <p className="text-[10px] text-muted-foreground/60">Fuente: {sourceLabel || sourceId.slice(0, 30)}</p>
+            )}
+          </div>
+        ) : (
+          <div className="flex h-full items-center justify-center">
+            <p className="text-center text-[10px] text-muted-foreground/40">Mirror sin contenido</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
-  // ── script / fallback ─────────────────────────────────────────────────────
+function RenderBrick({
+  brick,
+  bricksById,
+  connectedIds,
+}: {
+  brick: MeshBrick;
+  bricksById: Record<string, MeshBrick>;
+  connectedIds: Set<string>;
+}) {
+  const c = asRec(brick.content);
+  const uKind = typeof c.unifierKind === "string" ? c.unifierKind : null;
+  const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
+
+  const effectiveKind: MeshBrickKind = brick.kind === "decision" ? "draw" : brick.kind;
+
+  if (effectiveKind === "board_empty") return renderBoardEmptyBrick(brick, bricksById, connectedIds);
+  if (effectiveKind === "frame")       return renderFrameBrick(brick, bricksById, connectedIds);
+  if (effectiveKind === "draw")        return renderDrawBrick(brick, bricksById, connectedIds);
+  if (isUnifier)                       return renderTextUnifierBrick(brick, bricksById, connectedIds);
+  if (brick.kind === "portal")         return renderPortalBrick(brick, bricksById, connectedIds);
+  if (brick.kind === "mirror")         return renderMirrorBrick(brick, bricksById, connectedIds);
+
+  // script / fallback
+  const g = resolveGlobal(bricksById, brick.id);
   return (
     <div
       className="absolute overflow-hidden rounded-lg border border-slate-600/40 bg-slate-900/60 p-2"

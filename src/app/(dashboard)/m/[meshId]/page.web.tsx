@@ -3112,7 +3112,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {/* Children – positions are local to the board div */}
           {!collapsed && kids.map((child) => renderBrick(child))}
           {!collapsed && isSel && (
-            <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50"
+            <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize"
               onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />
           )}
           {/* Quick-add bar for selected board */}
@@ -3252,7 +3252,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               ))}
             </div>
           )}
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {isSel && toolMode === "vec" && vecPts?.map((pt, i) => (
             <div key={i} className="absolute z-40 h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-yellow-300 ring-1 ring-black/60"
               style={{ left: pt.x * brick.size.w, top: pt.y * brick.size.h }}
@@ -3338,7 +3338,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               ))}
             </div>
           )}
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {vecCustomPortDots}
           {magnetDots}
           {lockOverlay}
@@ -3477,7 +3477,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             )}
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3563,7 +3563,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             )}
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3598,7 +3598,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               isCompact
             />
           </div>
-          {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
           {magnetDots}
           {lockOverlay}
         </div>
@@ -3620,7 +3620,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           <p className="text-[10px] font-bold uppercase text-cyan-100">{brick.kind}</p>
           <p className="text-[9px] opacity-30">{brick.id.slice(-8)}</p>
         </div>
-        {isSel && <div className="absolute bottom-0 right-0 z-30 h-3 w-3 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
+        {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
       </div>
     );
   }
