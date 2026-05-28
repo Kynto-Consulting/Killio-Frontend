@@ -1,20 +1,26 @@
 "use client";
 
 import React, { useEffect } from "react";
-import { Check, Circle, Minus, Palette } from "lucide-react";
+import { Check, Circle, Minus, Palette, PenLine, Sparkles } from "lucide-react";
+
+export type PenMode = "ink" | "smart";
 
 export interface PenToolbarProps {
   color: string;
   strokeWidth: number;
+  mode: PenMode;
   onColorChange: (color: string) => void;
   onStrokeWidthChange: (width: number) => void;
+  onModeChange: (mode: PenMode) => void;
 }
 
 export function PenToolbar({
   color,
   strokeWidth,
+  mode,
   onColorChange,
   onStrokeWidthChange,
+  onModeChange,
 }: PenToolbarProps) {
   const [activePanel, setActivePanel] = React.useState<"color" | "size" | null>(null);
 
@@ -117,6 +123,27 @@ export function PenToolbar({
         )}
 
         <div className="flex items-center gap-1 rounded-2xl border border-cyan-300/20 bg-slate-950/88 px-2 py-1 shadow-[0_14px_30px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <div className="flex items-center gap-0.5 rounded-xl border border-white/10 bg-slate-900/75 p-0.5">
+            <button
+              type="button"
+              onClick={() => onModeChange("ink")}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${mode === "ink" ? "bg-cyan-400/20 text-cyan-100" : "text-slate-400 hover:text-cyan-100"}`}
+              title="Lápiz: dibuja tinta y crea/expande draw boards"
+            >
+              <PenLine className="h-3.5 w-3.5" /> Lápiz
+            </button>
+            <button
+              type="button"
+              onClick={() => onModeChange("smart")}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${mode === "smart" ? "bg-violet-400/20 text-violet-100" : "text-slate-400 hover:text-violet-100"}`}
+              title="Inteligente: reconoce texto y formas (iink)"
+            >
+              <Sparkles className="h-3.5 w-3.5" /> Smart
+            </button>
+          </div>
+
+          <div className="mx-1 h-6 w-px bg-white/10" />
+
           <button
             type="button"
             onClick={() => setActivePanel((prev) => (prev === "color" ? null : "color"))}

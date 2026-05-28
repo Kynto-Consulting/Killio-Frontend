@@ -6,6 +6,7 @@ import { Maximize2, ZoomIn, ZoomOut } from "lucide-react";
 import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import type { DocumentBrick } from "@/lib/api/documents";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
+import { strokeToFilledPath } from "@/lib/freehand";
 
 // ─── Types (from mesh-schema / page.web.tsx) ─────────────────────────────────
 
@@ -867,18 +868,14 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
           <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
             {manualStrokes.map((stroke, idx) => {
               if (!stroke.points.length) return null;
-              const d = stroke.points
-                .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
-                .join(" ");
+              const pixelPts = stroke.points.map((p) => [p.x * brick.size.w, p.y * brick.size.h] as [number, number]);
+              const d = strokeToFilledPath(pixelPts, (stroke.width ?? 2) * 2);
               return (
                 <path
                   key={idx}
                   d={d}
-                  fill="none"
-                  stroke={stroke.color ?? "#67e8f9"}
-                  strokeWidth={stroke.width ?? 2}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
+                  fill={stroke.color ?? "#67e8f9"}
+                  stroke="none"
                   opacity={0.95}
                 />
               );
@@ -923,18 +920,14 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
         <svg className="pointer-events-none absolute inset-0" width="100%" height="100%" viewBox={`0 0 ${brick.size.w} ${brick.size.h}`}>
           {manualStrokes.map((stroke, idx) => {
             if (!stroke.points.length) return null;
-            const d = stroke.points
-              .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
-              .join(" ");
+            const pixelPts = stroke.points.map((p) => [p.x * brick.size.w, p.y * brick.size.h] as [number, number]);
+            const d = strokeToFilledPath(pixelPts, (stroke.width ?? 2) * 2);
             return (
               <path
                 key={idx}
                 d={d}
-                fill="none"
-                stroke={stroke.color ?? "#67e8f9"}
-                strokeWidth={stroke.width ?? 2}
-                strokeLinecap="round"
-                strokeLinejoin="round"
+                fill={stroke.color ?? "#67e8f9"}
+                stroke="none"
                 opacity={0.95}
               />
             );

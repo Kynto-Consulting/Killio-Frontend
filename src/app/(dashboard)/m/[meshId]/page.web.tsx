@@ -33,6 +33,7 @@ import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { updateBoardDetails, updateBoardAppearance } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
+import { strokeToFilledPath } from "@/lib/freehand";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -885,12 +886,6 @@ function strokesBBox(strokes: PenStroke[]) {
   return { x: x0, y: y0, w: Math.max(x1 - x0, 80), h: Math.max(y1 - y0, 30) };
 }
 
-function strokeToPath(s: PenStroke): string {
-  if (!s.points.length) return "";
-  const [f, ...rest] = s.points;
-  return `M${f.x.toFixed(1)},${f.y.toFixed(1)}` + rest.map((p) => ` L${p.x.toFixed(1)},${p.y.toFixed(1)}`).join("");
-}
-
 // ─── Shape geometry ───────────────────────────────────────────────────────────
 
 function hexPts() {
@@ -1341,6 +1336,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [recognizing,   setRecognizing]   = useState(false);
   const [penColor, setPenColor] = useState<string>("#ffffff");
   const [penStrokeWidth, setPenStrokeWidth] = useState<number>(2);
+  // "ink" = freehand pen that keeps/creates draw boards; "smart" = iink shape/text recognition
+  const [penMode, setPenMode] = useState<"ink" | "smart">("ink");
   const [collapsedBoards, setCollapsedBoards] = useState<Set<string>>(new Set());
   const [hoveredRawDrawId, setHoveredRawDrawId] = useState<string | null>(null);
   const [connSrcPort,  setConnSrcPort]  = useState<Port | null>(null);
@@ -1365,9 +1362,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (typeof window === "undefined") return;
     const storedColor = window.localStorage.getItem("mesh:pen:color");
     const storedWidth = window.localStorage.getItem("mesh:pen:width");
+    const storedMode = window.localStorage.getItem("mesh:pen:mode");
     if (storedColor) setPenColor(storedColor);
     const parsed = storedWidth ? Number.parseFloat(storedWidth) : NaN;
     if (Number.isFinite(parsed) && parsed > 0) setPenStrokeWidth(parsed);
+    if (storedMode === "ink" || storedMode === "smart") setPenMode(storedMode);
   }, []);
 
   // Persist pen settings to localStorage.
@@ -1375,7 +1374,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (typeof window === "undefined") return;
     window.localStorage.setItem("mesh:pen:color", penColor);
     window.localStorage.setItem("mesh:pen:width", penStrokeWidth.toString());
-  }, [penColor, penStrokeWidth]);
+    window.localStorage.setItem("mesh:pen:mode", penMode);
+  }, [penColor, penStrokeWidth, penMode]);
 
   useEffect(() => {
     if (!mobileMode) return;
@@ -2610,6 +2610,38 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return;
       }
 
+      // Ink pen, no target board: create a fresh draw board sized to the ink and store the strokes in it.
+      if (penMode === "ink") {
+        const bb = strokesBBox(strokes);
+        const pad = 14;
+        const originX = bb.x - pad;
+        const originY = bb.y - pad;
+        const w = bb.w + pad * 2;
+        const h = bb.h + pad * 2;
+        setState((cur) => {
+          const board = boardAt(cur.bricksById, bb.x + bb.w / 2, bb.y + bb.h / 2, "");
+          const parentId = board?.id ?? null;
+          let pos = { x: originX, y: originY };
+          if (parentId && board) { const pg = resolveGlobal(cur.bricksById, parentId); pos = { x: originX - pg.x, y: originY - pg.y }; }
+          const normalizedBatch = strokes.map((s) => ({
+            points: s.points.map((p) => ({
+              x: +Math.max(0, Math.min(1, (p.x - originX) / Math.max(w, 1))).toFixed(4),
+              y: +Math.max(0, Math.min(1, (p.y - originY) / Math.max(h, 1))).toFixed(4),
+            })),
+            color: s.color ?? penColor,
+            width: s.width ?? penStrokeWidth,
+          }));
+          let nb = mkBrick("draw", Object.keys(cur.bricksById).length, parentId, pos);
+          nb = { ...nb, size: { w, h }, content: { ...asRec(nb.content), isContainer: true, manualStrokes: normalizedBatch } };
+          const by = { ...cur.bricksById, [nb.id]: nb };
+          let root = cur.rootOrder;
+          if (!parentId) root = [...root, nb.id];
+          if (parentId && board) by[board.id] = withChildOrder(board, [...childOrder(board), nb.id]);
+          return { ...cur, bricksById: by, rootOrder: root };
+        });
+        return;
+      }
+
       const el = canvasRef.current;
       const cw = el ? el.clientWidth / Math.max(viewport.zoom, 0.01) : 1600;
       const ch = el ? el.clientHeight / Math.max(viewport.zoom, 0.01) : 900;
@@ -2701,7 +2733,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
       });
     }, 900);
-  }, [activePen, penColor, penStrokeWidth, state.bricksById, viewport.zoom, accessToken, connPreset]);
+  }, [activePen, penColor, penStrokeWidth, penMode, state.bricksById, viewport.zoom, accessToken, connPreset]);
 
   // Keep flushPenRef current so onCanvasPointerUp (defined earlier) can call it
   flushPenRef.current = flushPen;
@@ -3312,18 +3344,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 const strokeColor = Array.isArray(strokeEntry) ? "#67e8f9" : (strokeEntry.color ?? "#67e8f9");
                 const strokeWidth = Array.isArray(strokeEntry) ? 2 : (strokeEntry.width ?? 2);
                 if (!Array.isArray(strokePts) || strokePts.length < 2) return null;
-                const d = strokePts
-                  .map((p, i) => `${i === 0 ? "M" : "L"}${(p.x * brick.size.w).toFixed(1)},${(p.y * brick.size.h).toFixed(1)}`)
-                  .join(" ");
+                const pixelPts = strokePts.map((p) => [p.x * brick.size.w, p.y * brick.size.h] as [number, number]);
+                const d = strokeToFilledPath(pixelPts, strokeWidth * 2);
                 return (
                   <path
                     key={idx}
                     d={d}
-                    fill="none"
-                    stroke={strokeColor}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+                    fill={strokeColor}
+                    stroke="none"
                     opacity={0.95}
                   />
                 );
@@ -3665,8 +3693,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         <PenToolbar
           color={penColor}
           strokeWidth={penStrokeWidth}
+          mode={penMode}
           onColorChange={setPenColor}
           onStrokeWidthChange={setPenStrokeWidth}
+          onModeChange={setPenMode}
         />
       )}
 
@@ -4198,10 +4228,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     </>;
                   })()}
 
-                  {/* Pen strokes */}
+                  {/* Pen strokes (smooth filled paths via perfect-freehand) */}
                   {toolMode === "pen" && <>
-                    {penStrokes.map((s, i) => <path key={i} d={strokeToPath(s)} fill="none" stroke={s.color ?? penColor} strokeWidth={s.width ?? penStrokeWidth} strokeLinecap="round" strokeLinejoin="round" opacity={0.7} />)}
-                    {activePen && activePen.length > 1 && <path d={strokeToPath({ points: activePen, color: penColor, width: penStrokeWidth })} fill="none" stroke={penColor} strokeWidth={penStrokeWidth} strokeLinecap="round" strokeLinejoin="round" opacity={0.9} />}
+                    {penStrokes.map((s, i) => <path key={i} d={strokeToFilledPath(s.points, (s.width ?? penStrokeWidth) * 2)} fill={s.color ?? penColor} stroke="none" opacity={0.7} />)}
+                    {activePen && activePen.length > 1 && <path d={strokeToFilledPath(activePen, penStrokeWidth * 2)} fill={penColor} stroke="none" opacity={0.9} />}
                   </>}
 
                   {/* Rubber-band selection rect */}
