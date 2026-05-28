@@ -27,6 +27,9 @@ export default function WorkspacesPage() {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
+  const [isCreateDocModalOpen, setIsCreateDocModalOpen] = useState(false);
+  const [newDocTitle, setNewDocTitle] = useState("");
+  const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
 
   useEffect(() => {
     if (!accessToken || !activeTeamId) return;
@@ -72,7 +75,7 @@ export default function WorkspacesPage() {
 
   const handleUploadBoardCover = async (file: File): Promise<string> => {
     if (!accessToken) {
-      throw new Error("Sesion expirada. Inicia sesion nuevamente.");
+      throw new Error(t("sessionExpired"));
     }
     const uploaded = await uploadFile(
       file,
@@ -189,17 +192,25 @@ export default function WorkspacesPage() {
     return { className: "bg-gradient-to-tr from-accent to-primary/60" };
   };
 
-  const handleCreateDocumentClick = async () => {
+  const handleCreateDocumentClick = () => {
     if (!accessToken || !activeTeamId) return;
-    const title = prompt(t("createDocPrompt"));
-    if (!title || !title.trim()) return;
+    setNewDocTitle("");
+    setIsCreateDocModalOpen(true);
+  };
 
+  const handleCreateDocumentSubmit = async () => {
+    if (!accessToken || !activeTeamId || !newDocTitle.trim()) return;
+    setIsSubmittingDoc(true);
     try {
-      const doc = await createDocument({ teamId: activeTeamId, title }, accessToken);
+      const doc = await createDocument({ teamId: activeTeamId, title: newDocTitle.trim() }, accessToken);
       setDocuments([doc, ...documents]);
+      setIsCreateDocModalOpen(false);
+      setNewDocTitle("");
     } catch (e) {
       console.error(e);
       toast(t("createDocError"), "error");
+    } finally {
+      setIsSubmittingDoc(false);
     }
   };
 
@@ -420,6 +431,41 @@ export default function WorkspacesPage() {
       </div>
 
       <AiGenerationPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} />
+
+      {isCreateDocModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-card w-full max-w-sm rounded-xl border border-border shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
+            <h2 className="text-lg font-semibold tracking-tight">{t("createDocTitle")}</h2>
+            <input
+              autoFocus
+              type="text"
+              value={newDocTitle}
+              onChange={(e) => setNewDocTitle(e.target.value)}
+              placeholder={t("createDocPrompt")}
+              className="w-full h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              onKeyDown={(e) => { if (e.key === "Enter") void handleCreateDocumentSubmit(); if (e.key === "Escape") setIsCreateDocModalOpen(false); }}
+            />
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setIsCreateDocModalOpen(false)}
+                className="h-9 px-4 rounded-md text-sm text-muted-foreground hover:bg-muted transition-colors"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCreateDocumentSubmit()}
+                disabled={!newDocTitle.trim() || isSubmittingDoc}
+                className="h-9 px-4 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 flex items-center gap-2"
+              >
+                {isSubmittingDoc && <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />}
+                {t("createDocBtn")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

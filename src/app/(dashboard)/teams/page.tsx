@@ -24,6 +24,8 @@ import { UserProfileCard } from "@/components/rooms/UserProfileCard";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 
 const MEMBER_COLORS = ["#22d3ee", "#6366f1", "#f472b6", "#fb923c", "#a78bfa", "#34d399", "#fbbf24", "#f87171"];
 
@@ -52,6 +54,7 @@ export default function TeamsPage() {
   const [invites, setInvites] = useState<InviteSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingInvites, setIsLoadingInvites] = useState(true);
+  const [confirmRemoveMember, setConfirmRemoveMember] = useState<{ memberId: string; isSelf: boolean } | null>(null);
   const [isInviteModalOpen, setIsInviteModalOpen] = useState(false);
   const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
   const [inlineInviteEmail, setInlineInviteEmail] = useState("");
@@ -175,10 +178,15 @@ export default function TeamsPage() {
     } finally { setIsMutatingMember(null); }
   };
 
-  const handleRemoveMember = async (memberId: string, isSelf: boolean) => {
+  const handleRemoveMember = (memberId: string, isSelf: boolean) => {
     if (!accessToken || !activeTeamId || isMutatingMember) return;
-    const confirmed = window.confirm(isSelf ? t("confirmLeave") : t("confirmRemove"));
-    if (!confirmed) return;
+    setConfirmRemoveMember({ memberId, isSelf });
+  };
+
+  const handleRemoveMemberConfirm = async () => {
+    if (!confirmRemoveMember || !accessToken || !activeTeamId) return;
+    const { memberId, isSelf } = confirmRemoveMember;
+    setConfirmRemoveMember(null);
     setIsMutatingMember(memberId);
     try {
       await removeTeamMember(activeTeamId, memberId, accessToken);
@@ -191,13 +199,34 @@ export default function TeamsPage() {
   };
 
   useEffect(() => {
-    if (!accessToken || !activeTeamId) return;
+    if (!accessToken || !activeTeamId || !user?.id) return;
+
+    // Serve cached team data instantly
+    const teamsCacheKey = cacheKey.teams(user.id);
+    const membersCacheKey = cacheKey.members(activeTeamId);
+    const cachedTeams = apiCache.get<import("@/lib/api/contracts").TeamView[]>(teamsCacheKey);
+    const cachedMembers = apiCache.get<import("@/lib/api/contracts").TeamMemberSummary[]>(membersCacheKey);
+    if (cachedTeams) {
+      const team = cachedTeams.find((t) => t.id === activeTeamId);
+      if (team) { setActiveTeam(team); setNameDraft(team.name); }
+    }
+    if (cachedMembers) {
+      setMembers(cachedMembers);
+      const me = cachedMembers.find((m) => m.id === user?.id);
+      const role = me?.role ?? "guest";
+      if (["owner", "admin", "member"].includes(role)) {
+        // will also be set by the fresh fetch below
+      }
+    }
+
     setIsLoading(true);
     listTeams(accessToken).then((teams) => {
+      apiCache.set(teamsCacheKey, teams, CACHE_TTL.TEAMS);
       const team = teams.find((t) => t.id === activeTeamId);
       if (team) { setActiveTeam(team); setNameDraft(team.name); }
     }).catch(console.error);
     listTeamMembers(activeTeamId, accessToken).then((nextMembers) => {
+      apiCache.set(membersCacheKey, nextMembers, CACHE_TTL.MEMBERS);
       setMembers(nextMembers);
       const me = nextMembers.find((m) => m.id === user?.id);
       const role = me?.role ?? "guest";
@@ -688,6 +717,17 @@ export default function TeamsPage() {
           teamId={activeTeamId}
           anchor={profileCard.anchor}
           onClose={() => setProfileCard(null)}
+        />
+      )}
+
+      {confirmRemoveMember && (
+        <ConfirmDeleteModal
+          isOpen={!!confirmRemoveMember}
+          onClose={() => setConfirmRemoveMember(null)}
+          onConfirm={handleRemoveMemberConfirm}
+          title={confirmRemoveMember.isSelf ? t("confirmLeaveTitle") : t("confirmRemoveTitle")}
+          description={confirmRemoveMember.isSelf ? t("confirmLeave") : t("confirmRemove")}
+          itemName=""
         />
       )}
     </div>

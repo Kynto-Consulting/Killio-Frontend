@@ -62,7 +62,7 @@ export default function BoardsPageMobile() {
   };
 
   const handleUploadCover = async (file: File): Promise<string> => {
-    if (!accessToken) throw new Error("Sesión expirada");
+    if (!accessToken) throw new Error(t("sessionExpired"));
     const { url } = await uploadFile(file, accessToken, activeTeamId ? { ownerScopeType: "team", ownerScopeId: activeTeamId, usage: "board-cover" } : { usage: "board-cover" });
     return url;
   };
