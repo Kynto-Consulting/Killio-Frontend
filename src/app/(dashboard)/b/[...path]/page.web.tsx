@@ -828,7 +828,7 @@ export default function BoardPage() {
   const [isAddingList, setIsAddingList] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [boardTeamId, setBoardTeamId] = useState<string | null>(null);
-  const permissions = usePermissions(boardId, boardTeamId, user?.id, accessToken);
+  const permissions = usePermissions(boardId, boardTeamId, user?.id, accessToken, localMode);
   const { ask: askDeleteBoard, ConfirmDialog: DeleteBoardConfirmDialog } = useConfirm();
   const [dragVisual, setDragVisual] = useState<{
     activeId: string | null;

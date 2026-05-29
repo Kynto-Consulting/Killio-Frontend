@@ -156,7 +156,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
         if (tag === "br") {
           markdown += "\n";
-        } else if (tag === "div" || tag === "p" || tag === "h1" || tag === "h2" || tag === "h3" || tag === "li") {
+        } else if (el.hasAttribute("data-md-table")) {
+          // Tables are rendered contenteditable=false carrying their source
+          // markdown so we can round-trip them losslessly.
+          if (markdown.length > 0 && !markdown.endsWith("\n")) markdown += "\n";
+          markdown += el.getAttribute("data-md-table") || "";
+          if (!markdown.endsWith("\n")) markdown += "\n";
+          return;
+        } else if (tag === "div" || tag === "p" || tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6" || tag === "li") {
           // Block level elements should start on a new line
           if (markdown.length > 0 && !markdown.endsWith("\n")) {
             markdown += "\n";
@@ -165,6 +172,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           if (tag === "h1") markdown += "# ";
           if (tag === "h2") markdown += "## ";
           if (tag === "h3") markdown += "### ";
+          if (tag === "h4") markdown += "#### ";
+          if (tag === "h5") markdown += "##### ";
+          if (tag === "h6") markdown += "###### ";
           if (tag === "li") {
             const parent = el.parentElement?.tagName.toLowerCase();
             markdown += parent === "ol" ? "1. " : "- ";
@@ -518,6 +528,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let html = "";
     let listBuffer: string[] = [];
     let listType: "ul" | "ol" | null = null;
+    let tableBuffer: string[] = [];
 
     const formatLeafInline = (t: string) => {
       let tFormat = t
@@ -705,6 +716,27 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       }
     };
 
+    // GFM-style pipe tables. The rendered <table> carries its source markdown in
+    // data-md-table so revertToMarkdown can round-trip it without data loss.
+    const isSepCell = (c: string) => /^:?-+:?$/.test(c.replace(/\s/g, ""));
+    const flushTable = () => {
+      if (tableBuffer.length === 0) return;
+      const source = tableBuffer.join("\n");
+      const rows = tableBuffer.map((r) => r.replace(/^\s*\|/, "").replace(/\|\s*$/, "").split("|").map((c) => c.trim()));
+      let headerRow: string[] | null = null;
+      let bodyRows = rows;
+      if (rows.length >= 2 && rows[1].length > 0 && rows[1].every(isSepCell)) { headerRow = rows[0]; bodyRows = rows.slice(2); }
+      else if (rows.length >= 1 && rows[0].length > 0 && rows[0].every(isSepCell)) { bodyRows = rows.slice(1); }
+
+      let t = `<table contenteditable="false" data-md-table="${escapeHtmlAttr(source)}" class="my-3 w-full border-collapse text-sm border border-border/60 rounded-lg overflow-hidden">`;
+      if (headerRow) {
+        t += `<thead><tr>${headerRow.map((c) => `<th class="border border-border/50 bg-muted/40 px-3 py-1.5 text-left font-semibold">${formatInline(c)}</th>`).join("")}</tr></thead>`;
+      }
+      t += `<tbody>${bodyRows.map((r) => `<tr>${r.map((c) => `<td class="border border-border/40 px-3 py-1.5 align-top">${formatInline(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+      html += t;
+      tableBuffer = [];
+    };
+
     lines.forEach(line => {
       const trimmed = line.trim();
 
@@ -733,13 +765,23 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
       if (!trimmed) { flushList(); html += "<div><br></div>"; return; }
 
+      // Table row? Buffer consecutive `| a | b |` lines and flush as a table.
+      if (/^\|.*\|$/.test(trimmed) && trimmed.length > 1) { flushList(); tableBuffer.push(trimmed); return; }
+      flushTable();
+
       const h1 = trimmed.match(/^#\s+(.*)/);
       const h2 = trimmed.match(/^##\s+(.*)/);
       const h3 = trimmed.match(/^###\s+(.*)/);
+      const h4 = trimmed.match(/^####\s+(.*)/);
+      const h5 = trimmed.match(/^#####\s+(.*)/);
+      const h6 = trimmed.match(/^######\s+(.*)/);
       const ul = trimmed.match(/^[-*]\s+(.*)/);
       const ol = trimmed.match(/^(\d+)\.\s+(.*)/);
 
-      if (h1) { flushList(); html += `<h1 class="text-3xl font-extrabold mb-4 mt-6 border-b border-border/50 pb-2 text-foreground tracking-tight">${formatInline(h1[1])}</h1>`; }
+      if (h6) { flushList(); html += `<h6 class="text-sm font-semibold mb-1 mt-3 uppercase tracking-wide text-muted-foreground">${formatInline(h6[1])}</h6>`; }
+      else if (h5) { flushList(); html += `<h5 class="text-base font-semibold mb-1 mt-3 text-foreground/70">${formatInline(h5[1])}</h5>`; }
+      else if (h4) { flushList(); html += `<h4 class="text-lg font-semibold mb-2 mt-3 text-foreground/75">${formatInline(h4[1])}</h4>`; }
+      else if (h1) { flushList(); html += `<h1 class="text-3xl font-extrabold mb-4 mt-6 border-b border-border/50 pb-2 text-foreground tracking-tight">${formatInline(h1[1])}</h1>`; }
       else if (h2) { flushList(); html += `<h2 class="text-2xl font-bold mb-3 mt-5 text-foreground/90 tracking-tight">${formatInline(h2[1])}</h2>`; }
       else if (h3) { flushList(); html += `<h3 class="text-xl font-semibold mb-2 mt-4 text-foreground/80">${formatInline(h3[1])}</h3>`; }
       else if (ul) { if (listType && listType !== 'ul') flushList(); listType = 'ul'; listBuffer.push(ul[1]); }
@@ -748,6 +790,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     });
 
     flushList();
+    flushTable();
     return html;
   };
 

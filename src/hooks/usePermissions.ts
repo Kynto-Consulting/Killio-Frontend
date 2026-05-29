@@ -39,6 +39,17 @@ const VIEWER: PermissionState = {
   loading: false,
 };
 
+/** Local workspace boards are your own files on disk → always fully editable
+ *  (there are no cloud memberships to resolve). */
+const LOCAL_OWNER: PermissionState = {
+  effectiveRole: "editor",
+  canEdit: true,
+  canComment: true,
+  canManageBoard: true,
+  isReadOnly: false,
+  loading: false,
+};
+
 /**
  * Resolves the current user's effective permissions on a board.
  *
@@ -58,10 +69,16 @@ export function usePermissions(
   teamId: string | null | undefined,
   userId: string | null | undefined,
   accessToken: string | null | undefined,
+  localMode = false,
 ): PermissionState {
-  const [state, setState] = useState<PermissionState>(LOADING);
+  const [state, setState] = useState<PermissionState>(localMode ? LOCAL_OWNER : LOADING);
 
   const resolve = useCallback(async () => {
+    // Local workspace: owner of the file, full edit, no cloud lookup.
+    if (localMode) {
+      setState(LOCAL_OWNER);
+      return;
+    }
     if (!boardId || !userId || !accessToken) {
       setState({ ...VIEWER, loading: false });
       return;
@@ -100,7 +117,7 @@ export function usePermissions(
     } catch {
       setState({ ...VIEWER, loading: false });
     }
-  }, [boardId, teamId, userId, accessToken]);
+  }, [boardId, teamId, userId, accessToken, localMode]);
 
   useEffect(() => {
     setState(LOADING);
