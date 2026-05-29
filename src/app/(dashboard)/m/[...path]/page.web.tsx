@@ -2037,9 +2037,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }), [refDocs, refBoards]);
 
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
-  // Seed message auto-sent to the streaming agent (e.g. when "Generate" launches
-  // the planner-agent to build the board live instead of a one-shot diagram).
-  const [agentSeed, setAgentSeed] = useState<string | undefined>(undefined);
+  // Parsed/generated result awaiting user confirmation before insertion (preview).
+  const [diagramPreview, setDiagramPreview] = useState<MeshTemplate | null>(null);
   const [isTextToDiagramOpen, setIsTextToDiagramOpen] = useState(false);
   const [diagramPrompt, setDiagramPrompt] = useState("");
   const [diagramGenerating, setDiagramGenerating] = useState(false);
@@ -2907,137 +2906,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     });
   }, [connPreset]);
 
-  // Convert an AI-generated diagram (nodes + edges) into bricks + connections,
-  // positioned at the current viewport center.
-  const applyGeneratedMesh = useCallback((mesh: GeneratedMesh) => {
-    if (!mesh.nodes.length) return 0;
-    const vp = viewportRef.current;
-    const el = canvasRef.current;
-    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
-    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
-    // center the generated layout around viewport center
-    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    mesh.nodes.forEach((n) => {
-      if (n.parent) return; // children use parent-relative coords; skip for centring
-      minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
-      maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h);
-    });
-    if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
-    const offX = cx - (minX + maxX) / 2;
-    const offY = cy - (minY + maxY) / 2;
-
-    setState((cur) => {
-      const by = { ...cur.bricksById };
-      const root = [...cur.rootOrder];
-      const refToId: Record<string, string> = {};
-      let count = Object.keys(by).length;
-
-      mesh.nodes.forEach((n) => {
-        // Nodes nested in a parent keep parent-relative coords (no viewport offset);
-        // only top-level nodes are recentred on the viewport.
-        const parentId = n.parent ? refToId[n.parent] : null;
-        const pos = parentId
-          ? { x: Math.round(n.x), y: Math.round(n.y) }
-          : { x: Math.round(n.x + offX), y: Math.round(n.y + offY) };
-        const tint = (s: string) => (s && n.textColor ? `[color:${n.textColor}]${s}[/color]` : s);
-        // A "Title<br/>description" label splits into a plain header title plus a
-        // separate, editable description we drop into a nested text brick below.
-        const nlIdx = n.label ? n.label.indexOf("\n") : -1;
-        const title = n.label ? (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim() : "";
-        const descBody = n.label && nlIdx >= 0
-          ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n")
-          : "";
-
-        let nb: MeshBrick;
-        if (n.kind === "board") {
-          nb = mkBrick("board_empty", count++, parentId, pos);
-          if (title) nb = { ...nb, content: { ...asRec(nb.content), label: title } };
-        } else if (n.kind === "text") {
-          nb = setMd(mkBrick("text", count++, parentId, pos), tint(n.label || ""));
-        } else {
-          const preset = (n.shape ?? "rect") as ShapePreset;
-          nb = mkBrick("draw", count++, parentId, pos, preset);
-          if (title) {
-            // With a description: plain title in the header (no inline tokens, so the
-            // header never shows raw markup), description goes to a nested text brick.
-            // Title-only: centre the (optionally coloured) title in the body.
-            nb = descBody
-              ? { ...nb, content: { ...asRec(nb.content), label: title, isContainer: true, childOrder: [] } }
-              : { ...nb, content: { ...asRec(nb.content), markdown: tint(title) } };
-          }
-        }
-        // Apply per-node shape colors (from classDef / class / style). Text color
-        // is handled via the [color:…] token, not here.
-        if (n.stroke || n.fill) {
-          const content = asRec(nb.content);
-          const style = { ...asRec(content.style) };
-          if (n.stroke) style.stroke = n.stroke;
-          if (n.fill) style.fill = n.fill;
-          nb = { ...nb, content: { ...content, style } };
-        }
-        nb = { ...nb, size: { w: Math.round(n.w), h: Math.round(n.h) } };
-        by[nb.id] = nb;
-        if (parentId && by[parentId]) {
-          const pc = asRec(by[parentId].content);
-          const co = Array.isArray(pc.childOrder) ? (pc.childOrder as string[]) : [];
-          by[parentId] = { ...by[parentId], content: { ...pc, isContainer: true, childOrder: [...co, nb.id] } };
-        } else {
-          root.push(nb.id);
-        }
-        refToId[n.ref] = nb.id;
-
-        // Description → a real, editable text brick nested inside the shape.
-        if (n.kind === "shape" && descBody) {
-          const tb0 = setMd(mkBrick("text", count++, nb.id, { x: 12, y: 38 }), tint(descBody));
-          const tb = { ...tb0, size: { w: Math.max(60, nb.size.w - 24), h: Math.max(28, nb.size.h - 52) } };
-          by[tb.id] = tb;
-          const pc = asRec(by[nb.id].content);
-          const co = Array.isArray(pc.childOrder) ? (pc.childOrder as string[]) : [];
-          by[nb.id] = { ...by[nb.id], content: { ...pc, isContainer: true, childOrder: [...co, tb.id] } };
-        }
-      });
-
-      const connectionsById = { ...cur.connectionsById };
-      const mkDocLabel = (txt?: string) => txt
-        ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: txt }] }] }
-        : { type: "doc" as const, content: [] };
-      // Resolve edges to brick ids and group by unordered pair. Only a *clean
-      // reverse pair* — exactly one A→B and one B→A — collapses into a single
-      // bidirectional connection. Anything else (multiple FKs between the same
-      // two entities, repeated same-direction edges, 3+ edges) stays as distinct
-      // connections, since those are legitimately separate relationships.
-      const resolved = mesh.edges
-        .map((e) => ({ e, src: refToId[e.from], tgt: refToId[e.to] }))
-        .filter((r) => r.src && r.tgt && r.src !== r.tgt);
-      const groups = new Map<string, typeof resolved>();
-      resolved.forEach((r) => {
-        const key = [r.src, r.tgt].sort().join("|");
-        (groups.get(key) ?? groups.set(key, []).get(key)!).push(r);
-      });
-      const mkConn = (src: string, tgt: string, e: typeof resolved[number]["e"], bidir: boolean, labelTxt?: string) => {
-        const style: Record<string, unknown> = { ...connStyle(connPreset) };
-        if (e.color) style.stroke = e.color;
-        if (e.pattern) style.pattern = e.pattern;
-        if (typeof e.width === "number") style.width = e.width;
-        if (e.connType) style.connType = e.connType;
-        if (bidir) style.bidir = true;
-        const conn: MeshConnection = { id: mkId("conn"), cons: [src, tgt], label: mkDocLabel(labelTxt ?? e.label), style };
-        connectionsById[conn.id] = conn;
-      };
-      groups.forEach((grp) => {
-        const isCleanReversePair = grp.length === 2 && grp[0].src === grp[1].tgt && grp[0].tgt === grp[1].src;
-        if (isCleanReversePair) {
-          const merged = [grp[0].e.label, grp[1].e.label].filter(Boolean).join("  |  ");
-          mkConn(grp[0].src, grp[0].tgt, grp[0].e, true, merged || undefined);
-        } else {
-          grp.forEach((r) => mkConn(r.src, r.tgt, r.e, false));
-        }
-      });
-
-      return { ...cur, bricksById: by, rootOrder: root, connectionsById };
-    });
-    return mesh.nodes.length;
-  }, [connPreset]);
 
   // Insert a full-fidelity MeshTemplate (e.g. an Excalidraw import) at the
   // viewport centre, remapping ids so it never collides with existing bricks.
@@ -3068,17 +2936,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       if (isPng) {
         const scene = await extractExcalidrawSceneFromPng(new Uint8Array(await file.arrayBuffer()));
         if (!scene) { toast(tMesh("errors.diagramEmpty"), "error"); return; }
-        const n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(scene));
-        if (n > 0) { toast(tMesh("feedback.diagramGenerated", { count: n }), "success"); setIsTextToDiagramOpen(false); }
-        else toast(tMesh("errors.diagramEmpty"), "error");
+        const tpl = parseExcalidrawToTemplate(scene);
+        if (tpl.bricks.length) setDiagramPreview(tpl); else toast(tMesh("errors.diagramEmpty"), "error");
         return;
       }
       const text = await file.text();
       const isExcali = /\.excalidraw$/i.test(file.name) || /"type"\s*:\s*"excalidraw/.test(text);
       if (isExcali) {
-        const n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(text));
-        if (n > 0) { toast(tMesh("feedback.diagramGenerated", { count: n }), "success"); setIsTextToDiagramOpen(false); }
-        else toast(tMesh("errors.diagramEmpty"), "error");
+        const tpl = parseExcalidrawToTemplate(text);
+        if (tpl.bricks.length) setDiagramPreview(tpl); else toast(tMesh("errors.diagramEmpty"), "error");
         return;
       }
       // Mermaid / erDiagram / Grarkdown text — drop into the box for review.
@@ -3086,7 +2952,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     } catch {
       toast(tMesh("errors.diagramFailed"), "error");
     }
-  }, [applyMeshTemplateAtCenter, tMesh]);
+  }, [tMesh]);
+
+  // Insert the previewed template at viewport centre and close the modal.
+  const confirmInsertPreview = useCallback(() => {
+    if (!diagramPreview) return;
+    const n = applyMeshTemplateAtCenter(diagramPreview);
+    if (n > 0) toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
+    setDiagramPreview(null);
+    setDiagramPrompt("");
+    setIsTextToDiagramOpen(false);
+  }, [diagramPreview, applyMeshTemplateAtCenter, tMesh]);
 
   const handleGenerateDiagram = useCallback(async () => {
     const prompt = diagramPrompt.trim();
@@ -3094,50 +2970,42 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
     // Import mode parses locally — no network call. Auto-detects the format:
     // Excalidraw JSON → native bricks; Grarkdown → graph; else Mermaid/erDiagram.
+    // Result is shown as a PREVIEW; the user confirms before it's inserted.
     if (diagramMode === "mermaid") {
       try {
         const src = prompt;
         const trimmed = src.replace(/^﻿/, "").trimStart();
-        let n = 0;
+        let tpl: MeshTemplate;
         if (trimmed.startsWith("{") && /"type"\s*:\s*"excalidraw|"elements"\s*:/.test(trimmed)) {
-          n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(src));
+          tpl = parseExcalidrawToTemplate(src);
         } else if (isGrarkdown(src)) {
-          n = applyGeneratedMesh(parseGrarkdownToMesh(src));
+          tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src), connPreset);
         } else {
-          n = applyGeneratedMesh(parseMermaidToMesh(src));
+          tpl = generatedMeshToTemplate(parseMermaidToMesh(src), connPreset);
         }
-        if (n > 0) {
-          toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
-          setIsTextToDiagramOpen(false);
-          setDiagramPrompt("");
-        } else {
-          toast(tMesh("errors.diagramEmpty"), "error");
-        }
+        if (tpl.bricks.length) setDiagramPreview(tpl);
+        else toast(tMesh("errors.diagramEmpty"), "error");
       } catch {
         toast(tMesh("errors.diagramFailed"), "error");
       }
       return;
     }
 
+    // AI mode: one-shot generation → preview (user decides whether to insert).
     setDiagramGenerating(true);
     try {
       const scope = activeTeamId ? "team" : "personal";
       const scopeId = activeTeamId ?? (user?.id ?? "");
       const mesh = await generateMeshWithAi({ scope, scopeId, prompt }, accessToken ?? undefined);
-      const n = applyGeneratedMesh(mesh);
-      if (n > 0) {
-        toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
-        setIsTextToDiagramOpen(false);
-        setDiagramPrompt("");
-      } else {
-        toast(tMesh("errors.diagramEmpty"), "error");
-      }
+      const tpl = generatedMeshToTemplate(mesh, connPreset);
+      if (tpl.bricks.length) setDiagramPreview(tpl);
+      else toast(tMesh("errors.diagramEmpty"), "error");
     } catch {
       toast(tMesh("errors.diagramFailed"), "error");
     } finally {
       setDiagramGenerating(false);
     }
-  }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, applyGeneratedMesh, applyMeshTemplateAtCenter, tMesh]);
+  }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, connPreset, tMesh]);
 
   // Load saved user templates on mount.
   useEffect(() => { setUserTemplates(loadUserTemplates()); }, []);
@@ -4560,6 +4428,28 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <Sparkles className="h-5 w-5 text-cyan-300" />
               <h2 className="text-sm font-semibold text-cyan-100">{tMesh("textToDiagram.title")}</h2>
             </div>
+            {diagramPreview ? (
+              <div className="space-y-3">
+                <p className="text-[11px] leading-relaxed text-slate-400">{tMesh("textToDiagram.previewHint")}</p>
+                <div className="flex items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)] p-2">
+                  <MeshTemplateThumb tpl={diagramPreview} width={512} height={300} />
+                </div>
+                <p className="text-center text-[11px] text-slate-400">
+                  {tMesh("textToDiagram.previewCount", { bricks: diagramPreview.bricks.length, conns: diagramPreview.connections.length })}
+                </p>
+                <div className="flex items-center justify-end gap-2">
+                  <button type="button" onClick={() => setDiagramPreview(null)}
+                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5">
+                    {tMesh("textToDiagram.discard")}
+                  </button>
+                  <button type="button" onClick={confirmInsertPreview}
+                    className="inline-flex items-center gap-1.5 rounded-lg bg-cyan-500/90 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400">
+                    <Check className="h-3.5 w-3.5" /> {tMesh("textToDiagram.insert")}
+                  </button>
+                </div>
+              </div>
+            ) : (
+            <>
             <div className="mb-3 flex gap-1 rounded-lg border border-white/10 bg-slate-900/60 p-0.5">
               {(["ai", "mermaid"] as const).map((mode) => (
                 <button key={mode} type="button" disabled={diagramGenerating}
@@ -4601,6 +4491,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 {diagramGenerating ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> {tMesh("textToDiagram.generating")}</> : <><Sparkles className="h-3.5 w-3.5" /> {tMesh("textToDiagram.generate")}</>}
               </button>
             </div>
+            </>
+            )}
           </div>
         </div>
       )}
