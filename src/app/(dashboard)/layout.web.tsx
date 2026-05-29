@@ -171,8 +171,20 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken, user?.id]);
 
+  // Local workspace: sidebar boards/meshes/docs come from the folder.
   useEffect(() => {
-    if (!accessToken || !activeTeamId) return;
+    if (!localMode) return;
+    setBoards(localWs.files.filter((f) => f.kind === "kb" || f.kind === "km").map((f) => ({
+      id: f.path, name: f.name.replace(/\.(kb|km)$/, ""), boardType: f.kind === "km" ? "mesh" : "kanban", updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
+    })) as unknown as BoardSummary[]);
+    setRecentDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
+      id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
+    })) as unknown as DocumentSummary[]);
+    setIsFetchingBoards(false); setIsFetchingDocs(false);
+  }, [localMode, localWs.files]);
+
+  useEffect(() => {
+    if (localMode || !accessToken || !activeTeamId) return;
 
     const bKey = cacheKey.boards(activeTeamId);
     const dKey = cacheKey.documents(activeTeamId);
@@ -222,7 +234,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;
   }
 
-  if (!accessToken) {
+  if (!accessToken && !localMode) {
     return <main className="min-h-screen bg-background text-foreground">{children}</main>;
   }
 
