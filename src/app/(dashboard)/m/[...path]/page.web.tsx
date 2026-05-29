@@ -1437,6 +1437,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [editingConnId,  setEditingConnId]  = useState<string | null>(null);
   const [editingBrickId, setEditingBrickId] = useState<string | null>(null);
   const [editingValue,   setEditingValue]   = useState<string>("");
+  // Which field of a shape is being edited: its header label, or its raw body.
+  const [editingField,   setEditingField]   = useState<"label" | "raw">("raw");
   const [connSrcId,      setConnSrcId]      = useState<string | null>(null);
   const [connSrcAnchor,  setConnSrcAnchor]  = useState<AnchorNorm | null>(null);
   const [connPreset,     setConnPreset]     = useState<ConnStyle>("technical");
@@ -2663,12 +2665,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
 
   // ── Inline editing ────────────────────────────────────────────────────────────
-  const startEdit = useCallback((brickId: string) => {
+  const startEdit = useCallback((brickId: string, field: "label" | "raw" = "raw") => {
     const b = state.bricksById[brickId];
     if (!b) return;
-    if (b.kind === "text" || b.kind === "decision") { setEditingValue(getMd(b)); setEditingBrickId(brickId); return; }
+    if (b.kind === "text" || b.kind === "decision") { setEditingField("raw"); setEditingValue(getMd(b)); setEditingBrickId(brickId); return; }
     if (b.kind === "draw" || b.kind === "frame") {
-      setEditingValue(getMd(b)); setEditingBrickId(brickId); return;
+      // Label (header) and raw body are independent edit contexts.
+      setEditingField(field);
+      setEditingValue(field === "label" ? (typeof asRec(b.content).label === "string" ? (asRec(b.content).label as string) : "") : getMd(b));
+      setEditingBrickId(brickId);
+      return;
     }
     if (b.kind === "portal") {
       if (activeTeamId) {
@@ -2698,14 +2704,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       if (!b) return cur;
       let updated: MeshBrick;
       if (b.kind === "text" || b.kind === "decision") updated = setMd(b, editingValue);
-      else if (b.kind === "draw" || b.kind === "frame") updated = setMd(b, editingValue);
+      else if (b.kind === "draw" || b.kind === "frame") {
+        updated = editingField === "label"
+          ? { ...b, content: { ...asRec(b.content), label: editingValue } }
+          : setMd(b, editingValue);
+      }
       else if (b.kind === "portal") updated = { ...b, content: { ...asRec(b.content), targetLabel: editingValue } };
       else if (b.kind === "mirror") updated = { ...b, content: { ...asRec(b.content), sourceLabel: editingValue } };
       else return cur;
       return { ...cur, bricksById: { ...cur.bricksById, [editingBrickId]: updated } };
     });
     setEditingBrickId(null);
-  }, [editingBrickId, editingValue]);
+  }, [editingBrickId, editingValue, editingField]);
 
   const handleUnifierUpdate = useCallback((brickId: string) => (updates: Partial<DocumentBrick>) => {
     setState((cur) => {
@@ -3890,16 +3900,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
           {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} dash={sDash} cr={sCr} />}
-          {/* Header – borderless floating label rendered ABOVE the shape (outside
-              its outline, never crossing it): title sits ON a hairline rule with
-              the collapse chevron at the right. Tinted to the shape stroke. */}
-          {(collapsed || shapeLabel || kids.length > 0) && (
+          {/* Header – borderless floating label ABOVE the shape (never crossing it).
+              Double-click the header to edit the LABEL (independent of the raw body).
+              Shown when collapsed / labeled / has children / selected. */}
+          {(collapsed || shapeLabel || kids.length > 0 || isSel) && (
             <div className="absolute inset-x-0 bottom-full z-20 mb-1 flex items-end justify-between gap-2 select-none"
-              style={{ borderBottom: `1.5px solid ${shapeStroke}` }}>
-              {isEditing ? (
+              style={{ borderBottom: `1.5px solid ${shapeStroke}` }}
+              onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id, "label"); }}>
+              {isEditing && editingField === "label" ? (
                 <input
                   autoFocus
                   type="text"
+                  placeholder="Título…"
                   className="pointer-events-auto min-w-0 flex-1 bg-transparent pb-0.5 text-[11px] font-medium leading-none outline-none placeholder:text-white/30"
                   style={{ color: shapeStroke }}
                   value={editingValue}
@@ -3909,7 +3921,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 />
               ) : (
                 <span className="truncate pb-0.5 text-[11px] font-medium leading-none drop-shadow-sm" style={{ color: shapeStroke }}>
-                  <RichText content={shapeLabel || String(shapeP)} context={MESH_CONTEXT} className="inline text-[11px] leading-none" />
+                  {shapeLabel
+                    ? <RichText content={shapeLabel} context={MESH_CONTEXT} className="inline text-[11px] leading-none" />
+                    : <span className="opacity-40">{String(shapeP)}</span>}
                 </span>
               )}
               <button type="button" className="mb-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10"
@@ -3919,28 +3933,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </button>
             </div>
           )}
-          {/* Inline text centered in shape (like decision diamond) */}
-          {!collapsed && (() => {
-            const md = getMd(brick);
-            const label = typeof c.label === "string" ? c.label : "";
-            const hasText = md.trim() || (isEditing && !kids.length);
-            if (!hasText && !isEditing) return null;
-            return (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center"
-                style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
-                {isEditing && !label ? (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
-                    <RichText content={md} context={MESH_CONTEXT} className="inline" />
-                  </div>
-                ) : (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
-                    <RichText content={md} context={MESH_CONTEXT} className="inline" />
-                  </div>
-                )}
+          {/* Raw content centred in the shape (read view). Hidden while the raw
+              editor is open. Double-click the body to edit it. */}
+          {!collapsed && !(isEditing && editingField === "raw") && getMd(brick).trim() && (
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center"
+              style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
+              <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
+                <RichText content={getMd(brick)} context={MESH_CONTEXT} className="inline" />
               </div>
-            );
-          })()}
-          {!collapsed && isEditing && !shapeLabel && (
+            </div>
+          )}
+          {!collapsed && isEditing && editingField === "raw" && (
             <div
               className="absolute inset-0 z-20"
               style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px` }}
