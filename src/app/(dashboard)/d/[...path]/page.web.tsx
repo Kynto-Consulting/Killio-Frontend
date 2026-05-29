@@ -144,6 +144,8 @@ export default function DocumentPage() {
 
   const fetchDoc = useCallback(async () => {
     if (!localMode && !accessToken) return;
+    // Local: wait until the workspace folder is connected (re-runs on status change).
+    if (localMode && !localWs.getDir()) { setIsLoading(true); return; }
     try {
       setIsLoading(true);
       const doc = await getDocument(docId, accessToken);
@@ -185,7 +187,7 @@ export default function DocumentPage() {
       setIsLoading(false);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docId, accessToken, activeTeamId, sanitizeDocumentBricks, t, localMode, getDocument]);
+  }, [docId, accessToken, activeTeamId, sanitizeDocumentBricks, t, localMode, getDocument, localWs.status]);
 
   useEffect(() => {
     fetchDoc();

@@ -7,7 +7,7 @@ import type { KillioKind } from "@/lib/killio-file";
 // `path` is the file's location relative to the workspace root, using `/` for
 // nested folders (e.g. "specs/v2/notes.kd"). `folder` is its parent path ("" at
 // root). Folder structure mirrors document/board folders on disk.
-export type WorkspaceFileEntry = { name: string; path: string; folder: string; kind: KillioKind };
+export type WorkspaceFileEntry = { name: string; path: string; folder: string; kind: KillioKind; lastModified: number };
 
 const EXT_TO_KIND: Record<string, KillioKind> = { kd: "kd", km: "km", kb: "kb", ks: "ks" };
 const KIND_TO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks" };
@@ -119,11 +119,15 @@ export async function deleteWorkspaceFile(dir: DirHandle, path: string): Promise
  *  (skips the assets/ folder). Folder structure is preserved via `path`/`folder`. */
 export async function listWorkspaceFiles(dir: DirHandle, basePath = ""): Promise<WorkspaceFileEntry[]> {
   const entries: WorkspaceFileEntry[] = [];
-  const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string }> }).values();
+  const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string; getFile?: () => Promise<File> }> }).values();
   for await (const entry of iter) {
     if (entry.kind === "file") {
       const kind = kindFromFilename(entry.name);
-      if (kind) entries.push({ name: entry.name, path: joinPath(basePath, entry.name), folder: basePath, kind });
+      if (kind) {
+        let lastModified = 0;
+        try { lastModified = entry.getFile ? (await entry.getFile()).lastModified : 0; } catch { /* ignore */ }
+        entries.push({ name: entry.name, path: joinPath(basePath, entry.name), folder: basePath, kind, lastModified });
+      }
     } else if (entry.kind === "directory" && entry.name !== ASSETS_DIR) {
       const sub = await dir.getDirectoryHandle(entry.name);
       const childPath = joinPath(basePath, entry.name);

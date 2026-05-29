@@ -28,7 +28,7 @@ export default function BoardsPage() {
   useEffect(() => {
     if (workspaceMode === "local") {
       setBoards(localWs.files.filter((f) => f.kind === "kb").map((f) => ({
-        id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: "",
+        id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
       })) as unknown as BoardSummary[]);
       setIsLoading(false);
       return;

@@ -1442,7 +1442,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localMode, localFile]);
+  }, [localMode, localFile, localWs.status]);
 
   // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {

@@ -51,10 +51,10 @@ export default function WorkspacesPage() {
   useEffect(() => {
     if (!localMode) return;
     setBoards(localWs.files.filter((f) => f.kind === "kb").map((f) => ({
-      id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: "",
+      id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
     })) as unknown as BoardSummary[]);
     setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
-      id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: "",
+      id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
     })) as unknown as DocumentSummary[]);
     setIsLoading(false);
   }, [localMode, localWs.files]);

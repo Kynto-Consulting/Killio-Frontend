@@ -990,6 +990,7 @@ export default function BoardPage() {
 
   const loadBoard = useCallback(() => {
     if ((!accessToken && !localMode) || !boardId) return;
+    if (localMode && !localWs.getDir()) return; // wait for the workspace folder
 
     // Show cached board instantly (no loading flash on revisit)
     const cached = apiCache.get<Awaited<ReturnType<typeof getBoard>>>(cacheKey.board(boardId));
@@ -1008,7 +1009,7 @@ export default function BoardPage() {
         }
       });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [accessToken, boardId, applyBoardData, t, localMode, getBoard]);
+  }, [accessToken, boardId, applyBoardData, t, localMode, getBoard, localWs.status]);
 
   // Local autosave: serialize the whole board → .kb (debounced).
   const boardDirtyRef = useRef(false);

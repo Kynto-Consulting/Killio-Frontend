@@ -54,7 +54,7 @@ export default function MeshBoardsPage() {
   useEffect(() => {
     if (workspaceMode === "local") {
       setMeshes(localWs.files.filter((f) => f.kind === "km").map((f) => ({
-        id: f.path, name: f.name.replace(/\.km$/, ""), boardType: "mesh", updatedAt: "",
+        id: f.path, name: f.name.replace(/\.km$/, ""), boardType: "mesh", updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
       })) as unknown as BoardSummary[]);
       setIsLoading(false);
       return;

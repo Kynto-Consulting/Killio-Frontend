@@ -82,7 +82,7 @@ function DocumentsPageContent() {
   useEffect(() => {
     if (workspaceMode === "local") {
       setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
-        id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: "",
+        id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
       })) as unknown as DocumentSummary[]);
       setFolders([]);
       setIsLoading(false);
