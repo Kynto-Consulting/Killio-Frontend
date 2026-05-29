@@ -13,6 +13,7 @@ import { SwitchAccountModal } from "@/components/ui/switch-account-modal";
 import { NotificationCenter } from "@/components/ui/notification-center";
 import { CardTimerWidget } from "@/components/ui/card-timer-widget";
 import { useSession } from "@/components/providers/session-provider";
+import { LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
@@ -22,6 +23,14 @@ import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export function LayoutMobile({ children }: { children: React.ReactNode }) {
+  return (
+    <LocalWorkspaceProvider>
+      <LayoutMobileInner>{children}</LayoutMobileInner>
+    </LocalWorkspaceProvider>
+  );
+}
+
+function LayoutMobileInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();

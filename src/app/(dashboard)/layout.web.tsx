@@ -14,7 +14,7 @@ import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
 import { RoomCallControls } from "@/components/rooms/RoomCallControls";
 import { PushPermissionBanner } from "@/components/rooms/PushPermissionBanner";
 import { useSession } from "@/components/providers/session-provider";
-import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { useLocalWorkspace, LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
@@ -29,6 +29,17 @@ import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { SkeletonSidebarLink } from "@/components/ui/skeleton";
 
 export function LayoutWeb({ children }: { children: React.ReactNode }) {
+  // Mount the Local workspace context here (client) so it reliably wraps the
+  // switcher + pages; the dashboard segment layout uses an async server
+  // component which can drop client context.
+  return (
+    <LocalWorkspaceProvider>
+      <LayoutWebInner>{children}</LayoutWebInner>
+    </LocalWorkspaceProvider>
+  );
+}
+
+function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
