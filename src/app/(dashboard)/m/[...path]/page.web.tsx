@@ -13,7 +13,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, LayoutTemplate, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
-  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2, Upload,
+  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2, Upload, Check,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
