@@ -64,6 +64,21 @@ export async function readWorkspaceFile(dir: DirHandle, filename: string): Promi
   return file.text();
 }
 
+/** Read a file's text + lastModified for external-change ("side update") detection.
+ *  Returns null if the file does not exist yet. */
+export async function readWorkspaceFileWithMeta(
+  dir: DirHandle,
+  filename: string,
+): Promise<{ text: string; lastModified: number } | null> {
+  try {
+    const fileHandle = await dir.getFileHandle(filename);
+    const file = await fileHandle.getFile();
+    return { text: await file.text(), lastModified: file.lastModified };
+  } catch {
+    return null;
+  }
+}
+
 export async function deleteWorkspaceFile(dir: DirHandle, filename: string): Promise<void> {
   await dir.removeEntry(filename);
 }
