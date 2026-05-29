@@ -2811,9 +2811,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     // center the generated layout around viewport center
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     mesh.nodes.forEach((n) => {
+      if (n.parent) return; // children use parent-relative coords; skip for centring
       minX = Math.min(minX, n.x); minY = Math.min(minY, n.y);
       maxX = Math.max(maxX, n.x + n.w); maxY = Math.max(maxY, n.y + n.h);
     });
+    if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
     const offX = cx - (minX + maxX) / 2;
     const offY = cy - (minY + maxY) / 2;
 
@@ -2824,20 +2826,50 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       let count = Object.keys(by).length;
 
       mesh.nodes.forEach((n) => {
-        const pos = { x: Math.round(n.x + offX), y: Math.round(n.y + offY) };
+        // Nodes nested in a parent keep parent-relative coords (no viewport offset);
+        // only top-level nodes are recentred on the viewport.
+        const parentId = n.parent ? refToId[n.parent] : null;
+        const pos = parentId
+          ? { x: Math.round(n.x), y: Math.round(n.y) }
+          : { x: Math.round(n.x + offX), y: Math.round(n.y + offY) };
         let nb: MeshBrick;
         if (n.kind === "board") {
-          nb = mkBrick("board_empty", count++, null, pos);
+          nb = mkBrick("board_empty", count++, parentId, pos);
+          if (n.label) nb = { ...nb, content: { ...asRec(nb.content), label: n.label } };
         } else if (n.kind === "text") {
-          nb = setMd(mkBrick("text", count++, null, pos), n.label || "");
+          nb = setMd(mkBrick("text", count++, parentId, pos), n.label || "");
         } else {
           const preset = (n.shape ?? "rect") as ShapePreset;
-          nb = mkBrick("draw", count++, null, pos, preset);
-          if (n.label) nb = { ...nb, content: { ...asRec(nb.content), label: n.label } };
+          nb = mkBrick("draw", count++, parentId, pos, preset);
+          if (n.label) {
+            // Split "Title<br/>description" → header title + centered body. When
+            // there's only a title, put it in the body so the shape isn't empty.
+            const nlIdx = n.label.indexOf("\n");
+            const title = (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim();
+            const body = nlIdx >= 0 ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n") : "";
+            nb = body
+              ? { ...nb, content: { ...asRec(nb.content), label: title, markdown: body } }
+              : { ...nb, content: { ...asRec(nb.content), markdown: title } };
+          }
+        }
+        // Apply per-node colors (from classDef / class / style).
+        if (n.stroke || n.fill || n.textColor) {
+          const content = asRec(nb.content);
+          const style = { ...asRec(content.style) };
+          if (n.stroke) style.stroke = n.stroke;
+          if (n.fill) style.fill = n.fill;
+          if (n.textColor) style.textColor = n.textColor;
+          nb = { ...nb, content: { ...content, style } };
         }
         nb = { ...nb, size: { w: Math.round(n.w), h: Math.round(n.h) } };
         by[nb.id] = nb;
-        root.push(nb.id);
+        if (parentId && by[parentId]) {
+          const pc = asRec(by[parentId].content);
+          const co = Array.isArray(pc.childOrder) ? (pc.childOrder as string[]) : [];
+          by[parentId] = { ...by[parentId], content: { ...pc, isContainer: true, childOrder: [...co, nb.id] } };
+        } else {
+          root.push(nb.id);
+        }
         refToId[n.ref] = nb.id;
       });
 
@@ -2847,6 +2879,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const tgt = refToId[e.to];
         if (!src || !tgt || src === tgt) return;
         const style: Record<string, unknown> = { ...connStyle(connPreset) };
+        // Per-edge overrides (color / pattern / width / connType from mermaid).
+        if (e.color) style.stroke = e.color;
+        if (e.pattern) style.pattern = e.pattern;
+        if (typeof e.width === "number") style.width = e.width;
+        if (e.connType) style.connType = e.connType;
         const label = e.label
           ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: e.label }] }] }
           : { type: "doc" as const, content: [] };
@@ -3801,6 +3838,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const shapeH       = collapsed ? 28 : brick.size.h;
       const shapeLabel   = typeof c.label === "string" ? c.label : "";
       const shapeStroke = sStroke;
+      const shapeTextColor = typeof asRec(c.style).textColor === "string" ? (asRec(c.style).textColor as string) : undefined;
       const hasFillOverride = typeof asRec(c.style).fill === "string";
       const shapeFill = isDrawBrick && !hasFillOverride ? "rgba(0,0,0,0)" : sFill;
       const toggleCollapse = (e: React.MouseEvent) => {
@@ -3817,11 +3855,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
           {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} dash={sDash} cr={sCr} />}
-          {/* Header – borderless floating label: title sits ON a hairline rule,
-              collapse chevron at the right. Shown when collapsed / labeled /
-              has children. Tinted to the shape stroke so it reads as part of it. */}
+          {/* Header – borderless floating label rendered ABOVE the shape (outside
+              its outline, never crossing it): title sits ON a hairline rule with
+              the collapse chevron at the right. Tinted to the shape stroke. */}
           {(collapsed || shapeLabel || kids.length > 0) && (
-            <div className="absolute left-1.5 right-1.5 top-1 z-20 flex items-end justify-between gap-2 select-none"
+            <div className="absolute inset-x-0 bottom-full z-20 mb-1 flex items-end justify-between gap-2 select-none"
               style={{ borderBottom: `1.5px solid ${shapeStroke}` }}>
               {isEditing ? (
                 <input
@@ -3856,11 +3894,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center"
                 style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
                 {isEditing && !label ? (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
+                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit" style={shapeTextColor ? { color: shapeTextColor } : undefined}>
                     <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 ) : (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
+                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit" style={shapeTextColor ? { color: shapeTextColor } : undefined}>
                     <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 )}
@@ -5172,6 +5210,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const curStroke = typeof sbStyle.stroke === "string" ? sbStyle.stroke : (sb.kind === "board_empty" ? "rgba(34,211,238,0.6)" : "#22d3ee");
                     const curFill   = typeof sbStyle.fill   === "string" ? sbStyle.fill   : (sb.kind === "board_empty" ? "" : "rgba(34,211,238,0.08)");
                     const curSW     = typeof sbStyle.strokeWidth === "number" ? sbStyle.strokeWidth : 2;
+                    const curText   = typeof sbStyle.textColor === "string" ? sbStyle.textColor : "";
                     const patchStyle = (patch: Record<string, unknown>) => {
                       setState((cur) => {
                         const b = cur.bricksById[selectedId!];
@@ -5211,6 +5250,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             <input type="number" min={0.5} max={10} step={0.5} value={curSW}
                               onChange={(e) => patchStyle({ strokeWidth: Number(e.target.value) })}
                               className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                          </label>
+                          <label className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Texto</span>
+                            <div className="flex items-center gap-1.5">
+                              <input type="color" value={curText.startsWith("#") ? curText : "#ffffff"}
+                                onChange={(e) => patchStyle({ textColor: e.target.value })}
+                                className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+                              <input type="text" value={curText} placeholder="auto"
+                                onChange={(e) => patchStyle({ textColor: e.target.value })}
+                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-500/50" />
+                            </div>
                           </label>
                         </div>
                         <div className="flex flex-wrap gap-1">

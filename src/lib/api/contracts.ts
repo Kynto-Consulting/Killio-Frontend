@@ -1422,6 +1422,8 @@ export interface GeneratedMeshNode {
   /** Optional explicit colors (hex or rgba). */
   stroke?: string;
   fill?: string;
+  /** Optional label/text color. */
+  textColor?: string;
 }
 export interface GeneratedMeshEdge {
   from: string;
