@@ -23,6 +23,7 @@ import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-works
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
+import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -144,6 +145,17 @@ export default function DocumentPage() {
     await writeAsset(dir, name, file);
     return { key: name, url: makeAssetRef(name), isPrivate: false };
   }, [localMode, localWs]);
+
+  // Local mode: feed the @-mention picker / reference pills from workspace files
+  // (cloud team data is never loaded offline). ids are relative paths → links
+  // resolve to /d|/b|/m/<path>.
+  useEffect(() => {
+    if (!localMode) return;
+    const ctx = localPickerContext(localWs.files, localWs.folders);
+    setTeamDocs(ctx.documents as unknown as DocumentSummary[]);
+    setTeamBoards(ctx.boards as unknown as BoardSummary[]);
+    setFolders(ctx.folders as unknown as Folder[]);
+  }, [localMode, localWs.files, localWs.folders]);
 
   const fetchDoc = useCallback(async () => {
     if (!localMode && !accessToken) return;

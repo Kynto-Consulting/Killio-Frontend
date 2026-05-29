@@ -142,10 +142,12 @@ export function RefPill({
       return;
     }
 
-    // Default navigation
-    if (type === 'doc') router.push(`/d/${id}`);
-    if (type === 'board') router.push(`/b/${id}`);
-    if (type === 'mesh') router.push(`/m/${id}`);
+    // Default navigation. Encode per-segment so local nested paths
+    // (e.g. "specs/v2/notes.kd") route correctly; cloud UUIDs are unaffected.
+    const enc = (v: string) => v.split("/").map(encodeURIComponent).join("/");
+    if (type === 'doc') router.push(`/d/${enc(id)}`);
+    if (type === 'board') router.push(`/b/${enc(id)}`);
+    if (type === 'mesh') router.push(`/m/${enc(id)}`);
     if (type === 'room' || type === 'thread') { router.push(`/rooms/${id}`); return; }
     if (type === 'card' || (type as string) === 'mention' && id.startsWith('card:')) {
       const cardId = id.replace('card:', '');

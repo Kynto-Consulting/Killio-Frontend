@@ -26,3 +26,34 @@ export function localRouteFor(kind: WorkspaceFileEntry["kind"], path: string): s
   const segs = path.split("/").map(encodeURIComponent).join("/");
   return `${base}/${segs}`;
 }
+
+// Minimal shape for a local folder (matches LocalFolder in folders.ts without the import).
+type LocalFolderLike = { path: string; name: string; parent: string; color?: string; icon?: string };
+
+/**
+ * Build the @-mention / reference context (documents, boards, folders) from the
+ * local workspace, shaped exactly like the cloud picker expects:
+ *  - documents: DocumentSummary-ish ({ id, title, folderId })
+ *  - boards: BoardSummary-ish ({ id, name, boardType }) — km→"mesh", kb→"kanban"
+ *  - folders: Folder-ish ({ id, name, parentFolderId })
+ * ids are relative file/folder paths so RefPill/resolver link to /d|/b|/m/<path>.
+ */
+export function localPickerContext(files: WorkspaceFileEntry[], folders: LocalFolderLike[] = []): {
+  documents: Array<{ id: string; title: string; folderId: string | null; teamId: string; visibility: string; createdAt: string; updatedAt: string }>;
+  boards: Array<{ id: string; name: string; boardType: string; teamId: string; visibility: string; createdAt: string; updatedAt: string }>;
+  folders: Array<{ id: string; name: string; parentFolderId: string | null; teamId: string; createdAt: string; updatedAt: string }>;
+} {
+  const documents = files.filter((f) => f.kind === "kd").map((f) => ({
+    id: f.path, title: titleOf(f), folderId: f.folder || null,
+    teamId: "local", visibility: "private", createdAt: "", updatedAt: "",
+  }));
+  const boards = files.filter((f) => f.kind === "km" || f.kind === "kb").map((f) => ({
+    id: f.path, name: titleOf(f), boardType: f.kind === "km" ? "mesh" : "kanban",
+    teamId: "local", visibility: "private", createdAt: "", updatedAt: "",
+  }));
+  const folderList = folders.map((f) => ({
+    id: f.path, name: f.name, parentFolderId: f.parent || null,
+    teamId: "local", createdAt: "", updatedAt: "",
+  }));
+  return { documents, boards, folders: folderList };
+}

@@ -39,6 +39,7 @@ import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTempl
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
+import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
@@ -1760,12 +1761,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const gPos = useCallback((id: string) => resolveGlobal(state.bricksById, id), [state.bricksById]);
 
   // Phase 1: Context for mentions resolution inside mesh
+  // Local mode: @-mention targets come from workspace files (cloud has none here).
+  const refDocs = useMemo(() => (localMode ? localPickerContext(localWs.files, localWs.folders).documents : []), [localMode, localWs.files, localWs.folders]);
+  const refBoards = useMemo(() => (localMode ? localPickerContext(localWs.files, localWs.folders).boards : []), [localMode, localWs.files, localWs.folders]);
+
   const MESH_CONTEXT = useMemo<ResolverContext>(() => ({
-    documents: [],
-    boards: [],
+    documents: refDocs as any,
+    boards: refBoards as any,
     users: [],
     activeBricks: [],
-  }), []);
+  }), [refDocs, refBoards]);
 
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
   const [isTextToDiagramOpen, setIsTextToDiagramOpen] = useState(false);
@@ -3534,8 +3539,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     });
                   }}
                   readonly={false}
-                  documents={[]}
-                  boards={[]}
+                  documents={refDocs as any}
+                  boards={refBoards as any}
                   activeBricks={[]}
                   users={[]}
                 />
@@ -3754,8 +3759,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       brick={portalPreviewBrick}
                       canEdit={false}
                       onUpdate={() => undefined}
-                      documents={[]}
-                      boards={[]}
+                      documents={refDocs as any}
+                      boards={refBoards as any}
                       activeBricks={[portalPreviewBrick]}
                       users={[]}
                       isCompact
@@ -3845,8 +3850,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       brick={mirrorPreviewBrick}
                       canEdit={false}
                       onUpdate={() => undefined}
-                      documents={[]}
-                      boards={[]}
+                      documents={refDocs as any}
+                      boards={refBoards as any}
                       activeBricks={[mirrorPreviewBrick]}
                       users={[]}
                       isCompact
@@ -3893,8 +3898,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               brick={docBrick}
               canEdit={isEditing}
               onUpdate={handleUnifierUpdate(brick.id)}
-              documents={[]}
-              boards={[]}
+              documents={refDocs as any}
+              boards={refBoards as any}
               activeBricks={[docBrick]}
               users={[]}
               isCompact
@@ -4537,8 +4542,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                     });
                                   }}
                                   readonly={false}
-                                  documents={[]}
-                                  boards={[]}
+                                  documents={refDocs as any}
+                                  boards={refBoards as any}
                                   activeBricks={[]}
                                   users={[]}
                                 />

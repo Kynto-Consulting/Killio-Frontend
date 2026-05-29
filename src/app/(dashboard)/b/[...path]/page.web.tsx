@@ -24,6 +24,7 @@ import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-works
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
+import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
@@ -841,6 +842,13 @@ export default function BoardPage() {
   const [teamBoards, setTeamBoards] = useState<BoardSummary[]>([]);
 
   useEffect(() => {
+    // Local mode: feed the @-mention picker / pills from workspace files.
+    if (localMode) {
+      const ctx = localPickerContext(localWs.files, localWs.folders);
+      setTeamDocs(ctx.documents as unknown as DocumentSummary[]);
+      setTeamBoards(ctx.boards as unknown as BoardSummary[]);
+      return;
+    }
     if (!accessToken || !boardTeamId) return;
 
     // Serve from cache immediately (populated by layout sidebar or previous visit)
@@ -852,7 +860,7 @@ export default function BoardPage() {
     // Refresh in background only if cache was cold
     if (!cachedBoards) listTeamBoards(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.boards(boardTeamId), d, CACHE_TTL.BOARDS); setTeamBoards(d); }).catch(console.error);
     if (!cachedDocs)   listDocuments(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.documents(boardTeamId), d, CACHE_TTL.DOCUMENTS); setTeamDocs(d); }).catch(console.error);
-  }, [accessToken, boardTeamId]);
+  }, [accessToken, boardTeamId, localMode, localWs.files, localWs.folders]);
 
   const lastOverIdRef = useRef<string | null>(null);
   const dragStateRef = useRef<{ activeId: string; sourceListId: string | null; targetListId: string | null; targetIndex: number | null } | null>(null);
