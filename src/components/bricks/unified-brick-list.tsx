@@ -214,6 +214,20 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
       return;
     }
 
+    // Multi-select: dragging one selected brick moves the whole selected block.
+    if (selectedBrickIds && selectedBrickIds.size > 1 && selectedBrickIds.has(String(active.id))) {
+      const selOrdered = bricks.filter((b) => selectedBrickIds.has(b.id)); // preserve relative order
+      const rest = bricks.filter((b) => !selectedBrickIds.has(b.id));
+      let insertAt = rest.findIndex((b) => b.id === over.id);
+      if (insertAt === -1) {
+        const overOrig = bricks.findIndex((b) => b.id === over.id);
+        insertAt = bricks.slice(0, overOrig).filter((b) => !selectedBrickIds.has(b.id)).length;
+      }
+      const merged = [...rest.slice(0, insertAt), ...selOrdered, ...rest.slice(insertAt)];
+      onReorderBricks(merged.map((b) => b.id));
+      return;
+    }
+
     const newOrder = [...bricks];
     const [moved] = newOrder.splice(oldIndex, 1);
     newOrder.splice(newIndex, 0, moved);

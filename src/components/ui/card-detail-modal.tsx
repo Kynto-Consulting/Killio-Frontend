@@ -846,7 +846,22 @@ export function CardDetailModal({
       const bricks = bricksFromClipboardEvent(e);
       if (bricks.length === 0) return;
       e.preventDefault();
-      void (async () => { let added = 0; for (const cb of bricks) { const input = cbToCardInput(cb); if (input && await handleCreateBrick(input)) added += 1; } if (added) toast(t("clipboard.pasted", { n: added }), "success"); })();
+      const inputs = bricks.map(cbToCardInput).filter(Boolean) as BrickMutationInput[];
+      if (inputs.length === 0) return;
+      // Predict: insert draft blocks immediately (no server wait).
+      const basePos = (localBlocks[localBlocks.length - 1]?.position ?? 0) + 1000;
+      const drafts = inputs.map((input, i) => buildDraftBrick(input, basePos + i * 1000));
+      setLocalBlocks((prev) => [...prev, ...drafts]);
+      toast(t("clipboard.pasted", { n: drafts.length }), "success");
+      // Persist in background (cloud); on success swap draft→real, on deny remove.
+      // In local mode the card autosave persists the drafts as-is.
+      if (card?.id && accessToken) {
+        drafts.forEach((draft, i) => {
+          createCardBrick(card.id!, inputs[i], accessToken)
+            .then((res) => setLocalBlocks((prev) => prev.map((b) => (b.id === draft.id ? res.brick : b))))
+            .catch(() => setLocalBlocks((prev) => prev.filter((b) => b.id !== draft.id)));
+        });
+      }
     };
     window.addEventListener("copy", onCopy);
     window.addEventListener("paste", onPaste);

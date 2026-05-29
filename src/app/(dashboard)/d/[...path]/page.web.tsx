@@ -40,30 +40,6 @@ import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMedi
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 import { toReferenceUsers } from "@/lib/workspace-members";
 import { DocumentShareModal } from "@/components/ui/document-share-modal";
-import { useDocHistory } from "@/hooks/use-doc-history";
-
-// ── Op-history helpers (pure, module-level so they're stable) ────────────────
-const historyTick = () => new Promise<void>((r) => setTimeout(r, 0));
-const cloneBricks = (bricks?: DocumentBrick[]): DocumentBrick[] =>
-  bricks ? (JSON.parse(JSON.stringify(bricks)) as DocumentBrick[]) : [];
-// Order-insensitive deep equality (positions live inside each brick).
-const sameBricks = (a: DocumentBrick[], b: DocumentBrick[]): boolean => {
-  if (a.length !== b.length) return false;
-  const norm = (arr: DocumentBrick[]) => [...arr].sort((x, y) => x.id.localeCompare(y.id));
-  return JSON.stringify(norm(a)) === JSON.stringify(norm(b));
-};
-// Rewrite childrenByContainer child ids through a remap (cloud recreate may
-// assign new ids; nesting references must follow).
-const remapChildRefs = (content: any, remap: Map<string, string>): any => {
-  if (!content || typeof content !== "object") return content;
-  const map = content.childrenByContainer as Record<string, string[]> | undefined;
-  if (!map || typeof map !== "object") return content;
-  const next: Record<string, string[]> = {};
-  for (const [cid, ids] of Object.entries(map)) {
-    next[cid] = Array.isArray(ids) ? ids.map((id) => remap.get(id) ?? id) : ids;
-  }
-  return { ...content, childrenByContainer: next };
-};
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -110,8 +86,6 @@ export default function DocumentPage() {
 
   const { activeTeamId } = useSession();
   const presenceMembers = useDocumentPresence(localMode ? null : docId, user, accessToken);
-
-  const history = useDocHistory({ cap: 50 });
 
   const sanitizeDocumentBricks = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
     // Keep one brick per id to prevent optimistic-create + realtime duplicates.
@@ -286,15 +260,8 @@ export default function DocumentPage() {
     if (event.type === "brick.created") {
       setDocument((prev) => {
         if (!prev) return prev;
-        if (prev.bricks.some((b) => b.id === event.payload.id)) return prev; // already have the real brick
-        // Replace a matching optimistic placeholder (same kind+position) instead of
-        // adding — kills the brief "double brick" flash on create.
-        const tmpIdx = prev.bricks.findIndex((b) => typeof b.id === "string" && b.id.startsWith("tmp-") && b.kind === event.payload.kind && b.position === event.payload.position);
-        if (tmpIdx >= 0) {
-          const next = prev.bricks.slice();
-          next[tmpIdx] = event.payload;
-          return { ...prev, bricks: sanitizeDocumentBricks(next).sort((a, b) => a.position - b.position) };
-        }
+        const exists = prev.bricks.some((b) => b.id === event.payload.id);
+        if (exists) return prev;
         const nextBricks = sanitizeDocumentBricks([...prev.bricks, event.payload]).sort((a, b) => a.position - b.position);
         return { ...prev, bricks: nextBricks };
       });
@@ -443,83 +410,6 @@ export default function DocumentPage() {
     }
   });
 
-  // ── Op-history: undo/redo (document brick engine) ──────────────────────────
-  // Reset the stacks when switching documents.
-  useEffect(() => {
-    history.clear();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [docId]);
-
-  // Apply a whole-bricks snapshot (used by undo + redo). Optimistically swaps
-  // the in-memory state, then reconciles persistence:
-  //  • local mode → the debounced whole-doc autosave persists it (ids preserved).
-  //  • cloud mode → diff against the current bricks and call the seam fns. A
-  //    recreate may get a fresh backend id, so we remap childrenByContainer refs.
-  const applyBrickState = useCallback(async (target: DocumentBrick[]) => {
-    const current = documentBricksRef.current;
-    const sane = sanitizeDocumentBricks(target).sort((a, b) => a.position - b.position);
-    documentBricksRef.current = sane;
-    setDocument((prev) => (prev ? { ...prev, bricks: sane } : prev));
-
-    if (localMode || !accessToken) return; // autosave handles local persistence
-
-    const curById = new Map(current.map((b) => [b.id, b]));
-    const tgtById = new Map(sane.map((b) => [b.id, b]));
-    const toDelete = current.filter((b) => !tgtById.has(b.id));
-    const toCreate = sane.filter((b) => !curById.has(b.id));
-    const toUpdate = sane.filter((b) => {
-      const c = curById.get(b.id);
-      return c && JSON.stringify(c.content) !== JSON.stringify(b.content);
-    });
-    const toReorder = sane.filter((b) => {
-      const c = curById.get(b.id);
-      return c && c.position !== b.position;
-    });
-
-    try {
-      for (const b of toDelete) await deleteDocumentBrick(docId, b.id, accessToken);
-
-      const remap = new Map<string, string>();
-      for (const b of toCreate) {
-        const created = await createDocumentBrick(docId, { kind: b.kind, position: b.position, content: b.content }, accessToken);
-        if (created?.id && created.id !== b.id) remap.set(b.id, created.id);
-      }
-
-      for (const b of toUpdate) await updateDocumentBrick(docId, b.id, b.content, accessToken);
-      if (toReorder.length) await reorderDocumentBricks(docId, toReorder.map((b) => ({ id: b.id, position: b.position })), accessToken);
-
-      if (remap.size > 0) {
-        const patched = sane.map((b) => ({ ...b, id: remap.get(b.id) ?? b.id, content: remapChildRefs(b.content, remap) }));
-        const patchedSane = sanitizeDocumentBricks(patched).sort((a, b) => a.position - b.position);
-        documentBricksRef.current = patchedSane;
-        setDocument((prev) => (prev ? { ...prev, bricks: patchedSane } : prev));
-        // Persist parents whose nesting refs were rewritten.
-        for (const b of patchedSane) {
-          if (b.content?.childrenByContainer) {
-            try { await updateDocumentBrick(docId, b.id, b.content, accessToken); } catch { /* ignore */ }
-          }
-        }
-      }
-    } catch (e) {
-      console.error(e);
-      fetchDoc();
-    }
-  }, [localMode, accessToken, docId, sanitizeDocumentBricks, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, reorderDocumentBricks, fetchDoc]);
-
-  // Compare the pre-mutation snapshot with the now-current bricks and, if they
-  // differ, push an undo/redo op. Skipped while applying history.
-  const maybeRecord = useCallback((before: DocumentBrick[] | null, coalesceKey?: string) => {
-    if (!before || history.applyingRef.current) return;
-    const after = documentBricksRef.current;
-    if (sameBricks(before, after)) return;
-    const beforeSnap = before;
-    const afterSnap = cloneBricks(after);
-    history.record(
-      { undo: () => applyBrickState(beforeSnap), redo: () => applyBrickState(afterSnap) },
-      coalesceKey ? { coalesceKey } : undefined,
-    );
-  }, [history, applyBrickState]);
-
   // ── Clipboard: copy/paste bricks (P1, document-level) ──────────────────────
   const copyDocumentBricks = useCallback(async (): Promise<boolean> => {
     if (!document) return false;
@@ -537,7 +427,6 @@ export default function DocumentPage() {
 
   const pasteBricks = useCallback(async (bricks: ClipboardBrick[]) => {
     if (!document || bricks.length === 0) return;
-    const before = cloneBricks(document.bricks);
     const topIds = getTopLevelBrickIds(document.bricks);
     const top = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
     let pos = top.length ? top[top.length - 1].position + 1000 : 1000;
@@ -550,9 +439,7 @@ export default function DocumentPage() {
       } catch { /* skip a brick the backend rejects */ }
     }
     if (added > 0) toast(t("clipboard.pasted", { n: added }), "success");
-    await historyTick();
-    maybeRecord(before);
-  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks, t, maybeRecord]);
+  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks, t]);
 
   useEffect(() => {
     if (!document) return;
@@ -607,7 +494,7 @@ export default function DocumentPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, docId, pasteBricks, brickSelection, t]);
 
-  const runAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
+  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
     if (!accessToken || !document) return;
 
@@ -859,14 +746,7 @@ export default function DocumentPage() {
     }
   };
 
-  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
-    const before = cloneBricks(document?.bricks);
-    await runAddBrick(kind, afterBrickId, parentProps, initialContent);
-    await historyTick();
-    maybeRecord(before);
-  };
-
-  const runUpdateBrick = async (brickId: string, content: any) => {
+  const handleUpdateBrick = async (brickId: string, content: any) => {
     if (!accessToken || !document) return;
 
     // Optimistic update
@@ -877,7 +757,6 @@ export default function DocumentPage() {
         bricks: prev.bricks.map((b) => (b.id === brickId ? { ...b, content } : b)),
       };
     });
-    documentBricksRef.current = documentBricksRef.current.map((b) => (b.id === brickId ? { ...b, content } : b));
 
     try {
       await updateDocumentBrick(docId, brickId, content, accessToken);
@@ -885,13 +764,6 @@ export default function DocumentPage() {
       console.error(e);
       // Revert or show error
     }
-  };
-
-  const handleUpdateBrick = async (brickId: string, content: any) => {
-    const before = cloneBricks(document?.bricks);
-    await runUpdateBrick(brickId, content);
-    await historyTick();
-    maybeRecord(before, `update:${brickId}`);
   };
 
   const handlePatchBrickCell = async (brickId: string, patch: Record<string, any>) => {
@@ -927,13 +799,6 @@ export default function DocumentPage() {
   }, []);
 
   const handleDeleteBrick = async (brickId: string) => {
-    // If the brick is part of a multi-selection, delete the whole selection.
-    if (brickSelection.has(brickId) && brickSelection.size > 1) {
-      const ids = Array.from(brickSelection);
-      setBrickSelection(new Set());
-      for (const id of ids) await handleDeleteBrick(id); // selection now empty → each deletes singly
-      return;
-    }
     if (!accessToken || !document) return;
 
     const byId = new Map(document.bricks.map((brick) => [brick.id, brick]));
