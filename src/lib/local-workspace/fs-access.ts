@@ -177,7 +177,7 @@ export async function listWorkspaceFiles(dir: DirHandle, basePath = ""): Promise
         try { lastModified = entry.getFile ? (await entry.getFile()).lastModified : 0; } catch { /* ignore */ }
         entries.push({ name: entry.name, path: joinPath(basePath, entry.name), folder: basePath, kind, lastModified });
       }
-    } else if (entry.kind === "directory" && entry.name !== ASSETS_DIR) {
+    } else if (entry.kind === "directory" && entry.name !== ASSETS_DIR && entry.name !== ".killio" && !entry.name.startsWith(".")) {
       const sub = await dir.getDirectoryHandle(entry.name);
       const childPath = joinPath(basePath, entry.name);
       entries.push(...(await listWorkspaceFiles(sub, childPath)));

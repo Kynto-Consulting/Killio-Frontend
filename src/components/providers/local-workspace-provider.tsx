@@ -12,6 +12,7 @@ import {
   type WorkspaceFileEntry,
 } from "@/lib/local-workspace/fs-access";
 import { saveDirHandle, loadDirHandle, deleteDirHandle } from "@/lib/local-workspace/dir-handle-store";
+import { ensureDotKillio } from "@/lib/local-workspace/dot-killio";
 import {
   listLocalFolders,
   createLocalFolder,
@@ -82,9 +83,24 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
     if (a) setActiveId(a);
   }, []);
 
+  const lastDotKillioRef = useRef(0);
   const refreshFrom = useCallback(async (handle: FileSystemDirectoryHandle) => {
-    try { setFiles(await listWorkspaceFiles(handle)); } catch { setFiles([]); }
-    try { setFolders(await listLocalFolders(handle)); } catch { setFolders([]); }
+    let files: WorkspaceFileEntry[] = []; let folders: LocalFolder[] = [];
+    try { files = await listWorkspaceFiles(handle); setFiles(files); } catch { setFiles([]); }
+    try { folders = await listLocalFolders(handle); setFolders(folders); } catch { setFolders([]); }
+    // Refresh the .killio/ sidecar (meta + SKILL.md/kml.md + graph.kml). Throttled
+    // because graph regeneration reads every entity file; best-effort + dotfiles
+    // are excluded from listWorkspaceFiles so this never feeds back into the list.
+    const now = Date.now();
+    if (now - lastDotKillioRef.current > 8000) {
+      lastDotKillioRef.current = now;
+      void ensureDotKillio(handle, {
+        name: (handle as { name?: string }).name || "Local",
+        creatorId: "local",
+        files, folders,
+        readFile: (p) => readWorkspaceFile(handle, p),
+      });
+    }
   }, []);
 
   // When the active local workspace changes, try to (re)connect to its folder.
