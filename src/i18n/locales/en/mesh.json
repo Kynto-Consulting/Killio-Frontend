@@ -61,11 +61,20 @@
   "templates": {
     "title": "Templates",
     "builtIn": "Built-in",
+    "all": "All",
     "mine": "My templates",
     "empty": "No saved templates yet. Select elements and save.",
     "saveSelection": "Save selection",
     "namePrompt": "Template name:",
     "delete": "Delete",
+    "categories": {
+      "flow": "Flow",
+      "brainstorm": "Brainstorm",
+      "planning": "Planning",
+      "strategy": "Strategy",
+      "diagram": "Diagram",
+      "personal": "Personal"
+    },
     "names": {
       "flowStarter": "Flowchart",
       "swot": "SWOT 2×2",

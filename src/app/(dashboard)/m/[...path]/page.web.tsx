@@ -38,7 +38,9 @@ import { computeMeshDelta, makeMeshApplier } from "@/lib/history/mesh-ops";
 import type { OpScope } from "@/lib/history/types";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
-import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
+import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
+import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
+import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
@@ -1944,6 +1946,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [diagramGenerating, setDiagramGenerating] = useState(false);
   const [diagramMode, setDiagramMode] = useState<"ai" | "mermaid">("ai");
   const [userTemplates, setUserTemplates] = useState<MeshTemplate[]>([]);
+  const [tplCategory, setTplCategory] = useState<TemplateCategory | "all">("all");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
@@ -5268,7 +5271,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   })()}
 
                   {toolbarPanel === "templates" && (
-                    <div className="space-y-3">
+                    <div className="w-[min(78vw,560px)] space-y-2.5">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("templates.title")}</p>
                         <button type="button" onClick={saveSelectionAsTemplate}
@@ -5276,33 +5279,59 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                           {tMesh("templates.saveSelection")}
                         </button>
                       </div>
-                      <div>
-                        <p className="mb-1 text-[9px] uppercase tracking-wider text-slate-400">{tMesh("templates.builtIn")}</p>
-                        <div className="grid grid-cols-2 gap-1.5">
-                          {BUILT_IN_TEMPLATES.map((t) => (
-                            <button key={t.id} type="button"
-                              onClick={() => { const n = applyGeneratedMesh(t.mesh); if (n > 0) toast(tMesh("feedback.templateInserted"), "success"); setToolbarPanel(null); }}
-                              className="rounded-lg border border-white/10 bg-slate-800 px-2 py-1.5 text-left text-[10px] text-slate-200 hover:border-cyan-300/40 hover:bg-slate-700">
-                              {tMesh(`templates.names.${t.nameKey}`)}
-                            </button>
-                          ))}
-                        </div>
+
+                      {/* Category filter chips */}
+                      <div className="flex flex-wrap gap-1">
+                        <button type="button" onClick={() => setTplCategory("all")}
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === "all" ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200"}`}>
+                          {tMesh("templates.all")}
+                        </button>
+                        {TEMPLATE_CATEGORIES.map((cat) => (
+                          <button key={cat.id} type="button" onClick={() => setTplCategory(cat.id)}
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === cat.id ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200"}`}>
+                            {tMesh(`templates.categories.${cat.id}`)}
+                          </button>
+                        ))}
                       </div>
+
+                      {/* Gallery with previews */}
+                      <div className="grid max-h-[320px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+                        {TEMPLATE_CATALOG.filter((t) => tplCategory === "all" || t.category === tplCategory).map((t) => (
+                          <button key={t.id} type="button" onClick={() => insertUserTemplate(t)}
+                            className="group/tpl flex flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+                            <div className="relative aspect-[168/104] w-full overflow-hidden border-b border-white/5 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)]">
+                              <div className="absolute inset-0 flex items-center justify-center">
+                                <MeshTemplateThumb tpl={t} />
+                              </div>
+                              <span className="absolute left-1 top-1 rounded px-1 py-px text-[7px] font-semibold uppercase tracking-wide"
+                                style={{ color: t.accent, background: "rgba(2,6,23,0.55)" }}>
+                                {tMesh(`templates.categories.${t.category}`)}
+                              </span>
+                            </div>
+                            <span className="truncate px-1.5 py-1 text-[9.5px] font-medium text-slate-200 transition-colors group-hover/tpl:text-cyan-50">{t.name}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* My templates */}
                       <div>
                         <p className="mb-1 text-[9px] uppercase tracking-wider text-slate-400">{tMesh("templates.mine")}</p>
                         {userTemplates.length === 0 ? (
                           <p className="text-[10px] text-slate-500">{tMesh("templates.empty")}</p>
                         ) : (
-                          <div className="flex max-h-32 flex-col gap-1 overflow-y-auto">
+                          <div className="grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
                             {userTemplates.map((t) => (
-                              <div key={t.id} className="flex items-center gap-1">
+                              <div key={t.id} className="group/u relative">
                                 <button type="button" onClick={() => insertUserTemplate(t)}
-                                  className="flex-1 truncate rounded-lg border border-white/10 bg-slate-800 px-2 py-1.5 text-left text-[10px] text-slate-200 hover:border-cyan-300/40 hover:bg-slate-700">
-                                  {t.name}
+                                  className="flex w-full flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-800">
+                                  <div className="flex aspect-[168/104] w-full items-center justify-center overflow-hidden border-b border-white/5 bg-slate-950/40">
+                                    <MeshTemplateThumb tpl={t} />
+                                  </div>
+                                  <span className="truncate px-1.5 py-1 text-[9.5px] text-slate-200">{t.name}</span>
                                 </button>
                                 <button type="button" title={tMesh("templates.delete")} onClick={() => deleteUserTemplate(t.id)}
-                                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-white/10 text-slate-400 hover:border-rose-400/40 hover:text-rose-300">
-                                  <X className="h-3.5 w-3.5" />
+                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-slate-950/80 text-slate-400 hover:text-rose-300 group-hover/u:flex">
+                                  <X className="h-3 w-3" />
                                 </button>
                               </div>
                             ))}

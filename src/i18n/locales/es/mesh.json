@@ -61,11 +61,20 @@
   "templates": {
     "title": "Plantillas",
     "builtIn": "Predefinidas",
+    "all": "Todas",
     "mine": "Mis plantillas",
     "empty": "Aún no hay plantillas guardadas. Selecciona elementos y guarda.",
     "saveSelection": "Guardar selección",
     "namePrompt": "Nombre de la plantilla:",
     "delete": "Eliminar",
+    "categories": {
+      "flow": "Flujo",
+      "brainstorm": "Ideas",
+      "planning": "Planeación",
+      "strategy": "Estrategia",
+      "diagram": "Diagrama",
+      "personal": "Personal"
+    },
     "names": {
       "flowStarter": "Diagrama de flujo",
       "swot": "FODA 2×2",
