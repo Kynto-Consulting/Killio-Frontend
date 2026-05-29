@@ -1,5 +1,5 @@
 {
-  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted" },
+  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted", "cut": "{{n}} cut" },
   "header": {
     "bricks": "bricks",
     "live": "Live",
@@ -41,6 +41,7 @@
     "downloaded": "Mesh downloaded.",
     "connCreated": "Connection created.",
     "connByStroke": "Connection by stroke.",
+    "drawMerged": "Drawings merged.",
     "shapeRecognized": "Shape: {{kind}}",
     "lockedBy": "\"{{name}}\" is editing this element",
     "diagramGenerated": "Diagram generated · {{count}} elements",

@@ -33,6 +33,9 @@ import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { updateBoardDetails, updateBoardAppearance, generateMeshWithAi, type GeneratedMesh } from "@/lib/api/contracts";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
+import { useOpHistory } from "@/lib/history/use-op-history";
+import { computeMeshDelta, makeMeshApplier } from "@/lib/history/mesh-ops";
+import type { OpScope } from "@/lib/history/types";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
@@ -90,7 +93,7 @@ type ShapePreset =
 
 type ConnStyle = "technical" | "dashed" | "handdrawn" | "bezier" | "curved";
 
-type DragState    = { brickId: string; startMouse: { x: number; y: number }; startPosition: { x: number; y: number }; originalParentId: string | null };
+type DragState    = { brickId: string; startMouse: { x: number; y: number }; startPosition: { x: number; y: number }; originalParentId: string | null; group?: { id: string; start: { x: number; y: number } }[] };
 type ResizeState  = { brickId: string; startMouse: { x: number; y: number }; startSize: { w: number; h: number } };
 type VecDragState = { brickId: string; pointIndex: number; startMouse: { x: number; y: number } };
 type PanDragState = { startMouse: { x: number; y: number }; startViewport: { x: number; y: number } };
@@ -902,6 +905,101 @@ function strokesBBox(strokes: PenStroke[]) {
   return { x: x0, y: y0, w: Math.max(x1 - x0, 80), h: Math.max(y1 - y0, 30) };
 }
 
+// ─── Raw-draw brick merge helpers ──────────────────────────────────────────────
+// A raw draw brick stores `content.manualStrokes`: strokes whose points are
+// normalized 0..1 against the brick's own size. Merging / growing means working
+// in global canvas coords, then re-normalizing to a new bounds — never clamping
+// (clamping is what used to squash a drawing to fit instead of absorbing it).
+type NormStroke = { points: { x: number; y: number }[]; color?: string; width?: number };
+
+function getManualStrokes(b: MeshBrick): NormStroke[] {
+  const c = asRec(b.content);
+  return Array.isArray(c.manualStrokes) ? (c.manualStrokes as NormStroke[]) : [];
+}
+
+function isRawDraw(b: MeshBrick | null | undefined): b is MeshBrick {
+  return !!b && b.kind === "draw" && typeof asRec(b.content).shapePreset !== "string";
+}
+
+// Denormalize a draw brick's strokes into absolute canvas coordinates.
+function drawStrokesGlobal(by: Record<string, MeshBrick>, b: MeshBrick): NormStroke[] {
+  const g = resolveGlobal(by, b.id);
+  return getManualStrokes(b).map((s) => ({
+    points: s.points.map((p) => ({ x: g.x + p.x * b.size.w, y: g.y + p.y * b.size.h })),
+    color: s.color,
+    width: s.width,
+  }));
+}
+
+// Re-normalize absolute strokes into a target bounds. No clamping: bounds are
+// always chosen to contain every point, so the drawing keeps its shape.
+function normStrokesToBounds(globalStrokes: NormStroke[], bounds: { x: number; y: number; w: number; h: number }): NormStroke[] {
+  return globalStrokes.map((s) => ({
+    points: s.points.map((p) => ({
+      x: +((p.x - bounds.x) / Math.max(bounds.w, 1)).toFixed(4),
+      y: +((p.y - bounds.y) / Math.max(bounds.h, 1)).toFixed(4),
+    })),
+    color: s.color,
+    width: s.width,
+  }));
+}
+
+// Merge two+ raw draw bricks (and an optional connecting stroke) into the first
+// id. Union their global rects + all ink, re-normalize, drop the rest, and clean
+// up child orders / connections that referenced the absorbed bricks.
+function mergeDrawBricks(
+  state: MeshState,
+  ids: string[],
+  extra: PenStroke[] | null,
+  color: string,
+  width: number,
+): MeshState {
+  const by = { ...state.bricksById };
+  const bricks = ids.map((id) => by[id]).filter(Boolean) as MeshBrick[];
+  if (bricks.length < 2) return state;
+
+  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+  const allStrokes: NormStroke[] = [];
+  bricks.forEach((b) => {
+    const g = resolveGlobal(by, b.id);
+    minX = Math.min(minX, g.x); minY = Math.min(minY, g.y);
+    maxX = Math.max(maxX, g.x + b.size.w); maxY = Math.max(maxY, g.y + b.size.h);
+    allStrokes.push(...drawStrokesGlobal(by, b));
+  });
+  if (extra && extra.length) {
+    extra.forEach((s) => s.points.forEach((p) => {
+      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+      maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+    }));
+    allStrokes.push(...extra.map((s) => ({ points: s.points, color: s.color ?? color, width: s.width ?? width })));
+  }
+  const bounds = { x: minX, y: minY, w: Math.max(maxX - minX, 40), h: Math.max(maxY - minY, 30) };
+  const normalized = normStrokesToBounds(allStrokes, bounds);
+
+  const keep = bricks[0];
+  const dropIds = new Set(bricks.slice(1).map((b) => b.id));
+  const parentId = keep.parentId ?? null;
+  const pg = parentId ? resolveGlobal(by, parentId) : { x: 0, y: 0 };
+  by[keep.id] = {
+    ...keep,
+    position: { x: bounds.x - pg.x, y: bounds.y - pg.y },
+    size: { w: bounds.w, h: bounds.h },
+    content: { ...asRec(keep.content), isContainer: true, manualStrokes: normalized },
+  };
+  dropIds.forEach((id) => { delete by[id]; });
+
+  Object.keys(by).forEach((id) => {
+    const co = childOrder(by[id]);
+    if (co.some((c) => dropIds.has(c))) by[id] = withChildOrder(by[id], co.filter((c) => !dropIds.has(c)));
+  });
+  const root = state.rootOrder.filter((id) => !dropIds.has(id));
+  const connectionsById = { ...state.connectionsById };
+  Object.keys(connectionsById).forEach((cid) => {
+    if (connectionsById[cid].cons.some((c) => dropIds.has(c))) delete connectionsById[cid];
+  });
+  return { ...state, bricksById: by, rootOrder: root, connectionsById };
+}
+
 // ─── Shape geometry ───────────────────────────────────────────────────────────
 
 function hexPts() {
@@ -1428,6 +1526,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const lastSavedHashRef = useRef("");
   const localLastModifiedRef = useRef(0);
   const meshBoardNameRef = useRef("Mesh");
+  // Op-history baseline: the last state NOT produced by a user edit (load, save
+  // echo, remote sync, undo/redo). The recorder diffs against it; syncing it at
+  // those sites prevents recording non-user changes. See history block below.
+  const meshHistoryBaselineRef = useRef<MeshState>(state);
+  const stateRef = useRef<MeshState>(state);
+  useEffect(() => { stateRef.current = state; }, [state]);
 
   // ── Local load (from .km file in the workspace folder) ────────────────────────
   useEffect(() => {
@@ -1511,6 +1615,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       if (dirty) return; // don't clobber unsaved local edits
       try {
         const { state: imported } = deserializeKmToMesh(decodeKillioFile(meta.text).payload);
+        meshHistoryBaselineRef.current = imported; // side-update reload: not a user edit
         setState(imported);
         if (imported.viewport) setViewport(imported.viewport);
         stateHashRef.current = JSON.stringify(imported);
@@ -1539,6 +1644,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const vy = typeof vp.y === "number" ? vp.y : 0;
     const vz = typeof vp.zoom === "number" && vp.zoom > 0 ? vp.zoom : 1;
     setViewport({ x: vx, y: vy, zoom: vz });
+    meshHistoryBaselineRef.current = ns; // remote sync: not a local user edit
     setState(ns); setRevision(nr); setUpdatedAt(new Date().toISOString());
   }, accessToken);
 
@@ -1587,6 +1693,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       // Avoid snapping back if user kept editing while autosave was in flight.
       if (stateHashRef.current === snapshotHash) {
         stateHashRef.current = serverHash;
+        meshHistoryBaselineRef.current = s.state; // server echo: not a user edit
         setState(s.state);
       }
       setRevision(s.revision);
@@ -1597,6 +1704,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const body = err?.response ?? err?.data;
       if (body?.error === "MESH_REVISION_CONFLICT" && body.currentState) {
         // Server has a newer revision — apply it and show a warning
+        meshHistoryBaselineRef.current = body.currentState; // remote conflict resolve
         setState(body.currentState);
         revisionRef.current = body.currentRevision;
         setRevision(body.currentRevision);
@@ -1613,6 +1721,52 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [meshId, accessToken, localMode, localFile]);
+
+  // ── Op-history: undo/redo as mesh deltas ───────────────────────────────────
+  // Mesh is a whole-state model (autosave + revision). The applier replaces the
+  // affected entities and persists via saveMeshState, which rides the existing
+  // mesh.state.updated broadcast so undo/redo converge across peers. Transport
+  // is the whole-state sync, so we don't double-publish op events (broadcast/
+  // subscribe off). Pure delta + reducer live in src/lib/history/mesh-ops.ts.
+  const meshApplier = useCallback(
+    makeMeshApplier({
+      getState: () => stateRef.current,
+      setState: (next) => setState(next),
+      save: (next) => { void saveMeshState(next, { silent: true }); },
+      markBaseline: (next) => { meshHistoryBaselineRef.current = next; },
+    }),
+    [saveMeshState],
+  );
+  const history = useOpHistory({
+    scope: { kind: "mesh", id: (meshId ?? localFile) as string } as OpScope,
+    apply: meshApplier,
+    enabled: false, // transport rides the existing whole-state realtime sync
+    broadcast: false,
+    cap: 100,
+  });
+
+  // Recorder: diff the baseline against settled state and record one op per
+  // edit burst (debounced so a drag/resize collapses into a single undo step).
+  const meshRecordTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const meshPendingBase = useRef<MeshState | null>(null);
+  useEffect(() => {
+    if (isLoading || history.applyingRef.current) {
+      meshHistoryBaselineRef.current = state;
+      return;
+    }
+    if (state === meshHistoryBaselineRef.current) return;
+    if (meshPendingBase.current === null) meshPendingBase.current = meshHistoryBaselineRef.current;
+    meshHistoryBaselineRef.current = state;
+    if (meshRecordTimer.current) clearTimeout(meshRecordTimer.current);
+    meshRecordTimer.current = setTimeout(() => {
+      const base = meshPendingBase.current;
+      meshPendingBase.current = null;
+      if (!base) return;
+      const draft = computeMeshDelta(base, stateRef.current);
+      if (draft) history.record(draft);
+    }, 450);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state, isLoading]);
 
   // ── Canvas coords ────────────────────────────────────────────────────────────
   const toCanvas = useCallback((cx: number, cy: number) => {
@@ -2330,6 +2484,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const tag = active?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (active?.isContentEditable) return;
+      if (e.ctrlKey || e.metaKey) {
+        const k = e.key.toLowerCase();
+        if (k === "z" && !e.shiftKey) { e.preventDefault(); void history.undo(); return; }
+        if ((k === "z" && e.shiftKey) || k === "y") { e.preventDefault(); void history.redo(); return; }
+      }
       if (e.key === "s" || e.key === "v") { setToolMode("select"); return; }
       if (e.key === "h")                  { setToolMode("pan"); return; }
       if (e.key === "p")                  { setToolMode("pen"); return; }
@@ -2347,7 +2506,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     };
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
-  }, [selectedId, selectedIds, selectedConnId, editingBrickId]);
+  }, [selectedId, selectedIds, selectedConnId, editingBrickId, history]);
 
   // ── Clipboard: copy selected bricks / paste bricks as canvas meta-bricks ────
   const pasteBricksToMesh = useCallback((bricks: ClipboardBrick[], at?: { x: number; y: number }) => {
@@ -2400,10 +2559,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       e.preventDefault();
       pasteBricksToMesh(bricks);
     };
+    // Cut = copy the selection, then delete every selected brick.
+    const onCut = (e: ClipboardEvent) => {
+      if (inEditable()) return;
+      const ids = selectedIds.size > 0 ? [...selectedIds] : (selectedId ? [selectedId] : []);
+      const bricks = collectSelected();
+      if (bricks.length === 0 || !e.clipboardData) return;
+      e.preventDefault();
+      writeBricksToDataTransfer(e.clipboardData, makeEnvelope("mesh", meshId ?? localFile, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+      setState((c) => { let s = c; ids.forEach((id) => { s = deleteBrick(s, id); }); return s; });
+      setSelectedIds(new Set()); setSelectedId(null);
+      toast(tMesh("clipboard.cut", { n: ids.length }), "success");
+    };
     window.addEventListener("copy", onCopy);
+    window.addEventListener("cut", onCut);
     window.addEventListener("paste", onPaste);
-    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
-  }, [selectedId, selectedIds, state.bricksById, editingBrickId, meshId, localFile, pasteBricksToMesh]);
+    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("cut", onCut); window.removeEventListener("paste", onPaste); };
+  }, [selectedId, selectedIds, state.bricksById, editingBrickId, meshId, localFile, pasteBricksToMesh, tMesh]);
 
   useEffect(() => {
     if (!toolbarPanel) return;
@@ -2903,6 +3075,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const dx = x - dragState.startMouse.x;
       const dy = y - dragState.startMouse.y;
       setState((cur) => {
+        // Multi-select drag: translate every selected brick by the same delta.
+        if (dragState.group && dragState.group.length > 1) {
+          const by = { ...cur.bricksById };
+          for (const g of dragState.group) {
+            const gb = by[g.id];
+            if (gb) by[g.id] = { ...gb, position: { x: g.start.x + dx, y: g.start.y + dy } };
+          }
+          return { ...cur, bricksById: by };
+        }
         const b = cur.bricksById[dragState.brickId];
         if (!b) return cur;
         return { ...cur, bricksById: { ...cur.bricksById, [b.id]: { ...b, position: { x: dragState.startPosition.x + dx, y: dragState.startPosition.y + dy } } } };
@@ -2924,6 +3105,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       setPenStrokes([]);
       if (!strokes.length) return;
 
+      // Draw a line between two raw draw bricks → merge them (absorbing the
+      // connecting stroke). Endpoints, not midpoint: the join line lives in the
+      // gap, so its midpoint is outside both bricks.
+      {
+        const allPts = strokes.flatMap((s) => s.points);
+        if (allPts.length >= 2) {
+          const start = allPts[0], end = allPts[allPts.length - 1];
+          const aHit = findRawDrawAt(state.bricksById, start.x, start.y);
+          const bHit = findRawDrawAt(state.bricksById, end.x, end.y);
+          if (aHit && bHit && aHit.id !== bHit.id) {
+            setState((cur) => mergeDrawBricks(cur, [aHit.id, bHit.id], strokes, penColor, penStrokeWidth));
+            toast(tMesh("feedback.drawMerged"), "success");
+            return;
+          }
+        }
+      }
+
       const rawDrawTarget = (() => {
         const bb = strokesBBox(strokes);
         const mid = { x: bb.x + bb.w / 2, y: bb.y + bb.h / 2 };
@@ -2931,25 +3129,35 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       })();
 
       if (rawDrawTarget) {
+        // Append to the existing brick, GROWING its bounds to absorb any ink
+        // that falls outside — never clamp (clamping squashed the drawing to fit).
         setState((cur) => {
           const b = cur.bricksById[rawDrawTarget.id];
           if (!b) return cur;
           const c = asRec(b.content);
-          const current = Array.isArray(c.manualStrokes) ? [...(c.manualStrokes as unknown[])] : [];
           const g = resolveGlobal(cur.bricksById, b.id);
-          const normalizedBatch = strokes.map((s) => ({
-            points: s.points.map((p) => ({
-              x: +Math.max(0, Math.min(1, (p.x - g.x) / Math.max(b.size.w, 1))).toFixed(4),
-              y: +Math.max(0, Math.min(1, (p.y - g.y) / Math.max(b.size.h, 1))).toFixed(4),
-            })),
+          const existingGlobal = drawStrokesGlobal(cur.bricksById, b);
+          const newGlobal: NormStroke[] = strokes.map((s) => ({
+            points: s.points.map((p) => ({ x: p.x, y: p.y })),
             color: s.color ?? penColor,
             width: s.width ?? penStrokeWidth,
           }));
+          // New bounds = union of the current brick rect and the incoming ink.
+          const nb = strokesBBox(strokes);
+          const minX = Math.min(g.x, nb.x), minY = Math.min(g.y, nb.y);
+          const maxX = Math.max(g.x + b.size.w, nb.x + nb.w), maxY = Math.max(g.y + b.size.h, nb.y + nb.h);
+          const bounds = { x: minX, y: minY, w: Math.max(maxX - minX, 40), h: Math.max(maxY - minY, 30) };
+          const normalized = normStrokesToBounds([...existingGlobal, ...newGlobal], bounds);
           return {
             ...cur,
             bricksById: {
               ...cur.bricksById,
-              [b.id]: { ...b, content: { ...c, manualStrokes: [...current, ...normalizedBatch] } },
+              [b.id]: {
+                ...b,
+                position: { x: b.position.x + (bounds.x - g.x), y: b.position.y + (bounds.y - g.y) },
+                size: { w: bounds.w, h: bounds.h },
+                content: { ...c, manualStrokes: normalized },
+              },
             },
           };
         });
@@ -3081,7 +3289,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
       });
     }, 900);
-  }, [activePen, penColor, penStrokeWidth, penMode, state.bricksById, viewport.zoom, accessToken, connPreset, online, localMode, meshId]);
+  }, [activePen, penColor, penStrokeWidth, penMode, state.bricksById, viewport.zoom, accessToken, connPreset, online, localMode, meshId, tMesh]);
 
   // Keep flushPenRef current so onCanvasPointerUp (defined earlier) can call it
   flushPenRef.current = flushPen;
@@ -3098,8 +3306,31 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     }
     setActivePen(null);
 
-    // reparent on drag end
+    // Drag a raw draw brick onto another raw draw brick → merge them.
     if (dragState) {
+      const dragged = state.bricksById[dragState.brickId];
+      if (isRawDraw(dragged)) {
+        const g = resolveGlobal(state.bricksById, dragged.id);
+        const cx = g.x + dragged.size.w / 2, cy = g.y + dragged.size.h / 2;
+        const target = Object.values(state.bricksById)
+          .filter((b) => b.id !== dragged.id && isRawDraw(b))
+          .reverse()
+          .find((b) => {
+            const gb = resolveGlobal(state.bricksById, b.id);
+            return cx >= gb.x && cx <= gb.x + b.size.w && cy >= gb.y && cy <= gb.y + b.size.h;
+          });
+        if (target) {
+          setState((cur) => mergeDrawBricks(cur, [target.id, dragged.id], null, penColor, penStrokeWidth));
+          toast(tMesh("feedback.drawMerged"), "success");
+          publishUnlock(dragState.brickId);
+          setDragState(null); setResizeState(null); setVecDragState(null);
+          return;
+        }
+      }
+    }
+
+    // reparent on drag end (single-brick drags only; group moves are pure translation)
+    if (dragState && !dragState.group) {
       const { brickId, originalParentId } = dragState;
       setState((cur) => {
         const b = cur.bricksById[brickId];
@@ -3147,12 +3378,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
     }
 
-    if (dragState) publishUnlock(dragState.brickId);
+    if (dragState) {
+      if (dragState.group) dragState.group.forEach((g) => publishUnlock(g.id));
+      else publishUnlock(dragState.brickId);
+    }
     if (resizeState) publishUnlock(resizeState.brickId);
     setDragState(null);
     setResizeState(null);
     setVecDragState(null);
-  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, resizeState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom, publishUnlock, flushPen]);
+  }, [bezierCpDrag, panDragState, toolMode, activePen, dragState, resizeState, selRect, state.bricksById, accessToken, connPreset, penColor, penStrokeWidth, viewport.zoom, publishUnlock, flushPen, tMesh]);
 
   // ── Drag start ─────────────────────────────────────────────────────────────────
   const startDrag = useCallback((e: React.PointerEvent, brickId: string) => {
@@ -3160,6 +3394,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (editingBrickId === brickId) return;
     e.stopPropagation();
     if (e.button !== 0) return;
+    // Shift/Ctrl/Meta-click toggles a brick in the multi-selection (no drag).
+    if (e.shiftKey || e.ctrlKey || e.metaKey) {
+      setSelectedIds((cur) => {
+        const n = new Set(cur);
+        if (selectedId) n.add(selectedId);
+        if (n.has(brickId)) n.delete(brickId); else n.add(brickId);
+        return n;
+      });
+      setSelectedId(null);
+      setSelectedConnId(null);
+      return;
+    }
     const existingLock = brickLocks.get(brickId);
     if (existingLock) {
       toast(tMesh("feedback.lockedBy", { name: existingLock.displayName }), "warning");
@@ -3168,11 +3414,26 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const { x, y } = fromEv(e);
     const b = state.bricksById[brickId];
     if (!b) return;
+
+    // Dragging a brick that's part of the current multi-selection moves the
+    // whole group; capture each member's start position.
+    const inMulti = selectedIds.has(brickId) && selectedIds.size > 1;
+    if (inMulti) {
+      const group = [...selectedIds]
+        .map((id) => { const gb = state.bricksById[id]; return gb ? { id, start: { ...gb.position } } : null; })
+        .filter((g): g is { id: string; start: { x: number; y: number } } => !!g);
+      publishLock(brickId, "drag");
+      setDragState({ brickId, startMouse: { x, y }, startPosition: { ...b.position }, originalParentId: b.parentId, group });
+      setSelectedConnId(null);
+      return;
+    }
+
     publishLock(brickId, "drag");
     setDragState({ brickId, startMouse: { x, y }, startPosition: { ...b.position }, originalParentId: b.parentId });
     setSelectedId(brickId);
+    setSelectedIds(new Set()); // collapse any stale multi-selection
     setSelectedConnId(null);
-  }, [toolMode, fromEv, state.bricksById, editingBrickId, brickLocks, publishLock]);
+  }, [toolMode, fromEv, state.bricksById, editingBrickId, brickLocks, publishLock, selectedId, selectedIds]);
 
   const startResize = useCallback((e: React.PointerEvent, brickId: string) => {
     e.stopPropagation();
@@ -3384,7 +3645,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const kids        = isCont ? Object.values(state.bricksById).filter((b) => b.parentId === brick.id) : [];
     const isMultiSel  = selectedIds.has(brick.id);
     const isConnected = connectedBrickIds.has(brick.id);
-    const ring        = (isSel || isMultiSel) ? " ring-2 ring-white/70" : isConnSrc ? " ring-2 ring-cyan-300" : "";
+    // Multi-selected bricks get a distinct, high-contrast ring so the group is
+    // obvious vs a single selection (white).
+    const ring        = isMultiSel ? " ring-2 ring-sky-400 ring-offset-1 ring-offset-slate-900" : isSel ? " ring-2 ring-white/70" : isConnSrc ? " ring-2 ring-cyan-300" : "";
 
     // Magnet port dots rendered inside each brick when conn mode is active
     const brickShapePreset = asRec(brick.content).shapePreset as ShapePreset | undefined;
@@ -3551,28 +3814,32 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "vec" && isSel && vecPts) { const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); insertVecPoint(brick.id, (e.clientX - r.left) / brick.size.w, (e.clientY - r.top) / brick.size.h); return; } if (toolMode === "select") startEdit(brick.id); }}
         >
           {!collapsed && <ShapeSvg preset={shapeP!} w={brick.size.w} h={brick.size.h} pts={vecPts} stroke={shapeStroke} fill={shapeFill} sw={sSW} dash={sDash} cr={sCr} />}
-          {/* Header – only shown when collapsed OR when there's a label OR when it has children */}
+          {/* Header – borderless floating label: title sits ON a hairline rule,
+              collapse chevron at the right. Shown when collapsed / labeled /
+              has children. Tinted to the shape stroke so it reads as part of it. */}
           {(collapsed || shapeLabel || kids.length > 0) && (
-            <div className="relative z-20 flex h-7 items-center justify-between border-b border-white/10 px-2 text-[10px] text-white/60 select-none"
-              style={{ background: "rgba(0,0,0,0.28)", backdropFilter: "blur(4px)" }}>
+            <div className="absolute left-1.5 right-1.5 top-1 z-20 flex items-end justify-between gap-2 select-none"
+              style={{ borderBottom: `1.5px solid ${shapeStroke}` }}>
               {isEditing ? (
                 <input
                   autoFocus
                   type="text"
-                  className="pointer-events-auto min-w-0 flex-1 bg-transparent text-[10px] text-white/90 outline-none border-b border-cyan-400/50 pr-1"
+                  className="pointer-events-auto min-w-0 flex-1 bg-transparent pb-0.5 text-[11px] font-medium leading-none outline-none placeholder:text-white/30"
+                  style={{ color: shapeStroke }}
                   value={editingValue}
                   onChange={(e) => setEditingValue(e.target.value)}
                   onBlur={commitEdit}
                   onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") commitEdit(); e.stopPropagation(); }}
                 />
               ) : (
-                <span className="truncate opacity-70">
-                  <RichText content={shapeLabel || String(shapeP)} context={MESH_CONTEXT} className="inline text-[10px] leading-none" />
+                <span className="truncate pb-0.5 text-[11px] font-medium leading-none drop-shadow-sm" style={{ color: shapeStroke }}>
+                  <RichText content={shapeLabel || String(shapeP)} context={MESH_CONTEXT} className="inline text-[11px] leading-none" />
                 </span>
               )}
-              <button type="button" className="ml-1 flex h-4 w-4 shrink-0 items-center justify-center rounded text-white/40 hover:text-white/80 hover:bg-white/10"
+              <button type="button" className="mb-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10"
+                style={{ color: shapeStroke }}
                 onClick={toggleCollapse} title={collapsed ? "Expandir" : "Minimizar"}>
-                <ChevronDown className={`h-3 w-3 transition-transform duration-150 ${collapsed ? "-rotate-90" : ""}`} />
+                <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${collapsed ? "-rotate-90" : ""}`} />
               </button>
             </div>
           )}

@@ -1,5 +1,5 @@
 {
-  "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)" },
+  "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)", "cut": "{{n}} cortado(s)" },
   "header": {
     "bricks": "bloques",
     "live": "En vivo",
@@ -41,6 +41,7 @@
     "downloaded": "Mesh descargada.",
     "connCreated": "Conexión creada.",
     "connByStroke": "Conexión por trazo.",
+    "drawMerged": "Dibujos fusionados.",
     "shapeRecognized": "Figura: {{kind}}",
     "lockedBy": "\"{{name}}\" está editando este elemento",
     "diagramGenerated": "Diagrama generado · {{count}} elementos",
