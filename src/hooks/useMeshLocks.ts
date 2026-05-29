@@ -53,17 +53,19 @@ export function useMeshLocks(
     const onBrickLocked = (msg: { name: string; data: unknown; clientId?: string }) => {
       if (!msg.data || typeof msg.data !== "object") return;
       const d = msg.data as Record<string, unknown>;
-      if (!d.brickId) return;
-      const clientId: string = msg.clientId ?? d.userId ?? "";
+      const brickId = typeof d.brickId === "string" ? d.brickId : "";
+      if (!brickId) return;
+      const clientId: string = msg.clientId ?? (typeof d.userId === "string" ? d.userId : "");
       if (!clientId || clientId === userId) return;
+      const action: BrickLock["action"] = d.action === "resize" || d.action === "edit" ? d.action : "drag";
       setLocks((prev) => {
         const next = new Map(prev);
-        next.set(d.brickId, {
-          brickId: d.brickId,
+        next.set(brickId, {
+          brickId,
           userId: clientId,
-          displayName: d.displayName ?? clientId.slice(0, 10),
-          avatarUrl: d.avatarUrl,
-          action: d.action ?? "drag",
+          displayName: typeof d.displayName === "string" ? d.displayName : clientId.slice(0, 10),
+          avatarUrl: typeof d.avatarUrl === "string" ? d.avatarUrl : undefined,
+          action,
           lockedAt: Date.now(),
         });
         return next;
@@ -73,12 +75,13 @@ export function useMeshLocks(
     const onBrickUnlocked = (msg: { name: string; data: unknown; clientId?: string }) => {
       if (!msg.data || typeof msg.data !== "object") return;
       const d = msg.data as Record<string, unknown>;
-      if (!d.brickId) return;
-      const clientId: string = msg.clientId ?? d.userId ?? "";
+      const brickId = typeof d.brickId === "string" ? d.brickId : "";
+      if (!brickId) return;
+      const clientId: string = msg.clientId ?? (typeof d.userId === "string" ? d.userId : "");
       if (!clientId || clientId === userId) return;
       setLocks((prev) => {
         const next = new Map(prev);
-        next.delete(d.brickId);
+        next.delete(brickId);
         return next;
       });
     };

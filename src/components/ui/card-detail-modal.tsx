@@ -14,7 +14,6 @@ import { getUserAvatarUrl } from "../../lib/gravatar";
 import { DEFAULT_NATIVE_TAG_SUGGESTIONS, getClientLocale, NATIVE_PRIORITY_TAG_KEY, translateNativeTagName } from "../../lib/native-tags";
 import * as jsdiff from "diff";
 import { ReferenceResolver } from "@/lib/reference-resolver";
-import { listTeamMembers } from "@/lib/api/contracts";
 import { Fragment, type ReactNode, useMemo } from "react";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";

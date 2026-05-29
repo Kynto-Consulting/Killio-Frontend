@@ -744,7 +744,7 @@ function renderMd(text: string): string {
 
 // ─── Brick Renderer (read-only) ───────────────────────────────────────────────
 
-function renderBoardEmptyBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderBoardEmptyBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const title = typeof c.title === "string" ? c.title : typeof c.name === "string" ? c.name : "";
@@ -776,7 +776,7 @@ function renderBoardEmptyBrick(brick: MeshBrick, bricksById: Record<string, Mesh
   );
 }
 
-function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const styleR = asRec(c.style);
@@ -830,7 +830,7 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
   );
 }
 
-function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const styleR = asRec(c.style);
@@ -954,7 +954,7 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
   );
 }
 
-function renderTextUnifierBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderTextUnifierBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const isConnected = connectedIds.has(brick.id);
@@ -993,7 +993,7 @@ function renderTextUnifierBrick(brick: MeshBrick, bricksById: Record<string, Mes
   );
 }
 
-function renderPortalBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderPortalBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const isConnected = connectedIds.has(brick.id);
@@ -1055,7 +1055,7 @@ function renderPortalBrick(brick: MeshBrick, bricksById: Record<string, MeshBric
   );
 }
 
-function renderMirrorBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): JSX.Element {
+function renderMirrorBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
   const isConnected = connectedIds.has(brick.id);

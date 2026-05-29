@@ -67,13 +67,13 @@ export function useMeshCursors(
     const onCursorMove = (msg: { name: string; data: unknown; clientId?: string }) => {
       if (!msg.data || typeof msg.data !== "object") return;
       const d = msg.data as Record<string, unknown>;
-      const clientId: string = msg.clientId ?? d.clientId ?? "";
+      const clientId: string = msg.clientId ?? (typeof d.clientId === "string" ? d.clientId : "");
       if (!clientId || clientId === userId) return;
       setCursors((prev) => {
         const next = new Map(prev);
         next.set(clientId, {
           clientId,
-          displayName: d.displayName ?? clientId.slice(0, 10),
+          displayName: typeof d.displayName === "string" ? d.displayName : clientId.slice(0, 10),
           color: colorForId(clientId),
           x: typeof d.x === "number" ? d.x : 0,
           y: typeof d.y === "number" ? d.y : 0,

@@ -75,9 +75,9 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
   }, [pathname]);
 
   useEffect(() => {
-    if (!accessToken) return;
+    if (!accessToken || !user) return;
 
-    const key = cacheKey.teams();
+    const key = cacheKey.teams(user.id);
 
     // Show cached teams instantly (no skeleton on revisit)
     const cachedTeams = apiCache.get<TeamView[]>(key);
