@@ -103,7 +103,10 @@ export default function MeshBoardsPage() {
         const path = `${slugifyMeshName(meshName)}.km`;
         await localWs.writeFile(path, encodeKillioFile({ kind: "km", schemaVersion: "2026-v1", payload: { id: path, title: meshName, viewport: { x: 0, y: 0, zoom: 1 }, bricks: [], connections: [], rootOrder: [] } }));
         router.push(`/m/${path.split("/").map(encodeURIComponent).join("/")}`);
-      } catch { toast(t("mesh.createError"), "error"); }
+      } catch (err) {
+        console.error("[mesh] local create failed", err);
+        toast(err instanceof Error ? `${t("mesh.createError")}: ${err.message}` : t("mesh.createError"), "error");
+      }
       finally { setIsCreating(false); }
       return;
     }
