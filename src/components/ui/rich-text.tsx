@@ -274,7 +274,8 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
     const segments = value.split(/(`[^`]+`|\$[^$]+\$)/g);
 
     const renderDecorations = (input: string, decorationPrefix: string): ReactNode[] => {
-      const chunks = input.split(/(\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~)/g);
+      // Order matters: ** / __ before single * / _ so bold/underline win.
+      const chunks = input.split(/(\*\*[\s\S]+?\*\*|__[\s\S]+?__|~~[\s\S]+?~~|\*[^*\n]+?\*|(?<![A-Za-z0-9])_[^_\n]+?_(?![A-Za-z0-9]))/g);
       return chunks.map((chunk, index) => {
         if (chunk.startsWith("**") && chunk.endsWith("**") && chunk.length > 4) {
           return <strong key={`${decorationPrefix}-bold-${index}`}>{chunk.slice(2, -2)}</strong>;
@@ -284,6 +285,12 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
         }
         if (chunk.startsWith("~~") && chunk.endsWith("~~") && chunk.length > 4) {
           return <s key={`${decorationPrefix}-strike-${index}`}>{chunk.slice(2, -2)}</s>;
+        }
+        if (chunk.length > 2 && chunk.startsWith("*") && chunk.endsWith("*")) {
+          return <em key={`${decorationPrefix}-italic-${index}`}>{chunk.slice(1, -1)}</em>;
+        }
+        if (chunk.length > 2 && chunk.startsWith("_") && chunk.endsWith("_")) {
+          return <em key={`${decorationPrefix}-italic2-${index}`}>{chunk.slice(1, -1)}</em>;
         }
 
         const tagChunks = chunk.split(/(tag\.(?:native|custom)\.[a-zA-Z0-9.\-]+)/g);

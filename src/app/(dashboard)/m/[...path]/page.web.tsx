@@ -2832,30 +2832,35 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const pos = parentId
           ? { x: Math.round(n.x), y: Math.round(n.y) }
           : { x: Math.round(n.x + offX), y: Math.round(n.y + offY) };
+        const tint = (s: string) => (s && n.textColor ? `[color:${n.textColor}]${s}[/color]` : s);
+        // A "Title<br/>description" label splits into a plain header title plus a
+        // separate, editable description we drop into a nested text brick below.
+        const nlIdx = n.label ? n.label.indexOf("\n") : -1;
+        const title = n.label ? (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim() : "";
+        const descBody = n.label && nlIdx >= 0
+          ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n")
+          : "";
+
         let nb: MeshBrick;
         if (n.kind === "board") {
           nb = mkBrick("board_empty", count++, parentId, pos);
-          if (n.label) nb = { ...nb, content: { ...asRec(nb.content), label: n.label } };
+          if (title) nb = { ...nb, content: { ...asRec(nb.content), label: title } };
         } else if (n.kind === "text") {
-          nb = setMd(mkBrick("text", count++, parentId, pos), n.label || "");
+          nb = setMd(mkBrick("text", count++, parentId, pos), tint(n.label || ""));
         } else {
           const preset = (n.shape ?? "rect") as ShapePreset;
           nb = mkBrick("draw", count++, parentId, pos, preset);
-          if (n.label) {
-            // Split "Title<br/>description" → header title + centered body. When
-            // there's only a title, put it in the body so the shape isn't empty.
-            // Text color rides the existing [color:…] inline token, not a style.
-            const nlIdx = n.label.indexOf("\n");
-            const title = (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim();
-            const body = nlIdx >= 0 ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n") : "";
-            const tint = (s: string) => (s && n.textColor ? `[color:${n.textColor}]${s}[/color]` : s);
-            nb = body
-              ? { ...nb, content: { ...asRec(nb.content), label: tint(title), markdown: tint(body) } }
+          if (title) {
+            // With a description: plain title in the header (no inline tokens, so the
+            // header never shows raw markup), description goes to a nested text brick.
+            // Title-only: centre the (optionally coloured) title in the body.
+            nb = descBody
+              ? { ...nb, content: { ...asRec(nb.content), label: title, isContainer: true, childOrder: [] } }
               : { ...nb, content: { ...asRec(nb.content), markdown: tint(title) } };
           }
         }
         // Apply per-node shape colors (from classDef / class / style). Text color
-        // is handled via the [color:…] token above, not here.
+        // is handled via the [color:…] token, not here.
         if (n.stroke || n.fill) {
           const content = asRec(nb.content);
           const style = { ...asRec(content.style) };
@@ -2873,24 +2878,53 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           root.push(nb.id);
         }
         refToId[n.ref] = nb.id;
+
+        // Description → a real, editable text brick nested inside the shape.
+        if (n.kind === "shape" && descBody) {
+          const tb0 = setMd(mkBrick("text", count++, nb.id, { x: 12, y: 38 }), tint(descBody));
+          const tb = { ...tb0, size: { w: Math.max(60, nb.size.w - 24), h: Math.max(28, nb.size.h - 52) } };
+          by[tb.id] = tb;
+          const pc = asRec(by[nb.id].content);
+          const co = Array.isArray(pc.childOrder) ? (pc.childOrder as string[]) : [];
+          by[nb.id] = { ...by[nb.id], content: { ...pc, isContainer: true, childOrder: [...co, tb.id] } };
+        }
       });
 
       const connectionsById = { ...cur.connectionsById };
-      mesh.edges.forEach((e) => {
-        const src = refToId[e.from];
-        const tgt = refToId[e.to];
-        if (!src || !tgt || src === tgt) return;
+      const mkDocLabel = (txt?: string) => txt
+        ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: txt }] }] }
+        : { type: "doc" as const, content: [] };
+      // Resolve edges to brick ids and group by unordered pair. Only a *clean
+      // reverse pair* — exactly one A→B and one B→A — collapses into a single
+      // bidirectional connection. Anything else (multiple FKs between the same
+      // two entities, repeated same-direction edges, 3+ edges) stays as distinct
+      // connections, since those are legitimately separate relationships.
+      const resolved = mesh.edges
+        .map((e) => ({ e, src: refToId[e.from], tgt: refToId[e.to] }))
+        .filter((r) => r.src && r.tgt && r.src !== r.tgt);
+      const groups = new Map<string, typeof resolved>();
+      resolved.forEach((r) => {
+        const key = [r.src, r.tgt].sort().join("|");
+        (groups.get(key) ?? groups.set(key, []).get(key)!).push(r);
+      });
+      const mkConn = (src: string, tgt: string, e: typeof resolved[number]["e"], bidir: boolean, labelTxt?: string) => {
         const style: Record<string, unknown> = { ...connStyle(connPreset) };
-        // Per-edge overrides (color / pattern / width / connType from mermaid).
         if (e.color) style.stroke = e.color;
         if (e.pattern) style.pattern = e.pattern;
         if (typeof e.width === "number") style.width = e.width;
         if (e.connType) style.connType = e.connType;
-        const label = e.label
-          ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: e.label }] }] }
-          : { type: "doc" as const, content: [] };
-        const conn: MeshConnection = { id: mkId("conn"), cons: [src, tgt], label, style };
+        if (bidir) style.bidir = true;
+        const conn: MeshConnection = { id: mkId("conn"), cons: [src, tgt], label: mkDocLabel(labelTxt ?? e.label), style };
         connectionsById[conn.id] = conn;
+      };
+      groups.forEach((grp) => {
+        const isCleanReversePair = grp.length === 2 && grp[0].src === grp[1].tgt && grp[0].tgt === grp[1].src;
+        if (isCleanReversePair) {
+          const merged = [grp[0].e.label, grp[1].e.label].filter(Boolean).join("  |  ");
+          mkConn(grp[0].src, grp[0].tgt, grp[0].e, true, merged || undefined);
+        } else {
+          grp.forEach((r) => mkConn(r.src, r.tgt, r.e, false));
+        }
       });
 
       return { ...cur, bricksById: by, rootOrder: root, connectionsById };
@@ -4604,10 +4638,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <span className="hidden sm:inline">Save</span>
           </button>
 
-          {/* User avatar */}
-          <div className="h-7 w-7 shrink-0 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "User"}>
-            {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
-          </div>
         </div>
       </div>
       </>
@@ -4797,6 +4827,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     <marker id="arr-sel" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
                       <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#ffffff" />
                     </marker>
+                    {/* Reversed heads for bidirectional connections (markerStart). */}
+                    <marker id="arr-norm-rev" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse">
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#22d3ee" opacity="0.9" />
+                    </marker>
+                    <marker id="arr-sel-rev" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse">
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#ffffff" />
+                    </marker>
                   </defs>
                   {Object.values(state.connectionsById).map((conn) => {
                     const src = state.bricksById[conn.cons[0]];
@@ -4825,6 +4862,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const srcVecPts = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
                     const tgtVecPts = Array.isArray(asRec(tgt.content).vectorPoints) ? asRec(tgt.content).vectorPoints as VecPts : undefined;
                     const markerId  = isSC ? "url(#arr-sel)" : "url(#arr-norm)";
+                    const bidir     = st.bidir === true;
+                    const markerStartId = bidir ? (isSC ? "url(#arr-sel-rev)" : "url(#arr-norm-rev)") : undefined;
                     const connLabel = typeof st.label === "string" ? st.label : "";
                     const isEditingConnLabel = editingConnId === conn.id;
                     const labelW    = isEditingConnLabel ? 260 : 180;
@@ -4888,7 +4927,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                           strokeDasharray={dashed ? "6 4" : undefined}
                           strokeLinecap={cType === "handdrawn" ? "round" : "butt"}
                           strokeLinejoin={cType === "handdrawn" ? "round" : "miter"}
-                          markerEnd={markerId} opacity={0.9} />
+                          markerEnd={markerId} markerStart={markerStartId} opacity={0.9} />
 
                         {/* Bezier control point handles (vec mode + selected) */}
                         {cType === "bezier" && isSC && toolMode === "vec" && bezierInfo && (

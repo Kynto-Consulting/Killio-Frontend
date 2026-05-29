@@ -75,8 +75,8 @@ function stripQuotes(s: string): string {
 function cleanLabel(s: string): string {
   return s
     .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/?(?:i|em)>/gi, "*")
-    .replace(/<\/?(?:b|strong)>/gi, "**")
+    .replace(/<\/?(?:b|strong)>/gi, "**") // bold
+    .replace(/<\/?(?:i|em)>/gi, "*")        // italic
     .replace(/<[^>]+>/g, "")
     .replace(/[ \t]+\n/g, "\n")
     .trim();

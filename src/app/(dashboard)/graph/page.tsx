@@ -59,6 +59,9 @@ export default function GraphPage() {
       } else {
         setEntities([]);
       }
+    } catch (err) {
+      console.error("[graph] failed to collect entities", err);
+      setEntities([]);
     } finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localMode, accessToken, activeTeamId, localWs.files, localWs.status]);
