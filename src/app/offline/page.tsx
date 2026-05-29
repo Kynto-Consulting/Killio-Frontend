@@ -3,8 +3,26 @@
 import React from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
+type LocalWs = { id: string; name: string };
+
 export default function OfflinePage() {
   const t = useTranslations("landing");
+  const [localWorkspaces, setLocalWorkspaces] = React.useState<LocalWs[]>([]);
+
+  // Local workspaces are stored offline (localStorage + IndexedDB), so we can
+  // offer to enter one even with no network — they don't depend on the cloud.
+  React.useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem("killio_local_workspaces");
+      const parsed = raw ? JSON.parse(raw) : [];
+      if (Array.isArray(parsed)) setLocalWorkspaces(parsed);
+    } catch { /* ignore */ }
+  }, []);
+
+  const openLocal = (id: string) => {
+    try { window.localStorage.setItem("killio_active_local", id); } catch { /* ignore */ }
+    window.location.href = "/d"; // cached app shell boots offline into local mode
+  };
 
   return (
     <div className="min-h-screen bg-neutral-950 flex flex-col items-center justify-center p-6 text-center">
@@ -36,6 +54,22 @@ export default function OfflinePage() {
             {t("offline.description")}
           </p>
         </div>
+
+        {localWorkspaces.length > 0 && (
+          <div className="pt-6 border-t border-neutral-800 space-y-2 text-left">
+            <p className="text-xs uppercase tracking-wider text-neutral-500">{t("offline.localWorkspaces")}</p>
+            {localWorkspaces.map((ws) => (
+              <button
+                key={ws.id}
+                onClick={() => openLocal(ws.id)}
+                className="flex w-full items-center gap-2 rounded-lg bg-cyan-500/15 px-3 py-2 text-sm font-medium text-cyan-200 transition-colors hover:bg-cyan-500/25"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" /></svg>
+                {ws.name}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="pt-6 border-t border-neutral-800 space-y-3">
           <button

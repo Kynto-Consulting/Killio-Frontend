@@ -237,7 +237,8 @@
     "title": "You are offline",
     "description": "It looks like you've lost your internet connection. Any edits you make to cached documents will sync automatically when you are back online.",
     "tryAgain": "Try Again",
-    "goBack": "Go Back"
+    "goBack": "Go Back",
+    "localWorkspaces": "Open a local workspace"
   },
   "footer": "Built for fast teams that hate tab chaos.",
   "footerNote": "Classic legal routes, transparent consent, and a public front door that does not hijack guests into auth.",

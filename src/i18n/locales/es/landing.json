@@ -237,7 +237,8 @@
     "title": "Estas sin conexion",
     "description": "Parece que perdiste tu conexion a internet. Los cambios en documentos cacheados se sincronizaran automaticamente cuando vuelvas a estar en linea.",
     "tryAgain": "Reintentar",
-    "goBack": "Volver"
+    "goBack": "Volver",
+    "localWorkspaces": "Abrir un espacio local"
   },
   "footer": "Hecho para equipos rapidos que odian el caos de pestanas.",
   "footerNote": "Rutas legales clasicas, consentimiento transparente y una entrada publica que no empuja a invitados directo al login.",
