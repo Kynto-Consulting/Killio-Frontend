@@ -38,6 +38,8 @@ import { computeMeshDelta, makeMeshApplier } from "@/lib/history/mesh-ops";
 import type { OpScope } from "@/lib/history/types";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
+import { parseGrarkdownToMesh, isGrarkdown } from "@/lib/grarkdown-mesh";
+import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng } from "@/lib/excalidraw-mesh";
 import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
 import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
@@ -2942,15 +2944,73 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     return mesh.nodes.length;
   }, [connPreset]);
 
+  // Insert a full-fidelity MeshTemplate (e.g. an Excalidraw import) at the
+  // viewport centre, remapping ids so it never collides with existing bricks.
+  const applyMeshTemplateAtCenter = useCallback((tpl: MeshTemplate): number => {
+    if (!tpl.bricks.length) return 0;
+    const vp = viewportRef.current; const el = canvasRef.current;
+    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
+    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    tpl.bricks.forEach((b) => { if (!b.parentId) { minX = Math.min(minX, b.position.x); minY = Math.min(minY, b.position.y); maxX = Math.max(maxX, b.position.x + b.size.w); maxY = Math.max(maxY, b.position.y + b.size.h); } });
+    if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = 0; maxY = 0; }
+    const offset = { x: Math.round(cx - (minX + maxX) / 2), y: Math.round(cy - (minY + maxY) / 2) };
+    const { bricks, connections } = instantiateTemplate(tpl, offset, mkId);
+    setState((cur) => {
+      const by = { ...cur.bricksById }; const root = [...cur.rootOrder];
+      bricks.forEach((b) => { by[b.id] = b; if (!b.parentId) root.push(b.id); });
+      const connectionsById = { ...cur.connectionsById };
+      connections.forEach((c) => { connectionsById[c.id] = c; });
+      return { ...cur, bricksById: by, rootOrder: root, connectionsById };
+    });
+    return bricks.length;
+  }, []);
+
+  // Import a dropped/picked file (.excalidraw / .excalidraw.png / .json / .md).
+  const importDiagramFile = useCallback(async (file: File): Promise<void> => {
+    try {
+      const isPng = /\.png$/i.test(file.name) || file.type === "image/png";
+      if (isPng) {
+        const scene = await extractExcalidrawSceneFromPng(new Uint8Array(await file.arrayBuffer()));
+        if (!scene) { toast(tMesh("errors.diagramEmpty"), "error"); return; }
+        const n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(scene));
+        if (n > 0) { toast(tMesh("feedback.diagramGenerated", { count: n }), "success"); setIsTextToDiagramOpen(false); }
+        else toast(tMesh("errors.diagramEmpty"), "error");
+        return;
+      }
+      const text = await file.text();
+      const isExcali = /\.excalidraw$/i.test(file.name) || /"type"\s*:\s*"excalidraw/.test(text);
+      if (isExcali) {
+        const n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(text));
+        if (n > 0) { toast(tMesh("feedback.diagramGenerated", { count: n }), "success"); setIsTextToDiagramOpen(false); }
+        else toast(tMesh("errors.diagramEmpty"), "error");
+        return;
+      }
+      // Mermaid / erDiagram / Grarkdown text — drop into the box for review.
+      setDiagramPrompt(text);
+    } catch {
+      toast(tMesh("errors.diagramFailed"), "error");
+    }
+  }, [applyMeshTemplateAtCenter, tMesh]);
+
   const handleGenerateDiagram = useCallback(async () => {
     const prompt = diagramPrompt.trim();
     if (!prompt || diagramGenerating) return;
 
-    // Mermaid mode parses locally — no network call.
+    // Import mode parses locally — no network call. Auto-detects the format:
+    // Excalidraw JSON → native bricks; Grarkdown → graph; else Mermaid/erDiagram.
     if (diagramMode === "mermaid") {
       try {
-        const mesh = parseMermaidToMesh(prompt);
-        const n = applyGeneratedMesh(mesh);
+        const src = prompt;
+        const trimmed = src.replace(/^﻿/, "").trimStart();
+        let n = 0;
+        if (trimmed.startsWith("{") && /"type"\s*:\s*"excalidraw|"elements"\s*:/.test(trimmed)) {
+          n = applyMeshTemplateAtCenter(parseExcalidrawToTemplate(src));
+        } else if (isGrarkdown(src)) {
+          n = applyGeneratedMesh(parseGrarkdownToMesh(src));
+        } else {
+          n = applyGeneratedMesh(parseMermaidToMesh(src));
+        }
         if (n > 0) {
           toast(tMesh("feedback.diagramGenerated", { count: n }), "success");
           setIsTextToDiagramOpen(false);
@@ -2982,7 +3042,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     } finally {
       setDiagramGenerating(false);
     }
-  }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, applyGeneratedMesh]);
+  }, [diagramPrompt, diagramGenerating, diagramMode, activeTeamId, user?.id, accessToken, applyGeneratedMesh, applyMeshTemplateAtCenter, tMesh]);
 
   // Load saved user templates on mount.
   useEffect(() => { setUserTemplates(loadUserTemplates()); }, []);
@@ -4410,7 +4470,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <button key={mode} type="button" disabled={diagramGenerating}
                   onClick={() => setDiagramMode(mode)}
                   className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${diagramMode === mode ? "bg-cyan-500/25 text-cyan-100" : "text-slate-400 hover:text-cyan-100"}`}>
-                  {mode === "ai" ? tMesh("textToDiagram.tabAi") : tMesh("textToDiagram.tabMermaid")}
+                  {mode === "ai" ? tMesh("textToDiagram.tabAi") : tMesh("textToDiagram.tabImport")}
                 </button>
               ))}
             </div>
@@ -4427,6 +4487,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               className={`w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60 ${diagramMode === "mermaid" ? "font-mono text-[12px]" : ""}`}
             />
             <div className="mt-4 flex items-center justify-end gap-2">
+              {diagramMode === "mermaid" && (
+                <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
+                  <Upload className="h-3.5 w-3.5" />
+                  {tMesh("textToDiagram.importFile")}
+                  <input type="file" accept=".excalidraw,.json,.md,.mmd,.png,application/json,image/png" className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) void importDiagramFile(f); e.currentTarget.value = ""; }} />
+                </label>
+              )}
               <button type="button" disabled={diagramGenerating}
                 onClick={() => setIsTextToDiagramOpen(false)}
                 className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-50">
