@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare, Lock, AlertTriangle } from "lucide-react";
+import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare, Lock, AlertTriangle, Workflow } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
 import { CreateWorkspaceModal } from "@/components/ui/create-workspace-modal";
 import { ProfileSettingsModal } from "@/components/ui/profile-settings-modal";
@@ -64,6 +64,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.boards"), href: "/b", icon: Layout },
     { name: tDashboard("nav.meshs"), href: "/m", icon: GitBranch },
     { name: tDashboard("nav.documents"), href: "/d", icon: FileText },
+    { name: tDashboard("nav.graph"), href: "/graph", icon: Workflow },
     { name: tDashboard("nav.rooms"), href: "/rooms", icon: MessageSquare },
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];
@@ -75,7 +76,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
 
   // In a Local workspace only disk-backed routes remain (boards/meshes/docs +
   // home); cloud-only sections are hidden. Otherwise filter by permissions.
-  const LOCAL_ALLOWED = new Set(["/", "/b", "/m", "/d"]);
+  const LOCAL_ALLOWED = new Set(["/", "/b", "/m", "/d", "/graph"]);
   const navigationItems = navigation.filter(item => {
     if (localMode) return LOCAL_ALLOWED.has(item.href);
     if (item.href === "/metrics" || item.href === "/integrations") return canAccessScripts;
