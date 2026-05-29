@@ -42,6 +42,7 @@ import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalMesh } from "@/lib/local-workspace/publish-local";
+import { readAssetFile } from "@/lib/local-workspace/assets";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
@@ -1396,6 +1397,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     window.localStorage.setItem("mesh:pen:width", penStrokeWidth.toString());
     window.localStorage.setItem("mesh:pen:mode", penMode);
   }, [penColor, penStrokeWidth, penMode]);
+
+  // Smart pen (iink) needs backend + internet → force plain ink when unavailable.
+  useEffect(() => {
+    if (penMode === "smart" && (!online || localMode || !meshId || !accessToken)) setPenMode("ink");
+  }, [online, localMode, meshId, accessToken, penMode]);
 
   useEffect(() => {
     if (!mobileMode) return;
@@ -2887,7 +2893,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
 
       // Ink pen, no target board: create a fresh draw board sized to the ink and store the strokes in it.
-      if (penMode === "ink") {
+      // Smart (iink) recognition needs the backend + internet; offline or in a
+      // local workspace we always fall back to plain ink.
+      if (penMode === "ink" || !online || localMode || !accessToken || !meshId) {
         const bb = strokesBBox(strokes);
         const pad = 14;
         const originX = bb.x - pad;
@@ -3009,7 +3017,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         else if (text) toast(`"${text.trim().slice(0, 30)}"`, "success");
       });
     }, 900);
-  }, [activePen, penColor, penStrokeWidth, penMode, state.bricksById, viewport.zoom, accessToken, connPreset]);
+  }, [activePen, penColor, penStrokeWidth, penMode, state.bricksById, viewport.zoom, accessToken, connPreset, online, localMode, meshId]);
 
   // Keep flushPenRef current so onCanvasPointerUp (defined earlier) can call it
   flushPenRef.current = flushPen;
@@ -3973,6 +3981,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onColorChange={setPenColor}
           onStrokeWidthChange={setPenStrokeWidth}
           onModeChange={setPenMode}
+          smartDisabled={!online || localMode || !meshId || !accessToken}
+          smartDisabledReason={tMesh("errors.iinkNoResponse")}
         />
       )}
 
@@ -5079,6 +5089,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       publish={async () => publishLocalMesh(
         serializeMeshToKm(state, { meshId: localFile, title: meshBoardName }),
         { teamId: activeTeamId as string, accessToken: accessToken as string },
+        { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
       )}
     />
 

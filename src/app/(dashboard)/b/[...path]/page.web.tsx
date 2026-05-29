@@ -27,6 +27,7 @@ import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalBoard } from "@/lib/local-workspace/publish-local";
+import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
@@ -2258,6 +2259,7 @@ export default function BoardPage() {
             lists: lists.map((l: any) => ({ id: l.id, name: l.title, cards: l.cards })),
           }),
           { teamId: activeTeamId as string, accessToken: accessToken as string },
+          { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
         )}
       />
 

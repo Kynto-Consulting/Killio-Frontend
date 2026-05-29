@@ -69,6 +69,10 @@ function makeRemapString(refMap: Map<string, RefEntry>, assetMap: Map<string, st
     });
     // Asset refs anywhere in the string (covers url/src fields + JSON captions).
     s = s.replace(ASSET_RE, (m, name) => assetMap.get(name) ?? m);
+    // Bare id fields that equal a known local path (e.g. portal targetId /
+    // mirror sourceId) → cloud id.
+    const exact = refMap.get(s);
+    if (exact) return exact.id;
     return s;
   };
 }

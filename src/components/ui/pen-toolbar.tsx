@@ -12,6 +12,9 @@ export interface PenToolbarProps {
   onColorChange: (color: string) => void;
   onStrokeWidthChange: (width: number) => void;
   onModeChange: (mode: PenMode) => void;
+  /** Smart (iink) recognition needs backend + internet. Disable when offline/local. */
+  smartDisabled?: boolean;
+  smartDisabledReason?: string;
 }
 
 export function PenToolbar({
@@ -21,6 +24,8 @@ export function PenToolbar({
   onColorChange,
   onStrokeWidthChange,
   onModeChange,
+  smartDisabled = false,
+  smartDisabledReason,
 }: PenToolbarProps) {
   const [activePanel, setActivePanel] = React.useState<"color" | "size" | null>(null);
 
@@ -134,9 +139,10 @@ export function PenToolbar({
             </button>
             <button
               type="button"
-              onClick={() => onModeChange("smart")}
-              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${mode === "smart" ? "bg-violet-400/20 text-violet-100" : "text-slate-400 hover:text-violet-100"}`}
-              title="Inteligente: reconoce texto y formas (iink)"
+              disabled={smartDisabled}
+              onClick={() => { if (!smartDisabled) onModeChange("smart"); }}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${smartDisabled ? "cursor-not-allowed text-slate-600 opacity-50" : mode === "smart" ? "bg-violet-400/20 text-violet-100" : "text-slate-400 hover:text-violet-100"}`}
+              title={smartDisabled ? (smartDisabledReason || "Necesita conexión a internet") : "Inteligente: reconoce texto y formas (iink)"}
             >
               <Sparkles className="h-3.5 w-3.5" /> Smart
             </button>

@@ -9,7 +9,7 @@ import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
 import { getDocument as apiGetDocument, createDocumentBrick as apiCreateDocumentBrick, updateDocumentBrick as apiUpdateDocumentBrick, deleteDocumentBrick as apiDeleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks as apiReorderDocumentBricks, listDocuments, listAllTeamDocuments, DocumentSummary, patchBrickCell as apiPatchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, TeamMemberSummary, uploadFile as apiUploadFile } from "@/lib/api/contracts";
-import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
+import { writeAsset, assetFilename, makeAssetRef, readAssetFile } from "@/lib/local-workspace/assets";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import Link from "next/link";
 import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
@@ -1702,6 +1702,7 @@ export default function DocumentPage() {
         publish={async () => publishLocalDocument(
           docToKd({ id: localFile, title: document?.title, bricks: (document?.bricks ?? []) as unknown as { id: string; kind: string; position: number; content: unknown }[] }),
           { teamId: activeTeamId as string, accessToken: accessToken as string },
+          { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
         )}
       />
     </div>
