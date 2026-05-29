@@ -159,6 +159,8 @@
     "archivedBannerBody": "You can only access the settings for this workspace.",
     "localWorkspace": "Local workspace",
     "localWorkspaces": "Local workspaces",
-    "createLocal": "Create locally"
+    "createLocal": "Create locally",
+    "unlinkLocal": "Unlink workspace",
+    "unlinkConfirm": "Unlink this local workspace from Killio? Your files on disk are NOT deleted — this only removes it from the list."
   }
 }

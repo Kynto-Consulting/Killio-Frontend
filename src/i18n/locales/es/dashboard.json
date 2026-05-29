@@ -159,6 +159,8 @@
     "archivedBannerBody": "Solo puedes acceder a la configuracion de este workspace.",
     "localWorkspace": "Espacio local",
     "localWorkspaces": "Espacios locales",
-    "createLocal": "Crear localmente"
+    "createLocal": "Crear localmente",
+    "unlinkLocal": "Desvincular espacio",
+    "unlinkConfirm": "¿Desvincular este espacio local de Killio? Tus archivos en disco NO se eliminan — solo se quita del listado."
   }
 }

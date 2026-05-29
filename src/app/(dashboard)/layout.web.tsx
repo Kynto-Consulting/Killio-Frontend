@@ -20,7 +20,7 @@ import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
-import { RefreshCw, HardDrive, CloudUpload } from "lucide-react";
+import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
 import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
@@ -798,6 +798,18 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                                 <CloudUpload className="h-4 w-4" />
                               </button>
                             )}
+                            <button
+                              title={tDashboard("teamSwitcher.unlinkLocal")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (typeof window !== "undefined" && !window.confirm(tDashboard("teamSwitcher.unlinkConfirm"))) return;
+                                void localWs.removeLocalWorkspace(lw.id);
+                                if (isActive) localWs.exitLocal();
+                              }}
+                              className="mr-1 hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-rose-500/15 hover:text-rose-300 transition-colors group-hover:flex"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
                           </div>
                           );
                         })}

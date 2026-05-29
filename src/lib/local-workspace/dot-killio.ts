@@ -292,6 +292,26 @@ export async function ensureDotKillio(
     await writeWorkspaceFile(dir, `${DOT_KILLIO}/SKILL.md`, skillMd(meta));
     await writeWorkspaceFile(dir, `${DOT_KILLIO}/kml.md`, kmlMd());
     await writeWorkspaceFile(dir, `${DOT_KILLIO}/graph.kml`, graphKml(graph, meta));
+
+    // Seed a workspace .gitignore once (don't clobber the user's edits) so the
+    // folder can be versioned cleanly. Content files (.km/.kd/.kb/.ks) stay
+    // tracked; only OS noise + the regenerated graph snapshot are ignored.
+    if (!(await readWorkspaceFileWithMeta(dir, ".gitignore"))) {
+      await writeWorkspaceFile(dir, ".gitignore", [
+        "# Killio workspace",
+        "# .km / .kd / .kb / .ks files ARE your content — keep them tracked.",
+        "",
+        "# Regenerated workspace graph snapshot (rebuilt on open)",
+        ".killio/graph.kml",
+        "",
+        "# OS / editor noise",
+        ".DS_Store",
+        "Thumbs.db",
+        "*~",
+        "*.tmp",
+        "",
+      ].join("\n"));
+    }
   } catch (err) {
     console.warn("[.killio] ensure failed", err);
   }
