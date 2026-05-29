@@ -34,6 +34,9 @@
     "copilot": "Copilot",
     "comments": "Comentarios",
     "activity": "Actividad",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "copyEmpty": "Nada para copiar",
     "share": "Compartir",
     "download": "Descargar"
   },

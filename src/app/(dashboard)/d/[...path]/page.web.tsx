@@ -24,13 +24,16 @@ import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-fil
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
+import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
+import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalDocument } from "@/lib/local-workspace/publish-local";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
-import { Sparkles, History } from "lucide-react";
+import { Sparkles, History, Copy as CopyIcon } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
@@ -405,6 +408,62 @@ export default function DocumentPage() {
       });
     }
   });
+
+  // ── Clipboard: copy/paste bricks (P1, document-level) ──────────────────────
+  const copyDocumentBricks = useCallback(async (): Promise<boolean> => {
+    if (!document) return false;
+    const topIds = getTopLevelBrickIds(document.bricks);
+    const bricks = document.bricks
+      .filter((b) => topIds.has(b.id))
+      .sort((a, b) => a.position - b.position)
+      .map((b) => ({ kind: b.kind, content: b.content }));
+    if (bricks.length === 0) return false;
+    const env = makeEnvelope("document", docId, bricks);
+    return writeBricksToClipboard(env, { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+  }, [document, docId]);
+
+  const pasteBricks = useCallback(async (bricks: ClipboardBrick[]) => {
+    if (!document || bricks.length === 0) return;
+    const topIds = getTopLevelBrickIds(document.bricks);
+    const top = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
+    let pos = top.length ? top[top.length - 1].position + 1000 : 1000;
+    for (const cb of bricks) {
+      try {
+        const created = await createDocumentBrick(docId, { kind: cb.kind, position: pos, content: (cb.content ?? {}) as any }, accessToken);
+        setDocument((prev) => prev ? { ...prev, bricks: sanitizeDocumentBricks([...prev.bricks, created]).sort((a, b) => a.position - b.position) } : prev);
+        pos += 1000;
+      } catch { /* skip a brick the backend rejects */ }
+    }
+  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks]);
+
+  useEffect(() => {
+    if (!document) return;
+    const inEditable = () => {
+      const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
+      return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      // Only hijack when not editing text and there's no active text selection.
+      if (inEditable()) return;
+      const sel = window.getSelection?.()?.toString() ?? "";
+      if (sel.trim()) return;
+      const topIds = getTopLevelBrickIds(document.bricks);
+      const bricks = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position).map((b) => ({ kind: b.kind, content: b.content }));
+      if (bricks.length === 0 || !e.clipboardData) return;
+      e.preventDefault();
+      writeBricksToDataTransfer(e.clipboardData, makeEnvelope("document", docId, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (inEditable()) return; // let text bricks paste natively
+      const bricks = bricksFromClipboardEvent(e);
+      if (bricks.length === 0) return;
+      e.preventDefault();
+      void pasteBricks(bricks);
+    };
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("paste", onPaste);
+    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
+  }, [document, docId, pasteBricks]);
 
   const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
@@ -1532,6 +1591,11 @@ export default function DocumentPage() {
               {t("header.activity", { fallback: "Actividad" })}
             </Button>
           )}
+
+          <Button variant="ghost" size="sm" onClick={async () => { const ok = await copyDocumentBricks(); toast(ok ? t("header.copied", { fallback: "Copied" }) : t("header.copyEmpty", { fallback: "Nothing to copy" }), ok ? "success" : "info"); }} className="h-8 gap-2 text-xs font-semibold">
+            <CopyIcon className="h-3.5 w-3.5" />
+            {t("header.copy", { fallback: "Copy" })}
+          </Button>
 
           <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Download className="h-3.5 w-3.5" />
