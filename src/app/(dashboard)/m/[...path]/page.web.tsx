@@ -2844,21 +2844,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           if (n.label) {
             // Split "Title<br/>description" → header title + centered body. When
             // there's only a title, put it in the body so the shape isn't empty.
+            // Text color rides the existing [color:…] inline token, not a style.
             const nlIdx = n.label.indexOf("\n");
             const title = (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim();
             const body = nlIdx >= 0 ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n") : "";
+            const tint = (s: string) => (s && n.textColor ? `[color:${n.textColor}]${s}[/color]` : s);
             nb = body
-              ? { ...nb, content: { ...asRec(nb.content), label: title, markdown: body } }
-              : { ...nb, content: { ...asRec(nb.content), markdown: title } };
+              ? { ...nb, content: { ...asRec(nb.content), label: tint(title), markdown: tint(body) } }
+              : { ...nb, content: { ...asRec(nb.content), markdown: tint(title) } };
           }
         }
-        // Apply per-node colors (from classDef / class / style).
-        if (n.stroke || n.fill || n.textColor) {
+        // Apply per-node shape colors (from classDef / class / style). Text color
+        // is handled via the [color:…] token above, not here.
+        if (n.stroke || n.fill) {
           const content = asRec(nb.content);
           const style = { ...asRec(content.style) };
           if (n.stroke) style.stroke = n.stroke;
           if (n.fill) style.fill = n.fill;
-          if (n.textColor) style.textColor = n.textColor;
           nb = { ...nb, content: { ...content, style } };
         }
         nb = { ...nb, size: { w: Math.round(n.w), h: Math.round(n.h) } };
@@ -3838,7 +3840,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const shapeH       = collapsed ? 28 : brick.size.h;
       const shapeLabel   = typeof c.label === "string" ? c.label : "";
       const shapeStroke = sStroke;
-      const shapeTextColor = typeof asRec(c.style).textColor === "string" ? (asRec(c.style).textColor as string) : undefined;
       const hasFillOverride = typeof asRec(c.style).fill === "string";
       const shapeFill = isDrawBrick && !hasFillOverride ? "rgba(0,0,0,0)" : sFill;
       const toggleCollapse = (e: React.MouseEvent) => {
@@ -3894,11 +3895,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center"
                 style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px`, zIndex: 10 }}>
                 {isEditing && !label ? (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit" style={shapeTextColor ? { color: shapeTextColor } : undefined}>
+                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
                     <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 ) : (
-                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit" style={shapeTextColor ? { color: shapeTextColor } : undefined}>
+                  <div className="pointer-events-none w-full text-center text-[11px] leading-snug text-white/90 break-words drop-shadow-sm [&_*]:text-inherit">
                     <RichText content={md} context={MESH_CONTEXT} className="inline" />
                   </div>
                 )}
@@ -5210,7 +5211,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const curStroke = typeof sbStyle.stroke === "string" ? sbStyle.stroke : (sb.kind === "board_empty" ? "rgba(34,211,238,0.6)" : "#22d3ee");
                     const curFill   = typeof sbStyle.fill   === "string" ? sbStyle.fill   : (sb.kind === "board_empty" ? "" : "rgba(34,211,238,0.08)");
                     const curSW     = typeof sbStyle.strokeWidth === "number" ? sbStyle.strokeWidth : 2;
-                    const curText   = typeof sbStyle.textColor === "string" ? sbStyle.textColor : "";
                     const patchStyle = (patch: Record<string, unknown>) => {
                       setState((cur) => {
                         const b = cur.bricksById[selectedId!];
@@ -5250,17 +5250,6 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             <input type="number" min={0.5} max={10} step={0.5} value={curSW}
                               onChange={(e) => patchStyle({ strokeWidth: Number(e.target.value) })}
                               className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
-                          </label>
-                          <label className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Texto</span>
-                            <div className="flex items-center gap-1.5">
-                              <input type="color" value={curText.startsWith("#") ? curText : "#ffffff"}
-                                onChange={(e) => patchStyle({ textColor: e.target.value })}
-                                className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-                              <input type="text" value={curText} placeholder="auto"
-                                onChange={(e) => patchStyle({ textColor: e.target.value })}
-                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none placeholder:text-slate-500 focus:border-cyan-500/50" />
-                            </div>
                           </label>
                         </div>
                         <div className="flex flex-wrap gap-1">

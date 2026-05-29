@@ -282,7 +282,6 @@ function parseErDiagramToMesh(source: string): GeneratedMesh {
   const edges = rels.map((r) => ({
     from: r.left, to: r.right,
     label: `${cardText(r.lc)} — ${cardText(r.rc)}${r.label ? `  ${r.label}` : ""}`,
-    connType: "bezier" as const,
   }));
 
   return { nodes: meshNodes, edges };
