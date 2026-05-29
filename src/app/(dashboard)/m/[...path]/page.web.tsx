@@ -40,6 +40,8 @@ import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
+import { PublishLocalModal } from "@/components/ui/publish-local-modal";
+import { publishLocalMesh } from "@/lib/local-workspace/publish-local";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
@@ -1271,6 +1273,7 @@ type MeshBoardPageProps = {
 
 export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps) {
   const tMesh = useTranslations("mesh");
+  const tShare = useTranslations("share-local");
   const params  = useParams() as { path?: string | string[] };
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
@@ -1782,6 +1785,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [sidebarTab, setSidebarTab] = useState<"copilot" | "chat" | "activity">("chat");
   const [portalPreview, setPortalPreview] = useState<{ url: string; title: string } | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const kmImportInputRef = useRef<HTMLInputElement | null>(null);
   const [meshBoardName, setMeshBoardName] = useState("Mesh");
@@ -4150,8 +4154,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </button>
           )}
 
-          {/* Share: unavailable in local mode */}
-          {!localMode && (
+          {/* Share: cloud sharing, or local publish to personal workspace */}
+          {!localMode ? (
             <button
               type="button"
               onClick={handleShareMesh}
@@ -4159,6 +4163,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             >
               <Share2 className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Share</span>
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setIsPublishOpen(true)}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{tShare("button")}</span>
             </button>
           )}
 
@@ -5055,6 +5068,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       meshId={meshId ?? ""}
       meshName={`Mesh ${(meshId ?? "").slice(0, 8)}`}
       accessToken={accessToken ?? ""}
+    />
+
+    <PublishLocalModal
+      isOpen={isPublishOpen}
+      onClose={() => setIsPublishOpen(false)}
+      kind="mesh"
+      online={online}
+      canPublish={!!accessToken && !!activeTeamId}
+      publish={async () => publishLocalMesh(
+        serializeMeshToKm(state, { meshId: localFile, title: meshBoardName }),
+        { teamId: activeTeamId as string, accessToken: accessToken as string },
+      )}
     />
 
     {/* ── Board settings modal ─────────────────────────────────────────────────────── */}

@@ -24,6 +24,8 @@ import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-fil
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
+import { PublishLocalModal } from "@/components/ui/publish-local-modal";
+import { publishLocalDocument } from "@/lib/local-workspace/publish-local";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,6 +40,7 @@ import { DocumentShareModal } from "@/components/ui/document-share-modal";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
+  const tShare = useTranslations("share-local");
   const _params = useParams() as { path?: string | string[] };
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
@@ -57,6 +60,7 @@ export default function DocumentPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -1541,6 +1545,14 @@ export default function DocumentPage() {
             </Button>
           )}
 
+          {/* Local: publish a public copy to the personal cloud workspace */}
+          {localMode && (
+            <Button variant="ghost" size="sm" onClick={() => setIsPublishOpen(true)} className="h-8 gap-2 text-xs font-semibold">
+              <Share2 className="h-3.5 w-3.5" />
+              {tShare("button")}
+            </Button>
+          )}
+
           <div className="h-7 w-7 rounded-full ring-2 ring-background bg-gradient-to-tr from-accent to-primary/60 flex items-center justify-center text-[10px] font-bold text-white shadow-sm" title={user?.alias || user?.name || "Usuario"}>
             {(user?.alias || user?.name || "U").charAt(0).toUpperCase()}
           </div>
@@ -1679,6 +1691,18 @@ export default function DocumentPage() {
         bricks={document?.bricks ?? []}
         localMode={localMode}
         online={online}
+      />
+
+      <PublishLocalModal
+        isOpen={isPublishOpen}
+        onClose={() => setIsPublishOpen(false)}
+        kind="document"
+        online={online}
+        canPublish={!!accessToken && !!activeTeamId}
+        publish={async () => publishLocalDocument(
+          docToKd({ id: localFile, title: document?.title, bricks: (document?.bricks ?? []) as unknown as { id: string; kind: string; position: number; content: unknown }[] }),
+          { teamId: activeTeamId as string, accessToken: accessToken as string },
+        )}
       />
     </div>
   );

@@ -1,0 +1,23 @@
+{
+  "button": "Share",
+  "title": "Share this?",
+  "question": "Do you want to share this {kind}?",
+  "description": "A copy will be uploaded to your personal workspace and made public. Your local file stays on your disk, untouched.",
+  "kindDocument": "document",
+  "kindBoard": "board",
+  "kindMesh": "mesh",
+  "confirm": "Yes, share",
+  "cancel": "Cancel",
+  "publishing": "Uploading…",
+  "successTitle": "Shared and public",
+  "successDescription": "Your copy now lives in your personal workspace and anyone with the link can view it.",
+  "copyLink": "Copy link",
+  "copied": "Copied",
+  "open": "Open",
+  "done": "Done",
+  "errorTitle": "Couldn't share",
+  "errorDescription": "Something went wrong while uploading. Please try again.",
+  "retry": "Retry",
+  "offline": "You need an internet connection to share.",
+  "needAccount": "Sign in to share to your personal workspace."
+}

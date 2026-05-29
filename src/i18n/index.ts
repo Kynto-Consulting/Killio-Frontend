@@ -44,6 +44,8 @@ import enRooms from "@/i18n/locales/en/rooms.json";
 import esRooms from "@/i18n/locales/es/rooms.json";
 import enMesh from "@/i18n/locales/en/mesh.json";
 import esMesh from "@/i18n/locales/es/mesh.json";
+import enShareLocal from "@/i18n/locales/en/share-local.json";
+import esShareLocal from "@/i18n/locales/es/share-local.json";
 
 export const SUPPORTED_LOCALES = ["en", "es"] as const;
 
@@ -56,6 +58,7 @@ export const NAMESPACES = [
   "tags", "boards", "documents", "teams", "accept-invite", "modals",
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
+  "share-local",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -91,6 +94,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     marketplace: enMarketplace,
     rooms: enRooms,
     mesh: enMesh,
+    "share-local": enShareLocal,
   },
   es: {
     common: esCommon,
@@ -116,6 +120,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     marketplace: esMarketplace,
     rooms: esRooms,
     mesh: esMesh,
+    "share-local": esShareLocal,
   },
 };
 

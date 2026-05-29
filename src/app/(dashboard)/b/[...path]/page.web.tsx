@@ -25,6 +25,8 @@ import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-fil
 import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
+import { PublishLocalModal } from "@/components/ui/publish-local-modal";
+import { publishLocalBoard } from "@/lib/local-workspace/publish-local";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
@@ -746,6 +748,7 @@ function applyRealtimeEventToLists(
 
 export default function BoardPage() {
   const t = useTranslations("board-detail");
+  const tShare = useTranslations("share-local");
   const params = useParams() as { path?: string | string[] };
   const router = useRouter();
   const localWs = useLocalWorkspace();
@@ -919,6 +922,7 @@ export default function BoardPage() {
   };
 
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+  const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
   const [boardAppearance, setBoardAppearance] = useState<BoardAppearanceState>({
@@ -1649,6 +1653,17 @@ export default function BoardPage() {
             </button>
           )}
 
+          {/* Local: publish a public copy to the personal cloud workspace */}
+          {localMode && (
+            <button
+              onClick={() => setIsPublishOpen(true)}
+              className="h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"
+            >
+              <Share className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{tShare("button")}</span>
+            </button>
+          )}
+
           <div className="relative">
             <button
               onClick={() => setIsBoardMenuOpen((current) => {
@@ -2227,6 +2242,23 @@ export default function BoardPage() {
         boardName={boardName}
         initialVisibility={boardVisibility}
         accessToken={accessToken!}
+      />
+
+      <PublishLocalModal
+        isOpen={isPublishOpen}
+        onClose={() => setIsPublishOpen(false)}
+        kind="board"
+        online={online}
+        canPublish={!!accessToken && !!activeTeamId}
+        publish={async () => publishLocalBoard(
+          boardToKb({
+            id: localFile, name: boardName, description: boardDescription,
+            backgroundKind: boardAppearance.backgroundKind, backgroundValue: boardAppearance.backgroundValue ?? null,
+            visibility: boardVisibility,
+            lists: lists.map((l: any) => ({ id: l.id, name: l.title, cards: l.cards })),
+          }),
+          { teamId: activeTeamId as string, accessToken: accessToken as string },
+        )}
       />
 
       <DeleteBoardConfirmDialog />

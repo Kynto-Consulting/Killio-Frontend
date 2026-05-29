@@ -1,0 +1,23 @@
+{
+  "button": "Compartir",
+  "title": "¿Compartir esto?",
+  "question": "¿Quieres compartir este {kind}?",
+  "description": "Se subirá una copia a tu workspace personal y se hará pública. Tu archivo local se queda en tu disco, intacto.",
+  "kindDocument": "documento",
+  "kindBoard": "tablero",
+  "kindMesh": "mesh",
+  "confirm": "Sí, compartir",
+  "cancel": "Cancelar",
+  "publishing": "Subiendo…",
+  "successTitle": "Compartido y público",
+  "successDescription": "Tu copia ya vive en tu workspace personal y cualquiera con el enlace puede verla.",
+  "copyLink": "Copiar enlace",
+  "copied": "Copiado",
+  "open": "Abrir",
+  "done": "Listo",
+  "errorTitle": "No se pudo compartir",
+  "errorDescription": "Algo salió mal al subir. Inténtalo de nuevo.",
+  "retry": "Reintentar",
+  "offline": "Necesitas conexión a internet para compartir.",
+  "needAccount": "Inicia sesión para compartir a tu workspace personal."
+}
