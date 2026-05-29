@@ -36,8 +36,7 @@ export function LocalDocsList() {
   }, [docs, cwd]);
 
   const openDoc = (path: string) => {
-    const segLast = path.split("/").pop() || path;
-    router.push(`/d/${encodeURIComponent(segLast)}?wsfile=${encodeURIComponent(path)}`);
+    router.push(`/d/${path.split("/").map(encodeURIComponent).join("/")}`);
   };
 
   const newDoc = async () => {

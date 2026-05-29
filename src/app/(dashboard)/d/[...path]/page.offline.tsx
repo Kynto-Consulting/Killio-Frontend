@@ -18,8 +18,8 @@ import { readWorkspaceFileWithMeta } from "@/lib/local-workspace/fs-access";
 import { docToKd, kdToDocDraft, type KdBrick } from "@/lib/local-workspace/adapters";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 
-const AUTOSAVE_MS = 600;
-const POLL_MS = 2500;
+const AUTOSAVE_MS = 350;
+const POLL_MS = 2000;
 
 function ensureKd(name: string): string {
   return name.endsWith(KILLIO_EXT.kd) ? name : `${name}${KILLIO_EXT.kd}`;
@@ -33,14 +33,13 @@ function brickMarkdown(b: KdBrick): string {
 }
 
 export default function DocumentPageOffline() {
-  const { docId } = useParams() as { docId: string };
+  const params = useParams() as { path?: string | string[] };
   const router = useRouter();
-  // Nested folder paths can't ride the single [docId] segment (%2F breaks the
-  // route), so the list page passes the real relative path via ?wsfile=.
+  // Catch-all route → real nested paths: /d/folder/sub/file.kd
   const filename = useMemo(() => {
-    const wsfile = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsfile") : null;
-    return ensureKd(wsfile ? decodeURIComponent(wsfile) : decodeURIComponent(docId));
-  }, [docId]);
+    const segs = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
+    return ensureKd(segs.map((s) => decodeURIComponent(s)).join("/"));
+  }, [params.path]);
   const { mode, status, getDir, writeFile, reconnect } = useLocalWorkspace();
 
   const [title, setTitle] = useState("");

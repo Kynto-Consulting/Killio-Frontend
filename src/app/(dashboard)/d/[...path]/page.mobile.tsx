@@ -25,7 +25,8 @@ import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer
 
 export default function DocumentMobilePage() {
   const t = useTranslations("document-detail");
-  const { docId } = useParams() as { docId: string };
+  const _params = useParams() as { path?: string | string[] };
+  const docId = Array.isArray(_params.path) ? _params.path[0] : (_params.path ?? "");
   const { accessToken, user, activeTeamId } = useSession();
 
   const [document, setDocument] = useState<DocumentView | null>(null);

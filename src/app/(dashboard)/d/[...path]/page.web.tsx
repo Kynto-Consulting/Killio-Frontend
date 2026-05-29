@@ -29,7 +29,8 @@ import { DocumentShareModal } from "@/components/ui/document-share-modal";
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
-  const { docId } = useParams() as { docId: string };
+  const _params = useParams() as { path?: string | string[] };
+  const docId = Array.isArray(_params.path) ? _params.path[0] : (_params.path ?? "");
   const { accessToken, user } = useSession();
   const router = useRouter();
 
