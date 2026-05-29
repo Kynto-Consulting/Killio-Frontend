@@ -17,7 +17,11 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary } from "@/lib/api/contracts";
+import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, createCard as apiCreateCard, deleteCard as apiDeleteCard, deleteList as apiDeleteList, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary } from "@/lib/api/contracts";
+import { useOpHistory } from "@/lib/history/use-op-history";
+import { computeBoardBatch, makeBoardApplier } from "@/lib/history/board-ops";
+import type { OpScope } from "@/lib/history/types";
+import { BOARD_MUTATION_EVENT } from "@/lib/board/board-mutation-bus";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
@@ -1172,6 +1176,85 @@ export default function BoardPage() {
     }
   }, accessToken);
 
+  // ── Op-history: undo/redo for the board engine ─────────────────────────────
+  // Board state is a realtime projection (no per-event actor), so we record the
+  // local user's own edits via a frontend mutation bus: contracts.* fire
+  // BOARD_MUTATION_EVENT on success, which arms the recorder; the next settled
+  // `lists` change is diffed into a board.batch op. Peer changes (no bus signal)
+  // are never recorded. Undo/redo apply via the card/list APIs and converge over
+  // the existing board realtime. See src/lib/history/board-ops.ts.
+  const listsRef = useRef<any[]>(lists);
+  useEffect(() => { listsRef.current = lists; }, [lists]);
+  const boardBaselineRef = useRef<any[]>(lists);
+  const boardPendingLocalRef = useRef(false);
+  const boardRecordTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const boardApplier = useCallback(
+    makeBoardApplier({
+      getLists: () => listsRef.current as any,
+      setLists: (n) => setLists(n as any),
+      token: () => accessToken,
+      boardId: () => boardId,
+      createCard: (b, t) => apiCreateCard(b, t ?? undefined),
+      updateCard: (id, u, t) => apiUpdateCard(id, u, t ?? undefined),
+      deleteCard: (id, t) => apiDeleteCard(id, t ?? undefined),
+      createList: (bid, b, t) => apiCreateList(bid, b, t ?? undefined),
+      deleteList: (bid, id, t) => apiDeleteList(bid, id, t ?? undefined),
+      onError: () => scheduleBoardReload(120),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [accessToken, boardId],
+  );
+
+  const history = useOpHistory({
+    scope: (!localMode && boardId) ? ({ kind: "board", id: boardId } as OpScope) : null,
+    apply: boardApplier,
+    enabled: false, // transport rides the existing board realtime sync
+    broadcast: false,
+    cap: 100,
+  });
+
+  // Arm the recorder when this user performs a board mutation (skip undo/redo).
+  useEffect(() => {
+    if (localMode) return;
+    const onMut = () => { if (!history.applyingRef.current) boardPendingLocalRef.current = true; };
+    window.addEventListener(BOARD_MUTATION_EVENT, onMut);
+    return () => window.removeEventListener(BOARD_MUTATION_EVENT, onMut);
+  }, [localMode, history]);
+
+  // Diff settled `lists` into a delta — but only for armed (local) changes.
+  useEffect(() => {
+    if (history.applyingRef.current) { boardBaselineRef.current = lists; return; }
+    if (lists === boardBaselineRef.current) return;
+    if (!boardPendingLocalRef.current) { boardBaselineRef.current = lists; return; } // peer change
+    if (boardRecordTimerRef.current) clearTimeout(boardRecordTimerRef.current);
+    boardRecordTimerRef.current = setTimeout(() => {
+      boardPendingLocalRef.current = false;
+      const before = boardBaselineRef.current;
+      boardBaselineRef.current = listsRef.current;
+      const draft = computeBoardBatch(before as any, listsRef.current as any);
+      if (draft) history.record(draft);
+    }, 350);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lists]);
+
+  // Undo/redo shortcuts (ignored while editing text).
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const k = e.key.toLowerCase();
+      const isUndo = k === "z" && !e.shiftKey;
+      const isRedo = (k === "z" && e.shiftKey) || k === "y";
+      if (!isUndo && !isRedo) return;
+      const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
+      if (el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+      if (isUndo) void history.undo(); else void history.redo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: permissions.canEdit ? 5 : 999999 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
@@ -1181,6 +1264,13 @@ export default function BoardPage() {
     const activeId = event.active.id.toString();
     const sourceListId = lists.find((l) => l.cards.some((c: any) => c.id === activeId))?.id ?? null;
     const activeCard = lists.flatMap((l) => l.cards).find((c: any) => c.id === activeId);
+
+    // Arm the history recorder against the pre-move snapshot (the optimistic
+    // setLists on drop lands before the mutation bus signal, so capture now).
+    if (!localMode && !history.applyingRef.current) {
+      boardBaselineRef.current = listsRef.current;
+      boardPendingLocalRef.current = true;
+    }
 
     dragStateRef.current = {
       activeId,

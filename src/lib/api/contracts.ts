@@ -1,3 +1,5 @@
+import { emitBoardMutation } from "@/lib/board/board-mutation-bus";
+
 export type BackendHealth = {
   status: string;
   service: string;
@@ -968,7 +970,7 @@ export async function updateBoardDetails(
 
 export async function createList(
   boardId: string,
-  payload: { name: string; position?: number },
+  payload: { name: string; position?: number; id?: string },
   accessToken?: string
 ): Promise<ListView> {
   const url = `${API_BASE_URL}/boards/${boardId}/lists`;
@@ -982,7 +984,9 @@ export async function createList(
   }
   const res = await fetch(url, options);
   if (!res.ok) throw new Error('Failed to create list');
-  return res.json();
+  const created = await res.json();
+  emitBoardMutation({ kind: "list.create", boardId, listId: (created as any)?.id });
+  return created;
 }
 
 export async function updateList(
@@ -1029,19 +1033,23 @@ export async function deleteList(
   listId: string,
   accessToken?: string
 ): Promise<{ success: boolean }> {
-  return request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}`, {
+  const res = await request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}`, {
     method: 'DELETE',
     headers: accessToken ? authHeaders(accessToken) : undefined,
   });
+  emitBoardMutation({ kind: "list.delete", boardId, listId });
+  return res;
 }
 
 
-export async function createCard(body: { listId: string; title: string; dueAt?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
-  return request<CardView>(`/cards`, {
+export async function createCard(body: { id?: string; listId: string; title: string; summary?: string; dueAt?: string; tags?: string[]; assignees?: string[] }, accessToken?: string): Promise<CardView> {
+  const created = await request<CardView>(`/cards`, {
     method: 'POST',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify(body),
   });
+  emitBoardMutation({ kind: "card.create", listId: body.listId, cardId: (created as any)?.id });
+  return created;
 }
 
 export async function improveCardWithAi(
@@ -1409,8 +1417,25 @@ export interface GeneratedMeshNode {
   y: number;
   w: number;
   h: number;
+  /** Optional parent ref — nests this node inside another node (e.g. a board). */
+  parent?: string;
+  /** Optional explicit colors (hex or rgba). */
+  stroke?: string;
+  fill?: string;
 }
-export interface GeneratedMeshEdge { from: string; to: string; label?: string }
+export interface GeneratedMeshEdge {
+  from: string;
+  to: string;
+  label?: string;
+  /** Stroke color (hex or rgba). */
+  color?: string;
+  /** Line pattern. */
+  pattern?: 'solid' | 'dashed' | 'dotted';
+  /** Connection rendering style. */
+  connType?: 'technical' | 'curved' | 'bezier' | 'handdrawn';
+  /** Stroke width override. */
+  width?: number;
+}
 export interface GeneratedMesh { nodes: GeneratedMeshNode[]; edges: GeneratedMeshEdge[] }
 
 export async function generateMeshWithAi(
@@ -1429,11 +1454,13 @@ export async function generateMeshWithAi(
 }
 
 export async function updateCard(cardId: string, updates: Record<string, any>, accessToken?: string): Promise<CardView> {
-  return request<CardView>(`/cards/${cardId}`, {
+  const updated = await request<CardView>(`/cards/${cardId}`, {
     method: 'PATCH',
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify(updates),
   });
+  emitBoardMutation({ kind: "card.update", cardId });
+  return updated;
 }
 
 export async function getCard(cardId: string, accessToken: string): Promise<CardView> {
@@ -1458,10 +1485,12 @@ export async function getActiveCardTimers(accessToken: string): Promise<ActiveCa
 }
 
 export async function deleteCard(cardId: string, accessToken?: string): Promise<{ cardId: string; deleted: true }> {
-  return request<{ cardId: string; deleted: true }>(`/cards/${cardId}`, {
+  const res = await request<{ cardId: string; deleted: true }>(`/cards/${cardId}`, {
     method: 'DELETE',
     headers: accessToken ? authHeaders(accessToken) : undefined,
   });
+  emitBoardMutation({ kind: "card.delete", cardId });
+  return res;
 }
 
 export async function listTeamInvites(teamId: string, accessToken: string): Promise<InviteSummary[]> {
