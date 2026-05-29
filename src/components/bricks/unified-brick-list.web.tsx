@@ -95,6 +95,14 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
+  useEffect(() => {
+    if (typeof document === "undefined" || document.getElementById("killio-sel-style")) return;
+    const st = document.createElement("style");
+    st.id = "killio-sel-style";
+    st.textContent = "@keyframes killioSelPulse{0%,100%{border-color:rgba(34,211,238,.45)}50%{border-color:rgba(34,211,238,.95)}}.killio-sel{border-color:rgba(34,211,238,.6);animation:killioSelPulse 1.4s ease-in-out infinite}";
+    document.head.appendChild(st);
+  }, []);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const [plusMenuState, setPlusMenuState] = useState<{ brickId: string, top: number, left: number } | null>(null);
   const [plusMenuHoverIndex, setPlusMenuHoverIndex] = useState<number>(0);
@@ -264,10 +272,17 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
     <SortableContext items={sortedBricks.map(b => b.id)} strategy={verticalListSortingStrategy}>
       {sortedBricks.length > 0 && (
 <div className="space-y-2 min-h-[50px]" data-drop-container-token={dropContainerToken ?? undefined}>
-        {sortedBricks.map(brick => (
+        {sortedBricks.map((brick, idx) => {
+          const sel = selectedBrickIds?.has(brick.id);
+          const prevSel = idx > 0 && selectedBrickIds?.has(sortedBricks[idx - 1].id);
+          const nextSel = idx < sortedBricks.length - 1 && selectedBrickIds?.has(sortedBricks[idx + 1].id);
+          const selClass = sel
+            ? `killio-sel relative border-l-2 border-r-2 bg-accent/[0.05] ${!prevSel ? "border-t-2 rounded-t-lg " : "-mt-2 "}${!nextSel ? "border-b-2 rounded-b-lg " : ""}`
+            : undefined;
+          return (
           <div
             key={brick.id}
-            className={selectedBrickIds?.has(brick.id) ? "rounded-lg ring-2 ring-accent/70 ring-offset-2 ring-offset-background bg-accent/[0.04]" : undefined}
+            className={selClass}
             onClickCapture={(e) => {
               if (!onBrickSelectToggle || !(e.ctrlKey || e.metaKey)) return;
               // Reference pills win the Ctrl/Cmd-click (navigation); selection otherwise.
@@ -307,7 +322,8 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
             {renderBrick(brick)}
           </SortableBrick>
           </div>
-        ))}
+          );
+        })}
       </div>)}
     </SortableContext>
   );
