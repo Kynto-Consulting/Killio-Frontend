@@ -155,6 +155,9 @@
     "archivedBadge": "eliminado",
     "archivedTooltip": "Workspace eliminado — solo puedes acceder a la configuracion de Teams",
     "archivedBannerTitle": "Workspace eliminado",
-    "archivedBannerBody": "Solo puedes acceder a la configuracion de este workspace."
+    "archivedBannerBody": "Solo puedes acceder a la configuracion de este workspace.",
+    "localWorkspace": "Espacio local",
+    "localWorkspaces": "Espacios locales",
+    "createLocal": "Crear localmente"
   }
 }

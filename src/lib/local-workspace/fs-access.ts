@@ -36,15 +36,18 @@ export async function pickWorkspaceDirectory(): Promise<DirHandle> {
   return picker({ mode: "readwrite", startIn: "documents" });
 }
 
-/** Ensure we still hold read/write permission for a stored handle (may re-prompt). */
-export async function verifyPermission(handle: DirHandle, write = true): Promise<boolean> {
+/**
+ * Check read/write permission for a stored handle. With requestIfNeeded=false
+ * only queries (safe on mount); true may prompt the user (needs a gesture).
+ */
+export async function verifyPermission(handle: DirHandle, write = true, requestIfNeeded = true): Promise<boolean> {
   const opts = { mode: write ? "readwrite" : "read" } as const;
   const h = handle as unknown as {
     queryPermission?: (o: unknown) => Promise<PermissionState>;
     requestPermission?: (o: unknown) => Promise<PermissionState>;
   };
   if (h.queryPermission && (await h.queryPermission(opts)) === "granted") return true;
-  if (h.requestPermission && (await h.requestPermission(opts)) === "granted") return true;
+  if (requestIfNeeded && h.requestPermission && (await h.requestPermission(opts)) === "granted") return true;
   return false;
 }
 

@@ -155,6 +155,9 @@
     "archivedBadge": "deleted",
     "archivedTooltip": "Deleted workspace — only Teams settings are accessible",
     "archivedBannerTitle": "Workspace deleted",
-    "archivedBannerBody": "You can only access the settings for this workspace."
+    "archivedBannerBody": "You can only access the settings for this workspace.",
+    "localWorkspace": "Local workspace",
+    "localWorkspaces": "Local workspaces",
+    "createLocal": "Create locally"
   }
 }

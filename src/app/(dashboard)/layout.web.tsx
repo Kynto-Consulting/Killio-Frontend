@@ -14,12 +14,13 @@ import { RoomVideoCall } from "@/components/rooms/RoomVideoCall";
 import { RoomCallControls } from "@/components/rooms/RoomCallControls";
 import { PushPermissionBanner } from "@/components/rooms/PushPermissionBanner";
 import { useSession } from "@/components/providers/session-provider";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
-import { RefreshCw } from "lucide-react";
+import { RefreshCw, HardDrive } from "lucide-react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -53,9 +54,14 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
 
   const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
 
-  // Filter navigationItems based on permissions (though order is now fixed)
+  // In a Local workspace only disk-backed routes remain (boards/meshes/docs +
+  // home); cloud-only sections are hidden. Otherwise filter by permissions.
+  const LOCAL_ALLOWED = new Set(["/", "/b", "/m", "/d"]);
   const navigationItems = navigation.filter(item => {
+    if (localMode) return LOCAL_ALLOWED.has(item.href);
     if (item.href === "/metrics" || item.href === "/integrations") return canAccessScripts;
     return true;
   });
@@ -666,14 +672,16 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                 onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
                 className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
               >
-                <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${isActiveTeamArchived ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"}`}>
-                  {isActiveTeamArchived
-                    ? <Lock className="h-3 w-3" />
-                    : (activeTeam?.icon || activeTeam?.name.substring(0, 1).toUpperCase() || "W")
+                <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${localMode ? "bg-cyan-500/20 text-cyan-300" : isActiveTeamArchived ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"}`}>
+                  {localMode
+                    ? <HardDrive className="h-3 w-3" />
+                    : isActiveTeamArchived
+                      ? <Lock className="h-3 w-3" />
+                      : (activeTeam?.icon || activeTeam?.name.substring(0, 1).toUpperCase() || "W")
                   }
                 </div>
-                <span className={`text-sm font-medium hidden sm:inline-block max-w-[120px] truncate ${isActiveTeamArchived ? "line-through text-muted-foreground" : ""}`}>
-                  {activeTeam?.name || tDashboard("teamSwitcher.selectWorkspace")}
+                <span className={`text-sm font-medium hidden sm:inline-block max-w-[120px] truncate ${isActiveTeamArchived && !localMode ? "line-through text-muted-foreground" : ""}`}>
+                  {localMode ? (localWs.active?.name || tDashboard("teamSwitcher.localWorkspace")) : (activeTeam?.name || tDashboard("teamSwitcher.selectWorkspace"))}
                 </span>
                 <ChevronsUpDown className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
@@ -686,6 +694,7 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                       <button
                         key={team.id}
                         onClick={() => {
+                          localWs.exitLocal();
                           setActiveTeamId(team.id);
                           setIsTeamSwitcherOpen(false);
                         }}
@@ -703,6 +712,29 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                       </button>
                     ))}
                   </div>
+                  {localWs.workspaces.length > 0 && (
+                    <>
+                      <div className="h-px bg-border/50 my-1"></div>
+                      <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                        <HardDrive className="h-3 w-3" /> {tDashboard("teamSwitcher.localWorkspaces")}
+                      </div>
+                      <div className="space-y-0.5 mt-1 max-h-40 overflow-y-auto">
+                        {localWs.workspaces.map((lw) => (
+                          <button
+                            key={lw.id}
+                            onClick={() => { void localWs.selectLocalWorkspace(lw.id); setIsTeamSwitcherOpen(false); }}
+                            className="w-full text-left px-2 py-2 text-sm rounded-md transition-colors flex items-center justify-between hover:bg-accent/10"
+                          >
+                            <div className="flex items-center truncate gap-2">
+                              <HardDrive className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                              <span className="truncate pr-2">{lw.name}</span>
+                            </div>
+                            {localMode && localWs.activeId === lw.id && <Check className="h-4 w-4 text-cyan-300 shrink-0" />}
+                          </button>
+                        ))}
+                      </div>
+                    </>
+                  )}
                   <div className="h-px bg-border/50 my-1"></div>
                   <button onClick={() => {
                     setIsTeamSwitcherOpen(false);
@@ -710,6 +742,12 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
                   }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
                     <Plus className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createWorkspace")}
                   </button>
+                  {localWs.supported && (
+                    <button onClick={() => { setIsTeamSwitcherOpen(false); void localWs.createLocalWorkspace(); }}
+                      className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-cyan-300">
+                      <HardDrive className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createLocal")}
+                    </button>
+                  )}
                   <Link
                     href="/pricing"
                     onClick={() => setIsTeamSwitcherOpen(false)}
