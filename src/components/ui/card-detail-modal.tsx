@@ -10,6 +10,9 @@ import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-works
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { patchCardInKb } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
+import { makeEnvelope, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
+import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -810,6 +813,44 @@ export function CardDetailModal({
       return null;
     }
   };
+
+  // ── Clipboard: copy card blocks / paste bricks as new blocks ────────────────
+  useEffect(() => {
+    if (!isOpen) return;
+    const inEditable = () => {
+      const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
+      return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    };
+    const cbToCardInput = (cb: ClipboardBrick): BrickMutationInput | null => {
+      const c = (cb.content && typeof cb.content === "object" ? cb.content as Record<string, any> : {});
+      const k = String(cb.kind || c.kind || "text").toLowerCase();
+      if (k === "text" || k === "draw") return { kind: "text", displayStyle: c.displayStyle || "paragraph", markdown: String(c.markdown ?? c.text ?? "") } as BrickMutationInput;
+      if (k === "checklist") return { kind: "checklist", items: Array.isArray(c.items) ? c.items : [] } as BrickMutationInput;
+      if (k === "table") return { kind: "table", rows: Array.isArray(c.rows) ? c.rows : [] } as BrickMutationInput;
+      if (["media", "image", "video", "audio", "file", "bookmark"].includes(k)) return { kind: "media", mediaType: c.mediaType || "file", title: c.title ?? null, url: c.url ?? null, mimeType: c.mimeType ?? null, sizeBytes: c.sizeBytes ?? null, caption: c.caption ?? null } as BrickMutationInput;
+      return { kind: "text", displayStyle: "paragraph", markdown: typeof cb.content === "string" ? cb.content : "" } as BrickMutationInput;
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      if (inEditable()) return;
+      const sel = window.getSelection?.()?.toString() ?? "";
+      if (sel.trim()) return;
+      const bricks = (localBlocks || []).map((b: any) => ({ kind: b.kind, content: b.content ?? b }));
+      if (bricks.length === 0 || !e.clipboardData) return;
+      e.preventDefault();
+      writeBricksToDataTransfer(e.clipboardData, makeEnvelope("board", boardId || card?.id || "", bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (inEditable()) return;
+      const bricks = bricksFromClipboardEvent(e);
+      if (bricks.length === 0) return;
+      e.preventDefault();
+      void (async () => { for (const cb of bricks) { const input = cbToCardInput(cb); if (input) await handleCreateBrick(input); } })();
+    };
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("paste", onPaste);
+    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, localBlocks, boardId, card?.id]);
 
   const handleCreateBrickWithNesting = useCallback(async (
     input: BrickMutationInput,

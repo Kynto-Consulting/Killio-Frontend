@@ -40,6 +40,9 @@ import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
+import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
+import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalMesh } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -2345,6 +2348,59 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [selectedId, selectedIds, selectedConnId, editingBrickId]);
+
+  // ── Clipboard: copy selected bricks / paste bricks as canvas meta-bricks ────
+  const pasteBricksToMesh = useCallback((bricks: ClipboardBrick[]) => {
+    if (bricks.length === 0) return;
+    const el = canvasRef.current; const vp = viewportRef.current;
+    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
+    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
+    setState((cur) => {
+      let next = cur; const base = Object.keys(cur.bricksById).length; let i = 0;
+      for (const cb of bricks) {
+        const uk = String((cb.content as any)?.unifierKind || (cb.content as any)?.kind || cb.kind || "text").toLowerCase();
+        const entry = CONTENT_BRICKS.find((e) => e.unifierKind === uk) || CONTENT_BRICKS.find((e) => e.unifierKind === "text")!;
+        const b = mkBrick(entry.kind, base + i, null, undefined, undefined, entry.unifierKind);
+        b.content = { ...(b.content as Record<string, unknown>), unifierKind: entry.unifierKind, ...((cb.content && typeof cb.content === "object") ? cb.content as Record<string, unknown> : {}) };
+        next = insertBrick(next, b, { x: cx + i * 26, y: cy + i * 26 });
+        i += 1;
+      }
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const inEditable = () => {
+      if (editingBrickId) return true;
+      const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
+      return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
+    };
+    const collectSelected = (): ClipboardBrick[] => {
+      const ids = selectedIds.size > 0 ? [...selectedIds] : (selectedId ? [selectedId] : []);
+      return ids.map((id) => state.bricksById[id]).filter(Boolean).map((b) => {
+        const c = (b.content && typeof b.content === "object" ? b.content as Record<string, unknown> : {});
+        const kind = String(c.unifierKind || b.kind);
+        return { kind, content: b.content } as ClipboardBrick;
+      });
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      if (inEditable()) return;
+      const bricks = collectSelected();
+      if (bricks.length === 0 || !e.clipboardData) return;
+      e.preventDefault();
+      writeBricksToDataTransfer(e.clipboardData, makeEnvelope("mesh", meshId ?? localFile, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (inEditable()) return;
+      const bricks = bricksFromClipboardEvent(e);
+      if (bricks.length === 0) return;
+      e.preventDefault();
+      pasteBricksToMesh(bricks);
+    };
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("paste", onPaste);
+    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
+  }, [selectedId, selectedIds, state.bricksById, editingBrickId, meshId, localFile, pasteBricksToMesh]);
 
   useEffect(() => {
     if (!toolbarPanel) return;
