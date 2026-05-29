@@ -4,7 +4,12 @@ import { useActionTheme } from "@/hooks/use-action-theme";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
-import { updateCard, addCardTag, removeCardTag, addCardAssignee, removeCardAssignee, createCardBrick, updateCardBrick, deleteCardBrick, reorderCardBricks, createCard, getTagsByScope, getBoardMembers, listTeamMembers, getCardActivity, addCardComment, createTag, updateList, uploadFile, ApiError } from "../../lib/api/contracts";
+import { updateCard as apiUpdateCard, addCardTag as apiAddCardTag, removeCardTag as apiRemoveCardTag, addCardAssignee as apiAddCardAssignee, removeCardAssignee as apiRemoveCardAssignee, createCardBrick as apiCreateCardBrick, updateCardBrick as apiUpdateCardBrick, deleteCardBrick as apiDeleteCardBrick, reorderCardBricks as apiReorderCardBricks, createCard, getTagsByScope as apiGetTagsByScope, getBoardMembers as apiGetBoardMembers, listTeamMembers, getCardActivity as apiGetCardActivity, addCardComment as apiAddCardComment, createTag as apiCreateTag, updateList, uploadFile as apiUploadFile, ApiError } from "../../lib/api/contracts";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
+import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
+import { patchCardInKb } from "@/lib/local-workspace/adapters";
+import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -131,6 +136,38 @@ export function CardDetailModal({
   const t = useTranslations("board-detail");
   const { locale } = useI18n();
   const { accessToken, activeTeamId, user } = useSession();
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
+  const genCardId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `b_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  // Local persistence seam: in a Local workspace, card edits write back into the
+  // .kb file (boardId is the file path). API ops become no-ops; createCardBrick
+  // returns a local draft; uploads go to assets/. A debounced autosave (below)
+  // persists the whole card.
+  const updateCard = useCallback(async (...a: any[]) => { if (!localMode) return apiUpdateCard(a[0], a[1], a[2]); }, [localMode]);
+  const createCardBrick = useCallback(async (cid: string, input: any, tok?: any) => {
+    if (!localMode) return apiCreateCardBrick(cid, input, tok);
+    return { brick: { id: input?.id ?? genCardId(), kind: input?.kind ?? "text", position: input?.position ?? 0, content: input?.content ?? {}, parentBlockId: input?.parentBlockId ?? null, ...input } } as any;
+  }, [localMode]);
+  const updateCardBrick = useCallback(async (...a: any[]) => { if (!localMode) return apiUpdateCardBrick(a[0], a[1], a[2], a[3]); }, [localMode]);
+  const deleteCardBrick = useCallback(async (...a: any[]) => { if (!localMode) return apiDeleteCardBrick(a[0], a[1], a[2]); }, [localMode]);
+  const reorderCardBricks = useCallback(async (...a: any[]) => { if (!localMode) return apiReorderCardBricks(a[0], a[1], a[2]); }, [localMode]);
+  const addCardTag = useCallback(async (...a: any[]) => { if (!localMode) return apiAddCardTag(a[0], a[1], a[2]); }, [localMode]);
+  const removeCardTag = useCallback(async (...a: any[]) => { if (!localMode) return apiRemoveCardTag(a[0], a[1], a[2]); }, [localMode]);
+  const addCardAssignee = useCallback(async (...a: any[]) => { if (!localMode) return apiAddCardAssignee(a[0], a[1], a[2]); }, [localMode]);
+  const removeCardAssignee = useCallback(async (...a: any[]) => { if (!localMode) return apiRemoveCardAssignee(a[0], a[1], a[2]); }, [localMode]);
+  const createTag = useCallback(async (input: any, tok?: any) => { if (!localMode) return apiCreateTag(input, tok); return { id: genCardId(), name: input?.name ?? "tag", color: input?.color ?? null, tag_kind: "custom" } as any; }, [localMode]);
+  const getTagsByScope = useCallback(async (...a: any[]) => { if (!localMode) return apiGetTagsByScope(a[0], a[1], a[2]); return [] as any[]; }, [localMode]);
+  const getBoardMembers = useCallback(async (...a: any[]) => { if (!localMode) return apiGetBoardMembers(a[0], a[1]); return [] as any[]; }, [localMode]);
+  const getCardActivity = useCallback(async (...a: any[]) => { if (!localMode) return apiGetCardActivity(a[0], a[1]); return [] as any[]; }, [localMode]);
+  const addCardComment = useCallback(async (...a: any[]) => { if (!localMode) return apiAddCardComment(a[0], a[1], a[2]); return undefined as any; }, [localMode]);
+  const uploadFile = useCallback(async (file: File, tok?: any, opts?: any) => {
+    if (!localMode) return apiUploadFile(file, tok, opts);
+    const dir = localWs.getDir();
+    if (!dir) throw new Error("No local workspace folder");
+    const name = assetFilename(file.type, genCardId());
+    await writeAsset(dir, name, file);
+    return { key: name, url: makeAssetRef(name), isPrivate: false } as any;
+  }, [localMode, localWs]);
   const [contextDocs, setContextDocs] = useState<any[]>(teamDocs);
   const [localTitle, setLocalTitle] = useState(card?.title || "");
   const [localDueAt, setLocalDueAt] = useState(normalizeDueDateInputValue(card?.dueAt));
@@ -195,6 +232,32 @@ export function CardDetailModal({
   const [visibleTagCount, setVisibleTagCount] = useState(0);
   // Tracks the current open session so board refreshes don't reset local block state
   const openSessionRef = useRef<{ cardId: string | null; initialized: boolean }>({ cardId: null, initialized: false });
+
+  // Local autosave: write the whole card back into the .kb file (debounced).
+  useEffect(() => {
+    if (!localMode || !isOpen || !card?.id) return;
+    const dir = localWs.getDir();
+    if (!dir || !boardId) return;
+    const id = setTimeout(async () => {
+      try {
+        const meta = await readWorkspaceFileWithMeta(dir, boardId);
+        if (!meta) return;
+        const patched = patchCardInKb(decodeKillioFile(meta.text).payload, card.id, {
+          title: localTitle,
+          status: card.status,
+          startAt: localStartAt ?? undefined,
+          dueAt: localDueAtTimestamp ?? undefined,
+          completedAt: localCompletedAt ?? undefined,
+          archivedAt: localArchivedAt ?? undefined,
+          tags: localTags,
+          blocks: localBlocks,
+        });
+        await writeWorkspaceFile(dir, boardId, encodeKillioFile({ kind: "kb", schemaVersion: "2026-v1", payload: patched }));
+      } catch { /* ignore */ }
+    }, 400);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localMode, isOpen, card?.id, boardId, localTitle, localStartAt, localDueAtTimestamp, localCompletedAt, localArchivedAt, localTags, localBlocks]);
 
   const syncTitleDom = useCallback((value: string) => {
     if (!titleRef.current) return;

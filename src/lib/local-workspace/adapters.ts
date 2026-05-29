@@ -40,7 +40,8 @@ export function kdToDocDraft(payload: unknown): { title: string; bricks: KdBrick
 // ── Kanban boards (.kb) ─────────────────────────────────────────────────────────
 export type KbCard = {
   id?: string; title: string; summary?: string; status?: string;
-  startAt?: unknown; dueAt?: unknown; urgency?: string; position?: number;
+  startAt?: unknown; dueAt?: unknown; completedAt?: unknown; archivedAt?: unknown;
+  urgency?: string; position?: number;
   tags?: Array<{ name: string; color?: string | null; tag_kind?: string }>;
   blocks?: unknown[];
 };
@@ -80,6 +81,18 @@ export function boardToKb(board: {
         tags: (c.tags ?? []).map((t) => ({ name: t.name, color: t.color ?? null, tag_kind: t.tag_kind })),
         blocks: Array.isArray(c.blocks) ? c.blocks : [],
       })),
+    })),
+  };
+}
+
+/** Merge a card patch into the matching card of a .kb payload (by card id). Pure. */
+export function patchCardInKb(payload: unknown, cardId: string, patch: Partial<KbCard>): KbPayload {
+  const kb = kbToBoardDraft(payload);
+  return {
+    ...kb,
+    lists: kb.lists.map((l) => ({
+      ...l,
+      cards: l.cards.map((c) => (c.id === cardId ? { ...c, ...patch } : c)),
     })),
   };
 }
