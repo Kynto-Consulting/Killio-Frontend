@@ -1,128 +1,80 @@
 "use client";
 
-// Custom brick renderer for OFFLINE (Local workspace) mode. Backend-free: full
-// kinds render from file content, degraded kinds show what they can with a
-// notice, and unsupported kinds (ai/payment/database) show a placeholder.
-// Asset refs (asset:<name>) resolve to object URLs from the workspace folder.
+// Offline (Local workspace) brick renderer. Reuses the REAL online renderer
+// (UnifiedBrickRenderer) so markdown + every special format renders identically.
+// Only the backend-dependent parts are swapped: unsupported kinds (ai/payment/
+// database) show a placeholder, and asset:<name> media refs are resolved to
+// object URLs from the workspace folder before delegating.
 
-import { useEffect, useState } from "react";
-import { Ban, CloudOff, FileWarning } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Ban } from "lucide-react";
+import type { DocumentBrick } from "@/lib/api/documents";
+import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import { offlineBrickSupport } from "@/lib/local-workspace/offline-bricks";
 import { isAssetRef, resolveAssetUrl } from "@/lib/local-workspace/assets";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 
-type Brick = { id: string; kind: string; content?: unknown };
+type Brick = { id: string; kind: string; position?: number; content?: unknown };
 
-function rec(v: unknown): Record<string, unknown> {
-  return v && typeof v === "object" ? (v as Record<string, unknown>) : {};
+export interface OfflineBrickRendererProps {
+  brick: Brick;
+  canEdit?: boolean;
+  onUpdate?: (content: Record<string, unknown>) => void;
 }
 
-function AssetImage({ src, alt }: { src: string; alt?: string }) {
+// Resolve any asset:<name> values inside content.url/src to object URLs from disk.
+function useResolvedContent(content: Record<string, unknown>): Record<string, unknown> {
   const { getDir } = useLocalWorkspace();
-  const [url, setUrl] = useState<string | null>(isAssetRef(src) ? null : src);
+  const [resolved, setResolved] = useState<Record<string, unknown>>(content);
+  const url = (typeof content.url === "string" && content.url) || (typeof content.src === "string" && content.src) || "";
   useEffect(() => {
-    if (!isAssetRef(src)) { setUrl(src); return; }
+    if (!isAssetRef(url)) { setResolved(content); return; }
     const dir = getDir();
-    if (!dir) return;
-    let revoked: string | null = null;
-    resolveAssetUrl(dir, src).then((u) => { revoked = u; setUrl(u); }).catch(() => setUrl(null));
-    return () => { if (revoked) URL.revokeObjectURL(revoked); };
-  }, [src, getDir]);
-  if (!url) return <div className="rounded bg-muted/40 p-4 text-center text-xs text-muted-foreground">image…</div>;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={url} alt={alt ?? ""} className="max-h-[480px] max-w-full rounded" />;
+    if (!dir) { setResolved(content); return; }
+    let obj: string | null = null;
+    resolveAssetUrl(dir, url)
+      .then((u) => { obj = u; setResolved({ ...content, url: u, src: u }); })
+      .catch(() => setResolved(content));
+    return () => { if (obj) URL.revokeObjectURL(obj); };
+  }, [url, content, getDir]);
+  return resolved;
 }
 
-function Notice({ icon, text }: { icon: React.ReactNode; text: string }) {
-  return (
-    <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/80">
-      {icon} {text}
-    </div>
-  );
+function ToDocBrick(b: Brick, content: Record<string, unknown>): DocumentBrick {
+  return {
+    id: b.id,
+    documentId: "local",
+    kind: b.kind,
+    position: b.position ?? 0,
+    content,
+    createdByUserId: null,
+    createdAt: "",
+    updatedAt: "",
+  } as unknown as DocumentBrick;
 }
 
-export function OfflineBrickRenderer({ brick }: { brick: Brick }) {
-  const c = rec(brick.content);
+export function OfflineBrickRenderer({ brick, canEdit = false, onUpdate }: OfflineBrickRendererProps) {
+  const content = useMemo<Record<string, unknown>>(() => (brick.content && typeof brick.content === "object" ? brick.content as Record<string, unknown> : {}), [brick.content]);
   const support = offlineBrickSupport(brick.kind);
+  const resolvedContent = useResolvedContent(content);
 
   if (support === "unsupported") {
-    return <Notice icon={<Ban className="h-3.5 w-3.5" />} text={`"${brick.kind}" is not available offline.`} />;
+    return (
+      <div className="flex items-center gap-2 rounded-lg border border-dashed border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-200/80">
+        <Ban className="h-3.5 w-3.5" /> &quot;{brick.kind}&quot; needs an online connection and is unavailable offline.
+      </div>
+    );
   }
 
-  switch (brick.kind) {
-    case "text":
-    case "quote":
-    case "callout": {
-      const md = typeof c.markdown === "string" ? c.markdown : "";
-      const cls = brick.kind === "quote"
-        ? "border-l-2 border-accent/50 pl-3 italic text-muted-foreground"
-        : brick.kind === "callout"
-          ? "rounded-lg border border-border bg-accent/5 p-3"
-          : "";
-      return <div className={`whitespace-pre-wrap text-sm text-foreground ${cls}`}>{md}</div>;
-    }
-    case "code":
-    case "math":
-      return <pre className="overflow-auto rounded-lg bg-slate-900/60 p-3 font-mono text-[12px] text-slate-200">{typeof c.markdown === "string" ? c.markdown : typeof c.code === "string" ? c.code : ""}</pre>;
-    case "divider":
-      return <hr className="border-border" />;
-    case "checklist": {
-      const items = Array.isArray(c.items) ? (c.items as Array<Record<string, unknown>>) : [];
-      return (
-        <ul className="space-y-1 text-sm">
-          {items.map((it, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <input type="checkbox" checked={!!it.checked} readOnly className="accent-accent" />
-              <span className={it.checked ? "text-muted-foreground line-through" : ""}>{String(it.label ?? "")}</span>
-            </li>
-          ))}
-        </ul>
-      );
-    }
-    case "table":
-    case "beautiful_table": {
-      const rows = Array.isArray(c.rows) ? (c.rows as unknown[][]) : [];
-      return (
-        <div className="overflow-auto">
-          <table className="w-full border-collapse text-sm">
-            <tbody>
-              {rows.map((row, ri) => (
-                <tr key={ri}>
-                  {(Array.isArray(row) ? row : []).map((cell, ci) => (
-                    <td key={ci} className="border border-border px-2 py-1">{String(cell ?? "")}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      );
-    }
-    case "image":
-    case "media": {
-      const url = typeof c.url === "string" ? c.url : typeof c.src === "string" ? c.src : "";
-      if (!url) return <Notice icon={<FileWarning className="h-3.5 w-3.5" />} text="Missing media reference." />;
-      return <AssetImage src={url} alt={typeof c.caption === "string" ? c.caption : ""} />;
-    }
-    case "bookmark": {
-      const url = typeof c.url === "string" ? c.url : "";
-      return (
-        <div>
-          <Notice icon={<CloudOff className="h-3.5 w-3.5" />} text="Bookmark preview unavailable offline." />
-          {url && <a href={url} className="mt-1 block break-all text-xs text-accent underline" target="_blank" rel="noreferrer">{url}</a>}
-        </div>
-      );
-    }
-    case "form":
-      return <Notice icon={<CloudOff className="h-3.5 w-3.5" />} text="Form is view-only offline (submissions need the backend)." />;
-    case "popup_document":
-      return <Notice icon={<CloudOff className="h-3.5 w-3.5" />} text="Linked document can't be opened offline." />;
-    case "graph": {
-      const type = typeof c.type === "string" ? c.type : "chart";
-      return <div className="rounded-lg border border-border bg-card/40 p-3 text-xs text-muted-foreground">📊 {type} chart</div>;
-    }
-    default:
-      // accordion/tabs/columns containers + unknown: show a light summary
-      return <div className="rounded-lg border border-border bg-card/30 p-2 text-xs text-muted-foreground">{brick.kind}</div>;
-  }
+  return (
+    <UnifiedBrickRenderer
+      brick={ToDocBrick(brick, resolvedContent)}
+      canEdit={canEdit}
+      onUpdate={(next) => onUpdate?.(next as Record<string, unknown>)}
+      documents={[]}
+      boards={[]}
+      activeBricks={[]}
+      users={[]}
+    />
+  );
 }
