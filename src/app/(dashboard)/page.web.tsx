@@ -13,6 +13,11 @@ import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { SkeletonBoardCard, SkeletonDocumentRow } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { encodeKillioFile } from "@/lib/killio-file";
+import { docToKd } from "@/lib/local-workspace/adapters";
+import { joinPath } from "@/lib/local-workspace/fs-access";
 
 type TFunction = (key: string, params?: Record<string, string | number>) => string;
 
@@ -21,6 +26,17 @@ export default function WorkspacesPage() {
   const tLanding = useTranslations("landing");
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const { accessToken, activeTeamId, isLoading: isSessionLoading } = useSession();
+  const router = useRouter();
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
+  const [online, setOnline] = useState(true);
+  useEffect(() => {
+    const upd = () => setOnline(typeof navigator === "undefined" ? true : navigator.onLine);
+    upd();
+    window.addEventListener("online", upd);
+    window.addEventListener("offline", upd);
+    return () => { window.removeEventListener("online", upd); window.removeEventListener("offline", upd); };
+  }, []);
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -31,8 +47,20 @@ export default function WorkspacesPage() {
   const [newDocTitle, setNewDocTitle] = useState("");
   const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
 
+  // Local workspace: boards/documents come from the folder, not the cloud.
   useEffect(() => {
-    if (!accessToken || !activeTeamId) return;
+    if (!localMode) return;
+    setBoards(localWs.files.filter((f) => f.kind === "kb").map((f) => ({
+      id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: "",
+    })) as unknown as BoardSummary[]);
+    setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
+      id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: "",
+    })) as unknown as DocumentSummary[]);
+    setIsLoading(false);
+  }, [localMode, localWs.files]);
+
+  useEffect(() => {
+    if (localMode || !accessToken || !activeTeamId) return;
 
     const bKey = cacheKey.boards(activeTeamId);
     const dKey = cacheKey.documents(activeTeamId);
@@ -55,6 +83,7 @@ export default function WorkspacesPage() {
   }, [accessToken, activeTeamId]);
 
   const handleCreateBoardClick = () => {
+    if (localMode) { setIsCreateBoardModalOpen(true); return; }
     if (!accessToken) return;
     if (!activeTeamId) {
       toast(t("noActiveWorkspace"), "info");
@@ -64,9 +93,17 @@ export default function WorkspacesPage() {
   };
 
   const handleCreateBoardSubmit = async (payload: CreateBoardSubmitPayload) => {
-    if (!accessToken || !activeTeamId) return;
-
     const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
+
+    if (localMode) {
+      // Home "New Board" creates a kanban .kb (meshes are created from /m).
+      const path = joinPath("", `${slug}.kb`);
+      await localWs.writeFile(path, encodeKillioFile({ kind: "kb", schemaVersion: "2026-v1", payload: { id: path, name: payload.name, boardType: "kanban", lists: [] } }));
+      router.push(`/b/${path.split("/").map(encodeURIComponent).join("/")}`);
+      return;
+    }
+
+    if (!accessToken || !activeTeamId) return;
     const newBoard = await createBoard({ ...payload, slug }, activeTeamId, accessToken);
     const updated = [...boards, newBoard];
     setBoards(updated);
@@ -199,10 +236,21 @@ export default function WorkspacesPage() {
   };
 
   const handleCreateDocumentSubmit = async () => {
-    if (!accessToken || !activeTeamId || !newDocTitle.trim()) return;
+    if (!newDocTitle.trim()) return;
+    if (!localMode && (!accessToken || !activeTeamId)) return;
     setIsSubmittingDoc(true);
     try {
-      const doc = await createDocument({ teamId: activeTeamId, title: newDocTitle.trim() }, accessToken);
+      if (localMode) {
+        const title = newDocTitle.trim();
+        const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `doc-${Date.now()}`;
+        const path = joinPath("", `${slug}.kd`);
+        await localWs.writeFile(path, encodeKillioFile({ kind: "kd", schemaVersion: "2026-v1", payload: docToKd({ id: path, title, bricks: [] }) }));
+        setIsCreateDocModalOpen(false);
+        setNewDocTitle("");
+        router.push(`/d/${path.split("/").map(encodeURIComponent).join("/")}`);
+        return;
+      }
+      const doc = await createDocument({ teamId: activeTeamId!, title: newDocTitle.trim() }, accessToken!);
       setDocuments([doc, ...documents]);
       setIsCreateDocModalOpen(false);
       setNewDocTitle("");
@@ -229,7 +277,7 @@ export default function WorkspacesPage() {
     }
   };
 
-  if (!accessToken) {
+  if (!accessToken && !localMode) {
     if (isSessionLoading) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background text-muted-foreground">
@@ -261,13 +309,15 @@ export default function WorkspacesPage() {
           <p className="text-muted-foreground">{t("subtitle")}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsAiPanelOpen(true)}
-            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-card hover:bg-accent/10 hover:text-foreground shadow-sm h-9 px-4 group"
-          >
-            <Sparkles className="mr-2 h-4 w-4 text-accent" />
-            {t("aiStudio")}
-          </button>
+          {online && (
+            <button
+              onClick={() => setIsAiPanelOpen(true)}
+              className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 border border-input bg-card hover:bg-accent/10 hover:text-foreground shadow-sm h-9 px-4 group"
+            >
+              <Sparkles className="mr-2 h-4 w-4 text-accent" />
+              {t("aiStudio")}
+            </button>
+          )}
           <button onClick={handleCreateBoardClick} className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group">
             <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
             {t("newBoard")}
@@ -394,6 +444,7 @@ export default function WorkspacesPage() {
         </div>
       )}
 
+      {!localMode && (
       <div className="mt-12">
         <h2 className="text-xl font-semibold mb-6 flex items-center">
           <Clock className="mr-2 h-5 w-5 text-muted-foreground" />
@@ -429,6 +480,7 @@ export default function WorkspacesPage() {
           </div>
         </div>
       </div>
+      )}
 
       <AiGenerationPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} />
 
