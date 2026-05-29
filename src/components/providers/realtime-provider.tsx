@@ -36,8 +36,10 @@ import { useSession } from "@/components/providers/session-provider";
 
 // ─── Env switch ───────────────────────────────────────────────────────────────
 
+// Pulse is the live realtime backend; Ably is deprecated and only used if the
+// env var explicitly opts back into it.
 const REALTIME_IMPL =
-  process.env.NEXT_PUBLIC_REALTIME_PROVIDER ?? "ably";
+  process.env.NEXT_PUBLIC_REALTIME_PROVIDER ?? "pulse";
 
 // ─── No-op provider (safe fallback) ───────────────────────────────────────────
 
