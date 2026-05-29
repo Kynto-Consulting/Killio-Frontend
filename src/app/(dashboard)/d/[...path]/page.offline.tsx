@@ -17,6 +17,8 @@ import { useLocalWorkspace } from "@/components/providers/local-workspace-provid
 import { readWorkspaceFileWithMeta } from "@/lib/local-workspace/fs-access";
 import { docToKd, kdToDocDraft, type KdBrick } from "@/lib/local-workspace/adapters";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
+import { OfflineBrickRenderer } from "@/components/bricks/offline-brick-renderer";
+import { isOfflineEditable } from "@/lib/local-workspace/offline-bricks";
 
 const AUTOSAVE_MS = 350;
 const POLL_MS = 2000;
@@ -179,7 +181,7 @@ export default function DocumentPageOffline() {
               <span className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wider text-muted-foreground"><FileText className="h-3 w-3" /> {b.kind}</span>
               <button onClick={() => deleteBrick(b.id)} className="rounded p-1 text-muted-foreground opacity-0 transition-opacity hover:text-rose-300 group-hover:opacity-100"><Trash2 className="h-3.5 w-3.5" /></button>
             </div>
-            {b.kind === "text" ? (
+            {isOfflineEditable(b.kind) ? (
               <textarea
                 value={brickMarkdown(b)}
                 onChange={(e) => updateBrickMarkdown(b.id, e.target.value)}
@@ -188,7 +190,7 @@ export default function DocumentPageOffline() {
                 className="w-full resize-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground/50"
               />
             ) : (
-              <pre className="overflow-auto whitespace-pre-wrap font-mono text-[11px] text-slate-400">{JSON.stringify(b.content, null, 2)}</pre>
+              <OfflineBrickRenderer brick={b} />
             )}
           </div>
         ))}
