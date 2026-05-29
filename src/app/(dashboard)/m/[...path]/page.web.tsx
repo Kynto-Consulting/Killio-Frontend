@@ -38,7 +38,9 @@ import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
-import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT } from "@/lib/killio-file";
+import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
   getBoard, getMesh, updateMeshState,
@@ -1266,8 +1268,14 @@ type MeshBoardPageProps = {
 
 export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps) {
   const tMesh = useTranslations("mesh");
-  const params  = useParams<{ meshId: string }>();
-  const meshId  = params?.meshId;
+  const params  = useParams() as { path?: string | string[] };
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
+  // Catch-all route. Cloud: meshId = first segment. Local: nested .km file path.
+  const pathSegs = Array.isArray(params?.path) ? params.path : params?.path ? [params.path] : [];
+  const localFile = localMode ? (() => { const p = pathSegs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(".km") ? p : `${p}.km`; })() : "";
+  // meshId drives cloud APIs + realtime; null in local mode so realtime stays off.
+  const meshId = localMode ? undefined : (pathSegs[0] ?? undefined);
   const { accessToken, activeTeamId, user } = useSession();
   const realtime = useRealtime();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -1402,6 +1410,39 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const revisionRef = useRef(0);
   const stateHashRef = useRef("");
   const lastSavedHashRef = useRef("");
+  const localLastModifiedRef = useRef(0);
+  const meshBoardNameRef = useRef("Mesh");
+
+  // ── Local load (from .km file in the workspace folder) ────────────────────────
+  useEffect(() => {
+    if (!localMode) return;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    let cancelled = false;
+    setIsLoading(true);
+    (async () => {
+      const meta = await readWorkspaceFileWithMeta(dir, localFile);
+      if (cancelled) return;
+      if (meta) {
+        try {
+          const decoded = decodeKillioFile(meta.text);
+          const { state: imported, meta: m } = deserializeKmToMesh(decoded.payload);
+          setState(imported);
+          if (imported.viewport) setViewport(imported.viewport);
+          setMeshBoardName(m.title || localFile.replace(/\.km$/, ""));
+          stateHashRef.current = JSON.stringify(imported);
+          lastSavedHashRef.current = stateHashRef.current;
+          localLastModifiedRef.current = meta.lastModified;
+        } catch { toast(tMesh("errors.loadFailed"), "error"); }
+      } else {
+        setState(defaultMeshState());
+        setMeshBoardName(localFile.replace(/\.km$/, ""));
+      }
+      setIsLoading(false);
+    })();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localMode, localFile]);
 
   // ── Load ────────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1442,6 +1483,29 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       .finally(() => setIsLoading(false));
   }, [meshId, accessToken]);
 
+  // ── Local side-update: reload when the .km file changes on disk ───────────────
+  useEffect(() => {
+    if (!localMode || isLoading) return;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    const id = setInterval(async () => {
+      const meta = await readWorkspaceFileWithMeta(dir, localFile);
+      if (!meta || meta.lastModified <= localLastModifiedRef.current + 1) return;
+      const dirty = stateHashRef.current !== lastSavedHashRef.current;
+      if (dirty) return; // don't clobber unsaved local edits
+      try {
+        const { state: imported } = deserializeKmToMesh(decodeKillioFile(meta.text).payload);
+        setState(imported);
+        if (imported.viewport) setViewport(imported.viewport);
+        stateHashRef.current = JSON.stringify(imported);
+        lastSavedHashRef.current = stateHashRef.current;
+        localLastModifiedRef.current = meta.lastModified;
+      } catch { /* ignore */ }
+    }, 2000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localMode, isLoading, localFile]);
+
   // ── Realtime ────────────────────────────────────────────────────────────────
   useBoardRealtime(meshId, (e) => {
     if (e.type !== "mesh.state.updated") return;
@@ -1471,14 +1535,30 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }, [state]);
 
   const saveMeshState = useCallback(async (nextState: MeshState, opts?: { silent?: boolean }) => {
-    if (!meshId || !accessToken) return false;
-    if (isSavingRef.current) return false;
-
     const payloadState: MeshState = {
       ...nextState,
       viewport: { x: viewportRef.current.x, y: viewportRef.current.y, zoom: viewportRef.current.zoom },
     };
     const snapshotHash = JSON.stringify(payloadState);
+
+    // Local mode: serialize → write the .km file in the workspace folder.
+    if (localMode) {
+      const dir = localWs.getDir();
+      if (!dir) return false;
+      setIsSaving(true);
+      try {
+        const km = serializeMeshToKm(payloadState, { meshId: localFile, title: meshBoardNameRef.current });
+        await writeWorkspaceFile(dir, localFile, encodeKillioFile({ kind: "km", schemaVersion: km.schemaVersion, payload: km }));
+        lastSavedHashRef.current = snapshotHash;
+        const m = await readWorkspaceFileWithMeta(dir, localFile);
+        if (m) localLastModifiedRef.current = m.lastModified;
+        return true;
+      } catch { if (!opts?.silent) toast(tMesh("errors.saveFailed"), "error"); return false; }
+      finally { setIsSaving(false); }
+    }
+
+    if (!meshId || !accessToken) return false;
+    if (isSavingRef.current) return false;
     isSavingRef.current = true;
     setIsSaving(true);
     try {
@@ -1514,7 +1594,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       isSavingRef.current = false;
       setIsSaving(false);
     }
-  }, [meshId, accessToken]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meshId, accessToken, localMode, localFile]);
 
   // ── Canvas coords ────────────────────────────────────────────────────────────
   const toCanvas = useCallback((cx: number, cy: number) => {
@@ -1695,6 +1776,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const kmImportInputRef = useRef<HTMLInputElement | null>(null);
   const [meshBoardName, setMeshBoardName] = useState("Mesh");
+  meshBoardNameRef.current = meshBoardName;
   const [meshBoardDescription, setMeshBoardDescription] = useState<string | null>(null);
   const portalHydrationInFlightRef = useRef<Set<string>>(new Set());
   const portalHydrationAttemptRef = useRef<Record<string, string>>({});
@@ -2308,14 +2390,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }, []);
 
   useEffect(() => {
-    if (!meshId || !accessToken || isLoading) return;
+    if (isLoading) return;
+    if (!localMode && (!meshId || !accessToken)) return;
     const currentHash = stateHashRef.current;
     if (!currentHash || currentHash === lastSavedHashRef.current) return;
 
     if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
     autosaveTimerRef.current = setTimeout(() => {
       void saveMeshState(state, { silent: true });
-    }, 900);
+    }, localMode ? 400 : 900);
 
     return () => {
       if (autosaveTimerRef.current) {
@@ -2323,7 +2406,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         autosaveTimerRef.current = null;
       }
     };
-  }, [meshId, accessToken, isLoading, state, saveMeshState]);
+  }, [meshId, accessToken, isLoading, state, saveMeshState, localMode]);
 
 
   // ── Inline editing ────────────────────────────────────────────────────────────

@@ -10,6 +10,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { ApiError, BoardSummary, createBoard, listTeamBoards } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { LocalEntityList } from "../local-entity-list";
 
 function resolveMeshCardBg(mesh: { backgroundKind?: string | null; backgroundValue?: string | null; backgroundGradient?: string | null; backgroundImageUrl?: string | null }): { className: string; style?: CSSProperties } {
   if (mesh.backgroundKind === "image" && mesh.backgroundImageUrl) {
@@ -40,6 +42,7 @@ export default function MeshBoardsPage() {
   const t = useTranslations("boards");
   const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
+  const { mode: workspaceMode } = useLocalWorkspace();
 
   const [meshes, setMeshes] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,6 +118,8 @@ export default function MeshBoardsPage() {
       setIsCreating(false);
     }
   };
+
+  if (workspaceMode === "local") return <LocalEntityList kind="km" routeBase="/m" title="Meshes" />;
 
   return (
     <div className="container mx-auto max-w-6xl p-6 lg:p-10">
