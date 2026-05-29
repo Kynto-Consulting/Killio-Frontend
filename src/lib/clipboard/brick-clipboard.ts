@@ -35,10 +35,38 @@ export function makeEnvelope(engine: ClipboardEngine, id: string, bricks: Clipbo
 // render. On paste, if the clipboard's text/plain matches, we restore the exact
 // envelope (lossless) instead of re-parsing markdown.
 let lastCopy: { envelope: KillioClipboard; plain: string } | null = null;
-export function rememberCopy(envelope: KillioClipboard, plain: string): void { lastCopy = { envelope, plain }; }
+
+// P5: share the in-memory copy across same-origin Killio tabs/windows via
+// BroadcastChannel. Browsers strip our custom MIME from the system clipboard, so
+// this channel is what makes copy-in-tab-A / paste-in-tab-B lossless (and is the
+// transport a future cross-window drag would ride on). text/plain + text/html
+// still flow through the OS clipboard for external apps.
+let channel: BroadcastChannel | null = null;
+function getChannel(): BroadcastChannel | null {
+  if (typeof window === "undefined" || typeof BroadcastChannel === "undefined") return null;
+  if (!channel) {
+    channel = new BroadcastChannel("killio-clipboard");
+    channel.onmessage = (ev: MessageEvent) => {
+      const d = ev.data as { type?: string; envelope?: KillioClipboard; plain?: string } | null;
+      if (d?.type === "copy" && isKillioEnvelope(d.envelope) && typeof d.plain === "string") {
+        lastCopy = { envelope: d.envelope, plain: d.plain };
+      }
+    };
+  }
+  return channel;
+}
+
+export function rememberCopy(envelope: KillioClipboard, plain: string): void {
+  lastCopy = { envelope, plain };
+  try { getChannel()?.postMessage({ type: "copy", envelope, plain }); } catch { /* channel unavailable */ }
+}
 export function recallCopy(plain: string): KillioClipboard | null {
   return lastCopy && lastCopy.plain === plain ? lastCopy.envelope : null;
 }
+
+/** Open the cross-tab channel early (call on engine mount) so copies from other
+ *  Killio tabs are received before this tab's first paste. */
+export function ensureClipboardChannel(): void { getChannel(); }
 
 export function isKillioEnvelope(value: unknown): value is KillioClipboard {
   const v = value as KillioClipboard | null;

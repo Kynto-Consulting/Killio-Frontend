@@ -24,7 +24,7 @@ import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-fil
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
-import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, ensureClipboardChannel, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
 import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
@@ -427,17 +427,20 @@ export default function DocumentPage() {
     const topIds = getTopLevelBrickIds(document.bricks);
     const top = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
     let pos = top.length ? top[top.length - 1].position + 1000 : 1000;
+    let added = 0;
     for (const cb of bricks) {
       try {
         const created = await createDocumentBrick(docId, { kind: cb.kind, position: pos, content: (cb.content ?? {}) as any }, accessToken);
         setDocument((prev) => prev ? { ...prev, bricks: sanitizeDocumentBricks([...prev.bricks, created]).sort((a, b) => a.position - b.position) } : prev);
-        pos += 1000;
+        pos += 1000; added += 1;
       } catch { /* skip a brick the backend rejects */ }
     }
-  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks]);
+    if (added > 0) toast(t("clipboard.pasted", { n: added }), "success");
+  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks, t]);
 
   useEffect(() => {
     if (!document) return;
+    ensureClipboardChannel();
     const inEditable = () => {
       const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
       return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
@@ -452,6 +455,7 @@ export default function DocumentPage() {
       if (bricks.length === 0 || !e.clipboardData) return;
       e.preventDefault();
       writeBricksToDataTransfer(e.clipboardData, makeEnvelope("document", docId, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+      toast(t("clipboard.copied", { n: bricks.length }), "success");
     };
     const onPaste = (e: ClipboardEvent) => {
       if (inEditable()) return; // let text bricks paste natively

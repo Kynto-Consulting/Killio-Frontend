@@ -1,4 +1,5 @@
 {
+  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted" },
   "header": {
     "bricks": "bricks",
     "live": "Live",

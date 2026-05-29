@@ -1,4 +1,5 @@
 {
+  "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)" },
   "header": {
     "bricks": "bloques",
     "live": "En vivo",

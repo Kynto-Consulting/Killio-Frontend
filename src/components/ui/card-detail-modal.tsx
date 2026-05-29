@@ -10,7 +10,7 @@ import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-works
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { patchCardInKb } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
-import { makeEnvelope, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { makeEnvelope, writeBricksToDataTransfer, ensureClipboardChannel, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
 import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
@@ -817,6 +817,7 @@ export function CardDetailModal({
   // ── Clipboard: copy card blocks / paste bricks as new blocks ────────────────
   useEffect(() => {
     if (!isOpen) return;
+    ensureClipboardChannel();
     const inEditable = () => {
       const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
       return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
@@ -838,13 +839,14 @@ export function CardDetailModal({
       if (bricks.length === 0 || !e.clipboardData) return;
       e.preventDefault();
       writeBricksToDataTransfer(e.clipboardData, makeEnvelope("board", boardId || card?.id || "", bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+      toast(t("clipboard.copied", { n: bricks.length }), "success");
     };
     const onPaste = (e: ClipboardEvent) => {
       if (inEditable()) return;
       const bricks = bricksFromClipboardEvent(e);
       if (bricks.length === 0) return;
       e.preventDefault();
-      void (async () => { for (const cb of bricks) { const input = cbToCardInput(cb); if (input) await handleCreateBrick(input); } })();
+      void (async () => { let added = 0; for (const cb of bricks) { const input = cbToCardInput(cb); if (input && await handleCreateBrick(input)) added += 1; } if (added) toast(t("clipboard.pasted", { n: added }), "success"); })();
     };
     window.addEventListener("copy", onCopy);
     window.addEventListener("paste", onPaste);

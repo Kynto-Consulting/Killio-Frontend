@@ -40,9 +40,9 @@ import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
-import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
+import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, ensureClipboardChannel, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
-import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
+import { bricksFromClipboardEvent, bricksFromDataTransfer } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalMesh } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -2350,11 +2350,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }, [selectedId, selectedIds, selectedConnId, editingBrickId]);
 
   // ── Clipboard: copy selected bricks / paste bricks as canvas meta-bricks ────
-  const pasteBricksToMesh = useCallback((bricks: ClipboardBrick[]) => {
+  const pasteBricksToMesh = useCallback((bricks: ClipboardBrick[], at?: { x: number; y: number }) => {
     if (bricks.length === 0) return;
     const el = canvasRef.current; const vp = viewportRef.current;
-    const cx = el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400;
-    const cy = el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300;
+    const cx = at ? at.x : (el ? (el.clientWidth / 2 - vp.x) / Math.max(vp.zoom, 0.01) : 400);
+    const cy = at ? at.y : (el ? (el.clientHeight / 2 - vp.y) / Math.max(vp.zoom, 0.01) : 300);
     setState((cur) => {
       let next = cur; const base = Object.keys(cur.bricksById).length; let i = 0;
       for (const cb of bricks) {
@@ -2367,9 +2367,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       }
       return next;
     });
-  }, []);
+    toast(tMesh("clipboard.pasted", { n: bricks.length }), "success");
+  }, [tMesh]);
 
   useEffect(() => {
+    ensureClipboardChannel();
     const inEditable = () => {
       if (editingBrickId) return true;
       const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
@@ -2389,6 +2391,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       if (bricks.length === 0 || !e.clipboardData) return;
       e.preventDefault();
       writeBricksToDataTransfer(e.clipboardData, makeEnvelope("mesh", meshId ?? localFile, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+      toast(tMesh("clipboard.copied", { n: bricks.length }), "success");
     };
     const onPaste = (e: ClipboardEvent) => {
       if (inEditable()) return;
@@ -2593,14 +2596,19 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
   const onCanvasDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
-    const raw = e.dataTransfer.getData("killio-mesh");
-    if (!raw) return;
-    let data: any;
-    try { data = JSON.parse(raw); } catch { return; }
     const pos = toCanvas(e.clientX, e.clientY);
-    if (data.type === "meta") addMeta(data.entry, pos);
-    if (data.type === "shape") addShape(data.preset, pos);
-  }, [addMeta, addShape, toCanvas]);
+    const raw = e.dataTransfer.getData("killio-mesh");
+    if (raw) {
+      let data: any;
+      try { data = JSON.parse(raw); } catch { return; }
+      if (data.type === "meta") addMeta(data.entry, pos);
+      if (data.type === "shape") addShape(data.preset, pos);
+      return;
+    }
+    // Dropped bricks / markdown / plain text from anywhere → meta-bricks at cursor.
+    const bricks = bricksFromDataTransfer(e.dataTransfer);
+    if (bricks.length > 0) pasteBricksToMesh(bricks, pos);
+  }, [addMeta, addShape, toCanvas, pasteBricksToMesh]);
 
   // ── Connections ───────────────────────────────────────────────────────────────
   const addConn = useCallback((src: string, tgt: string, sp?: Port, tp?: Port, sa?: AnchorNorm, ta?: AnchorNorm) => {

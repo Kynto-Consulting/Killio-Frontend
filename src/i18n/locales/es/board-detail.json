@@ -1,4 +1,5 @@
 {
+  "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)" },
   "loadingBoard": "Cargando...",
   "loadBoardError": "Error al cargar el tablero",
   "deleteBoardError": "No se pudo eliminar el tablero",

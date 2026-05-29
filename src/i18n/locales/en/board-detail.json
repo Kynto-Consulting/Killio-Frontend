@@ -1,4 +1,5 @@
 {
+  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted" },
   "loadingBoard": "Loading...",
   "loadBoardError": "Error loading board",
   "deleteBoardError": "Failed to delete board",
