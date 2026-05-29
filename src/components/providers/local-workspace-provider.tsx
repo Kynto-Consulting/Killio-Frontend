@@ -171,8 +171,30 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }
 
+// Safe cloud-mode default so any consumer rendered outside the provider (e.g.
+// a public/non-dashboard route, or during an SSR/hydration edge) degrades to
+// cloud mode instead of crashing the page.
+const FALLBACK: LocalWorkspaceCtx = {
+  supported: false,
+  mode: "cloud",
+  workspaces: [],
+  activeId: null,
+  active: null,
+  status: "idle",
+  files: [],
+  busy: false,
+  createLocalWorkspace: async () => null,
+  selectLocalWorkspace: async () => {},
+  exitLocal: () => {},
+  removeLocalWorkspace: async () => {},
+  reconnect: async () => {},
+  refresh: async () => {},
+  writeFile: async () => {},
+  readFile: async () => "",
+  removeFile: async () => {},
+  getDir: () => null,
+};
+
 export function useLocalWorkspace(): LocalWorkspaceCtx {
-  const ctx = useContext(Ctx);
-  if (!ctx) throw new Error("useLocalWorkspace must be used within LocalWorkspaceProvider");
-  return ctx;
+  return useContext(Ctx) ?? FALLBACK;
 }
