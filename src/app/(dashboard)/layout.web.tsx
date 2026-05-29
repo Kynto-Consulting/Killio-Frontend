@@ -20,7 +20,11 @@ import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
-import { RefreshCw, HardDrive } from "lucide-react";
+import { RefreshCw, HardDrive, CloudUpload } from "lucide-react";
+import { useOnline } from "@/hooks/use-online";
+import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
+import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
+import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -46,6 +50,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();
   const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
   const tDashboard = useTranslations("dashboard");
+  const tShare = useTranslations("share-local");
   const tCommon = useTranslations("common");
   const tRooms = useTranslations("rooms");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
@@ -82,6 +87,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const [isTeamSwitcherOpen, setIsTeamSwitcherOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
+  const [isWsPublishOpen, setIsWsPublishOpen] = useState(false);
+  const online = useOnline();
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
@@ -386,6 +393,29 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
         isOpen={isCreateWorkspaceModalOpen}
         onClose={() => setIsCreateWorkspaceModalOpen(false)}
         onSubmit={handleCreateTeamSubmit}
+      />
+      <PublishWorkspaceModal
+        isOpen={isWsPublishOpen}
+        onClose={() => setIsWsPublishOpen(false)}
+        online={online}
+        canPublish={!!accessToken && !!activeTeamId}
+        itemCount={localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb").length}
+        run={async (onProgress) => {
+          const dir = localWs.getDir();
+          const entries = localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb");
+          const wsFiles: WorkspaceFile[] = [];
+          for (const f of entries) {
+            try { wsFiles.push({ path: f.path, kind: f.kind as WorkspaceFile["kind"], text: await localWs.readFile(f.path) }); } catch { /* skip unreadable */ }
+          }
+          return publishLocalWorkspace(
+            wsFiles,
+            { teamId: activeTeamId as string, accessToken: accessToken as string },
+            {
+              onProgress,
+              readAsset: dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined,
+            },
+          );
+        }}
       />
       <ProfileSettingsModal
         isOpen={isProfileModalOpen}
@@ -744,19 +774,32 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                         <HardDrive className="h-3 w-3" /> {tDashboard("teamSwitcher.localWorkspaces")}
                       </div>
                       <div className="space-y-0.5 mt-1 max-h-40 overflow-y-auto">
-                        {localWs.workspaces.map((lw) => (
-                          <button
-                            key={lw.id}
-                            onClick={() => { void localWs.selectLocalWorkspace(lw.id); setIsTeamSwitcherOpen(false); }}
-                            className="w-full text-left px-2 py-2 text-sm rounded-md transition-colors flex items-center justify-between hover:bg-accent/10"
-                          >
-                            <div className="flex items-center truncate gap-2">
-                              <HardDrive className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
-                              <span className="truncate pr-2">{lw.name}</span>
-                            </div>
-                            {localMode && localWs.activeId === lw.id && <Check className="h-4 w-4 text-cyan-300 shrink-0" />}
-                          </button>
-                        ))}
+                        {localWs.workspaces.map((lw) => {
+                          const isActive = localMode && localWs.activeId === lw.id;
+                          return (
+                          <div key={lw.id} className="group flex items-center rounded-md transition-colors hover:bg-accent/10">
+                            <button
+                              onClick={() => { void localWs.selectLocalWorkspace(lw.id); setIsTeamSwitcherOpen(false); }}
+                              className="flex-1 text-left px-2 py-2 text-sm flex items-center justify-between min-w-0"
+                            >
+                              <div className="flex items-center truncate gap-2">
+                                <HardDrive className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                                <span className="truncate pr-2">{lw.name}</span>
+                              </div>
+                              {isActive && <Check className="h-4 w-4 text-cyan-300 shrink-0" />}
+                            </button>
+                            {isActive && (
+                              <button
+                                title={tShare("wsButton")}
+                                onClick={(e) => { e.stopPropagation(); setIsTeamSwitcherOpen(false); setIsWsPublishOpen(true); }}
+                                className="mr-1 shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-accent/15 hover:text-accent transition-colors"
+                              >
+                                <CloudUpload className="h-4 w-4" />
+                              </button>
+                            )}
+                          </div>
+                          );
+                        })}
                       </div>
                     </>
                   )}

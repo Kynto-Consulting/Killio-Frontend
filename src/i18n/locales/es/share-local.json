@@ -19,5 +19,15 @@
   "errorDescription": "Algo salió mal al subir. Inténtalo de nuevo.",
   "retry": "Reintentar",
   "offline": "Necesitas conexión a internet para compartir.",
-  "needAccount": "Inicia sesión para compartir a tu workspace personal."
+  "needAccount": "Inicia sesión para compartir a tu workspace personal.",
+  "wsButton": "Subir a la nube",
+  "wsTitle": "¿Subir todo a la nube?",
+  "wsQuestion": "¿Subir todo este workspace local a tu workspace personal en la nube?",
+  "wsDescription": "Cada documento, tablero y mesh se copiará a tu workspace personal y se hará público. Las referencias entre ellos se remapean y los archivos se suben para que todo funcione. Tus archivos locales quedan en tu disco, intactos.",
+  "wsConfirm": "Sí, subir todo",
+  "wsProgress": "Subiendo {done}/{total}…",
+  "wsSuccessTitle": "Workspace subido",
+  "wsSuccessDescription": "{published} de {total} elementos ya están en tu workspace personal y son públicos.",
+  "wsFailedNote": "{failed} elemento(s) no se pudieron subir.",
+  "wsEmpty": "Este workspace aún no tiene nada para subir."
 }

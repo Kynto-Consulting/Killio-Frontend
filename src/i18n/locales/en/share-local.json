@@ -19,5 +19,15 @@
   "errorDescription": "Something went wrong while uploading. Please try again.",
   "retry": "Retry",
   "offline": "You need an internet connection to share.",
-  "needAccount": "Sign in to share to your personal workspace."
+  "needAccount": "Sign in to share to your personal workspace.",
+  "wsButton": "Upload to cloud",
+  "wsTitle": "Upload everything to the cloud?",
+  "wsQuestion": "Upload this whole local workspace to your personal cloud workspace?",
+  "wsDescription": "Every document, board and mesh will be copied to your personal workspace and made public. References between them are remapped and assets uploaded so everything works. Your local files stay on your disk, untouched.",
+  "wsConfirm": "Yes, upload all",
+  "wsProgress": "Uploading {done}/{total}…",
+  "wsSuccessTitle": "Workspace uploaded",
+  "wsSuccessDescription": "{published} of {total} items are now in your personal workspace and public.",
+  "wsFailedNote": "{failed} item(s) couldn't be uploaded.",
+  "wsEmpty": "This workspace has nothing to upload yet."
 }
