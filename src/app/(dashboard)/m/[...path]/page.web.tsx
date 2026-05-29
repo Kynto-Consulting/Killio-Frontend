@@ -1272,6 +1272,98 @@ function connStyle(preset: ConnStyle): Record<string, unknown> {
   return                             { stroke: "#22d3ee", width: 2,   pattern: "solid",  connType: "technical" };
 }
 
+// Pure: turn a GeneratedMesh (nodes+edges) into a MeshTemplate (bricks+connections)
+// WITHOUT touching live state — so the result can be previewed before insertion.
+// Mirrors the brick/connection construction used when applying a diagram: parent
+// nesting, per-node colors, title/description split into header + nested text
+// brick, [color] tint, and clean-reverse-pair → bidirectional collapse.
+function generatedMeshToTemplate(mesh: GeneratedMesh, connPreset: ConnStyle): MeshTemplate {
+  const byId: Record<string, MeshBrick> = {};
+  const order: string[] = [];
+  const refToId: Record<string, string> = {};
+  let count = 0;
+  const pushChild = (parentId: string, childId: string) => {
+    const pc = asRec(byId[parentId].content);
+    const co = Array.isArray(pc.childOrder) ? (pc.childOrder as string[]) : [];
+    byId[parentId] = { ...byId[parentId], content: { ...pc, isContainer: true, childOrder: [...co, childId] } };
+  };
+
+  mesh.nodes.forEach((n) => {
+    const parentId = n.parent ? (refToId[n.parent] ?? null) : null;
+    const pos = { x: Math.round(n.x), y: Math.round(n.y) };
+    const tint = (s: string) => (s && n.textColor ? `[color:${n.textColor}]${s}[/color]` : s);
+    const nlIdx = n.label ? n.label.indexOf("\n") : -1;
+    const title = n.label ? (nlIdx >= 0 ? n.label.slice(0, nlIdx) : n.label).trim() : "";
+    const descBody = n.label && nlIdx >= 0
+      ? n.label.slice(nlIdx + 1).split("\n").map((s) => s.trim()).filter(Boolean).join("\n\n")
+      : "";
+
+    let nb: MeshBrick;
+    if (n.kind === "board") {
+      nb = mkBrick("board_empty", count++, parentId, pos);
+      if (title) nb = { ...nb, content: { ...asRec(nb.content), label: title } };
+    } else if (n.kind === "text") {
+      nb = setMd(mkBrick("text", count++, parentId, pos), tint(n.label || ""));
+    } else {
+      const preset = (n.shape ?? "rect") as ShapePreset;
+      nb = mkBrick("draw", count++, parentId, pos, preset);
+      if (title) {
+        nb = descBody
+          ? { ...nb, content: { ...asRec(nb.content), label: title, isContainer: true, childOrder: [] } }
+          : { ...nb, content: { ...asRec(nb.content), markdown: tint(title) } };
+      }
+    }
+    if (n.stroke || n.fill) {
+      const content = asRec(nb.content);
+      const style = { ...asRec(content.style) };
+      if (n.stroke) style.stroke = n.stroke;
+      if (n.fill) style.fill = n.fill;
+      nb = { ...nb, content: { ...content, style } };
+    }
+    nb = { ...nb, size: { w: Math.round(n.w), h: Math.round(n.h) } };
+    byId[nb.id] = nb; order.push(nb.id);
+    if (parentId && byId[parentId]) pushChild(parentId, nb.id);
+    refToId[n.ref] = nb.id;
+
+    if (n.kind === "shape" && descBody) {
+      const tb0 = setMd(mkBrick("text", count++, nb.id, { x: 12, y: 38 }), tint(descBody));
+      const tb = { ...tb0, size: { w: Math.max(60, nb.size.w - 24), h: Math.max(28, nb.size.h - 52) } };
+      byId[tb.id] = tb; order.push(tb.id);
+      pushChild(nb.id, tb.id);
+    }
+  });
+
+  const connections: MeshConnection[] = [];
+  const mkDocLabel = (txt?: string) => txt
+    ? { type: "doc" as const, content: [{ type: "paragraph", content: [{ type: "text", text: txt }] }] }
+    : { type: "doc" as const, content: [] };
+  const resolved = mesh.edges
+    .map((e) => ({ e, src: refToId[e.from], tgt: refToId[e.to] }))
+    .filter((r) => r.src && r.tgt && r.src !== r.tgt);
+  const groups = new Map<string, typeof resolved>();
+  resolved.forEach((r) => { const key = [r.src, r.tgt].sort().join("|"); (groups.get(key) ?? groups.set(key, []).get(key)!).push(r); });
+  const mkConn = (src: string, tgt: string, e: typeof resolved[number]["e"], bidir: boolean, labelTxt?: string) => {
+    const style: Record<string, unknown> = { ...connStyle(connPreset) };
+    if (e.color) style.stroke = e.color;
+    if (e.pattern) style.pattern = e.pattern;
+    if (typeof e.width === "number") style.width = e.width;
+    if (e.connType) style.connType = e.connType;
+    if (bidir) style.bidir = true;
+    connections.push({ id: mkId("conn"), cons: [src, tgt], label: mkDocLabel(labelTxt ?? e.label), style });
+  };
+  groups.forEach((grp) => {
+    const isCleanReversePair = grp.length === 2 && grp[0].src === grp[1].tgt && grp[0].tgt === grp[1].src;
+    if (isCleanReversePair) {
+      const merged = [grp[0].e.label, grp[1].e.label].filter(Boolean).join("  |  ");
+      mkConn(grp[0].src, grp[0].tgt, grp[0].e, true, merged || undefined);
+    } else {
+      grp.forEach((r) => mkConn(r.src, r.tgt, r.e, false));
+    }
+  });
+
+  return { id: "generated", name: "Generated", bricks: order.map((id) => byId[id]), connections };
+}
+
 /** Deterministic pseudo-random based on string seed. */
 function seedRand(seed: string, i: number): number {
   let h = 5381;
@@ -1945,6 +2037,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }), [refDocs, refBoards]);
 
   const [isAiDrawerOpen, setIsAiDrawerOpen] = useState(false);
+  // Seed message auto-sent to the streaming agent (e.g. when "Generate" launches
+  // the planner-agent to build the board live instead of a one-shot diagram).
+  const [agentSeed, setAgentSeed] = useState<string | undefined>(undefined);
   const [isTextToDiagramOpen, setIsTextToDiagramOpen] = useState(false);
   const [diagramPrompt, setDiagramPrompt] = useState("");
   const [diagramGenerating, setDiagramGenerating] = useState(false);
