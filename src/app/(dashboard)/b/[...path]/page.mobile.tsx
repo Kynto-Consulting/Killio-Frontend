@@ -50,7 +50,8 @@ const SWIPE_THRESHOLD = 72;
 const LONG_PRESS_MS = 450;
 
 export default function BoardMobilePage() {
-  const { boardId } = useParams() as { boardId: string };
+  const _bp = useParams() as { path?: string | string[] };
+  const boardId = (Array.isArray(_bp.path) ? _bp.path[0] : _bp.path) as string;
   const { accessToken } = useSession();
   const t = useTranslations("board-detail");
 

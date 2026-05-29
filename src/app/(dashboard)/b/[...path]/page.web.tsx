@@ -739,9 +739,9 @@ function applyRealtimeEventToLists(
 
 export default function BoardPage() {
   const t = useTranslations("board-detail");
-  const params = useParams();
+  const params = useParams() as { path?: string | string[] };
   const router = useRouter();
-  const boardId = params.boardId as string;
+  const boardId = (Array.isArray(params.path) ? params.path[0] : params.path) as string;
   const { accessToken, user, activeTeamId } = useSession();
   const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
 

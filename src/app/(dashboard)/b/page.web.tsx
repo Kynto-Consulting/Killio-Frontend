@@ -4,6 +4,8 @@ import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import { Plus, Clock, Layout, Loader2, Search, Trash2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { LocalEntityList } from "../local-entity-list";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
@@ -13,6 +15,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 export default function BoardsPage() {
   const t = useTranslations("boards");
   const { accessToken, activeTeamId } = useSession();
+  const { mode: workspaceMode } = useLocalWorkspace();
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -189,9 +192,11 @@ export default function BoardsPage() {
     board.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  if (workspaceMode === "local") return <LocalEntityList kind="kb" routeBase="/b" title="Boards" />;
+
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
-      <ConfirmDeleteModal 
+      <ConfirmDeleteModal
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDeleteBoard}
