@@ -19,6 +19,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
 import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary } from "@/lib/api/contracts";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
@@ -747,6 +748,7 @@ export default function BoardPage() {
   const router = useRouter();
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
+  const online = useOnline();
   const _segs = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
   const localFile = (() => { const p = _segs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(KILLIO_EXT.kb) ? p : `${p}${KILLIO_EXT.kb}`; })();
   // Cloud: boardId = first segment. Local: nested .kb file path.
@@ -1604,21 +1606,38 @@ export default function BoardPage() {
             )}
           </div>
 
-          <button
-            onClick={() => { setSidebarTab('copilot'); setIsChatOpen(true); }}
-            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'copilot' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
-          >
-            <Bot className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("header.copilot")}</span>
-          </button>
+          {/* Copilot: hidden in local mode unless online (uses personal plan) */}
+          {(!localMode || online) && (
+            <button
+              onClick={() => { setSidebarTab('copilot'); setIsChatOpen(true); }}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'copilot' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+            >
+              <Bot className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{t("header.copilot")}</span>
+            </button>
+          )}
 
-          <button
-            onClick={() => { setSidebarTab('chat'); setIsChatOpen(true); }}
-            className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'chat' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
-          >
-            <MessageSquare className="h-4 w-4 sm:mr-2" />
-            <span className="hidden sm:inline">{t("header.teamChat")}</span>
-          </button>
+          {/* Team chat is room-backed — unavailable in local mode */}
+          {!localMode && (
+            <button
+              onClick={() => { setSidebarTab('chat'); setIsChatOpen(true); }}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'chat' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+            >
+              <MessageSquare className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{t("header.teamChat")}</span>
+            </button>
+          )}
+
+          {/* Activity stays available offline (local sidecar) */}
+          {localMode && (
+            <button
+              onClick={() => { setSidebarTab('activity'); setIsChatOpen(true); }}
+              className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'activity' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
+            >
+              <History className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">{t("header.activity", { fallback: "Actividad" })}</span>
+            </button>
+          )}
 
           <div className="relative">
             <button
@@ -1741,7 +1760,7 @@ export default function BoardPage() {
                   {(permissions.canManageBoard || permissions.canEdit) && (
                     <>
                       <div className="my-1 border-t border-border" />
-                    {permissions.canManageBoard && (
+                    {permissions.canManageBoard && !localMode && (
                       <button
                         onClick={() => {
                           setIsBoardMenuOpen(false);
@@ -2173,7 +2192,7 @@ export default function BoardPage() {
       </main>
       )}
 
-      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} entityType="board" />
+      <BoardChatDrawer isOpen={isChatOpen} onClose={() => setIsChatOpen(false)} boardId={boardId} initialTab={sidebarTab} entityType="board" localMode={localMode} online={online} />
 
       <BoardSettingsModal
         isOpen={isBoardSettingsOpen}

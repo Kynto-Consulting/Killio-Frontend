@@ -40,6 +40,7 @@ import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
@@ -1271,6 +1272,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const params  = useParams() as { path?: string | string[] };
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
+  const online = useOnline();
   // Catch-all route. Cloud: meshId = first segment. Local: nested .km file path.
   const pathSegs = Array.isArray(params?.path) ? params.path : params?.path ? [params.path] : [];
   const localFile = localMode ? (() => { const p = pathSegs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(".km") ? p : `${p}.km`; })() : "";
@@ -4093,43 +4095,65 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
           <div className="h-5 w-px bg-border/60 mx-0.5" />
 
-          {/* Copilot */}
-          <button
-            type="button"
-            onClick={() => { setSidebarTab("copilot"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
-              isCommentsOpen && sidebarTab === "copilot"
-                ? "border-accent/30 bg-accent/10 text-accent"
-                : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
-            }`}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Copilot</span>
-          </button>
+          {/* Copilot: hidden in local mode unless online (uses personal plan) */}
+          {(!localMode || online) && (
+            <button
+              type="button"
+              onClick={() => { setSidebarTab("copilot"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                isCommentsOpen && sidebarTab === "copilot"
+                  ? "border-accent/30 bg-accent/10 text-accent"
+                  : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
+              }`}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Copilot</span>
+            </button>
+          )}
 
-          {/* Team chat */}
-          <button
-            type="button"
-            onClick={() => { setSidebarTab("chat"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
-            className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
-              isCommentsOpen && sidebarTab === "chat"
-                ? "border-accent/30 bg-accent/10 text-accent"
-                : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
-            }`}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Chat</span>
-          </button>
+          {/* Team chat is room-backed — unavailable in local mode */}
+          {!localMode && (
+            <button
+              type="button"
+              onClick={() => { setSidebarTab("chat"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                isCommentsOpen && sidebarTab === "chat"
+                  ? "border-accent/30 bg-accent/10 text-accent"
+                  : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
+              }`}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Chat</span>
+            </button>
+          )}
 
-          {/* Share */}
-          <button
-            type="button"
-            onClick={handleShareMesh}
-            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
-          >
-            <Share2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Share</span>
-          </button>
+          {/* Activity stays available offline (local sidecar) */}
+          {localMode && (
+            <button
+              type="button"
+              onClick={() => { setSidebarTab("activity"); setIsAiDrawerOpen(false); setIsCommentsOpen(true); }}
+              className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors ${
+                isCommentsOpen && sidebarTab === "activity"
+                  ? "border-accent/30 bg-accent/10 text-accent"
+                  : "border-border bg-card/60 text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground"
+              }`}
+            >
+              <History className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Actividad</span>
+            </button>
+          )}
+
+          {/* Share: unavailable in local mode */}
+          {!localMode && (
+            <button
+              type="button"
+              onClick={handleShareMesh}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border bg-card/60 px-2.5 text-xs font-medium text-muted-foreground hover:bg-accent/10 hover:border-accent/30 hover:text-foreground transition-colors"
+            >
+              <Share2 className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Share</span>
+            </button>
+          )}
 
           {/* Export .km */}
           <button
@@ -5009,9 +5033,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       <BoardChatDrawer
         isOpen={isCommentsOpen}
         onClose={() => setIsCommentsOpen(false)}
-        boardId={meshId}
+        boardId={localMode ? localFile : meshId}
         initialTab={sidebarTab}
         entityType="mesh"
+        localMode={localMode}
+        online={online}
       />
     </div>
 

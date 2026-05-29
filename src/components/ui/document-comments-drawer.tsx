@@ -115,6 +115,8 @@ export function DocumentCommentsDrawer({
   onAiInputClear,
   bricks: bricksProp = [],
   linkedRoomId,
+  localMode = false,
+  online = true,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -129,12 +131,31 @@ export function DocumentCommentsDrawer({
   onAiInputClear?: () => void;
   bricks?: any[];
   linkedRoomId?: string;
+  /** Local workspace mode: rooms/comments don't exist; AI only when online. */
+  localMode?: boolean;
+  online?: boolean;
 }) {
   const t = useTranslations("document-detail");
   const tRooms = useTranslations("rooms");
   const getActionTheme = useActionTheme();
   const { accessToken, user, activeTeamId } = useSession();
+
+  // In local mode: comments (room-backed) are unavailable; Copilot needs the
+  // internet (uses the personal workspace plan); activity reads from a local
+  // hidden sidecar. Compute which tabs are visible.
+  const tabs = useMemo(() => {
+    const list: Array<{ id: 'copilot' | 'comments' | 'activity'; label: string; icon: typeof Bot }> = [];
+    if (!localMode || online) list.push({ id: 'copilot', label: 'Copilot', icon: Bot });
+    if (!localMode) list.push({ id: 'comments', label: 'Comentarios', icon: MessageSquare });
+    list.push({ id: 'activity', label: 'Actividad', icon: History });
+    return list;
+  }, [localMode, online]);
+
   const [activeTab, setActiveTab] = useState(initialTab);
+  // Clamp to an available tab if the requested one is hidden in local mode.
+  useEffect(() => {
+    if (!tabs.some((tb) => tb.id === activeTab)) setActiveTab(tabs[0]?.id ?? 'activity');
+  }, [tabs, activeTab]);
 
   // Room-backed chat
   const { roomId: autoLinkedRoomId } = useLinkedRoom(activeTeamId, "document", docId, accessToken, !!docId);
@@ -319,13 +340,15 @@ export function DocumentCommentsDrawer({
         <div className="flex items-center justify-between p-4 pb-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{t("commentsDrawer.collaboration")}</h3>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
-              title="Open in Rooms"
-              className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </button>
+            {!localMode && (
+              <button
+                onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
+                title="Open in Rooms"
+                className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
             <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
@@ -333,11 +356,7 @@ export function DocumentCommentsDrawer({
         </div>
 
         <div className="flex px-2 pb-0.5 gap-1">
-          {[
-            { id: 'copilot', label: 'Copilot', icon: Bot },
-            { id: 'comments', label: 'Comentarios', icon: MessageSquare },
-            { id: 'activity', label: 'Actividad', icon: History }
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}

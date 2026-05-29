@@ -26,12 +26,15 @@ export interface BoardChatDrawerProps {
   initialTab?: 'copilot' | 'chat' | 'activity';
   entityType?: AgentEntityScope;
   linkedRoomId?: string;
+  /** Local workspace mode: rooms/chat unavailable; AI only when online. */
+  localMode?: boolean;
+  online?: boolean;
 }
 
 
 
 
-export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'chat', entityType, linkedRoomId: linkedRoomIdProp }: BoardChatDrawerProps) {
+export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'chat', entityType, linkedRoomId: linkedRoomIdProp, localMode = false, online = true }: BoardChatDrawerProps) {
   const t = useTranslations("board-detail");
   const tRooms = useTranslations("rooms");
   const getActionTheme = useActionTheme();
@@ -65,6 +68,18 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
   const router = useRouter();
   const [drawerWidth, setDrawerWidth] = useState(384);
   const [isResizingDrawer, setIsResizingDrawer] = useState(false);
+
+  // Local mode: chat (room-backed) is unavailable; Copilot only when online.
+  const tabs = (() => {
+    const list: Array<{ id: 'copilot' | 'chat' | 'activity'; label: string; icon: typeof Bot }> = [];
+    if (!localMode || online) list.push({ id: 'copilot', label: 'Copilot', icon: Bot });
+    if (!localMode) list.push({ id: 'chat', label: 'Chat', icon: MessageSquare });
+    list.push({ id: 'activity', label: t("chatDrawer.tabActivity"), icon: History });
+    return list;
+  })();
+  useEffect(() => {
+    if (isOpen && !tabs.some((tb) => tb.id === activeTab)) setActiveTab((tabs[0]?.id ?? 'activity') as any);
+  }, [isOpen, tabs, activeTab, setActiveTab]);
 
   useEffect(() => {
     if (!isResizingDrawer) return;
@@ -115,13 +130,15 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         <div className="flex items-center justify-between p-4 pb-2">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</h3>
           <div className="flex items-center gap-1">
-            <button
-              onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
-              title={t("chatDrawer.openInRooms")}
-              className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
-            >
-              <ExternalLink className="h-4 w-4" />
-            </button>
+            {!localMode && (
+              <button
+                onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
+                title={t("chatDrawer.openInRooms")}
+                className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+              >
+                <ExternalLink className="h-4 w-4" />
+              </button>
+            )}
             <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
@@ -129,11 +146,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         </div>
 
         <div className="flex px-2 pb-0.5 gap-1">
-          {[
-            { id: 'copilot', label: 'Copilot', icon: Bot },
-            { id: 'chat', label: 'Chat', icon: MessageSquare },
-            { id: 'activity', label: t("chatDrawer.tabActivity"), icon: History }
-          ].map(tab => (
+          {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}

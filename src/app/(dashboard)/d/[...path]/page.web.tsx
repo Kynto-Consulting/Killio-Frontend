@@ -18,6 +18,7 @@ import { useDocumentPresence } from "@/hooks/useDocumentPresence";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { updateDocumentTitle as apiUpdateDocumentTitle } from "@/lib/api/documents";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
@@ -25,7 +26,7 @@ import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
-import { Sparkles } from "lucide-react";
+import { Sparkles, History } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
@@ -38,6 +39,7 @@ export default function DocumentPage() {
   const _params = useParams() as { path?: string | string[] };
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
+  const online = useOnline();
   const _pathSegs = Array.isArray(_params.path) ? _params.path : _params.path ? [_params.path] : [];
   const localFile = (() => { const p = _pathSegs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(KILLIO_EXT.kd) ? p : `${p}${KILLIO_EXT.kd}`; })();
   // Cloud: docId = first segment. Local: full nested path is the file.
@@ -1465,38 +1467,60 @@ export default function DocumentPage() {
             ))}
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSidebarTab('copilot');
-              setIsCommentsOpen(true);
-            }}
-            className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'copilot' && "bg-accent/10 text-accent")}
-          >
-            <Sparkles className="h-3.5 w-3.5" />
-            {t("header.copilot")}
-          </Button>
+          {/* Copilot: hidden in local mode unless online (uses personal plan) */}
+          {(!localMode || online) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSidebarTab('copilot');
+                setIsCommentsOpen(true);
+              }}
+              className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'copilot' && "bg-accent/10 text-accent")}
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {t("header.copilot")}
+            </Button>
+          )}
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => {
-              setSidebarTab('comments');
-              setIsCommentsOpen(true);
-            }}
-            className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'comments' && "bg-accent/10 text-accent")}
-          >
-            <MessageSquare className="h-3.5 w-3.5" />
-            {t("header.comments")}
-          </Button>
+          {/* Comments are room-backed — unavailable in local mode */}
+          {!localMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSidebarTab('comments');
+                setIsCommentsOpen(true);
+              }}
+              className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'comments' && "bg-accent/10 text-accent")}
+            >
+              <MessageSquare className="h-3.5 w-3.5" />
+              {t("header.comments")}
+            </Button>
+          )}
+
+          {/* Activity stays available offline (reads the local .h sidecar) */}
+          {localMode && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSidebarTab('activity');
+                setIsCommentsOpen(true);
+              }}
+              className={cn("h-8 gap-2 text-xs font-semibold", isCommentsOpen && sidebarTab === 'activity' && "bg-accent/10 text-accent")}
+            >
+              <History className="h-3.5 w-3.5" />
+              {t("header.activity", { fallback: "Actividad" })}
+            </Button>
+          )}
 
           <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Download className="h-3.5 w-3.5" />
             {t("header.download")}
           </Button>
 
-          {canManageDocument && (
+          {!localMode && canManageDocument && (
             <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
               <Share2 className="h-3.5 w-3.5" />
               {t("header.share")}
@@ -1639,6 +1663,8 @@ export default function DocumentPage() {
         initialAiInput={aiInitialInput}
         onAiInputClear={() => setAiInitialInput("")}
         bricks={document?.bricks ?? []}
+        localMode={localMode}
+        online={online}
       />
     </div>
   );
