@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build --turbo",
     "start": "next start",
-    "test:template-format": "node scripts/template-formatting-smoke-active.js"
+    "test:template-format": "node scripts/template-formatting-smoke-active.js",
+    "test:history": "node --experimental-strip-types --test \"src/lib/history/*.test.ts\""
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
