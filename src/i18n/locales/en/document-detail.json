@@ -1,6 +1,6 @@
 {
   "refOpenHint": "Ctrl/Cmd + click to open",
-  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted" },
+  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted", "cut": "{{n}} cut" },
   "common": {
     "saveChanges": "Save changes",
     "cancel": "Cancel"

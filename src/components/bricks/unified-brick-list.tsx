@@ -59,6 +59,9 @@ interface UnifiedBrickListProps {
   onPatchColumn?: (brickId: string, patch: Record<string, any>) => void;
   isCompact?: boolean;
   showDragOverlay?: boolean;
+  /** Multi-select: ids currently selected + a toggle (Ctrl/Cmd-click a brick). */
+  selectedBrickIds?: Set<string>;
+  onBrickSelectToggle?: (id: string) => void;
 }
 
 export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
@@ -84,7 +87,9 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
   onPatchCell,
   onPatchColumn,
   isCompact = false,
-  showDragOverlay = true
+  showDragOverlay = true,
+  selectedBrickIds,
+  onBrickSelectToggle,
 }) => {
   const tDetail = useTranslations("document-detail");
   const tBoardDetail = useTranslations("board-detail");
@@ -260,9 +265,18 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
       {sortedBricks.length > 0 && (
 <div className="space-y-2 min-h-[50px]" data-drop-container-token={dropContainerToken ?? undefined}>
         {sortedBricks.map(brick => (
-          <SortableBrick 
-            key={brick.id} 
-            id={brick.id} 
+          <div
+            key={brick.id}
+            className={selectedBrickIds?.has(brick.id) ? "rounded-lg ring-2 ring-accent/70 ring-offset-2 ring-offset-background bg-accent/[0.04]" : undefined}
+            onClickCapture={(e) => {
+              if (!onBrickSelectToggle || !(e.ctrlKey || e.metaKey)) return;
+              if ((e.target as HTMLElement).closest('.mention-pill, .user-mention, .deep-pill')) return;
+              e.preventDefault(); e.stopPropagation();
+              onBrickSelectToggle(brick.id);
+            }}
+          >
+          <SortableBrick
+            id={brick.id}
             containerToken={dropContainerToken}
             readonly={!canEdit} 
             isCompact={isCompact}
@@ -291,6 +305,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
           >
             {renderBrick(brick)}
           </SortableBrick>
+          </div>
         ))}
       </div>)}
     </SortableContext>

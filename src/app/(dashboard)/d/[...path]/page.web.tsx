@@ -64,6 +64,7 @@ export default function DocumentPage() {
   const [error, setError] = useState<string | null>(null);
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isPublishOpen, setIsPublishOpen] = useState(false);
+  const [brickSelection, setBrickSelection] = useState<Set<string>>(new Set());
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
@@ -413,14 +414,16 @@ export default function DocumentPage() {
   const copyDocumentBricks = useCallback(async (): Promise<boolean> => {
     if (!document) return false;
     const topIds = getTopLevelBrickIds(document.bricks);
-    const bricks = document.bricks
-      .filter((b) => topIds.has(b.id))
-      .sort((a, b) => a.position - b.position)
-      .map((b) => ({ kind: b.kind, content: b.content }));
+    // Copy the current selection if any, else the whole document (in order).
+    const ordered = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
+    const source = brickSelection.size > 0 ? ordered.filter((b) => brickSelection.has(b.id)) : ordered;
+    const bricks = source.map((b) => ({ kind: b.kind, content: b.content }));
     if (bricks.length === 0) return false;
     const env = makeEnvelope("document", docId, bricks);
-    return writeBricksToClipboard(env, { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
-  }, [document, docId]);
+    const ok = await writeBricksToClipboard(env, { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+    if (ok) { toast(t("clipboard.copied", { n: bricks.length }), "success"); setBrickSelection(new Set()); }
+    return ok;
+  }, [document, docId, brickSelection, t]);
 
   const pasteBricks = useCallback(async (bricks: ClipboardBrick[]) => {
     if (!document || bricks.length === 0) return;
@@ -446,16 +449,19 @@ export default function DocumentPage() {
       return !!el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA");
     };
     const onCopy = (e: ClipboardEvent) => {
-      // Only hijack when not editing text and there's no active text selection.
       if (inEditable()) return;
-      const sel = window.getSelection?.()?.toString() ?? "";
-      if (sel.trim()) return;
+      const hasSelection = brickSelection.size > 0;
+      // Without a brick selection, don't hijack a real text selection.
+      if (!hasSelection && (window.getSelection?.()?.toString() ?? "").trim()) return;
       const topIds = getTopLevelBrickIds(document.bricks);
-      const bricks = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position).map((b) => ({ kind: b.kind, content: b.content }));
+      const ordered = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
+      const source = hasSelection ? ordered.filter((b) => brickSelection.has(b.id)) : ordered;
+      const bricks = source.map((b) => ({ kind: b.kind, content: b.content }));
       if (bricks.length === 0 || !e.clipboardData) return;
       e.preventDefault();
       writeBricksToDataTransfer(e.clipboardData, makeEnvelope("document", docId, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
       toast(t("clipboard.copied", { n: bricks.length }), "success");
+      if (hasSelection) setBrickSelection(new Set());
     };
     const onPaste = (e: ClipboardEvent) => {
       if (inEditable()) return; // let text bricks paste natively
@@ -464,10 +470,29 @@ export default function DocumentPage() {
       e.preventDefault();
       void pasteBricks(bricks);
     };
+    // Cut = copy the selected bricks, then delete them.
+    const onCut = (e: ClipboardEvent) => {
+      if (inEditable() || brickSelection.size === 0) return;
+      const topIds = getTopLevelBrickIds(document.bricks);
+      const ordered = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
+      const sel = ordered.filter((b) => brickSelection.has(b.id));
+      const bricks = sel.map((b) => ({ kind: b.kind, content: b.content }));
+      if (bricks.length === 0 || !e.clipboardData) return;
+      e.preventDefault();
+      writeBricksToDataTransfer(e.clipboardData, makeEnvelope("document", docId, bricks), { html: bricksToHtml(bricks), plain: bricksToMarkdown(bricks) });
+      const ids = sel.map((b) => b.id);
+      setBrickSelection(new Set());
+      ids.forEach((id) => void handleDeleteBrick(id));
+      toast(t("clipboard.cut", { n: ids.length }), "success");
+    };
+    const onEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && brickSelection.size > 0) setBrickSelection(new Set()); };
     window.addEventListener("copy", onCopy);
+    window.addEventListener("cut", onCut);
     window.addEventListener("paste", onPaste);
-    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("paste", onPaste); };
-  }, [document, docId, pasteBricks]);
+    window.addEventListener("keydown", onEsc);
+    return () => { window.removeEventListener("copy", onCopy); window.removeEventListener("cut", onCut); window.removeEventListener("paste", onPaste); window.removeEventListener("keydown", onEsc); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document, docId, pasteBricks, brickSelection, t]);
 
   const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
@@ -1596,10 +1621,13 @@ export default function DocumentPage() {
             </Button>
           )}
 
-          <Button variant="ghost" size="sm" onClick={async () => { const ok = await copyDocumentBricks(); toast(ok ? t("header.copied", { fallback: "Copied" }) : t("header.copyEmpty", { fallback: "Nothing to copy" }), ok ? "success" : "info"); }} className="h-8 gap-2 text-xs font-semibold">
-            <CopyIcon className="h-3.5 w-3.5" />
-            {t("header.copy", { fallback: "Copy" })}
-          </Button>
+          {/* Copy only surfaces while bricks are selected (Ctrl/Cmd-click). */}
+          {brickSelection.size > 0 && (
+            <Button variant="ghost" size="sm" onClick={() => { void copyDocumentBricks(); }} className="h-8 gap-2 text-xs font-semibold text-accent">
+              <CopyIcon className="h-3.5 w-3.5" />
+              {t("header.copy")} ({brickSelection.size})
+            </Button>
+          )}
 
           <Button variant="ghost" size="sm" onClick={() => setIsExportModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">
             <Download className="h-3.5 w-3.5" />
@@ -1740,6 +1768,8 @@ export default function DocumentPage() {
               onPasteImageInTextBrick={handlePasteImageInTextBrick}
               onUploadMediaFiles={handleUploadMediaFiles}
               onAiAction={handleAiAction}
+              selectedBrickIds={brickSelection}
+              onBrickSelectToggle={(id) => setBrickSelection((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n; })}
             />
           </div>
         </div>
