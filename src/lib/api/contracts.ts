@@ -912,6 +912,20 @@ export async function listTeamBoards(teamId: string, accessToken: string): Promi
   });
 }
 
+export type TeamGraphPayload = {
+  documents: Array<{ id: string; title: string; bricks: Array<{ kind: string; content: unknown }> }>;
+  boards: Array<{ id: string; name: string; cards: Array<{ id: string; title: string; blocks: Array<{ kind: string; content: unknown }> }> }>;
+  meshes: Array<{ id: string; name: string; bricks: Array<{ id: string; kind: string; content: unknown }>; connections: Array<{ source: string; target: string }> }>;
+};
+
+/** Single-request graph dataset for a team (documents + boards/cards + meshes). */
+export async function getTeamGraph(teamId: string, accessToken: string): Promise<TeamGraphPayload> {
+  return request<TeamGraphPayload>(`/teams/${teamId}/graph`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export type TeamCatalog = {
   boards: BoardSummary[];
   documents: { id: string; title: string }[];

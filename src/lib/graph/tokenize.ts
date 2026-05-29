@@ -12,16 +12,24 @@ const STOP = new Set([
   "que", "los", "las", "una", "uno", "del", "por", "con", "para", "como", "más", "pero", "sus", "este", "esta", "esto", "eso", "esa", "ese", "son", "fue", "han", "hay", "muy", "ya", "lo", "le", "se", "su", "al", "un", "es", "en", "de", "la", "el", "y", "o", "a", "porque", "cuando", "donde", "tambien", "todo", "todos", "entre", "sobre", "desde", "hasta",
 ]);
 
-function tokenize(text: string): string[] {
+function words(text: string): string[] {
   return (text || "")
     .toLowerCase()
     .normalize("NFKD").replace(/[̀-ͯ]/g, "")
-    // strip reference tokens / markup so they don't pollute terms
+    // strip reference tokens / fenced code / markup so they don't pollute terms
     .replace(/@\[[^\]]*\]/g, " ").replace(/[$#]\[[^\]]*\]/g, " ")
     .replace(/```[\s\S]*?```/g, " ")
     .replace(/[^a-z0-9\s]/g, " ")
     .split(/\s+/)
     .filter((w) => w.length >= 3 && w.length <= 24 && !STOP.has(w) && !/^\d+$/.test(w));
+}
+
+/** Unigrams + adjacent bigrams (bigrams capture phrases → sharper similarity). */
+function tokenize(text: string): string[] {
+  const w = words(text);
+  const out: string[] = w.slice();
+  for (let i = 0; i < w.length - 1; i += 1) out.push(`${w[i]}_${w[i + 1]}`);
+  return out;
 }
 
 export type EnhanceOptions = { topK?: number; threshold?: number; maxTerms?: number };
@@ -32,8 +40,8 @@ export type EnhanceOptions = { topK?: number; threshold?: number; maxTerms?: num
  */
 export function enhanceEdges(nodes: GNode[], opts: EnhanceOptions = {}): GEdge[] {
   const topK = opts.topK ?? 4;
-  const threshold = opts.threshold ?? 0.16;
-  const maxTerms = opts.maxTerms ?? 40;
+  const threshold = opts.threshold ?? 0.12;
+  const maxTerms = opts.maxTerms ?? 60;
 
   const docs = nodes.filter((n) => (n.type === "document" || n.type === "card" || n.type === "mesh") && (n.text || "").trim().length > 0);
   if (docs.length < 2) return [];
@@ -55,7 +63,10 @@ export function enhanceEdges(nodes: GNode[], opts: EnhanceOptions = {}): GEdge[]
     for (const [term, c] of counts) {
       const dft = df.get(term) || 1;
       if (dft === N) continue; // term in every doc → no discriminative value
-      weights.push([term, (1 + Math.log(c)) * Math.log(N / dft)]);
+      // sublinear tf · smoothed idf; bigrams (contain "_") get a phrase boost.
+      const idf = Math.log(1 + N / dft);
+      const boost = term.includes("_") ? 1.5 : 1;
+      weights.push([term, (1 + Math.log(c)) * idf * boost]);
     }
     weights.sort((a, b) => b[1] - a[1]);
     const top = weights.slice(0, maxTerms);

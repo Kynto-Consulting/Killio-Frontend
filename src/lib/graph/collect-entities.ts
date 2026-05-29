@@ -6,8 +6,7 @@ import type { WorkspaceFileEntry } from "@/lib/local-workspace/fs-access";
 import { decodeKillioFile } from "@/lib/killio-file";
 import { kdToDocDraft, kbToBoardDraft } from "@/lib/local-workspace/adapters";
 import { deserializeKmToMesh } from "@/lib/mesh-file";
-import { listAllTeamDocuments, getDocument } from "@/lib/api/documents";
-import { listTeamBoards, getBoard, getMesh } from "@/lib/api/contracts";
+import { getTeamGraph } from "@/lib/api/contracts";
 
 export type CollectProgress = (done: number, total: number) => void;
 
@@ -55,40 +54,12 @@ export async function collectOnlineEntities(
   accessToken: string,
   onProgress?: CollectProgress,
 ): Promise<EntityInput[]> {
-  const [docList, boardList] = await Promise.all([
-    listAllTeamDocuments(teamId, accessToken).catch(() => []),
-    listTeamBoards(teamId, accessToken).catch(() => []),
-  ]);
+  // One batched request to the backend (replaces N per-entity round-trips).
+  const g = await getTeamGraph(teamId, accessToken);
   const out: EntityInput[] = [];
-  const total = docList.length + boardList.length;
-  let done = 0;
-
-  for (const d of docList) {
-    try {
-      const view = await getDocument(d.id, accessToken);
-      out.push({ type: "document", id: d.id, title: view.title || d.title || "Untitled", route: `/d/${d.id}`, bricks: (view.bricks || []).map((b) => ({ kind: b.kind, content: b.content })) });
-    } catch { /* skip */ }
-    onProgress?.(++done, total);
-  }
-
-  for (const b of boardList) {
-    try {
-      if (b.boardType === "mesh") {
-        const snap = await getMesh(b.id, accessToken);
-        const st = snap.state;
-        const bricks = Object.values(st?.bricksById || {}).map((mb: any) => ({ id: mb.id, kind: mb.kind, content: mb.content }));
-        const connections = Object.values(st?.connectionsById || {}).map((c: any) => ({ source: c.cons?.[0] || "", target: c.cons?.[1] || "" }));
-        out.push({ type: "mesh", id: b.id, title: b.name || "Mesh", route: `/m/${b.id}`, bricks, connections });
-      } else {
-        const bv = await getBoard(b.id, accessToken);
-        const cards = (bv.lists || []).flatMap((l: any) => (l.cards || []).map((c: any) => ({
-          id: c.id, title: c.title || "Card",
-          blocks: (Array.isArray(c.blocks) ? c.blocks : []).map((blk: any) => ({ kind: String(blk?.kind || "text"), content: blk?.content ?? blk })),
-        })));
-        out.push({ type: "board", id: b.id, title: b.name || "Board", route: `/b/${b.id}`, cards });
-      }
-    } catch { /* skip */ }
-    onProgress?.(++done, total);
-  }
+  for (const d of g.documents) out.push({ type: "document", id: d.id, title: d.title || "Untitled", route: `/d/${d.id}`, bricks: d.bricks || [] });
+  for (const b of g.boards) out.push({ type: "board", id: b.id, title: b.name || "Board", route: `/b/${b.id}`, cards: (b.cards || []).map((c) => ({ id: c.id, title: c.title || "Card", blocks: c.blocks || [] })) });
+  for (const m of g.meshes) out.push({ type: "mesh", id: m.id, title: m.name || "Mesh", route: `/m/${m.id}`, bricks: m.bricks || [], connections: m.connections || [] });
+  onProgress?.(1, 1);
   return out;
 }

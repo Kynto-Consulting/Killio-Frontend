@@ -6,6 +6,7 @@
 
 import React from "react";
 import type { GraphData, GNode, GEdgeType } from "@/lib/graph/types";
+import { getImageElement } from "@/lib/image-cache";
 
 type Pos = { x: number; y: number; vx: number; vy: number };
 
@@ -24,11 +25,14 @@ export function GraphCanvas({
   data,
   showLabels = true,
   showMedia = true,
+  imageUrls,
   onNodeClick,
 }: {
   data: GraphData;
   showLabels?: boolean;
   showMedia?: boolean;
+  /** node id → resolved displayable image url (thumbnail) */
+  imageUrls?: Map<string, string>;
   onNodeClick?: (node: GNode) => void;
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
@@ -153,11 +157,26 @@ export function GraphCanvas({
         const p = pos.get(n.id); if (!p) continue;
         const r = radiusOf(n.id);
         const dim = hover && hover !== n.id && !(hl && hl.has(n.id));
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
-        ctx.fillStyle = TYPE_COLOR[n.type] || "#94a3b8";
         ctx.globalAlpha = dim ? 0.25 : 1;
-        ctx.fill();
+        const thumbUrl = showMedia ? imageUrls?.get(n.id) : undefined;
+        const thumb = thumbUrl ? getImageElement(thumbUrl) : null;
+        if (thumb) {
+          // Clip to circle and draw the image cover-fit.
+          ctx.save();
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.clip();
+          const iw = thumb.naturalWidth, ih = thumb.naturalHeight;
+          const scale = Math.max((r * 2) / iw, (r * 2) / ih);
+          const dw = iw * scale, dh = ih * scale;
+          ctx.drawImage(thumb, p.x - dw / 2, p.y - dh / 2, dw, dh);
+          ctx.restore();
+          ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.strokeStyle = TYPE_COLOR[n.type] || "#94a3b8"; ctx.lineWidth = 1.5 / view.scale; ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, r, 0, Math.PI * 2);
+          ctx.fillStyle = TYPE_COLOR[n.type] || "#94a3b8";
+          ctx.fill();
+        }
         if (showMedia && n.hasMedia) {
           ctx.beginPath(); ctx.arc(p.x, p.y, r + 2.5 / view.scale, 0, Math.PI * 2);
           ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.5 / view.scale; ctx.stroke();
@@ -235,7 +254,7 @@ export function GraphCanvas({
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("wheel", onWheel);
     };
-  }, [data, adjacency, radiusOf, showLabels, showMedia, onNodeClick]);
+  }, [data, adjacency, radiusOf, showLabels, showMedia, imageUrls, onNodeClick]);
 
   return <canvas ref={canvasRef} className="h-full w-full touch-none" style={{ cursor: "grab" }} />;
 }

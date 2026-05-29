@@ -32,6 +32,28 @@ function hasMedia(kind: string, content: unknown): boolean {
   return typeof o.url === "string" && (o.url as string).length > 0;
 }
 
+const IMG_EXT = /\.(png|jpe?g|gif|webp|svg|avif)$/i;
+/** First image-ish url/ref in a brick (for node thumbnails). */
+function imageOf(kind: string, content: unknown): string | undefined {
+  const o = (content && typeof content === "object" ? content : {}) as Record<string, unknown>;
+  const url = typeof o.url === "string" ? (o.url as string) : "";
+  const mime = typeof o.mimeType === "string" ? (o.mimeType as string) : "";
+  const k = kind.toLowerCase();
+  if (k === "image" || (k === "media" && (mime.startsWith("image/") || IMG_EXT.test(url) || url.startsWith("asset:")))) {
+    if (url) return url;
+  }
+  // media meta caption may carry the first item url
+  const caption = typeof o.caption === "string" ? (o.caption as string) : "";
+  const m = caption.match(/"url"\s*:\s*"([^"]+)"/);
+  if (m && (IMG_EXT.test(m[1]) || m[1].startsWith("asset:"))) return m[1];
+  return undefined;
+}
+
+function firstImage(bricks: Array<{ kind: string; content: unknown }>): string | undefined {
+  for (const b of bricks) { const img = imageOf(b.kind, b.content); if (img) return img; }
+  return undefined;
+}
+
 /** Extract referenced entity ids from a text blob. */
 function extractRefs(text: string): string[] {
   const ids = new Set<string>();
@@ -53,17 +75,17 @@ export function buildGraph(entities: EntityInput[], opts: { includeMeshBricks?: 
   for (const e of entities) {
     if (e.type === "document") {
       const text = e.bricks.map((b) => essentialText(b.content)).join(" \n");
-      addNode({ id: e.id, type: "document", label: e.title || "Untitled", route: e.route, text, hasMedia: e.bricks.some((b) => hasMedia(b.kind, b.content)) });
+      addNode({ id: e.id, type: "document", label: e.title || "Untitled", route: e.route, text, hasMedia: e.bricks.some((b) => hasMedia(b.kind, b.content)), image: firstImage(e.bricks) });
     } else if (e.type === "board") {
       addNode({ id: e.id, type: "board", label: e.title || "Board", route: e.route, text: e.title });
       for (const c of e.cards) {
         const text = [c.title, ...c.blocks.map((b) => essentialText(b.content))].join(" \n");
-        addNode({ id: c.id, type: "card", label: c.title || "Card", route: e.route, parentId: e.id, text, hasMedia: c.blocks.some((b) => hasMedia(b.kind, b.content)) });
+        addNode({ id: c.id, type: "card", label: c.title || "Card", route: e.route, parentId: e.id, text, hasMedia: c.blocks.some((b) => hasMedia(b.kind, b.content)), image: firstImage(c.blocks) });
         edges.push({ source: e.id, target: c.id, type: "connection", weight: 0.4 });
       }
     } else if (e.type === "mesh") {
       const text = e.bricks.map((b) => essentialText(b.content)).join(" \n");
-      addNode({ id: e.id, type: "mesh", label: e.title || "Mesh", route: e.route, text, hasMedia: e.bricks.some((b) => hasMedia(b.kind, b.content)) });
+      addNode({ id: e.id, type: "mesh", label: e.title || "Mesh", route: e.route, text, hasMedia: e.bricks.some((b) => hasMedia(b.kind, b.content)), image: firstImage(e.bricks.map((b) => ({ kind: b.kind, content: b.content }))) });
       if (opts.includeMeshBricks) {
         for (const b of e.bricks) {
           addNode({ id: `${e.id}::${b.id}`, type: "meshBrick", label: essentialText(b.content).slice(0, 40) || b.kind, parentId: e.id, route: e.route, text: essentialText(b.content), hasMedia: hasMedia(b.kind, b.content) });

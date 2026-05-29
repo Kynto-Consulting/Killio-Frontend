@@ -9,6 +9,8 @@ import { GraphCanvas } from "@/components/graph/graph-canvas";
 import { collectLocalEntities, collectOnlineEntities } from "@/lib/graph/collect-entities";
 import { buildGraph } from "@/lib/graph/build-graph";
 import { enhanceEdges } from "@/lib/graph/tokenize";
+import { getImageUrl } from "@/lib/image-cache";
+import { readAssetFile } from "@/lib/local-workspace/assets";
 import type { EntityInput, GNodeType, GEdgeType, GraphData } from "@/lib/graph/types";
 
 const NODE_TYPES: Array<{ key: GNodeType; label: string; color: string }> = [
@@ -79,6 +81,24 @@ export default function GraphPage() {
     const next = new Set(set); next.has(key) ? next.delete(key) : next.add(key); setter(next);
   };
 
+  // Resolve thumbnails (via the global image cache) for nodes that have an image.
+  const [imageUrls, setImageUrls] = React.useState<Map<string, string>>(new Map());
+  React.useEffect(() => {
+    if (!showMedia) { setImageUrls(new Map()); return; }
+    let alive = true;
+    const dir = localMode ? localWs.getDir() : null;
+    const readAsset = dir ? (name: string) => readAssetFile(dir, name).catch(() => null) : undefined;
+    (async () => {
+      const map = new Map<string, string>();
+      for (const n of data.nodes) {
+        if (!n.image) continue;
+        try { const u = await getImageUrl(n.image, readAsset); if (u) map.set(n.id, u); } catch { /* skip */ }
+      }
+      if (alive) setImageUrls(map);
+    })();
+    return () => { alive = false; };
+  }, [data.nodes, showMedia, localMode, localWs]);
+
   return (
     <div className="relative h-full w-full overflow-hidden bg-[#0a0a0b]">
       {/* Canvas */}
@@ -93,7 +113,7 @@ export default function GraphPage() {
           <p className="text-sm">No documents, boards or meshes to graph yet.</p>
         </div>
       ) : (
-        <GraphCanvas data={data} showLabels={showLabels} showMedia={showMedia} onNodeClick={(n) => { if (n.route) router.push(n.route); }} />
+        <GraphCanvas data={data} showLabels={showLabels} showMedia={showMedia} imageUrls={imageUrls} onNodeClick={(n) => { if (n.route) router.push(n.route); }} />
       )}
 
       {/* Top-left: title + counts */}

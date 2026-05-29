@@ -4,12 +4,12 @@ import React from "react";
 import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, Video, Music, Bookmark } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { isAssetRef, resolveAssetUrl } from "@/lib/local-workspace/assets";
+import { isAssetRef, readAssetFile } from "@/lib/local-workspace/assets";
+import { getImageUrl } from "@/lib/image-cache";
 
-// Resolve any `asset:<name>` refs found in the given urls to blob object URLs
-// from the active Local workspace folder. Returns a map ref→objectURL. In cloud
-// mode (no dir) the map is empty and refs pass through unchanged. Object URLs
-// are revoked when the set of refs changes or on unmount.
+// Resolve any `asset:<name>` refs in the given urls to displayable URLs via the
+// global image cache (deduped + pooled, no per-render objectURL churn). In cloud
+// mode (no dir) refs can't resolve and pass through unchanged.
 function useResolvedAssetMap(urls: string[]): Record<string, string> {
   const { getDir } = useLocalWorkspace();
   const [map, setMap] = React.useState<Record<string, string>>({});
@@ -23,15 +23,15 @@ function useResolvedAssetMap(urls: string[]): Record<string, string> {
     const dir = getDir();
     if (!dir) { setMap({}); return; }
     let cancelled = false;
-    const created: string[] = [];
+    const readAsset = (name: string) => readAssetFile(dir, name).catch(() => null);
     Promise.all(refs.map(async (ref) => {
-      try { const u = await resolveAssetUrl(dir, ref); created.push(u); return [ref, u] as const; }
+      try { const u = await getImageUrl(ref, readAsset); return u ? ([ref, u] as const) : null; }
       catch { return null; }
     })).then((pairs) => {
-      if (cancelled) { created.forEach((u) => URL.revokeObjectURL(u)); return; }
+      if (cancelled) return;
       setMap(Object.fromEntries(pairs.filter(Boolean) as Array<readonly [string, string]>));
     });
-    return () => { cancelled = true; created.forEach((u) => URL.revokeObjectURL(u)); };
+    return () => { cancelled = true; };
   }, [refsKey, getDir]);
   return map;
 }

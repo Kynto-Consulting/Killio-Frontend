@@ -15,6 +15,8 @@ export type GNode = {
   text?: string;
   /** Has at least one media/draw brick (for the media-render toggle). */
   hasMedia?: boolean;
+  /** First representative image ref/url (asset:<name> or http url) for thumbnails. */
+  image?: string;
 };
 
 export type GEdgeType = "ref" | "portal" | "mirror" | "connection" | "similarity";
