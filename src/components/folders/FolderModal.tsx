@@ -4,6 +4,7 @@ import { Folder } from "@/lib/api/folders";
 import { Folder as FolderIcon, Star, Heart, Briefcase, Book, Image as ImageIcon, Music, Video, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { resolveFolderIcon } from "./FolderIconPicker";
 
 interface FolderModalProps {
   isOpen: boolean;
@@ -52,10 +53,10 @@ export function FolderModal({ isOpen, onClose, onSubmit, initialData, folders, c
     onSubmit({ name, icon, color, parentFolderId });
   };
 
-  const SelectedIcon = PRESET_ICONS.find(i => i.id === icon)?.icon || FolderIcon;
+  const SelectedIcon = PRESET_ICONS.find(i => i.id === icon)?.icon || resolveFolderIcon(icon);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-background/80 backdrop-blur-sm">
       <div className="w-full max-w-[480px] rounded-2xl border border-border bg-card p-6 shadow-xl relative animate-in fade-in zoom-in-95 duration-200">
         
         <h2 className="text-2xl font-bold tracking-tight mb-6">{initialData ? t("editFolderTitle") : t("newFolderTitle")}</h2>

@@ -60,8 +60,8 @@ export function PublishWorkspaceModal({
           </button>
         )}
 
-        <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-5 text-center bg-gradient-to-b from-accent/10 to-transparent">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-accent/15 text-accent">
+        <div className="flex flex-col items-center gap-3 px-6 pt-8 pb-5 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
             {phase === "success" ? <Check className="h-6 w-6" /> : phase === "error" ? <AlertTriangle className="h-6 w-6 text-amber-500" /> : <CloudUpload className="h-6 w-6" />}
           </div>
           <h2 className="text-lg font-bold tracking-tight">

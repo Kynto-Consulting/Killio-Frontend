@@ -70,7 +70,7 @@
     "confirm": "Confirmar",
     "cancel": "Cancelar",
     "processing": "Procesando...",
-    "typeToConfirm": "Escribe <strong>{{confirmText}}</strong> para confirmar:"
+    "typeToConfirm": "Escribe {{confirmText}} para confirmar:"
   },
   "meshShareModal": {
     "title": "Compartir \"{{name}}\"",

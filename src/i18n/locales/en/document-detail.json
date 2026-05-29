@@ -1,4 +1,5 @@
 {
+  "refOpenHint": "Ctrl/Cmd + click to open",
   "common": {
     "saveChanges": "Save changes",
     "cancel": "Cancel"
@@ -32,6 +33,7 @@
   "header": {
     "copilot": "Copilot",
     "comments": "Comments",
+    "activity": "Activity",
     "share": "Share",
     "download": "Download"
   },

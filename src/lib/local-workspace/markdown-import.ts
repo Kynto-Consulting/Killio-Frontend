@@ -19,8 +19,9 @@ export interface MarkdownImportHooks {
 }
 
 const WIKILINK_RE = /(!)?\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]/g;
-const MD_IMAGE_RE = /^!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)\s*$/;
-const EMBED_LINE_RE = /^!\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]\s*$/;
+// Matches an embed token: ![[target|size?]] OR ![alt](url). Used to detect
+// embed-only lines (possibly several adjacent embeds) and to extract each.
+const EMBED_TOKEN_RE = /!\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|([^\]]+))?\]\]|!\[([^\]]*)\]\(([^)\s]+)(?:\s+"[^"]*")?\)/g;
 const HEADING_RE = /^(#{1,6})\s+(.*)$/;
 const CHECK_RE = /^\s*[-*]\s+\[([ xX])\]\s+(.*)$/;
 const TABLE_ROW_RE = /^\s*\|.*\|\s*$/;
@@ -117,11 +118,22 @@ export function parseMarkdownToBricks(md: string, hooks: MarkdownImportHooks): I
       continue;
     }
 
-    // Standalone embed / image → media brick.
-    const embed = trimmed.match(EMBED_LINE_RE);
-    if (embed) { flushAll(); pushEmbed(embed[1].trim(), embed[2]?.trim()); continue; }
-    const mdImg = trimmed.match(MD_IMAGE_RE);
-    if (mdImg) { flushAll(); pushEmbed(mdImg[2].trim(), mdImg[1]?.trim() || undefined); continue; }
+    // Embed-only line (one or more adjacent ![[..]] / ![](..)) → media bricks.
+    // Handles `![[a.png|336]]![[b.png|333]]` and a trailing `|size` suffix.
+    EMBED_TOKEN_RE.lastIndex = 0;
+    const stripped = trimmed.replace(EMBED_TOKEN_RE, "").trim();
+    if (trimmed.includes("![") && stripped === "") {
+      flushAll();
+      let m: RegExpExecArray | null;
+      EMBED_TOKEN_RE.lastIndex = 0;
+      while ((m = EMBED_TOKEN_RE.exec(trimmed)) !== null) {
+        const target = (m[1] ?? m[4] ?? "").trim();
+        const aliasRaw = (m[2] ?? m[3] ?? "").trim();
+        const alias = aliasRaw && !/^\d+$/.test(aliasRaw) ? aliasRaw : undefined; // |336 is a size, not a title
+        if (target) pushEmbed(target, alias);
+      }
+      continue;
+    }
 
     // Checklist item.
     const chk = line.match(CHECK_RE);

@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Settings2, Sparkles, Share2, RefreshCw, X } from "lucide-react";
+import { Loader2, Settings2, Sparkles, Share2, RefreshCw, X, ExternalLink } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { GraphCanvas } from "@/components/graph/graph-canvas";
@@ -11,7 +11,7 @@ import { buildGraph } from "@/lib/graph/build-graph";
 import { enhanceEdges } from "@/lib/graph/tokenize";
 import { getImageUrl } from "@/lib/image-cache";
 import { readAssetFile } from "@/lib/local-workspace/assets";
-import type { EntityInput, GNodeType, GEdgeType, GraphData } from "@/lib/graph/types";
+import type { EntityInput, GNode, GNodeType, GEdgeType, GraphData } from "@/lib/graph/types";
 
 const NODE_TYPES: Array<{ key: GNodeType; label: string; color: string }> = [
   { key: "document", label: "Documents", color: "#60a5fa" },
@@ -44,6 +44,7 @@ export default function GraphPage() {
   const [hiddenNodes, setHiddenNodes] = React.useState<Set<string>>(new Set(["meshBrick"]));
   const [hiddenEdges, setHiddenEdges] = React.useState<Set<string>>(new Set());
   const [panelOpen, setPanelOpen] = React.useState(true);
+  const [preview, setPreview] = React.useState<GNode | null>(null);
 
   const load = React.useCallback(async () => {
     setLoading(true); setProgress({ done: 0, total: 0 });
@@ -113,15 +114,37 @@ export default function GraphPage() {
           <p className="text-sm">No documents, boards or meshes to graph yet.</p>
         </div>
       ) : (
-        <GraphCanvas data={data} showLabels={showLabels} showMedia={showMedia} imageUrls={imageUrls} onNodeClick={(n) => { if (n.route) router.push(n.route); }} />
+        <GraphCanvas data={data} showLabels={showLabels} showMedia={showMedia} imageUrls={imageUrls} onNodeClick={(n, o) => { if (o.redirect) { if (n.route) router.push(n.route); } else { setPreview(n); } }} />
       )}
 
-      {/* Top-left: title + counts */}
-      <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-2 text-xs text-muted-foreground">
-        <Share2 className="h-4 w-4" />
-        <span className="font-semibold text-foreground">Graph</span>
-        {!loading && <span>· {data.nodes.length} nodes · {data.edges.length} links</span>}
+      {/* Top-left: title + counts + interaction hint */}
+      <div className="pointer-events-none absolute left-4 top-4 flex flex-col gap-1 text-xs text-muted-foreground">
+        <div className="flex items-center gap-2">
+          <Share2 className="h-4 w-4" />
+          <span className="font-semibold text-foreground">Graph</span>
+          {!loading && <span>· {data.nodes.length} nodes · {data.edges.length} links</span>}
+        </div>
+        {!loading && data.nodes.length > 0 && <span className="text-[11px] text-muted-foreground/60">Click previews · Ctrl/Cmd-click opens</span>}
       </div>
+
+      {/* Preview portal (plain click) — like a mesh portal peek into the node */}
+      {preview && (
+        <div className="absolute bottom-4 left-4 w-80 max-w-[calc(100%-2rem)] rounded-xl border border-border/60 bg-card/95 p-4 shadow-2xl backdrop-blur animate-in fade-in slide-in-from-bottom-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-[10px] uppercase tracking-wider text-muted-foreground">{preview.type}</div>
+              <h3 className="truncate text-sm font-semibold text-foreground">{preview.label}</h3>
+            </div>
+            <button onClick={() => setPreview(null)} className="shrink-0 rounded-md p-1 text-muted-foreground hover:bg-muted/60 hover:text-foreground"><X className="h-4 w-4" /></button>
+          </div>
+          {preview.text ? <p className="mt-2 max-h-32 overflow-y-auto text-xs leading-relaxed text-muted-foreground whitespace-pre-wrap">{preview.text.slice(0, 600)}</p> : null}
+          {preview.route && (
+            <button onClick={() => { router.push(preview.route!); }} className="mt-3 inline-flex h-8 w-full items-center justify-center gap-2 rounded-lg bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90 transition-colors">
+              <ExternalLink className="h-4 w-4" /> Open
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Top-right controls */}
       <div className="absolute right-4 top-4 flex items-start gap-2">

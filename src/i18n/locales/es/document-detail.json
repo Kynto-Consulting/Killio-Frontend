@@ -1,4 +1,5 @@
 {
+  "refOpenHint": "Ctrl/Cmd + clic para abrir",
   "common": {
     "saveChanges": "Guardar cambios",
     "cancel": "Cancelar"
@@ -32,6 +33,7 @@
   "header": {
     "copilot": "Copilot",
     "comments": "Comentarios",
+    "activity": "Actividad",
     "share": "Compartir",
     "download": "Descargar"
   },

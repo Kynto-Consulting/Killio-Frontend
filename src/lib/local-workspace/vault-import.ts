@@ -7,9 +7,10 @@
 import { unzipSync } from "fflate";
 import { parseMarkdownToBricks, type ImportedBrick, type EmbedTarget } from "./markdown-import.ts";
 import { writeAsset } from "./assets.ts";
-import { writeWorkspaceFile } from "./fs-access.ts";
+import { writeWorkspaceFile, ensureWorkspaceDir } from "./fs-access.ts";
 import { encodeKillioFile } from "@/lib/killio-file";
-import { docToKd } from "./adapters.ts";
+import { docToKd, folderMetaToKf, KF_SCHEMA } from "./adapters.ts";
+import { folderMetaFromName } from "./emoji-icon.ts";
 import { createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { uploadFile } from "@/lib/api/contracts";
 
@@ -91,6 +92,8 @@ type Plan = {
   wikiMap: Map<string, string>;
   /** asset basename (lowercased, with ext) → asset filename */
   embedMap: Map<string, string>;
+  /** folder relative path (slugged) → { name (clean), icon } for dirs with a leading emoji */
+  folders: Map<string, { name: string; icon: string }>;
 };
 
 function buildPlan(rawFiles: RawFile[], baseFolder = ""): Plan {
@@ -98,13 +101,27 @@ function buildPlan(rawFiles: RawFile[], baseFolder = ""): Plan {
   const base = baseFolder ? slugSeg(baseFolder) : "";
   const wikiMap = new Map<string, string>();
   const embedMap = new Map<string, string>();
+  const folders = new Map<string, { name: string; icon: string }>();
   const mds: Plan["mds"] = [];
   const assets: Plan["assets"] = [];
   const usedAssetNames = new Set<string>();
 
+  // Record folder metadata (emoji → icon + clean name) for every directory
+  // segment encountered, keyed by its cumulative slugged path.
+  const recordDirs = (segs: string[]) => {
+    let cum = base;
+    for (const seg of segs) {
+      cum = [cum, slugSeg(seg)].filter(Boolean).join("/");
+      if (folders.has(cum)) continue;
+      const meta = folderMetaFromName(seg);
+      if (meta) folders.set(cum, meta);
+    }
+  };
+
   for (const f of files) {
     const segs = splitSegs(f.path);
     const name = segs.pop() || f.path;
+    recordDirs(segs);
     if (f.isMd) {
       const title = stem(name);
       const dirSegs = segs.map(slugSeg);
@@ -119,7 +136,7 @@ function buildPlan(rawFiles: RawFile[], baseFolder = ""): Plan {
       embedMap.set(name.toLowerCase(), assetName);
     }
   }
-  return { mds, assets, wikiMap, embedMap };
+  return { mds, assets, wikiMap, embedMap, folders };
 }
 
 function bricksFor(text: string, hooks: Parameters<typeof parseMarkdownToBricks>[1]): ImportedBrick[] {
@@ -139,6 +156,15 @@ export async function importVaultLocal(
   let failed = 0;
   const total = plan.assets.length + plan.mds.length;
   let done = 0;
+
+  // 0) Folder .kf markers (emoji → icon + clean name) for emoji-prefixed dirs.
+  for (const [folderPath, meta] of plan.folders) {
+    try {
+      await ensureWorkspaceDir(dir, folderPath);
+      const dirName = folderPath.split("/").filter(Boolean).pop() || "folder";
+      await writeWorkspaceFile(dir, `${folderPath}/${dirName}.kf`, encodeKillioFile({ kind: "kf", schemaVersion: KF_SCHEMA, payload: folderMetaToKf(meta) }));
+    } catch { /* non-fatal */ }
+  }
 
   // 1) Copy assets into <workspace>/assets/.
   for (const a of plan.assets) {

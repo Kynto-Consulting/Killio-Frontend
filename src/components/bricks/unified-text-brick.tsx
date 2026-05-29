@@ -156,11 +156,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
         if (tag === "br") {
           markdown += "\n";
-        } else if (el.hasAttribute("data-md-table")) {
-          // Tables are rendered contenteditable=false carrying their source
-          // markdown so we can round-trip them losslessly.
+        } else if (el.hasAttribute("data-md-table") || el.hasAttribute("data-md-quote")) {
+          // Tables / blockquotes / callouts carry their source markdown so we
+          // can round-trip them losslessly.
           if (markdown.length > 0 && !markdown.endsWith("\n")) markdown += "\n";
-          markdown += el.getAttribute("data-md-table") || "";
+          markdown += el.getAttribute("data-md-table") || el.getAttribute("data-md-quote") || "";
           if (!markdown.endsWith("\n")) markdown += "\n";
           return;
         } else if (tag === "div" || tag === "p" || tag === "h1" || tag === "h2" || tag === "h3" || tag === "h4" || tag === "h5" || tag === "h6" || tag === "li") {
@@ -470,13 +470,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const { mentionType: type, id: uid, name } = part;
       if (type === 'user') {
         const token = `@[user:${uid}:${name}]`;
-        return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium cursor-pointer transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
+        return `<span contenteditable="false" title="${tokenEscapeAttr(tDetail("refOpenHint"))}" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
       }
       let icon = documentIcon;
       if (type === 'board' || type === 'mesh') icon = boardIcon;
       if (type === 'card') icon = cardIcon;
       const token = `@[${type}:${uid}:${name}]`;
-      return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
+      return `<span contenteditable="false" title="${tokenEscapeAttr(tDetail("refOpenHint"))}" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
     }
 
     if (part.type === 'deep') {
@@ -529,6 +529,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     let listBuffer: string[] = [];
     let listType: "ul" | "ol" | null = null;
     let tableBuffer: string[] = [];
+    let quoteBuffer: string[] = [];
 
     const formatLeafInline = (t: string) => {
       let tFormat = t
@@ -737,6 +738,37 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       tableBuffer = [];
     };
 
+    // Blockquotes (`> ...`) + GitHub callouts (`> [!NOTE] title`).
+    const CALLOUT_RE = /^\[!(\w+)\][+-]?\s*(.*)$/;
+    const calloutStyle = (type: string): { border: string; bg: string; text: string } => {
+      switch (type) {
+        case "tip": case "success": case "check": return { border: "border-emerald-500/60", bg: "bg-emerald-500/5", text: "text-emerald-400" };
+        case "warning": case "caution": case "attention": return { border: "border-amber-500/60", bg: "bg-amber-500/5", text: "text-amber-400" };
+        case "danger": case "error": case "bug": case "fail": case "failure": return { border: "border-rose-500/60", bg: "bg-rose-500/5", text: "text-rose-400" };
+        case "important": case "question": case "help": return { border: "border-violet-500/60", bg: "bg-violet-500/5", text: "text-violet-300" };
+        case "quote": case "cite": return { border: "border-border/60", bg: "bg-muted/10", text: "text-muted-foreground" };
+        default: return { border: "border-sky-500/60", bg: "bg-sky-500/5", text: "text-sky-400" }; // note/info/abstract/...
+      }
+    };
+    const flushQuote = () => {
+      if (quoteBuffer.length === 0) return;
+      const source = quoteBuffer.map((l) => `> ${l}`).join("\n");
+      const cm = quoteBuffer[0].match(CALLOUT_RE);
+      if (cm) {
+        const type = cm[1].toLowerCase();
+        const title = cm[2].trim() || type.charAt(0).toUpperCase() + type.slice(1);
+        const body = quoteBuffer.slice(1);
+        const s = calloutStyle(type);
+        html += `<div contenteditable="false" data-md-quote="${escapeHtmlAttr(source)}" class="my-3 rounded-lg border-l-4 ${s.border} ${s.bg} px-3 py-2">`
+          + `<div class="text-xs font-bold uppercase tracking-wide ${s.text} mb-1">${formatInline(title)}</div>`
+          + (body.length ? `<div class="text-sm leading-relaxed text-foreground/80">${body.map((l) => formatInline(l)).join("<br>")}</div>` : "")
+          + `</div>`;
+      } else {
+        html += `<blockquote data-md-quote="${escapeHtmlAttr(source)}" class="my-2 border-l-4 border-border/50 pl-3 text-muted-foreground italic">${quoteBuffer.map((l) => formatInline(l)).join("<br>")}</blockquote>`;
+      }
+      quoteBuffer = [];
+    };
+
     lines.forEach(line => {
       const trimmed = line.trim();
 
@@ -763,7 +795,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         return;
       }
 
-      if (!trimmed) { flushList(); html += "<div><br></div>"; return; }
+      if (!trimmed) { flushList(); flushQuote(); html += "<div><br></div>"; return; }
+
+      // Blockquote / callout line (`> ...`). Buffer consecutive quote lines.
+      if (/^>\s?/.test(trimmed)) { flushList(); flushTable(); quoteBuffer.push(trimmed.replace(/^>\s?/, "")); return; }
+      flushQuote();
 
       // Table row? Buffer consecutive `| a | b |` lines and flush as a table.
       if (/^\|.*\|$/.test(trimmed) && trimmed.length > 1) { flushList(); tableBuffer.push(trimmed); return; }
@@ -791,6 +827,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     flushList();
     flushTable();
+    flushQuote();
     return html;
   };
 
@@ -1009,6 +1046,25 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       closeSlashMenu();
   };
 
+  // While Ctrl/Cmd is held, arm reference pills (pointer cursor + outline on
+  // hover) to signal that clicking will navigate.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const STYLE_ID = "km-ref-armed-style";
+    if (!document.getElementById(STYLE_ID)) {
+      const st = document.createElement("style");
+      st.id = STYLE_ID;
+      st.textContent = ".km-ref-armed .mention-pill:hover,.km-ref-armed .user-mention:hover,.km-ref-armed .deep-pill:hover{cursor:pointer;outline:2px solid currentColor;outline-offset:1px;filter:brightness(1.2)}";
+      document.head.appendChild(st);
+    }
+    const onKey = (e: KeyboardEvent) => { contentRef.current?.classList.toggle("km-ref-armed", e.ctrlKey || e.metaKey); };
+    const disarm = () => contentRef.current?.classList.remove("km-ref-armed");
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", disarm);
+    return () => { window.removeEventListener("keydown", onKey); window.removeEventListener("keyup", onKey); window.removeEventListener("blur", disarm); };
+  }, []);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     const target = e.target as HTMLElement;
     const pill = target.closest('.mention-pill, .user-mention, .deep-pill');
@@ -1030,35 +1086,30 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       e.preventDefault();
       e.stopPropagation();
 
+      // Encode per-segment so nested local paths (e.g. "specs/v2/note.kd")
+      // route correctly; cloud UUIDs are unaffected.
+      const enc = (v: string) => v.split('/').map(encodeURIComponent).join('/');
+
       if (pill.classList.contains('deep-pill')) {
         const inner = pill.getAttribute('data-inner') || '';
         const tokens = inner.split(':').map((token) => token.trim()).filter(Boolean);
         if (tokens.length >= 4) {
           const scopeType = tokens[0]?.toLowerCase();
           const scopeId = tokens[1];
-          if (scopeType === 'mesh' && scopeId) {
-            router.push(`/m/${scopeId}`);
-            return;
-          }
-          if ((scopeType === 'doc' || scopeType === 'document') && scopeId) {
-            router.push(`/d/${scopeId}`);
-            return;
-          }
+          if (scopeType === 'mesh' && scopeId) { router.push(`/m/${enc(scopeId)}`); return; }
+          if ((scopeType === 'doc' || scopeType === 'document') && scopeId) { router.push(`/d/${enc(scopeId)}`); return; }
         }
-
         const docId = tokens[0];
-        if (docId) {
-          router.push(`/d/${docId}`);
-        }
+        if (docId) router.push(`/d/${enc(docId)}`);
         return;
       }
 
       const type = pill.getAttribute('data-type') || (pill.classList.contains('user-mention') ? 'user' : '');
       const id = pill.getAttribute('data-id');
 
-      if (type === 'doc') router.push(`/d/${id}`);
-      else if (type === 'board') router.push(`/b/${id}`);
-      else if (type === 'mesh') router.push(`/m/${id}`);
+      if (id && type === 'doc') router.push(`/d/${enc(id)}`);
+      else if (id && type === 'board') router.push(`/b/${enc(id)}`);
+      else if (id && type === 'mesh') router.push(`/m/${enc(id)}`);
       // Add other navigation or actions as needed
     }
   };

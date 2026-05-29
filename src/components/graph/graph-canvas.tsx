@@ -33,14 +33,16 @@ export function GraphCanvas({
   showMedia?: boolean;
   /** node id → resolved displayable image url (thumbnail) */
   imageUrls?: Map<string, string>;
-  onNodeClick?: (node: GNode) => void;
+  /** click opens a preview; ctrl/cmd-click redirects (redirect=true). */
+  onNodeClick?: (node: GNode, opts: { redirect: boolean }) => void;
 }) {
   const canvasRef = React.useRef<HTMLCanvasElement | null>(null);
   const posRef = React.useRef<Map<string, Pos>>(new Map());
   const viewRef = React.useRef({ x: 0, y: 0, scale: 1 });
   const alphaRef = React.useRef(1);
   const hoverRef = React.useRef<string | null>(null);
-  const dragRef = React.useRef<{ id: string | null; panning: boolean; lastX: number; lastY: number; moved: boolean }>({ id: null, panning: false, lastX: 0, lastY: 0, moved: false });
+  const armedRef = React.useRef(false); // ctrl/cmd held → redirect mode
+  const dragRef = React.useRef<{ id: string | null; panning: boolean; lastX: number; lastY: number; moved: boolean; redirect: boolean }>({ id: null, panning: false, lastX: 0, lastY: 0, moved: false, redirect: false });
   const rafRef = React.useRef<number | null>(null);
 
   // Degree (for node radius) + adjacency (for hover highlight).
@@ -56,7 +58,8 @@ export function GraphCanvas({
     return { degree: deg, adjacency: adj };
   }, [data]);
 
-  const radiusOf = React.useCallback((id: string) => 4 + Math.min(14, Math.sqrt(degree.get(id) || 0) * 2.4), [degree]);
+  // Node radius grows with connection count (degree) — hubs are clearly bigger.
+  const radiusOf = React.useCallback((id: string) => 5 + Math.min(34, Math.sqrt(degree.get(id) || 0) * 4.2), [degree]);
 
   // (Re)seed positions when the node set changes; keep existing positions.
   React.useEffect(() => {
@@ -119,6 +122,21 @@ export function GraphCanvas({
           const fx = (dx / d) * f, fy = (dy / d) * f;
           a.vx += fx; a.vy += fy; b.vx -= fx; b.vy -= fy;
         }
+        // Collision: hard-separate overlapping nodes by their radii (avoidance).
+        for (let i = 0; i < nodes.length; i += 1) {
+          const a = pos.get(nodes[i].id)!; if (!a) continue;
+          const ra = radiusOf(nodes[i].id);
+          for (let j = i + 1; j < nodes.length; j += 1) {
+            const b = pos.get(nodes[j].id)!; if (!b) continue;
+            const min = ra + radiusOf(nodes[j].id) + 6;
+            let dx = a.x - b.x, dy = a.y - b.y; let d = Math.sqrt(dx * dx + dy * dy);
+            if (d > 0 && d < min) {
+              const push = (min - d) / 2;
+              dx /= d; dy /= d;
+              a.x += dx * push; a.y += dy * push; b.x -= dx * push; b.y -= dy * push;
+            }
+          }
+        }
         // Gravity to centre + integrate.
         for (const n of nodes) {
           const p = pos.get(n.id)!; if (!p) continue;
@@ -144,8 +162,14 @@ export function GraphCanvas({
         const a = pos.get(e.source); const b = pos.get(e.target); if (!a || !b) continue;
         const st = EDGE_STYLE[e.type];
         const active = !hover || e.source === hover || e.target === hover;
+        // Gentle quadratic curve (perpendicular bow) — reduces straight-line
+        // overlap and visually routes links around the field.
+        const mx = (a.x + b.x) / 2, my = (a.y + b.y) / 2;
+        const dx = b.x - a.x, dy = b.y - a.y; const len = Math.sqrt(dx * dx + dy * dy) || 1;
+        const bow = Math.min(28, len * 0.12);
+        const cx = mx + (-dy / len) * bow, cy = my + (dx / len) * bow;
         ctx.beginPath();
-        ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y);
+        ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(cx, cy, b.x, b.y);
         ctx.strokeStyle = st.color;
         ctx.globalAlpha = active ? st.alpha : 0.06;
         ctx.lineWidth = (e.type === "ref" || e.type === "portal" ? 1.4 : 1) / view.scale;
@@ -181,6 +205,13 @@ export function GraphCanvas({
           ctx.beginPath(); ctx.arc(p.x, p.y, r + 2.5 / view.scale, 0, Math.PI * 2);
           ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.5 / view.scale; ctx.stroke();
         }
+        // Ctrl/Cmd held + hovered → redirect affordance (dashed cyan ring + ↗).
+        if (armedRef.current && hover === n.id) {
+          ctx.beginPath(); ctx.arc(p.x, p.y, r + 5 / view.scale, 0, Math.PI * 2);
+          ctx.strokeStyle = "#22d3ee"; ctx.setLineDash([4 / view.scale, 3 / view.scale]); ctx.lineWidth = 2 / view.scale; ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = "#22d3ee"; ctx.font = `bold ${Math.max(10, 12 / view.scale)}px ui-sans-serif, system-ui`;
+          ctx.fillText("↗", p.x - r - 12 / view.scale, p.y + 4 / view.scale);
+        }
         if (showLabels && (view.scale > 0.55 || hover === n.id) && !dim) {
           ctx.globalAlpha = hover === n.id ? 1 : 0.7;
           ctx.fillStyle = "#cbd5e1";
@@ -211,7 +242,7 @@ export function GraphCanvas({
 
     const onDown = (ev: PointerEvent) => {
       const id = hitTest(ev.clientX, ev.clientY);
-      dragRef.current = { id, panning: !id, lastX: ev.clientX, lastY: ev.clientY, moved: false };
+      dragRef.current = { id, panning: !id, lastX: ev.clientX, lastY: ev.clientY, moved: false, redirect: ev.ctrlKey || ev.metaKey };
       canvas.setPointerCapture(ev.pointerId);
     };
     const onMove = (ev: PointerEvent) => {
@@ -229,8 +260,8 @@ export function GraphCanvas({
     };
     const onUp = (ev: PointerEvent) => {
       const d = dragRef.current;
-      if (d.id && !d.moved) { const n = data.nodes.find((x) => x.id === d.id); if (n) onNodeClick?.(n); }
-      dragRef.current = { id: null, panning: false, lastX: 0, lastY: 0, moved: false };
+      if (d.id && !d.moved) { const n = data.nodes.find((x) => x.id === d.id); if (n) onNodeClick?.(n, { redirect: d.redirect }); }
+      dragRef.current = { id: null, panning: false, lastX: 0, lastY: 0, moved: false, redirect: false };
       try { canvas.releasePointerCapture(ev.pointerId); } catch { /* ignore */ }
     };
     const onWheel = (ev: WheelEvent) => {
@@ -240,10 +271,19 @@ export function GraphCanvas({
       v.scale = Math.max(0.15, Math.min(4, v.scale * factor));
     };
 
+    const onKey = (ev: KeyboardEvent) => {
+      const armed = ev.ctrlKey || ev.metaKey;
+      if (armed !== armedRef.current) { armedRef.current = armed; if (hoverRef.current) canvas.style.cursor = armed ? "alias" : "pointer"; }
+    };
+    const disarm = () => { armedRef.current = false; };
+
     canvas.addEventListener("pointerdown", onDown);
     canvas.addEventListener("pointermove", onMove);
     canvas.addEventListener("pointerup", onUp);
     canvas.addEventListener("wheel", onWheel, { passive: false });
+    window.addEventListener("keydown", onKey);
+    window.addEventListener("keyup", onKey);
+    window.addEventListener("blur", disarm);
 
     return () => {
       running = false;
@@ -253,6 +293,9 @@ export function GraphCanvas({
       canvas.removeEventListener("pointermove", onMove);
       canvas.removeEventListener("pointerup", onUp);
       canvas.removeEventListener("wheel", onWheel);
+      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keyup", onKey);
+      window.removeEventListener("blur", disarm);
     };
   }, [data, adjacency, radiusOf, showLabels, showMedia, imageUrls, onNodeClick]);
 
