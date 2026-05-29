@@ -11,7 +11,7 @@ type Dir = "TB" | "LR";
 type ParsedNode = { id: string; label: string; shape: GeneratedMeshShape; kind: "shape" | "text"; subgraph?: string };
 type ParsedEdge = { from: string; to: string; label?: string; pattern?: "solid" | "dashed"; thick?: boolean };
 type StyleProps = { fill?: string; stroke?: string; strokeWidth?: number; color?: string };
-type Subgraph = { id: string; title: string };
+type Subgraph = { id: string; title: string; parent?: string };
 
 const NODE_W = 180;
 const NODE_H = 80;
@@ -318,7 +318,7 @@ export function parseMermaidToMesh(source: string): GeneratedMesh {
       const titled = body.match(/^(\S+)\s*\[(.+)\]$/);
       const id = titled ? titled[1] : body.replace(/[\[\]"]/g, "");
       const title = titled ? stripQuotes(titled[2].trim()) : stripQuotes(body);
-      subgraphs.push({ id, title });
+      subgraphs.push({ id, title, parent: sgStack[sgStack.length - 1] });
       sgStack.push(id);
       continue;
     }
@@ -374,47 +374,55 @@ export function parseMermaidToMesh(source: string): GeneratedMesh {
     });
   });
 
-  // Build subgraph boards from member bounding boxes, then nest members.
-  const sgBoardRef = new Map<string, string>();
-  subgraphs.forEach((sg) => {
-    const members = nodeIds.filter((id) => nodes.get(id)!.subgraph === sg.id);
-    if (!members.length) return;
+  // ── Nested subgraph boards ────────────────────────────────────────────────
+  // Each subgraph's GLOBAL rect = the union of its DIRECT member node rects and
+  // its CHILD subgraphs' rects. Computed deepest-first so children are known
+  // before parents, then emitted parent-relative so boards nest properly.
+  const sgById = new Map(subgraphs.map((s) => [s.id, s]));
+  const depthOf = (sg: Subgraph): number => { let d = 0, p = sg.parent; while (p) { d++; p = sgById.get(p)?.parent; } return d; };
+  const childSgs = (id: string) => subgraphs.filter((s) => s.parent === id);
+  const directMembers = (id: string) => nodeIds.filter((nid) => nodes.get(nid)!.subgraph === id);
+  const nodeW = (id: string) => {
+    const n = nodes.get(id)!; const longest = n.label.split("\n").reduce((mx, ln) => Math.max(mx, ln.length), 0);
+    return Math.min(320, Math.max(NODE_W, longest * 8 + 36));
+  };
+  const nodeHt = (id: string) => Math.max(NODE_H, 44 + nodes.get(id)!.label.split("\n").length * 22);
+
+  const sgRect = new Map<string, { x: number; y: number; w: number; h: number }>();
+  [...subgraphs].sort((a, b) => depthOf(b) - depthOf(a)).forEach((sg) => {
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-    members.forEach((id) => {
-      const p = posById.get(id)!;
-      minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
-      maxX = Math.max(maxX, p.x + NODE_W); maxY = Math.max(maxY, p.y + NODE_H);
-    });
+    directMembers(sg.id).forEach((id) => { const p = posById.get(id)!; minX = Math.min(minX, p.x); minY = Math.min(minY, p.y); maxX = Math.max(maxX, p.x + nodeW(id)); maxY = Math.max(maxY, p.y + nodeHt(id)); });
+    childSgs(sg.id).forEach((c) => { const r = sgRect.get(c.id); if (r) { minX = Math.min(minX, r.x); minY = Math.min(minY, r.y); maxX = Math.max(maxX, r.x + r.w); maxY = Math.max(maxY, r.y + r.h); } });
+    if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = NODE_W; maxY = NODE_H; }
+    sgRect.set(sg.id, { x: minX - SG_PAD, y: minY - SG_PAD - SG_HEADER, w: (maxX - minX) + SG_PAD * 2, h: (maxY - minY) + SG_PAD * 2 + SG_HEADER });
+  });
+
+  // Emit boards (parent before child: shallowest-first so parent refs resolve).
+  const sgBoardRef = new Map<string, string>();
+  [...subgraphs].sort((a, b) => depthOf(a) - depthOf(b)).forEach((sg) => {
+    const r = sgRect.get(sg.id); if (!r) return;
     const boardRef = `__sg_${sg.id}`;
     sgBoardRef.set(sg.id, boardRef);
-    const bx = minX - SG_PAD, by = minY - SG_PAD - SG_HEADER;
-    const bw = (maxX - minX) + SG_PAD * 2, bh = (maxY - minY) + SG_PAD * 2 + SG_HEADER;
+    const parentRef = sg.parent ? sgBoardRef.get(sg.parent) : undefined;
+    const pr = sg.parent ? sgRect.get(sg.parent) : undefined;
     const sp = directStyle.get(sg.id);
     meshNodes.push({
-      ref: boardRef, kind: "board", label: sg.title || sg.id, x: bx, y: by, w: bw, h: bh,
-      stroke: sp?.stroke, fill: sp?.fill ? hexToRgba(sp.fill, 0.06) : undefined,
+      ref: boardRef, kind: "board", label: sg.title || sg.id,
+      x: pr ? r.x - pr.x : r.x, y: pr ? r.y - pr.y : r.y, w: r.w, h: r.h,
+      parent: parentRef, stroke: sp?.stroke, fill: sp?.fill ? hexToRgba(sp.fill, 0.06) : undefined,
     });
   });
 
-  // Emit member/standalone nodes (after boards so parent refs resolve on apply).
+  // Emit member/standalone nodes (positions relative to their direct board).
   nodeIds.forEach((id) => {
     const n = nodes.get(id)!;
     const p = posById.get(id)!;
     const sgRef = n.subgraph ? sgBoardRef.get(n.subgraph) : undefined;
     const col = colorOf(id);
     let x = p.x, y = p.y;
-    if (sgRef) {
-      // Position relative to the parent board.
-      const board = meshNodes.find((b) => b.ref === sgRef)!;
-      x = p.x - board.x; y = p.y - board.y;
-    }
-    // Grow nodes that carry a description (multi-line label) so the text fits.
-    const lines = n.label.split("\n");
-    const longest = lines.reduce((mx, ln) => Math.max(mx, ln.length), 0);
-    const w = Math.min(320, Math.max(NODE_W, longest * 8 + 36));
-    const h = Math.max(NODE_H, 44 + lines.length * 22);
+    if (sgRef && n.subgraph) { const r = sgRect.get(n.subgraph); if (r) { x = p.x - r.x; y = p.y - r.y; } }
     meshNodes.push({
-      ref: id, kind: n.kind, label: n.label, shape: n.shape, x, y, w, h,
+      ref: id, kind: n.kind, label: n.label, shape: n.shape, x, y, w: nodeW(id), h: nodeHt(id),
       parent: sgRef, stroke: col.stroke, fill: col.fill, textColor: col.textColor,
     });
   });
