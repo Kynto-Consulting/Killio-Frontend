@@ -17,7 +17,11 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard, createList, deleteBoard, updateCard, listTeamBoards, BoardSummary, updateBoardAppearance, updateBoardDetails, uploadFile, getArchivedLists, archiveList, ArchivedListSummary } from "@/lib/api/contracts";
+import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary } from "@/lib/api/contracts";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
+import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
+import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
@@ -741,7 +745,13 @@ export default function BoardPage() {
   const t = useTranslations("board-detail");
   const params = useParams() as { path?: string | string[] };
   const router = useRouter();
-  const boardId = (Array.isArray(params.path) ? params.path[0] : params.path) as string;
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
+  const _segs = Array.isArray(params.path) ? params.path : params.path ? [params.path] : [];
+  const localFile = (() => { const p = _segs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(KILLIO_EXT.kb) ? p : `${p}${KILLIO_EXT.kb}`; })();
+  // Cloud: boardId = first segment. Local: nested .kb file path.
+  const boardId = localMode ? localFile : (_segs[0] as string);
+  const boardLastModifiedRef = useRef(0);
   const { accessToken, user, activeTeamId } = useSession();
   const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
 
@@ -756,9 +766,51 @@ export default function BoardPage() {
     return () => observer.disconnect();
   }, []);
 
-  const members = useBoardPresence(boardId, user, accessToken);
+  const members = useBoardPresence(localMode ? null : boardId, user, accessToken);
 
   const locale = getClientLocale();
+
+  // ── Local persistence seam (reuse the real kanban editor against a .kb file) ──
+  const genLocalId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `id_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const getBoard = useCallback(async (id: string, token?: string | null) => {
+    if (!localMode) return apiGetBoard(id, token as string);
+    const dir = localWs.getDir();
+    if (!dir) throw new Error("No local workspace folder");
+    const meta = await readWorkspaceFileWithMeta(dir, localFile);
+    if (meta) boardLastModifiedRef.current = meta.lastModified;
+    const draft = meta ? kbToBoardDraft(decodeKillioFile(meta.text).payload) : { name: localFile.replace(/\.kb$/, ""), description: null, visibility: "private", boardType: "kanban", backgroundKind: "none", backgroundValue: null, lists: [] as any[] };
+    return { id: localFile, name: draft.name, description: draft.description ?? null, visibility: draft.visibility ?? "private", boardType: "kanban", backgroundKind: draft.backgroundKind, backgroundValue: draft.backgroundValue, teamId: "local", lists: draft.lists } as unknown as Awaited<ReturnType<typeof apiGetBoard>>;
+  }, [localMode, localFile, localWs]);
+  const createList = useCallback(async (id: string, payload: { name: string }, token?: string | null) => {
+    if (!localMode) return apiCreateList(id, payload, token as string);
+    return { id: genLocalId(), name: payload.name } as Awaited<ReturnType<typeof apiCreateList>>;
+  }, [localMode]);
+  const updateCard = useCallback(async (id: string, updates: any, token?: string | null) => {
+    if (!localMode) return apiUpdateCard(id, updates, token as string);
+    return undefined as any;
+  }, [localMode]);
+  const archiveList = useCallback(async (b: string, l: string, archived: boolean, token?: string | null) => {
+    if (!localMode) return apiArchiveList(b, l, archived, token as string);
+    return undefined as any;
+  }, [localMode]);
+  const getArchivedLists = useCallback(async (b: string, token?: string | null) => {
+    if (!localMode) return apiGetArchivedLists(b, token as string);
+    return [] as ArchivedListSummary[];
+  }, [localMode]);
+  const updateBoardAppearance = useCallback(async (id: string, payload: any, token?: string | null) => {
+    if (!localMode) return apiUpdateBoardAppearance(id, payload, token as string);
+    return undefined as any;
+  }, [localMode]);
+  const updateBoardDetails = useCallback(async (id: string, payload: any, token?: string | null) => {
+    if (!localMode) return apiUpdateBoardDetails(id, payload, token as string);
+    return undefined as any;
+  }, [localMode]);
+  const deleteBoard = useCallback(async (id: string, token?: string | null) => {
+    if (!localMode) return apiDeleteBoard(id, token as string);
+    await localWs.removeFile(localFile);
+    router.push("/b");
+    return undefined as any;
+  }, [localMode, localFile, localWs, router]);
 
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState(t("loadingBoard"));
@@ -827,7 +879,7 @@ export default function BoardPage() {
   };
 
   const handleAddList = async () => {
-    if (!newListName.trim() || !accessToken) return;
+    if (!newListName.trim() || (!accessToken && !localMode)) return;
 
     const tempId = `temp-${Date.now()}`;
     const optimisticList = {
@@ -937,7 +989,7 @@ export default function BoardPage() {
   }, []);
 
   const loadBoard = useCallback(() => {
-    if (!accessToken || !boardId) return;
+    if ((!accessToken && !localMode) || !boardId) return;
 
     // Show cached board instantly (no loading flash on revisit)
     const cached = apiCache.get<Awaited<ReturnType<typeof getBoard>>>(cacheKey.board(boardId));
@@ -955,7 +1007,50 @@ export default function BoardPage() {
           setBoardDescription(null);
         }
       });
-  }, [accessToken, boardId, applyBoardData, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accessToken, boardId, applyBoardData, t, localMode, getBoard]);
+
+  // Local autosave: serialize the whole board → .kb (debounced).
+  const boardDirtyRef = useRef(false);
+  const [boardLoaded, setBoardLoaded] = useState(false);
+  useEffect(() => { if (lists.length > 0 || boardName) setBoardLoaded(true); }, [lists, boardName]);
+  useEffect(() => {
+    if (!localMode || !boardLoaded) return;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    boardDirtyRef.current = true;
+    const id = setTimeout(async () => {
+      try {
+        const payload = boardToKb({
+          id: localFile, name: boardName, description: boardDescription,
+          backgroundKind: boardAppearance.backgroundKind, backgroundValue: boardAppearance.backgroundValue ?? null,
+          visibility: boardVisibility,
+          lists: lists.map((l: any) => ({ id: l.id, name: l.title, cards: l.cards })),
+        });
+        await writeWorkspaceFile(dir, localFile, encodeKillioFile({ kind: "kb", schemaVersion: "2026-v1", payload }));
+        const meta = await readWorkspaceFileWithMeta(dir, localFile);
+        if (meta) boardLastModifiedRef.current = meta.lastModified;
+        boardDirtyRef.current = false;
+      } catch { /* ignore */ }
+    }, 400);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lists, boardName, boardDescription, boardVisibility, boardAppearance, localMode, boardLoaded, localFile]);
+
+  // Local side-update: reload when the .kb changes on disk (no unsaved edits).
+  useEffect(() => {
+    if (!localMode) return;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    const id = setInterval(async () => {
+      const meta = await readWorkspaceFileWithMeta(dir, localFile);
+      if (!meta || meta.lastModified <= boardLastModifiedRef.current + 1 || boardDirtyRef.current) return;
+      boardLastModifiedRef.current = meta.lastModified;
+      loadBoard();
+    }, 2000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localMode, localFile]);
 
   const handleUnarchiveList = useCallback(async (listId: string) => {
     if (!accessToken) return;
@@ -1030,7 +1125,7 @@ export default function BoardPage() {
   }, [loadBoard]);
 
   // Subscribe to Ably realtime events for this board
-  useBoardRealtime(boardId, (event: BoardEvent) => {
+  useBoardRealtime(localMode ? "" : boardId, (event: BoardEvent) => {
     setRealtimeLog((prev) => [`[${event.type}] ${JSON.stringify(event.payload)}`, ...prev].slice(0, 5));
 
     let shouldFallback = false;

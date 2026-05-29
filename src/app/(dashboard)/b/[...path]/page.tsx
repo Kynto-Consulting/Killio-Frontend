@@ -6,18 +6,14 @@ import { useLocalWorkspace } from "@/components/providers/local-workspace-provid
 
 const BoardPageWeb = dynamic(() => import("./page.web"));
 const BoardPageMobile = dynamic(() => import("./page.mobile"));
-const BoardPageOffline = dynamic(() => import("./page.offline"));
-const BoardPageMobileOffline = dynamic(() => import("./page.mobile.offline"));
 
 export default function BoardPageDispatcher() {
   const platform = usePlatform();
   const { mode } = useLocalWorkspace();
 
-  if (mode === "local") {
-    return platform === "mobile" ? <BoardPageMobileOffline /> : <BoardPageOffline />;
-  }
-  if (platform === "mobile") {
-    return <BoardPageMobile />;
-  }
+  // Local workspace reuses the real kanban editor (page.web self-branches its
+  // persistence to the .kb file) so the board behaves 1:1 with cloud.
+  if (mode === "local") return <BoardPageWeb />;
+  if (platform === "mobile") return <BoardPageMobile />;
   return <BoardPageWeb />;
 }
