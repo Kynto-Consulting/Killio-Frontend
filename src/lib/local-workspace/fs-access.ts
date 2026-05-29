@@ -78,6 +78,12 @@ async function resolveDir(root: DirHandle, dirs: string[], create: boolean): Pro
 }
 
 export async function writeWorkspaceFile(dir: DirHandle, path: string, contents: string): Promise<void> {
+  // A handle restored from IndexedDB is often read-only until the user re-grants
+  // write access — reads succeed but createWritable() throws NotAllowedError.
+  // Re-request readwrite up front (must run inside the user gesture that writes).
+  if (!(await verifyPermission(dir, true, true))) {
+    throw new Error("Write permission denied for the workspace folder. Re-open the folder to grant access.");
+  }
   const { dirs, name } = splitPath(path);
   const target = await resolveDir(dir, dirs, true);
   const fileHandle = await target.getFileHandle(name, { create: true });
