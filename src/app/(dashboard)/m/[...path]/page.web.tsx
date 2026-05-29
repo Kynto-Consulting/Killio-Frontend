@@ -1479,8 +1479,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   // Catch-all route. Cloud: meshId = first segment. Local: nested .km file path.
   const pathSegs = Array.isArray(params?.path) ? params.path : params?.path ? [params.path] : [];
   const localFile = localMode ? (() => { const p = pathSegs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(".km") ? p : `${p}.km`; })() : "";
+  // A `.km` path is always a local workspace file, never a cloud board id. On a
+  // deep-link/reload the local workspace may still be reconnecting (mode not yet
+  // "local"); without this guard the editor would fire cloud fetches with the
+  // filename as an id → /boards/<name>.km 403 + blank canvas.
+  const looksLocalFile = (decodeURIComponent(pathSegs[0] ?? "")).endsWith(".km");
   // meshId drives cloud APIs + realtime; null in local mode so realtime stays off.
-  const meshId = localMode ? undefined : (pathSegs[0] ?? undefined);
+  const meshId = (localMode || looksLocalFile) ? undefined : (pathSegs[0] ?? undefined);
   const { accessToken, activeTeamId, user } = useSession();
   const realtime = useRealtime();
   const canvasRef = useRef<HTMLDivElement | null>(null);
@@ -1639,10 +1644,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     let cancelled = false;
     setIsLoading(true);
     (async () => {
-      const meta = await readWorkspaceFileWithMeta(dir, localFile);
-      if (cancelled) return;
-      if (meta) {
-        try {
+      try {
+        // readWorkspaceFileWithMeta can reject (e.g. a folder handle restored
+        // after reload lost read permission) — must not leave loading stuck or
+        // throw an unhandled rejection, which left the canvas blank.
+        const meta = await readWorkspaceFileWithMeta(dir, localFile);
+        if (cancelled) return;
+        if (meta) {
           const decoded = decodeKillioFile(meta.text);
           const { state: imported, meta: m } = deserializeKmToMesh(decoded.payload);
           setState(imported);
@@ -1651,12 +1659,19 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           stateHashRef.current = JSON.stringify(imported);
           lastSavedHashRef.current = stateHashRef.current;
           localLastModifiedRef.current = meta.lastModified;
-        } catch { toast(tMesh("errors.loadFailed"), "error"); }
-      } else {
+        } else {
+          setState(defaultMeshState());
+          setMeshBoardName(localFile.replace(/\.km$/, ""));
+        }
+      } catch (err) {
+        if (cancelled) return;
+        console.error("[mesh] local load failed", err);
+        toast(tMesh("errors.loadFailed"), "error");
         setState(defaultMeshState());
         setMeshBoardName(localFile.replace(/\.km$/, ""));
+      } finally {
+        if (!cancelled) setIsLoading(false);
       }
-      setIsLoading(false);
     })();
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -4894,9 +4909,20 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     </marker>
                   </defs>
                   {Object.values(state.connectionsById).map((conn) => {
-                    const src = state.bricksById[conn.cons[0]];
-                    const tgt = state.bricksById[conn.cons[1]];
+                    // If an endpoint brick is hidden because an ancestor board is
+                    // collapsed, re-route the connection to the OUTERMOST collapsed
+                    // ancestor (the board actually shown) — stepwise by depth, so a
+                    // deep child folds up to whichever level is currently visible.
+                    const anchorId = (id: string): string => {
+                      const chain: string[] = []; let c: MeshBrick | undefined = state.bricksById[id];
+                      while (c) { chain.push(c.id); c = c.parentId ? state.bricksById[c.parentId] : undefined; }
+                      for (let i = chain.length - 1; i >= 0; i--) if (collapsedBoards.has(chain[i])) return chain[i];
+                      return id;
+                    };
+                    const src = state.bricksById[anchorId(conn.cons[0])];
+                    const tgt = state.bricksById[anchorId(conn.cons[1])];
                     if (!src || !tgt) return null;
+                    if (src.id === tgt.id) return null; // both folded into the same collapsed board
                     const sg = gPos(src.id); const tg = gPos(tgt.id);
                     const st = asRec(conn.style);
                     const stroke    = typeof st.stroke === "string" ? st.stroke : "#22d3ee";
@@ -5407,7 +5433,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   })()}
 
                   {toolbarPanel === "templates" && (
-                    <div className="w-[min(78vw,560px)] space-y-2.5">
+                    <div className="space-y-2.5">
                       <div className="flex items-center justify-between">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("templates.title")}</p>
                         <button type="button" onClick={saveSelectionAsTemplate}
@@ -5431,7 +5457,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       </div>
 
                       {/* Gallery with previews */}
-                      <div className="grid max-h-[320px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+                      <div className="grid grid-cols-2 gap-2 pr-1 sm:grid-cols-3">
                         {TEMPLATE_CATALOG.filter((t) => tplCategory === "all" || t.category === tplCategory).map((t) => (
                           <button key={t.id} type="button" onClick={() => insertUserTemplate(t)}
                             className="group/tpl flex flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
@@ -5455,7 +5481,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         {userTemplates.length === 0 ? (
                           <p className="text-[10px] text-slate-500">{tMesh("templates.empty")}</p>
                         ) : (
-                          <div className="grid max-h-[200px] grid-cols-2 gap-2 overflow-y-auto pr-1 sm:grid-cols-3">
+                          <div className="grid grid-cols-2 gap-2 pr-1 sm:grid-cols-3">
                             {userTemplates.map((t) => (
                               <div key={t.id} className="group/u relative">
                                 <button type="button" onClick={() => insertUserTemplate(t)}
