@@ -6,7 +6,7 @@ import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
 import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
-import { getDocument, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks, listDocuments, listAllTeamDocuments, DocumentSummary, patchBrickCell } from "@/lib/api/documents";
+import { getDocument as apiGetDocument, createDocumentBrick as apiCreateDocumentBrick, updateDocumentBrick as apiUpdateDocumentBrick, deleteDocumentBrick as apiDeleteDocumentBrick, DocumentView, DocumentBrick, reorderDocumentBricks as apiReorderDocumentBricks, listDocuments, listAllTeamDocuments, DocumentSummary, patchBrickCell as apiPatchBrickCell } from "@/lib/api/documents";
 import { listFolders, Folder } from "@/lib/api/folders";
 import { listTeamBoards, BoardSummary, listTeamMembers, TeamMemberSummary, uploadFile } from "@/lib/api/contracts";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -15,7 +15,12 @@ import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { cn } from "@/lib/utils";
 import { useDocumentPresence } from "@/hooks/useDocumentPresence";
 import { getUserAvatarUrl } from "@/lib/gravatar";
-import { updateDocumentTitle } from "@/lib/api/documents";
+import { updateDocumentTitle as apiUpdateDocumentTitle } from "@/lib/api/documents";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
+import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
+import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
+import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
@@ -30,7 +35,12 @@ import { DocumentShareModal } from "@/components/ui/document-share-modal";
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
   const _params = useParams() as { path?: string | string[] };
-  const docId = Array.isArray(_params.path) ? _params.path[0] : (_params.path ?? "");
+  const localWs = useLocalWorkspace();
+  const localMode = localWs.mode === "local";
+  const _pathSegs = Array.isArray(_params.path) ? _params.path : _params.path ? [_params.path] : [];
+  const localFile = (() => { const p = _pathSegs.map((s) => decodeURIComponent(s)).join("/"); return p.endsWith(KILLIO_EXT.kd) ? p : `${p}${KILLIO_EXT.kd}`; })();
+  // Cloud: docId = first segment. Local: full nested path is the file.
+  const docId = localMode ? localFile : (_pathSegs[0] ?? "");
   const { accessToken, user } = useSession();
   const router = useRouter();
 
@@ -62,7 +72,7 @@ export default function DocumentPage() {
   }, [document?.bricks]);
 
   const { activeTeamId } = useSession();
-  const presenceMembers = useDocumentPresence(docId, user, accessToken);
+  const presenceMembers = useDocumentPresence(localMode ? null : docId, user, accessToken);
 
   const sanitizeDocumentBricks = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
     // Keep one brick per id to prevent optimistic-create + realtime duplicates.
@@ -74,8 +84,55 @@ export default function DocumentPage() {
     }));
   }, []);
 
+  // ── Local persistence seam ──────────────────────────────────────────────────
+  // In a Local workspace these shadow the cloud API: load/save the .kd file and
+  // apply mutations in-memory (the editor's optimistic setDocument is the source
+  // of truth; a debounced autosave persists the whole doc). Names match the
+  // aliased imports so the editor's handlers below are unchanged.
+  const genBrickId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : `b_${Date.now()}_${Math.random().toString(36).slice(2)}`);
+  const localLastModifiedRef = useRef(0);
+
+  const getDocument = useCallback(async (id: string, token?: string | null): Promise<DocumentView> => {
+    if (!localMode) return apiGetDocument(id, token as string);
+    const dir = localWs.getDir();
+    if (!dir) throw new Error("No local workspace folder");
+    const meta = await readWorkspaceFileWithMeta(dir, localFile);
+    if (meta) localLastModifiedRef.current = meta.lastModified;
+    const draft = meta ? kdToDocDraft(decodeKillioFile(meta.text).payload) : { title: localFile.replace(/\.kd$/, ""), bricks: [] };
+    return { id: localFile, title: draft.title, bricks: draft.bricks as unknown as DocumentBrick[], teamId: "local", visibility: "private", role: "owner", createdByUserId: "", createdAt: "", updatedAt: "" } as unknown as DocumentView;
+  }, [localMode, localFile, localWs]);
+
+  const createDocumentBrick = useCallback(async (id: string, payload: { kind: string; position: number; content: any }, token?: string | null): Promise<DocumentBrick> => {
+    if (!localMode) return apiCreateDocumentBrick(id, payload, token as string);
+    const now = new Date().toISOString();
+    return { id: genBrickId(), documentId: localFile, kind: payload.kind, position: payload.position, content: payload.content, createdByUserId: null, createdAt: now, updatedAt: now } as unknown as DocumentBrick;
+  }, [localMode, localFile]);
+
+  const updateDocumentBrick = useCallback(async (id: string, brickId: string, content: any, token?: string | null): Promise<DocumentBrick> => {
+    if (!localMode) return apiUpdateDocumentBrick(id, brickId, content, token as string);
+    const existing = documentBricksRef.current.find((b) => b.id === brickId);
+    return { ...(existing ?? { id: brickId, documentId: localFile, kind: content?.kind ?? "text", position: 0, createdByUserId: null, createdAt: "" }), content, updatedAt: new Date().toISOString() } as unknown as DocumentBrick;
+  }, [localMode, localFile]);
+
+  const deleteDocumentBrick = useCallback(async (id: string, brickId: string, token?: string | null): Promise<void> => {
+    if (!localMode) return apiDeleteDocumentBrick(id, brickId, token as string);
+  }, [localMode]);
+
+  const reorderDocumentBricks = useCallback(async (id: string, updates: { id: string; position: number }[], token?: string | null): Promise<void> => {
+    if (!localMode) return apiReorderDocumentBricks(id, updates, token as string);
+  }, [localMode]);
+
+  const updateDocumentTitle = useCallback(async (id: string, title: string, token?: string | null): Promise<void> => {
+    if (!localMode) return apiUpdateDocumentTitle(id, title, token as string);
+  }, [localMode]);
+
+  const patchBrickCell = useCallback(async (id: string, brickId: string, patch: any, token?: string | null): Promise<any> => {
+    if (!localMode) return apiPatchBrickCell(id, brickId, patch, token as string);
+    setDocument((prev) => prev ? { ...prev, bricks: prev.bricks.map((b) => b.id === brickId ? { ...b, content: applyTablePatch(b.content || {}, patch) } : b) } : prev);
+  }, [localMode]);
+
   const fetchDoc = useCallback(async () => {
-    if (!accessToken) return;
+    if (!localMode && !accessToken) return;
     try {
       setIsLoading(true);
       const doc = await getDocument(docId, accessToken);
@@ -89,7 +146,7 @@ export default function DocumentPage() {
         setParentDoc(null);
       }
 
-      if (activeTeamId) {
+      if (activeTeamId && !localMode) {
         // Serve cached team data immediately (no extra latency on revisit)
         const cachedBoards  = apiCache.get<BoardSummary[]>(cacheKey.boards(activeTeamId));
         const cachedMembers = apiCache.get<TeamMemberSummary[]>(cacheKey.members(activeTeamId));
@@ -97,10 +154,10 @@ export default function DocumentPage() {
         if (cachedMembers) setTeamMembers(cachedMembers);
 
         const [docs, freshBoards, freshMembers, flds] = await Promise.all([
-          listAllTeamDocuments(activeTeamId, accessToken),
-          cachedBoards  ? Promise.resolve(cachedBoards)  : listTeamBoards(activeTeamId, accessToken),
-          cachedMembers ? Promise.resolve(cachedMembers) : listTeamMembers(activeTeamId, accessToken),
-          listFolders(activeTeamId, accessToken),
+          listAllTeamDocuments(activeTeamId, accessToken!),
+          cachedBoards  ? Promise.resolve(cachedBoards)  : listTeamBoards(activeTeamId, accessToken!),
+          cachedMembers ? Promise.resolve(cachedMembers) : listTeamMembers(activeTeamId, accessToken!),
+          listFolders(activeTeamId, accessToken!),
         ]);
         setTeamDocs(docs);
         if (!cachedBoards)  { apiCache.set(cacheKey.boards(activeTeamId), freshBoards, CACHE_TTL.BOARDS); setTeamBoards(freshBoards); }
@@ -116,13 +173,53 @@ export default function DocumentPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [docId, accessToken, activeTeamId, sanitizeDocumentBricks, t]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [docId, accessToken, activeTeamId, sanitizeDocumentBricks, t, localMode, getDocument]);
 
   useEffect(() => {
     fetchDoc();
   }, [fetchDoc]);
 
-  useDocumentRealtime(docId, (event) => {
+  // Local autosave: serialize the whole doc → .kd file (debounced).
+  const localDirtyRef = useRef(false);
+  useEffect(() => {
+    if (!localMode || !document || isLoading) return;
+    localDirtyRef.current = true;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    const id = setTimeout(async () => {
+      try {
+        const payload = docToKd({ id: localFile, title: document.title, bricks: document.bricks as unknown as { id: string; kind: string; position: number; content: unknown }[] });
+        await writeWorkspaceFile(dir, localFile, encodeKillioFile({ kind: "kd", schemaVersion: "2026-v1", payload }));
+        const meta = await readWorkspaceFileWithMeta(dir, localFile);
+        if (meta) localLastModifiedRef.current = meta.lastModified;
+        localDirtyRef.current = false;
+      } catch { /* ignore */ }
+    }, 400);
+    return () => clearTimeout(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [document, localMode, isLoading, localFile]);
+
+  // Local side-update: reload when the .kd file changes on disk (no unsaved edits).
+  useEffect(() => {
+    if (!localMode || isLoading) return;
+    const dir = localWs.getDir();
+    if (!dir) return;
+    const id = setInterval(async () => {
+      const meta = await readWorkspaceFileWithMeta(dir, localFile);
+      if (!meta || meta.lastModified <= localLastModifiedRef.current + 1) return;
+      if (localDirtyRef.current) return;
+      try {
+        const draft = kdToDocDraft(decodeKillioFile(meta.text).payload);
+        setDocument((prev) => prev ? { ...prev, title: draft.title, bricks: draft.bricks as unknown as DocumentBrick[] } : prev);
+        localLastModifiedRef.current = meta.lastModified;
+      } catch { /* ignore */ }
+    }, 2000);
+    return () => clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localMode, isLoading, localFile]);
+
+  useDocumentRealtime(localMode ? "" : docId, (event) => {
     if (event.type === "brick.created") {
       setDocument((prev) => {
         if (!prev) return prev;

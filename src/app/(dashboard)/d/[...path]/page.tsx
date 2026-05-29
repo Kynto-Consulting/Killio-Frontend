@@ -6,19 +6,14 @@ import { useLocalWorkspace } from "@/components/providers/local-workspace-provid
 
 const DocumentPageWeb = dynamic(() => import("./page.web"));
 const DocumentPageMobile = dynamic(() => import("./page.mobile"));
-const DocumentPageOffline = dynamic(() => import("./page.offline"));
-const DocumentPageMobileOffline = dynamic(() => import("./page.mobile.offline"));
 
 export default function DocumentPageDispatcher() {
   const platform = usePlatform();
   const { mode } = useLocalWorkspace();
 
-  // Local workspace → offline variant (reads/writes the .kd file on disk).
-  if (mode === "local") {
-    return platform === "mobile" ? <DocumentPageMobileOffline /> : <DocumentPageOffline />;
-  }
-  if (platform === "mobile") {
-    return <DocumentPageMobile />;
-  }
+  // Local workspace reuses the real document editor (page.web self-branches its
+  // persistence to the .kd file) so every brick type behaves 1:1 with cloud.
+  if (mode === "local") return <DocumentPageWeb />;
+  if (platform === "mobile") return <DocumentPageMobile />;
   return <DocumentPageWeb />;
 }
