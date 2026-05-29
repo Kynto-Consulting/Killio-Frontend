@@ -2,10 +2,11 @@
 
 import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Plus, Clock, Layout, Loader2, Search, Trash2 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { LocalEntityList } from "../local-entity-list";
+import { encodeKillioFile } from "@/lib/killio-file";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
@@ -14,8 +15,10 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function BoardsPage() {
   const t = useTranslations("boards");
+  const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
-  const { mode: workspaceMode } = useLocalWorkspace();
+  const localWs = useLocalWorkspace();
+  const workspaceMode = localWs.mode;
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,16 +26,24 @@ export default function BoardsPage() {
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
+    if (workspaceMode === "local") {
+      setBoards(localWs.files.filter((f) => f.kind === "kb").map((f) => ({
+        id: f.path, name: f.name.replace(/\.kb$/, ""), boardType: "kanban", updatedAt: "",
+      })) as unknown as BoardSummary[]);
+      setIsLoading(false);
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
-    
+
     setIsLoading(true);
     listTeamBoards(activeTeamId, accessToken)
       .then(setBoards)
       .catch(console.error)
       .finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId]);
+  }, [accessToken, activeTeamId, workspaceMode, localWs.files]);
 
   const handleCreateBoardClick = () => {
+    if (workspaceMode === "local") { setIsCreateBoardModalOpen(true); return; }
     if (!accessToken) return;
     if (!activeTeamId) {
       toast(t("noActiveWorkspace"), "info");
@@ -42,10 +53,19 @@ export default function BoardsPage() {
   };
 
   const handleCreateBoardSubmit = async (payload: CreateBoardSubmitPayload) => {
+    const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
+
+    if (workspaceMode === "local") {
+      try {
+        const path = `${slug}.kb`;
+        await localWs.writeFile(path, encodeKillioFile({ kind: "kb", schemaVersion: "2026-v1", payload: { id: path, name: payload.name, boardType: "kanban", lists: [] } }));
+        router.push(`/b/${path.split("/").map(encodeURIComponent).join("/")}`);
+      } catch { toast(t("boardCreateError"), "error"); }
+      return;
+    }
+
     if (!accessToken || !activeTeamId) return;
-    
     try {
-      const slug = payload.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `board-${Date.now()}`;
       const newBoard = await createBoard({ ...payload, slug }, activeTeamId, accessToken);
       setBoards([...boards, newBoard]);
       toast(t("boardCreatedSuccess"), "success");
@@ -191,8 +211,6 @@ export default function BoardsPage() {
   const filteredBoards = boards.filter(board => 
     board.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
-
-  if (workspaceMode === "local") return <LocalEntityList kind="kb" routeBase="/b" title="Boards" />;
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">

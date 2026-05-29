@@ -16,7 +16,8 @@ import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { LocalDocsList } from "./local-docs";
+import { encodeKillioFile } from "@/lib/killio-file";
+import { docToKd } from "@/lib/local-workspace/adapters";
 
 export default function DocumentsPage() {
   return (
@@ -29,7 +30,8 @@ export default function DocumentsPage() {
 function DocumentsPageContent() {
   const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
-  const { mode: workspaceMode } = useLocalWorkspace();
+  const localWs = useLocalWorkspace();
+  const workspaceMode = localWs.mode;
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -78,10 +80,18 @@ function DocumentsPageContent() {
   const currentFolder = folders.find(f => f.id === activeFolderId);
 
   useEffect(() => {
+    if (workspaceMode === "local") {
+      setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
+        id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: "",
+      })) as unknown as DocumentSummary[]);
+      setFolders([]);
+      setIsLoading(false);
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
-    
+
     setIsLoading(true);
-    
+
     Promise.all([
       listDocuments(activeTeamId, accessToken, activeFolderId || undefined),
       listFolders(activeTeamId, accessToken)
@@ -98,7 +108,7 @@ function DocumentsPageContent() {
     })
     .catch(console.error)
     .finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId, activeFolderId]);
+  }, [accessToken, activeTeamId, activeFolderId, workspaceMode, localWs.files]);
 
   const handleFolderSubmit = async (data: { name: string; icon: string; color: string; parentFolderId: string | null }) => {
     if (!accessToken || !activeTeamId) return;
@@ -124,6 +134,15 @@ function DocumentsPageContent() {
   };
 
   const handleCreateDocument = async (title: string) => {
+    if (workspaceMode === "local") {
+      const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `doc-${Date.now()}`;
+      const path = `${slug}.kd`;
+      try {
+        await localWs.writeFile(path, encodeKillioFile({ kind: "kd", schemaVersion: "2026-v1", payload: docToKd({ id: path, title, bricks: [] }) }));
+        router.push(`/d/${path.split("/").map(encodeURIComponent).join("/")}`);
+      } catch (e) { console.error(e); toast(t("createError"), "error"); throw e; }
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
 
     try {
@@ -135,7 +154,7 @@ function DocumentsPageContent() {
     } catch (e) {
       console.error(e);
       toast(t("createError"), "error");
-      throw e; 
+      throw e;
     }
   };
 
@@ -224,8 +243,6 @@ function DocumentsPageContent() {
     }
   };
 
-  // Local workspace → folder-aware local docs browser (reuses /d route).
-  if (workspaceMode === "local") return <LocalDocsList />;
 
   return (
     <div className="container mx-auto p-4 lg:p-8 max-w-[1400px]">

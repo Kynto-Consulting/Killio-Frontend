@@ -11,7 +11,7 @@ import { ApiError, BoardSummary, createBoard, listTeamBoards } from "@/lib/api/c
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { LocalEntityList } from "../local-entity-list";
+import { encodeKillioFile } from "@/lib/killio-file";
 
 function resolveMeshCardBg(mesh: { backgroundKind?: string | null; backgroundValue?: string | null; backgroundGradient?: string | null; backgroundImageUrl?: string | null }): { className: string; style?: CSSProperties } {
   if (mesh.backgroundKind === "image" && mesh.backgroundImageUrl) {
@@ -42,7 +42,8 @@ export default function MeshBoardsPage() {
   const t = useTranslations("boards");
   const router = useRouter();
   const { accessToken, activeTeamId } = useSession();
-  const { mode: workspaceMode } = useLocalWorkspace();
+  const localWs = useLocalWorkspace();
+  const workspaceMode = localWs.mode;
 
   const [meshes, setMeshes] = useState<BoardSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -51,6 +52,13 @@ export default function MeshBoardsPage() {
   const [isCreateMeshModalOpen, setIsCreateMeshModalOpen] = useState(false);
 
   useEffect(() => {
+    if (workspaceMode === "local") {
+      setMeshes(localWs.files.filter((f) => f.kind === "km").map((f) => ({
+        id: f.path, name: f.name.replace(/\.km$/, ""), boardType: "mesh", updatedAt: "",
+      })) as unknown as BoardSummary[]);
+      setIsLoading(false);
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
 
     setIsLoading(true);
@@ -63,7 +71,7 @@ export default function MeshBoardsPage() {
         toast(t("mesh.loadError"), "error");
       })
       .finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId]);
+  }, [accessToken, activeTeamId, workspaceMode, localWs.files]);
 
   const filteredMeshes = useMemo(
     () => meshes.filter((mesh) => mesh.name.toLowerCase().includes(search.toLowerCase())),
@@ -71,6 +79,7 @@ export default function MeshBoardsPage() {
   );
 
   const handleCreateMeshClick = () => {
+    if (workspaceMode === "local") { setIsCreateMeshModalOpen(true); return; }
     if (!accessToken) {
       return;
     }
@@ -84,16 +93,22 @@ export default function MeshBoardsPage() {
   };
 
   const handleCreateMeshSubmit = async (payload: CreateBoardSubmitPayload) => {
-    if (!accessToken || !activeTeamId || isCreating) {
-      return;
-    }
-
+    if (isCreating) return;
     const meshName = payload.name.trim();
+    if (!meshName) return;
 
-    if (!meshName) {
+    if (workspaceMode === "local") {
+      setIsCreating(true);
+      try {
+        const path = `${slugifyMeshName(meshName)}.km`;
+        await localWs.writeFile(path, encodeKillioFile({ kind: "km", schemaVersion: "2026-v1", payload: { id: path, title: meshName, viewport: { x: 0, y: 0, zoom: 1 }, bricks: [], connections: [], rootOrder: [] } }));
+        router.push(`/m/${path.split("/").map(encodeURIComponent).join("/")}`);
+      } catch { toast(t("mesh.createError"), "error"); }
+      finally { setIsCreating(false); }
       return;
     }
 
+    if (!accessToken || !activeTeamId) return;
     setIsCreating(true);
     try {
       const created = await createBoard(
@@ -118,8 +133,6 @@ export default function MeshBoardsPage() {
       setIsCreating(false);
     }
   };
-
-  if (workspaceMode === "local") return <LocalEntityList kind="km" routeBase="/m" title="Meshes" />;
 
   return (
     <div className="container mx-auto max-w-6xl p-6 lg:p-10">
