@@ -1,7 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { kindFromFilename, isKillioFile, extForKind } from "./fs-access.ts";
+import { kindFromFilename, isKillioFile, extForKind, splitPath, joinPath } from "./fs-access.ts";
+
+test("splitPath separates folders from name", () => {
+  assert.deepEqual(splitPath("notes.kd"), { dirs: [], name: "notes.kd" });
+  assert.deepEqual(splitPath("specs/v2/notes.kd"), { dirs: ["specs", "v2"], name: "notes.kd" });
+  assert.deepEqual(splitPath("/a//b/x.kd"), { dirs: ["a", "b"], name: "x.kd" });
+});
+
+test("joinPath builds normalized relative path", () => {
+  assert.equal(joinPath("", "notes.kd"), "notes.kd");
+  assert.equal(joinPath("specs/v2", "notes.kd"), "specs/v2/notes.kd");
+  assert.equal(joinPath("/specs/", "notes.kd"), "specs/notes.kd");
+});
+
+test("splitPath/joinPath roundtrip", () => {
+  const p = "a/b/c.km";
+  const { dirs, name } = splitPath(p);
+  assert.equal(joinPath(dirs.join("/"), name), p);
+});
 
 test("kindFromFilename maps each extension", () => {
   assert.equal(kindFromFilename("notes.kd"), "kd");

@@ -35,7 +35,12 @@ function brickMarkdown(b: KdBrick): string {
 export default function DocumentPageOffline() {
   const { docId } = useParams() as { docId: string };
   const router = useRouter();
-  const filename = useMemo(() => ensureKd(decodeURIComponent(docId)), [docId]);
+  // Nested folder paths can't ride the single [docId] segment (%2F breaks the
+  // route), so the list page passes the real relative path via ?wsfile=.
+  const filename = useMemo(() => {
+    const wsfile = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("wsfile") : null;
+    return ensureKd(wsfile ? decodeURIComponent(wsfile) : decodeURIComponent(docId));
+  }, [docId]);
   const { mode, status, getDir, writeFile, reconnect } = useLocalWorkspace();
 
   const [title, setTitle] = useState("");

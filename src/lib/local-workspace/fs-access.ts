@@ -4,10 +4,27 @@
 
 import type { KillioKind } from "@/lib/killio-file";
 
-export type WorkspaceFileEntry = { name: string; kind: KillioKind };
+// `path` is the file's location relative to the workspace root, using `/` for
+// nested folders (e.g. "specs/v2/notes.kd"). `folder` is its parent path ("" at
+// root). Folder structure mirrors document/board folders on disk.
+export type WorkspaceFileEntry = { name: string; path: string; folder: string; kind: KillioKind };
 
 const EXT_TO_KIND: Record<string, KillioKind> = { kd: "kd", km: "km", kb: "kb", ks: "ks" };
 const KIND_TO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks" };
+const ASSETS_DIR = "assets";
+
+/** Split a relative path into its folder segments + final name. Pure. */
+export function splitPath(path: string): { dirs: string[]; name: string } {
+  const segs = path.split("/").map((s) => s.trim()).filter(Boolean);
+  const name = segs.pop() ?? "";
+  return { dirs: segs, name };
+}
+
+/** Join folder + name into a normalized relative path. Pure. */
+export function joinPath(folder: string, name: string): string {
+  const f = folder.split("/").filter(Boolean).join("/");
+  return f ? `${f}/${name}` : name;
+}
 
 /** Map a filename to its Killio kind by extension, or null if not a Killio file. Pure. */
 export function kindFromFilename(name: string): KillioKind | null {
@@ -51,15 +68,26 @@ export async function verifyPermission(handle: DirHandle, write = true, requestI
   return false;
 }
 
-export async function writeWorkspaceFile(dir: DirHandle, filename: string, contents: string): Promise<void> {
-  const fileHandle = await dir.getFileHandle(filename, { create: true });
+/** Walk/create nested subdirectories, returning the deepest DirHandle. */
+async function resolveDir(root: DirHandle, dirs: string[], create: boolean): Promise<DirHandle> {
+  let cur = root;
+  for (const seg of dirs) cur = await cur.getDirectoryHandle(seg, { create });
+  return cur;
+}
+
+export async function writeWorkspaceFile(dir: DirHandle, path: string, contents: string): Promise<void> {
+  const { dirs, name } = splitPath(path);
+  const target = await resolveDir(dir, dirs, true);
+  const fileHandle = await target.getFileHandle(name, { create: true });
   const writable = await (fileHandle as unknown as { createWritable: () => Promise<{ write: (d: string) => Promise<void>; close: () => Promise<void> }> }).createWritable();
   await writable.write(contents);
   await writable.close();
 }
 
-export async function readWorkspaceFile(dir: DirHandle, filename: string): Promise<string> {
-  const fileHandle = await dir.getFileHandle(filename);
+export async function readWorkspaceFile(dir: DirHandle, path: string): Promise<string> {
+  const { dirs, name } = splitPath(path);
+  const target = await resolveDir(dir, dirs, false);
+  const fileHandle = await target.getFileHandle(name);
   const file = await fileHandle.getFile();
   return file.text();
 }
@@ -68,10 +96,12 @@ export async function readWorkspaceFile(dir: DirHandle, filename: string): Promi
  *  Returns null if the file does not exist yet. */
 export async function readWorkspaceFileWithMeta(
   dir: DirHandle,
-  filename: string,
+  path: string,
 ): Promise<{ text: string; lastModified: number } | null> {
   try {
-    const fileHandle = await dir.getFileHandle(filename);
+    const { dirs, name } = splitPath(path);
+    const target = await resolveDir(dir, dirs, false);
+    const fileHandle = await target.getFileHandle(name);
     const file = await fileHandle.getFile();
     return { text: await file.text(), lastModified: file.lastModified };
   } catch {
@@ -79,19 +109,27 @@ export async function readWorkspaceFileWithMeta(
   }
 }
 
-export async function deleteWorkspaceFile(dir: DirHandle, filename: string): Promise<void> {
-  await dir.removeEntry(filename);
+export async function deleteWorkspaceFile(dir: DirHandle, path: string): Promise<void> {
+  const { dirs, name } = splitPath(path);
+  const target = await resolveDir(dir, dirs, false);
+  await target.removeEntry(name);
 }
 
-/** List all Killio files (.kd/.km/.kb/.ks) in the workspace folder. */
-export async function listWorkspaceFiles(dir: DirHandle): Promise<WorkspaceFileEntry[]> {
+/** Recursively list all Killio files in the workspace folder + subfolders
+ *  (skips the assets/ folder). Folder structure is preserved via `path`/`folder`. */
+export async function listWorkspaceFiles(dir: DirHandle, basePath = ""): Promise<WorkspaceFileEntry[]> {
   const entries: WorkspaceFileEntry[] = [];
   const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string }> }).values();
   for await (const entry of iter) {
-    if (entry.kind !== "file") continue;
-    const kind = kindFromFilename(entry.name);
-    if (kind) entries.push({ name: entry.name, kind });
+    if (entry.kind === "file") {
+      const kind = kindFromFilename(entry.name);
+      if (kind) entries.push({ name: entry.name, path: joinPath(basePath, entry.name), folder: basePath, kind });
+    } else if (entry.kind === "directory" && entry.name !== ASSETS_DIR) {
+      const sub = await dir.getDirectoryHandle(entry.name);
+      const childPath = joinPath(basePath, entry.name);
+      entries.push(...(await listWorkspaceFiles(sub, childPath)));
+    }
   }
-  entries.sort((a, b) => a.name.localeCompare(b.name));
+  entries.sort((a, b) => a.path.localeCompare(b.path));
   return entries;
 }

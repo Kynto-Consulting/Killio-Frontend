@@ -15,6 +15,8 @@ import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { LocalDocsList } from "./local-docs";
 
 export default function DocumentsPage() {
   return (
@@ -27,6 +29,7 @@ export default function DocumentsPage() {
 function DocumentsPageContent() {
   const t = useTranslations("documents");
   const { accessToken, activeTeamId } = useSession();
+  const { mode: workspaceMode } = useLocalWorkspace();
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
@@ -220,6 +223,9 @@ function DocumentsPageContent() {
       setDeletingDocumentId(null);
     }
   };
+
+  // Local workspace → folder-aware local docs browser (reuses /d route).
+  if (workspaceMode === "local") return <LocalDocsList />;
 
   return (
     <div className="container mx-auto p-4 lg:p-8 max-w-[1400px]">
