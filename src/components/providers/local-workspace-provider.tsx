@@ -12,6 +12,13 @@ import {
   type WorkspaceFileEntry,
 } from "@/lib/local-workspace/fs-access";
 import { saveDirHandle, loadDirHandle, deleteDirHandle } from "@/lib/local-workspace/dir-handle-store";
+import {
+  listLocalFolders,
+  createLocalFolder,
+  updateLocalFolderMeta,
+  removeLocalFolder,
+  type LocalFolder,
+} from "@/lib/local-workspace/folders";
 
 const REGISTRY_KEY = "killio_local_workspaces";
 const ACTIVE_KEY = "killio_active_local";
@@ -29,7 +36,11 @@ type LocalWorkspaceCtx = {
   active: LocalWorkspaceMeta | null;
   status: Status;
   files: WorkspaceFileEntry[];
+  folders: LocalFolder[];
   busy: boolean;
+  createFolder: (parentPath: string, meta: { name: string; color?: string | null; icon?: string | null }) => Promise<LocalFolder | null>;
+  updateFolder: (folderPath: string, meta: { name?: string; color?: string | null; icon?: string | null }) => Promise<void>;
+  removeFolder: (folderPath: string) => Promise<void>;
   createLocalWorkspace: () => Promise<LocalWorkspaceMeta | null>;
   selectLocalWorkspace: (id: string) => Promise<void>;
   exitLocal: () => void;
@@ -59,6 +70,7 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
   const [activeId, setActiveId] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [files, setFiles] = useState<WorkspaceFileEntry[]>([]);
+  const [folders, setFolders] = useState<LocalFolder[]>([]);
   const [busy, setBusy] = useState(false);
   const dirRef = useRef<FileSystemDirectoryHandle | null>(null);
 
@@ -72,11 +84,12 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
 
   const refreshFrom = useCallback(async (handle: FileSystemDirectoryHandle) => {
     try { setFiles(await listWorkspaceFiles(handle)); } catch { setFiles([]); }
+    try { setFolders(await listLocalFolders(handle)); } catch { setFolders([]); }
   }, []);
 
   // When the active local workspace changes, try to (re)connect to its folder.
   useEffect(() => {
-    if (!activeId) { dirRef.current = null; setFiles([]); setStatus("idle"); return; }
+    if (!activeId) { dirRef.current = null; setFiles([]); setFolders([]); setStatus("idle"); return; }
     if (typeof window !== "undefined") window.localStorage.setItem(ACTIVE_KEY, activeId);
     let cancelled = false;
     (async () => {
@@ -158,13 +171,34 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
 
   const getDir = useCallback(() => dirRef.current, []);
 
+  const createFolder = useCallback(async (parentPath: string, meta: { name: string; color?: string | null; icon?: string | null }) => {
+    if (!dirRef.current) throw new Error("No local workspace folder");
+    const f = await createLocalFolder(dirRef.current, parentPath, meta);
+    await refreshFrom(dirRef.current);
+    return f;
+  }, [refreshFrom]);
+
+  const updateFolder = useCallback(async (folderPath: string, meta: { name?: string; color?: string | null; icon?: string | null }) => {
+    if (!dirRef.current) throw new Error("No local workspace folder");
+    await updateLocalFolderMeta(dirRef.current, folderPath, meta);
+    await refreshFrom(dirRef.current);
+  }, [refreshFrom]);
+
+  const removeFolder = useCallback(async (folderPath: string) => {
+    if (!dirRef.current) throw new Error("No local workspace folder");
+    await removeLocalFolder(dirRef.current, folderPath);
+    await refreshFrom(dirRef.current);
+  }, [refreshFrom]);
+
   const active = workspaces.find((w) => w.id === activeId) ?? null;
 
   const value = useMemo<LocalWorkspaceCtx>(() => ({
-    supported, mode, workspaces, activeId, active, status, files, busy,
+    supported, mode, workspaces, activeId, active, status, files, folders, busy,
+    createFolder, updateFolder, removeFolder,
     createLocalWorkspace, selectLocalWorkspace, exitLocal, removeLocalWorkspace,
     reconnect, refresh, writeFile, readFile, removeFile, getDir,
-  }), [supported, mode, workspaces, activeId, active, status, files, busy,
+  }), [supported, mode, workspaces, activeId, active, status, files, folders, busy,
+    createFolder, updateFolder, removeFolder,
     createLocalWorkspace, selectLocalWorkspace, exitLocal, removeLocalWorkspace,
     reconnect, refresh, writeFile, readFile, removeFile, getDir]);
 
@@ -182,7 +216,11 @@ const FALLBACK: LocalWorkspaceCtx = {
   active: null,
   status: "idle",
   files: [],
+  folders: [],
   busy: false,
+  createFolder: async () => null,
+  updateFolder: async () => {},
+  removeFolder: async () => {},
   createLocalWorkspace: async () => null,
   selectLocalWorkspace: async () => {},
   exitLocal: () => {},

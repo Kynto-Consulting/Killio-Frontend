@@ -6,6 +6,30 @@
 export const KD_SCHEMA = "2026-v1";
 export const KB_SCHEMA = "2026-v1";
 export const KS_SCHEMA = "2026-v1";
+export const KF_SCHEMA = "2026-v1";
+
+// ── Folders (.kf) ───────────────────────────────────────────────────────────
+// A `.kf` file is a folder-metadata marker living inside a disk subdirectory.
+// The disk subdirectory IS the folder; its children are derived from disk, so
+// the marker only carries display metadata (name/color/icon).
+export type KfPayload = { name: string; color: string; icon: string };
+
+export function folderMetaToKf(meta: { name?: string; color?: string | null; icon?: string | null }): KfPayload {
+  return {
+    name: meta.name ?? "Folder",
+    color: meta.color ?? "#64748b",
+    icon: meta.icon ?? "folder",
+  };
+}
+
+export function kfToFolderMeta(payload: unknown): KfPayload {
+  const p = (payload && typeof payload === "object" ? payload : {}) as Record<string, unknown>;
+  return {
+    name: typeof p.name === "string" ? p.name : "Folder",
+    color: typeof p.color === "string" ? p.color : "#64748b",
+    icon: typeof p.icon === "string" ? p.icon : "folder",
+  };
+}
 
 // ── Documents (.kd) ───────────────────────────────────────────────────────────
 export type KdBrick = { id: string; kind: string; position: number; content: unknown };

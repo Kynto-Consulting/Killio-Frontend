@@ -82,9 +82,15 @@ function DocumentsPageContent() {
   useEffect(() => {
     if (workspaceMode === "local") {
       setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
-        id: f.path, title: f.name.replace(/\.kd$/, ""), updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
+        id: f.path, title: f.name.replace(/\.kd$/, ""), folderId: f.folder || null,
+        updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
       })) as unknown as DocumentSummary[]);
-      setFolders([]);
+      // Local folders = disk subdirectories, mapped into the cloud Folder shape
+      // so the FolderTree / FolderCard / FolderModal components work unchanged.
+      setFolders(localWs.folders.map((f) => ({
+        id: f.path, teamId: "local", parentFolderId: f.parent || null,
+        name: f.name, icon: f.icon, color: f.color, createdAt: "", updatedAt: "",
+      })) as unknown as Folder[]);
       setIsLoading(false);
       return;
     }
@@ -108,9 +114,22 @@ function DocumentsPageContent() {
     })
     .catch(console.error)
     .finally(() => setIsLoading(false));
-  }, [accessToken, activeTeamId, activeFolderId, workspaceMode, localWs.files]);
+  }, [accessToken, activeTeamId, activeFolderId, workspaceMode, localWs.files, localWs.folders]);
 
   const handleFolderSubmit = async (data: { name: string; icon: string; color: string; parentFolderId: string | null }) => {
+    if (workspaceMode === "local") {
+      try {
+        if (editingFolder) {
+          await localWs.updateFolder(editingFolder.id, { name: data.name, icon: data.icon, color: data.color });
+          toast(t("folderUpdated"), "success");
+        } else {
+          await localWs.createFolder(data.parentFolderId || "", { name: data.name, icon: data.icon, color: data.color });
+          toast(t("folderCreated"), "success");
+        }
+        setIsFolderModalOpen(false);
+      } catch (e) { console.error(e); toast(t("folderSaveError"), "error"); }
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
     try {
       if (editingFolder) {
@@ -136,7 +155,7 @@ function DocumentsPageContent() {
   const handleCreateDocument = async (title: string) => {
     if (workspaceMode === "local") {
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `doc-${Date.now()}`;
-      const path = `${slug}.kd`;
+      const path = activeFolderId ? `${activeFolderId}/${slug}.kd` : `${slug}.kd`;
       try {
         await localWs.writeFile(path, encodeKillioFile({ kind: "kd", schemaVersion: "2026-v1", payload: docToKd({ id: path, title, bricks: [] }) }));
         router.push(`/d/${path.split("/").map(encodeURIComponent).join("/")}`);
@@ -191,17 +210,32 @@ function DocumentsPageContent() {
   const handleDropDocumentOnFolder = async (e: React.DragEvent, targetFolderId: string | null) => {
     e.preventDefault();
     e.stopPropagation();
-    
-    if (!accessToken || !activeTeamId) return;
-    
+
     const jsonStr = e.dataTransfer.getData("application/json");
     let payload = null;
     try { payload = jsonStr ? JSON.parse(jsonStr) : null; } catch(e) {}
-    
+
     const docId = e.dataTransfer.getData("documentId");
     const ids = payload?.ids || (docId ? [docId] : []);
     if (ids.length === 0) return;
 
+    if (workspaceMode === "local") {
+      try {
+        for (const id of ids) {
+          const base = id.split("/").pop() || id;
+          const newPath = targetFolderId ? `${targetFolderId}/${base}` : base;
+          if (newPath === id) continue;
+          const contents = await localWs.readFile(id);
+          await localWs.writeFile(newPath, contents);
+          await localWs.removeFile(id);
+        }
+        setSelectedItemIds([]);
+        toast(t("documentMoved"), "success");
+      } catch (err) { console.error(err); toast(t("documentMoveError"), "error"); }
+      return;
+    }
+
+    if (!accessToken || !activeTeamId) return;
     try {
       await Promise.all(ids.map((id: string) => updateDocument(id, { folderId: targetFolderId }, accessToken)));
       setDocuments((prev) => prev.map(d => ids.includes(d.id) ? { ...d, folderId: targetFolderId || undefined } : d));
@@ -223,14 +257,25 @@ function DocumentsPageContent() {
   });
 
   const handleDeleteDocument = (doc: DocumentSummary) => {
-    if (!accessToken || deletingDocumentId) return;
+    if (deletingDocumentId) return;
+    if (workspaceMode !== "local" && !accessToken) return;
     setDeleteDocumentTarget(doc);
   };
 
   const confirmDeleteDocument = async () => {
-    if (!accessToken || !deleteDocumentTarget) return;
+    if (!deleteDocumentTarget) return;
     const doc = deleteDocumentTarget;
     setDeletingDocumentId(doc.id);
+    if (workspaceMode === "local") {
+      try {
+        await localWs.removeFile(doc.id);
+        setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
+        toast(t("deleteSuccess", { title: doc.title }), "success");
+      } catch (e) { console.error(e); toast(t("deleteError"), "error"); }
+      finally { setDeletingDocumentId(null); setDeleteDocumentTarget(null); }
+      return;
+    }
+    if (!accessToken) { setDeletingDocumentId(null); return; }
     try {
       await deleteDocument(doc.id, accessToken);
       setDocuments((prev) => prev.filter((item) => item.id !== doc.id));
@@ -399,8 +444,8 @@ function DocumentsPageContent() {
                     </button>
                   </div>
 
-                  <Link 
-                    href={`/d/${doc.id}`}
+                  <Link
+                    href={`/d/${doc.id.split("/").map(encodeURIComponent).join("/")}`}
                     className="flex flex-1 flex-col"
                   >
                     <div className="p-5 flex flex-col flex-1">

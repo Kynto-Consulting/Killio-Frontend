@@ -9,8 +9,10 @@ import type { KillioKind } from "@/lib/killio-file";
 // root). Folder structure mirrors document/board folders on disk.
 export type WorkspaceFileEntry = { name: string; path: string; folder: string; kind: KillioKind; lastModified: number };
 
+// kf is intentionally absent from EXT_TO_KIND so `.kf` folder-markers are NOT
+// surfaced as entity files by listWorkspaceFiles / kindFromFilename.
 const EXT_TO_KIND: Record<string, KillioKind> = { kd: "kd", km: "km", kb: "kb", ks: "ks" };
-const KIND_TO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks" };
+const KIND_TO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks", kf: ".kf" };
 const ASSETS_DIR = "assets";
 
 /** Split a relative path into its folder segments + final name. Pure. */
@@ -115,8 +117,49 @@ export async function deleteWorkspaceFile(dir: DirHandle, path: string): Promise
   await target.removeEntry(name);
 }
 
+/** A folder on disk (subdirectory) within the workspace. `path` is its relative
+ *  path ("specs/v2"); `parent` is the parent folder path ("" at root). */
+export type WorkspaceFolderEntry = { name: string; path: string; parent: string; metaFile: string | null };
+
+/** Create (if needed) the nested subdirectory at `path` and return its handle. */
+export async function ensureWorkspaceDir(dir: DirHandle, path: string): Promise<DirHandle> {
+  const dirs = path.split("/").map((s) => s.trim()).filter(Boolean);
+  return resolveDir(dir, dirs, true);
+}
+
+/** Delete a subdirectory (recursively) at `path`. */
+export async function removeWorkspaceDir(dir: DirHandle, path: string): Promise<void> {
+  const { dirs, name } = splitPath(path);
+  if (!name) return;
+  const parent = await resolveDir(dir, dirs, false);
+  await (parent as unknown as { removeEntry: (n: string, o?: { recursive?: boolean }) => Promise<void> }).removeEntry(name, { recursive: true });
+}
+
+/** Recursively list all subfolders (skips assets/). For each folder, reports the
+ *  name of its `<name>.kf` metadata marker file if present (for color/icon). */
+export async function listWorkspaceFolders(dir: DirHandle, basePath = ""): Promise<WorkspaceFolderEntry[]> {
+  const folders: WorkspaceFolderEntry[] = [];
+  const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string }> }).values();
+  for await (const entry of iter) {
+    if (entry.kind !== "directory" || entry.name === ASSETS_DIR) continue;
+    const sub = await dir.getDirectoryHandle(entry.name);
+    const path = joinPath(basePath, entry.name);
+    // Look for a `.kf` metadata marker inside the folder.
+    let metaFile: string | null = null;
+    const subIter = (sub as unknown as { values: () => AsyncIterable<{ kind: string; name: string }> }).values();
+    for await (const child of subIter) {
+      if (child.kind === "file" && child.name.toLowerCase().endsWith(".kf")) { metaFile = child.name; break; }
+    }
+    folders.push({ name: entry.name, path, parent: basePath, metaFile });
+    folders.push(...(await listWorkspaceFolders(sub, path)));
+  }
+  folders.sort((a, b) => a.path.localeCompare(b.path));
+  return folders;
+}
+
 /** Recursively list all Killio files in the workspace folder + subfolders
- *  (skips the assets/ folder). Folder structure is preserved via `path`/`folder`. */
+ *  (skips the assets/ folder and .kf folder-markers). Folder structure is
+ *  preserved via `path`/`folder`. */
 export async function listWorkspaceFiles(dir: DirHandle, basePath = ""): Promise<WorkspaceFileEntry[]> {
   const entries: WorkspaceFileEntry[] = [];
   const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string; getFile?: () => Promise<File> }> }).values();

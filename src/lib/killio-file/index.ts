@@ -18,11 +18,13 @@
 
 import { stringifyKaml, parseKaml, KamlParseError } from "./kaml.ts";
 
-export type KillioKind = "kd" | "km" | "kb" | "ks";
+// kd/km/kb/ks are entity files; kf is a folder-metadata marker file
+// (`<foldername>.kf`) holding display name + color + icon for a disk subfolder.
+export type KillioKind = "kd" | "km" | "kb" | "ks" | "kf";
 
-export const KILLIO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks" };
+export const KILLIO_EXT: Record<KillioKind, string> = { kd: ".kd", km: ".km", kb: ".kb", ks: ".ks", kf: ".kf" };
 export const KILLIO_MIME = "text/plain;charset=utf-8";
-const KINDS: KillioKind[] = ["kd", "km", "kb", "ks"];
+const KINDS: KillioKind[] = ["kd", "km", "kb", "ks", "kf"];
 
 export class KillioFileError extends Error {}
 
@@ -41,7 +43,7 @@ export function encodeKillioFile(file: KillioFile): string {
 export function decodeKillioFile(text: string): KillioFile {
   const nl = text.indexOf("\n");
   const headerLine = (nl === -1 ? text : text.slice(0, nl)).trim();
-  const m = headerLine.match(/^#killio\s+(kd|km|kb|ks)\s+(\S+)/);
+  const m = headerLine.match(/^#killio\s+(kd|km|kb|ks|kf)\s+(\S+)/);
   if (!m) throw new KillioFileError("Missing or invalid #killio header");
   const kind = m[1] as KillioKind;
   const schemaVersion = m[2];
