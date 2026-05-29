@@ -23,6 +23,7 @@ import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
+import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
@@ -1034,6 +1035,7 @@ export default function BoardPage() {
         const meta = await readWorkspaceFileWithMeta(dir, localFile);
         if (meta) boardLastModifiedRef.current = meta.lastModified;
         boardDirtyRef.current = false;
+        void logLocalActivity(dir, localFile, { action: "board.updated", actorId: user?.id ?? "local", scope: "board", scopeId: localFile });
       } catch { /* ignore */ }
     }, 400);
     return () => clearTimeout(id);

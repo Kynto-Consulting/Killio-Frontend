@@ -22,6 +22,7 @@ import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
+import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -209,6 +210,7 @@ export default function DocumentPage() {
         const meta = await readWorkspaceFileWithMeta(dir, localFile);
         if (meta) localLastModifiedRef.current = meta.lastModified;
         localDirtyRef.current = false;
+        void logLocalActivity(dir, localFile, { action: "document.updated", actorId: user?.id ?? "local", scope: "document", scopeId: localFile });
       } catch { /* ignore */ }
     }, 400);
     return () => clearTimeout(id);

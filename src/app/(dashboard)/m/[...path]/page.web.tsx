@@ -38,6 +38,7 @@ import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { BUILT_IN_TEMPLATES, captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { reorderInList, type ZOrderOp } from "@/lib/z-order";
 import { serializeMeshToKm, deserializeKmToMesh } from "@/lib/mesh-file";
+import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
@@ -1554,6 +1555,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         lastSavedHashRef.current = snapshotHash;
         const m = await readWorkspaceFileWithMeta(dir, localFile);
         if (m) localLastModifiedRef.current = m.lastModified;
+        void logLocalActivity(dir, localFile, { action: "mesh.updated", actorId: user?.id ?? "local", scope: "mesh", scopeId: localFile });
         return true;
       } catch { if (!opts?.silent) toast(tMesh("errors.saveFailed"), "error"); return false; }
       finally { setIsSaving(false); }

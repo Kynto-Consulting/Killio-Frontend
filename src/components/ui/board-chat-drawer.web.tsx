@@ -18,6 +18,8 @@ import { useLinkedRoom } from "@/hooks/use-linked-room";
 import { useRoomChat } from "@/hooks/use-room-chat";
 import { RoomMessageItem } from "@/components/rooms/RoomMessageItem";
 import type { LinkedEntityType } from "@/lib/api/rooms";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readLocalActivity } from "@/lib/local-workspace/local-activity";
 
 export interface BoardChatDrawerProps {
   isOpen: boolean;
@@ -41,12 +43,26 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
   const { activeTeamId, accessToken, user: sessionUser } = useSession();
   const {
     state: {
-      activeTab, setActiveTab, allAvailableTags, teamDocs, teamMembers, teamBoardsForMentions,
+      activeTab, setActiveTab, setActivities, allAvailableTags, teamDocs, teamMembers, teamBoardsForMentions,
       boardCardsForMentions, selectedActivityGroup, setSelectedActivityGroup,
       isActivityModalOpen, setIsActivityModalOpen, bottomRef, groupedActivities, aiUsage, user
     },
     actions: {}
   } = useBoardChatDrawer(boardId, initialTab, isOpen);
+
+  // Local mode: the cloud activity fetch no-ops (no token); read the local
+  // hidden sidecar for this entity and feed it into the drawer's activity list.
+  const { getDir } = useLocalWorkspace();
+  useEffect(() => {
+    if (!localMode || !isOpen || activeTab !== 'activity' || !boardId) return;
+    const dir = getDir();
+    if (!dir) return;
+    let cancelled = false;
+    void readLocalActivity(dir, boardId).then((entries) => {
+      if (!cancelled) setActivities(entries as any);
+    });
+    return () => { cancelled = true; };
+  }, [localMode, isOpen, activeTab, boardId, getDir, setActivities]);
 
   // Map AgentEntityScope → LinkedEntityType (ignore 'team' which has no linked room)
   const linkedEntityType = (

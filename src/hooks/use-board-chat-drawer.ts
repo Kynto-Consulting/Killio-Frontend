@@ -980,6 +980,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
       isLoading,
       isSendingMessage,
       activities,
+      setActivities,
       allAvailableTags,
       teamDocs,
       teamMembers,

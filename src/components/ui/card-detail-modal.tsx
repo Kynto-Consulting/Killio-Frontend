@@ -9,6 +9,7 @@ import { useLocalWorkspace } from "@/components/providers/local-workspace-provid
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { patchCardInKb } from "@/lib/local-workspace/adapters";
+import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -253,6 +254,7 @@ export function CardDetailModal({
           blocks: localBlocks,
         });
         await writeWorkspaceFile(dir, boardId, encodeKillioFile({ kind: "kb", schemaVersion: "2026-v1", payload: patched }));
+        void logLocalActivity(dir, boardId, { action: "card.updated", actorId: "local", scope: "board", scopeId: boardId, payload: { cardId: card.id, title: localTitle } });
       } catch { /* ignore */ }
     }, 400);
     return () => clearTimeout(id);

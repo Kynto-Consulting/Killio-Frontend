@@ -18,6 +18,8 @@ import { ReferenceTokenInput } from "./reference-token-input";
 import { AgentChatPanel } from "@/components/agent";
 import { buildDocumentContextSummary } from "@/lib/brick-context";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMember, toReferenceUsers, type WorkspaceMemberLike } from "@/lib/workspace-members";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { readLocalActivity } from "@/lib/local-workspace/local-activity";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -139,6 +141,7 @@ export function DocumentCommentsDrawer({
   const tRooms = useTranslations("rooms");
   const getActionTheme = useActionTheme();
   const { accessToken, user, activeTeamId } = useSession();
+  const localWs = useLocalWorkspace();
 
   // In local mode: comments (room-backed) are unavailable; Copilot needs the
   // internet (uses the personal workspace plan); activity reads from a local
@@ -240,6 +243,13 @@ export function DocumentCommentsDrawer({
   };
 
   const fetchActivity = async () => {
+    if (localMode) {
+      const dir = localWs.getDir();
+      if (!dir || !docId) return;
+      try { setActivities(await readLocalActivity(dir, docId) as unknown as ActivityLogEntry[]); }
+      catch (e) { console.error("Failed to read local activity", e); }
+      return;
+    }
     if (!accessToken || !docId) return;
     try {
       const data = await getDocumentActivity(docId, accessToken);
