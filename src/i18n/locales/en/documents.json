@@ -1,6 +1,21 @@
 {
   "title": "Documents",
   "subtitle": "Create and manage your workspace documents.",
+  "importButton": "Import",
+  "import": {
+    "title": "Import markdown",
+    "description": "Import a folder of markdown or a .zip (e.g. an Obsidian vault). Notes become documents, [[links]] become reference pills, and images/embeds become media — all mapped to Killio bricks.",
+    "chooseZip": "Choose .zip",
+    "chooseFolder": "Choose folder",
+    "progress": "Importing",
+    "successTitle": "Import complete",
+    "successDescription": "Imported {{docs}} documents and {{assets}} files.",
+    "failedNote": "{{failed}} item(s) couldn't be imported.",
+    "errorTitle": "Import failed",
+    "errorDescription": "Couldn't read that folder or zip. Please try again.",
+    "retry": "Try again",
+    "done": "Done"
+  },
   "searchPlaceholder": "Search documents...",
   "newDocument": "New Document",
   "startWriting": "Start writing with bricks",

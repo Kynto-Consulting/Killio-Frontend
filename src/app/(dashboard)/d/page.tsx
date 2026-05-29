@@ -18,6 +18,9 @@ import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { encodeKillioFile } from "@/lib/killio-file";
 import { docToKd } from "@/lib/local-workspace/adapters";
+import { ImportVaultModal } from "@/components/ui/import-vault-modal";
+import { importVaultLocal, importVaultOnline, type RawFile } from "@/lib/local-workspace/vault-import";
+import { FileUp } from "lucide-react";
 
 export default function DocumentsPage() {
   return (
@@ -44,6 +47,7 @@ function DocumentsPageContent() {
   const [deleteDocumentTarget, setDeleteDocumentTarget] = useState<DocumentSummary | null>(null);
   const [editingDocument, setEditingDocument] = useState<DocumentSummary | null>(null);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
   const [isFolderModalOpen, setIsFolderModalOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState<Folder | null>(null);
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([]);
@@ -310,8 +314,15 @@ function DocumentsPageContent() {
               className="pl-9 h-9 w-64 rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent"
             />
           </div>
-          <button 
-            onClick={() => setIsCreateModalOpen(true)} 
+          <button
+            onClick={() => setIsImportOpen(true)}
+            className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring border border-border bg-card hover:bg-accent/10 hover:border-accent hover:text-accent shadow-sm h-9 px-4"
+          >
+            <FileUp className="mr-2 h-4 w-4" />
+            {t("importButton")}
+          </button>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
             className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring bg-primary/90 hover:bg-primary text-primary-foreground shadow h-9 px-4 group"
           >
             <Plus className="mr-2 h-4 w-4 opacity-70 group-hover:scale-110 transition-transform" />
@@ -508,6 +519,24 @@ function DocumentsPageContent() {
         onSubmit={async (title) => {
           await handleCreateDocument(title);
           setIsCreateModalOpen(false);
+        }}
+      />
+
+      <ImportVaultModal
+        isOpen={isImportOpen}
+        onClose={() => setIsImportOpen(false)}
+        onDone={() => { if (workspaceMode === "local") void localWs.refresh(); }}
+        run={async (files: RawFile[], onProgress) => {
+          if (workspaceMode === "local") {
+            const dir = localWs.getDir();
+            if (!dir) throw new Error("No local workspace folder");
+            return importVaultLocal(files, dir, { onProgress });
+          }
+          if (!accessToken || !activeTeamId) throw new Error("Not signed in");
+          const summary = await importVaultOnline(files, { teamId: activeTeamId, accessToken }, { onProgress });
+          // refresh the cloud document list
+          try { const docs = await listDocuments(activeTeamId, accessToken, activeFolderId || undefined); setDocuments(Array.isArray(docs) ? docs : []); } catch { /* ignore */ }
+          return summary;
         }}
       />
 
