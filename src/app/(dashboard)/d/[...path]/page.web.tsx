@@ -40,6 +40,14 @@ import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMedi
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 import { toReferenceUsers } from "@/lib/workspace-members";
 import { DocumentShareModal } from "@/components/ui/document-share-modal";
+import { useOpHistory } from "@/lib/history/use-op-history";
+import { computeDocBatch, makeDocApplier } from "@/lib/history/doc-ops";
+import type { OpScope } from "@/lib/history/types";
+
+// ── Op-history helpers (pure, module-level so they're stable) ────────────────
+const historyTick = () => new Promise<void>((r) => setTimeout(r, 0));
+const cloneBricks = (bricks?: DocumentBrick[]): DocumentBrick[] =>
+  bricks ? (JSON.parse(JSON.stringify(bricks)) as DocumentBrick[]) : [];
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
@@ -115,10 +123,11 @@ export default function DocumentPage() {
     return { id: localFile, title: draft.title, bricks: draft.bricks as unknown as DocumentBrick[], teamId: "local", visibility: "private", role: "owner", createdByUserId: "", createdAt: "", updatedAt: "" } as unknown as DocumentView;
   }, [localMode, localFile, localWs]);
 
-  const createDocumentBrick = useCallback(async (id: string, payload: { kind: string; position: number; content: any }, token?: string | null): Promise<DocumentBrick> => {
+  const createDocumentBrick = useCallback(async (id: string, payload: { kind: string; position: number; content: any; id?: string }, token?: string | null): Promise<DocumentBrick> => {
     if (!localMode) return apiCreateDocumentBrick(id, payload, token as string);
     const now = new Date().toISOString();
-    return { id: genBrickId(), documentId: localFile, kind: payload.kind, position: payload.position, content: payload.content, createdByUserId: null, createdAt: now, updatedAt: now } as unknown as DocumentBrick;
+    // Honor a client-provided brick id (history recreate) so nesting refs hold.
+    return { id: payload.id || genBrickId(), documentId: localFile, kind: payload.kind, position: payload.position, content: payload.content, createdByUserId: null, createdAt: now, updatedAt: now } as unknown as DocumentBrick;
   }, [localMode, localFile]);
 
   const updateDocumentBrick = useCallback(async (id: string, brickId: string, content: any, token?: string | null): Promise<DocumentBrick> => {
@@ -410,6 +419,65 @@ export default function DocumentPage() {
     }
   });
 
+  // ── Op-history: undo/redo as deltas over the realtime channel ──────────────
+  // The applier mutates local state and (for local-origin ops) persists through
+  // the existing seam fns; it is idempotent so remote echoes + the legacy
+  // backend broadcast converge. See src/lib/history/doc-ops.ts.
+  const docApplier = useCallback(
+    makeDocApplier({
+      setDocument,
+      bricksRef: documentBricksRef,
+      sanitize: sanitizeDocumentBricks,
+      docId: () => docId,
+      token: () => accessToken,
+      localMode: () => localMode,
+      createBrick: createDocumentBrick,
+      updateBrick: updateDocumentBrick,
+      deleteBrick: deleteDocumentBrick,
+      reorderBricks: reorderDocumentBricks,
+      onError: () => fetchDoc(),
+    }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [sanitizeDocumentBricks, docId, accessToken, localMode, createDocumentBrick, updateDocumentBrick, deleteDocumentBrick, reorderDocumentBricks, fetchDoc],
+  );
+
+  const history = useOpHistory({
+    scope: document ? ({ kind: "document", id: docId } as OpScope) : null,
+    apply: docApplier,
+    enabled: !!document && !localMode, // local mode is single-user: no WS subscribe
+    broadcast: !localMode, // don't publish deltas when there are no peers
+    cap: 100,
+  });
+
+  // Diff a pre-mutation snapshot against the now-current bricks and record the
+  // resulting delta. Engine handlers already applied + persisted the change, so
+  // we only record (broadcast + push to the undo stack), never re-apply.
+  const recordChange = useCallback((before: DocumentBrick[] | null) => {
+    if (!before || history.applyingRef.current) return;
+    const after = documentBricksRef.current;
+    const draft = computeDocBatch(before, after);
+    if (draft) history.record(draft);
+  }, [history]);
+
+  // Undo/redo keyboard shortcuts. Ignored while focus is in a text editor so
+  // native text undo wins inside bricks/inputs.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const key = e.key.toLowerCase();
+      const isUndo = key === "z" && !e.shiftKey;
+      const isRedo = (key === "z" && e.shiftKey) || key === "y";
+      if (!isUndo && !isRedo) return;
+      const el = (typeof window !== "undefined" ? window.document.activeElement : null) as HTMLElement | null;
+      if (el && (el.isContentEditable || el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
+      e.preventDefault();
+      if (isUndo) void history.undo().then((ok) => { if (ok) toast(t("history.undo"), "info"); });
+      else void history.redo().then((ok) => { if (ok) toast(t("history.redo"), "info"); });
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [history, t]);
+
   // ── Clipboard: copy/paste bricks (P1, document-level) ──────────────────────
   const copyDocumentBricks = useCallback(async (): Promise<boolean> => {
     if (!document) return false;
@@ -427,6 +495,7 @@ export default function DocumentPage() {
 
   const pasteBricks = useCallback(async (bricks: ClipboardBrick[]) => {
     if (!document || bricks.length === 0) return;
+    const before = cloneBricks(document.bricks);
     const topIds = getTopLevelBrickIds(document.bricks);
     const top = document.bricks.filter((b) => topIds.has(b.id)).sort((a, b) => a.position - b.position);
     let pos = top.length ? top[top.length - 1].position + 1000 : 1000;
@@ -439,7 +508,9 @@ export default function DocumentPage() {
       } catch { /* skip a brick the backend rejects */ }
     }
     if (added > 0) toast(t("clipboard.pasted", { n: added }), "success");
-  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks, t]);
+    await historyTick();
+    recordChange(before);
+  }, [document, docId, accessToken, createDocumentBrick, sanitizeDocumentBricks, t, recordChange]);
 
   useEffect(() => {
     if (!document) return;
@@ -494,7 +565,7 @@ export default function DocumentPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, docId, pasteBricks, brickSelection, t]);
 
-  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
+  const runAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
     if (!accessToken || !document) return;
 
@@ -746,7 +817,14 @@ export default function DocumentPage() {
     }
   };
 
-  const handleUpdateBrick = async (brickId: string, content: any) => {
+  const handleAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
+    const before = cloneBricks(document?.bricks);
+    await runAddBrick(kind, afterBrickId, parentProps, initialContent);
+    await historyTick();
+    recordChange(before);
+  };
+
+  const runUpdateBrick = async (brickId: string, content: any) => {
     if (!accessToken || !document) return;
 
     // Optimistic update
@@ -757,6 +835,7 @@ export default function DocumentPage() {
         bricks: prev.bricks.map((b) => (b.id === brickId ? { ...b, content } : b)),
       };
     });
+    documentBricksRef.current = documentBricksRef.current.map((b) => (b.id === brickId ? { ...b, content } : b));
 
     try {
       await updateDocumentBrick(docId, brickId, content, accessToken);
@@ -764,6 +843,13 @@ export default function DocumentPage() {
       console.error(e);
       // Revert or show error
     }
+  };
+
+  const handleUpdateBrick = async (brickId: string, content: any) => {
+    const before = cloneBricks(document?.bricks);
+    await runUpdateBrick(brickId, content);
+    await historyTick();
+    recordChange(before);
   };
 
   const handlePatchBrickCell = async (brickId: string, patch: Record<string, any>) => {
@@ -798,7 +884,7 @@ export default function DocumentPage() {
     setIsCommentsOpen(true);
   }, []);
 
-  const handleDeleteBrick = async (brickId: string) => {
+  const runDeleteBrick = async (brickId: string) => {
     if (!accessToken || !document) return;
 
     const byId = new Map(document.bricks.map((brick) => [brick.id, brick]));
@@ -844,7 +930,14 @@ export default function DocumentPage() {
     }
   };
 
-  const handleReorderBricks = async (brickIds: string[]) => {
+  const handleDeleteBrick = async (brickId: string) => {
+    const before = cloneBricks(document?.bricks);
+    await runDeleteBrick(brickId);
+    await historyTick();
+    recordChange(before);
+  };
+
+  const runReorderBricks = async (brickIds: string[]) => {
     if (!accessToken || !document) return;
 
     const updates = brickIds.map((id, index) => ({ id, position: index * 1000 + 1000 }));
@@ -865,6 +958,13 @@ export default function DocumentPage() {
       console.error(e);
       fetchDoc(); // Rollback on error
     }
+  };
+
+  const handleReorderBricks = async (brickIds: string[]) => {
+    const before = cloneBricks(document?.bricks);
+    await runReorderBricks(brickIds);
+    await historyTick();
+    recordChange(before);
   };
 
   const handleCrossContainerDrop = async (

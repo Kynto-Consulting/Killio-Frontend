@@ -206,7 +206,7 @@ export async function updateDocumentVisibility(
 
 export async function createDocumentBrick(
   documentId: string,
-  payload: { kind: string; position: number; content: any },
+  payload: { kind: string; position: number; content: any; id?: string },
   accessToken: string
 ): Promise<DocumentBrick> {
   return fetchApi(`/documents/${documentId}/bricks`, {

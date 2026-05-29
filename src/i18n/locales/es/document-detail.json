@@ -1,6 +1,7 @@
 {
   "refOpenHint": "Ctrl/Cmd + clic para abrir",
   "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)", "cut": "{{n}} cortado(s)" },
+  "history": { "undo": "Deshacer", "redo": "Rehacer" },
   "common": {
     "saveChanges": "Guardar cambios",
     "cancel": "Cancelar"
