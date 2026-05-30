@@ -7,7 +7,7 @@
 import type { GeneratedMesh, GeneratedMeshNode, GeneratedMeshEdge, GeneratedMeshShape } from "@/lib/api/contracts";
 import { parsePieToMesh, parseXYChartToMesh, parseQuadrantToMesh, parseRadarToMesh, parseTreemapToMesh, parseKanbanToMesh, parseGanttToMesh, parsePacketToMesh, parseWardleyToMesh, parseVennToMesh } from "@/lib/mermaid-charts";
 
-type Dir = "TB" | "LR";
+type Dir = "TB" | "BT" | "LR" | "RL";
 
 type ParsedNode = { id: string; label: string; shape: GeneratedMeshShape; kind: "shape" | "text"; subgraph?: string };
 type ParsedEdge = { from: string; to: string; label?: string; pattern?: "solid" | "dashed"; thick?: boolean };
@@ -152,10 +152,13 @@ function parseLine(line: string, nodes: Map<string, ParsedNode>, edges: ParsedEd
 }
 
 function detectDir(firstLine: string): Dir {
-  const m = firstLine.match(/^(?:graph|flowchart)\s+(TB|TD|BT|LR|RL)/i);
+  const m = firstLine.match(/^(?:graph|flowchart)\s+(TB|TD|DT|BT|LR|RL)/i);
   if (!m) return "TB";
   const d = m[1].toUpperCase();
-  return d === "LR" || d === "RL" ? "LR" : "TB";
+  // TD/DT are aliases of TB (top→bottom). TB/BT/LR/RL kept distinct so the
+  // layout can reverse the main axis for BT (bottom→top) and RL (right→left).
+  if (d === "TD" || d === "DT") return "TB";
+  return d as Dir;
 }
 
 // Longest-path layering from roots (nodes with no incoming edge).
@@ -367,12 +370,16 @@ function parseFlowchartToMesh(source: string): GeneratedMesh {
   // Place nodes by layer (global coords).
   const posById = new Map<string, { x: number; y: number }>();
   const meshNodes: GeneratedMeshNode[] = [];
+  const horizontal = dir === "LR" || dir === "RL"; // main axis = X
+  const reverse = dir === "BT" || dir === "RL";    // main axis runs backwards
+  const layerCount = byLayer.size ? Math.max(...byLayer.keys()) + 1 : 0;
   byLayer.forEach((ids, l) => {
     ids.forEach((id, idx) => {
-      const mainPos = l * (NODE_H + GAP_MAIN);
+      const eff = reverse ? layerCount - 1 - l : l;
+      const mainPos = eff * (NODE_H + GAP_MAIN);
       const crossPos = idx * (NODE_W + GAP_CROSS);
-      const x = dir === "TB" ? crossPos : mainPos;
-      const y = dir === "TB" ? mainPos : crossPos;
+      const x = horizontal ? mainPos : crossPos;
+      const y = horizontal ? crossPos : mainPos;
       posById.set(id, { x, y });
     });
   });

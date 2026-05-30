@@ -4991,7 +4991,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                     <div className="flex items-center gap-1.5 pointer-events-none">
                       <span className="opacity-50">{colTypeIcon[col.type] || <FileText className="h-3 w-3" />}</span>
                       <span className="text-xs truncate">{col.name}</span>
-                      {effectiveSortConfig?.colId === col.id && (
+                      {effectiveSortConfig && col.id != null && effectiveSortConfig.colId === col.id && (
                         <span className="ml-auto text-accent px-1 bg-accent/10 rounded">
                           {effectiveSortConfig.direction === "asc" ? "↑" : "↓"}
                         </span>
@@ -5066,7 +5066,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
               if (activeView) updateActiveView({ sorts: dir ? [{ colId: headerMenu.colId, direction: dir }] : [] });
               else setSortConfig(dir ? { colId: headerMenu.colId, direction: dir } : null);
             }}
-            sortDir={effectiveSortConfig?.colId === headerMenu.colId ? effectiveSortConfig.direction : null}
+            sortDir={effectiveSortConfig && effectiveSortConfig.colId === headerMenu.colId ? effectiveSortConfig.direction : null}
             onFilterChange={(op, val) => handleFilterChange(headerMenu.colId, op, val)}
             filterValue={effectiveFilterConfig.find(f => f.colId === headerMenu.colId)?.value}
             filterOperator={effectiveFilterConfig.find(f => f.colId === headerMenu.colId)?.operator}
