@@ -3176,7 +3176,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         const nx = (x - g.x) / Math.max(b.size.w, 1);
         const ny = (y - g.y) / Math.max(b.size.h, 1);
         const c  = asRec(b.content);
-        const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
+        // Seed from the preset's default polygon when the shape has no explicit
+        // vectorPoints yet (e.g. imported shapes) so vec editing works on them.
+        const preset0 = typeof c.shapePreset === "string" ? (c.shapePreset as ShapePreset) : undefined;
+        const base = Array.isArray(c.vectorPoints) ? (c.vectorPoints as { x: number; y: number }[]) : (preset0 && SHAPE_PTS[preset0] ? SHAPE_PTS[preset0]! : []);
+        const pts = [...base];
         pts[vecDragState.pointIndex] = { x: +nx.toFixed(4), y: +ny.toFixed(4) };
         return { ...cur, bricksById: { ...cur.bricksById, [b.id]: { ...b, content: { ...c, vectorPoints: pts } } } };
       });
@@ -3578,7 +3582,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const b = cur.bricksById[brickId];
       if (!b) return cur;
       const c = asRec(b.content);
-      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
+      const preset0 = typeof c.shapePreset === "string" ? (c.shapePreset as ShapePreset) : undefined;
+      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : (preset0 && SHAPE_PTS[preset0] ? [...SHAPE_PTS[preset0]!] : []);
       if (pts.length <= 3) return cur; // keep minimum triangle
       pts.splice(idx, 1);
       return { ...cur, bricksById: { ...cur.bricksById, [brickId]: { ...b, content: { ...c, vectorPoints: pts } } } };
@@ -3590,7 +3595,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const b = cur.bricksById[brickId];
       if (!b) return cur;
       const c = asRec(b.content);
-      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : [];
+      const preset0 = typeof c.shapePreset === "string" ? (c.shapePreset as ShapePreset) : undefined;
+      const pts = Array.isArray(c.vectorPoints) ? [...(c.vectorPoints as { x: number; y: number }[])] : (preset0 && SHAPE_PTS[preset0] ? [...SHAPE_PTS[preset0]!] : []);
       if (!pts.length) return cur;
       const newPt = { x: +Math.max(0, Math.min(1, nx)).toFixed(4), y: +Math.max(0, Math.min(1, ny)).toFixed(4) };
       let bestEdge = 0, bestDist = Infinity;
@@ -4026,7 +4032,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </div>
           )}
           {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
-          {isSel && toolMode === "vec" && vecPts?.map((pt, i) => (
+          {isSel && toolMode === "vec" && (vecPts ?? (shapeP ? SHAPE_PTS[shapeP] : undefined))?.map((pt, i) => (
             <div key={i} className="absolute z-40 h-3 w-3 -translate-x-1/2 -translate-y-1/2 cursor-move rounded-full bg-yellow-300 ring-1 ring-black/60"
               style={{ left: pt.x * brick.size.w, top: pt.y * brick.size.h }}
               title="Arrastrar para mover · Clic derecho para eliminar"
@@ -4909,17 +4915,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 <svg className="pointer-events-none absolute inset-0 overflow-visible" style={{ width: "100%", height: "100%" }}>
                   <defs>
                     <marker id="arr-norm" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#22d3ee" opacity="0.9" />
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="context-stroke" />
                     </marker>
                     <marker id="arr-sel" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#ffffff" />
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="context-stroke" />
                     </marker>
                     {/* Reversed heads for bidirectional connections (markerStart). */}
                     <marker id="arr-norm-rev" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse">
-                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#22d3ee" opacity="0.9" />
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="context-stroke" />
                     </marker>
                     <marker id="arr-sel-rev" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto-start-reverse">
-                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="#ffffff" />
+                      <path d="M0,0.5 L6,3.5 L0,6.5 Z" fill="context-stroke" />
                     </marker>
                   </defs>
                   {Object.values(state.connectionsById).map((conn) => {
@@ -5339,10 +5345,63 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   )}
 
                   {toolbarPanel === "style" && (() => {
+                    // Connection selected → edit its line style (color/width/pattern/type/bidir).
+                    if (selectedConnId && state.connectionsById[selectedConnId]) {
+                      const conn = state.connectionsById[selectedConnId];
+                      const cs = asRec(conn.style);
+                      const cStroke = typeof cs.stroke === "string" ? cs.stroke : "#22d3ee";
+                      const cW = typeof cs.width === "number" ? cs.width : 2;
+                      const cPattern = cs.pattern === "dashed" ? "dashed" : cs.pattern === "dotted" ? "dotted" : "solid";
+                      const cType = typeof cs.connType === "string" ? cs.connType : "technical";
+                      const cBidir = cs.bidir === true;
+                      const patchConn = (patch: Record<string, unknown>) => setState((cur) => {
+                        const c = cur.connectionsById[selectedConnId]; if (!c) return cur;
+                        return { ...cur, connectionsById: { ...cur.connectionsById, [selectedConnId]: { ...c, style: { ...asRec(c.style), ...patch } } } };
+                      });
+                      const seg = (active: boolean) => `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700"}`;
+                      return (
+                        <div className="space-y-3">
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("connStyle.title")}</p>
+                          <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-300">
+                            <label className="flex flex-col gap-1">
+                              <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.color")}</span>
+                              <div className="flex items-center gap-1.5">
+                                <input type="color" value={cStroke.startsWith("#") ? cStroke : "#22d3ee"} onChange={(e) => patchConn({ stroke: e.target.value })} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+                                <input type="text" value={cStroke} onChange={(e) => patchConn({ stroke: e.target.value })} className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                              </div>
+                            </label>
+                            <label className="flex flex-col gap-1">
+                              <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.width")}</span>
+                              <input type="number" min={1} max={10} step={0.5} value={cW} onChange={(e) => patchConn({ width: Number(e.target.value) })} className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                            </label>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.pattern")}</span>
+                            <div className="flex gap-1">
+                              {(["solid", "dashed", "dotted"] as const).map((p) => (
+                                <button key={p} onClick={() => patchConn({ pattern: p })} className={seg(cPattern === p)}>{tMesh(`connStyle.${p}`)}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-1">
+                            <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.type")}</span>
+                            <div className="flex gap-1">
+                              {(["technical", "curved", "bezier", "handdrawn"] as const).map((ct) => (
+                                <button key={ct} onClick={() => patchConn({ connType: ct })} className={seg(cType === ct)}>{tMesh(`connStyle.${ct}`)}</button>
+                              ))}
+                            </div>
+                          </div>
+                          <label className="flex items-center justify-between cursor-pointer">
+                            <span className="text-[10px]">{tMesh("connStyle.bidir")}</span>
+                            <input type="checkbox" checked={cBidir} onChange={() => patchConn({ bidir: !cBidir })} className="accent-cyan-400" />
+                          </label>
+                        </div>
+                      );
+                    }
                     const sb = selectedId ? state.bricksById[selectedId] : null;
                     const isStyleable = sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame");
                     if (!isStyleable || !sb) return (
-                      <div className="text-[10px] text-slate-400">Selecciona un board, figura o draw para editar el estilo.</div>
+                      <div className="text-[10px] text-slate-400">{tMesh("connStyle.selectHint")}</div>
                     );
                     const sbStyle = asRec(asRec(sb.content).style);
                     const curStroke = typeof sbStyle.stroke === "string" ? sbStyle.stroke : (sb.kind === "board_empty" ? "rgba(34,211,238,0.6)" : "#22d3ee");

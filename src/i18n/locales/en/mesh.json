@@ -1,5 +1,6 @@
 {
   "local": { "reconnect": "Reconnect folder", "reconnectHint": "This mesh lives in a local folder. Grant access again to open it (browsers drop folder permission on reload)." },
+  "connStyle": { "title": "Connection", "color": "Color", "width": "Width", "pattern": "Line", "solid": "Solid", "dashed": "Dashed", "dotted": "Dotted", "type": "Style", "technical": "Right-angle", "curved": "Curved", "bezier": "Bezier", "handdrawn": "Hand", "bidir": "Bidirectional", "selectHint": "Select a board, shape, draw, or connection to edit its style." },
   "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted", "cut": "{{n}} cut" },
   "header": {
     "bricks": "bricks",
