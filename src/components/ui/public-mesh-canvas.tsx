@@ -7,6 +7,7 @@ import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import type { DocumentBrick } from "@/lib/api/documents";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import { strokeToFilledPath } from "@/lib/freehand";
+import { ChartGlyph } from "@/components/ui/chart-glyph";
 
 // ─── Types (from mesh-schema / page.web.tsx) ─────────────────────────────────
 
@@ -833,6 +834,14 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
 function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
+  // Chart metabrick: content carries a Mermaid source rendered as one SVG.
+  if (typeof c.chartSource === "string") {
+    return (
+      <div key={brick.id} className="absolute overflow-hidden rounded-md" style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}>
+        <ChartGlyph source={c.chartSource as string} className="h-full w-full" />
+      </div>
+    );
+  }
   const styleR = asRec(c.style);
   const sStroke = typeof styleR.stroke === "string" ? styleR.stroke : "#22d3ee";
   const sFill   = typeof styleR.fill   === "string" ? styleR.fill   : "rgba(34,211,238,0.07)";
