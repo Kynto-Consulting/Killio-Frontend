@@ -73,24 +73,23 @@ function MeshShape({ a, node }: { a: Abs; node: GeneratedMeshNode }) {
   return <rect x={a.x} y={a.y} width={a.w} height={a.h} rx={rx} ry={rx} stroke={stroke} fill={fill} strokeWidth={1.5} />;
 }
 
-export function ChartGlyph({ source, className }: { source: string; className?: string }) {
-  const { mesh, abs, view, error } = React.useMemo(() => {
-    let mesh: GeneratedMesh = { nodes: [], edges: [] };
-    let error = false;
-    try { mesh = parseMermaidToMesh(source || ""); } catch { error = true; }
+// Render a pre-parsed GeneratedMesh as a single fitted SVG. Provider-free (no
+// hooks/context) so it can be mounted into a detached React root.
+export function MeshGlyph({ mesh, className, emptyHint }: { mesh: GeneratedMesh; className?: string; emptyHint?: string }) {
+  const { abs, view } = React.useMemo(() => {
     const abs = resolveAbs(mesh);
     let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
     abs.forEach((a) => { minX = Math.min(minX, a.x); minY = Math.min(minY, a.y); maxX = Math.max(maxX, a.x + a.w); maxY = Math.max(maxY, a.y + a.h); });
     if (!Number.isFinite(minX)) { minX = 0; minY = 0; maxX = 100; maxY = 60; }
     const pad = 10;
     const view = { x: minX - pad, y: minY - pad, w: maxX - minX + pad * 2, h: maxY - minY + pad * 2 };
-    return { mesh, abs, view, error };
-  }, [source]);
+    return { abs, view };
+  }, [mesh]);
 
-  if (error || !mesh.nodes.length) {
+  if (!mesh.nodes.length) {
     return (
       <div className={`flex h-full w-full items-center justify-center rounded-md border border-dashed border-white/15 bg-slate-900/40 p-2 text-center text-[10px] text-slate-400 ${className ?? ""}`}>
-        {source?.trim() ? "No se pudo renderizar el gráfico" : "Gráfico vacío — edita la fuente Mermaid"}
+        {emptyHint ?? "Sin contenido para renderizar"}
       </div>
     );
   }
@@ -139,4 +138,12 @@ export function ChartGlyph({ source, className }: { source: string; className?: 
       })}
     </svg>
   );
+}
+
+// Parse a Mermaid source string and render it as a single fitted SVG.
+export function ChartGlyph({ source, className }: { source: string; className?: string }) {
+  const mesh = React.useMemo(() => {
+    try { return parseMermaidToMesh(source || ""); } catch { return { nodes: [], edges: [] } as GeneratedMesh; }
+  }, [source]);
+  return <MeshGlyph mesh={mesh} className={className} emptyHint={source?.trim() ? "No se pudo renderizar el gráfico" : "Gráfico vacío — edita la fuente Mermaid"} />;
 }
