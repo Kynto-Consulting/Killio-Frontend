@@ -147,7 +147,7 @@ export async function listWorkspaceFolders(dir: DirHandle, basePath = ""): Promi
   const folders: WorkspaceFolderEntry[] = [];
   const iter = (dir as unknown as { values: () => AsyncIterable<{ kind: string; name: string }> }).values();
   for await (const entry of iter) {
-    if (entry.kind !== "directory" || entry.name === ASSETS_DIR) continue;
+    if (entry.kind !== "directory" || entry.name === ASSETS_DIR || entry.name.startsWith(".")) continue;
     const sub = await dir.getDirectoryHandle(entry.name);
     const path = joinPath(basePath, entry.name);
     // Look for a `.kf` metadata marker inside the folder.
