@@ -1591,6 +1591,19 @@ export default function DocumentPage() {
 
   // Build breadcrumb path
   const getBreadcrumbs = () => {
+    // Local mode: folders are disk directories, so derive the trail from the
+    // file path (e.g. "cml-smp/maquinas/ideas.kd" → cml-smp / maquinas). Folder
+    // id == its path, which the /d list reads via ?folderId to preselect it.
+    if (localMode && localFile) {
+      const dirs = localFile.split("/").slice(0, -1);
+      if (!dirs.length) return null;
+      let acc = "";
+      return dirs.map((seg) => {
+        acc = acc ? `${acc}/${seg}` : seg;
+        const f = localWs.folders.find((x) => x.path === acc);
+        return { id: acc, name: f?.name ?? seg, icon: f?.icon, color: f?.color } as { id: string; name: string; icon?: string; color?: string };
+      });
+    }
     if (!document.folderId) return null;
     const breadcrumbs = [];
     let currentId = document.folderId;
