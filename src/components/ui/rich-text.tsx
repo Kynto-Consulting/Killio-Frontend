@@ -27,7 +27,7 @@ interface RichTextProps {
 // Render a ```mermaid``` / ```grarkdown``` / ```erDiagram``` block as a real
 // diagram using the SAME read-only meshboard renderer (PublicMeshCanvas), so it
 // matches the actual board output. Falls back to code on parse failure.
-function DiagramBlock({ lang, code }: { lang: string; code: string }) {
+export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
   let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
   try {
     if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(code));

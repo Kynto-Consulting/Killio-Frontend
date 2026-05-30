@@ -9,7 +9,8 @@ import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
 import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
-import { RichText } from "../ui/rich-text";
+import { RichText, DiagramBlock } from "../ui/rich-text";
+import { createRoot, type Root } from "react-dom/client";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -32,6 +33,23 @@ interface TextBrickProps {
   users?: WorkspaceMemberLike[];
   onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onAiAction?: (action: string, contextText: string) => void;
+}
+
+// Render a fenced diagram/preview block found in display HTML. `html` / `html[preview]`
+// → sandboxed iframe; mermaid / grarkdown / erDiagram → real meshboard canvas.
+function FencedRender({ lang, code }: { lang: string; code: string }) {
+  if (/^html(\[preview\])?$/i.test(lang)) {
+    return (
+      <iframe
+        srcDoc={code}
+        sandbox="allow-scripts allow-popups"
+        className="my-2 w-full rounded-lg border border-border/60 bg-white"
+        style={{ height: 360 }}
+        title="HTML preview"
+      />
+    );
+  }
+  return <DiagramBlock lang={lang} code={code} />;
 }
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
@@ -94,6 +112,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
   const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0, bottom: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
+  const readonlyRef = useRef<HTMLDivElement>(null);
+  // Diagram (mermaid / grarkdown / erDiagram / html-preview) fenced blocks found
+  // during the last display render — mounted as real React canvases by an effect.
+  const diagramBlocksRef = useRef<Array<{ lang: string; code: string }>>([]);
+  const diagramRootsRef = useRef<Root[]>([]);
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
@@ -102,7 +125,31 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
-  
+  // After read-only display HTML is painted, mount each fenced diagram/preview
+  // block (collected in diagramBlocksRef) into its placeholder as a real React
+  // canvas/iframe. Re-runs whenever the rendered text changes.
+  useEffect(() => {
+    if (!readonly) return;
+    const host = readonlyRef.current;
+    if (!host) return;
+    const blocks = diagramBlocksRef.current;
+    const placeholders = Array.from(host.querySelectorAll<HTMLElement>("[data-diagram-idx]"));
+    const roots: Root[] = [];
+    placeholders.forEach((el) => {
+      const idx = parseInt(el.getAttribute("data-diagram-idx") || "", 10);
+      const block = blocks[idx];
+      if (!block) return;
+      const root = createRoot(el);
+      root.render(<FencedRender lang={block.lang} code={block.code} />);
+      roots.push(root);
+    });
+    diagramRootsRef.current = roots;
+    return () => {
+      // Defer so we never unmount synchronously during React's commit phase.
+      roots.forEach((r) => setTimeout(() => { try { r.unmount(); } catch { /* noop */ } }, 0));
+      diagramRootsRef.current = [];
+    };
+  }, [readonly, text]);
 
   const tokenEscapeAttr = (value: string): string => {
     return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
@@ -499,10 +546,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   /**
    * Converts a markdown string (with \n) to rich semantic HTML for display
    */
-  const processPseudoMarkdown = (rawText: string): string => {
-    // Pre-extract fenced code blocks so they bypass reference + markdown processing
+  const processPseudoMarkdown = (rawText: string, forDisplay = false): string => {
+    if (forDisplay) diagramBlocksRef.current = [];
+    // Pre-extract fenced code blocks so they bypass reference + markdown processing.
+    // Lang may carry brackets (e.g. `html[preview]`), so allow [\w[\]-].
     const codeBlocks: Array<{ lang: string; code: string }> = [];
-    let sanitized = (rawText || "").replace(/```([\w]*)\r?\n([\s\S]*?)```/g, (_, lang, code) => {
+    let sanitized = (rawText || "").replace(/```([\w[\]-]*)\r?\n([\s\S]*?)```/g, (_, lang, code) => {
       const idx = codeBlocks.length;
       codeBlocks.push({ lang: lang || "", code: code.replace(/\n$/, "") });
       return `\x00CB${idx}\x00`;
@@ -778,6 +827,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (cbMatch) {
         flushList();
         const { lang, code } = codeBlocks[parseInt(cbMatch[1])];
+        // Diagram / preview langs render as a real canvas (mounted by an effect)
+        // instead of a code block — only in read-only display.
+        if (forDisplay && /^(mermaid|grarkdown|grark|erdiagram|erd|er|html|html\[preview\])$/i.test(lang)) {
+          const di = diagramBlocksRef.current.length;
+          diagramBlocksRef.current.push({ lang, code });
+          html += `<div contenteditable="false" data-diagram-idx="${di}" class="my-2"></div>`;
+          return;
+        }
         const escaped = escapeHtml(code);
         const langLabel = lang ? `<div class="text-xs text-muted-foreground/60 font-mono uppercase tracking-wider mb-2">${lang}</div>` : "";
         html += `<pre contenteditable="false" class="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto" data-code-block="${lang}">${langLabel}<code class="text-xs font-mono text-foreground/80 whitespace-pre">${escaped}</code></pre>`;
@@ -1664,11 +1721,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
       {readonly ? (
         <div
+          ref={readonlyRef}
           className={cn(
             "w-full p-2 leading-relaxed text-sm rounded-md prose prose-sm dark:prose-invert max-w-none",
             "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
           )}
-          dangerouslySetInnerHTML={{ __html: processPseudoMarkdown(text) }}
+          dangerouslySetInnerHTML={{ __html: processPseudoMarkdown(text, true) }}
         />
       ) : (
         <div

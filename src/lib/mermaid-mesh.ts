@@ -4,7 +4,7 @@
 // dashed/thick links, subgraphs (→ boards with nested members), and classDef /
 // class / style color directives. No external dependency.
 
-import type { GeneratedMesh, GeneratedMeshNode, GeneratedMeshShape } from "@/lib/api/contracts";
+import type { GeneratedMesh, GeneratedMeshNode, GeneratedMeshEdge, GeneratedMeshShape } from "@/lib/api/contracts";
 
 type Dir = "TB" | "LR";
 
@@ -78,6 +78,9 @@ function cleanLabel(s: string): string {
     .replace(/<\/?(?:b|strong)>/gi, "**") // bold
     .replace(/<\/?(?:i|em)>/gi, "*")        // italic
     .replace(/<[^>]+>/g, "")
+    // FontAwesome / Material icon prefixes (e.g. "fa:fa-car Car") — drop the
+    // icon token, keep the text. We can't render the glyph here.
+    .replace(/\b(?:fa[bsrl]?|mat|mc):[\w-]+\s*/gi, "")
     .replace(/[ \t]+\n/g, "\n")
     .trim();
 }
@@ -287,8 +290,7 @@ function parseErDiagramToMesh(source: string): GeneratedMesh {
   return { nodes: meshNodes, edges };
 }
 
-export function parseMermaidToMesh(source: string): GeneratedMesh {
-  if (/^\s*erDiagram\b/im.test(source)) return parseErDiagramToMesh(source);
+function parseFlowchartToMesh(source: string): GeneratedMesh {
   const lines = mergeContinuations(source.split(/\r?\n/));
   const nodes = new Map<string, ParsedNode>();
   const edges: ParsedEdge[] = [];
@@ -434,4 +436,285 @@ export function parseMermaidToMesh(source: string): GeneratedMesh {
       pattern: e.pattern, width: e.thick ? 3 : undefined,
     })),
   };
+}
+
+// ─── Diagram-type dispatch ─────────────────────────────────────────────────────
+// Detect the Mermaid diagram type from the first meaningful line (after YAML
+// frontmatter + %% comments), then route. Unknown / not-yet-graph-mappable types
+// fall back to a single text node so the import never fails and content is kept.
+function detectMermaidType(source: string): string {
+  const body = source.replace(/^---[\s\S]*?---\s*/m, ""); // drop YAML frontmatter
+  for (const raw of body.split(/\r?\n/)) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%")) continue;
+    const m = t.match(/^([A-Za-z][\w-]*)/);
+    const kw = (m?.[1] ?? "").toLowerCase();
+    if (kw === "graph" || kw === "flowchart" || kw === "flowchart-elk") return "flowchart";
+    if (kw === "erdiagram") return "er";
+    if (kw === "classdiagram") return "class";
+    if (kw === "statediagram" || kw === "statediagram-v2") return "state";
+    if (kw === "mindmap") return "mindmap";
+    return kw; // sequencediagram, gantt, pie, gitgraph, journey, c4context, …
+  }
+  return "flowchart";
+}
+
+const stripFrontmatter = (s: string) => s.replace(/^---[\s\S]*?---\s*/m, "");
+
+// Render arbitrary source as a single read-only text node (fallback). Keeps the
+// content visible/editable instead of producing a broken diagram.
+function rawTextMesh(source: string, type: string): GeneratedMesh {
+  const text = stripFrontmatter(source).trim();
+  const lines = text.split("\n");
+  const longest = lines.reduce((mx, l) => Math.max(mx, l.length), 0);
+  return {
+    nodes: [{
+      ref: "raw", kind: "text",
+      label: `**${type}** (not yet visual — shown as source)\n\n${text}`,
+      x: 0, y: 0, w: Math.min(720, Math.max(280, longest * 7 + 24)), h: Math.min(640, Math.max(120, lines.length * 18 + 60)),
+    }],
+    edges: [],
+  };
+}
+
+// classDiagram → entity boards (name + members) + relations as connections.
+function parseClassDiagramToMesh(source: string): GeneratedMesh {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const members = new Map<string, string[]>();
+  const order: string[] = [];
+  const rels: Array<{ a: string; b: string; label?: string }> = [];
+  const ensure = (n: string) => { if (!members.has(n)) { members.set(n, []); order.push(n); } };
+  const relRe = /^([\w~]+)\s*(<\|--|--\|>|\*--|o--|-->|<--|\.\.>|<\.\.|--|\.\.)\s*([\w~]+)\s*(?::\s*(.+))?$/;
+  let cur: string | null = null;
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^classDiagram/i.test(t)) continue;
+    if (cur) { if (t === "}") { cur = null; continue; } const mm = t.replace(/^[+\-#~]\s*/, "").trim(); if (mm) members.get(cur)!.push(mm); continue; }
+    const open = t.match(/^class\s+([\w~]+)\s*\{$/i); if (open) { ensure(open[1]); cur = open[1]; continue; }
+    const cls = t.match(/^class\s+([\w~]+)\s*$/i); if (cls) { ensure(cls[1]); continue; }
+    const shorthand = t.match(/^([\w~]+)\s*:\s*(.+)$/); // Animal : +int age
+    if (shorthand && !relRe.test(t)) { ensure(shorthand[1]); members.get(shorthand[1])!.push(shorthand[2].replace(/^[+\-#~]\s*/, "").trim()); continue; }
+    const r = t.match(relRe);
+    if (r) { ensure(r[1]); ensure(r[3]); rels.push({ a: r[1], b: r[3], label: r[4]?.trim() }); continue; }
+  }
+  const COL_W = 240, GAP = 70, HEADER = 36, ROW = 22, PAD = 12;
+  const cols = Math.max(1, Math.ceil(Math.sqrt(order.length)));
+  const nodes: GeneratedMeshNode[] = [];
+  let curY = 0;
+  for (let r = 0; r * cols < order.length; r++) {
+    let rowH = 0;
+    for (let c = 0; c < cols; c++) { const i = r * cols + c; if (i < order.length) rowH = Math.max(rowH, HEADER + members.get(order[i])!.length * ROW + PAD); }
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c; if (i >= order.length) break;
+      const name = order[i]; const ms = members.get(name)!; const h = HEADER + Math.max(1, ms.length) * ROW + PAD;
+      nodes.push({ ref: name, kind: "board", label: name, x: c * (COL_W + GAP), y: curY, w: COL_W, h, stroke: "#818cf8", fill: "rgba(129,140,248,0.05)" });
+      if (ms.length) nodes.push({ ref: `${name}__m`, kind: "text", label: ms.map((m) => (/\(/.test(m) ? `\`${m}\`` : `**${m}**`)).join("\n\n"), x: PAD, y: HEADER, w: COL_W - PAD * 2, h: h - HEADER - PAD, parent: name });
+    }
+    curY += rowH + GAP;
+  }
+  const ids = new Set(order);
+  const edges = rels.filter((r) => ids.has(r.a) && ids.has(r.b)).map((r) => ({ from: r.a, to: r.b, label: r.label }));
+  return { nodes, edges };
+}
+
+// stateDiagram-v2 → flowchart text (reuse the flowchart engine).
+function stateToFlowchart(source: string): string {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const out: string[] = ["flowchart TD"];
+  let term = 0;
+  const idOf = (s: string) => (s === "[*]" ? `__term${term++}` : s.replace(/[^\w]/g, "_"));
+  const shaped = new Set<string>();
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^stateDiagram(-v2)?/i.test(t) || /^state\s/i.test(t) || t === "}" || /^direction\s/i.test(t)) continue;
+    const m = t.match(/^(.+?)\s*-->\s*(.+?)(?:\s*:\s*(.+))?$/);
+    if (!m) continue;
+    const a = m[1].trim(), b = m[2].trim(), lbl = m[3]?.trim();
+    const ai = idOf(a), bi = idOf(b);
+    const decl = (orig: string, id: string) => { if (orig === "[*]") return `${id}((( )))`; if (!shaped.has(id)) { shaped.add(id); return `${id}(["${orig.replace(/"/g, "'")}"])`; } return id; };
+    out.push(`${decl(a, ai)} ${lbl ? `-->|${lbl}|` : "-->"} ${decl(b, bi)}`);
+  }
+  return out.join("\n");
+}
+
+// mindmap → flowchart text via indentation tree.
+function mindmapToFlowchart(source: string): string {
+  const lines = stripFrontmatter(source).split(/\r?\n/).filter((l) => l.trim() && !/^mindmap/i.test(l.trim()) && !/^::/.test(l.trim()) && !/^%%/.test(l.trim()));
+  const out: string[] = ["flowchart TD"];
+  const stack: Array<{ indent: number; id: string }> = [];
+  let n = 0;
+  const clean = (s: string) => s.replace(/^\s*[-*]\s*/, "").replace(/^\(\(|\)\)$/g, "").replace(/^\(|\)$/g, "").replace(/^\[|\]$/g, "").replace(/^\{\{|\}\}$/g, "").trim();
+  for (const raw of lines) {
+    const indent = raw.match(/^\s*/)![0].length;
+    const label = clean(raw);
+    if (!label) continue;
+    const id = `m${n++}`;
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    const parent = stack[stack.length - 1];
+    out.push(`${id}(["${label.replace(/"/g, "'")}"])`);
+    if (parent) out.push(`${parent.id} --> ${id}`);
+    stack.push({ indent, id });
+  }
+  return out.join("\n");
+}
+
+// sequenceDiagram → participants as a top row, messages as labelled edges.
+function parseSequenceToMesh(source: string): GeneratedMesh {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const order: string[] = [];
+  const labels = new Map<string, string>();
+  const ensure = (id: string, lbl?: string) => { if (!labels.has(id)) { labels.set(id, lbl ?? id); order.push(id); } else if (lbl) labels.set(id, lbl); };
+  const msgs: Array<{ from: string; to: string; label: string; dashed: boolean }> = [];
+  const decl = /^(participant|actor)\s+(.+?)(?:\s+as\s+(.+))?$/i;
+  const msgRe = /^([^\s:]+?)\s*(-?->>?|-?-[)x]|--?>>?)\s*([^\s:]+?)\s*:\s*(.+)$/;
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^sequenceDiagram/i.test(t)) continue;
+    const d = t.match(decl);
+    if (d) { const alias = d[3]?.trim(); const name = d[2].trim(); ensure(alias ?? name, alias ? name : name); continue; }
+    if (/^(note|loop|alt|opt|else|end|par|and|rect|activate|deactivate|autonumber|critical|break)\b/i.test(t)) continue;
+    const m = t.match(msgRe);
+    if (m) { ensure(m[1]); ensure(m[3]); msgs.push({ from: m[1], to: m[3], label: m[4].trim(), dashed: m[2].includes("--") }); }
+  }
+  const W = 150, GAP = 60;
+  const nodes: GeneratedMeshNode[] = order.map((id, i) => ({
+    ref: id, kind: "shape", shape: "rounded-rect", label: labels.get(id) ?? id,
+    x: i * (W + GAP), y: 0, w: W, h: 56, stroke: "#22d3ee", fill: "rgba(34,211,238,0.06)",
+  }));
+  const edges: GeneratedMeshEdge[] = msgs.map((m) => ({ from: m.from, to: m.to, label: m.label, pattern: m.dashed ? "dashed" : "solid" }));
+  return { nodes, edges };
+}
+
+// journey → sections as boards, tasks chained inside; sections chained.
+function journeyToFlowchart(source: string): string {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const out: string[] = ["flowchart TD"];
+  let sg = 0, prevTask: string | null = null, prevSg: string | null = null, n = 0;
+  let inSg = false;
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^journey/i.test(t) || /^title\s/i.test(t)) continue;
+    const sec = t.match(/^section\s+(.+)$/i);
+    if (sec) {
+      if (inSg) out.push("end");
+      const id = `sec${sg++}`;
+      out.push(`subgraph ${id}["${sec[1].trim().replace(/"/g, "'")}"]`);
+      inSg = true; prevTask = null;
+      if (prevSg) out.push(`${prevSg} -.-> ${id}`);
+      prevSg = id;
+      continue;
+    }
+    const task = t.match(/^(.+?)\s*:\s*\d+\s*:\s*(.+)$/);
+    if (task) {
+      const id = `t${n++}`;
+      out.push(`${id}(["${task[1].trim().replace(/"/g, "'")}"])`);
+      if (prevTask) out.push(`${prevTask} --> ${id}`);
+      prevTask = id;
+    }
+  }
+  if (inSg) out.push("end");
+  return out.join("\n");
+}
+
+// C4 (C4Context / C4Container …) → elements as nodes, Rel(...) as edges.
+function parseC4ToMesh(source: string): GeneratedMesh {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const nodes: GeneratedMeshNode[] = [];
+  const order: string[] = [];
+  const ids = new Set<string>();
+  const edges: GeneratedMeshEdge[] = [];
+  const elRe = /^(Person|Person_Ext|System|System_Ext|SystemDb|SystemQueue|Container|ContainerDb|ContainerQueue|Component|System_Boundary|Container_Boundary|Enterprise_Boundary|Boundary|Node)\s*\(\s*([^,)\s]+)\s*,\s*"([^"]*)"(?:\s*,\s*"([^"]*)")?/i;
+  const relRe = /^(Rel|BiRel|Rel_[UDLR]|Rel_Back)\s*\(\s*([^,]+?)\s*,\s*([^,]+?)\s*,\s*"([^"]*)"/i;
+  const ensure = (id: string, label: string, person: boolean, boundary: boolean) => {
+    if (ids.has(id)) return; ids.add(id); order.push(id);
+    nodes.push({ ref: id, kind: boundary ? "board" : "shape", shape: person ? "rounded-rect" : "rect", label, x: 0, y: 0, w: 200, h: boundary ? 160 : 84, stroke: person ? "#f59e0b" : "#22d3ee", fill: person ? "rgba(245,158,11,0.06)" : "rgba(34,211,238,0.06)" });
+  };
+  for (const raw of lines) {
+    const t = raw.trim().replace(/[{}]\s*$/, "").trim();
+    if (!t || t.startsWith("%%")) continue;
+    const e = t.match(elRe);
+    if (e) { const kind = e[1]; const id = e[2].trim(); const lbl = e[4] ? `${e[3]}\n${e[4]}` : e[3]; ensure(id, lbl, /^Person/i.test(kind), /Boundary|Enterprise/i.test(kind)); continue; }
+    const r = t.match(relRe);
+    if (r) { const a = r[2].trim(), b = r[3].trim(); if (ids.has(a) && ids.has(b)) edges.push({ from: a, to: b, label: r[4] }); else edges.push({ from: a, to: b, label: r[4] }); }
+  }
+  // grid layout for unparented nodes
+  const cols = Math.max(1, Math.ceil(Math.sqrt(order.length)));
+  nodes.forEach((nd, i) => { nd.x = (i % cols) * 260; nd.y = Math.floor(i / cols) * 220; });
+  const valid = new Set(order);
+  return { nodes, edges: edges.filter((e) => valid.has(e.from) && valid.has(e.to)) };
+}
+
+// architecture-beta → groups as boards, services as nodes, edges strip :side.
+function parseArchitectureToMesh(source: string): GeneratedMesh {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const nodes: GeneratedMeshNode[] = [];
+  const groups = new Map<string, GeneratedMeshNode>();
+  const svcParent = new Map<string, string>();
+  const order: string[] = [];
+  const edges: GeneratedMeshEdge[] = [];
+  const grpRe = /^group\s+([\w-]+)\s*(?:\([^)]*\))?\s*(?:\[([^\]]*)\])?/i;
+  const svcRe = /^service\s+([\w-]+)\s*(?:\([^)]*\))?\s*(?:\[([^\]]*)\])?\s*(?:in\s+([\w-]+))?/i;
+  const edgeRe = /^([\w-]+)(?::[TBLR])?\s*(<?--?>?)\s*(?::[TBLR])?([\w-]+)/i;
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^architecture-beta/i.test(t)) continue;
+    const g = t.match(grpRe);
+    if (g && /^group\b/i.test(t)) { const id = g[1]; const nd: GeneratedMeshNode = { ref: id, kind: "board", label: g[2] ?? id, x: 0, y: 0, w: 260, h: 180, stroke: "#a78bfa", fill: "rgba(167,139,250,0.05)" }; groups.set(id, nd); nodes.push(nd); order.push(id); continue; }
+    const s = t.match(svcRe);
+    if (s && /^service\b/i.test(t)) { const id = s[1]; const parent = s[3]; nodes.push({ ref: id, kind: "shape", shape: "rect", label: s[2] ?? id, x: 0, y: 0, w: 140, h: 64, stroke: "#22d3ee", fill: "rgba(34,211,238,0.06)", ...(parent && groups.has(parent) ? { parent } : {}) }); order.push(id); if (parent) svcParent.set(id, parent); continue; }
+    const e = t.match(edgeRe);
+    if (e && !/^(group|service)\b/i.test(t)) { edges.push({ from: e[1], to: e[3], label: undefined }); }
+  }
+  // layout services within / outside groups in a simple grid
+  const ids = new Set(order);
+  let gx = 0;
+  groups.forEach((g) => { g.x = gx; g.y = 0; gx += 300; });
+  const free = nodes.filter((n) => n.kind !== "board" && !svcParent.has(n.ref));
+  free.forEach((n, i) => { n.x = i * 180; n.y = 240; });
+  const children = new Map<string, GeneratedMeshNode[]>();
+  nodes.forEach((n) => { const p = svcParent.get(n.ref); if (p) { (children.get(p) ?? children.set(p, []).get(p)!).push(n); } });
+  children.forEach((kids) => kids.forEach((k, i) => { k.x = 16 + (i % 2) * 130; k.y = 40 + Math.floor(i / 2) * 76; }));
+  return { nodes, edges: edges.filter((e) => ids.has(e.from) && ids.has(e.to)) };
+}
+
+// block-beta → ids become a grid of nodes; arrows become edges; "space" pads.
+function blockToFlowchart(source: string): string {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const out: string[] = ["flowchart TD"];
+  const seen = new Set<string>();
+  const node = (tok: string) => {
+    const m = tok.match(/^([\w-]+)(?:\["([^"]*)"\]|\(\("([^"]*)"\)\)|\(\["([^"]*)"\]\)|\{"([^"]*)"\})?/);
+    if (!m) return null;
+    const id = m[1]; const lbl = m[2] ?? m[3] ?? m[4] ?? m[5];
+    if (!seen.has(id)) { seen.add(id); out.push(`${id}["${(lbl ?? id).replace(/"/g, "'")}"]`); }
+    return id;
+  };
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^block-beta/i.test(t) || /^columns\b/i.test(t) || t === "end" || /^block\b/i.test(t)) continue;
+    const arrow = t.match(/^([\w-]+)\s*(--?>?|-->)\s*(?:\|([^|]*)\|\s*)?([\w-]+)/);
+    if (arrow) { node(arrow[1]); node(arrow[4]); out.push(`${arrow[1]} ${arrow[3] ? `-->|${arrow[3]}|` : "-->"} ${arrow[4]}`); continue; }
+    for (const tok of t.split(/\s+/)) { if (tok === "space" || /^space:/.test(tok) || tok === "columns") continue; node(tok); }
+  }
+  return out.join("\n");
+}
+
+export function parseMermaidToMesh(source: string): GeneratedMesh {
+  switch (detectMermaidType(source)) {
+    case "flowchart":        return parseFlowchartToMesh(source);
+    case "er":               return parseErDiagramToMesh(source);
+    case "class":            return parseClassDiagramToMesh(source);
+    case "state":            return parseFlowchartToMesh(stateToFlowchart(source));
+    case "mindmap":          return parseFlowchartToMesh(mindmapToFlowchart(source));
+    case "sequencediagram":  return parseSequenceToMesh(source);
+    case "journey":          return parseFlowchartToMesh(journeyToFlowchart(source));
+    case "c4context":
+    case "c4container":
+    case "c4component":
+    case "c4dynamic":
+    case "c4deployment":     return parseC4ToMesh(source);
+    case "architecture-beta": return parseArchitectureToMesh(source);
+    case "block-beta":       return parseFlowchartToMesh(blockToFlowchart(source));
+    default:                 return rawTextMesh(source, detectMermaidType(source));
+  }
 }
