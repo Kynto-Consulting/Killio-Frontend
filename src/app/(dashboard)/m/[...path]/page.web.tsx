@@ -1203,10 +1203,16 @@ function shapeEdgeExit(
   const dx = tcx - cx, dy = tcy - cy;
   const len = Math.hypot(dx, dy);
   if (len < 0.5) return { x: cx, y: cy - bh / 2, nx: 0, ny: -1 };
-  const result = rayPolygonExit(cx, cy, rawPts.map(p => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
-  const nx = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0;
-  const ny = Math.abs(dx) >= Math.abs(dy) ? 0 : (dy > 0 ? 1 : -1);
-  return { x: result.x, y: result.y, nx, ny };
+  // Snap to the nearest cardinal magnet port (vertex for a diamond) so the
+  // orthogonal connector lands on an actual anchor point instead of an
+  // arbitrary diagonal-edge point with a forced cardinal normal.
+  const cardinals: Array<[Port, number, number]> = [["top", 0, -1], ["right", 1, 0], ["bottom", 0, 1], ["left", -1, 0]];
+  let best: Port = "top", bestDot = -Infinity;
+  for (const [port, pdx, pdy] of cardinals) {
+    const dot = (dx / len) * pdx + (dy / len) * pdy;
+    if (dot > bestDot) { bestDot = dot; best = port; }
+  }
+  return shapePortAbsPos(bx, by, bw, bh, preset, best, customPts);
 }
 
 /** Magnet port position on the actual shape border (polygon-aware). */
@@ -5436,6 +5442,25 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             </div>
                           </div>
                         ))}
+                        {/* Charts — insert a data-driven chart metabrick (editable Mermaid source). */}
+                        <div>
+                          <div className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-cyan-200/60">
+                            <BarChart2 className="h-3 w-3" /><span>Gráficos</span>
+                          </div>
+                          <div className="grid grid-cols-4 gap-1">
+                            {CHART_PALETTE.map(({ key, label }) => (
+                              <button key={key} type="button" title={label} draggable
+                                onClick={() => { addChart(key); setToolbarPanel(null); }}
+                                onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
+                                className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
+                                <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-white/10 bg-slate-900/60">
+                                  <ChartGlyph source={CHART_TEMPLATES[key]} className="h-full w-full" />
+                                </div>
+                                <span className="max-w-[44px] truncate text-[7px] leading-none">{label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       </div>
                     </div>
                   )}
@@ -5740,7 +5765,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
                 <div className="mx-1 h-6 w-px bg-white/10" />
 
-                <button type="button" title="Modos" aria-label="Modos" onClick={() => setToolbarPanel((current) => current === "mode" ? null : "mode")} className={dockBtnClass(toolbarPanel === "mode")}><Wand2 className="h-4 w-4" /></button>
+                {/* The dock already exposes all cursor modes directly above, so the
+                    "Modos" popover is only needed on the cramped mobile dock. */}
+                {mobileMode && (
+                  <button type="button" title="Modos" aria-label="Modos" onClick={() => setToolbarPanel((current) => current === "mode" ? null : "mode")} className={dockBtnClass(toolbarPanel === "mode")}><Wand2 className="h-4 w-4" /></button>
+                )}
                 <button type="button" title="Básicos" aria-label="Básicos" onClick={() => setToolbarPanel((current) => current === "basics" ? null : "basics")} className={dockBtnClass(toolbarPanel === "basics")}><LayoutGrid className="h-4 w-4" /></button>
                 <button type="button" title="Contenido" aria-label="Contenido" onClick={() => setToolbarPanel((current) => current === "content" ? null : "content")} className={dockBtnClass(toolbarPanel === "content")}><FileText className="h-4 w-4" /></button>
                 <button type="button" title="Formas" aria-label="Formas" onClick={() => setToolbarPanel((current) => current === "shapes" ? null : "shapes")} className={dockBtnClass(toolbarPanel === "shapes")}><Square className="h-4 w-4" /></button>

@@ -537,10 +537,14 @@ function shapeEdgeExit(
   const dx = tcx - cx, dy = tcy - cy;
   const len = Math.hypot(dx, dy);
   if (len < 0.5) return { x: cx, y: cy - bh / 2, nx: 0, ny: -1 };
-  const result = rayPolygonExit(cx, cy, rawPts.map((p) => ({ x: bx + p.x * bw, y: by + p.y * bh })), dx / len, dy / len);
-  const nx = Math.abs(dx) >= Math.abs(dy) ? (dx > 0 ? 1 : -1) : 0;
-  const ny = Math.abs(dx) >= Math.abs(dy) ? 0 : (dy > 0 ? 1 : -1);
-  return { x: result.x, y: result.y, nx, ny };
+  // Snap to the nearest cardinal magnet port (vertex for a diamond).
+  const cardinals: Array<[Port, number, number]> = [["top", 0, -1], ["right", 1, 0], ["bottom", 0, 1], ["left", -1, 0]];
+  let best: Port = "top", bestDot = -Infinity;
+  for (const [port, pdx, pdy] of cardinals) {
+    const dot = (dx / len) * pdx + (dy / len) * pdy;
+    if (dot > bestDot) { bestDot = dot; best = port; }
+  }
+  return shapePortAbsPos(bx, by, bw, bh, preset, best, customPts);
 }
 
 function shapePortAbsPos(
