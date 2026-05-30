@@ -40,6 +40,8 @@ import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh, isGrarkdown } from "@/lib/grarkdown-mesh";
 import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSceneFromText } from "@/lib/excalidraw-mesh";
+import { templateToMeshState } from "@/lib/mesh-import";
+import { PublicMeshCanvas } from "@/components/ui/public-mesh-canvas";
 import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
 import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
@@ -4467,8 +4469,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             {diagramPreview ? (
               <div className="space-y-3">
                 <p className="text-[11px] leading-relaxed text-slate-400">{tMesh("textToDiagram.previewHint")}</p>
-                <div className="flex items-center justify-center overflow-hidden rounded-xl border border-cyan-400/20 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)] p-2">
-                  <MeshTemplateThumb tpl={diagramPreview} width={512} height={300} />
+                <div className="relative h-[340px] w-full overflow-hidden rounded-xl border border-cyan-400/20 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)]">
+                  <PublicMeshCanvas state={templateToMeshState(diagramPreview)} />
                 </div>
                 <p className="text-center text-[11px] text-slate-400">
                   {tMesh("textToDiagram.previewCount", { bricks: diagramPreview.bricks.length, conns: diagramPreview.connections.length })}

@@ -1,6 +1,14 @@
 import React, { Fragment, ReactNode } from "react";
 import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
+import dynamic from "next/dynamic";
+import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
+import { parseGrarkdownToMesh } from "@/lib/grarkdown-mesh";
+import { generatedMeshToTemplate, templateToMeshState } from "@/lib/mesh-import";
 import { RefPill } from "./ref-pill";
+
+// Dynamic to avoid a static rich-text ↔ brick-renderer import cycle (the canvas
+// renders bricks, which can include text bricks rendered via RichText).
+const PublicMeshCanvas = dynamic(() => import("@/components/ui/public-mesh-canvas").then((m) => m.PublicMeshCanvas), { ssr: false });
 import { TagBadge } from "./tag-badge";
 import { AiSuggestion } from "./ai-suggestion";
 // @ts-ignore
@@ -14,6 +22,30 @@ interface RichTextProps {
   className?: string;
   onReferenceClick?: (type: string, id: string) => void;
   onSuggestionApply?: () => void;
+}
+
+// Render a ```mermaid``` / ```grarkdown``` / ```erDiagram``` block as a real
+// diagram using the SAME read-only meshboard renderer (PublicMeshCanvas), so it
+// matches the actual board output. Falls back to code on parse failure.
+function DiagramBlock({ lang, code }: { lang: string; code: string }) {
+  let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
+  try {
+    if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(code));
+    else if (/^(erdiagram|erd|er)$/i.test(lang)) tpl = generatedMeshToTemplate(parseMermaidToMesh(/erDiagram/i.test(code) ? code : `erDiagram\n${code}`));
+    else tpl = generatedMeshToTemplate(parseMermaidToMesh(code));
+  } catch { tpl = null; }
+  if (!tpl || !tpl.bricks.length) {
+    return (
+      <pre className="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto">
+        <code className="text-xs font-mono text-foreground/80 whitespace-pre">{code}</code>
+      </pre>
+    );
+  }
+  return (
+    <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
+      <PublicMeshCanvas state={templateToMeshState(tpl)} />
+    </div>
+  );
 }
 
 function findContextBrick(context: ResolverContext, brickId?: string) {
@@ -161,19 +193,32 @@ export function RichText({
     );
   }
 
-  // Multi-line fenced code blocks need pre-splitting before line-by-line processing
-  if (/```[\w]*\n[\s\S]*?```/.test(content)) {
-    const parts = content.split(/(```[\w]*\n[\s\S]*?```)/g);
+  // Multi-line fenced code blocks need pre-splitting before line-by-line processing.
+  // Lang may carry brackets (e.g. `html[preview]`), so allow [\w[\]-].
+  if (/```[\w[\]-]*\n[\s\S]*?```/.test(content)) {
+    const parts = content.split(/(```[\w[\]-]*\n[\s\S]*?```)/g);
     return (
       <div className={className}>
         {parts.map((part, i) => {
-          const cm = part.match(/^```([\w]*)\n([\s\S]*?)```$/);
+          const cm = part.match(/^```([\w[\]-]*)\n([\s\S]*?)```$/);
           if (cm) {
             const [, lang, code] = cm;
+            const body = code.replace(/\n$/, "");
+            // ```html``` / ```html[preview]``` → sandboxed iframe preview.
+            if (/^html(\[preview\])?$/i.test(lang)) {
+              return (
+                <iframe key={i} sandbox="allow-scripts allow-popups" srcDoc={body} title="HTML preview"
+                  className="my-2 w-full rounded-lg border border-border/60 bg-white" style={{ height: 360 }} />
+              );
+            }
+            // ```mermaid``` / ```grarkdown``` / ```erDiagram``` → real mesh render.
+            if (/^(mermaid|grarkdown|grark|erdiagram|erd|er)$/i.test(lang)) {
+              return <DiagramBlock key={i} lang={lang} code={body} />;
+            }
             return (
               <pre key={i} className="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto">
                 {lang && <div className="text-xs text-muted-foreground/60 font-mono uppercase tracking-wider mb-2">{lang}</div>}
-                <code className="text-xs font-mono text-foreground/80 whitespace-pre">{code.replace(/\n$/, "")}</code>
+                <code className="text-xs font-mono text-foreground/80 whitespace-pre">{body}</code>
               </pre>
             );
           }
