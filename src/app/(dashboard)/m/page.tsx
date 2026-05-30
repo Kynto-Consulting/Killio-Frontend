@@ -3,15 +3,17 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
-import { GitBranch, Loader2, Plus, Search } from "lucide-react";
+import { GitBranch, Loader2, Plus, Search, FileUp, Upload, X } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { ApiError, BoardSummary, createBoard, listTeamBoards } from "@/lib/api/contracts";
+import { ApiError, BoardSummary, createBoard, listTeamBoards, getMesh, updateMeshState } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { encodeKillioFile } from "@/lib/killio-file";
+import { serializeMeshToKm } from "@/lib/mesh-file";
+import { importToMeshTemplate, templateToMeshState } from "@/lib/mesh-import";
 
 function resolveMeshCardBg(mesh: { backgroundKind?: string | null; backgroundValue?: string | null; backgroundGradient?: string | null; backgroundImageUrl?: string | null }): { className: string; style?: CSSProperties } {
   if (mesh.backgroundKind === "image" && mesh.backgroundImageUrl) {
@@ -50,6 +52,10 @@ export default function MeshBoardsPage() {
   const [search, setSearch] = useState("");
   const [isCreating, setIsCreating] = useState(false);
   const [isCreateMeshModalOpen, setIsCreateMeshModalOpen] = useState(false);
+  const [isImportOpen, setIsImportOpen] = useState(false);
+  const [importText, setImportText] = useState("");
+  const [importName, setImportName] = useState("");
+  const [importing, setImporting] = useState(false);
 
   useEffect(() => {
     if (workspaceMode === "local") {
@@ -137,6 +143,38 @@ export default function MeshBoardsPage() {
     }
   };
 
+  const runImport = async (input: { text?: string; fileName?: string; fileBytes?: Uint8Array }) => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const tpl = await importToMeshTemplate(input);
+      if (!tpl) { toast(t("mesh.importEmpty"), "error"); return; }
+      const state = templateToMeshState(tpl);
+      const name = (importName.trim() || input.fileName?.replace(/\.[^.]+$/, "") || "Imported mesh").trim();
+      if (workspaceMode === "local") {
+        const path = `${slugifyMeshName(name)}.km`;
+        const km = serializeMeshToKm(state, { meshId: path, title: name });
+        await localWs.writeFile(path, encodeKillioFile({ kind: "km", schemaVersion: km.schemaVersion, payload: km }));
+        router.push(`/m/${path.split("/").map(encodeURIComponent).join("/")}`);
+      } else {
+        if (!accessToken || !activeTeamId) { toast(t("noActiveWorkspace"), "info"); return; }
+        const board = await createBoard({ name, slug: slugifyMeshName(name), boardType: "mesh" }, activeTeamId, accessToken);
+        const snap = await getMesh(board.id, accessToken).catch(() => null);
+        await updateMeshState(board.id, { state, expectedRevision: snap?.revision ?? 0 }, accessToken);
+        router.push(`/m/${board.id}`);
+      }
+      setIsImportOpen(false); setImportText(""); setImportName("");
+    } catch (err) {
+      console.error("[mesh] import failed", err);
+      toast(err instanceof ApiError ? err.message : t("mesh.importError"), "error");
+    } finally { setImporting(false); }
+  };
+  const onImportFile = async (file: File) => {
+    const isPng = /\.png$/i.test(file.name) || file.type === "image/png";
+    if (isPng) await runImport({ fileName: file.name, fileBytes: new Uint8Array(await file.arrayBuffer()) });
+    else await runImport({ fileName: file.name, text: await file.text() });
+  };
+
   return (
     <div className="container mx-auto max-w-6xl p-6 lg:p-10">
       <CreateBoardModal
@@ -163,6 +201,14 @@ export default function MeshBoardsPage() {
 
           <button
             type="button"
+            onClick={() => setIsImportOpen(true)}
+            className="inline-flex h-9 items-center justify-center rounded-md border border-input bg-card px-3 text-sm font-medium shadow-sm transition-colors hover:bg-accent/10"
+          >
+            <FileUp className="mr-2 h-4 w-4" /> {t("mesh.import")}
+          </button>
+
+          <button
+            type="button"
             onClick={handleCreateMeshClick}
             disabled={isCreating}
             className="inline-flex h-9 items-center justify-center rounded-md bg-primary/90 px-4 text-sm font-medium text-primary-foreground shadow transition-colors hover:bg-primary disabled:opacity-60"
@@ -172,6 +218,35 @@ export default function MeshBoardsPage() {
           </button>
         </div>
       </div>
+
+      {isImportOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => { if (!importing) setIsImportOpen(false); }}>
+          <div className="w-[min(560px,92vw)] rounded-2xl border border-cyan-300/25 bg-card p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-3 flex items-center justify-between">
+              <h2 className="flex items-center gap-2 text-sm font-semibold"><FileUp className="h-4 w-4 text-cyan-400" /> {t("mesh.importTitle")}</h2>
+              <button onClick={() => setIsImportOpen(false)} className="rounded-md p-1 text-muted-foreground hover:bg-accent/10"><X className="h-4 w-4" /></button>
+            </div>
+            <p className="mb-3 text-[12px] leading-relaxed text-muted-foreground">{t("mesh.importHint")}</p>
+            <input value={importName} onChange={(e) => setImportName(e.target.value)} placeholder={t("mesh.importNamePlaceholder")}
+              className="mb-2 h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:border-cyan-500/50" />
+            <textarea value={importText} onChange={(e) => setImportText(e.target.value)} rows={7} disabled={importing}
+              placeholder={t("mesh.importPlaceholder")}
+              className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 font-mono text-[12px] outline-none focus:border-cyan-500/50 disabled:opacity-60" />
+            <div className="mt-4 flex items-center justify-end gap-2">
+              <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
+                <Upload className="h-3.5 w-3.5" /> {t("mesh.importFile")}
+                <input type="file" accept=".excalidraw,.json,.md,.mmd,.png,application/json,image/png" className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.currentTarget.value = ""; }} />
+              </label>
+              <button type="button" disabled={importing} onClick={() => setIsImportOpen(false)} className="rounded-md border border-input px-3 py-1.5 text-xs hover:bg-accent/10 disabled:opacity-50">{t("mesh.importCancel")}</button>
+              <button type="button" disabled={importing || !importText.trim()} onClick={() => void runImport({ text: importText })}
+                className="inline-flex items-center gap-1.5 rounded-md bg-cyan-500/90 px-3 py-1.5 text-xs font-semibold text-slate-950 hover:bg-cyan-400 disabled:opacity-50">
+                {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileUp className="h-3.5 w-3.5" />} {t("mesh.importAction")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">

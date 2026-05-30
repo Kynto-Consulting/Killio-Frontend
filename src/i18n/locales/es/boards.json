@@ -52,6 +52,16 @@
     "createPrompt": "Nombre de la nueva mesh board",
     "createPromptDefault": "Nueva Mesh Board",
     "createSuccess": "Mesh board creada.",
-    "createError": "No se pudo crear la mesh board."
+    "createError": "No se pudo crear la mesh board.",
+    "import": "Importar",
+    "importTitle": "Importar una mesh board",
+    "importHint": "Pega Mermaid (flowchart / erDiagram), Grarkdown o JSON de Excalidraw — o importa un archivo .excalidraw / .png / .md. Se crea una nueva mesh board a partir de ello.",
+    "importNamePlaceholder": "Nombre del nuevo mesh (opcional)",
+    "importPlaceholder": "flowchart TD\n  A[Inicio] --> B{Decisión}\n\n…o erDiagram / Grarkdown / JSON de Excalidraw",
+    "importFile": "Importar archivo",
+    "importCancel": "Cancelar",
+    "importAction": "Importar",
+    "importEmpty": "Nada que importar — no se pudo interpretar el contenido.",
+    "importError": "No se pudo importar la mesh board."
   }
 }

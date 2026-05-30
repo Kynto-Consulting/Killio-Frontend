@@ -52,6 +52,16 @@
     "createPrompt": "Name for the new mesh board",
     "createPromptDefault": "New Mesh Board",
     "createSuccess": "Mesh board created.",
-    "createError": "Failed to create mesh board."
+    "createError": "Failed to create mesh board.",
+    "import": "Import",
+    "importTitle": "Import a mesh board",
+    "importHint": "Paste Mermaid (flowchart / erDiagram), Grarkdown, or Excalidraw JSON — or import a .excalidraw / .png / .md file. A new mesh board is created from it.",
+    "importNamePlaceholder": "New mesh name (optional)",
+    "importPlaceholder": "flowchart TD\n  A[Start] --> B{Decision}\n\n…or erDiagram / Grarkdown / Excalidraw JSON",
+    "importFile": "Import file",
+    "importCancel": "Cancel",
+    "importAction": "Import",
+    "importEmpty": "Nothing to import — couldn't parse that content.",
+    "importError": "Failed to import mesh board."
   }
 }
