@@ -282,6 +282,158 @@ export function parseKanbanToMesh(source: string): GeneratedMesh {
   return { nodes, edges: [] };
 }
 
+// ─── gantt ────────────────────────────────────────────────────────────────────
+export function parseGanttToMesh(source: string): GeneratedMesh {
+  const lines = strip(source).split(/\r?\n/);
+  const title = grabTitle(lines);
+  type Task = { name: string; section: string; start: Date; end: Date; status: string };
+  const tasks: Task[] = [];
+  const byId = new Map<string, Task>();
+  let section = "";
+  const parseDate = (s: string) => { const m = s.match(/(\d{4})-(\d{2})-(\d{2})/); return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null; };
+  const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000);
+  const durDays = (s: string) => { const m = s.match(/([\d.]+)\s*([dwmh]?)/i); if (!m) return 1; const v = +m[1], u = (m[2] || "d").toLowerCase(); return u === "w" ? v * 7 : u === "m" ? v * 30 : u === "h" ? v / 24 : v; };
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^(gantt|title|dateFormat|axisFormat|excludes|todayMarker|tickInterval|weekday|section\s*$)/i.test(t)) {
+      const sec = t.match(/^section\s+(.+)$/i); if (sec) section = sec[1].trim();
+      continue;
+    }
+    const sec = t.match(/^section\s+(.+)$/i); if (sec) { section = sec[1].trim(); continue; }
+    const ci = t.indexOf(":"); if (ci < 0) continue;
+    const name = t.slice(0, ci).trim();
+    const parts = t.slice(ci + 1).split(",").map((s) => s.trim()).filter(Boolean);
+    let status = "", afterId = "", id = "";
+    const rest: string[] = [];
+    for (const p of parts) {
+      if (/^(done|active|crit|milestone)$/i.test(p)) status = p.toLowerCase();
+      else if (/^after\s+/i.test(p)) afterId = p.replace(/^after\s+/i, "").trim();
+      else rest.push(p);
+    }
+    const ids = rest.filter((p) => !parseDate(p) && !/^[\d.]+\s*[dwmh]$/i.test(p));
+    if (ids.length) id = ids[0];
+    const dates = rest.filter(parseDate);
+    const durs = rest.filter((p) => /^[\d.]+\s*[dwmh]$/i.test(p));
+    let start: Date | null = null, end: Date | null = null;
+    if (afterId && byId.has(afterId)) start = byId.get(afterId)!.end;
+    else if (dates.length) start = parseDate(dates[0]);
+    if (dates.length > 1) end = parseDate(dates[1]);
+    else if (durs.length && start) end = addDays(start, durDays(durs[0]));
+    if (!start) continue;
+    if (!end) end = addDays(start, 1);
+    const task: Task = { name, section, start, end, status };
+    tasks.push(task); if (id) byId.set(id, task);
+  }
+  if (!tasks.length) return { nodes: [], edges: [] };
+  const minD = Math.min(...tasks.map((t) => t.start.getTime())), maxD = Math.max(...tasks.map((t) => t.end.getTime()));
+  const range = Math.max(1, (maxD - minD) / 86400000);
+  const W = 660, rowH = 28, gap = 6, padL = 168, padR = 20;
+  const colors: Record<string, string> = { done: "#475569", active: "#22d3ee", crit: "#fb7185", milestone: "#a78bfa", "": "#60a5fa" };
+  const nodes: GeneratedMeshNode[] = [];
+  let y = title ? 34 : 8;
+  if (title) nodes.push({ ref: "title", kind: "text", label: `**${title}**`, x: 0, y: 0, w: W, h: 28 });
+  const plotW = W - padL - padR;
+  let lastSection = "";
+  tasks.forEach((t, i) => {
+    if (t.section && t.section !== lastSection) { nodes.push({ ref: `sec${i}`, kind: "text", label: `**${t.section}**`, x: 0, y, w: padL - 8, h: 20, textColor: "#94a3b8" }); lastSection = t.section; y += 22; }
+    const x = padL + ((t.start.getTime() - minD) / 86400000 / range) * plotW;
+    const w = Math.max(4, ((t.end.getTime() - t.start.getTime()) / 86400000 / range) * plotW);
+    const col = colors[t.status] || colors[""];
+    nodes.push({ ref: `gk${i}`, kind: "shape", shape: "rounded-rect", label: "", x: Math.round(x), y: Math.round(y), w: Math.round(w), h: rowH, fill: hexA(col, 0.7), stroke: col });
+    nodes.push({ ref: `gl${i}`, kind: "text", label: t.name, x: 0, y: Math.round(y + 4), w: padL - 12, h: 20, textColor: "#cbd5e1" });
+    y += rowH + gap;
+  });
+  return { nodes, edges: [] };
+}
+
+// ─── packet-beta ──────────────────────────────────────────────────────────────
+export function parsePacketToMesh(source: string): GeneratedMesh {
+  const lines = strip(source).split(/\r?\n/);
+  const title = grabTitle(lines);
+  const fields: Array<{ s: number; e: number; label: string }> = [];
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^packet(-beta)?/i.test(t) || /^title\b/i.test(t)) continue;
+    const m = t.match(/^(\d+)\s*(?:-\s*(\d+))?\s*:\s*"?([^"]+)"?/);
+    if (m) { const s = +m[1], e = m[2] ? +m[2] : s; fields.push({ s, e, label: m[3].trim() }); }
+  }
+  if (!fields.length) return { nodes: [], edges: [] };
+  const maxBit = Math.max(...fields.map((f) => f.e));
+  const perRow = 32, W = 660, titleH = title ? 34 : 0, cell = W / perRow, rowH = 46;
+  const nodes: GeneratedMeshNode[] = [];
+  if (title) nodes.push({ ref: "title", kind: "text", label: `**${title}**`, x: 0, y: 0, w: W, h: 28 });
+  void maxBit;
+  fields.forEach((f, i) => {
+    let s = f.s;
+    while (s <= f.e) {
+      const row = Math.floor(s / perRow), rowEnd = (row + 1) * perRow - 1, segEnd = Math.min(f.e, rowEnd);
+      const x = (s - row * perRow) * cell, y = titleH + row * rowH, w = (segEnd - s + 1) * cell;
+      nodes.push({ ref: `pk${i}_${s}`, kind: "shape", shape: "rect", label: "", x: Math.round(x), y: Math.round(y), w: Math.round(w), h: rowH - 6, fill: hexA(PALETTE[i % PALETTE.length], 0.3), stroke: "#475569" });
+      nodes.push({ ref: `pkl${i}_${s}`, kind: "text", label: `${f.s}${f.e !== f.s ? `-${f.e}` : ""}\n${f.label}`, x: Math.round(x + 3), y: Math.round(y + 3), w: Math.round(w - 6), h: rowH - 12, textColor: "#e2e8f0" });
+      s = segEnd + 1;
+    }
+  });
+  return { nodes, edges: [] };
+}
+
+// ─── wardley-beta ─────────────────────────────────────────────────────────────
+export function parseWardleyToMesh(source: string): GeneratedMesh {
+  const lines = strip(source).split(/\r?\n/);
+  const title = grabTitle(lines);
+  const comps = new Map<string, { vis: number; evo: number }>();
+  const order: string[] = [];
+  const rawEdges: Array<{ from: string; to: string }> = [];
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^wardley/i.test(t) || /^title\b/i.test(t)) continue;
+    const c = t.match(/^component\s+(.+?)\s*\[\s*([\d.]+)\s*,\s*([\d.]+)\s*\]/i);
+    if (c) { const name = unquote(c[1]); comps.set(name, { vis: +c[2], evo: +c[3] }); order.push(name); continue; }
+    const e = t.match(/^(.+?)\s*->\s*(.+)$/); if (e) rawEdges.push({ from: unquote(e[1]).trim(), to: unquote(e[2]).trim() });
+  }
+  if (!comps.size) return { nodes: [], edges: [] };
+  const S = 460, titleH = title ? 34 : 0, pad = 34, box = S - pad * 2;
+  const nodes: GeneratedMeshNode[] = [];
+  if (title) nodes.push({ ref: "title", kind: "text", label: `**${title}**`, x: 0, y: 0, w: S, h: 28 });
+  nodes.push({ ref: "bg", kind: "shape", shape: "rect", label: "", x: pad, y: titleH + pad, w: box, h: box, fill: "rgba(148,163,184,0.04)", stroke: "#475569" });
+  ["Genesis", "Custom", "Product", "Commodity"].forEach((lbl, i) => nodes.push({ ref: `ev${i}`, kind: "text", label: lbl, x: Math.round(pad + (i / 4) * box + 4), y: titleH + pad + box + 4, w: Math.round(box / 4), h: 16, textColor: "#64748b" }));
+  nodes.push({ ref: "vy", kind: "text", label: "Visible", x: 0, y: titleH + pad - 2, w: pad, h: 16, textColor: "#64748b" });
+  const refOf = new Map<string, string>();
+  order.forEach((name, i) => {
+    const c = comps.get(name)!;
+    const px = pad + c.evo * box, py = titleH + pad + (1 - c.vis) * box;
+    const ref = `wc${i}`; refOf.set(name, ref);
+    nodes.push({ ref, kind: "shape", shape: "ellipse", label: "", x: Math.round(px - 7), y: Math.round(py - 7), w: 14, h: 14, fill: "#fbbf24", stroke: "#0f172a" });
+    nodes.push({ ref: `wl${i}`, kind: "text", label: name, x: Math.round(px + 9), y: Math.round(py - 9), w: 130, h: 18, textColor: "#e2e8f0" });
+  });
+  const edges: GeneratedMeshEdge[] = rawEdges.filter((e) => refOf.has(e.from) && refOf.has(e.to)).map((e) => ({ from: refOf.get(e.from)!, to: refOf.get(e.to)!, color: "#64748b" }));
+  return { nodes, edges };
+}
+
+// ─── venn-beta ────────────────────────────────────────────────────────────────
+export function parseVennToMesh(source: string): GeneratedMesh {
+  const lines = strip(source).split(/\r?\n/);
+  const title = grabTitle(lines);
+  const sets: string[] = [];
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("%%") || /^venn/i.test(t) || /^title\b/i.test(t)) continue;
+    const m = t.match(/^set\s+(.+)$/i) || t.match(/^"?([A-Za-z0-9 _-]+)"?\s*(?::|$)/);
+    if (m) sets.push(unquote(m[1]));
+  }
+  const uniq = [...new Set(sets.map((s) => s.trim()).filter(Boolean))].slice(0, 3);
+  if (uniq.length < 2) return { nodes: [], edges: [] };
+  const S = 380, titleH = title ? 34 : 0, r = uniq.length === 2 ? 0.32 : 0.3;
+  const centers = uniq.length === 2 ? [{ x: 0.38, y: 0.52 }, { x: 0.62, y: 0.52 }] : [{ x: 0.5, y: 0.36 }, { x: 0.37, y: 0.62 }, { x: 0.63, y: 0.62 }];
+  const nodes: GeneratedMeshNode[] = [];
+  if (title) nodes.push({ ref: "title", kind: "text", label: `**${title}**`, x: 0, y: 0, w: S, h: 28 });
+  uniq.forEach((name, i) => {
+    const c = centers[i], color = PALETTE[i % PALETTE.length];
+    nodes.push({ ref: `vn${i}`, kind: "shape", shape: "ellipse", label: "", x: Math.round((c.x - r) * S), y: Math.round(titleH + (c.y - r) * S), w: Math.round(2 * r * S), h: Math.round(2 * r * S), fill: hexA(color, 0.25), stroke: color });
+    nodes.push({ ref: `vnl${i}`, kind: "text", label: `**${name}**`, x: Math.round((c.x - 0.13) * S), y: Math.round(titleH + (c.y - r - 0.03) * S), w: Math.round(0.26 * S), h: 20, textColor: color });
+  });
+  return { nodes, edges: [] };
+}
+
 // hex (#rgb / #rrggbb) → rgba string with alpha.
 function hexA(hex: string, a: number): string {
   let h = hex.replace("#", "");

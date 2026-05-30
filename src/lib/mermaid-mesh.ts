@@ -5,7 +5,7 @@
 // class / style color directives. No external dependency.
 
 import type { GeneratedMesh, GeneratedMeshNode, GeneratedMeshEdge, GeneratedMeshShape } from "@/lib/api/contracts";
-import { parsePieToMesh, parseXYChartToMesh, parseQuadrantToMesh, parseRadarToMesh, parseTreemapToMesh, parseKanbanToMesh } from "@/lib/mermaid-charts";
+import { parsePieToMesh, parseXYChartToMesh, parseQuadrantToMesh, parseRadarToMesh, parseTreemapToMesh, parseKanbanToMesh, parseGanttToMesh, parsePacketToMesh, parseWardleyToMesh, parseVennToMesh } from "@/lib/mermaid-charts";
 
 type Dir = "TB" | "LR";
 
@@ -700,6 +700,27 @@ function blockToFlowchart(source: string): string {
   return out.join("\n");
 }
 
+// ZenUML → sequenceDiagram text (reuse the sequence renderer). Captures both
+// `A->B: msg` arrows and `A.method()` calls (self-message to A).
+function zenumlToSequence(source: string): string {
+  const lines = stripFrontmatter(source).split(/\r?\n/);
+  const out: string[] = ["sequenceDiagram"];
+  for (const raw of lines) {
+    const t = raw.trim();
+    if (!t || t.startsWith("//") || t.startsWith("%%") || /^(zenuml|title|@)/i.test(t) || t === "}" || t === "{") continue;
+    let m = t.match(/^(\w+)\s*->\s*(\w+)\s*[:.]\s*(.+)$/);
+    if (m) { out.push(`${m[1]}->>${m[2]}: ${m[3].replace(/[(){};]/g, " ").trim()}`); continue; }
+    m = t.match(/^(\w+)\.(\w+)\s*\(/);
+    if (m) { out.push(`${m[1]}->>${m[1]}: ${m[2]}`); continue; }
+  }
+  return out.join("\n");
+}
+
+// Ishikawa (fishbone) → flowchart via the mindmap indentation transpiler.
+function ishikawaToFlowchart(source: string): string {
+  return mindmapToFlowchart(source.replace(/^\s*ishikawa-beta.*$/im, "mindmap"));
+}
+
 export function parseMermaidToMesh(source: string): GeneratedMesh {
   const type = detectMermaidType(source);
   // Chart types render via dedicated primitive builders; if they can't parse the
@@ -726,6 +747,13 @@ export function parseMermaidToMesh(source: string): GeneratedMesh {
     case "radar-beta":       return orRaw(parseRadarToMesh(source));
     case "treemap-beta":     return orRaw(parseTreemapToMesh(source));
     case "kanban":           return orRaw(parseKanbanToMesh(source));
+    case "gantt":            return orRaw(parseGanttToMesh(source));
+    case "packet":
+    case "packet-beta":      return orRaw(parsePacketToMesh(source));
+    case "wardley-beta":     return orRaw(parseWardleyToMesh(source));
+    case "venn-beta":        return orRaw(parseVennToMesh(source));
+    case "zenuml":           return orRaw(parseSequenceToMesh(zenumlToSequence(source)));
+    case "ishikawa-beta":    return orRaw(parseFlowchartToMesh(ishikawaToFlowchart(source)));
     default:                 return rawTextMesh(source, type);
   }
 }
