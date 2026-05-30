@@ -1424,6 +1424,9 @@ export interface GeneratedMeshNode {
   fill?: string;
   /** Optional label/text color. */
   textColor?: string;
+  /** Optional normalized (0..1) polygon points — renders an arbitrary filled
+   *  shape (chart slices, radar polygons, …) instead of a preset. */
+  vectorPoints?: Array<{ x: number; y: number }>;
 }
 export interface GeneratedMeshEdge {
   from: string;

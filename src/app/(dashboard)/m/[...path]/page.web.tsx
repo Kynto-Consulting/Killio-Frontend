@@ -1306,6 +1306,10 @@ function generatedMeshToTemplate(mesh: GeneratedMesh, connPreset: ConnStyle): Me
       if (title) nb = { ...nb, content: { ...asRec(nb.content), label: title } };
     } else if (n.kind === "text") {
       nb = setMd(mkBrick("text", count++, parentId, pos), tint(n.label || ""));
+    } else if (Array.isArray(n.vectorPoints) && n.vectorPoints.length >= 3) {
+      nb = mkBrick("draw", count++, parentId, pos, "polygon" as ShapePreset);
+      nb = { ...nb, content: { ...asRec(nb.content), shapePreset: "polygon", vectorPoints: n.vectorPoints } };
+      if (title) nb = { ...nb, content: { ...asRec(nb.content), markdown: tint(title) } };
     } else {
       const preset = (n.shape ?? "rect") as ShapePreset;
       nb = mkBrick("draw", count++, parentId, pos, preset);

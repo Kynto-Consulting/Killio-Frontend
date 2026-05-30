@@ -46,6 +46,12 @@ export function generatedMeshToTemplate(mesh: GeneratedMesh): MeshTemplate {
       nb = mkBrick("board_empty", pos, { isContainer: true, childOrder: [], ...(title ? { label: title } : {}) }, parentId);
     } else if (n.kind === "text") {
       nb = mkBrick("text", pos, { markdown: tint(n.label || "") }, parentId);
+    } else if (Array.isArray(n.vectorPoints) && n.vectorPoints.length >= 3) {
+      // Arbitrary filled polygon (chart slice, radar polygon, …). A non-special
+      // preset makes ShapeSvg fall through to its generic <polygon> branch.
+      const content: Record<string, unknown> = { shapePreset: "polygon", vectorPoints: n.vectorPoints, isContainer: false, childOrder: [] };
+      if (title) content.markdown = tint(title);
+      nb = mkBrick("draw", pos, content, parentId);
     } else {
       const preset = (n.shape ?? "rect") as ShapePreset;
       const content: Record<string, unknown> = { shapePreset: preset, isContainer: false, childOrder: [] };

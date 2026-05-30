@@ -5,6 +5,7 @@
 // class / style color directives. No external dependency.
 
 import type { GeneratedMesh, GeneratedMeshNode, GeneratedMeshEdge, GeneratedMeshShape } from "@/lib/api/contracts";
+import { parsePieToMesh, parseXYChartToMesh, parseQuadrantToMesh, parseRadarToMesh, parseTreemapToMesh, parseKanbanToMesh } from "@/lib/mermaid-charts";
 
 type Dir = "TB" | "LR";
 
@@ -700,21 +701,31 @@ function blockToFlowchart(source: string): string {
 }
 
 export function parseMermaidToMesh(source: string): GeneratedMesh {
-  switch (detectMermaidType(source)) {
+  const type = detectMermaidType(source);
+  // Chart types render via dedicated primitive builders; if they can't parse the
+  // body they return no nodes, so we fall back to the raw-source text node.
+  const orRaw = (m: GeneratedMesh) => (m.nodes.length ? m : rawTextMesh(source, type));
+  switch (type) {
     case "flowchart":        return parseFlowchartToMesh(source);
     case "er":               return parseErDiagramToMesh(source);
     case "class":            return parseClassDiagramToMesh(source);
     case "state":            return parseFlowchartToMesh(stateToFlowchart(source));
     case "mindmap":          return parseFlowchartToMesh(mindmapToFlowchart(source));
-    case "sequencediagram":  return parseSequenceToMesh(source);
+    case "sequencediagram":  return orRaw(parseSequenceToMesh(source));
     case "journey":          return parseFlowchartToMesh(journeyToFlowchart(source));
     case "c4context":
     case "c4container":
     case "c4component":
     case "c4dynamic":
-    case "c4deployment":     return parseC4ToMesh(source);
-    case "architecture-beta": return parseArchitectureToMesh(source);
+    case "c4deployment":     return orRaw(parseC4ToMesh(source));
+    case "architecture-beta": return orRaw(parseArchitectureToMesh(source));
     case "block-beta":       return parseFlowchartToMesh(blockToFlowchart(source));
-    default:                 return rawTextMesh(source, detectMermaidType(source));
+    case "pie":              return orRaw(parsePieToMesh(source));
+    case "xychart-beta":     return orRaw(parseXYChartToMesh(source));
+    case "quadrantchart":    return orRaw(parseQuadrantToMesh(source));
+    case "radar-beta":       return orRaw(parseRadarToMesh(source));
+    case "treemap-beta":     return orRaw(parseTreemapToMesh(source));
+    case "kanban":           return orRaw(parseKanbanToMesh(source));
+    default:                 return rawTextMesh(source, type);
   }
 }
