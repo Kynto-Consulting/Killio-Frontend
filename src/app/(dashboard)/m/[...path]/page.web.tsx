@@ -7,7 +7,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   AlertTriangle, BarChart2, CheckSquare, ChevronDown, ChevronRight, ChevronUp, ChevronsDown, ChevronsUp, Code2,
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
@@ -62,7 +62,7 @@ import { useOnline } from "@/hooks/use-online";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import {
   MeshBrick, MeshBrickKind, MeshConnection, MeshState,
-  getBoard, getMesh, updateMeshState,
+  getBoard, getMesh, updateMeshState, deleteBoard,
 } from "@/lib/api/contracts";
 import { useRealtime } from "@/components/providers/realtime-provider";
 import { realtimeChannel } from "@/lib/realtime/channels";
@@ -1519,6 +1519,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const tMesh = useTranslations("mesh");
   const tShare = useTranslations("share-local");
   const params  = useParams() as { path?: string | string[] };
+  const router  = useRouter();
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
   const online = useOnline();
@@ -5864,7 +5865,23 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         toast("Appearance saved", "success");
       }}
       onOpenShare={() => { setIsBoardSettingsOpen(false); setIsShareModalOpen(true); }}
-      onOpenDelete={() => { setIsBoardSettingsOpen(false); }}
+      onOpenDelete={async () => {
+        if (typeof window !== "undefined" && !window.confirm(tMesh("confirmDelete.description") || "Eliminar este meshboard? Esta acción es permanente.")) return;
+        try {
+          if (localMode) {
+            await localWs.removeFile(localFile);
+          } else if (meshId && accessToken) {
+            await deleteBoard(meshId, accessToken);
+          } else {
+            return;
+          }
+          setIsBoardSettingsOpen(false);
+          toast(tMesh("feedback.deleted") || "Eliminado", "success");
+          router.push("/m");
+        } catch (e) {
+          toast((e as Error)?.message || "Error al eliminar", "error");
+        }
+      }}
     />
 
     {/* ── Entity selector modal (portal / mirror double-click) ──────────────────────── */}

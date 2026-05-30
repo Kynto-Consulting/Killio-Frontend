@@ -875,7 +875,9 @@ export default function BoardPage() {
 
   const deleteBoardAction = useAsyncAction(
     async () => {
-      if (!accessToken) return;
+      // Local mode has no accessToken — the wrapped deleteBoard() below dispatches
+      // to localWs.removeFile in that case. Only block cloud calls with no token.
+      if (!localMode && !accessToken) return;
       await deleteBoard(boardId, accessToken);
     },
     {
