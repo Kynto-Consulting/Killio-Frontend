@@ -1,4 +1,5 @@
 {
+  "local": { "reconnect": "Reconnect folder", "reconnectHint": "This mesh lives in a local folder. Grant access again to open it (browsers drop folder permission on reload)." },
   "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted", "cut": "{{n}} cut" },
   "header": {
     "bricks": "bricks",

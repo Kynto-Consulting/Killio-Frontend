@@ -13,7 +13,7 @@ import {
   Bot, Copy, Edit3, ExternalLink, Eye, FileText, Film, GitBranch, Hand, History,
   Download, Image, Layers, LayoutGrid, LayoutTemplate, Link2, Loader2, MessageSquare,
   Minus, MoreHorizontal, MousePointer, Palette, Pencil, Save, Send, Sparkles, Square, Star, Trash2, Type, Wand2, X,
-  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2, Upload, Check,
+  Share2, ZoomIn, ZoomOut, Grid3X3, Maximize2, Settings2, Upload, Check, HardDrive,
 } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
@@ -3736,7 +3736,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     return s;
   }, [state.connectionsById]);
 
-  if (!meshId) return null;
+  // Render in cloud mode (meshId), local mode, or for a `.km` deep-link that is
+  // still resolving its local workspace — only bail when it's truly nothing.
+  if (!meshId && !localMode && !looksLocalFile) return null;
 
   // ── Brick renderer ────────────────────────────────────────────────────────────
   function renderBrick(brick: MeshBrick): React.ReactNode {
@@ -4420,6 +4422,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   return (
     <>
     <div className={`relative flex h-full flex-col ${meshBgClass}`} style={{ userSelect: anyDrag ? "none" : undefined, ...meshBgStyle }}>
+      {/* Local workspace needs a permission re-grant (deep-link/reload loses the
+          file-system handle's access). Prompt to reconnect — a user gesture. */}
+      {looksLocalFile && localWs.status === "needs-permission" && (
+        <div className="absolute inset-0 z-[55] flex flex-col items-center justify-center gap-4 bg-slate-950/80 backdrop-blur-sm">
+          <HardDrive className="h-10 w-10 text-cyan-300/70" />
+          <p className="max-w-sm text-center text-sm text-slate-300">{tMesh("local.reconnectHint")}</p>
+          <button type="button" onClick={() => void localWs.reconnect()}
+            className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400">
+            <HardDrive className="h-4 w-4" /> {tMesh("local.reconnect")}
+          </button>
+        </div>
+      )}
       {/* Phase 4: Pen Toolbar */}
       {toolMode === "pen" && (
         <PenToolbar

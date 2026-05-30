@@ -1,4 +1,5 @@
 {
+  "local": { "reconnect": "Reconectar carpeta", "reconnectHint": "Este mesh vive en una carpeta local. Otorga acceso de nuevo para abrirlo (los navegadores pierden el permiso de carpeta al recargar)." },
   "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)", "cut": "{{n}} cortado(s)" },
   "header": {
     "bricks": "bloques",
