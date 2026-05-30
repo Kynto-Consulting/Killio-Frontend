@@ -5869,6 +5869,13 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         if (typeof window !== "undefined" && !window.confirm(tMesh("confirmDelete.description") || "Eliminar este meshboard? Esta acción es permanente.")) return;
         try {
           if (localMode) {
+            // The `.foo.km.h` activity sidecar is a separate file → preserved by
+            // removeFile (which only deletes the named entity). Log the deletion
+            // so history survives.
+            const dir = localWs.getDir();
+            if (dir) {
+              try { await logLocalActivity(dir, localFile, { action: "mesh.deleted", actorId: user?.id ?? "local", scope: "mesh", scopeId: localFile }); } catch { /* noop */ }
+            }
             await localWs.removeFile(localFile);
           } else if (meshId && accessToken) {
             await deleteBoard(meshId, accessToken);

@@ -819,10 +819,17 @@ export default function BoardPage() {
   }, [localMode]);
   const deleteBoard = useCallback(async (id: string, token?: string | null) => {
     if (!localMode) return apiDeleteBoard(id, token as string);
+    // removeFile only deletes the entity (foo.kb); the `.foo.kb.h` activity
+    // sidecar is a separate file → preserved automatically. Log the deletion
+    // into that sidecar so history is kept after the entity is gone.
+    const dir = localWs.getDir();
+    if (dir) {
+      try { await logLocalActivity(dir, localFile, { action: "board.deleted", actorId: user?.id ?? "local", scope: "board", scopeId: localFile }); } catch { /* noop */ }
+    }
     await localWs.removeFile(localFile);
     router.push("/b");
     return undefined as any;
-  }, [localMode, localFile, localWs, router]);
+  }, [localMode, localFile, localWs, router, user?.id]);
 
   const [lists, setLists] = useState<any[]>([]);
   const [boardName, setBoardName] = useState(t("loadingBoard"));
