@@ -534,8 +534,17 @@ function segHitsPolyPts(
 type VecPts = { x: number; y: number }[];
 type ObstaclePoly = { x: number; y: number; w: number; h: number; polyPts?: Array<{ x: number; y: number }> };
 
+// A legacy "decision" brick renders as a diamond but never stores shapePreset,
+// so connection/obstacle math must treat it as a diamond — otherwise edges exit
+// on the bounding box instead of the diamond outline.
+function presetOfBrick(b: MeshBrick): ShapePreset | undefined {
+  if (b.kind === "decision") return "diamond";
+  const p = asRec(b.content).shapePreset;
+  return typeof p === "string" ? (p as ShapePreset) : undefined;
+}
+
 function mkObstaclePoly(b: MeshBrick, g: { x: number; y: number }): ObstaclePoly {
-  const preset = (asRec(b.content).shapePreset as ShapePreset | undefined);
+  const preset = presetOfBrick(b);
   const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
   const rawNorm = bvp ?? (preset ? SHAPE_PTS[preset] : undefined);
   let polyPts: Array<{ x: number; y: number }> | undefined;
@@ -5045,8 +5054,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const tgtR      = { x: tg.x, y: tg.y, w: tgt.size.w, h: tgtH };
                     const sp        = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
                     const tp        = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
-                    const srcPreset = asRec(src.content).shapePreset as ShapePreset | undefined;
-                    const tgtPreset = asRec(tgt.content).shapePreset as ShapePreset | undefined;
+                    const srcPreset = presetOfBrick(src);
+                    const tgtPreset = presetOfBrick(tgt);
                     const srcAnchor = st.srcAnchorNorm as AnchorNorm | undefined;
                     const tgtAnchor = st.tgtAnchorNorm as AnchorNorm | undefined;
                     // User-modified vector points — used so connections track edited polygon borders
@@ -5198,7 +5207,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const sg = gPos(connSrcId);
                     const st = connStyle(connPreset);
                     const srcH2 = collapsedBoards.has(connSrcId) ? 28 : src.size.h;
-                    const srcPresetGhost = asRec(src.content).shapePreset as ShapePreset | undefined;
+                    const srcPresetGhost = presetOfBrick(src);
                     const srcVecPtsGhost = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
                     const e = resolveConnEndpoint(
                       { x: sg.x, y: sg.y, w: src.size.w, h: srcH2 },
@@ -5206,7 +5215,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       pointer, srcVecPtsGhost,
                     );
                     const end = snapTarget
-                      ? (() => { const b = state.bricksById[snapTarget.brickId]; if (!b) return pointer; const g = gPos(snapTarget.brickId); const bp = asRec(b.content).shapePreset as ShapePreset | undefined; const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined; return shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bp, snapTarget.port, bvp); })()
+                      ? (() => { const b = state.bricksById[snapTarget.brickId]; if (!b) return pointer; const g = gPos(snapTarget.brickId); const bp = presetOfBrick(b); const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined; return shapePortAbsPos(g.x, g.y, b.size.w, b.size.h, bp, snapTarget.port, bvp); })()
                       : pointer;
                     return <>
                       <line x1={e.x} y1={e.y} x2={end.x} y2={end.y} stroke={String(st.stroke)} strokeWidth={2} strokeDasharray="4 3" opacity={0.5} />

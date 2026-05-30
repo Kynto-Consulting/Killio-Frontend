@@ -326,8 +326,16 @@ function segHitsPolyPts(
   return false;
 }
 
+// Legacy "decision" bricks render as a diamond but don't store shapePreset, so
+// connection/obstacle math must treat them as a diamond.
+function presetOfBrick(b: MeshBrick): ShapePreset | undefined {
+  if (b.kind === "decision") return "diamond";
+  const p = asRec(b.content).shapePreset;
+  return typeof p === "string" ? (p as ShapePreset) : undefined;
+}
+
 function mkObstaclePoly(b: MeshBrick, g: { x: number; y: number }): ObstaclePoly {
-  const preset = (asRec(b.content).shapePreset as ShapePreset | undefined);
+  const preset = presetOfBrick(b);
   const bvp = Array.isArray(asRec(b.content).vectorPoints) ? asRec(b.content).vectorPoints as VecPts : undefined;
   const rawNorm = bvp ?? (preset ? SHAPE_PTS[preset] : undefined);
   let polyPts: Array<{ x: number; y: number }> | undefined;
@@ -1200,8 +1208,8 @@ function ConnectorLayer({ state }: { state: MeshState }) {
         const cType = typeof st.connType === "string" ? st.connType : "technical";
         const sp = typeof st.srcPort === "string" ? st.srcPort as Port : undefined;
         const tp = typeof st.tgtPort === "string" ? st.tgtPort as Port : undefined;
-        const srcPreset = asRec(src.content).shapePreset as ShapePreset | undefined;
-        const tgtPreset = asRec(tgt.content).shapePreset as ShapePreset | undefined;
+        const srcPreset = presetOfBrick(src);
+        const tgtPreset = presetOfBrick(tgt);
         const srcAnchor = readAnchor(st.srcAnchorNorm);
         const tgtAnchor = readAnchor(st.tgtAnchorNorm);
         const srcVecPts = Array.isArray(asRec(src.content).vectorPoints) ? asRec(src.content).vectorPoints as VecPts : undefined;
