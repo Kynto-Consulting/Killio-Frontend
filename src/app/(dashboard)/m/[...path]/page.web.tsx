@@ -39,7 +39,7 @@ import type { OpScope } from "@/lib/history/types";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh, isGrarkdown } from "@/lib/grarkdown-mesh";
-import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng } from "@/lib/excalidraw-mesh";
+import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSceneFromText } from "@/lib/excalidraw-mesh";
 import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
 import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
@@ -2956,9 +2956,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         return;
       }
       const text = await file.text();
-      const isExcali = /\.excalidraw$/i.test(file.name) || /"type"\s*:\s*"excalidraw/.test(text);
-      if (isExcali) {
-        const tpl = parseExcalidrawToTemplate(text);
+      // Excalidraw: plain JSON or an Obsidian markdown drawing (compressed-json).
+      const scene = excalidrawSceneFromText(text);
+      if (scene) {
+        const tpl = parseExcalidrawToTemplate(scene);
         if (tpl.bricks.length) setDiagramPreview(tpl); else toast(tMesh("errors.diagramEmpty"), "error");
         return;
       }
@@ -2989,10 +2990,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (diagramMode === "mermaid") {
       try {
         const src = prompt;
-        const trimmed = src.replace(/^﻿/, "").trimStart();
+        const scene = excalidrawSceneFromText(src);
         let tpl: MeshTemplate;
-        if (trimmed.startsWith("{") && /"type"\s*:\s*"excalidraw|"elements"\s*:/.test(trimmed)) {
-          tpl = parseExcalidrawToTemplate(src);
+        if (scene) {
+          tpl = parseExcalidrawToTemplate(scene);
         } else if (isGrarkdown(src)) {
           tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src), connPreset);
         } else {

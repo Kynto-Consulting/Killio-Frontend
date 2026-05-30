@@ -12,6 +12,7 @@
 
 import type { MeshBrick, MeshConnection } from "@/lib/api/contracts";
 import type { MeshTemplate } from "@/lib/mesh-templates";
+import { decompressFromBase64 } from "@/lib/lz-string-decompress";
 
 type ExBinding = { elementId?: string } | null;
 type ExEl = {
@@ -36,6 +37,28 @@ type ExEl = {
 };
 
 const isColor = (c?: string) => typeof c === "string" && c !== "transparent" && c !== "";
+
+function looksLikeScene(s: string): boolean {
+  try { const j = JSON.parse(s); return !!j && (j.type === "excalidraw" || Array.isArray(j.elements)); } catch { return false; }
+}
+
+/** Resolve a scene JSON string from raw text: a plain `.excalidraw` JSON, or an
+ *  Obsidian Excalidraw markdown file (a `## Drawing` block with a ```json``` or
+ *  LZString-compressed ```compressed-json``` fence). Returns null if none found. */
+export function excalidrawSceneFromText(text: string): string | null {
+  const t = (text || "").replace(/^﻿/, "");
+  const tryCompressed = (b64: string) => { const d = decompressFromBase64(b64.replace(/[\r\n]/g, "")); return d && looksLikeScene(d) ? d : null; };
+  let m = t.match(/##?\s*Drawing\s*\n[^`]*```compressed-json\n([\s\S]*?)\n?```/);
+  if (m) { const d = tryCompressed(m[1]); if (d) return d; }
+  m = t.match(/##?\s*Drawing\s*\n[^`]*```json\n([\s\S]*?)\n?```/);
+  if (m && looksLikeScene(m[1].trim())) return m[1].trim();
+  m = t.match(/```compressed-json\n([\s\S]*?)\n?```/);
+  if (m) { const d = tryCompressed(m[1]); if (d) return d; }
+  m = t.match(/```json\n([\s\S]*?)\n?```/);
+  if (m && looksLikeScene(m[1].trim())) return m[1].trim();
+  if (looksLikeScene(t.trim())) return t.trim();
+  return null;
+}
 
 function shapePreset(t: string): string | null {
   switch (t) {

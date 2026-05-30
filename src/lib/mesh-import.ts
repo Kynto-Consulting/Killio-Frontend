@@ -6,7 +6,7 @@ import type { GeneratedMesh, MeshBrick, MeshConnection, MeshState } from "@/lib/
 import type { MeshTemplate } from "@/lib/mesh-templates";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh, isGrarkdown } from "@/lib/grarkdown-mesh";
-import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng } from "@/lib/excalidraw-mesh";
+import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSceneFromText } from "@/lib/excalidraw-mesh";
 
 type ShapePreset = string;
 let _seq = 0;
@@ -114,12 +114,11 @@ export async function importToMeshTemplate(opts: { text?: string; fileName?: str
     if (scene) { const t = parseExcalidrawToTemplate(scene); return t.bricks.length ? t : null; }
   }
   const src = (opts.text ?? "").replace(/^﻿/, "");
-  const trimmed = src.trimStart();
-  const isExcali = (opts.fileName && /\.excalidraw$/i.test(opts.fileName)) ||
-    (trimmed.startsWith("{") && /"type"\s*:\s*"excalidraw|"elements"\s*:/.test(trimmed));
+  // Excalidraw: plain JSON OR an Obsidian markdown drawing (json/compressed-json).
+  const scene = excalidrawSceneFromText(src);
+  if (scene) { const t = parseExcalidrawToTemplate(scene); if (t.bricks.length) return t; }
   let tpl: MeshTemplate | null = null;
-  if (isExcali) tpl = parseExcalidrawToTemplate(src);
-  else if (isGrarkdown(src)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src));
-  else if (trimmed) tpl = generatedMeshToTemplate(parseMermaidToMesh(src));
+  if (isGrarkdown(src)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src));
+  else if (src.trim()) tpl = generatedMeshToTemplate(parseMermaidToMesh(src));
   return tpl && tpl.bricks.length ? tpl : null;
 }
