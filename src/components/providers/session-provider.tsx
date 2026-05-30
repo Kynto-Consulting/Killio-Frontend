@@ -419,10 +419,22 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Fallback for read-only components mounted outside the provider tree (e.g. a
+// diagram rendered into a detached React root via createRoot). Anonymous, no-op
+// session instead of throwing, so such components still render.
+const FALLBACK_SESSION: SessionContextType = {
+  user: null,
+  activeTeamId: null,
+  accessToken: null,
+  accounts: [],
+  setActiveTeamId: () => {},
+  isLoading: false,
+  logout: () => {},
+  login: () => {},
+  switchAccount: () => {},
+  updateUser: () => {},
+};
+
 export function useSession() {
-  const context = useContext(SessionContext);
-  if (context === undefined) {
-    throw new Error("useSession must be used within a SessionProvider");
-  }
-  return context;
+  return useContext(SessionContext) ?? FALLBACK_SESSION;
 }

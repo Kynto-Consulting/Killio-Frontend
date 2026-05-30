@@ -1,11 +1,15 @@
 import React, { Fragment, ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh } from "@/lib/grarkdown-mesh";
-import type { GeneratedMesh } from "@/lib/api/contracts";
-import { MeshGlyph } from "@/components/ui/chart-glyph";
+import { generatedMeshToTemplate, templateToMeshState } from "@/lib/mesh-import";
 import { RefPill } from "./ref-pill";
 import { TagBadge } from "./tag-badge";
+
+// Dynamic to avoid a static rich-text ↔ brick-renderer import cycle (the canvas
+// renders bricks, which can include text bricks rendered via RichText).
+const PublicMeshCanvas = dynamic(() => import("@/components/ui/public-mesh-canvas").then((m) => m.PublicMeshCanvas), { ssr: false });
 import { AiSuggestion } from "./ai-suggestion";
 // @ts-ignore
 import "katex/dist/katex.min.css";
@@ -20,18 +24,18 @@ interface RichTextProps {
   onSuggestionApply?: () => void;
 }
 
-// Render a ```mermaid``` / ```grarkdown``` / ```erDiagram``` block as a fitted
-// SVG via MeshGlyph. MeshGlyph is provider-free (no i18n/context), so it works
-// when mounted into a detached React root (e.g. inside a text brick). Falls back
-// to a code block on parse failure.
+// Render a ```mermaid``` / ```grarkdown``` / ```erDiagram``` block with the SAME
+// read-only meshboard renderer (PublicMeshCanvas) so it matches the actual board
+// output. The i18n/session hooks fall back to safe defaults outside a provider,
+// so this works even when mounted into a detached React root (text brick).
 export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
-  let mesh: GeneratedMesh = { nodes: [], edges: [] };
+  let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
   try {
-    if (/^(grarkdown|grark)$/i.test(lang)) mesh = parseGrarkdownToMesh(code);
-    else if (/^(erdiagram|erd|er)$/i.test(lang)) mesh = parseMermaidToMesh(/erDiagram/i.test(code) ? code : `erDiagram\n${code}`);
-    else mesh = parseMermaidToMesh(code);
-  } catch { mesh = { nodes: [], edges: [] }; }
-  if (!mesh.nodes.length) {
+    if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(code));
+    else if (/^(erdiagram|erd|er)$/i.test(lang)) tpl = generatedMeshToTemplate(parseMermaidToMesh(/erDiagram/i.test(code) ? code : `erDiagram\n${code}`));
+    else tpl = generatedMeshToTemplate(parseMermaidToMesh(code));
+  } catch { tpl = null; }
+  if (!tpl || !tpl.bricks.length) {
     return (
       <pre className="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto">
         <code className="text-xs font-mono text-foreground/80 whitespace-pre">{code}</code>
@@ -40,7 +44,7 @@ export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
   }
   return (
     <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
-      <MeshGlyph mesh={mesh} className="h-full w-full" />
+      <PublicMeshCanvas state={templateToMeshState(tpl)} />
     </div>
   );
 }

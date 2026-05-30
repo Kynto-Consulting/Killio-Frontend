@@ -104,12 +104,17 @@ export function I18nProvider({ children }: { children: React.ReactNode }) {
   return <I18nContext.Provider value={contextValue}>{children}</I18nContext.Provider>;
 }
 
+// Fallback for components mounted outside the provider tree (e.g. a diagram
+// rendered into a detached React root via createRoot). Uses the default locale
+// instead of throwing, so such components still render.
+const FALLBACK_I18N: I18nContextType = {
+  locale: DEFAULT_LOCALE,
+  setLocale: () => {},
+  messages: getLocaleMessages(DEFAULT_LOCALE),
+};
+
 export function useI18n() {
-  const context = useContext(I18nContext);
-  if (!context) {
-    throw new Error("useI18n must be used within an I18nProvider");
-  }
-  return context;
+  return useContext(I18nContext) ?? FALLBACK_I18N;
 }
 
 export function useTranslations(namespace: Namespace) {
