@@ -450,7 +450,7 @@ function detectMermaidType(source: string): string {
     if (!t || t.startsWith("%%")) continue;
     const m = t.match(/^([A-Za-z][\w-]*)/);
     const kw = (m?.[1] ?? "").toLowerCase();
-    if (kw === "graph" || kw === "flowchart" || kw === "flowchart-elk") return "flowchart";
+    if (kw === "graph" || kw === "flowchart" || kw === "flowchart-elk" || kw === "flow") return "flowchart";
     if (kw === "erdiagram") return "er";
     if (kw === "classdiagram") return "class";
     if (kw === "statediagram" || kw === "statediagram-v2") return "state";

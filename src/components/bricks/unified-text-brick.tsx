@@ -117,6 +117,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   // during the last display render — mounted as real React canvases by an effect.
   const diagramBlocksRef = useRef<Array<{ lang: string; code: string }>>([]);
   const diagramRootsRef = useRef<Root[]>([]);
+  // Last display HTML written to contentRef — guards the sync effect from
+  // re-writing (and remounting diagrams) after React injects canvas DOM.
+  const lastDisplayHtmlRef = useRef<string | null>(null);
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
@@ -125,15 +128,21 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
-  // After read-only display HTML is painted, mount each fenced diagram/preview
-  // block (collected in diagramBlocksRef) into its placeholder as a real React
-  // canvas/iframe. Re-runs whenever the rendered text changes.
-  useEffect(() => {
-    if (!readonly) return;
-    const host = readonlyRef.current;
+  // Unmount any mounted fenced-diagram roots (deferred so we never unmount
+  // synchronously during React's commit phase).
+  const unmountDiagrams = React.useCallback(() => {
+    const roots = diagramRootsRef.current;
+    diagramRootsRef.current = [];
+    roots.forEach((r) => setTimeout(() => { try { r.unmount(); } catch { /* noop */ } }, 0));
+  }, []);
+
+  // Mount each fenced diagram/preview placeholder (collected in diagramBlocksRef
+  // during the last forDisplay render) into `host` as a real React canvas/iframe.
+  const mountDiagramsIn = React.useCallback((host: HTMLElement | null) => {
     if (!host) return;
     const blocks = diagramBlocksRef.current;
     const placeholders = Array.from(host.querySelectorAll<HTMLElement>("[data-diagram-idx]"));
+    if (!placeholders.length) return;
     const roots: Root[] = [];
     placeholders.forEach((el) => {
       const idx = parseInt(el.getAttribute("data-diagram-idx") || "", 10);
@@ -144,12 +153,19 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       roots.push(root);
     });
     diagramRootsRef.current = roots;
-    return () => {
-      // Defer so we never unmount synchronously during React's commit phase.
-      roots.forEach((r) => setTimeout(() => { try { r.unmount(); } catch { /* noop */ } }, 0));
-      diagramRootsRef.current = [];
-    };
-  }, [readonly, text]);
+  }, []);
+
+  // Read-only display HTML is painted by JSX (dangerouslySetInnerHTML), which
+  // also fills diagramBlocksRef. Mount the diagrams after commit. Editable mode
+  // mounts inline where it sets innerHTML (sync effect / blur).
+  useEffect(() => {
+    if (!readonly) return;
+    unmountDiagrams();
+    mountDiagramsIn(readonlyRef.current);
+    return () => unmountDiagrams();
+  }, [readonly, text, mountDiagramsIn, unmountDiagrams]);
+
+  useEffect(() => () => unmountDiagrams(), [unmountDiagrams]);
 
   const tokenEscapeAttr = (value: string): string => {
     return value.replace(/&/g, "&amp;").replace(/\"/g, "&quot;");
@@ -1027,17 +1043,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         return;
       }
 
-      const rendered = processPseudoMarkdown(text);
+      const rendered = processPseudoMarkdown(text, true);
 
-      if (contentRef.current.innerHTML !== rendered) {
+      if (lastDisplayHtmlRef.current !== rendered && contentRef.current.innerHTML !== rendered) {
         logPasteDebug("useEffect syncing content", {
           isFocused,
           oldLength: contentRef.current.innerHTML.length,
           newLength: rendered.length,
         });
+        unmountDiagrams();
         contentRef.current.innerHTML = rendered;
+        lastDisplayHtmlRef.current = rendered;
+        mountDiagramsIn(contentRef.current);
       }
-      
+
       const tc = contentRef.current.textContent || "";
       if (tc.length === 0) {
         contentRef.current.setAttribute("data-empty", "true");
@@ -1059,6 +1078,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleFocus = () => {
     if (contentRef.current) {
+      // Editing shows raw source — tear down any mounted diagram canvases first.
+      unmountDiagrams();
+      lastDisplayHtmlRef.current = null;
       const singleMathFormula = extractSingleBlockMath(text || "");
       if (singleMathFormula) {
         contentRef.current.innerHTML = processPseudoMarkdown(text || "");
@@ -1090,7 +1112,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       // Preserve references as tokens while serializing markdown.
       const rawMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
       onUpdate(rawMarkdown);
-      contentRef.current.innerHTML = processPseudoMarkdown(rawMarkdown);
+      unmountDiagrams();
+      const displayHtml = processPseudoMarkdown(rawMarkdown, true);
+      contentRef.current.innerHTML = displayHtml;
+      lastDisplayHtmlRef.current = displayHtml;
+      mountDiagramsIn(contentRef.current);
       const tc = contentRef.current.textContent || "";
       if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
