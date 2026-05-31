@@ -2988,7 +2988,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const addConn = useCallback((src: string, tgt: string, sp?: Port, tp?: Port, sa?: AnchorNorm, ta?: AnchorNorm) => {
     if (src === tgt) return;
     setState((cur) => {
+      // Exact duplicate (same direction) — ignore.
       if (Object.values(cur.connectionsById).some((c) => c.cons[0] === src && c.cons[1] === tgt)) return cur;
+      // Reverse pair already exists → flip it to bidirectional instead of
+      // stacking two arrows. Matches the import-time collapse logic.
+      const rev = Object.values(cur.connectionsById).find((c) => c.cons[0] === tgt && c.cons[1] === src);
+      if (rev) {
+        const updated: MeshConnection = { ...rev, style: { ...asRec(rev.style), bidir: true } };
+        return { ...cur, connectionsById: { ...cur.connectionsById, [rev.id]: updated } };
+      }
       const style: Record<string, unknown> = { ...connStyle(connPreset) };
       if (sp) style.srcPort = sp;
       if (tp) style.tgtPort = tp;
