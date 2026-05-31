@@ -31,7 +31,11 @@ const serwist = new Serwist({
   precacheEntries: [...(self.__SW_MANIFEST ?? []), ...SHELL_PRECACHE],
   skipWaiting: true,
   clientsClaim: true,
-  navigationPreload: true,
+  // navigationPreload causes a "preload request was cancelled before
+  // 'preloadResponse' settled" warning when Serwist's runtime caching
+  // matches a navigation before the preload promise is consumed. Turn it
+  // off — NetworkFirst handles the fetch directly and works the same.
+  navigationPreload: false,
   fallbacks: {
     entries: [
       {

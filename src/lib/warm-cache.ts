@@ -72,6 +72,61 @@ export async function warmImages(urls: Array<string | null | undefined>): Promis
   }
 }
 
+/** Prefetch entity detail pages (documents, boards, meshes) so they're cached
+ *  by the SW pages-cache and load offline without ever having been visited.
+ *  Capped per-kind to avoid hammering the server when a workspace has hundreds
+ *  of items. Per-entity throttle marker via localStorage. */
+const ENTITY_KEY = "killio_warm_entities_v1";
+const ENTITY_TTL_MS = 60 * 60 * 1000; // 1 h
+
+function entitySeen(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = window.localStorage.getItem(ENTITY_KEY);
+    if (!raw) return new Set();
+    const obj = JSON.parse(raw) as Record<string, number>;
+    const now = Date.now();
+    return new Set(Object.entries(obj).filter(([, ts]) => now - ts < ENTITY_TTL_MS).map(([k]) => k));
+  } catch { return new Set(); }
+}
+function entityRecord(urls: string[]) {
+  if (typeof window === "undefined") return;
+  try {
+    const raw = window.localStorage.getItem(ENTITY_KEY);
+    const obj = (raw ? JSON.parse(raw) : {}) as Record<string, number>;
+    const now = Date.now();
+    for (const u of urls) obj[u] = now;
+    window.localStorage.setItem(ENTITY_KEY, JSON.stringify(obj));
+  } catch { /* noop */ }
+}
+
+export async function warmEntities(opts: {
+  docs?: Array<{ id: string }>;
+  boards?: Array<{ id: string }>;
+  meshes?: Array<{ id: string }>;
+  perKindCap?: number;
+}): Promise<void> {
+  if (!isOnline()) return;
+  const cap = opts.perKindCap ?? 25;
+  const urls: string[] = [];
+  (opts.docs ?? []).slice(0, cap).forEach((d) => d?.id && urls.push(`/d/${d.id}`));
+  (opts.boards ?? []).slice(0, cap).forEach((b) => b?.id && urls.push(`/b/${b.id}`));
+  (opts.meshes ?? []).slice(0, cap).forEach((m) => m?.id && urls.push(`/m/${m.id}`));
+  if (!urls.length) return;
+  const seen = entitySeen();
+  const todo = urls.filter((u) => !seen.has(u));
+  if (!todo.length) return;
+  const recorded: string[] = [];
+  for (const u of todo) {
+    try {
+      await fetch(u, { credentials: "same-origin", cache: "no-cache" });
+      recorded.push(u);
+    } catch { /* network blip — try next call */ }
+    await new Promise((r) => setTimeout(r, 120));
+  }
+  if (recorded.length) entityRecord(recorded);
+}
+
 /** Manually expire the warm-cache marker (used for "Refresh offline cache"
  *  buttons). */
 export function resetWarmCache(): void {

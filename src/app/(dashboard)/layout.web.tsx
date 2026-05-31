@@ -22,7 +22,7 @@ import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
-import { warmCache, warmImages } from "@/lib/warm-cache";
+import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
 import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -133,6 +133,23 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
+  // Force-precache every known entity detail page once boards/docs load —
+  // users shouldn't depend on visiting each one individually. Throttled per-
+  // URL to 1h via localStorage; honors online + sw availability.
+  useEffect(() => {
+    if (!online) return;
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    if (!boards.length && !recentDocuments.length) return;
+    const id = window.setTimeout(() => {
+      void warmEntities({
+        docs: recentDocuments.map((d) => ({ id: d.id })),
+        boards: boards.map((b) => ({ id: b.id })),
+        meshes: boards.filter((b: any) => (b.kind ?? "kb") === "km").map((b) => ({ id: b.id })),
+        perKindCap: 30,
+      });
+    }, 4000);
+    return () => window.clearTimeout(id);
+  }, [online, boards, recentDocuments]);
   const [hasTimers, setHasTimers] = useState(false);
   const { call, settingsModalOpen, setSettingsModalOpen, canvasRef, localVideoRef } = useCall();
   const { updateAvailable } = useVersionCheck();
