@@ -7,12 +7,24 @@
 // while online so it lands in the `pages-cache`. We do that here, in the
 // background, throttled, and skipped if recently done.
 
-const STORAGE_KEY = "killio_warm_cache_v1";
+// Bump suffix when the SHELL_ROUTES list changes — forces existing users to
+// re-warm their cache so newly added shells get fetched right away instead of
+// waiting up to 6h for the TTL.
+const STORAGE_KEY = "killio_warm_cache_v2";
 const TTL_MS = 6 * 60 * 60 * 1000; // 6 h
 
+// Every top-level shell that has a real page.tsx in src/app. These get
+// fetched once while online so the SW's pages-cache-v3 holds them; the SW's
+// shell-fallback strategy then maps deep dynamic paths (e.g. /d/<id>,
+// /rooms/<id>) to their parent shell when offline.
+// NOTE: /profile + /preferences are modal-only in the dashboard layout and
+// have no route → don't warm them (would 404 and waste a request).
 const SHELL_ROUTES = [
-  "/", "/d", "/m", "/b", "/graph", "/rooms", "/teams", "/history",
-  "/profile", "/preferences", "/offline",
+  "/", "/offline",
+  "/d", "/m", "/b", "/graph",
+  "/rooms", "/teams", "/history", "/metrics",
+  "/marketplace", "/marketplace/profile",
+  "/integrations", "/pricing",
 ];
 
 // External assets the app uses at runtime that would 404 offline if never

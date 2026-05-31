@@ -39,6 +39,14 @@ function shellFor(pathname: string): string | null {
   if (pathname.startsWith("/m/")) return "/m";
   if (pathname.startsWith("/graph/")) return "/graph";
   if (pathname.startsWith("/rooms/")) return "/rooms";
+  if (pathname.startsWith("/marketplace/")) return "/marketplace";
+  if (pathname.startsWith("/teams/")) return "/teams";
+  if (pathname.startsWith("/metrics/")) return "/metrics";
+  if (pathname.startsWith("/history/")) return "/history";
+  if (pathname.startsWith("/integrations/")) return "/integrations";
+  if (pathname.startsWith("/public-board/")) return "/";
+  if (pathname.startsWith("/public-document/")) return "/";
+  if (pathname.startsWith("/public-mesh/")) return "/";
   return null;
 }
 
