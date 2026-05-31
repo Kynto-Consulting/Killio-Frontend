@@ -220,25 +220,25 @@ export function UnifiedBrickRenderer({
       break;
 
     case 'beautiful_table': {
-      // Normalize legacy / AI-generated tables where `columns` is a string
-      // array (["Atributo","Cualitativo","Valor"]) and `rows` are arrays of
-      // raw values ([["Daño", "Medio", "8 (4 ❤)"], …]) — the React table
-      // expects column OBJECTS with id/name/type and row OBJECTS with a
-      // cells map keyed by column id. Without this the table renders blank
-      // cells.
+      // Normalize legacy / AI-generated tables (string-array columns + array
+      // rows). The React table expects column OBJECTS and row OBJECTS with a
+      // cells map — without this every header + cell rendered blank.
       const slug = (s: string, fallback: string) => {
         const k = String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
         return k || fallback;
       };
       const rawCols = Array.isArray(content.columns) ? content.columns : [];
+      let needsPersist = false;
       const cols = rawCols.map((c: any, i: number) => {
         if (c && typeof c === "object" && typeof c.id === "string") return c;
+        needsPersist = true;
         const name = typeof c === "string" ? c : (c?.name ?? `Col ${i + 1}`);
         return { id: slug(name, `col-${i}`), name, type: c?.type ?? "text" };
       });
       const rawRows = Array.isArray(content.rows) ? content.rows : [];
       const rows = rawRows.map((r: any, ri: number) => {
         if (r && typeof r === "object" && !Array.isArray(r) && r.cells) return r;
+        needsPersist = true;
         const arr = Array.isArray(r) ? r : [];
         const cells: Record<string, { type: "text"; text: string }> = {};
         cols.forEach((col: any, ci: number) => {
@@ -247,6 +247,11 @@ export function UnifiedBrickRenderer({
         });
         return { id: typeof r?.id === "string" ? r.id : `row-${ri}`, cells };
       });
+      // Persist normalized shape back to disk ONCE so the next load is already
+      // in the canonical format (idempotent — subsequent renders skip).
+      if (needsPersist && canEdit && onUpdate) {
+        setTimeout(() => onUpdate({ ...content, columns: cols, rows }), 0);
+      }
       brickBody = (
         <UnifiedBountifulTable
           id={brick.id}
