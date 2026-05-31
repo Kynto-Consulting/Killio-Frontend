@@ -173,8 +173,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const sw = parseFloat(el.getAttribute("data-lu-sw") || "2") || 2;
       const Icon = resolveLucide(name);
       if (!Icon) return;
+      // Mount into the inner [data-lu-mount] span so we don't wipe the
+      // sibling sr-only token text used for copy.
+      const mountEl = el.querySelector<HTMLElement>("[data-lu-mount]");
+      if (!mountEl) return;
       el.dataset.luMounted = "1";
-      const root = createRoot(el);
+      const root = createRoot(mountEl);
       root.render(<Icon size="1em" color="currentColor" strokeWidth={sw} />);
       roots.push(root);
     });
@@ -240,6 +244,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         const tokenAttr = el.getAttribute("data-token");
         if (tokenAttr) {
           markdown += tokenAttr;
+          return;
+        }
+        // Lucide icon placeholder — serialize back to the `[lu:NAME:SW]` token
+        // and skip recursing into its inner sr-only text + mount span.
+        if (el.hasAttribute("data-lu-icon")) {
+          const luName = el.getAttribute("data-lu-icon") || "";
+          const luSw = el.getAttribute("data-lu-sw") || "2";
+          markdown += `[lu:${luName}:${luSw}]`;
           return;
         }
 
@@ -624,11 +636,15 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     const formatLeafInline = (t: string) => {
       let tFormat = t
-      // [lu:NAME:SW] → lucide icon placeholder (mounted via createRoot after
-      // innerHTML paint). Uses currentColor + 1em so it inherits color + size
-      // from the surrounding text/heading.
-      .replace(/\[lu:([\w-]+)(?::([\d.]+))?\]/g, (_, name: string, sw?: string) =>
-        `<span data-lu-icon="${escapeHtmlAttr(name)}" data-lu-sw="${escapeHtmlAttr(sw ?? "2")}" contenteditable="false" class="inline-flex h-[1em] w-[1em] align-[-0.15em]"></span>`)
+      // [lu:NAME:SW] → lucide icon placeholder. Outer wrapper carries the
+      // attributes + an invisible-but-selectable text child holding the raw
+      // token (so selecting + copying yields `[lu:NAME:SW]` and pastes back
+      // into another text brick as the same icon). The mount target is the
+      // inner [data-lu-mount] span so createRoot doesn't wipe the token text.
+      .replace(/\[lu:([\w-]+)(?::([\d.]+))?\]/g, (_, name: string, sw?: string) => {
+        const tok = `[lu:${name}${sw ? `:${sw}` : ""}]`;
+        return `<span data-lu-icon="${escapeHtmlAttr(name)}" data-lu-sw="${escapeHtmlAttr(sw ?? "2")}" contenteditable="false" class="relative inline-block h-[1em] w-[1em] align-[-0.15em]"><span aria-hidden="false" class="pointer-events-none absolute inset-0 select-text opacity-0">${escapeHtml(tok)}</span><span data-lu-mount class="absolute inset-0 inline-flex"></span></span>`;
+      })
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
         const src = normalizeImageUrl(rawUrl);
         if (!src) return `![${escapeHtml(alt)}](${escapeHtml(rawUrl)})`;
