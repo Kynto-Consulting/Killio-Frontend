@@ -68,7 +68,8 @@ class NavigationWithShellFallback extends Strategy {
     const exact = await handler.cacheMatch(request);
     if (exact) return exact;
 
-    // 3. Parent shell route from same cache (e.g. /d/<id> → /d).
+    // 3. Parent shell route from same cache (e.g. /d/<id> → /d, even
+    //    multi-segment local paths like /d/ws/sub/file.kd).
     const url = new URL(request.url);
     const shell = shellFor(url.pathname);
     if (shell) {
@@ -77,7 +78,14 @@ class NavigationWithShellFallback extends Strategy {
       if (shellHit) return shellHit;
     }
 
-    // 4. Precached /offline.
+    // 4. Root "/" shell — precached at install, always present. The dashboard
+    //    layout it renders hydrates the local workspace from IndexedDB and the
+    //    Next.js client router patches the URL so deep dynamic paths
+    //    (/d/<ws>/<sub>/<file>.kd, /b/<id>, /m/<id>) load via cached bundles.
+    const rootHit = await caches.match("/");
+    if (rootHit) return rootHit;
+
+    // 5. Precached /offline.
     const offline = await caches.match("/offline");
     if (offline) return offline;
 
@@ -215,6 +223,11 @@ self.addEventListener("activate", (event: any) => {
     (async () => {
       const keys = await caches.keys();
       await Promise.all(keys.filter((k) => LEGACY_CACHES.has(k)).map((k) => caches.delete(k)));
+      // Tell every open client to (re-)warm the cache now that this SW is
+      // controlling — picks up new shell routes without waiting for the 6h
+      // TTL or the next mount of the dashboard layout.
+      const clients = await (self as any).clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const c of clients) c.postMessage({ type: "killio:warm-cache" });
     })()
   );
 });

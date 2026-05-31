@@ -7,6 +7,7 @@
 // offline fixes "not work" — the browser kept the old sw.js.
 
 import React from "react";
+import { resetWarmCache, warmCache } from "@/lib/warm-cache";
 
 export function SwUpdater() {
   React.useEffect(() => {
@@ -18,11 +19,22 @@ export function SwUpdater() {
       // Give the new SW a tick to settle before reload.
       setTimeout(() => window.location.reload(), 50);
     };
+    const onMessage = (ev: MessageEvent) => {
+      if (ev.data?.type === "killio:warm-cache") {
+        // New SW just activated — reset the warm-cache marker so warmCache()
+        // actually runs (otherwise the 6h TTL would short-circuit it) and
+        // re-prefetches every shell route into the fresh pages-cache.
+        resetWarmCache();
+        void warmCache();
+      }
+    };
     navigator.serviceWorker.addEventListener("controllerchange", onCtrlChange);
-    // Trigger an update check on every mount — picks up new sw.js on next
-    // online navigation without waiting for the browser's 24h refresh.
+    navigator.serviceWorker.addEventListener("message", onMessage);
     navigator.serviceWorker.getRegistration().then((reg) => { reg?.update().catch(() => { /* noop */ }); }).catch(() => { /* noop */ });
-    return () => navigator.serviceWorker.removeEventListener("controllerchange", onCtrlChange);
+    return () => {
+      navigator.serviceWorker.removeEventListener("controllerchange", onCtrlChange);
+      navigator.serviceWorker.removeEventListener("message", onMessage);
+    };
   }, []);
   return null;
 }
