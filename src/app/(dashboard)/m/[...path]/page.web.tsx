@@ -2880,14 +2880,24 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   }, []);
 
   // ── Add bricks ────────────────────────────────────────────────────────────────
+  // Compute current viewport center in canvas-space. Used as the default insert
+  // point so click-to-insert doesn't dump every brick at (0,0).
+  const canvasCenter = useCallback(() => {
+    const el = canvasRef.current;
+    if (!el) return undefined;
+    const r = el.getBoundingClientRect();
+    return toCanvas(r.left + r.width / 2, r.top + r.height / 2);
+  }, [toCanvas]);
+
   const addMeta = useCallback((entry: MetaEntry, at?: { x: number; y: number }) => {
     let newId = "";
+    const center = at ?? canvasCenter();
     setState((cur) => {
       const b = mkBrick(entry.kind, Object.keys(cur.bricksById).length, null, undefined, undefined, entry.unifierKind);
       newId = b.id;
       let drop: { x: number; y: number } | undefined;
-      if (at) {
-        drop = { x: at.x - b.size.w / 2, y: at.y - b.size.h / 2 };
+      if (center && !(selectedId && cur.bricksById[selectedId]?.kind === "board_empty")) {
+        drop = { x: center.x - b.size.w / 2, y: center.y - b.size.h / 2 };
       } else if (selectedId && cur.bricksById[selectedId]?.kind === "board_empty") {
         const board = cur.bricksById[selectedId];
         const g = resolveGlobal(cur.bricksById, selectedId);
@@ -2900,32 +2910,34 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     if (entry.kind === "text") {
       setTimeout(() => { setEditingBrickId(newId); setEditingValue(""); }, 30);
     }
-  }, [selectedId]);
+  }, [selectedId, canvasCenter]);
 
   const addShape = useCallback((preset: ShapePreset, at?: { x: number; y: number }) => {
+    const center = at ?? canvasCenter();
     setState((cur) => {
       const kind: MeshBrickKind = preset === "frame-vector" ? "frame" : "draw";
       const b = mkBrick(kind, Object.keys(cur.bricksById).length, null, undefined, preset);
-      const drop = at ? { x: at.x - b.size.w / 2, y: at.y - b.size.h / 2 } : undefined;
+      const drop = center ? { x: center.x - b.size.w / 2, y: center.y - b.size.h / 2 } : undefined;
       return insertBrick(cur, b, drop);
     });
-  }, []);
+  }, [canvasCenter]);
 
   // Insert a chart metabrick: a `draw` brick whose content carries a typed
   // chart spec object (pie/bar/line/…). Rendered as one SVG; the spec is
   // editable via a structured UI in the style panel.
   const addChart = useCallback((tplKey: ChartType, at?: { x: number; y: number }) => {
     const chart = defaultChartSpec(tplKey);
+    const center = at ?? canvasCenter();
     let newId = "";
     setState((cur) => {
       const b0 = mkBrick("draw", Object.keys(cur.bricksById).length, null, undefined);
       const b = { ...b0, size: { w: 360, h: 300 }, content: { chart } };
       newId = b.id;
-      const drop = at ? { x: at.x - b.size.w / 2, y: at.y - b.size.h / 2 } : undefined;
+      const drop = center ? { x: center.x - b.size.w / 2, y: center.y - b.size.h / 2 } : undefined;
       return insertBrick(cur, b, drop);
     });
     if (newId) { setSelectedId(newId); setToolbarPanel("style"); }
-  }, []);
+  }, [canvasCenter]);
 
   // ── Drag-from-toolbar ────────────────────────────────────────────────────────
   const onToolDragStart = useCallback((e: React.DragEvent, data: { type: "meta"; entry: MetaEntry } | { type: "shape"; preset: ShapePreset } | { type: "chart"; key: string }) => {
@@ -3990,16 +4002,18 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         <div key={brick.id}
           className={`group absolute${ring} rounded-md`}
           style={{ left: brick.position.x, top: brick.position.y, width: brick.size.w, height: brick.size.h,
-            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "hidden", opacity: sOpacity }}
+            cursor: dragState?.brickId === brick.id ? CURSOR.grabbing : CURSOR.grab, overflow: "visible", opacity: sOpacity }}
           onClick={(e) => onBrickClick(e, brick.id)}
           onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") { setSelectedId(brick.id); setToolbarPanel("style"); } }}
         >
-          <div className="pointer-events-none h-full w-full">
+          <div className="pointer-events-none h-full w-full overflow-hidden rounded-md">
             {chartSpec
               ? <ChartBrickRender chart={chartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full" />
               : <ChartGlyph source={chartSrc!} className="h-full w-full" />}
           </div>
+          {magnetDots}
+          {isSel && <div className="absolute bottom-0 right-0 z-30 h-5 w-5 translate-x-1/2 translate-y-1/2 cursor-se-resize rounded-sm bg-white/30 ring-1 ring-white/60 hover:bg-white/50" aria-label="Resize" onPointerDown={(e) => { e.stopPropagation(); startResize(e, brick.id); }} />}
         </div>
       );
     }
