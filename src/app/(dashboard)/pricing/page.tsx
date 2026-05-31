@@ -18,6 +18,7 @@ import {
 } from "@/lib/api/billing";
 import { getScriptsUsage, ScriptMonthlyUsage } from "@/lib/api/scripts";
 import { getTeamAiUsage, getTeamRagStatus, TeamAiUsage, TeamRagStatus } from "@/lib/api/contracts";
+import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 
 const PLAN_ORDER: TeamPlanTier[] = ["free", "pro", "max"];
 
@@ -39,6 +40,14 @@ function formatIsoDate(iso: string, locale: "es" | "en"): string {
 }
 
 export default function PricingPage() {
+  return (
+    <OfflineRouteFallback view="pricing">
+      <PricingPageInner />
+    </OfflineRouteFallback>
+  );
+}
+
+function PricingPageInner() {
   const { locale } = useI18n();
   const t = useTranslations("pricing");
   const { accessToken, activeTeamId } = useSession();

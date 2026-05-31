@@ -4,7 +4,26 @@
   "offline": {
     "banner": "Sin conexión — trabajando en modo offline",
     "lost": "Se perdió la conexión a internet",
-    "restored": "Conexión restaurada"
+    "restored": "Conexión restaurada",
+    "fallback": {
+      "title": "Esta sección necesita internet",
+      "retry": "Reintentar",
+      "goLocal": "Abrir workspace local",
+      "goHome": "Ir al inicio",
+      "views": {
+        "teams": "La gestión de equipos vive en la nube. Conéctate para invitar, ver miembros o ajustar permisos.",
+        "history": "El historial de actividad se sincroniza con la nube. Conéctate para ver eventos recientes.",
+        "metrics": "Las métricas del workspace dependen del backend. Conéctate para ver datos actualizados.",
+        "rooms": "Las salas en vivo requieren conexión. Conéctate para entrar a un canal.",
+        "marketplace": "El marketplace está en la nube. Conéctate para explorar plantillas y extensiones.",
+        "integrations": "Las integraciones requieren conexión activa al servicio externo.",
+        "profile": "Tu perfil se gestiona en la nube. Conéctate para editarlo.",
+        "preferences": "Las preferencias se sincronizan con la nube. Conéctate para guardar cambios.",
+        "pricing": "La página de precios necesita conexión a internet.",
+        "estadisticas": "Las estadísticas dependen del backend. Conéctate para ver datos.",
+        "generic": "Esta sección requiere internet."
+      }
+    }
   },
   "actions": {
     "cancel": "Cancelar",

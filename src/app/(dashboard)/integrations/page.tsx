@@ -1,11 +1,15 @@
-import { PlatformComponent } from "@/lib/platform";
-import { IntegrationsMobilePage } from "./page.mobile.tsx";
-import { IntegrationsPageView } from "./page.web.tsx";
+"use client";
 
-export default async function IntegrationsPage() {
-  return PlatformComponent({
-    web: IntegrationsPageView,
-    mobile: IntegrationsMobilePage,
-    props: {},
-  });
+import { usePlatform } from "@/components/providers/platform-provider";
+import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
+import { IntegrationsMobilePage } from "./page.mobile";
+import { IntegrationsPageView } from "./page.web";
+
+export default function IntegrationsPage() {
+  const platform = usePlatform();
+  return (
+    <OfflineRouteFallback view="integrations">
+      {platform === "mobile" ? <IntegrationsMobilePage /> : <IntegrationsPageView />}
+    </OfflineRouteFallback>
+  );
 }

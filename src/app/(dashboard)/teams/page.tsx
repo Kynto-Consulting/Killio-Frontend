@@ -26,6 +26,7 @@ import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
+import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 
 const MEMBER_COLORS = ["#22d3ee", "#6366f1", "#f472b6", "#fb923c", "#a78bfa", "#34d399", "#fbbf24", "#f87171"];
 
@@ -46,6 +47,14 @@ function roleBadgeStyle(role: string): React.CSSProperties {
 }
 
 export default function TeamsPage() {
+  return (
+    <OfflineRouteFallback view="teams">
+      <TeamsPageInner />
+    </OfflineRouteFallback>
+  );
+}
+
+function TeamsPageInner() {
   const { accessToken, activeTeamId, user } = useSession();
   const t = useTranslations("teams");
 

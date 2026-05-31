@@ -4,7 +4,26 @@
   "offline": {
     "banner": "Offline — working in local mode",
     "lost": "Internet connection lost",
-    "restored": "Connection restored"
+    "restored": "Connection restored",
+    "fallback": {
+      "title": "This section needs internet",
+      "retry": "Retry",
+      "goLocal": "Open local workspace",
+      "goHome": "Go home",
+      "views": {
+        "teams": "Team management lives in the cloud. Connect to invite, view members or adjust permissions.",
+        "history": "Activity history syncs with the cloud. Connect to see recent events.",
+        "metrics": "Workspace metrics come from the backend. Connect for fresh data.",
+        "rooms": "Live rooms require a connection. Connect to join a channel.",
+        "marketplace": "The marketplace lives in the cloud. Connect to browse templates and extensions.",
+        "integrations": "Integrations require an active connection to the external service.",
+        "profile": "Your profile is managed in the cloud. Connect to edit it.",
+        "preferences": "Preferences sync with the cloud. Connect to save changes.",
+        "pricing": "The pricing page needs internet.",
+        "estadisticas": "Statistics depend on the backend. Connect to view data.",
+        "generic": "This section requires internet."
+      }
+    }
   },
   "actions": {
     "cancel": "Cancel",

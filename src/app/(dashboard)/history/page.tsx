@@ -26,6 +26,7 @@ import {
   ActivityLogEntry,
 } from "@/lib/api/contracts";
 import { ActivityLogModal } from "@/components/ui/activity-log-modal";
+import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { Fragment } from "react";
@@ -219,6 +220,14 @@ function summarizeGroup(items: ActivityVisual[], t: TFunc): { message: string; d
 }
 
 export default function HistoryPage() {
+  return (
+    <OfflineRouteFallback view="history">
+      <HistoryPageInner />
+    </OfflineRouteFallback>
+  );
+}
+
+function HistoryPageInner() {
   const { accessToken, activeTeamId, user } = useSession();
   const t = useTranslations("history");
   const fieldLabels: Record<string, string> = {
