@@ -1,6 +1,11 @@
 {
   "enabled": "Habilitado",
   "disabled": "Deshabilitado",
+  "offline": {
+    "banner": "Sin conexión — trabajando en modo offline",
+    "lost": "Se perdió la conexión a internet",
+    "restored": "Conexión restaurada"
+  },
   "actions": {
     "cancel": "Cancelar",
     "save": "Guardar",

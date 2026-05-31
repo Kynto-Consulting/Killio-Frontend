@@ -1,6 +1,11 @@
 {
   "enabled": "Enabled",
   "disabled": "Disabled",
+  "offline": {
+    "banner": "Offline — working in local mode",
+    "lost": "Internet connection lost",
+    "restored": "Connection restored"
+  },
   "actions": {
     "cancel": "Cancel",
     "save": "Save",
