@@ -7,6 +7,14 @@
 
 import React from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { useTranslations } from "@/components/providers/i18n-provider";
+
+// Shared translator for editor strings (uses the i18n fallback when no
+// provider is mounted, e.g. inside a detached React root).
+const useE = () => {
+  const t = useTranslations("mesh");
+  return (k: string) => t(`charts.editor.${k}` as any);
+};
 
 const PALETTE = ["#22d3ee", "#a78bfa", "#f59e0b", "#34d399", "#f472b6", "#60a5fa", "#fbbf24", "#fb7185", "#4ade80", "#c084fc", "#2dd4bf", "#facc15"];
 const hexA = (hex: string, a: number) => { let h = hex.replace("#",""); if (h.length===3) h=h.split("").map(c=>c+c).join(""); const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return [r,g,b].some(Number.isNaN) ? hex : `rgba(${r},${g},${b},${a})`; };
@@ -401,212 +409,223 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 function ItemValueEditor({ items, onChange }: { items: { label: string; value: number; color?: string }[]; onChange: (items: { label: string; value: number; color?: string }[]) => void }) {
-  return <Section title="Items">
+  const e = useE();
+  return <Section title={e("items")}>
     {items.map((it, i) => (
       <Row key={i}>
-        <input type="color" value={it.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...items]; a[i] = { ...it, color: e.target.value }; onChange(a); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-        <input value={it.label} onChange={e => { const a=[...items]; a[i] = { ...it, label: e.target.value }; onChange(a); }} placeholder="Etiqueta" className={inp} />
-        <input type="number" value={it.value} onChange={e => { const a=[...items]; a[i] = { ...it, value: parseFloat(e.target.value)||0 }; onChange(a); }} className={num} />
+        <input type="color" value={it.color ?? PALETTE[i % PALETTE.length]} onChange={ev => { const a=[...items]; a[i] = { ...it, color: ev.target.value }; onChange(a); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+        <input value={it.label} onChange={ev => { const a=[...items]; a[i] = { ...it, label: ev.target.value }; onChange(a); }} placeholder={e("label")} className={inp} />
+        <input type="number" value={it.value} onChange={ev => { const a=[...items]; a[i] = { ...it, value: parseFloat(ev.target.value)||0 }; onChange(a); }} className={num} />
         <button type="button" onClick={() => onChange(items.filter((_,j)=>j!==i))} className={danger}><Trash2 className="h-3 w-3" /></button>
       </Row>
     ))}
-    <button type="button" onClick={() => onChange([...items, { label: "Nuevo", value: 0 }])} className={btn}><Plus className="inline h-3 w-3" /> añadir</button>
+    <button type="button" onClick={() => onChange([...items, { label: e("new"), value: 0 }])} className={btn}><Plus className="inline h-3 w-3" /> {e("add")}</button>
   </Section>;
 }
 
 function PieEditor({ s, on }: { s: PieSpec; on: (s: PieSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <ItemValueEditor items={s.items} onChange={items => on({ ...s, items })} />
   </>;
 }
 
 function BarLineEditor({ s, on }: { s: BarLineSpec; on: (s: BarLineSpec) => void }) {
+  const e = useE();
   const xCsv = s.xLabels.join(", ");
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">Eje X</span><input value={xCsv} onChange={e=>on({...s, xLabels: e.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} placeholder="Ene, Feb, Mar" className={inp} /></Row>
-    <Section title="Series">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("xAxis")}</span><input value={xCsv} onChange={ev=>on({...s, xLabels: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} placeholder={e("xAxisPlaceholder")} className={inp} /></Row>
+    <Section title={e("series")}>
       {s.series.map((se, si) => (
         <div key={si} className="rounded border border-white/10 p-1.5 space-y-1">
           <Row>
-            <input type="color" value={se.color ?? PALETTE[si % PALETTE.length]} onChange={e => { const a=[...s.series]; a[si] = { ...se, color: e.target.value }; on({ ...s, series: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-            <input value={se.label ?? ""} onChange={e => { const a=[...s.series]; a[si] = { ...se, label: e.target.value }; on({ ...s, series: a }); }} placeholder={`Serie ${si+1}`} className={inp} />
+            <input type="color" value={se.color ?? PALETTE[si % PALETTE.length]} onChange={ev => { const a=[...s.series]; a[si] = { ...se, color: ev.target.value }; on({ ...s, series: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+            <input value={se.label ?? ""} onChange={ev => { const a=[...s.series]; a[si] = { ...se, label: ev.target.value }; on({ ...s, series: a }); }} placeholder={`${e("series")} ${si+1}`} className={inp} />
             <button type="button" onClick={() => on({ ...s, series: s.series.filter((_,j)=>j!==si) })} className={danger}><Trash2 className="h-3 w-3" /></button>
           </Row>
-          <input value={se.values.join(", ")} onChange={e => { const a=[...s.series]; a[si] = { ...se, values: e.target.value.split(",").map(t=>parseFloat(t.trim())).filter(Number.isFinite) }; on({ ...s, series: a }); }} placeholder="100, 200, 300" className={inp} />
+          <input value={se.values.join(", ")} onChange={ev => { const a=[...s.series]; a[si] = { ...se, values: ev.target.value.split(",").map(t=>parseFloat(t.trim())).filter(Number.isFinite) }; on({ ...s, series: a }); }} placeholder={e("valuesPlaceholder")} className={inp} />
         </div>
       ))}
-      <button type="button" onClick={() => on({ ...s, series: [...s.series, { values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir serie</button>
+      <button type="button" onClick={() => on({ ...s, series: [...s.series, { values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addSeries")}</button>
     </Section>
-    <Row><span className="w-12 text-[9px] text-slate-400">Y min</span><input type="number" value={s.yMin ?? ""} onChange={e=>on({...s, yMin: e.target.value===""?undefined:parseFloat(e.target.value)})} className={inp} /><span className="w-12 text-[9px] text-slate-400">Y max</span><input type="number" value={s.yMax ?? ""} onChange={e=>on({...s, yMax: e.target.value===""?undefined:parseFloat(e.target.value)})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("yMin")}</span><input type="number" value={s.yMin ?? ""} onChange={ev=>on({...s, yMin: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("yMax")}</span><input type="number" value={s.yMax ?? ""} onChange={ev=>on({...s, yMax: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
   </>;
 }
 
 function RadarEditor({ s, on }: { s: RadarSpec; on: (s: RadarSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">Ejes</span><input value={s.axes.join(", ")} onChange={e=>on({...s, axes: e.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} className={inp} /></Row>
-    <Section title="Curvas">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("axes")}</span><input value={s.axes.join(", ")} onChange={ev=>on({...s, axes: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} className={inp} /></Row>
+    <Section title={e("curves")}>
       {s.curves.map((c, ci) => (
         <div key={ci} className="rounded border border-white/10 p-1.5 space-y-1">
           <Row>
-            <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={e => { const a=[...s.curves]; a[ci] = { ...c, color: e.target.value }; on({ ...s, curves: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-            <input value={c.label} onChange={e => { const a=[...s.curves]; a[ci] = { ...c, label: e.target.value }; on({ ...s, curves: a }); }} className={inp} />
+            <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={ev => { const a=[...s.curves]; a[ci] = { ...c, color: ev.target.value }; on({ ...s, curves: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+            <input value={c.label} onChange={ev => { const a=[...s.curves]; a[ci] = { ...c, label: ev.target.value }; on({ ...s, curves: a }); }} className={inp} />
             <button type="button" onClick={() => on({ ...s, curves: s.curves.filter((_,j)=>j!==ci) })} className={danger}><Trash2 className="h-3 w-3" /></button>
           </Row>
-          <input value={c.values.join(", ")} onChange={e => { const a=[...s.curves]; a[ci] = { ...c, values: e.target.value.split(",").map(t=>parseFloat(t.trim())).filter(Number.isFinite) }; on({ ...s, curves: a }); }} className={inp} />
+          <input value={c.values.join(", ")} onChange={ev => { const a=[...s.curves]; a[ci] = { ...c, values: ev.target.value.split(",").map(t=>parseFloat(t.trim())).filter(Number.isFinite) }; on({ ...s, curves: a }); }} className={inp} />
         </div>
       ))}
-      <button type="button" onClick={() => on({ ...s, curves: [...s.curves, { label: `Serie ${s.curves.length+1}`, values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir curva</button>
+      <button type="button" onClick={() => on({ ...s, curves: [...s.curves, { label: `${e("series")} ${s.curves.length+1}`, values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addCurve")}</button>
     </Section>
-    <Row><span className="w-12 text-[9px] text-slate-400">Max</span><input type="number" value={s.max ?? ""} onChange={e=>on({...s, max: e.target.value===""?undefined:parseFloat(e.target.value)})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("max")}</span><input type="number" value={s.max ?? ""} onChange={ev=>on({...s, max: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
   </>;
 }
 
 function QuadrantEditor({ s, on }: { s: QuadrantSpec; on: (s: QuadrantSpec) => void }) {
+  const e = useE();
   const q = s.quads ?? ["","","",""];
   const setQ = (i: number, v: string) => { const a = [...q] as [string,string,string,string]; a[i] = v; on({ ...s, quads: a }); };
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">X low</span><input value={s.xLow ?? ""} onChange={e=>on({...s, xLow: e.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">X high</span><input value={s.xHigh ?? ""} onChange={e=>on({...s, xHigh: e.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">Y low</span><input value={s.yLow ?? ""} onChange={e=>on({...s, yLow: e.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">Y high</span><input value={s.yHigh ?? ""} onChange={e=>on({...s, yHigh: e.target.value})} className={inp} /></Row>
-    <Section title="Cuadrantes">
-      {["Q1 (arriba-der)","Q2 (arriba-izq)","Q3 (abajo-izq)","Q4 (abajo-der)"].map((lbl, i) => (
-        <Row key={i}><span className="w-24 text-[9px] text-slate-400">{lbl}</span><input value={q[i]} onChange={e=>setQ(i, e.target.value)} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("xLow")}</span><input value={s.xLow ?? ""} onChange={ev=>on({...s, xLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("xHigh")}</span><input value={s.xHigh ?? ""} onChange={ev=>on({...s, xHigh: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("yLow")}</span><input value={s.yLow ?? ""} onChange={ev=>on({...s, yLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("yHigh")}</span><input value={s.yHigh ?? ""} onChange={ev=>on({...s, yHigh: ev.target.value})} className={inp} /></Row>
+    <Section title={e("quadrants")}>
+      {[e("quad1"), e("quad2"), e("quad3"), e("quad4")].map((lbl, i) => (
+        <Row key={i}><span className="w-24 text-[9px] text-slate-400">{lbl}</span><input value={q[i]} onChange={ev=>setQ(i, ev.target.value)} className={inp} /></Row>
       ))}
     </Section>
-    <Section title="Puntos (x,y entre 0 y 1)">
+    <Section title={e("points")}>
       {s.points.map((p, i) => (
         <Row key={i}>
-          <input type="color" value={p.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...s.points]; a[i] = { ...p, color: e.target.value }; on({ ...s, points: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-          <input value={p.label} onChange={e => { const a=[...s.points]; a[i] = { ...p, label: e.target.value }; on({ ...s, points: a }); }} placeholder="Etiqueta" className={inp} />
-          <input type="number" step="0.05" min="0" max="1" value={p.x} onChange={e => { const a=[...s.points]; a[i] = { ...p, x: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, points: a }); }} className={num} />
-          <input type="number" step="0.05" min="0" max="1" value={p.y} onChange={e => { const a=[...s.points]; a[i] = { ...p, y: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, points: a }); }} className={num} />
+          <input type="color" value={p.color ?? PALETTE[i % PALETTE.length]} onChange={ev => { const a=[...s.points]; a[i] = { ...p, color: ev.target.value }; on({ ...s, points: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input value={p.label} onChange={ev => { const a=[...s.points]; a[i] = { ...p, label: ev.target.value }; on({ ...s, points: a }); }} placeholder={e("label")} className={inp} />
+          <input type="number" step="0.05" min="0" max="1" value={p.x} onChange={ev => { const a=[...s.points]; a[i] = { ...p, x: Math.max(0, Math.min(1, parseFloat(ev.target.value)||0)) }; on({ ...s, points: a }); }} className={num} />
+          <input type="number" step="0.05" min="0" max="1" value={p.y} onChange={ev => { const a=[...s.points]; a[i] = { ...p, y: Math.max(0, Math.min(1, parseFloat(ev.target.value)||0)) }; on({ ...s, points: a }); }} className={num} />
           <button type="button" onClick={() => on({ ...s, points: s.points.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
         </Row>
       ))}
-      <button type="button" onClick={() => on({ ...s, points: [...s.points, { label: "Nuevo", x: 0.5, y: 0.5 }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir punto</button>
+      <button type="button" onClick={() => on({ ...s, points: [...s.points, { label: e("new"), x: 0.5, y: 0.5 }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addPoint")}</button>
     </Section>
   </>;
 }
 
 function KanbanEditor({ s, on }: { s: KanbanSpec; on: (s: KanbanSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Section title="Columnas">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Section title={e("columns")}>
       {s.columns.map((c, ci) => (
         <div key={ci} className="rounded border border-white/10 p-1.5 space-y-1">
           <Row>
-            <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={e => { const a=[...s.columns]; a[ci] = { ...c, color: e.target.value }; on({ ...s, columns: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-            <input value={c.title} onChange={e => { const a=[...s.columns]; a[ci] = { ...c, title: e.target.value }; on({ ...s, columns: a }); }} className={inp} />
+            <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, color: ev.target.value }; on({ ...s, columns: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+            <input value={c.title} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, title: ev.target.value }; on({ ...s, columns: a }); }} className={inp} />
             <button type="button" onClick={() => on({ ...s, columns: s.columns.filter((_,j)=>j!==ci) })} className={danger}><Trash2 className="h-3 w-3" /></button>
           </Row>
-          <textarea value={c.cards.join("\n")} onChange={e => { const a=[...s.columns]; a[ci] = { ...c, cards: e.target.value.split("\n").map(t=>t.trim()).filter(Boolean) }; on({ ...s, columns: a }); }} placeholder="Una tarjeta por línea" rows={Math.min(6, Math.max(2, c.cards.length+1))} className="w-full rounded border border-white/10 bg-slate-800 px-1.5 py-1 text-[10px] text-slate-100 outline-none focus:border-cyan-500/50" />
+          <textarea value={c.cards.join("\n")} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, cards: ev.target.value.split("\n").map(t=>t.trim()).filter(Boolean) }; on({ ...s, columns: a }); }} placeholder={e("cardsPlaceholder")} rows={Math.min(6, Math.max(2, c.cards.length+1))} className="w-full rounded border border-white/10 bg-slate-800 px-1.5 py-1 text-[10px] text-slate-100 outline-none focus:border-cyan-500/50" />
         </div>
       ))}
-      <button type="button" onClick={() => on({ ...s, columns: [...s.columns, { title: "Nueva", cards: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir columna</button>
+      <button type="button" onClick={() => on({ ...s, columns: [...s.columns, { title: e("newColumn"), cards: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addColumn")}</button>
     </Section>
   </>;
 }
 
 function GanttEditor({ s, on }: { s: GanttSpec; on: (s: GanttSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Section title="Tareas">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Section title={e("tasks")}>
       {s.tasks.map((t, i) => (
         <div key={i} className="rounded border border-white/10 p-1.5 space-y-1">
           <Row>
-            <input value={t.name} onChange={e => { const a=[...s.tasks]; a[i] = { ...t, name: e.target.value }; on({ ...s, tasks: a }); }} placeholder="Nombre" className={inp} />
+            <input value={t.name} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, name: ev.target.value }; on({ ...s, tasks: a }); }} placeholder={e("name")} className={inp} />
             <button type="button" onClick={() => on({ ...s, tasks: s.tasks.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
           </Row>
           <Row>
-            <input value={t.section ?? ""} onChange={e => { const a=[...s.tasks]; a[i] = { ...t, section: e.target.value }; on({ ...s, tasks: a }); }} placeholder="Sección" className={inp} />
-            <select value={t.status ?? ""} onChange={e => { const a=[...s.tasks]; a[i] = { ...t, status: (e.target.value || undefined) as any }; on({ ...s, tasks: a }); }} className={inp}>
+            <input value={t.section ?? ""} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, section: ev.target.value }; on({ ...s, tasks: a }); }} placeholder={e("section")} className={inp} />
+            <select value={t.status ?? ""} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, status: (ev.target.value || undefined) as any }; on({ ...s, tasks: a }); }} className={inp}>
               <option value="">—</option><option value="done">done</option><option value="active">active</option><option value="crit">crit</option><option value="milestone">milestone</option>
             </select>
           </Row>
           <Row>
-            <input type="date" value={t.start} onChange={e => { const a=[...s.tasks]; a[i] = { ...t, start: e.target.value }; on({ ...s, tasks: a }); }} className={inp} />
-            <input type="date" value={t.end} onChange={e => { const a=[...s.tasks]; a[i] = { ...t, end: e.target.value }; on({ ...s, tasks: a }); }} className={inp} />
+            <input type="date" value={t.start} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, start: ev.target.value }; on({ ...s, tasks: a }); }} className={inp} />
+            <input type="date" value={t.end} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, end: ev.target.value }; on({ ...s, tasks: a }); }} className={inp} />
           </Row>
         </div>
       ))}
-      <button type="button" onClick={() => on({ ...s, tasks: [...s.tasks, { name: "Nueva", start: "2026-01-01", end: "2026-01-08" }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir tarea</button>
+      <button type="button" onClick={() => on({ ...s, tasks: [...s.tasks, { name: e("newTask"), start: "2026-01-01", end: "2026-01-08" }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addTask")}</button>
     </Section>
   </>;
 }
 
 function TreemapEditor({ s, on }: { s: TreemapSpec; on: (s: TreemapSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <ItemValueEditor items={s.items} onChange={items => on({ ...s, items })} />
   </>;
 }
 
 function VennEditor({ s, on }: { s: VennSpec; on: (s: VennSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Section title="Conjuntos (2 o 3)">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Section title={e("sets")}>
       {s.sets.map((set, i) => (
         <Row key={i}>
-          <input type="color" value={set.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...s.sets]; a[i] = { ...set, color: e.target.value }; on({ ...s, sets: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-          <input value={set.label} onChange={e => { const a=[...s.sets]; a[i] = { ...set, label: e.target.value }; on({ ...s, sets: a }); }} className={inp} />
+          <input type="color" value={set.color ?? PALETTE[i % PALETTE.length]} onChange={ev => { const a=[...s.sets]; a[i] = { ...set, color: ev.target.value }; on({ ...s, sets: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input value={set.label} onChange={ev => { const a=[...s.sets]; a[i] = { ...set, label: ev.target.value }; on({ ...s, sets: a }); }} className={inp} />
           <button type="button" onClick={() => on({ ...s, sets: s.sets.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
         </Row>
       ))}
-      {s.sets.length < 3 && <button type="button" onClick={() => on({ ...s, sets: [...s.sets, { label: "Nuevo" }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir conjunto</button>}
+      {s.sets.length < 3 && <button type="button" onClick={() => on({ ...s, sets: [...s.sets, { label: e("new") }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addSet")}</button>}
     </Section>
   </>;
 }
 
 function PacketEditor({ s, on }: { s: PacketSpec; on: (s: PacketSpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Section title="Campos (rango de bits)">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Section title={e("fields")}>
       {s.fields.map((f, i) => (
         <Row key={i}>
-          <input type="color" value={f.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...s.fields]; a[i] = { ...f, color: e.target.value }; on({ ...s, fields: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-          <input type="number" value={f.start} onChange={e => { const a=[...s.fields]; a[i] = { ...f, start: parseInt(e.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
-          <input type="number" value={f.end} onChange={e => { const a=[...s.fields]; a[i] = { ...f, end: parseInt(e.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
-          <input value={f.label} onChange={e => { const a=[...s.fields]; a[i] = { ...f, label: e.target.value }; on({ ...s, fields: a }); }} className={inp} />
+          <input type="color" value={f.color ?? PALETTE[i % PALETTE.length]} onChange={ev => { const a=[...s.fields]; a[i] = { ...f, color: ev.target.value }; on({ ...s, fields: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input type="number" value={f.start} onChange={ev => { const a=[...s.fields]; a[i] = { ...f, start: parseInt(ev.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
+          <input type="number" value={f.end} onChange={ev => { const a=[...s.fields]; a[i] = { ...f, end: parseInt(ev.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
+          <input value={f.label} onChange={ev => { const a=[...s.fields]; a[i] = { ...f, label: ev.target.value }; on({ ...s, fields: a }); }} className={inp} />
           <button type="button" onClick={() => on({ ...s, fields: s.fields.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
         </Row>
       ))}
-      <button type="button" onClick={() => { const last = s.fields[s.fields.length-1]; const next = last ? last.end + 1 : 0; on({ ...s, fields: [...s.fields, { start: next, end: next + 7, label: "Campo" }] }); }} className={btn}><Plus className="inline h-3 w-3" /> añadir campo</button>
+      <button type="button" onClick={() => { const last = s.fields[s.fields.length-1]; const next = last ? last.end + 1 : 0; on({ ...s, fields: [...s.fields, { start: next, end: next + 7, label: e("newField") }] }); }} className={btn}><Plus className="inline h-3 w-3" /> {e("addField")}</button>
     </Section>
   </>;
 }
 
 function WardleyEditor({ s, on }: { s: WardleySpec; on: (s: WardleySpec) => void }) {
+  const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
-    <Section title="Componentes (vis/evo entre 0 y 1)">
+    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Section title={e("components")}>
       {s.components.map((c, i) => (
         <Row key={i}>
-          <input type="color" value={c.color ?? "#fbbf24"} onChange={e => { const a=[...s.components]; a[i] = { ...c, color: e.target.value }; on({ ...s, components: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-          <input value={c.name} onChange={e => { const a=[...s.components]; a[i] = { ...c, name: e.target.value }; on({ ...s, components: a }); }} className={inp} />
-          <input type="number" step="0.05" min="0" max="1" value={c.vis} onChange={e => { const a=[...s.components]; a[i] = { ...c, vis: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title="Visibilidad" />
-          <input type="number" step="0.05" min="0" max="1" value={c.evo} onChange={e => { const a=[...s.components]; a[i] = { ...c, evo: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title="Evolución" />
+          <input type="color" value={c.color ?? "#fbbf24"} onChange={ev => { const a=[...s.components]; a[i] = { ...c, color: ev.target.value }; on({ ...s, components: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input value={c.name} onChange={ev => { const a=[...s.components]; a[i] = { ...c, name: ev.target.value }; on({ ...s, components: a }); }} className={inp} />
+          <input type="number" step="0.05" min="0" max="1" value={c.vis} onChange={ev => { const a=[...s.components]; a[i] = { ...c, vis: Math.max(0, Math.min(1, parseFloat(ev.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title={e("visibility")} />
+          <input type="number" step="0.05" min="0" max="1" value={c.evo} onChange={ev => { const a=[...s.components]; a[i] = { ...c, evo: Math.max(0, Math.min(1, parseFloat(ev.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title={e("evolution")} />
           <button type="button" onClick={() => on({ ...s, components: s.components.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
         </Row>
       ))}
-      <button type="button" onClick={() => on({ ...s, components: [...s.components, { name: "Nuevo", vis: 0.5, evo: 0.5 }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir componente</button>
+      <button type="button" onClick={() => on({ ...s, components: [...s.components, { name: e("new"), vis: 0.5, evo: 0.5 }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addComponent")}</button>
     </Section>
-    <Section title="Enlaces">
+    <Section title={e("links")}>
       {s.links.map((l, i) => (
         <Row key={i}>
-          <select value={l.from} onChange={e => { const a=[...s.links]; a[i] = { ...l, from: e.target.value }; on({ ...s, links: a }); }} className={inp}>
+          <select value={l.from} onChange={ev => { const a=[...s.links]; a[i] = { ...l, from: ev.target.value }; on({ ...s, links: a }); }} className={inp}>
             {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
           <span className="text-[10px] text-slate-400">→</span>
-          <select value={l.to} onChange={e => { const a=[...s.links]; a[i] = { ...l, to: e.target.value }; on({ ...s, links: a }); }} className={inp}>
+          <select value={l.to} onChange={ev => { const a=[...s.links]; a[i] = { ...l, to: ev.target.value }; on({ ...s, links: a }); }} className={inp}>
             {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
           <button type="button" onClick={() => on({ ...s, links: s.links.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
         </Row>
       ))}
-      <button type="button" onClick={() => on({ ...s, links: [...s.links, { from: s.components[0]?.name ?? "", to: s.components[1]?.name ?? "" }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir enlace</button>
+      <button type="button" onClick={() => on({ ...s, links: [...s.links, { from: s.components[0]?.name ?? "", to: s.components[1]?.name ?? "" }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addLink")}</button>
     </Section>
   </>;
 }
