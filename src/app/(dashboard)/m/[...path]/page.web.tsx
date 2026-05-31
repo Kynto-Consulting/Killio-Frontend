@@ -4939,8 +4939,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     onClick={() => addChart(key)}
                     onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
                     className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                    <div className="h-[18px] w-[32px] relative">
-                      <ChartBrickRender chart={defaultChartSpec(key)} w={64} h={42} className="h-full w-full" />
+                    <div className="h-[18px] w-[32px] relative [&_text]:hidden">
+                      <ChartBrickRender chart={defaultChartSpec(key)} w={360} h={300} className="h-full w-full" />
                     </div>
                     <span className="text-[7px] leading-none truncate max-w-[36px]">{label}</span>
                   </button>
@@ -5452,8 +5452,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 onClick={() => { addChart(key); setToolbarPanel(null); }}
                                 onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
                                 className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                                <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-white/10 bg-slate-900/60">
-                                  <ChartBrickRender chart={defaultChartSpec(key)} w={64} h={42} className="h-full w-full" />
+                                <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-white/10 bg-slate-900/60 [&_text]:hidden">
+                                  <ChartBrickRender chart={defaultChartSpec(key)} w={360} h={300} className="h-full w-full" />
                                 </div>
                                 <span className="max-w-[44px] truncate text-[7px] leading-none">{label}</span>
                               </button>
