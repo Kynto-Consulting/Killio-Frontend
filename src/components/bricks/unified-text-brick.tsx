@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
 import { RichText, DiagramBlock } from "../ui/rich-text";
 import { createRoot, type Root } from "react-dom/client";
-import { resolveLucide } from "@/lib/lucide-icon-registry";
+import { resolveLucide, LUCIDE_REGISTRY } from "@/lib/lucide-icon-registry";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -111,6 +111,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [slashRange, setSlashRange] = useState<{ from: number; to: number } | null>(null);
   const [slashActiveIndex, setSlashActiveIndex] = useState(0);
   const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
+  const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
+  const [iconPickerQuery, setIconPickerQuery] = useState("");
   const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0, bottom: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const readonlyRef = useRef<HTMLDivElement>(null);
@@ -121,6 +123,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   // Last display HTML written to contentRef — guards the sync effect from
   // re-writing (and remounting diagrams) after React injects canvas DOM.
   const lastDisplayHtmlRef = useRef<string | null>(null);
+  // textContent treats SVG / placeholder spans as empty. A brick that only
+  // contains a lucide icon, a diagram block, or an inline image should NOT
+  // show the "empty" placeholder. Check for any rendered atomic node too.
+  const isBrickEmpty = (el: HTMLElement | null) => {
+    if (!el) return true;
+    if ((el.textContent || "").trim().length > 0) return false;
+    return !el.querySelector("[data-lu-icon],[data-diagram-idx],img,svg,canvas,[data-math],[data-math-block],pre");
+  };
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
@@ -1055,8 +1065,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     if (contentRef.current) {
       const isFocused = document.activeElement === contentRef.current;
       if (isFocused) {
-        const tc = contentRef.current.textContent || "";
-        if (tc.length === 0) {
+        if (isBrickEmpty(contentRef.current)) {
           contentRef.current.setAttribute("data-empty", "true");
         } else {
           contentRef.current.removeAttribute("data-empty");
@@ -1078,8 +1087,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         mountDiagramsIn(contentRef.current);
       }
 
-      const tc = contentRef.current.textContent || "";
-      if (tc.length === 0) {
+      if (isBrickEmpty(contentRef.current)) {
         contentRef.current.setAttribute("data-empty", "true");
       } else {
         contentRef.current.removeAttribute("data-empty");
@@ -1113,8 +1121,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       // In markdown mode keep references as pills and leave markdown syntax as plain text.
         contentRef.current.innerHTML = processMarkdownWithPills(text || "");
       }
-      const tc = contentRef.current.textContent || "";
-      if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
+      if (isBrickEmpty(contentRef.current)) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
     }
   };
@@ -1125,7 +1132,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return;
     }
 
-    if (isPickerOpen || isDatePickerOpen || isEmojiPickerOpen || isMathPickerOpen) {
+    if (isPickerOpen || isDatePickerOpen || isEmojiPickerOpen || isMathPickerOpen || isIconPickerOpen) {
       return;
     }
 
@@ -1138,8 +1145,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       contentRef.current.innerHTML = displayHtml;
       lastDisplayHtmlRef.current = displayHtml;
       mountDiagramsIn(contentRef.current);
-      const tc = contentRef.current.textContent || "";
-      if (tc.length === 0) contentRef.current.setAttribute("data-empty", "true");
+      if (isBrickEmpty(contentRef.current)) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
     }
       
@@ -1409,16 +1415,31 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     if (e.key === "Escape") {
       e.preventDefault();
-      if (isSlashOpen || isPickerOpen) {
-        closeSlashMenu();
-        setIsPickerOpen(false);
-        setPickerCursorOffset(null);
-        return;
-      }
-      closeSlashMenu();
-      setIsPickerOpen(false);
-      setPickerCursorOffset(null);
-      contentRef.current?.blur();
+      // Close any floating UI first (format toolbar AI menu, slash, ref picker,
+      // icon picker, date/emoji/math pickers) before blurring the editor.
+      let closedAny = false;
+      if (isFormatToolbarOpen) { setIsFormatToolbarOpen(false); closedAny = true; }
+      if (isSlashOpen) { closeSlashMenu(); closedAny = true; }
+      if (isPickerOpen) { setIsPickerOpen(false); setPickerCursorOffset(null); closedAny = true; }
+      if (isIconPickerOpen) { setIsIconPickerOpen(false); closedAny = true; }
+      if (isDatePickerOpen) { setIsDatePickerOpen(false); closedAny = true; }
+      if (isEmojiPickerOpen) { setIsEmojiPickerOpen(false); closedAny = true; }
+      if (isMathPickerOpen) { setIsMathPickerOpen(false); closedAny = true; }
+      if (!closedAny) contentRef.current?.blur();
+      return;
+    }
+    // Ctrl/Cmd + . → open icon picker (insert a [lu:NAME:SW] lucide token).
+    if ((e.ctrlKey || e.metaKey) && e.key === ".") {
+      e.preventDefault();
+      const sel = window.getSelection();
+      if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      // Anchor the popover near the caret.
+      try {
+        const r = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
+        if (r && (r.left || r.top)) setFormatToolbarPosition({ top: r.bottom + 6, left: r.left, bottom: 0 });
+      } catch { /* noop */ }
+      setIconPickerQuery("");
+      setIsIconPickerOpen(true);
       return;
     }
 
@@ -1790,8 +1811,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
            onDragEnd={handleDragEnd}
            onDrop={handleDrop}
           onInput={() => {
-             const text = contentRef.current?.textContent || "";
-             if (text.length === 0) {
+             if (isBrickEmpty(contentRef.current)) {
                contentRef.current?.setAttribute("data-empty", "true");
              } else {
                contentRef.current?.removeAttribute("data-empty");
@@ -2050,9 +2070,52 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           </Portal>
         )}
 
+        {isIconPickerOpen && !readonly && (
+          <Portal>
+            <div
+              data-editor-floating-ui="true"
+              className="fixed z-[1200] w-[320px] max-h-[360px] flex flex-col rounded-xl border border-cyan-300/25 bg-slate-950 p-2 shadow-2xl"
+              style={{ top: (formatToolbarPosition.top || slashMenuPosition.top || 200), left: (formatToolbarPosition.left || slashMenuPosition.left || 200) }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <input autoFocus value={iconPickerQuery} onChange={(e) => setIconPickerQuery(e.target.value)}
+                placeholder="Buscar icono lucide…"
+                className="mb-2 h-8 w-full rounded-md border border-white/10 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-cyan-500/50"
+                onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setIsIconPickerOpen(false); contentRef.current?.focus(); } }}
+              />
+              <div className="grid grid-cols-8 gap-1 overflow-y-auto">
+                {Object.entries(LUCIDE_REGISTRY)
+                  .filter(([name]) => !iconPickerQuery || name.includes(iconPickerQuery.toLowerCase().trim()))
+                  .slice(0, 200)
+                  .map(([name, Icon]) => (
+                    <button key={name} type="button" title={name}
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                      onClick={() => {
+                        if (contentRef.current) {
+                          contentRef.current.focus();
+                          const sel = window.getSelection();
+                          if (savedRangeRef.current && sel) { sel.removeAllRanges(); sel.addRange(savedRangeRef.current); }
+                          document.execCommand("insertText", false, `[lu:${name}:2] `);
+                          const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                          onUpdate(newMarkdown);
+                          contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                        }
+                        setIsIconPickerOpen(false);
+                        savedRangeRef.current = null;
+                      }}
+                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-200">
+                      <Icon size={16} strokeWidth={2} />
+                    </button>
+                  ))}
+              </div>
+              <p className="mt-1 text-[9px] text-slate-500 text-center">Inserta token <code className="text-slate-400">[lu:NAME:2]</code></p>
+            </div>
+          </Portal>
+        )}
+
         {isEmojiPickerOpen && !readonly && (
           <Portal>
-            <EmojiPickerPopover 
+            <EmojiPickerPopover
               top={formatToolbarPosition.top || slashMenuPosition.top} 
               left={formatToolbarPosition.left || slashMenuPosition.left} 
               onSelect={(emoji) => {
