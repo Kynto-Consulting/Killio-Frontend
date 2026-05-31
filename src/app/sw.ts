@@ -17,8 +17,16 @@ declare global {
 
 declare const self: typeof globalThis & WorkerGlobalScope;
 
+// App-shell routes that must work on a cold offline launch (start_url + the
+// dashboard sections). Revision: null means SWR-style — the SW updates them
+// in the background whenever the user is online.
+const SHELL_PRECACHE = [
+  "/", "/offline", "/d", "/m", "/b", "/graph", "/rooms",
+  "/teams", "/history", "/profile", "/preferences", "/login",
+].map((url) => ({ url, revision: null as string | null }));
+
 const serwist = new Serwist({
-  precacheEntries: self.__SW_MANIFEST,
+  precacheEntries: [...(self.__SW_MANIFEST ?? []), ...SHELL_PRECACHE],
   skipWaiting: true,
   clientsClaim: true,
   navigationPreload: true,
