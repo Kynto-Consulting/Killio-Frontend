@@ -19,6 +19,7 @@ import { SessionProvider } from '@/components/providers/session-provider';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineIndicator } from '@/components/ui/offline-indicator';
+import { SwUpdater } from '@/components/ui/sw-updater';
 import { PlatformProvider } from '@/components/providers/platform-provider';
 import { CallProvider } from '@/components/providers/call-provider';
 import { RealtimeProvider } from '@/components/providers/realtime-provider';
@@ -39,6 +40,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
                 </CallProvider>
                 <Toaster />
                 <OfflineIndicator />
+                <SwUpdater />
               </I18nProvider>
             </RealtimeProvider>
           </SessionProvider>
