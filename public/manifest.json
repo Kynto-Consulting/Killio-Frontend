@@ -23,12 +23,10 @@
   ],
   "categories": ["productivity", "business"],
   "shortcuts": [
-    {
-      "name": "Rooms",
-      "short_name": "Rooms",
-      "description": "Open team channels",
-      "url": "/rooms",
-      "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }]
-    }
+    { "name": "Documentos", "short_name": "Docs", "description": "Documentos del workspace", "url": "/d", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Meshboards", "short_name": "Mesh", "description": "Tableros visuales", "url": "/m", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Boards", "short_name": "Boards", "description": "Kanban / boards", "url": "/b", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Graph", "short_name": "Graph", "description": "Knowledge graph", "url": "/graph", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] },
+    { "name": "Rooms", "short_name": "Rooms", "description": "Open team channels", "url": "/rooms", "icons": [{ "src": "/icon-192.png", "sizes": "192x192" }] }
   ]
 }

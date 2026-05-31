@@ -22,6 +22,7 @@ import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
+import { warmCache, warmImages } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
 import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -69,7 +70,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     { name: tDashboard("nav.activityHistory"), href: "/history", icon: History },
   ];
 
-  const { user, activeTeamId, setActiveTeamId, accessToken, logout } = useSession();
+  const { user, activeTeamId, setActiveTeamId, accessToken, logout, accounts } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
@@ -90,6 +91,38 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isWsPublishOpen, setIsWsPublishOpen] = useState(false);
   const online = useOnline();
+  const [isOfflineSwitchOpen, setIsOfflineSwitchOpen] = useState(false);
+  // First time the dashboard mounts online, prefetch every top-level route
+  // so the service worker pre-caches the app shell. Lets the user open the
+  // PWA cold + offline and still navigate without ever having clicked.
+  useEffect(() => {
+    if (!online) return;
+    if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
+    const id = window.setTimeout(() => { void warmCache(); }, 2500);
+    return () => window.clearTimeout(id);
+  }, [online]);
+  // Force the avatar(s) into the image cache so they show up offline. Cheap +
+  // dedup'd by the SW (CacheFirst).
+  useEffect(() => {
+    if (!online) return;
+    const urls = [user?.avatarUrl as string | undefined, ...(accounts ?? []).map((a) => a.user?.avatarUrl as string | undefined)];
+    void warmImages(urls);
+  }, [online, user?.avatarUrl, accounts]);
+  // Mutually-exclusive workspace selector: entering a local workspace clears
+  // any active online team, and entering an online team is already handled by
+  // each click site calling exitLocal(). This catches programmatic / restored
+  // local mode (e.g. reconnect on boot) so both indicators don't stay lit.
+  useEffect(() => {
+    if (localMode && activeTeamId) setActiveTeamId(null);
+  }, [localMode, activeTeamId, setActiveTeamId]);
+  // When the user drops offline while in an online workspace, prompt to
+  // switch to (or create) a local workspace — the cloud one can't load
+  // without network.
+  useEffect(() => {
+    if (online) { setIsOfflineSwitchOpen(false); return; }
+    if (localMode) return;
+    setIsOfflineSwitchOpen(true);
+  }, [online, localMode]);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [isPreferencesModalOpen, setIsPreferencesModalOpen] = useState(false);
   const [isSwitchAccountModalOpen, setIsSwitchAccountModalOpen] = useState(false);
@@ -390,6 +423,40 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
+      {/* Offline → online-workspace switch prompt. Keeps the session alive
+          and steers the user into a local workspace they can actually use. */}
+      {isOfflineSwitchOpen && (
+        <div className="fixed inset-0 z-[1300] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onMouseDown={(e) => { if (e.target === e.currentTarget) setIsOfflineSwitchOpen(false); }}>
+          <div className="w-[min(420px,92vw)] rounded-2xl border border-cyan-300/25 bg-popover p-5 shadow-2xl">
+            <h2 className="text-base font-semibold text-foreground">{tDashboard("offlineSwitch.title")}</h2>
+            <p className="mt-1 text-sm text-muted-foreground">{tDashboard("offlineSwitch.body")}</p>
+            {localWs.workspaces.length > 0 && (
+              <div className="mt-3 max-h-48 overflow-y-auto rounded-md border border-border/60 bg-card/40">
+                {localWs.workspaces.map((lw) => (
+                  <button key={lw.id} type="button"
+                    onClick={() => { void localWs.selectLocalWorkspace(lw.id); setIsOfflineSwitchOpen(false); }}
+                    className="block w-full px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-accent/10">
+                    {lw.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              <button type="button"
+                onClick={() => { setIsOfflineSwitchOpen(false); void localWs.createLocalWorkspace(); }}
+                className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-foreground hover:bg-accent/90">
+                {tDashboard("offlineSwitch.createLocal")}
+              </button>
+              <button type="button"
+                onClick={() => setIsOfflineSwitchOpen(false)}
+                className="rounded-md border border-border px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/40">
+                {tDashboard("offlineSwitch.close")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <CreateWorkspaceModal
         isOpen={isCreateWorkspaceModalOpen}
         onClose={() => setIsCreateWorkspaceModalOpen(false)}
@@ -746,7 +813,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 <div className="absolute top-10 right-0 z-[120] w-56 rounded-xl border border-border bg-card p-1 shadow-lg animate-in fade-in slide-in-from-top-2">
                   <div className="px-2 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{tDashboard("teamSwitcher.yourWorkspaces")}</div>
                   <div className="space-y-0.5 mt-1 max-h-48 overflow-y-auto">
-                    {teams.map(team => (
+                    {/* Hide online workspaces while offline — they're unreachable
+                        and selecting one would 401-loop. Local workspaces stay. */}
+                    {(online ? teams : []).map(team => (
                       <button
                         key={team.id}
                         onClick={() => {

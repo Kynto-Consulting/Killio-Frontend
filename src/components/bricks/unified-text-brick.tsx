@@ -937,9 +937,29 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       tableBuffer = [];
     };
 
-    // Blockquotes (`> ...`) + GitHub callouts (`> [!NOTE] title`).
-    const CALLOUT_RE = /^\[!(\w+)\][+-]?\s*(.*)$/;
-    const calloutStyle = (type: string): { border: string; bg: string; text: string } => {
+    // Blockquotes (`> ...`) + GitHub callouts (`> [!NOTE] title`) + custom
+    // hex-color callouts (`> [!#ff00ff] title`). The hex form lets users pick
+    // any colour without registering a named variant.
+    const CALLOUT_RE = /^\[!(#[0-9a-fA-F]{3,8}|[\w-]+)\][+-]?\s*(.*)$/;
+    const expandHex = (h: string): string => {
+      const x = h.replace("#", "");
+      if (x.length === 3) return "#" + x.split("").map((c) => c + c).join("");
+      return "#" + x.slice(0, 6);
+    };
+    const hexRgba = (h: string, a: number): string => {
+      const hex = expandHex(h).replace("#", "");
+      const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+      if ([r, g, b].some(Number.isNaN)) return "rgba(125,125,125," + a + ")";
+      return `rgba(${r},${g},${b},${a})`;
+    };
+    const calloutStyle = (type: string): { border: string; bg: string; text: string; inline?: { border: string; bg: string; text: string } } => {
+      if (type.startsWith("#")) {
+        const c = expandHex(type);
+        return {
+          border: "", bg: "", text: "",
+          inline: { border: c, bg: hexRgba(c, 0.08), text: c },
+        };
+      }
       switch (type) {
         case "tip": case "success": case "check": return { border: "border-emerald-500/60", bg: "bg-emerald-500/5", text: "text-emerald-400" };
         case "warning": case "caution": case "attention": return { border: "border-amber-500/60", bg: "bg-amber-500/5", text: "text-amber-400" };
@@ -955,11 +975,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const cm = quoteBuffer[0].match(CALLOUT_RE);
       if (cm) {
         const type = cm[1].toLowerCase();
-        const title = cm[2].trim() || type.charAt(0).toUpperCase() + type.slice(1);
+        const title = cm[2].trim() || (type.startsWith("#") ? "" : type.charAt(0).toUpperCase() + type.slice(1));
         const body = quoteBuffer.slice(1);
         const s = calloutStyle(type);
-        html += `<div contenteditable="false" data-md-quote="${escapeHtmlAttr(source)}" class="my-3 rounded-lg border-l-4 ${s.border} ${s.bg} px-3 py-2">`
-          + `<div class="text-xs font-bold uppercase tracking-wide ${s.text} mb-1">${formatInline(title)}</div>`
+        const wrapStyle = s.inline ? ` style="border-left-color:${s.inline.border};background:${s.inline.bg}"` : "";
+        const titleStyle = s.inline ? ` style="color:${s.inline.text}"` : "";
+        html += `<div contenteditable="false" data-md-quote="${escapeHtmlAttr(source)}" class="my-3 rounded-lg border-l-4 ${s.border} ${s.bg} px-3 py-2"${wrapStyle}>`
+          + (title ? `<div class="text-xs font-bold uppercase tracking-wide ${s.text} mb-1"${titleStyle}>${formatInline(title)}</div>` : "")
           + (body.length ? `<div class="text-sm leading-relaxed text-foreground/80">${body.map((l) => formatInline(l)).join("<br>")}</div>` : "")
           + `</div>`;
       } else {

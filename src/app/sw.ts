@@ -70,15 +70,39 @@ const serwist = new Serwist({
     {
       matcher: ({ request, url }) =>
         request.destination === "image" ||
-        url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp)$/i),
+        url.pathname.match(/\.(png|jpg|jpeg|svg|gif|webp|avif)$/i),
       handler: new CacheFirst({
         cacheName: "images-cache",
         plugins: [
           new ExpirationPlugin({
-            maxEntries: 100,
+            maxEntries: 200,
             maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
           }),
         ],
+      }),
+    },
+    // Google Fonts CSS — small, refreshed weekly.
+    {
+      matcher: ({ url }) => url.origin === "https://fonts.googleapis.com",
+      handler: new StaleWhileRevalidate({
+        cacheName: "gfonts-css",
+        plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 7 * 24 * 60 * 60 })],
+      }),
+    },
+    // Google Fonts woff2 files — long-lived, immutable.
+    {
+      matcher: ({ url }) => url.origin === "https://fonts.gstatic.com",
+      handler: new CacheFirst({
+        cacheName: "gfonts-files",
+        plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 365 * 24 * 60 * 60 })],
+      }),
+    },
+    // Any cross-origin font file by extension as a safety net.
+    {
+      matcher: ({ request, url }) => request.destination === "font" || /\.(woff2?|ttf|otf|eot)$/i.test(url.pathname),
+      handler: new CacheFirst({
+        cacheName: "fonts-cache",
+        plugins: [new ExpirationPlugin({ maxEntries: 30, maxAgeSeconds: 365 * 24 * 60 * 60 })],
       }),
     },
     ...defaultCache,

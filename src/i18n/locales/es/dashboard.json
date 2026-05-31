@@ -162,5 +162,11 @@
     "createLocal": "Crear localmente",
     "unlinkLocal": "Desvincular espacio",
     "unlinkConfirm": "¿Desvincular este espacio local de Killio? Tus archivos en disco NO se eliminan — solo se quita del listado."
+  },
+  "offlineSwitch": {
+    "title": "Sin conexión",
+    "body": "Estás en un workspace online. Abre o crea uno local para seguir trabajando.",
+    "createLocal": "Crear workspace local",
+    "close": "Cerrar"
   }
 }

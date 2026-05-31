@@ -48,7 +48,10 @@ export async function fetchApi<T>(
       // Ignore parsing errors
     }
     if (res.status === 401) {
-      if (typeof window !== 'undefined') {
+      // Don't kick the user out while offline — a 401 here is almost always a
+      // stale cached response (SW api-cache) or the absent backend connection;
+      // logging them out would also wipe their local-workspace access.
+      if (typeof window !== 'undefined' && (typeof navigator === 'undefined' || navigator.onLine !== false)) {
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     }

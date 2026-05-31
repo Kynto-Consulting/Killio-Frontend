@@ -162,5 +162,11 @@
     "createLocal": "Create locally",
     "unlinkLocal": "Unlink workspace",
     "unlinkConfirm": "Unlink this local workspace from Killio? Your files on disk are NOT deleted — this only removes it from the list."
+  },
+  "offlineSwitch": {
+    "title": "Offline",
+    "body": "You're in an online workspace. Open or create a local one to keep working.",
+    "createLocal": "Create local workspace",
+    "close": "Close"
   }
 }
