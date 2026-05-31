@@ -1552,10 +1552,15 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       e.preventDefault();
       setIsFormatToolbarOpen(false);
       closeSlashMenu();
-      setIsPickerOpen(false); setPickerCursorOffset(null);
+      setIsPickerOpen(false);
       setIsDatePickerOpen(false); setIsEmojiPickerOpen(false); setIsMathPickerOpen(false);
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+      // Capture cursor as a markdown offset — a Range gets invalidated when the
+      // brick's DOM re-renders, but an offset can always be re-resolved.
+      const md = revertToMarkdown(contentRef.current?.innerHTML || "");
+      const offset = getMarkdownCursorOffset(contentRef.current) ?? md.length;
+      setPickerCursorOffset(offset);
       // Anchor on the caret rect using the same coords the format toolbar
       // consumes — the picker then runs the same above/below + clamp logic.
       try {
@@ -2202,17 +2207,19 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               setQuery={setIconPickerQuery}
               onClose={() => { setIsIconPickerOpen(false); contentRef.current?.focus(); }}
               onPick={(name) => {
+                const token = `[lu:${name}:2] `;
+                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
+                const cursor = pickerCursorOffset ?? markdown.length;
+                const safe = Math.max(0, Math.min(cursor, markdown.length));
+                const newMarkdown = `${markdown.slice(0, safe)}${token}${markdown.slice(safe)}`;
+                onUpdate(newMarkdown);
                 if (contentRef.current) {
-                  contentRef.current.focus();
-                  const sel = window.getSelection();
-                  if (savedRangeRef.current && sel) { sel.removeAllRanges(); sel.addRange(savedRangeRef.current); }
-                  document.execCommand("insertText", false, `[lu:${name}:2] `);
-                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                  onUpdate(newMarkdown);
                   contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
                 }
                 setIsIconPickerOpen(false);
+                setPickerCursorOffset(null);
                 savedRangeRef.current = null;
+                requestAnimationFrame(() => contentRef.current?.focus());
               }}
             />
           </Portal>
