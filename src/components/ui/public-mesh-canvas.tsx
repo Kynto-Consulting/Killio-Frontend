@@ -8,6 +8,7 @@ import type { DocumentBrick } from "@/lib/api/documents";
 import { dashArrayFor, opacityFor, cornerRadiusFor, type StrokeStyle, type EdgeStyle } from "@/lib/mesh-style";
 import { strokeToFilledPath } from "@/lib/freehand";
 import { ChartGlyph } from "@/components/ui/chart-glyph";
+import { ChartBrickRender, type ChartSpec } from "@/components/ui/chart-brick";
 
 // ─── Types (from mesh-schema / page.web.tsx) ─────────────────────────────────
 
@@ -846,7 +847,14 @@ function renderFrameBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick
 function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>, connectedIds: Set<string>): React.JSX.Element {
   const g = resolveGlobal(bricksById, brick.id);
   const c = asRec(brick.content);
-  // Chart metabrick: content carries a Mermaid source rendered as one SVG.
+  // Chart metabrick: typed spec object (preferred) or legacy mermaid string.
+  if (c.chart && typeof (c.chart as { type?: unknown }).type === "string") {
+    return (
+      <div key={brick.id} className="absolute overflow-hidden rounded-md" style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}>
+        <ChartBrickRender chart={c.chart as ChartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full" />
+      </div>
+    );
+  }
   if (typeof c.chartSource === "string") {
     return (
       <div key={brick.id} className="absolute overflow-hidden rounded-md" style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}>

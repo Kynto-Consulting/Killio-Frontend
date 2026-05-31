@@ -43,6 +43,7 @@ import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSce
 import { templateToMeshState } from "@/lib/mesh-import";
 import { PublicMeshCanvas } from "@/components/ui/public-mesh-canvas";
 import { ChartGlyph } from "@/components/ui/chart-glyph";
+import { ChartBrickRender, ChartBrickEditor, defaultChartSpec, CHART_PALETTE as CHART_PALETTE_NEW, type ChartSpec, type ChartType } from "@/components/ui/chart-brick";
 import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
 import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
@@ -236,29 +237,10 @@ const SHAPE_CATEGORIES: ShapeCategory[] = [
 ];
 const SHAPES = SHAPE_CATEGORIES.flatMap((c) => c.shapes);
 
-// ─── Chart metabrick templates ────────────────────────────────────────────────
-// Default Mermaid sources for the "Gráficos" palette. Inserting one creates a
-// draw brick whose content.chartSource is editable in the style panel.
-const CHART_TEMPLATES: Record<string, string> = {
-  pie: `pie title Distribución\n  "Alpha" : 45\n  "Beta" : 30\n  "Gamma" : 25`,
-  bar: `xychart-beta\n  title "Ingresos"\n  x-axis [Ene, Feb, Mar, Abr]\n  bar [5000, 7000, 6500, 9000]`,
-  line: `xychart-beta\n  title "Tendencia"\n  x-axis [Ene, Feb, Mar, Abr]\n  line [3000, 4200, 3800, 5600]`,
-  radar: `radar-beta\n  title Skills\n  axis a["Velocidad"], b["Potencia"], c["Defensa"], d["Magia"]\n  curve x["Héroe"]{80, 60, 90, 70}`,
-  quadrant: `quadrantChart\n  title Prioridades\n  x-axis Bajo --> Alto\n  y-axis Bajo --> Alto\n  quadrant-1 Hacer ya\n  quadrant-2 Planear\n  quadrant-3 Descartar\n  quadrant-4 Delegar\n  "Tarea A": [0.7, 0.8]\n  "Tarea B": [0.3, 0.6]`,
-  treemap: `treemap-beta\n  "Frontend": 40\n  "Backend": 35\n  "Infra": 15\n  "QA": 10`,
-  kanban: `kanban\n  Todo[Por hacer]\n    Diseño\n    Investigación\n  Doing[En curso]\n    Maqueta\n  Done[Hecho]\n    Setup`,
-  gantt: `gantt\n  title Plan\n  dateFormat YYYY-MM-DD\n  section Fase 1\n    Diseño :a1, 2026-01-01, 10d\n    Build :after a1, 14d`,
-};
-const CHART_PALETTE: Array<{ key: string; label: string }> = [
-  { key: "pie", label: "Pastel" },
-  { key: "bar", label: "Barras" },
-  { key: "line", label: "Líneas" },
-  { key: "radar", label: "Radar" },
-  { key: "quadrant", label: "Cuadrante" },
-  { key: "treemap", label: "Treemap" },
-  { key: "kanban", label: "Kanban" },
-  { key: "gantt", label: "Gantt" },
-];
+// Chart metabrick palette + spec defaults come from chart-brick.tsx. Inserting
+// one creates a draw brick whose content.chart is a typed spec object (NOT a
+// Mermaid string) — edited via a structured UI in the style panel.
+const CHART_PALETTE = CHART_PALETTE_NEW;
 
 // ─── Custom cursors ──────────────────────────────────────────────────────────
 // Double-layer SVG: dark thick stroke behind + white/accent stroke in front
@@ -2929,14 +2911,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     });
   }, []);
 
-  // Insert a chart metabrick: a `draw` brick whose content carries a Mermaid
-  // source. Rendered as one SVG; the source is editable via the style panel.
-  const addChart = useCallback((tplKey: string, at?: { x: number; y: number }) => {
-    const source = CHART_TEMPLATES[tplKey] ?? CHART_TEMPLATES.pie;
+  // Insert a chart metabrick: a `draw` brick whose content carries a typed
+  // chart spec object (pie/bar/line/…). Rendered as one SVG; the spec is
+  // editable via a structured UI in the style panel.
+  const addChart = useCallback((tplKey: ChartType, at?: { x: number; y: number }) => {
+    const chart = defaultChartSpec(tplKey);
     let newId = "";
     setState((cur) => {
       const b0 = mkBrick("draw", Object.keys(cur.bricksById).length, null, undefined);
-      const b = { ...b0, size: { w: 360, h: 300 }, content: { chartSource: source } };
+      const b = { ...b0, size: { w: 360, h: 300 }, content: { chart } };
       newId = b.id;
       const drop = at ? { x: at.x - b.size.w / 2, y: at.y - b.size.h / 2 } : undefined;
       return insertBrick(cur, b, drop);
@@ -2961,7 +2944,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       try { data = JSON.parse(raw); } catch { return; }
       if (data.type === "meta") addMeta(data.entry, pos);
       if (data.type === "shape") addShape(data.preset, pos);
-      if (data.type === "chart") addChart(data.key, pos);
+      if (data.type === "chart") addChart(data.key as ChartType, pos);
       return;
     }
     // Dropped bricks / markdown / plain text from anywhere → meta-bricks at cursor.
@@ -3835,8 +3818,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const isUnifier = brick.kind === "text" || ((brick.kind === "portal" || brick.kind === "mirror") && !!uKind);
     const unifierKindFinal = uKind ?? (brick.kind === "mirror" ? "callout" : "text");
     const docBrick  = (isUnifier) ? toDocBrick(brick, unifierKindFinal) : null;
+    const chartSpec   = brick.kind === "draw" && c.chart && typeof (c.chart as any).type === "string" ? (c.chart as ChartSpec) : null;
     const chartSrc    = brick.kind === "draw" && typeof c.chartSource === "string" ? (c.chartSource as string) : null;
-    const isChart     = chartSrc !== null;
+    const isChart     = chartSpec !== null || chartSrc !== null;
     const isShape     = (brick.kind === "draw" || brick.kind === "frame") && !!shapeP && !isChart;
     const isDrawBrick = brick.kind === "draw";
     const isCont      = isBoard || !!c.isContainer;
@@ -4002,7 +3986,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") { setSelectedId(brick.id); setToolbarPanel("style"); } }}
         >
           <div className="pointer-events-none h-full w-full">
-            <ChartGlyph source={chartSrc!} className="h-full w-full" />
+            {chartSpec
+              ? <ChartBrickRender chart={chartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full" />
+              : <ChartGlyph source={chartSrc!} className="h-full w-full" />}
           </div>
         </div>
       );
@@ -4942,7 +4928,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
                     className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
                     <div className="h-[18px] w-[32px] relative">
-                      <ChartGlyph source={CHART_TEMPLATES[key]} className="h-full w-full" />
+                      <ChartBrickRender chart={defaultChartSpec(key)} w={64} h={42} className="h-full w-full" />
                     </div>
                     <span className="text-[7px] leading-none truncate max-w-[36px]">{label}</span>
                   </button>
@@ -5455,7 +5441,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
                                 className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
                                 <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-white/10 bg-slate-900/60">
-                                  <ChartGlyph source={CHART_TEMPLATES[key]} className="h-full w-full" />
+                                  <ChartBrickRender chart={defaultChartSpec(key)} w={64} h={42} className="h-full w-full" />
                                 </div>
                                 <span className="max-w-[44px] truncate text-[7px] leading-none">{label}</span>
                               </button>
@@ -5537,34 +5523,27 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         return { ...cur, bricksById: { ...cur.bricksById, [selectedId!]: { ...b, content: newContent } } };
                       });
                     };
-                    const sbChart = typeof asRec(sb.content).chartSource === "string" ? (asRec(sb.content).chartSource as string) : null;
-                    const setChartSource = (src: string) => {
+                    const sbContent = asRec(sb.content);
+                    const sbChart: ChartSpec | null = sbContent.chart && typeof (sbContent.chart as any).type === "string" ? (sbContent.chart as ChartSpec) : null;
+                    const setChart = (next: ChartSpec) => {
                       setState((cur) => {
                         const b = cur.bricksById[selectedId!];
                         if (!b) return cur;
-                        return { ...cur, bricksById: { ...cur.bricksById, [selectedId!]: { ...b, content: { ...asRec(b.content), chartSource: src } } } };
+                        return { ...cur, bricksById: { ...cur.bricksById, [selectedId!]: { ...b, content: { ...asRec(b.content), chart: next } } } };
                       });
                     };
                     return (
                       <div className="space-y-3">
-                        {sbChart !== null && (
-                          <div className="flex flex-col gap-1.5">
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Gráfico · fuente Mermaid</p>
-                            <textarea
-                              value={sbChart}
-                              onChange={(e) => setChartSource(e.target.value)}
-                              spellCheck={false}
-                              placeholder={"pie title X\\n  \"A\" : 30\\n  \"B\" : 70"}
-                              className="h-40 w-full resize-y rounded-md border border-white/10 bg-slate-900/70 px-2 py-1.5 font-mono text-[10px] leading-relaxed text-slate-100 outline-none focus:border-cyan-500/50"
-                            />
-                            <div className="flex flex-wrap gap-1">
-                              {CHART_PALETTE.map(({ key, label }) => (
-                                <button key={key} type="button" onClick={() => setChartSource(CHART_TEMPLATES[key])}
-                                  className="rounded border border-white/10 px-1.5 py-0.5 text-[8px] text-slate-300 transition-colors hover:bg-accent/20 hover:text-foreground">
-                                  {label}
-                                </button>
-                              ))}
+                        {sbChart && (
+                          <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between">
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Gráfico · {sbChart.type}</p>
+                              <select value={sbChart.type} onChange={(e) => setChart(defaultChartSpec(e.target.value as ChartType))}
+                                className="h-6 rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] text-slate-200 outline-none focus:border-cyan-500/50">
+                                {CHART_PALETTE.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+                              </select>
                             </div>
+                            <ChartBrickEditor chart={sbChart} onChange={setChart} />
                           </div>
                         )}
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Estilo</p>
