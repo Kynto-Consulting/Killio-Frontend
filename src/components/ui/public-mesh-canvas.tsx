@@ -44,7 +44,8 @@ type ShapePreset =
   | "rect" | "rounded-rect" | "circle" | "ellipse" | "diamond"
   | "triangle" | "hexagon" | "star" | "arrow" | "note"
   | "frame-vector" | "flow-terminator"
-  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon";
+  | "parallelogram" | "cylinder" | "cross" | "chevron" | "pentagon"
+  | "stadium" | "half-circle";
 
 type Port = "top" | "right" | "bottom" | "left";
 type AnchorNorm = { x: number; y: number };
@@ -249,6 +250,24 @@ function ShapeSvg({
         <ellipse cx={w / 2} cy={h - ry} rx={w / 2 - 1} ry={ry} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
         <line x1={1} y1={ry} x2={1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
         <line x1={w - 1} y1={ry} x2={w - 1} y2={h - ry} stroke={stroke} strokeWidth={sw} strokeDasharray={dash} />
+      </svg>
+    );
+  }
+  if (preset === "stadium") {
+    const rx = Math.min(w / 2, h / 2);
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={rx} ry={rx} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+      </svg>
+    );
+  }
+  if (preset === "half-circle") {
+    const r = Math.min(w / 2 - 1, h - 2);
+    const cx = w / 2;
+    const d = `M${cx - r},1 L${cx + r},1 A${r},${r} 0 0 1 ${cx - r},1 Z`;
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <path d={d} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
       </svg>
     );
   }

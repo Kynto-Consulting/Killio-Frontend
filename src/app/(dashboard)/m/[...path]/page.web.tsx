@@ -1270,6 +1270,26 @@ function ShapeSvg({ preset, w, h, pts, stroke = "#22d3ee", fill = "rgba(34,211,2
       </svg>
     );
   }
+  if (preset === "stadium") {
+    // Pill / capsule — rect with fully rounded ends (rx = h/2).
+    const rx = Math.min(w / 2, h / 2);
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <rect x={1} y={1} width={w - 2} height={h - 2} rx={rx} ry={rx} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+      </svg>
+    );
+  }
+  if (preset === "half-circle") {
+    // Semicircle — flat top, arc bottom.
+    const r = Math.min(w / 2 - 1, h - 2);
+    const cx = w / 2;
+    const d = `M${cx - r},1 L${cx + r},1 A${r},${r} 0 0 1 ${cx - r},1 Z`;
+    return (
+      <svg width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} className="pointer-events-none absolute inset-0">
+        <path d={d} stroke={stroke} fill={fill} strokeWidth={sw} strokeDasharray={dash} />
+      </svg>
+    );
+  }
   if (!vp) return null;
   const pStr = vp.map((p) => `${+(p.x * w).toFixed(1)},${+(p.y * h).toFixed(1)}`).join(" ");
   // Fixed viewBox preserves 1:1 mapping so dots and polygon always align.

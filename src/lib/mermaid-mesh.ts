@@ -73,15 +73,64 @@ function stripQuotes(s: string): string {
 
 // Convert the small HTML subset Mermaid allows in labels into markdown so the
 // brick renderer shows line breaks / italics / bold instead of raw tags.
+// Common FontAwesome / Material icon names → emoji. Used to replace mermaid
+// icon tokens like "fa:fa-user" so labels keep a visual cue instead of just
+// dropping the icon. Unmapped icons fall back to a generic ◆.
+const ICON_EMOJI: Record<string, string> = {
+  user: "👤", users: "👥", person: "🧑", "user-circle": "👤",
+  cog: "⚙️", gear: "⚙️", wrench: "🔧", hammer: "🔨", tools: "🧰", toolbox: "🧰",
+  check: "✅", "check-circle": "✅", times: "❌", "times-circle": "❌", xmark: "❌", ban: "🚫",
+  warning: "⚠️", "exclamation-triangle": "⚠️", exclamation: "❗", question: "❓",
+  info: "ℹ️", "info-circle": "ℹ️", bell: "🔔",
+  home: "🏠", house: "🏠", building: "🏢", "map-marker": "📍", map: "🗺️",
+  folder: "📁", "folder-open": "📂", file: "📄", "file-alt": "📄", files: "🗂️",
+  envelope: "✉️", mail: "✉️", "envelope-open": "📬", "paper-plane": "📨",
+  phone: "📞", mobile: "📱",
+  search: "🔍", "magnifying-glass": "🔍",
+  star: "⭐", heart: "❤️", bookmark: "🔖", flag: "🚩", tag: "🏷️",
+  lock: "🔒", unlock: "🔓", key: "🔑", shield: "🛡️",
+  cloud: "☁️", "cloud-upload": "☁️", "cloud-download": "☁️",
+  database: "🗄️", server: "🖥️", desktop: "🖥️", laptop: "💻", code: "💻", terminal: "💻",
+  globe: "🌐", "globe-americas": "🌐", wifi: "📶", signal: "📶",
+  calendar: "📅", "calendar-alt": "📅", clock: "🕒", "hourglass": "⌛", history: "🕘",
+  "chart-bar": "📊", "chart-line": "📈", "chart-pie": "🥧", "chart-area": "📉",
+  "shopping-cart": "🛒", cart: "🛒", "credit-card": "💳", money: "💰", "dollar-sign": "💲", coins: "🪙", gift: "🎁",
+  truck: "🚚", car: "🚗", plane: "✈️", train: "🚆", bus: "🚌", ship: "🚢", bicycle: "🚲", motorcycle: "🏍️",
+  rocket: "🚀", bolt: "⚡", lightning: "⚡", fire: "🔥", flame: "🔥",
+  trash: "🗑️", "trash-alt": "🗑️", edit: "✏️", pencil: "✏️", "pencil-alt": "✏️", pen: "🖊️",
+  eye: "👁️", "eye-slash": "🙈", camera: "📷", image: "🖼️", video: "🎬", film: "🎬",
+  music: "🎵", microphone: "🎤", headphones: "🎧",
+  book: "📖", "book-open": "📖", "graduation-cap": "🎓", school: "🏫",
+  sun: "☀️", moon: "🌙", snowflake: "❄️", leaf: "🍃", tree: "🌳", seedling: "🌱",
+  coffee: "☕", utensils: "🍴", pizza: "🍕",
+  "thumbs-up": "👍", "thumbs-down": "👎", hand: "✋", "hand-paper": "✋", "praying-hands": "🙏",
+  plus: "➕", minus: "➖", times2: "✖️",
+  "arrow-up": "⬆️", "arrow-down": "⬇️", "arrow-left": "⬅️", "arrow-right": "➡️",
+  "long-arrow-right": "➡️", "long-arrow-left": "⬅️",
+  link: "🔗", share: "📤", "external-link": "🔗",
+  download: "⬇️", upload: "⬆️", print: "🖨️",
+  comment: "💬", comments: "💬", message: "💬",
+  trophy: "🏆", medal: "🏅", crown: "👑",
+  bug: "🐛", spider: "🕷️",
+  cube: "🟦", cubes: "📦", box: "📦", "box-open": "📦", boxes: "📦",
+  list: "📋", "list-alt": "📋", tasks: "📋", "list-check": "✅", table: "📊", th: "▦",
+  paperclip: "📎", "paint-brush": "🎨", palette: "🎨", magic: "✨", "magic-wand": "✨",
+  "play": "▶️", "pause": "⏸️", "stop": "⏹️", "forward": "⏩", "backward": "⏪",
+};
+
+function iconEmoji(name: string): string {
+  return ICON_EMOJI[name.toLowerCase()] ?? "◆";
+}
+
 function cleanLabel(s: string): string {
   return s
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<\/?(?:b|strong)>/gi, "**") // bold
     .replace(/<\/?(?:i|em)>/gi, "*")        // italic
     .replace(/<[^>]+>/g, "")
-    // FontAwesome / Material icon prefixes (e.g. "fa:fa-car Car") — drop the
-    // icon token, keep the text. We can't render the glyph here.
-    .replace(/\b(?:fa[bsrl]?|mat|mc):[\w-]+\s*/gi, "")
+    // FontAwesome / Material icon prefixes (e.g. "fa:fa-car Car") → emoji.
+    // Accepts "fa:fa-user", "fab:user", "fas:fa-cog", "mat:user", "mc:home".
+    .replace(/\b(?:fa[bsrl]?|mat|mc):(?:fa-)?([\w-]+)\s*/gi, (_m, name: string) => `${iconEmoji(name)} `)
     .replace(/[ \t]+\n/g, "\n")
     .trim();
 }
