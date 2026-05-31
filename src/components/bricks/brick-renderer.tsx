@@ -219,13 +219,40 @@ export function UnifiedBrickRenderer({
       );
       break;
 
-    case 'beautiful_table':
+    case 'beautiful_table': {
+      // Normalize legacy / AI-generated tables where `columns` is a string
+      // array (["Atributo","Cualitativo","Valor"]) and `rows` are arrays of
+      // raw values ([["Daño", "Medio", "8 (4 ❤)"], …]) — the React table
+      // expects column OBJECTS with id/name/type and row OBJECTS with a
+      // cells map keyed by column id. Without this the table renders blank
+      // cells.
+      const slug = (s: string, fallback: string) => {
+        const k = String(s ?? "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+        return k || fallback;
+      };
+      const rawCols = Array.isArray(content.columns) ? content.columns : [];
+      const cols = rawCols.map((c: any, i: number) => {
+        if (c && typeof c === "object" && typeof c.id === "string") return c;
+        const name = typeof c === "string" ? c : (c?.name ?? `Col ${i + 1}`);
+        return { id: slug(name, `col-${i}`), name, type: c?.type ?? "text" };
+      });
+      const rawRows = Array.isArray(content.rows) ? content.rows : [];
+      const rows = rawRows.map((r: any, ri: number) => {
+        if (r && typeof r === "object" && !Array.isArray(r) && r.cells) return r;
+        const arr = Array.isArray(r) ? r : [];
+        const cells: Record<string, { type: "text"; text: string }> = {};
+        cols.forEach((col: any, ci: number) => {
+          const v = arr[ci];
+          if (v !== undefined && v !== null && v !== "") cells[col.id] = { type: "text", text: String(v) };
+        });
+        return { id: typeof r?.id === "string" ? r.id : `row-${ri}`, cells };
+      });
       brickBody = (
         <UnifiedBountifulTable
           id={brick.id}
           title={content.title}
-          columns={(content.columns || []) as any}
-          rows={(content.rows || []) as any}
+          columns={cols as any}
+          rows={rows as any}
           views={(content.views || []) as any}
           readonly={!canEdit}
           onUpdate={(c) => onUpdate({ ...content, ...c })}
@@ -251,6 +278,7 @@ export function UnifiedBrickRenderer({
         />
       );
       break;
+    }
 
     case 'graph':
       brickBody = (
