@@ -4931,10 +4931,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             {/* Charts — insert a data-driven chart metabrick (editable Mermaid source). */}
             <div className="mb-2">
               <div className="mb-1 flex items-center gap-1 text-[7px] text-muted-foreground/60">
-                <BarChart2 className="h-3 w-3" /><span className="uppercase tracking-wider">Gráficos</span>
+                <BarChart2 className="h-3 w-3" /><span className="uppercase tracking-wider">{tMesh("charts.groupLabel")}</span>
               </div>
               <div className="grid grid-cols-3 gap-1">
-                {CHART_PALETTE.map(({ key, label }) => (
+                {CHART_PALETTE.map(({ key, labelKey }) => { const label = tMesh(`charts.types.${labelKey}` as any); return (
                   <button key={key} type="button" title={label} draggable
                     onClick={() => addChart(key)}
                     onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
@@ -4944,7 +4944,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     </div>
                     <span className="text-[7px] leading-none truncate max-w-[36px]">{label}</span>
                   </button>
-                ))}
+                ); })}
               </div>
             </div>
           </section>
@@ -5444,10 +5444,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         {/* Charts — insert a data-driven chart metabrick (editable Mermaid source). */}
                         <div>
                           <div className="mb-1.5 flex items-center gap-1.5 text-[9px] font-semibold uppercase tracking-widest text-cyan-200/60">
-                            <BarChart2 className="h-3 w-3" /><span>Gráficos</span>
+                            <BarChart2 className="h-3 w-3" /><span>{tMesh("charts.groupLabel")}</span>
                           </div>
                           <div className="grid grid-cols-4 gap-1">
-                            {CHART_PALETTE.map(({ key, label }) => (
+                            {CHART_PALETTE.map(({ key, labelKey }) => { const label = tMesh(`charts.types.${labelKey}` as any); return (
                               <button key={key} type="button" title={label} draggable
                                 onClick={() => { addChart(key); setToolbarPanel(null); }}
                                 onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
@@ -5457,7 +5457,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 </div>
                                 <span className="max-w-[44px] truncate text-[7px] leading-none">{label}</span>
                               </button>
-                            ))}
+                            ); })}
                           </div>
                         </div>
                       </div>
@@ -5549,10 +5549,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         {sbChart && (
                           <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between">
-                              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Gráfico · {sbChart.type}</p>
+                              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("charts.panelLabel")} · {tMesh(`charts.types.${sbChart.type}` as any)}</p>
                               <select value={sbChart.type} onChange={(e) => setChart(defaultChartSpec(e.target.value as ChartType))}
                                 className="h-6 rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] text-slate-200 outline-none focus:border-cyan-500/50">
-                                {CHART_PALETTE.map(({ key, label }) => <option key={key} value={key}>{label}</option>)}
+                                {CHART_PALETTE.map(({ key, labelKey }) => <option key={key} value={key}>{tMesh(`charts.types.${labelKey}` as any)}</option>)}
                               </select>
                             </div>
                             <ChartBrickEditor chart={sbChart} onChange={setChart} />

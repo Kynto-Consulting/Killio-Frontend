@@ -118,6 +118,24 @@
     "generating": "Generando…",
     "cancel": "Cancelar"
   },
+  "charts": {
+    "groupLabel": "Gráficos",
+    "types": {
+      "pie": "Pastel",
+      "bar": "Barras",
+      "line": "Líneas",
+      "radar": "Radar",
+      "quadrant": "Cuadrante",
+      "treemap": "Treemap",
+      "kanban": "Kanban",
+      "gantt": "Gantt",
+      "venn": "Venn",
+      "packet": "Paquete",
+      "wardley": "Wardley"
+    },
+    "panelLabel": "Gráfico",
+    "changeType": "Cambiar tipo"
+  },
   "hints": {
     "dblClickPreview": "Doble clic para previsualizar",
     "dblClickConfigPortal": "Doble clic para configurar el portal",

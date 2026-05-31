@@ -7,6 +7,7 @@ import type { MeshTemplate } from "@/lib/mesh-templates";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh, isGrarkdown } from "@/lib/grarkdown-mesh";
 import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSceneFromText } from "@/lib/excalidraw-mesh";
+import { parseMermaidToChartSpec } from "@/lib/mermaid-to-chart";
 
 type ShapePreset = string;
 let _seq = 0;
@@ -112,6 +113,14 @@ export function templateToMeshState(tpl: MeshTemplate): MeshState {
   return { version: "1.0.0", viewport: { x: 0, y: 0, zoom: 1 }, rootOrder, bricksById, connectionsById };
 }
 
+/** Wrap a typed ChartSpec as a MeshTemplate with a single draw brick whose
+ *  content carries the spec object — the editor renders it via ChartBrickRender
+ *  and edits it via ChartBrickEditor. */
+export function chartSpecToTemplate(chart: import("@/components/ui/chart-brick").ChartSpec): MeshTemplate {
+  const brick: MeshBrick = { id: newId("brick"), kind: "draw", parentId: null, position: { x: 0, y: 0 }, size: { w: 360, h: 300 }, content: { chart } };
+  return { id: "chart", name: "Chart", bricks: [brick], connections: [] };
+}
+
 /** Auto-detect format and produce a MeshTemplate. Pass file bytes for a
  *  .excalidraw.png (embedded scene). Returns null when nothing parseable. */
 export async function importToMeshTemplate(opts: { text?: string; fileName?: string; fileBytes?: Uint8Array }): Promise<MeshTemplate | null> {
@@ -123,6 +132,11 @@ export async function importToMeshTemplate(opts: { text?: string; fileName?: str
   // Excalidraw: plain JSON OR an Obsidian markdown drawing (json/compressed-json).
   const scene = excalidrawSceneFromText(src);
   if (scene) { const t = parseExcalidrawToTemplate(scene); if (t.bricks.length) return t; }
+  // Mermaid chart types → single chart metabrick (typed spec, editable as JSON).
+  if (src.trim() && !isGrarkdown(src)) {
+    const chart = parseMermaidToChartSpec(src);
+    if (chart) return chartSpecToTemplate(chart);
+  }
   let tpl: MeshTemplate | null = null;
   if (isGrarkdown(src)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src));
   else if (src.trim()) tpl = generatedMeshToTemplate(parseMermaidToMesh(src));

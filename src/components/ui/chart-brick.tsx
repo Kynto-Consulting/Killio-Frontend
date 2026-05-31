@@ -19,8 +19,11 @@ export type QuadrantSpec = { title?: string; xLow?: string; xHigh?: string; yLow
 export type TreemapSpec = { title?: string; items: { label: string; value: number; color?: string }[] };
 export type KanbanSpec = { title?: string; columns: { title: string; cards: string[]; color?: string }[] };
 export type GanttSpec  = { title?: string; tasks: { name: string; section?: string; start: string; end: string; status?: "done"|"active"|"crit"|"milestone" }[] };
+export type VennSpec   = { title?: string; sets: { label: string; color?: string }[] };
+export type PacketSpec = { title?: string; fields: { start: number; end: number; label: string; color?: string }[] };
+export type WardleySpec= { title?: string; components: { name: string; vis: number; evo: number; color?: string }[]; links: { from: string; to: string }[] };
 
-export type ChartType = "pie" | "bar" | "line" | "radar" | "quadrant" | "treemap" | "kanban" | "gantt";
+export type ChartType = "pie" | "bar" | "line" | "radar" | "quadrant" | "treemap" | "kanban" | "gantt" | "venn" | "packet" | "wardley";
 
 export type ChartSpec =
   | { type: "pie";      spec: PieSpec }
@@ -30,7 +33,10 @@ export type ChartSpec =
   | { type: "quadrant"; spec: QuadrantSpec }
   | { type: "treemap";  spec: TreemapSpec }
   | { type: "kanban";   spec: KanbanSpec }
-  | { type: "gantt";    spec: GanttSpec };
+  | { type: "gantt";    spec: GanttSpec }
+  | { type: "venn";     spec: VennSpec }
+  | { type: "packet";   spec: PacketSpec }
+  | { type: "wardley";  spec: WardleySpec };
 
 // Default specs for the insert palette.
 export function defaultChartSpec(type: ChartType): ChartSpec {
@@ -43,12 +49,16 @@ export function defaultChartSpec(type: ChartType): ChartSpec {
     case "treemap":  return { type, spec: { title: "Treemap", items: [{ label: "Frontend", value: 40 }, { label: "Backend", value: 35 }, { label: "Infra", value: 15 }, { label: "QA", value: 10 }] } };
     case "kanban":   return { type, spec: { title: "Kanban", columns: [{ title: "Por hacer", cards: ["Diseño","Investigación"] }, { title: "En curso", cards: ["Maqueta"] }, { title: "Hecho", cards: ["Setup"] }] } };
     case "gantt":    return { type, spec: { title: "Plan", tasks: [{ name: "Diseño", section: "Fase 1", start: "2026-01-01", end: "2026-01-11" }, { name: "Build", section: "Fase 1", start: "2026-01-11", end: "2026-01-25" }] } };
+    case "venn":     return { type, spec: { title: "Venn", sets: [{ label: "A" }, { label: "B" }, { label: "C" }] } };
+    case "packet":   return { type, spec: { title: "Packet", fields: [{ start: 0, end: 15, label: "Source Port" }, { start: 16, end: 31, label: "Dest Port" }, { start: 32, end: 63, label: "Sequence Number" }] } };
+    case "wardley":  return { type, spec: { title: "Wardley", components: [{ name: "Cliente", vis: 0.95, evo: 0.2 }, { name: "API", vis: 0.6, evo: 0.55 }, { name: "DB", vis: 0.25, evo: 0.85 }], links: [{ from: "Cliente", to: "API" }, { from: "API", to: "DB" }] } };
   }
 }
 
-export const CHART_PALETTE: { key: ChartType; label: string }[] = [
-  { key: "pie", label: "Pastel" }, { key: "bar", label: "Barras" }, { key: "line", label: "Líneas" }, { key: "radar", label: "Radar" },
-  { key: "quadrant", label: "Cuadrante" }, { key: "treemap", label: "Treemap" }, { key: "kanban", label: "Kanban" }, { key: "gantt", label: "Gantt" },
+export const CHART_PALETTE: { key: ChartType; labelKey: string }[] = [
+  { key: "pie", labelKey: "pie" }, { key: "bar", labelKey: "bar" }, { key: "line", labelKey: "line" }, { key: "radar", labelKey: "radar" },
+  { key: "quadrant", labelKey: "quadrant" }, { key: "treemap", labelKey: "treemap" }, { key: "kanban", labelKey: "kanban" }, { key: "gantt", labelKey: "gantt" },
+  { key: "venn", labelKey: "venn" }, { key: "packet", labelKey: "packet" }, { key: "wardley", labelKey: "wardley" },
 ];
 
 // ─── Renderers (each takes w,h and draws within that viewport) ───────────────
@@ -263,6 +273,99 @@ function GanttView({ s, w, h }: { s: GanttSpec; w: number; h: number }) {
   </>;
 }
 
+function VennView({ s, w, h }: { s: VennSpec; w: number; h: number }) {
+  const sets = s.sets.slice(0, 3);
+  if (sets.length < 2) return <Title text={s.title} w={w} />;
+  const titleH = s.title ? 24 : 6;
+  const cx = w/2, cy = titleH + (h - titleH)/2;
+  const r = Math.max(20, Math.min(w/3, (h - titleH)/2.2));
+  const centers = sets.length === 2
+    ? [{ x: cx - r*0.55, y: cy }, { x: cx + r*0.55, y: cy }]
+    : [{ x: cx, y: cy - r*0.5 }, { x: cx - r*0.55, y: cy + r*0.35 }, { x: cx + r*0.55, y: cy + r*0.35 }];
+  return <>
+    <Title text={s.title} w={w} />
+    {sets.map((set, i) => {
+      const color = set.color || PALETTE[i % PALETTE.length];
+      const c = centers[i];
+      const lx = c.x, ly = i === 0 && sets.length === 3 ? c.y - r - 6 : (i === 0 ? c.y - r - 6 : c.y + r + 14);
+      return <g key={i}>
+        <circle cx={c.x} cy={c.y} r={r} fill={hexA(color, 0.28)} stroke={color} strokeWidth={1.5} />
+        <text x={lx} y={ly} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{set.label}</text>
+      </g>;
+    })}
+  </>;
+}
+
+function PacketView({ s, w, h }: { s: PacketSpec; w: number; h: number }) {
+  if (!s.fields.length) return <Title text={s.title} w={w} />;
+  const titleH = s.title ? 24 : 4;
+  const perRow = 32;
+  const maxBit = Math.max(...s.fields.map(f => f.end));
+  const rows = Math.floor(maxBit / perRow) + 1;
+  const cell = (w - 2) / perRow;
+  const rowH = Math.max(28, Math.min(48, (h - titleH - 4) / rows));
+  return <>
+    <Title text={s.title} w={w} />
+    {s.fields.map((f, fi) => {
+      const color = f.color || PALETTE[fi % PALETTE.length];
+      const segs: React.ReactNode[] = [];
+      let b = f.start;
+      while (b <= f.end) {
+        const row = Math.floor(b / perRow);
+        const rowEnd = (row + 1) * perRow - 1;
+        const segEnd = Math.min(f.end, rowEnd);
+        const x = 1 + (b - row * perRow) * cell;
+        const y = titleH + row * rowH;
+        const segW = (segEnd - b + 1) * cell;
+        segs.push(
+          <g key={b}>
+            <rect x={x} y={y+2} width={segW-1} height={rowH-6} fill={hexA(color, 0.3)} stroke={color} strokeWidth={1} />
+            <text x={x+4} y={y+12} fontSize={8} fill="#94a3b8">{f.start===f.end ? `${f.start}` : `${f.start}–${f.end}`}</text>
+            <text x={x + segW/2} y={y + rowH/2 + 4} textAnchor="middle" fontSize={Math.max(8, Math.min(11, rowH/3.5))} fontWeight={600} fill="#e2e8f0">{f.label}</text>
+          </g>
+        );
+        b = segEnd + 1;
+      }
+      return <g key={fi}>{segs}</g>;
+    })}
+  </>;
+}
+
+function WardleyView({ s, w, h }: { s: WardleySpec; w: number; h: number }) {
+  if (!s.components.length) return <Title text={s.title} w={w} />;
+  const titleH = s.title ? 24 : 4;
+  const pad = 30;
+  const box = Math.max(60, Math.min(w - pad*2, h - titleH - pad*2 - 16));
+  const ox = (w - box) / 2, oy = titleH + (h - titleH - box - 16) / 2;
+  const posOf = (c: { vis: number; evo: number }) => ({ x: ox + c.evo * box, y: oy + (1 - c.vis) * box });
+  const byName = new Map(s.components.map(c => [c.name, c] as const));
+  return <>
+    <Title text={s.title} w={w} />
+    <rect x={ox} y={oy} width={box} height={box} fill="rgba(148,163,184,0.04)" stroke="#475569" strokeWidth={1} />
+    {/* evolution axis labels */}
+    {["Genesis","Custom","Product","Commodity"].map((lbl, i) => (
+      <text key={i} x={ox + (i/3.5 + 0.05)*box} y={oy + box + 14} fontSize={9} fill="#64748b">{lbl}</text>
+    ))}
+    <text x={ox - 4} y={oy + 10} textAnchor="end" fontSize={9} fill="#64748b">Visible</text>
+    <text x={ox - 4} y={oy + box} textAnchor="end" fontSize={9} fill="#64748b">Invisible</text>
+    {/* links */}
+    {s.links.map((l, i) => {
+      const sc = byName.get(l.from), tc = byName.get(l.to);
+      if (!sc || !tc) return null;
+      const sp = posOf(sc), tp = posOf(tc);
+      return <line key={i} x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y} stroke="#64748b" strokeWidth={1} />;
+    })}
+    {/* components */}
+    {s.components.map((c, i) => {
+      const p = posOf(c), color = c.color || "#fbbf24";
+      return <g key={i}>
+        <circle cx={p.x} cy={p.y} r={5} fill={color} stroke="#0f172a" strokeWidth={1} />
+        <text x={p.x + 8} y={p.y + 3} fontSize={10} fill="#e2e8f0">{c.name}</text>
+      </g>;
+    })}
+  </>;
+}
+
 // ─── Public renderer ─────────────────────────────────────────────────────────
 export function ChartBrickRender({ chart, w, h, className }: { chart: ChartSpec; w: number; h: number; className?: string }) {
   let body: React.ReactNode = null;
@@ -275,6 +378,9 @@ export function ChartBrickRender({ chart, w, h, className }: { chart: ChartSpec;
     else if (chart.type === "treemap")  body = <TreemapView  s={chart.spec} w={w} h={h} />;
     else if (chart.type === "kanban")   body = <KanbanView   s={chart.spec} w={w} h={h} />;
     else if (chart.type === "gantt")    body = <GanttView    s={chart.spec} w={w} h={h} />;
+    else if (chart.type === "venn")     body = <VennView     s={chart.spec} w={w} h={h} />;
+    else if (chart.type === "packet")   body = <PacketView   s={chart.spec} w={w} h={h} />;
+    else if (chart.type === "wardley")  body = <WardleyView  s={chart.spec} w={w} h={h} />;
   } catch { body = null; }
   return (
     <svg className={className} width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" fontFamily="ui-sans-serif, system-ui, sans-serif" style={{ display: "block" }}>
@@ -438,6 +544,73 @@ function TreemapEditor({ s, on }: { s: TreemapSpec; on: (s: TreemapSpec) => void
   </>;
 }
 
+function VennEditor({ s, on }: { s: VennSpec; on: (s: VennSpec) => void }) {
+  return <>
+    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
+    <Section title="Conjuntos (2 o 3)">
+      {s.sets.map((set, i) => (
+        <Row key={i}>
+          <input type="color" value={set.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...s.sets]; a[i] = { ...set, color: e.target.value }; on({ ...s, sets: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input value={set.label} onChange={e => { const a=[...s.sets]; a[i] = { ...set, label: e.target.value }; on({ ...s, sets: a }); }} className={inp} />
+          <button type="button" onClick={() => on({ ...s, sets: s.sets.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
+        </Row>
+      ))}
+      {s.sets.length < 3 && <button type="button" onClick={() => on({ ...s, sets: [...s.sets, { label: "Nuevo" }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir conjunto</button>}
+    </Section>
+  </>;
+}
+
+function PacketEditor({ s, on }: { s: PacketSpec; on: (s: PacketSpec) => void }) {
+  return <>
+    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
+    <Section title="Campos (rango de bits)">
+      {s.fields.map((f, i) => (
+        <Row key={i}>
+          <input type="color" value={f.color ?? PALETTE[i % PALETTE.length]} onChange={e => { const a=[...s.fields]; a[i] = { ...f, color: e.target.value }; on({ ...s, fields: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input type="number" value={f.start} onChange={e => { const a=[...s.fields]; a[i] = { ...f, start: parseInt(e.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
+          <input type="number" value={f.end} onChange={e => { const a=[...s.fields]; a[i] = { ...f, end: parseInt(e.target.value)||0 }; on({ ...s, fields: a }); }} className={num} />
+          <input value={f.label} onChange={e => { const a=[...s.fields]; a[i] = { ...f, label: e.target.value }; on({ ...s, fields: a }); }} className={inp} />
+          <button type="button" onClick={() => on({ ...s, fields: s.fields.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
+        </Row>
+      ))}
+      <button type="button" onClick={() => { const last = s.fields[s.fields.length-1]; const next = last ? last.end + 1 : 0; on({ ...s, fields: [...s.fields, { start: next, end: next + 7, label: "Campo" }] }); }} className={btn}><Plus className="inline h-3 w-3" /> añadir campo</button>
+    </Section>
+  </>;
+}
+
+function WardleyEditor({ s, on }: { s: WardleySpec; on: (s: WardleySpec) => void }) {
+  return <>
+    <Row><span className="w-12 text-[9px] text-slate-400">Título</span><input value={s.title ?? ""} onChange={e=>on({...s, title: e.target.value})} className={inp} /></Row>
+    <Section title="Componentes (vis/evo entre 0 y 1)">
+      {s.components.map((c, i) => (
+        <Row key={i}>
+          <input type="color" value={c.color ?? "#fbbf24"} onChange={e => { const a=[...s.components]; a[i] = { ...c, color: e.target.value }; on({ ...s, components: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
+          <input value={c.name} onChange={e => { const a=[...s.components]; a[i] = { ...c, name: e.target.value }; on({ ...s, components: a }); }} className={inp} />
+          <input type="number" step="0.05" min="0" max="1" value={c.vis} onChange={e => { const a=[...s.components]; a[i] = { ...c, vis: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title="Visibilidad" />
+          <input type="number" step="0.05" min="0" max="1" value={c.evo} onChange={e => { const a=[...s.components]; a[i] = { ...c, evo: Math.max(0, Math.min(1, parseFloat(e.target.value)||0)) }; on({ ...s, components: a }); }} className={num} title="Evolución" />
+          <button type="button" onClick={() => on({ ...s, components: s.components.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
+        </Row>
+      ))}
+      <button type="button" onClick={() => on({ ...s, components: [...s.components, { name: "Nuevo", vis: 0.5, evo: 0.5 }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir componente</button>
+    </Section>
+    <Section title="Enlaces">
+      {s.links.map((l, i) => (
+        <Row key={i}>
+          <select value={l.from} onChange={e => { const a=[...s.links]; a[i] = { ...l, from: e.target.value }; on({ ...s, links: a }); }} className={inp}>
+            {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          <span className="text-[10px] text-slate-400">→</span>
+          <select value={l.to} onChange={e => { const a=[...s.links]; a[i] = { ...l, to: e.target.value }; on({ ...s, links: a }); }} className={inp}>
+            {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
+          </select>
+          <button type="button" onClick={() => on({ ...s, links: s.links.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
+        </Row>
+      ))}
+      <button type="button" onClick={() => on({ ...s, links: [...s.links, { from: s.components[0]?.name ?? "", to: s.components[1]?.name ?? "" }] })} className={btn}><Plus className="inline h-3 w-3" /> añadir enlace</button>
+    </Section>
+  </>;
+}
+
 export function ChartBrickEditor({ chart, onChange }: { chart: ChartSpec; onChange: (next: ChartSpec) => void }) {
   switch (chart.type) {
     case "pie":      return <PieEditor      s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
@@ -448,5 +621,8 @@ export function ChartBrickEditor({ chart, onChange }: { chart: ChartSpec; onChan
     case "treemap":  return <TreemapEditor  s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
     case "kanban":   return <KanbanEditor   s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
     case "gantt":    return <GanttEditor    s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
+    case "venn":     return <VennEditor     s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
+    case "packet":   return <PacketEditor   s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
+    case "wardley":  return <WardleyEditor  s={chart.spec} on={spec => onChange({ ...chart, spec })} />;
   }
 }

@@ -4,6 +4,8 @@ import { ReferenceResolver, ResolverContext } from "@/lib/reference-resolver";
 import { parseMermaidToMesh } from "@/lib/mermaid-mesh";
 import { parseGrarkdownToMesh } from "@/lib/grarkdown-mesh";
 import { generatedMeshToTemplate, templateToMeshState } from "@/lib/mesh-import";
+import { parseMermaidToChartSpec } from "@/lib/mermaid-to-chart";
+import { ChartBrickRender } from "@/components/ui/chart-brick";
 import { RefPill } from "./ref-pill";
 import { TagBadge } from "./tag-badge";
 
@@ -29,6 +31,20 @@ interface RichTextProps {
 // output. The i18n/session hooks fall back to safe defaults outside a provider,
 // so this works even when mounted into a detached React root (text brick).
 export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
+  // Chart-type mermaid fences (pie/bar/radar/…) render as a native ChartBrick
+  // SVG — no detached canvas, no providers, no exploded primitives.
+  try {
+    if (/^(mermaid|mmd)$/i.test(lang) || !lang) {
+      const chart = parseMermaidToChartSpec(code);
+      if (chart) {
+        return (
+          <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
+            <ChartBrickRender chart={chart} w={720} h={400} className="h-full w-full" />
+          </div>
+        );
+      }
+    }
+  } catch { /* fall through */ }
   let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
   try {
     if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(code));
