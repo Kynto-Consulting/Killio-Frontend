@@ -8,19 +8,36 @@ const REF_RE = /@\[(doc|document|board|mesh|card):([^:\]]+)(?::[^\]]*)?\]/g;
 const DEEP_RE = /\$\[(?:mesh:)?([^:\]]+):[^\]]+\]/g;
 const MEDIA_KINDS = new Set(["media", "image", "video", "audio", "draw", "bookmark"]);
 
-/** Pull "essential" text out of a brick content object (markdown/text/labels/cells). */
+/** Pull "essential" text out of a brick content object (markdown/text/labels/
+ *  cells). Recurses into chart metabricks (content.chart.spec → items, series,
+ *  axes, curves, tasks, columns, sets, fields, components, …) so the /graph
+ *  view indexes their searchable content the same as any other brick. */
 export function essentialText(content: unknown, depth = 0): string {
-  if (depth > 6 || content == null) return "";
+  if (depth > 8 || content == null) return "";
   if (typeof content === "string") return content;
   if (Array.isArray(content)) return content.map((c) => essentialText(c, depth + 1)).join(" ");
   if (typeof content === "object") {
     const o = content as Record<string, unknown>;
     const parts: string[] = [];
+    // Generic string-valued keys.
     for (const key of ["markdown", "text", "title", "body", "label", "name", "summary", "caption", "previewMarkdown", "targetLabel", "sourceLabel"]) {
       if (typeof o[key] === "string") parts.push(o[key] as string);
     }
-    if (Array.isArray(o.items)) parts.push(essentialText(o.items, depth + 1));
-    if (Array.isArray(o.rows)) parts.push(essentialText(o.rows, depth + 1));
+    // Generic array-valued keys that may carry user-visible text.
+    for (const key of [
+      "items", "rows", "xLabels", "axes", "cards", "tasks", "components",
+      "columns", "sets", "fields", "curves", "series", "points", "links",
+    ]) {
+      if (Array.isArray(o[key])) parts.push(essentialText(o[key], depth + 1));
+    }
+    // Chart metabrick: content.chart = { type, spec }. Recurse into spec.
+    if (o.chart && typeof o.chart === "object") {
+      const ch = o.chart as Record<string, unknown>;
+      if (typeof ch.type === "string") parts.push(ch.type);
+      if (ch.spec) parts.push(essentialText(ch.spec, depth + 1));
+    }
+    // Legacy mermaid-source chart brick.
+    if (typeof o.chartSource === "string") parts.push(o.chartSource);
     return parts.join(" ");
   }
   return "";
