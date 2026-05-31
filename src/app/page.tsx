@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { Loader2 } from "lucide-react";
-import WorkspacesPage from "./(dashboard)/page";
+import WorkspacesPage from "./(dashboard)/workspaces-view";
 import { LayoutWeb } from "./(dashboard)/layout.web";
 import { LayoutMobile } from "./(dashboard)/layout.mobile";
 import LandingPageMobile from "./page.mobile";
