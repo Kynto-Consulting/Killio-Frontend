@@ -73,9 +73,8 @@ function stripQuotes(s: string): string {
 
 // Convert the small HTML subset Mermaid allows in labels into markdown so the
 // brick renderer shows line breaks / italics / bold instead of raw tags.
-// Common FontAwesome / Material icon names → emoji. Used to replace mermaid
-// icon tokens like "fa:fa-user" so labels keep a visual cue instead of just
-// dropping the icon. Unmapped icons fall back to a generic ◆.
+// Legacy emoji fallback. Kept as a secondary mapping when the lucide registry
+// doesn't carry the icon — emit an emoji rather than nothing.
 const ICON_EMOJI: Record<string, string> = {
   user: "👤", users: "👥", person: "🧑", "user-circle": "👤",
   cog: "⚙️", gear: "⚙️", wrench: "🔧", hammer: "🔨", tools: "🧰", toolbox: "🧰",
@@ -118,9 +117,61 @@ const ICON_EMOJI: Record<string, string> = {
   "play": "▶️", "pause": "⏸️", "stop": "⏹️", "forward": "⏩", "backward": "⏪",
 };
 
-function iconEmoji(name: string): string {
-  return ICON_EMOJI[name.toLowerCase()] ?? "◆";
+function iconToken(name: string): string {
+  const key = name.toLowerCase();
+  // Prefer the lucide registry (renders as a real lucide-react icon via the
+  // `[lu:NAME:SW]` markdown token — inherits color + size from surrounding
+  // text). Fall back to emoji when the icon name isn't mapped to lucide.
+  // Importing FA_TO_LUCIDE here would create a runtime import cycle with the
+  // chart brick file, so we use a lightweight local lookup mirroring the
+  // table in lucide-icon-registry.ts.
+  const lu = FA_TO_LU_LOCAL[key];
+  if (lu) return `[lu:${lu}:2]`;
+  return ICON_EMOJI[key] ?? "◆";
 }
+
+// Mirror of FA_TO_LUCIDE used by cleanLabel without pulling in the lucide
+// React registry (avoids importing React from a pure-text parser module).
+const FA_TO_LU_LOCAL: Record<string, string> = {
+  user: "user", "user-circle": "user", users: "users", person: "user",
+  cog: "cog", gear: "cog", settings: "settings", wrench: "wrench", hammer: "wrench", tools: "tools", toolbox: "tools",
+  check: "check", "check-circle": "check-circle", times: "x", "times-circle": "x-circle", xmark: "x", ban: "slash",
+  warning: "alert-triangle", "exclamation-triangle": "alert-triangle", exclamation: "alert-triangle",
+  question: "help-circle", info: "info", "info-circle": "info", bell: "bell",
+  home: "home", house: "home", building: "building", "map-marker": "map-pin", map: "map",
+  folder: "folder", "folder-open": "folder-open", file: "file", "file-alt": "file-text", files: "files",
+  envelope: "mail", mail: "mail", "envelope-open": "mail", "paper-plane": "send",
+  phone: "phone", mobile: "smartphone",
+  search: "search", "magnifying-glass": "search",
+  star: "star", heart: "heart", bookmark: "bookmark", flag: "flag", tag: "tag",
+  lock: "lock", unlock: "unlock", key: "key", shield: "shield",
+  cloud: "cloud", "cloud-upload": "cloud-upload", "cloud-download": "cloud-download",
+  database: "database", server: "server", desktop: "monitor", laptop: "laptop", code: "code", terminal: "terminal",
+  globe: "globe", wifi: "wifi", signal: "signal",
+  calendar: "calendar", "calendar-alt": "calendar", clock: "clock", hourglass: "timer",
+  "chart-bar": "bar-chart", "chart-line": "trending-up", "chart-pie": "pie-chart",
+  "shopping-cart": "shopping-cart", cart: "shopping-cart", "credit-card": "credit-card", money: "hand-coins", "dollar-sign": "dollar-sign", coins: "hand-coins", gift: "gift",
+  truck: "truck", car: "car", plane: "plane", train: "navigation", bus: "truck", bicycle: "bike", motorcycle: "bike",
+  rocket: "rocket", bolt: "zap", lightning: "zap", fire: "flame",
+  trash: "trash", "trash-alt": "trash", edit: "edit", pencil: "pencil", "pencil-alt": "pencil", pen: "pen",
+  eye: "eye", "eye-slash": "eye-off", camera: "camera", image: "image", video: "video", film: "video",
+  music: "music", microphone: "mic", headphones: "headphones",
+  book: "book", "book-open": "book-open", "graduation-cap": "graduation-cap", school: "building",
+  sun: "sun", moon: "moon", snowflake: "snowflake", leaf: "leaf", tree: "tree",
+  coffee: "coffee", utensils: "utensils",
+  "thumbs-up": "thumbs-up", "thumbs-down": "thumbs-down",
+  plus: "plus", minus: "minus",
+  "arrow-up": "arrow-up", "arrow-down": "arrow-down", "arrow-left": "arrow-left", "arrow-right": "arrow-right",
+  link: "link", share: "share", "external-link": "link",
+  download: "download", upload: "upload", print: "printer",
+  comment: "message-circle", comments: "message-circle", message: "message-square",
+  trophy: "trophy", medal: "award", crown: "crown",
+  bug: "bug",
+  cube: "box", cubes: "boxes", box: "box", "box-open": "package", boxes: "boxes",
+  list: "list", "list-alt": "list", tasks: "list-checks", table: "table", th: "grid",
+  paperclip: "paperclip", "paint-brush": "palette", palette: "palette", magic: "sparkles", "magic-wand": "wand-2",
+  play: "play", pause: "pause",
+};
 
 function cleanLabel(s: string): string {
   return s
@@ -128,9 +179,10 @@ function cleanLabel(s: string): string {
     .replace(/<\/?(?:b|strong)>/gi, "**") // bold
     .replace(/<\/?(?:i|em)>/gi, "*")        // italic
     .replace(/<[^>]+>/g, "")
-    // FontAwesome / Material icon prefixes (e.g. "fa:fa-car Car") → emoji.
-    // Accepts "fa:fa-user", "fab:user", "fas:fa-cog", "mat:user", "mc:home".
-    .replace(/\b(?:fa[bsrl]?|mat|mc):(?:fa-)?([\w-]+)\s*/gi, (_m, name: string) => `${iconEmoji(name)} `)
+    // FontAwesome / Material icon prefixes (e.g. "fa:fa-car Car") → lucide
+    // token. Accepts "fa:fa-user", "fab:user", "fas:fa-cog", "mat:user",
+    // "mc:home". Lucide icons inherit color + size from the surrounding text.
+    .replace(/\b(?:fa[bsrl]?|mat|mc):(?:fa-)?([\w-]+)\s*/gi, (_m, name: string) => `${iconToken(name)} `)
     .replace(/[ \t]+\n/g, "\n")
     .trim();
 }

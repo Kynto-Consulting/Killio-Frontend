@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
 import { RichText, DiagramBlock } from "../ui/rich-text";
 import { createRoot, type Root } from "react-dom/client";
+import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -141,10 +142,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const mountDiagramsIn = React.useCallback((host: HTMLElement | null) => {
     if (!host) return;
     const blocks = diagramBlocksRef.current;
-    const placeholders = Array.from(host.querySelectorAll<HTMLElement>("[data-diagram-idx]"));
-    if (!placeholders.length) return;
     const roots: Root[] = [];
-    placeholders.forEach((el) => {
+    // Fenced diagram blocks (mermaid / grarkdown / erDiagram / html preview).
+    const diagPlaceholders = Array.from(host.querySelectorAll<HTMLElement>("[data-diagram-idx]"));
+    diagPlaceholders.forEach((el) => {
       const idx = parseInt(el.getAttribute("data-diagram-idx") || "", 10);
       const block = blocks[idx];
       if (!block) return;
@@ -152,7 +153,22 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       root.render(<FencedRender lang={block.lang} code={block.code} />);
       roots.push(root);
     });
-    diagramRootsRef.current = roots;
+    // [lu:NAME:SW] icon tokens → real lucide-react icon. Inherits color (via
+    // currentColor) and size (1em) from the surrounding text so headings /
+    // colored spans scale automatically.
+    const iconEls = Array.from(host.querySelectorAll<HTMLElement>("[data-lu-icon]"));
+    iconEls.forEach((el) => {
+      if (el.dataset.luMounted === "1") return;
+      const name = el.getAttribute("data-lu-icon") || "";
+      const sw = parseFloat(el.getAttribute("data-lu-sw") || "2") || 2;
+      const Icon = resolveLucide(name);
+      if (!Icon) return;
+      el.dataset.luMounted = "1";
+      const root = createRoot(el);
+      root.render(<Icon size="1em" color="currentColor" strokeWidth={sw} />);
+      roots.push(root);
+    });
+    if (roots.length) diagramRootsRef.current = roots;
   }, []);
 
   // Read-only display HTML is painted by JSX (dangerouslySetInnerHTML), which
@@ -598,6 +614,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     const formatLeafInline = (t: string) => {
       let tFormat = t
+      // [lu:NAME:SW] → lucide icon placeholder (mounted via createRoot after
+      // innerHTML paint). Uses currentColor + 1em so it inherits color + size
+      // from the surrounding text/heading.
+      .replace(/\[lu:([\w-]+)(?::([\d.]+))?\]/g, (_, name: string, sw?: string) =>
+        `<span data-lu-icon="${escapeHtmlAttr(name)}" data-lu-sw="${escapeHtmlAttr(sw ?? "2")}" contenteditable="false" class="inline-flex h-[1em] w-[1em] align-[-0.15em]"></span>`)
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
         const src = normalizeImageUrl(rawUrl);
         if (!src) return `![${escapeHtml(alt)}](${escapeHtml(rawUrl)})`;
