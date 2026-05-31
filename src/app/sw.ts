@@ -51,7 +51,7 @@ const serwist = new Serwist({
     {
       matcher: ({ url }) => url.pathname.startsWith("/api/"),
       handler: new NetworkFirst({
-        cacheName: "api-cache",
+        cacheName: "api-cache-v2",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 50,
@@ -64,16 +64,33 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // Page navigation with offline fallback
+    // Page navigation with offline fallback. v3: bumped cacheName because the
+    // previous "pages-cache" got poisoned with the offline-fallback HTML stored
+    // under real route URLs (e.g. /d, /d/<id>) during the broken deploy window
+    // — every later navigation served that stale HTML. New cache name forces a
+    // clean slate; the activate handler below deletes the orphaned old caches.
     {
       matcher: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/api/"),
       handler: new NetworkFirst({
-        cacheName: "pages-cache",
+        cacheName: "pages-cache-v3",
+        networkTimeoutSeconds: 8,
         plugins: [
           new ExpirationPlugin({
-            maxEntries: 50,
+            maxEntries: 100,
             maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
           }),
+          // Never cache redirects (e.g. middleware → /login) or non-OK pages
+          // — those are what poisoned the previous cache.
+          {
+            cacheWillUpdate: async ({ response }: { response: Response }) => {
+              if (!response) return null;
+              if (response.redirected) return null;
+              if (response.status !== 200) return null;
+              const ct = response.headers.get("content-type") ?? "";
+              if (!ct.includes("text/html")) return null;
+              return response;
+            },
+          },
           new BackgroundSyncPlugin("offline-queue", {
             maxRetentionTime: 48 * 60, // 48 hours
           }),
@@ -124,6 +141,20 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+// One-shot cleanup of legacy cache names. Old "pages-cache" / "api-cache"
+// entries are abandoned by the new versioned names above — delete them on
+// activate so they don't sit there forever taking quota and (more importantly
+// once SW deletes them, the browser memory cache stops hitting them either).
+const LEGACY_CACHES = new Set(["pages-cache", "api-cache", "pages-cache-v2"]);
+self.addEventListener("activate", (event: any) => {
+  event.waitUntil(
+    (async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.filter((k) => LEGACY_CACHES.has(k)).map((k) => caches.delete(k)));
+    })()
+  );
+});
 
 // Push notification handler
 self.addEventListener("push", (event: any) => {

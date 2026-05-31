@@ -19,6 +19,31 @@ export default function OfflinePage() {
     } catch { /* ignore */ }
   }, []);
 
+  // Self-heal: if the SW served this fallback for a real route while the user
+  // is actually online (cache poisoning from a previous broken deploy), evict
+  // every cache + unregister the SW + reload so the next navigation hits the
+  // network fresh. Only triggers when path != /offline (i.e. user typed /d or
+  // similar and got served the offline shell instead).
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+    const isOnline = navigator.onLine !== false;
+    const onRealRoute = window.location.pathname !== "/offline";
+    if (!isOnline || !onRealRoute) return;
+    (async () => {
+      try {
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+      } catch { /* ignore */ }
+      window.location.reload();
+    })();
+  }, []);
+
   const openLocal = (id: string) => {
     try { window.localStorage.setItem("killio_active_local", id); } catch { /* ignore */ }
     window.location.href = "/d"; // cached app shell boots offline into local mode
