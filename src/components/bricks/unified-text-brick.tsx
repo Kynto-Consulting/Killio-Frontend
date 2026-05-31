@@ -14,7 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { resolveLucide, LUCIDE_REGISTRY } from "@/lib/lucide-icon-registry";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
-import { useTranslations } from "@/components/providers/i18n-provider";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
 import katex from "katex";
 // @ts-ignore
@@ -51,6 +51,89 @@ function FencedRender({ lang, code }: { lang: string; code: string }) {
     );
   }
   return <DiagramBlock lang={lang} code={code} />;
+}
+
+// Strip diacritics + lowercase so "casa" / "Cásá" match each other.
+const normForSearch = (s: string) =>
+  (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+
+// Floating lucide-icon picker. Uses the same positioning algorithm as the
+// inline format toolbar (place above selection, fall back below, clamp to
+// viewport) and matches its visual style. Search filters by icon name AND
+// by i18n synonyms (mesh.iconPicker.synonyms) so "casa" finds "home".
+function LucideIconPicker({
+  anchor, query, setQuery, onPick, onClose,
+}: {
+  anchor: { top: number; left: number; bottom?: number };
+  query: string; setQuery: (v: string) => void;
+  onPick: (name: string) => void;
+  onClose: () => void;
+}) {
+  const ref = React.useRef<HTMLDivElement | null>(null);
+  const [pos, setPos] = React.useState({ top: anchor.top, left: anchor.left });
+  const { messages } = useI18n();
+  const t = useTranslations("mesh");
+  // Read the synonyms map straight from i18n messages so it can be edited from
+  // the locale files (es/en mesh.json → iconPicker.synonyms).
+  const synonyms = React.useMemo(() => {
+    const m = messages?.mesh as Record<string, unknown> | undefined;
+    const ip = (m?.iconPicker as Record<string, unknown> | undefined) ?? {};
+    return (ip.synonyms as Record<string, string>) ?? {};
+  }, [messages]);
+
+  React.useLayoutEffect(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const sw = window.innerWidth, sh = window.innerHeight;
+    const margin = 12, gap = 10;
+    let left = anchor.left - rect.width / 2;
+    let top = anchor.top - rect.height - gap;
+    const bottom = anchor.bottom ?? anchor.top;
+    if (top < margin) top = bottom + gap;
+    left = Math.max(margin, Math.min(sw - rect.width - margin, left));
+    top = Math.max(margin, Math.min(sh - rect.height - margin, top));
+    setPos({ top, left });
+  }, [anchor.top, anchor.left, anchor.bottom, query]);
+
+  const q = normForSearch(query);
+  const filtered = React.useMemo(() => {
+    const entries = Object.entries(LUCIDE_REGISTRY);
+    if (!q) return entries.slice(0, 200);
+    return entries.filter(([name]) => {
+      if (normForSearch(name).includes(q)) return true;
+      const syn = synonyms[name];
+      if (syn && normForSearch(syn).includes(q)) return true;
+      return false;
+    }).slice(0, 200);
+  }, [q, synonyms]);
+
+  return (
+    <div ref={ref}
+      data-editor-floating-ui="true"
+      data-lucide-icon-picker="true"
+      className="fixed z-[1000] flex w-[320px] max-h-[360px] flex-col gap-2 rounded-xl border border-border bg-popover/95 p-2 shadow-xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-100"
+      style={{ top: pos.top, left: pos.left }}
+      onMouseDown={(e) => e.preventDefault()}
+    >
+      <input autoFocus value={query} onChange={(e) => setQuery(e.target.value)}
+        placeholder={t("iconPicker.placeholder")}
+        className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs text-foreground outline-none focus:border-accent/50"
+        onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); onClose(); } }}
+      />
+      <div className="grid grid-cols-8 gap-1 overflow-y-auto">
+        {filtered.map(([name, Icon]) => (
+          <button key={name} type="button" title={name}
+            onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
+            onClick={() => onPick(name)}
+            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent/15 hover:text-foreground">
+            <Icon size={16} strokeWidth={2} />
+          </button>
+        ))}
+        {filtered.length === 0 && <p className="col-span-8 text-center text-[10px] text-muted-foreground">—</p>}
+      </div>
+      <p className="text-[9px] text-center text-muted-foreground">{t("iconPicker.hint")}</p>
+    </div>
+  );
 }
 
 const DEFAULT_PASTED_IMAGE_NAME = "pasted-image.png";
@@ -113,6 +196,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [isFormatToolbarOpen, setIsFormatToolbarOpen] = useState(false);
   const [isIconPickerOpen, setIsIconPickerOpen] = useState(false);
   const [iconPickerQuery, setIconPickerQuery] = useState("");
+  // Tracks the text of the last selection the user dismissed (via Esc on the
+  // format toolbar) so a stray keyup/mouseup doesn't reopen the toolbar on
+  // the same selection.
+  const dismissedSelectionRef = useRef<string>("");
   const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0, bottom: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const readonlyRef = useRef<HTMLDivElement>(null);
@@ -1303,9 +1390,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const checkSelectionForToolbar = () => {
     if (readonly) return;
+    // Only one floating UI at a time — any other picker wins.
+    if (isIconPickerOpen || isSlashOpen || isPickerOpen || isDatePickerOpen || isEmojiPickerOpen || isMathPickerOpen) return;
     const selection = window.getSelection();
     if (!selection || selection.isCollapsed || selection.rangeCount === 0) {
       setIsFormatToolbarOpen(false);
+      dismissedSelectionRef.current = "";
       return;
     }
 
@@ -1318,12 +1408,18 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const text = selection.toString().trim();
     if (!text) {
       setIsFormatToolbarOpen(false);
+      dismissedSelectionRef.current = "";
       return;
     }
 
+    // User just dismissed the toolbar with Esc on this exact selection — don't
+    // reopen it until the selection changes.
+    if (dismissedSelectionRef.current && dismissedSelectionRef.current === text) return;
+    dismissedSelectionRef.current = "";
+
     savedRangeRef.current = range.cloneRange();
     const rect = range.getBoundingClientRect();
-    
+
     setFormatToolbarPosition({
       top: rect.top,
       left: rect.left + (rect.width / 2),
@@ -1434,7 +1530,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       // Close any floating UI first (format toolbar AI menu, slash, ref picker,
       // icon picker, date/emoji/math pickers) before blurring the editor.
       let closedAny = false;
-      if (isFormatToolbarOpen) { setIsFormatToolbarOpen(false); closedAny = true; }
+      if (isFormatToolbarOpen) {
+        setIsFormatToolbarOpen(false);
+        // Remember the selection text we just dismissed — checkSelectionForToolbar
+        // won't reopen the toolbar until the user changes the selection.
+        try { dismissedSelectionRef.current = (window.getSelection()?.toString() ?? "").trim(); } catch { /* noop */ }
+        closedAny = true;
+      }
       if (isSlashOpen) { closeSlashMenu(); closedAny = true; }
       if (isPickerOpen) { setIsPickerOpen(false); setPickerCursorOffset(null); closedAny = true; }
       if (isIconPickerOpen) { setIsIconPickerOpen(false); closedAny = true; }
@@ -1444,15 +1546,21 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (!closedAny) contentRef.current?.blur();
       return;
     }
-    // Ctrl/Cmd + . → open icon picker (insert a [lu:NAME:SW] lucide token).
+    // Ctrl/Cmd + . → open icon picker. Priority over the format toolbar: closes
+    // any other floating UI first so only one stays open at a time.
     if ((e.ctrlKey || e.metaKey) && e.key === ".") {
       e.preventDefault();
+      setIsFormatToolbarOpen(false);
+      closeSlashMenu();
+      setIsPickerOpen(false); setPickerCursorOffset(null);
+      setIsDatePickerOpen(false); setIsEmojiPickerOpen(false); setIsMathPickerOpen(false);
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
-      // Anchor the popover near the caret.
+      // Anchor on the caret rect using the same coords the format toolbar
+      // consumes — the picker then runs the same above/below + clamp logic.
       try {
         const r = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
-        if (r && (r.left || r.top)) setFormatToolbarPosition({ top: r.bottom + 6, left: r.left, bottom: 0 });
+        if (r && (r.top || r.left)) setFormatToolbarPosition({ top: r.top, left: r.left + r.width / 2, bottom: r.bottom });
       } catch { /* noop */ }
       setIconPickerQuery("");
       setIsIconPickerOpen(true);
@@ -2088,44 +2196,25 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
         {isIconPickerOpen && !readonly && (
           <Portal>
-            <div
-              data-editor-floating-ui="true"
-              className="fixed z-[1200] w-[320px] max-h-[360px] flex flex-col rounded-xl border border-cyan-300/25 bg-slate-950 p-2 shadow-2xl"
-              style={{ top: (formatToolbarPosition.top || slashMenuPosition.top || 200), left: (formatToolbarPosition.left || slashMenuPosition.left || 200) }}
-              onMouseDown={(e) => e.preventDefault()}
-            >
-              <input autoFocus value={iconPickerQuery} onChange={(e) => setIconPickerQuery(e.target.value)}
-                placeholder="Buscar icono lucide…"
-                className="mb-2 h-8 w-full rounded-md border border-white/10 bg-slate-900 px-2 text-xs text-slate-100 outline-none focus:border-cyan-500/50"
-                onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); setIsIconPickerOpen(false); contentRef.current?.focus(); } }}
-              />
-              <div className="grid grid-cols-8 gap-1 overflow-y-auto">
-                {Object.entries(LUCIDE_REGISTRY)
-                  .filter(([name]) => !iconPickerQuery || name.includes(iconPickerQuery.toLowerCase().trim()))
-                  .slice(0, 200)
-                  .map(([name, Icon]) => (
-                    <button key={name} type="button" title={name}
-                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation(); }}
-                      onClick={() => {
-                        if (contentRef.current) {
-                          contentRef.current.focus();
-                          const sel = window.getSelection();
-                          if (savedRangeRef.current && sel) { sel.removeAllRanges(); sel.addRange(savedRangeRef.current); }
-                          document.execCommand("insertText", false, `[lu:${name}:2] `);
-                          const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                          onUpdate(newMarkdown);
-                          contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
-                        }
-                        setIsIconPickerOpen(false);
-                        savedRangeRef.current = null;
-                      }}
-                      className="flex h-8 w-8 items-center justify-center rounded-md text-slate-300 transition-colors hover:bg-cyan-500/15 hover:text-cyan-200">
-                      <Icon size={16} strokeWidth={2} />
-                    </button>
-                  ))}
-              </div>
-              <p className="mt-1 text-[9px] text-slate-500 text-center">Inserta token <code className="text-slate-400">[lu:NAME:2]</code></p>
-            </div>
+            <LucideIconPicker
+              anchor={formatToolbarPosition}
+              query={iconPickerQuery}
+              setQuery={setIconPickerQuery}
+              onClose={() => { setIsIconPickerOpen(false); contentRef.current?.focus(); }}
+              onPick={(name) => {
+                if (contentRef.current) {
+                  contentRef.current.focus();
+                  const sel = window.getSelection();
+                  if (savedRangeRef.current && sel) { sel.removeAllRanges(); sel.addRange(savedRangeRef.current); }
+                  document.execCommand("insertText", false, `[lu:${name}:2] `);
+                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                  onUpdate(newMarkdown);
+                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                }
+                setIsIconPickerOpen(false);
+                savedRangeRef.current = null;
+              }}
+            />
           </Portal>
         )}
 
