@@ -1,12 +1,14 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
-import { 
-  Serwist, 
-  NetworkFirst, 
-  StaleWhileRevalidate, 
+import {
+  Serwist,
+  NetworkFirst,
+  StaleWhileRevalidate,
   CacheFirst,
   BackgroundSyncPlugin,
-  ExpirationPlugin
+  ExpirationPlugin,
+  Strategy,
+  type StrategyHandler,
 } from "serwist";
 
 declare global {
@@ -26,6 +28,54 @@ declare const self: typeof globalThis & WorkerGlobalScope;
 const SHELL_PRECACHE = [
   "/", "/offline", "/login",
 ].map((url) => ({ url, revision: null as string | null }));
+
+// Maps a deep path to its parent shell route. The shell is what the dashboard
+// layout renders for that section; once the shell HTML is in pages-cache-v3,
+// every child route can boot offline through it (local-workspace data comes
+// from IndexedDB / FileSystemDirectoryHandle on the client).
+function shellFor(pathname: string): string | null {
+  if (pathname.startsWith("/d/")) return "/d";
+  if (pathname.startsWith("/b/")) return "/b";
+  if (pathname.startsWith("/m/")) return "/m";
+  if (pathname.startsWith("/graph/")) return "/graph";
+  if (pathname.startsWith("/rooms/")) return "/rooms";
+  return null;
+}
+
+class NavigationWithShellFallback extends Strategy {
+  protected async _handle(request: Request, handler: StrategyHandler): Promise<Response | undefined> {
+    // 1. Network with 8s timeout.
+    const networkPromise = handler.fetch(request);
+    const timeoutPromise = new Promise<Response>((_, reject) =>
+      setTimeout(() => reject(new Error("network-timeout")), 8000)
+    );
+    try {
+      const response = await Promise.race([networkPromise, timeoutPromise]);
+      // cacheWillUpdate plugins gate whether it actually gets stored.
+      handler.waitUntil(handler.cachePut(request, response.clone()));
+      return response;
+    } catch { /* fall through to cache */ }
+
+    // 2. Exact cache match for this URL.
+    const exact = await handler.cacheMatch(request);
+    if (exact) return exact;
+
+    // 3. Parent shell route from same cache (e.g. /d/<id> → /d).
+    const url = new URL(request.url);
+    const shell = shellFor(url.pathname);
+    if (shell) {
+      const shellReq = new Request(new URL(shell, url.origin).toString(), { method: "GET" });
+      const shellHit = await handler.cacheMatch(shellReq);
+      if (shellHit) return shellHit;
+    }
+
+    // 4. Precached /offline.
+    const offline = await caches.match("/offline");
+    if (offline) return offline;
+
+    return Response.error();
+  }
+}
 
 const serwist = new Serwist({
   precacheEntries: [...(self.__SW_MANIFEST ?? []), ...SHELL_PRECACHE],
@@ -64,23 +114,28 @@ const serwist = new Serwist({
         ],
       }),
     },
-    // Page navigation with offline fallback. v3: bumped cacheName because the
-    // previous "pages-cache" got poisoned with the offline-fallback HTML stored
-    // under real route URLs (e.g. /d, /d/<id>) during the broken deploy window
-    // — every later navigation served that stale HTML. New cache name forces a
-    // clean slate; the activate handler below deletes the orphaned old caches.
+    // Page navigation with smart offline fallback chain.
+    //
+    // Cascade per request:
+    //   1. Try network (8s timeout). Cache the response only if it's a real
+    //      200 text/html (no redirects, no error pages) — those were what
+    //      poisoned the previous cache and made every later nav serve /offline.
+    //   2. On network fail, look up the exact URL in pages-cache-v3.
+    //   3. On exact miss, fall back to the parent SHELL route's cached HTML
+    //      (e.g. /d/<id> → /d, /b/<id> → /b, /m/<id> → /m). The shell hydrates
+    //      client-side and renders the local-workspace data from IndexedDB —
+    //      so /d/<localId>, /b/<localId>, /m/<localId> all work offline
+    //      without ever being visited online first.
+    //   4. Final fallback: precached /offline.
     {
       matcher: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/api/"),
-      handler: new NetworkFirst({
+      handler: new NavigationWithShellFallback({
         cacheName: "pages-cache-v3",
-        networkTimeoutSeconds: 8,
         plugins: [
           new ExpirationPlugin({
             maxEntries: 100,
-            maxAgeSeconds: 7 * 24 * 60 * 60, // 7 days
+            maxAgeSeconds: 7 * 24 * 60 * 60,
           }),
-          // Never cache redirects (e.g. middleware → /login) or non-OK pages
-          // — those are what poisoned the previous cache.
           {
             cacheWillUpdate: async ({ response }: { response: Response }) => {
               if (!response) return null;
@@ -92,7 +147,7 @@ const serwist = new Serwist({
             },
           },
           new BackgroundSyncPlugin("offline-queue", {
-            maxRetentionTime: 48 * 60, // 48 hours
+            maxRetentionTime: 48 * 60,
           }),
         ],
       }),
