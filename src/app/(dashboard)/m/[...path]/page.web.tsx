@@ -5372,7 +5372,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           >
             <div className="pointer-events-auto flex max-w-full flex-col items-center gap-2">
               {toolbarPanel && (
-                <div className={`max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/20 bg-slate-950/88 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.55)] backdrop-blur-md ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
+                <div className={`max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/20 bg-slate-950 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.7)] ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
                   {toolbarPanel === "mode" && (
                     <div>
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Modo</p>
