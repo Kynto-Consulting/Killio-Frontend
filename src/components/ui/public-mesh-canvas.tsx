@@ -1366,16 +1366,29 @@ export function PublicMeshCanvas({ state, meshName }: PublicMeshCanvasProps) {
     return ids;
   }, [state.connectionsById]);
 
-  // Fit on mount
+  // Fit on mount AND on container resize. Without the ResizeObserver the
+  // canvas mounted at zero width (common when injected into a detached React
+  // root before the parent's layout settles) computed an empty viewport and
+  // rendered blank.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-    const bricks = Object.values(state.bricksById);
-    if (bricks.length === 0) return;
-    const vp = fitViewport(state.bricksById, el.clientWidth, el.clientHeight);
-    setViewport(vp);
+    if (Object.keys(state.bricksById).length === 0) return;
+    let raf = 0;
+    const refit = () => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const cw = el.clientWidth, ch = el.clientHeight;
+        if (cw < 8 || ch < 8) return;
+        setViewport(fitViewport(state.bricksById, cw, ch));
+      });
+    };
+    refit();
+    const ro = typeof ResizeObserver !== "undefined" ? new ResizeObserver(refit) : null;
+    ro?.observe(el);
+    return () => { cancelAnimationFrame(raf); ro?.disconnect(); };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [state.bricksById]);
 
   const handleFit = useCallback(() => {
     const el = containerRef.current;
