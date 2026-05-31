@@ -43,7 +43,7 @@ import { parseExcalidrawToTemplate, extractExcalidrawSceneFromPng, excalidrawSce
 import { templateToMeshState } from "@/lib/mesh-import";
 import { PublicMeshCanvas } from "@/components/ui/public-mesh-canvas";
 import { ChartGlyph } from "@/components/ui/chart-glyph";
-import { ChartBrickRender, ChartBrickEditor, defaultChartSpec, CHART_PALETTE as CHART_PALETTE_NEW, type ChartSpec, type ChartType } from "@/components/ui/chart-brick";
+import { ChartBrickRender, ChartBrickEditor, defaultChartSpec, CHART_PALETTE as CHART_PALETTE_NEW, CHART_STYLE_SUPPORT, type ChartSpec, type ChartType } from "@/components/ui/chart-brick";
 import { captureTemplate, instantiateTemplate, loadUserTemplates, persistUserTemplates, type MeshTemplate } from "@/lib/mesh-templates";
 import { TEMPLATE_CATALOG, TEMPLATE_CATEGORIES, type TemplateCategory } from "@/lib/mesh-templates-catalog";
 import { MeshTemplateThumb } from "@/components/ui/mesh-template-thumb";
@@ -4037,7 +4037,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         >
           <div className="pointer-events-none h-full w-full overflow-hidden rounded-md">
             {chartSpec
-              ? <ChartBrickRender chart={chartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full" />
+              ? <ChartBrickRender chart={chartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full"
+                  styling={{ stroke: typeof styleR.stroke === "string" ? styleR.stroke : undefined, fill: typeof styleR.fill === "string" ? styleR.fill : undefined, strokeWidth: typeof styleR.strokeWidth === "number" ? styleR.strokeWidth : undefined, strokeStyle: (styleR.strokeStyle as any), edges: (styleR.edges as any), opacity: typeof styleR.opacity === "number" ? styleR.opacity : undefined }} />
               : <ChartGlyph source={chartSrc!} className="h-full w-full" />}
           </div>
           {magnetDots}
@@ -5586,6 +5587,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         return { ...cur, bricksById: { ...cur.bricksById, [selectedId!]: { ...b, content: { ...asRec(b.content), chart: next } } } };
                       });
                     };
+                    // Per-chart-type controls visibility: only show style props
+                    // that the chart actually uses (defined in CHART_STYLE_SUPPORT).
+                    const sup = sbChart ? CHART_STYLE_SUPPORT[sbChart.type] : null;
+                    const show = (k: "stroke"|"fill"|"strokeWidth"|"strokeStyle"|"edges"|"opacity") => !sup || sup[k];
                     return (
                       <div className="space-y-3">
                         {sbChart && (
@@ -5602,6 +5607,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         )}
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Estilo</p>
                         <div className="grid grid-cols-3 gap-3 text-[10px] text-slate-300">
+                          {show("stroke") && (
                           <label className="flex flex-col gap-1">
                             <span className="text-[9px] uppercase tracking-wider text-slate-400">Borde</span>
                             <div className="flex items-center gap-1.5">
@@ -5613,6 +5619,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
                             </div>
                           </label>
+                          )}
+                          {show("fill") && (
                           <label className="flex flex-col gap-1">
                             <span className="text-[9px] uppercase tracking-wider text-slate-400">Fondo</span>
                             <div className="flex items-center gap-1.5">
@@ -5624,13 +5632,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
                             </div>
                           </label>
+                          )}
+                          {show("strokeWidth") && (
                           <label className="flex flex-col gap-1">
                             <span className="text-[9px] uppercase tracking-wider text-slate-400">Grosor</span>
                             <input type="number" min={0.5} max={10} step={0.5} value={curSW}
                               onChange={(e) => patchStyle({ strokeWidth: Number(e.target.value) })}
                               className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
                           </label>
+                          )}
                         </div>
+                        {show("fill") && (
                         <div className="flex flex-wrap gap-1">
                           {[["transparent","Transparente"],["rgba(34,211,238,0.08)","Cyan sutil"],["rgba(99,102,241,0.15)","Violeta"],["rgba(234,179,8,0.15)","Ambar"],["rgba(239,68,68,0.15)","Rojo"],["rgba(34,197,94,0.15)","Verde"],["#1e293b","Azul oscuro"],["#0f172a","Negro"]]
                             .map(([v, n]) => (
@@ -5639,6 +5651,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 style={{ background: v === "transparent" ? "repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 0 0 / 8px 8px" : v }} />
                             ))}
                         </div>
+                        )}
+                        {show("stroke") && (
                         <div className="flex flex-wrap gap-1">
                           {[["#22d3ee","Cyan"],["#818cf8","Indigo"],["#fb7185","Rosa"],["#4ade80","Verde"],["#fbbf24","Ambar"],["#f472b6","Fucsia"],["#94a3b8","Gris"],["#ffffff","Blanco"]]
                             .map(([v, n]) => (
@@ -5647,6 +5661,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 style={{ borderColor: v, background: "transparent" }} />
                             ))}
                         </div>
+                        )}
                         {(() => {
                           const curStrokeStyle = typeof sbStyle.strokeStyle === "string" ? sbStyle.strokeStyle : "solid";
                           const curEdges = sbStyle.edges === "sharp" ? "sharp" : "round";
@@ -5655,6 +5670,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700"}`;
                           return (
                             <>
+                              {show("strokeStyle") && (
                               <div className="flex flex-col gap-1">
                                 <span className="text-[9px] uppercase tracking-wider text-slate-400">Trazo</span>
                                 <div className="flex gap-1">
@@ -5665,6 +5681,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                   ))}
                                 </div>
                               </div>
+                              )}
+                              {show("edges") && (
                               <div className="flex flex-col gap-1">
                                 <span className="text-[9px] uppercase tracking-wider text-slate-400">Esquinas</span>
                                 <div className="flex gap-1">
@@ -5675,12 +5693,15 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                   ))}
                                 </div>
                               </div>
+                              )}
+                              {show("opacity") && (
                               <div className="flex flex-col gap-1">
                                 <span className="text-[9px] uppercase tracking-wider text-slate-400">Opacidad · {Math.round(curOpacity * 100)}%</span>
                                 <input type="range" min={0} max={100} step={5} value={Math.round(curOpacity * 100)}
                                   onChange={(e) => patchStyle({ opacity: Number(e.target.value) / 100 })}
                                   className="w-full accent-cyan-400" />
                               </div>
+                              )}
                             </>
                           );
                         })()}

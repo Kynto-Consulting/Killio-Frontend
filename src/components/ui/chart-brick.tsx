@@ -46,6 +46,36 @@ export type ChartSpec =
   | { type: "packet";   spec: PacketSpec }
   | { type: "wardley";  spec: WardleySpec };
 
+// Styling overrides from the brick's `content.style` — applied where each
+// chart type can sensibly use them. Per-type support declared in
+// CHART_STYLE_SUPPORT below; the style panel uses that to hide controls that
+// wouldn't visibly affect the chart.
+export type ChartStyling = {
+  stroke?: string;        // outline / link / slice-separator color
+  fill?: string;          // background where applicable (quadrant box, venn fill)
+  strokeWidth?: number;
+  strokeStyle?: "solid" | "dashed" | "dotted";
+  edges?: "round" | "sharp"; // corner radius for rect-based primitives
+  opacity?: number;       // root opacity
+};
+
+export const CHART_STYLE_SUPPORT: Record<ChartType, { stroke: boolean; fill: boolean; strokeWidth: boolean; strokeStyle: boolean; edges: boolean; opacity: boolean }> = {
+  pie:      { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: false, opacity: true },
+  bar:      { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: true,  opacity: true },
+  line:     { stroke: true, fill: false, strokeWidth: true, strokeStyle: true,  edges: false, opacity: true },
+  radar:    { stroke: true, fill: false, strokeWidth: true, strokeStyle: true,  edges: false, opacity: true },
+  quadrant: { stroke: true, fill: true,  strokeWidth: true, strokeStyle: true,  edges: true,  opacity: true },
+  treemap:  { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: true,  opacity: true },
+  kanban:   { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: true,  opacity: true },
+  gantt:    { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: true,  opacity: true },
+  venn:     { stroke: true, fill: true,  strokeWidth: true, strokeStyle: true,  edges: false, opacity: true },
+  packet:   { stroke: true, fill: false, strokeWidth: true, strokeStyle: false, edges: true,  opacity: true },
+  wardley:  { stroke: true, fill: false, strokeWidth: true, strokeStyle: true,  edges: false, opacity: true },
+};
+
+const dashFor = (s?: "solid" | "dashed" | "dotted", sw = 2): string | undefined =>
+  s === "dashed" ? `${sw * 3} ${sw * 2}` : s === "dotted" ? `${sw} ${sw * 1.5}` : undefined;
+
 // Default specs for the insert palette.
 export function defaultChartSpec(type: ChartType): ChartSpec {
   switch (type) {
@@ -75,11 +105,13 @@ function Title({ text, w }: { text?: string; w: number }) {
   return <text x={w/2} y={16} textAnchor="middle" fontSize={13} fontWeight={700} fill="#e2e8f0" fontFamily="ui-sans-serif, system-ui">{text}</text>;
 }
 
-function PieView({ s, w, h }: { s: PieSpec; w: number; h: number }) {
+function PieView({ s, w, h, st }: { s: PieSpec; w: number; h: number; st: ChartStyling }) {
   const titleH = s.title ? 26 : 6;
   const cx = w/2, cy = titleH + (h - titleH)/2;
   const r = Math.max(10, Math.min(w, h - titleH) / 2 - 6);
   const total = s.items.reduce((a,b)=>a+b.value,0) || 1;
+  const stroke = st.stroke ?? "#0f172a";
+  const sw = st.strokeWidth ?? 1.5;
   let a = -Math.PI/2;
   return <>
     <Title text={s.title} w={w} />
@@ -87,13 +119,13 @@ function PieView({ s, w, h }: { s: PieSpec; w: number; h: number }) {
       const frac = it.value/total, a1 = a + frac*Math.PI*2;
       const steps = Math.max(2, Math.ceil(frac*64));
       const pts = [`${cx},${cy}`];
-      for (let st=0; st<=steps; st++) { const ang = a + (a1-a)*(st/steps); pts.push(`${cx+r*Math.cos(ang)},${cy+r*Math.sin(ang)}`); }
+      for (let stp=0; stp<=steps; stp++) { const ang = a + (a1-a)*(stp/steps); pts.push(`${cx+r*Math.cos(ang)},${cy+r*Math.sin(ang)}`); }
       const mid = (a+a1)/2; const lx = cx + r*0.62*Math.cos(mid), ly = cy + r*0.62*Math.sin(mid);
       const color = it.color || PALETTE[i % PALETTE.length];
       const pct = Math.round((it.value/total)*100);
       a = a1;
       return <g key={i}>
-        <polygon points={pts.join(" ")} fill={color} stroke="#0f172a" strokeWidth={1.5} />
+        <polygon points={pts.join(" ")} fill={color} stroke={stroke} strokeWidth={sw} />
         <text x={lx} y={ly-4} textAnchor="middle" fontSize={Math.max(8,Math.min(11,r/8))} fontWeight={600} fill="#f8fafc">{it.label}</text>
         <text x={lx} y={ly+8} textAnchor="middle" fontSize={Math.max(7,Math.min(10,r/9))} fill="#f8fafc">{it.value} ({pct}%)</text>
       </g>;
@@ -101,7 +133,7 @@ function PieView({ s, w, h }: { s: PieSpec; w: number; h: number }) {
   </>;
 }
 
-function BarLineView({ s, w, h, kind }: { s: BarLineSpec; w: number; h: number; kind: "bar"|"line" }) {
+function BarLineView({ s, w, h, kind, st }: { s: BarLineSpec; w: number; h: number; kind: "bar"|"line"; st: ChartStyling }) {
   const all = s.series.flatMap(se => se.values).filter(Number.isFinite);
   if (!all.length) return <Title text={s.title} w={w} />;
   const dataMax = Math.max(...all), dataMin = Math.min(0, ...all);
@@ -111,6 +143,10 @@ function BarLineView({ s, w, h, kind }: { s: BarLineSpec; w: number; h: number; 
   const plotW = Math.max(20, w - padL - padR), plotH = Math.max(20, h - padT - padB);
   const step = plotW / n;
   const yOf = (v: number) => padT + plotH - ((v - ymin) / (ymax - ymin)) * plotH;
+  const sw = st.strokeWidth ?? (kind === "line" ? 2 : 0);
+  const stroke = st.stroke;
+  const rx = st.edges === "sharp" ? 0 : 2;
+  const dash = dashFor(st.strokeStyle, sw || 2);
   return <>
     <Title text={s.title} w={w} />
     <line x1={padL} y1={padT} x2={padL} y2={padT+plotH} stroke="#475569" strokeWidth={1} />
@@ -124,7 +160,7 @@ function BarLineView({ s, w, h, kind }: { s: BarLineSpec; w: number; h: number; 
         {se.values.map((v, i) => {
           const y = yOf(v), bh = padT + plotH - y;
           const x = padL + i*step + (step - bw*s.series.length)/2 + si*bw;
-          return <rect key={i} x={x} y={y} width={Math.max(2, bw-2)} height={Math.max(1, bh)} fill={color} />;
+          return <rect key={i} x={x} y={y} width={Math.max(2, bw-2)} height={Math.max(1, bh)} rx={rx} ry={rx} fill={color} stroke={stroke ?? "none"} strokeWidth={sw} />;
         })}
       </g>;
     })}
@@ -132,7 +168,7 @@ function BarLineView({ s, w, h, kind }: { s: BarLineSpec; w: number; h: number; 
       const color = se.color || PALETTE[si % PALETTE.length];
       const pts = se.values.map((v, i) => `${padL + i*step + step/2},${yOf(v)}`).join(" ");
       return <g key={si}>
-        <polyline points={pts} fill="none" stroke={color} strokeWidth={2} />
+        <polyline points={pts} fill="none" stroke={color} strokeWidth={sw || 2} strokeDasharray={dash} />
         {se.values.map((v, i) => <circle key={i} cx={padL + i*step + step/2} cy={yOf(v)} r={3} fill={color} />)}
       </g>;
     })}
@@ -142,7 +178,7 @@ function BarLineView({ s, w, h, kind }: { s: BarLineSpec; w: number; h: number; 
   </>;
 }
 
-function RadarView({ s, w, h }: { s: RadarSpec; w: number; h: number }) {
+function RadarView({ s, w, h, st }: { s: RadarSpec; w: number; h: number; st: ChartStyling }) {
   const N = s.axes.length; if (N < 3) return <Title text={s.title} w={w} />;
   const titleH = s.title ? 26 : 6;
   const cx = w/2, cy = titleH + (h - titleH)/2;
@@ -161,7 +197,8 @@ function RadarView({ s, w, h }: { s: RadarSpec; w: number; h: number }) {
     {s.curves.map((c, ci) => {
       const color = c.color || PALETTE[ci % PALETTE.length];
       const pts = Array.from({length: N}, (_, k) => { const v = (c.values[k] ?? 0) / maxV; return `${cx + r*v*Math.cos(ang(k))},${cy + r*v*Math.sin(ang(k))}`; }).join(" ");
-      return <polygon key={ci} points={pts} fill={hexA(color, 0.25)} stroke={color} strokeWidth={1.5} />;
+      const sw = st.strokeWidth ?? 1.5;
+      return <polygon key={ci} points={pts} fill={hexA(color, 0.25)} stroke={st.stroke ?? color} strokeWidth={sw} strokeDasharray={dashFor(st.strokeStyle, sw)} />;
     })}
     {s.axes.map((a, k) => (
       <text key={k} x={cx + (r+14)*Math.cos(ang(k))} y={cy + (r+14)*Math.sin(ang(k))+3} textAnchor="middle" fontSize={10} fill="#cbd5e1">{a}</text>
@@ -169,13 +206,17 @@ function RadarView({ s, w, h }: { s: RadarSpec; w: number; h: number }) {
   </>;
 }
 
-function QuadrantView({ s, w, h }: { s: QuadrantSpec; w: number; h: number }) {
+function QuadrantView({ s, w, h, st }: { s: QuadrantSpec; w: number; h: number; st: ChartStyling }) {
   const titleH = s.title ? 24 : 4; const pad = 22;
   const box = Math.max(40, Math.min(w - pad*2, h - titleH - pad*2 - 16));
   const ox = (w - box)/2, oy = titleH + (h - titleH - box - 16)/2;
+  const stroke = st.stroke ?? "#475569";
+  const sw = st.strokeWidth ?? 1;
+  const fill = st.fill ?? "rgba(148,163,184,0.05)";
+  const rx = st.edges === "sharp" ? 0 : 6;
   return <>
     <Title text={s.title} w={w} />
-    <rect x={ox} y={oy} width={box} height={box} fill="rgba(148,163,184,0.05)" stroke="#475569" strokeWidth={1} />
+    <rect x={ox} y={oy} width={box} height={box} rx={rx} ry={rx} fill={fill} stroke={stroke} strokeWidth={sw} strokeDasharray={dashFor(st.strokeStyle, sw)} />
     <line x1={ox+box/2} y1={oy} x2={ox+box/2} y2={oy+box} stroke="#475569" strokeWidth={1} />
     <line x1={ox} y1={oy+box/2} x2={ox+box} y2={oy+box/2} stroke="#475569" strokeWidth={1} />
     {(s.quads ?? ["","","",""]).map((q, i) => {
@@ -209,9 +250,12 @@ function squarify(values: number[], x0: number, y0: number, w: number, h: number
   if (row.length) layout(row);
   return out;
 }
-function TreemapView({ s, w, h }: { s: TreemapSpec; w: number; h: number }) {
+function TreemapView({ s, w, h, st }: { s: TreemapSpec; w: number; h: number; st: ChartStyling }) {
   const titleH = s.title ? 24 : 0;
   const rects = squarify(s.items.map(i=>i.value), 0, titleH, w, h - titleH);
+  const stroke = st.stroke ?? "#0f172a";
+  const sw = st.strokeWidth ?? 1;
+  const rx = st.edges === "sharp" ? 0 : 4;
   return <>
     <Title text={s.title} w={w} />
     {s.items.map((it, i) => {
@@ -219,7 +263,7 @@ function TreemapView({ s, w, h }: { s: TreemapSpec; w: number; h: number }) {
       const color = it.color || PALETTE[i % PALETTE.length];
       const fs = Math.max(8, Math.min(13, Math.min(r.w, r.h)/6));
       return <g key={i}>
-        <rect x={r.x} y={r.y} width={r.w} height={r.h} fill={hexA(color, 0.55)} stroke="#0f172a" strokeWidth={1} />
+        <rect x={r.x} y={r.y} width={r.w} height={r.h} rx={rx} ry={rx} fill={hexA(color, 0.55)} stroke={stroke} strokeWidth={sw} />
         {r.w > 44 && r.h > 26 && <>
           <text x={r.x + r.w/2} y={r.y + r.h/2 - 2} textAnchor="middle" fontSize={fs} fontWeight={600} fill="#f8fafc">{it.label}</text>
           <text x={r.x + r.w/2} y={r.y + r.h/2 + fs} textAnchor="middle" fontSize={fs*0.85} fill="#f8fafc">{it.value}</text>
@@ -229,24 +273,27 @@ function TreemapView({ s, w, h }: { s: TreemapSpec; w: number; h: number }) {
   </>;
 }
 
-function KanbanView({ s, w, h }: { s: KanbanSpec; w: number; h: number }) {
+function KanbanView({ s, w, h, st }: { s: KanbanSpec; w: number; h: number; st: ChartStyling }) {
   const titleH = s.title ? 24 : 6; const gap = 8;
   const cols = Math.max(1, s.columns.length);
   const colW = (w - gap*(cols+1)) / cols;
   const top = titleH + 4;
+  const sw = st.strokeWidth ?? 1;
+  const colRx = st.edges === "sharp" ? 0 : 8;
+  const cardRx = st.edges === "sharp" ? 0 : 4;
   return <>
     <Title text={s.title} w={w} />
     {s.columns.map((c, ci) => {
       const x = gap + ci*(colW + gap), color = c.color || PALETTE[ci % PALETTE.length];
       const headH = 22, cardH = 26, cardGap = 6;
       return <g key={ci}>
-        <rect x={x} y={top} width={colW} height={h - top - 4} rx={8} ry={8} fill={hexA(color, 0.05)} stroke={color} strokeWidth={1} />
+        <rect x={x} y={top} width={colW} height={h - top - 4} rx={colRx} ry={colRx} fill={hexA(color, 0.05)} stroke={st.stroke ?? color} strokeWidth={sw} />
         <text x={x + colW/2} y={top + 15} textAnchor="middle" fontSize={11} fontWeight={700} fill={color}>{c.title}</text>
         {c.cards.map((card, ki) => {
           const y = top + headH + ki*(cardH + cardGap);
           if (y + cardH > h - 8) return null;
           return <g key={ki}>
-            <rect x={x+8} y={y} width={colW-16} height={cardH} rx={4} ry={4} fill="rgba(148,163,184,0.12)" stroke="#475569" strokeWidth={1} />
+            <rect x={x+8} y={y} width={colW-16} height={cardH} rx={cardRx} ry={cardRx} fill="rgba(148,163,184,0.12)" stroke={st.stroke ?? "#475569"} strokeWidth={sw} />
             <text x={x+14} y={y+17} fontSize={10} fill="#e2e8f0">{card.length > 28 ? card.slice(0,27)+"…" : card}</text>
           </g>;
         })}
@@ -255,7 +302,7 @@ function KanbanView({ s, w, h }: { s: KanbanSpec; w: number; h: number }) {
   </>;
 }
 
-function GanttView({ s, w, h }: { s: GanttSpec; w: number; h: number }) {
+function GanttView({ s, w, h, st }: { s: GanttSpec; w: number; h: number; st: ChartStyling }) {
   if (!s.tasks.length) return <Title text={s.title} w={w} />;
   const titleH = s.title ? 24 : 6;
   const parse = (d: string) => { const m = d.match(/(\d{4})-(\d{2})-(\d{2})/); return m ? Date.UTC(+m[1], +m[2]-1, +m[3]) : NaN; };
@@ -273,15 +320,16 @@ function GanttView({ s, w, h }: { s: GanttSpec; w: number; h: number }) {
       const y = titleH + i*rowH, x = padL + ((parse(t.start)-t0)/span)*plotW;
       const bw = Math.max(3, ((parse(t.end)-parse(t.start))/span)*plotW);
       const color = colorOf(t.status);
+      const rx = st.edges === "sharp" ? 0 : 3;
       return <g key={i}>
         <text x={padL-6} y={y+rowH*0.7} textAnchor="end" fontSize={10} fill="#cbd5e1">{t.name}</text>
-        <rect x={x} y={y+3} width={bw} height={rowH-6} rx={3} ry={3} fill={hexA(color, t.status==="done"?0.4:0.7)} stroke={color} strokeWidth={1} />
+        <rect x={x} y={y+3} width={bw} height={rowH-6} rx={rx} ry={rx} fill={hexA(color, t.status==="done"?0.4:0.7)} stroke={st.stroke ?? color} strokeWidth={st.strokeWidth ?? 1} />
       </g>;
     })}
   </>;
 }
 
-function VennView({ s, w, h }: { s: VennSpec; w: number; h: number }) {
+function VennView({ s, w, h, st }: { s: VennSpec; w: number; h: number; st: ChartStyling }) {
   const sets = s.sets.slice(0, 3);
   if (sets.length < 2) return <Title text={s.title} w={w} />;
   const titleH = s.title ? 24 : 6;
@@ -296,15 +344,17 @@ function VennView({ s, w, h }: { s: VennSpec; w: number; h: number }) {
       const color = set.color || PALETTE[i % PALETTE.length];
       const c = centers[i];
       const lx = c.x, ly = i === 0 && sets.length === 3 ? c.y - r - 6 : (i === 0 ? c.y - r - 6 : c.y + r + 14);
+      const sw = st.strokeWidth ?? 1.5;
+      const fill = st.fill ?? hexA(color, 0.28);
       return <g key={i}>
-        <circle cx={c.x} cy={c.y} r={r} fill={hexA(color, 0.28)} stroke={color} strokeWidth={1.5} />
+        <circle cx={c.x} cy={c.y} r={r} fill={fill} stroke={st.stroke ?? color} strokeWidth={sw} strokeDasharray={dashFor(st.strokeStyle, sw)} />
         <text x={lx} y={ly} textAnchor="middle" fontSize={12} fontWeight={700} fill={color}>{set.label}</text>
       </g>;
     })}
   </>;
 }
 
-function PacketView({ s, w, h }: { s: PacketSpec; w: number; h: number }) {
+function PacketView({ s, w, h, st }: { s: PacketSpec; w: number; h: number; st: ChartStyling }) {
   if (!s.fields.length) return <Title text={s.title} w={w} />;
   const titleH = s.title ? 24 : 4;
   const perRow = 32;
@@ -325,9 +375,10 @@ function PacketView({ s, w, h }: { s: PacketSpec; w: number; h: number }) {
         const x = 1 + (b - row * perRow) * cell;
         const y = titleH + row * rowH;
         const segW = (segEnd - b + 1) * cell;
+        const rx = st.edges === "sharp" ? 0 : 2;
         segs.push(
           <g key={b}>
-            <rect x={x} y={y+2} width={segW-1} height={rowH-6} fill={hexA(color, 0.3)} stroke={color} strokeWidth={1} />
+            <rect x={x} y={y+2} width={segW-1} height={rowH-6} rx={rx} ry={rx} fill={hexA(color, 0.3)} stroke={st.stroke ?? color} strokeWidth={st.strokeWidth ?? 1} />
             <text x={x+4} y={y+12} fontSize={8} fill="#94a3b8">{f.start===f.end ? `${f.start}` : `${f.start}–${f.end}`}</text>
             <text x={x + segW/2} y={y + rowH/2 + 4} textAnchor="middle" fontSize={Math.max(8, Math.min(11, rowH/3.5))} fontWeight={600} fill="#e2e8f0">{f.label}</text>
           </g>
@@ -339,7 +390,7 @@ function PacketView({ s, w, h }: { s: PacketSpec; w: number; h: number }) {
   </>;
 }
 
-function WardleyView({ s, w, h }: { s: WardleySpec; w: number; h: number }) {
+function WardleyView({ s, w, h, st }: { s: WardleySpec; w: number; h: number; st: ChartStyling }) {
   if (!s.components.length) return <Title text={s.title} w={w} />;
   const titleH = s.title ? 24 : 4;
   const pad = 30;
@@ -361,7 +412,8 @@ function WardleyView({ s, w, h }: { s: WardleySpec; w: number; h: number }) {
       const sc = byName.get(l.from), tc = byName.get(l.to);
       if (!sc || !tc) return null;
       const sp = posOf(sc), tp = posOf(tc);
-      return <line key={i} x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y} stroke="#64748b" strokeWidth={1} />;
+      const sw = st.strokeWidth ?? 1;
+      return <line key={i} x1={sp.x} y1={sp.y} x2={tp.x} y2={tp.y} stroke={st.stroke ?? "#64748b"} strokeWidth={sw} strokeDasharray={dashFor(st.strokeStyle, sw)} />;
     })}
     {/* components */}
     {s.components.map((c, i) => {
@@ -375,23 +427,25 @@ function WardleyView({ s, w, h }: { s: WardleySpec; w: number; h: number }) {
 }
 
 // ─── Public renderer ─────────────────────────────────────────────────────────
-export function ChartBrickRender({ chart, w, h, className }: { chart: ChartSpec; w: number; h: number; className?: string }) {
+export function ChartBrickRender({ chart, w, h, className, styling }: { chart: ChartSpec; w: number; h: number; className?: string; styling?: ChartStyling }) {
+  const st = styling ?? {};
   let body: React.ReactNode = null;
   try {
-    if (chart.type === "pie")      body = <PieView      s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "bar") body = <BarLineView  s={chart.spec} w={w} h={h} kind="bar" />;
-    else if (chart.type === "line")body = <BarLineView  s={chart.spec} w={w} h={h} kind="line" />;
-    else if (chart.type === "radar")    body = <RadarView    s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "quadrant") body = <QuadrantView s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "treemap")  body = <TreemapView  s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "kanban")   body = <KanbanView   s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "gantt")    body = <GanttView    s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "venn")     body = <VennView     s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "packet")   body = <PacketView   s={chart.spec} w={w} h={h} />;
-    else if (chart.type === "wardley")  body = <WardleyView  s={chart.spec} w={w} h={h} />;
+    if (chart.type === "pie")      body = <PieView      s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "bar") body = <BarLineView  s={chart.spec} w={w} h={h} kind="bar" st={st} />;
+    else if (chart.type === "line")body = <BarLineView  s={chart.spec} w={w} h={h} kind="line" st={st} />;
+    else if (chart.type === "radar")    body = <RadarView    s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "quadrant") body = <QuadrantView s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "treemap")  body = <TreemapView  s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "kanban")   body = <KanbanView   s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "gantt")    body = <GanttView    s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "venn")     body = <VennView     s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "packet")   body = <PacketView   s={chart.spec} w={w} h={h} st={st} />;
+    else if (chart.type === "wardley")  body = <WardleyView  s={chart.spec} w={w} h={h} st={st} />;
   } catch { body = null; }
+  const opacity = typeof st.opacity === "number" ? st.opacity : 1;
   return (
-    <svg className={className} width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" fontFamily="ui-sans-serif, system-ui, sans-serif" style={{ display: "block" }}>
+    <svg className={className} width="100%" height="100%" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="xMidYMid meet" fontFamily="ui-sans-serif, system-ui, sans-serif" style={{ display: "block", opacity }}>
       {body}
     </svg>
   );

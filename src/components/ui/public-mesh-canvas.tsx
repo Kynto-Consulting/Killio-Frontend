@@ -868,9 +868,11 @@ function renderDrawBrick(brick: MeshBrick, bricksById: Record<string, MeshBrick>
   const c = asRec(brick.content);
   // Chart metabrick: typed spec object (preferred) or legacy mermaid string.
   if (c.chart && typeof (c.chart as { type?: unknown }).type === "string") {
+    const sR = asRec(c.style);
     return (
       <div key={brick.id} className="absolute overflow-hidden rounded-md" style={{ left: g.x, top: g.y, width: brick.size.w, height: brick.size.h }}>
-        <ChartBrickRender chart={c.chart as ChartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full" />
+        <ChartBrickRender chart={c.chart as ChartSpec} w={brick.size.w} h={brick.size.h} className="h-full w-full"
+          styling={{ stroke: typeof sR.stroke === "string" ? sR.stroke : undefined, fill: typeof sR.fill === "string" ? sR.fill : undefined, strokeWidth: typeof sR.strokeWidth === "number" ? sR.strokeWidth : undefined, strokeStyle: (sR.strokeStyle as any), edges: (sR.edges as any), opacity: typeof sR.opacity === "number" ? sR.opacity : undefined }} />
       </div>
     );
   }
