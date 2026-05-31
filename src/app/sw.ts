@@ -17,12 +17,14 @@ declare global {
 
 declare const self: typeof globalThis & WorkerGlobalScope;
 
-// App-shell routes that must work on a cold offline launch (start_url + the
-// dashboard sections). Revision: null means SWR-style — the SW updates them
-// in the background whenever the user is online.
+// Only PUBLIC routes here. Auth-gated routes (everything under (dashboard))
+// can't be precached at SW install — the server would respond with a redirect
+// to /login (no session yet) and we'd cache the redirect instead of the page.
+// Those routes are populated by `cacheOnNavigation` (next.config) on the
+// user's first online visit + by warmCache() in the dashboard layout, both
+// of which run with the session cookie attached.
 const SHELL_PRECACHE = [
-  "/", "/offline", "/d", "/m", "/b", "/graph", "/rooms",
-  "/teams", "/history", "/profile", "/preferences", "/login",
+  "/", "/offline", "/login",
 ].map((url) => ({ url, revision: null as string | null }));
 
 const serwist = new Serwist({
