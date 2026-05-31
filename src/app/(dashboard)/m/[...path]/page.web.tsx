@@ -3824,7 +3824,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const isShape     = (brick.kind === "draw" || brick.kind === "frame") && !!shapeP && !isChart;
     const isDrawBrick = brick.kind === "draw";
     const isCont      = isBoard || !!c.isContainer;
-    const kids        = isCont ? Object.values(state.bricksById).filter((b) => b.parentId === brick.id) : [];
+    // Children rendered in the parent's childOrder (z-order) — falls back to
+    // appending any orphan children not yet listed in childOrder, preserving
+    // both reorderings and newly added bricks.
+    const kids        = (() => {
+      if (!isCont) return [] as MeshBrick[];
+      const co = childOrder(brick);
+      const all = Object.values(state.bricksById).filter((b) => b.parentId === brick.id);
+      const ordered = co.map((id) => state.bricksById[id]).filter((b): b is MeshBrick => !!b && b.parentId === brick.id);
+      const seen = new Set(ordered.map((b) => b.id));
+      return [...ordered, ...all.filter((b) => !seen.has(b.id))];
+    })();
     const isMultiSel  = selectedIds.has(brick.id);
     const isConnected = connectedBrickIds.has(brick.id);
     // Multi-selected bricks get a distinct, high-contrast ring so the group is
@@ -4470,7 +4480,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     );
   }
 
-  const rootBricks = Object.values(state.bricksById).filter((b) => !b.parentId);
+  // Render order follows state.rootOrder (z-order: later = on top). Falling
+  // back to Object.values ignored layer reorderings — layers panel was a no-op.
+  const rootBricks = state.rootOrder.map((id) => state.bricksById[id]).filter((b): b is MeshBrick => !!b && !b.parentId);
   const anyDrag    = !!(dragState || resizeState || vecDragState || panDragState || selRect);
 
   const meshBgStyle: React.CSSProperties & { backgroundImage?: string; background?: string } = (() => {
