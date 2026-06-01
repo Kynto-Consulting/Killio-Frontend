@@ -2,7 +2,7 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useState, useEffect, useRef } from "react";
-import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench } from "lucide-react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope } from "@/lib/api/contracts";
@@ -14,7 +14,7 @@ import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { createScript, saveScriptGraph } from "@/lib/api/scripts";
-import { AgentChatPanel } from "@/components/agent";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 //comentario para forzar deploy
@@ -36,9 +36,14 @@ interface ToastMessage {
   text: string;
 }
 
-type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "text";
-type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents' | 'chat';
+type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "docx" | "pptx" | "killio" | "text";
+type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents';
 type AgentToolId = 'search' | 'edit' | 'investigate' | 'docs' | 'boards' | 'scripts';
+
+// Files Killio reads natively as text on the client (kaml-based formats).
+const KILLIO_EXTS = /\.(kd|km|kb|ks|kaml|kts)$/i;
+// Plain-text formats we read in-browser without round-tripping to backend.
+const PLAINTEXT_EXTS = /\.(md|txt|csv|json|ya?ml|xml|html?|tsv|log|sql|tex|rtf|kd|km|kb|ks|kaml|kts)$/i;
 
 interface GeneratedScriptDraft {
   id: string;
@@ -226,15 +231,36 @@ const inferSourceKind = (file: File): ExtractSourceKind => {
   const fileType = (file.type || "").toLowerCase();
   const fileName = (file.name || "").toLowerCase();
 
+  if (KILLIO_EXTS.test(fileName)) return "killio";
   if (fileType === "application/pdf" || fileName.endsWith(".pdf")) return "pdf";
   if (fileType.startsWith("audio/") || /\.(mp3|wav|m4a|ogg|flac|aac|webm)$/.test(fileName)) return "audio";
-  if (fileType.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif|bmp|tiff)$/.test(fileName)) return "image";
+  if (fileType.startsWith("image/") || /\.(png|jpg|jpeg|webp|gif|bmp|tiff|svg|avif)$/.test(fileName)) return "image";
+  if (
+    fileType.includes("wordprocessingml") ||
+    fileType.includes("msword") ||
+    fileName.endsWith(".docx") ||
+    fileName.endsWith(".doc") ||
+    fileName.endsWith(".odt")
+  ) {
+    return "docx";
+  }
+  if (
+    fileType.includes("presentationml") ||
+    fileType.includes("powerpoint") ||
+    fileName.endsWith(".pptx") ||
+    fileName.endsWith(".ppt") ||
+    fileName.endsWith(".odp")
+  ) {
+    return "pptx";
+  }
   if (
     fileType.includes("spreadsheet") ||
     fileType.includes("excel") ||
     fileName.endsWith(".xls") ||
     fileName.endsWith(".xlsx") ||
-    fileName.endsWith(".csv")
+    fileName.endsWith(".csv") ||
+    fileName.endsWith(".ods") ||
+    fileName.endsWith(".tsv")
   ) {
     return "excel";
   }
@@ -243,11 +269,22 @@ const inferSourceKind = (file: File): ExtractSourceKind => {
 
 export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const t = useTranslations("common");
-  const { accessToken, activeTeamId } = useSession();
+  const { accessToken, activeTeamId, user } = useSession();
+  const { mode: workspaceMode } = useLocalWorkspace();
+  const isLocalMode = workspaceMode === "local";
+  // Agentic mode in local mode (or before user picks a team) falls back to the
+  // user's personal scope so the agent has somewhere to plan against.
+  const agentScope: 'personal' | 'team' = (isLocalMode || !activeTeamId) ? 'personal' : 'team';
+  const agentScopeId: string = agentScope === 'team' ? (activeTeamId as string) : ((user as any)?.id || 'personal');
 
   const [dragActive, setDragActive] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [fileText, setFileText] = useState<string>("");
+  const [voiceEnabled, setVoiceEnabled] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try { return window.localStorage.getItem("killio_ai_voice") === "1"; } catch { return false; }
+  });
+  const [agentSteps, setAgentSteps] = useState<Array<{ phase: string; tool?: AgentToolId; content: string }>>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -358,13 +395,71 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     e.preventDefault();
     e.stopPropagation();
     setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      setSelectedFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      setSelectedFiles((prev) => [...prev, ...Array.from(e.dataTransfer.files)]);
     }
   };
 
+  const extractSingleFile = async (file: File): Promise<string> => {
+    const fileType = (file.type || "").toLowerCase();
+    const fileName = file.name.toLowerCase();
+    const sourceKind = inferSourceKind(file);
+
+    // Killio + plain-text formats read directly in the browser (no round-trip).
+    if (sourceKind === "killio" || PLAINTEXT_EXTS.test(fileName) || fileType.includes("text") || fileType.includes("json") || fileType.includes("csv")) {
+      try { return await file.text(); }
+      catch { return `(No se pudo leer ${file.name})`; }
+    }
+
+    // Binary / complex formats — round-trip to backend extractor.
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("sourceKind", sourceKind);
+    try {
+      const extractRes = await fetch(`${API}/ai/extract`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${accessToken}` },
+        body: formData,
+      });
+      if (extractRes.ok) {
+        const extractData: { text?: string; warnings?: string[] } = await extractRes.json();
+        if (Array.isArray(extractData.warnings) && extractData.warnings.length > 0) {
+          pushToast("info", extractData.warnings[0]);
+        }
+        return (extractData.text || "").trim() || `(No se pudo extraer texto util de ${file.name})`;
+      }
+      return `(No se pudo extraer ${file.name})`;
+    } catch {
+      return `(Error al extraer ${file.name})`;
+    }
+  };
+
+  const speak = (text: string) => {
+    if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    try {
+      window.speechSynthesis.cancel();
+      const utter = new SpeechSynthesisUtterance(text.slice(0, 800));
+      const lang = (typeof navigator !== "undefined" ? (navigator.language || "es-ES") : "es-ES");
+      utter.lang = lang.startsWith("es") ? "es-ES" : lang;
+      utter.rate = 1.05;
+      utter.pitch = 1;
+      window.speechSynthesis.speak(utter);
+    } catch { /* noop */ }
+  };
+
+  const toggleVoice = () => {
+    setVoiceEnabled((v) => {
+      const next = !v;
+      try { window.localStorage.setItem("killio_ai_voice", next ? "1" : "0"); } catch { /* noop */ }
+      if (!next && typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      return next;
+    });
+  };
+
   const handleGenerate = async () => {
-    if (!selectedFile && !fileText.trim()) return;
+    if (selectedFiles.length === 0 && !fileText.trim()) return;
     setIsGenerating(true);
     setGenerationProgress(10);
     setPreviewCards([]);
@@ -372,6 +467,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewBoards([]);
     setPreviewScripts([]);
     setPreviewAgents([]);
+    setAgentSteps([]);
     setExpandedScriptPreviewIds([]);
 
     const progressInterval = setInterval(() => {
@@ -382,62 +478,22 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     }, 800);
 
     try {
-      let extractedText = "";
-
-      if (selectedFile) {
-        const fileType = selectedFile.type;
-        const fileName = selectedFile.name.toLowerCase();
-        const sourceKind = inferSourceKind(selectedFile);
-
-        // Read plain text formats directly in the browser
-        if (fileType.includes("text") || fileType.includes("json") || fileType.includes("csv") || fileName.endsWith(".md") || fileName.endsWith(".txt") || fileName.endsWith(".csv")) {
-          extractedText = await selectedFile.text();
-        }
-        // Parse binary / complex formats via Backend API
-        else {
-          const formData = new FormData();
-          formData.append("file", selectedFile);
-          formData.append("sourceKind", sourceKind);
-
-          const extractRes = await fetch(`${API}/ai/extract`, {
-            method: "POST",
-            headers: {
-              "Authorization": `Bearer ${accessToken}`
-            },
-            body: formData
-          });
-
-          if (extractRes.ok) {
-            const extractData: { text?: string; warnings?: string[] } = await extractRes.json();
-            extractedText = extractData.text || "";
-
-            if (Array.isArray(extractData.warnings) && extractData.warnings.length > 0) {
-              pushToast("info", extractData.warnings[0]);
-            }
-
-            if (!extractedText.trim()) {
-              extractedText = `(No se pudo extraer texto util del archivo ${selectedFile.name}. Usa el campo de contexto para guiar a la IA.)`;
-            }
-          } else {
-            console.error("File extraction failed");
-            pushToast("error", t("aiPanel.extractionError"));
-            extractedText = `(No se pudo extraer el contenido de ${selectedFile.name})`;
-          }
-        }
-      }
+      // Extract every file in parallel.
+      const extracted = selectedFiles.length > 0
+        ? await Promise.all(selectedFiles.map(async (f) => ({ name: f.name, text: await extractSingleFile(f) })))
+        : [];
 
       setGenerationProgress(20);
 
-      // Combine user text context + extracted file logic
+      // Combine user text context + every extracted file.
       let finalContent = "";
       if (fileText.trim()) {
         finalContent += `Contexto Adicional del Usuario:\n${fileText.trim()}\n\n`;
       }
-      if (selectedFile && extractedText) {
-        finalContent += `Contenido del Archivo (${selectedFile.name}):\n${extractedText}`;
-      } else if (!selectedFile && fileText.trim()) {
-        finalContent = fileText;
+      for (const e of extracted) {
+        finalContent += `Contenido del Archivo (${e.name}):\n${e.text}\n\n`;
       }
+      finalContent = finalContent.trim();
 
       // Fallback
       if (!finalContent.trim()) {
@@ -519,50 +575,101 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         setPreviewScripts(scriptDrafts);
       } else if (generationType === 'agents') {
-        if (!activeTeamId) throw new Error('No active team selected');
-
-        const toolsSummary = enabledAgentTools.length > 0
+        // Deep-think loop: plan → per-tool reasoning → synthesis. No team
+        // requirement — local workspace falls back to the user's personal
+        // scope so the agent always has somewhere to think.
+        const toolsList = enabledAgentTools.length > 0
           ? enabledAgentTools.join(', ')
           : t("aiPanel.noneTools");
 
-        const agentPrompt = `
-Eres un diseñador de agentes para Killio.
-Herramientas habilitadas: ${toolsSummary}
+        const callAi = async (message: string): Promise<string> => {
+          const res = await chatWithAiScope(
+            { scope: agentScope, scopeId: agentScopeId, message, contextSummary: existingEntitiesSummary },
+            accessToken || '',
+          );
+          return res?.text || '';
+        };
 
-Con base en el contexto del usuario, devuelve SOLO JSON con este formato exacto:
-{
-  "name": "Nombre del agente",
-  "description": "Qué hace",
-  "reasoning": "Resumen breve de razonamiento",
-  "response": "Respuesta conversacional del agente"
-}
+        // Step 1: planner.
+        setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
+        const planPrompt = `Eres un planificador de agentes Killio. Tienes herramientas disponibles: ${toolsList}.
+
+Devuelve SOLO JSON con el formato:
+{ "name": "...", "description": "...", "plan": ["paso 1", "paso 2", ...], "useTools": ["search", ...] }
+
+"useTools" debe ser un subconjunto de [${toolsList}] que realmente usarás (puede ser vacío).
 
 Contexto del usuario:
+${finalContent}`;
+        const planText = await callAi(planPrompt);
+        const plan = extractJsonObject(planText) || {};
+        const planSteps: string[] = Array.isArray(plan.plan) ? plan.plan.map(String) : [];
+        const useTools: AgentToolId[] = Array.isArray(plan.useTools)
+          ? plan.useTools.filter((t: any) => enabledAgentTools.includes(t as AgentToolId))
+          : enabledAgentTools;
+
+        setAgentSteps((prev) => [
+          ...prev,
+          { phase: 'plan', content: planSteps.length ? planSteps.map((s, i) => `${i + 1}. ${s}`).join('\n') : (planText.slice(0, 400)) },
+        ]);
+        setGenerationProgress(45);
+
+        // Step 2: per-tool reasoning sweep.
+        const toolFindings: Array<{ tool: AgentToolId; result: string }> = [];
+        for (let i = 0; i < useTools.length; i++) {
+          const tool = useTools[i];
+          setAgentSteps((prev) => [...prev, { phase: 'tool', tool, content: t("aiPanel.deepThink.usingTool", { tool }) }]);
+          const toolPrompt = `Como agente Killio usando la herramienta "${tool}", analiza esto y devuelve SOLO los hallazgos relevantes (máx 6 bullets), sin JSON.
+
+Contexto:
 ${finalContent}
-        `.trim();
 
-        const chatRes = await chatWithAiScope(
-          {
-            scope: 'team',
-            scopeId: activeTeamId,
-            message: agentPrompt,
-            contextSummary: existingEntitiesSummary,
-          },
-          accessToken || '',
-        );
+Plan general:
+${planSteps.join('\n')}`;
+          const toolRes = await callAi(toolPrompt);
+          toolFindings.push({ tool, result: toolRes.trim() });
+          setAgentSteps((prev) => {
+            const copy = [...prev];
+            // replace last placeholder with real result
+            for (let j = copy.length - 1; j >= 0; j--) {
+              if (copy[j].phase === 'tool' && copy[j].tool === tool) {
+                copy[j] = { phase: 'tool', tool, content: toolRes.trim() };
+                break;
+              }
+            }
+            return copy;
+          });
+          setGenerationProgress(50 + Math.floor((i + 1) / Math.max(1, useTools.length) * 30));
+        }
 
-        const parsed = extractJsonObject(chatRes.text);
+        // Step 3: synthesis.
+        setAgentSteps((prev) => [...prev, { phase: 'synth', content: t("aiPanel.deepThink.synthesizing") }]);
+        const synthPrompt = `Eres el agente Killio. Sintetiza la respuesta final al usuario integrando los hallazgos.
+
+Devuelve SOLO JSON:
+{ "name": "${plan.name || 'Agente Killio'}", "description": "${plan.description || ''}", "reasoning": "razonamiento conciso 1-2 párrafos", "response": "respuesta conversacional final, completa y accionable" }
+
+Hallazgos por herramienta:
+${toolFindings.map((f) => `### ${f.tool}\n${f.result}`).join('\n\n')}
+
+Contexto original:
+${finalContent}`;
+        const synthText = await callAi(synthPrompt);
+        const parsed = extractJsonObject(synthText) || {};
+
         const draft: GeneratedAgentDraft = {
           id: `draft-agent-${Date.now()}`,
-          name: String(parsed?.name || 'Agent Draft'),
-          description: String(parsed?.description || t("aiPanel.noResultsDesc.agents")),
-          reasoning: String(parsed?.reasoning || t("aiPanel.noStructuredReasoning")),
-          response: String(parsed?.response || chatRes.text || ''),
-          selectedTools: [...enabledAgentTools],
+          name: String(parsed?.name || plan?.name || 'Agent Draft'),
+          description: String(parsed?.description || plan?.description || t("aiPanel.noResultsDesc.agents")),
+          reasoning: String(parsed?.reasoning || planSteps.join(' → ') || t("aiPanel.noStructuredReasoning")),
+          response: String(parsed?.response || synthText || ''),
+          selectedTools: useTools,
           isSelected: true,
         };
 
+        setAgentSteps((prev) => [...prev, { phase: 'synth', content: draft.response }]);
         setPreviewAgents([draft]);
+        speak(draft.response);
       }
 
       setGenerationProgress(100);
@@ -957,16 +1064,36 @@ ${finalContent}
       }
     } else if (generationType === 'agents') {
       const selectedAgents = previewAgents.filter((agent) => agent.isSelected);
-      if (selectedAgents.length === 0 || !activeTeamId) return;
+      if (selectedAgents.length === 0) return;
 
       setIsDispatchingSelected(true);
       try {
+        // Local mode: persist agent drafts to localStorage instead of the
+        // team's document store. Cloud mode: each agent becomes a document.
+        if (agentScope === 'personal' || !activeTeamId) {
+          const KEY = "killio_personal_agents";
+          let stored: any[] = [];
+          try { stored = JSON.parse(window.localStorage.getItem(KEY) || "[]"); } catch { stored = []; }
+          for (const a of selectedAgents) {
+            stored.push({
+              id: a.id,
+              name: a.name,
+              description: a.description,
+              reasoning: a.reasoning,
+              response: a.response,
+              tools: a.selectedTools,
+              createdAt: new Date().toISOString(),
+            });
+          }
+          try { window.localStorage.setItem(KEY, JSON.stringify(stored)); } catch { /* noop */ }
+          setPreviewAgents((prev) => prev.filter((agent) => !selectedAgents.find((selected) => selected.id === agent.id)));
+          pushToast('success', t("aiPanel.createdAgents", { count: selectedAgents.length }));
+          return;
+        }
+
         for (const agentDraft of selectedAgents) {
           const agentDocument = await createDocument(
-            {
-              teamId: activeTeamId,
-              title: `Agent: ${agentDraft.name}`,
-            },
+            { teamId: activeTeamId, title: `Agent: ${agentDraft.name}` },
             accessToken,
           );
 
@@ -975,11 +1102,7 @@ ${finalContent}
 
           await createDocumentBrick(
             agentDocument.id,
-            {
-              kind: 'text',
-              position: 0,
-              content: { markdown },
-            },
+            { kind: 'text', position: 0, content: { markdown } },
             accessToken,
           );
         }
@@ -1018,50 +1141,64 @@ ${finalContent}
             </div>
 
             <div className="flex-1 flex flex-col relative overflow-visible">
-              {/* Dropzone or File Indicator */}
-              {!selectedFile ? (
-                <div
-                  className={`mb-4 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-6 transition-all duration-200 ${dragActive ? "border-accent bg-accent/10" : "border-border/60 hover:border-accent/60 hover:bg-accent/5 cursor-pointer"
-                    }`}
-                  onDragEnter={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDragOver={handleDrag}
-                  onDrop={handleDrop}
-                  onClick={() => document.getElementById("file-upload")?.click()}
-                >
-                  <UploadCloud className="h-6 w-6 text-accent mb-2" />
-                  <h3 className="text-sm font-semibold text-foreground">{t("aiPanel.uploadFilePlaceholder")}</h3>
-                  <input id="file-upload" type="file" className="hidden" onChange={(e) => setSelectedFile(e.target.files?.[0] || null)} />
-                </div>
-              ) : (
-                <div className="mb-4 flex items-center justify-between border rounded-xl border-accent/30 bg-accent/5 p-4 shadow-sm relative">
-                  <div className="flex items-center">
-                    <FileAudio className="h-8 w-8 text-accent mr-3" />
-                    <div>
-                      <h4 className="font-medium text-sm truncate w-48 text-foreground" title={selectedFile.name}>{selectedFile.name}</h4>
-                      <p className="text-xs text-muted-foreground mt-0.5">{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</p>
+              {/* Always-visible dropzone — multi-file. */}
+              <div
+                className={`mb-3 border-2 border-dashed rounded-xl flex flex-col items-center justify-center p-5 transition-all duration-200 ${dragActive ? "border-accent bg-accent/10" : "border-border/60 hover:border-accent/60 hover:bg-accent/5 cursor-pointer"}`}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById("file-upload")?.click()}
+              >
+                <UploadCloud className="h-6 w-6 text-accent mb-2" />
+                <h3 className="text-sm font-semibold text-foreground">{t("aiPanel.uploadFilePlaceholder")}</h3>
+                <p className="text-[11px] text-muted-foreground mt-1">PDF • DOCX • XLSX • PPTX • CSV • MD • TXT • Audio • Image • KD/KM/KB/KS</p>
+                <input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  className="hidden"
+                  onChange={(e) => {
+                    const list = e.target.files ? Array.from(e.target.files) : [];
+                    if (list.length) setSelectedFiles((prev) => [...prev, ...list]);
+                    e.target.value = "";
+                  }}
+                />
+              </div>
+
+              {selectedFiles.length > 0 && (
+                <div className="mb-4 space-y-2 max-h-44 overflow-y-auto pr-1">
+                  {selectedFiles.map((f, idx) => (
+                    <div key={`${f.name}-${idx}`} className="flex items-center justify-between border rounded-lg border-accent/30 bg-accent/5 p-2.5">
+                      <div className="flex items-center min-w-0">
+                        <FileAudio className="h-5 w-5 text-accent mr-2 shrink-0" />
+                        <div className="min-w-0">
+                          <h4 className="font-medium text-xs truncate text-foreground" title={f.name}>{f.name}</h4>
+                          <p className="text-[10px] text-muted-foreground">{(f.size / 1024 / 1024).toFixed(2)} MB · {inferSourceKind(f)}</p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => setSelectedFiles((prev) => prev.filter((_, i) => i !== idx))}
+                        className="p-1 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
+                        title={t("aiPanel.removeFile")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
                     </div>
-                  </div>
-                  <button
-                    onClick={() => { setSelectedFile(null); }}
-                    className="p-1.5 rounded-full text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                    title={t("aiPanel.removeFile")}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  ))}
                 </div>
               )}
 
               {/* Text Area (Main Content or Extra Context) */}
               <div className="flex-1 flex flex-col">
                 <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 block">
-                  {selectedFile ? t("aiPanel.additionalContextLabel") : t("aiPanel.pasteNotesLabel")}
+                  {selectedFiles.length > 0 ? t("aiPanel.additionalContextLabel") : t("aiPanel.pasteNotesLabel")}
                 </label>
                 <ReferenceTokenInput
                   value={fileText}
                   onChange={setFileText}
-                  onPasteImage={(file) => setSelectedFile(file)}
-                  placeholder={selectedFile ? t("aiPanel.filterContextPlaceholder") : t("aiPanel.mainPlaceholder")}
+                  onPasteImage={(file) => setSelectedFiles((prev) => [...prev, file])}
+                  placeholder={selectedFiles.length > 0 ? t("aiPanel.filterContextPlaceholder") : t("aiPanel.mainPlaceholder")}
                   documents={teamDocs}
                   boards={boards}
                   users={teamMembers}
@@ -1072,7 +1209,7 @@ ${finalContent}
               </div>
 
               {/* Generate Action */}
-              <div className={`mt-6${generationType === 'chat' ? ' hidden' : ''}`}>
+              <div className="mt-6">
                 {isGenerating ? (
                   <div className="space-y-3">
                     <div className="flex justify-between text-xs font-medium text-muted-foreground">
@@ -1090,7 +1227,7 @@ ${finalContent}
                   <div className="flex gap-2">
                     <button
                       onClick={handleGenerate}
-                      disabled={!selectedFile && !fileText.trim()}
+                      disabled={selectedFiles.length === 0 && !fileText.trim()}
                       className="flex-1 inline-flex items-center justify-center h-11 rounded-lg bg-accent text-accent-foreground font-medium hover:bg-accent/90 shadow-md transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none"
                     >
                       <Sparkles className="h-5 w-5 mr-2" />
@@ -1131,12 +1268,20 @@ ${finalContent}
                           <button onClick={() => { setGenerationType('agents'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'agents' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
                             <Bot className="h-3.5 w-3.5" /> {t("aiPanel.agentMode")}
                           </button>
-                          <button onClick={() => { setGenerationType('chat'); setShowGenerationTypeMenu(false); }} className={`w-full flex items-center gap-2 p-2 rounded-lg text-xs font-semibold ${generationType === 'chat' ? 'bg-accent/10 text-accent' : 'hover:bg-accent/5 text-muted-foreground'}`}>
-                            <Bot className="h-3.5 w-3.5" /> {t("aiPanel.chatWithAI")}
-                          </button>
                         </div>
                         )}
                       </div>
+
+                      {generationType === 'agents' && (
+                        <button
+                          type="button"
+                          onClick={toggleVoice}
+                          className={`h-11 w-11 rounded-lg border flex items-center justify-center transition-colors ${voiceEnabled ? 'border-accent/50 bg-accent/10 text-accent' : 'border-border bg-card hover:bg-accent/5 text-muted-foreground'}`}
+                          title={voiceEnabled ? t("aiPanel.voiceOff") : t("aiPanel.voiceOn")}
+                        >
+                          {voiceEnabled ? <Volume2 className="h-4.5 w-4.5" /> : <VolumeX className="h-4.5 w-4.5" />}
+                        </button>
+                      )}
 
                       {generationType === 'agents' && (
                         <div className="relative group/tools">
@@ -1185,18 +1330,7 @@ ${finalContent}
               </button>
             </div>
 
-            {generationType === 'chat' && activeTeamId ? (
-              <AgentChatPanel
-                teamId={activeTeamId}
-                entityType="team"
-                documents={teamDocs}
-                boards={boards}
-                users={teamMembers}
-                className="h-full"
-              />
-            ) : null}
-
-            <div className={`p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar${generationType === 'chat' ? ' hidden' : ''}`}>
+            <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-lg text-foreground">
                   {generationType === 'cards'
@@ -1246,7 +1380,7 @@ ${finalContent}
                 (generationType === 'documents' && previewDocuments.length === 0) ||
                 (generationType === 'boards' && previewBoards.length === 0) ||
                 (generationType === 'scripts' && previewScripts.length === 0) ||
-                (generationType === 'agents' && previewAgents.length === 0)
+                (generationType === 'agents' && previewAgents.length === 0 && agentSteps.length === 0)
               ) ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-70">
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
@@ -1297,6 +1431,24 @@ ${finalContent}
                       <p className="text-muted-foreground">
                         {t("aiPanel.instructions.scripts")}
                       </p>
+                    </div>
+                  )}
+                  {generationType === 'agents' && agentSteps.length > 0 && (
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        <Sparkles className="h-3.5 w-3.5 text-accent" />
+                        {t("aiPanel.deepThink.trail")}
+                      </div>
+                      {agentSteps.map((step, i) => (
+                        <div key={i} className={`rounded-lg border p-3 text-xs leading-relaxed ${step.phase === 'plan' ? 'border-accent/30 bg-accent/5' : step.phase === 'tool' ? 'border-blue-500/30 bg-blue-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
+                          <div className="flex items-center gap-1.5 mb-1 font-semibold">
+                            {step.phase === 'plan' && <><Sparkles className="h-3 w-3" /> {t("aiPanel.deepThink.plan")}</>}
+                            {step.phase === 'tool' && <><Wrench className="h-3 w-3" /> {step.tool}</>}
+                            {step.phase === 'synth' && <><CheckCircle2 className="h-3 w-3" /> {t("aiPanel.deepThink.answer")}</>}
+                          </div>
+                          <pre className="whitespace-pre-wrap font-sans text-foreground/90">{step.content}</pre>
+                        </div>
+                      ))}
                     </div>
                   )}
                   {generationType === 'agents' && (

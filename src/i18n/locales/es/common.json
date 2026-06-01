@@ -106,8 +106,17 @@
     "generateBoards": "Generar Tableros",
     "generateScripts": "Generar Scripts",
     "agentMode": "Modo Agente",
-    "chatWithAI": "Chat con IA",
     "agentToolsTitle": "Tools del agente",
+    "voiceOn": "Activar voz",
+    "voiceOff": "Desactivar voz",
+    "deepThink": {
+      "trail": "Razonamiento profundo",
+      "plan": "Plan",
+      "answer": "Respuesta final",
+      "planning": "Planificando enfoque...",
+      "usingTool": "Usando {tool}...",
+      "synthesizing": "Sintetizando respuesta..."
+    },
     "step2Destination": "Paso 2: Destino",
     "selectBoard": "Selecciona tablero...",
     "selectBoardFirst": "Tablero primero",

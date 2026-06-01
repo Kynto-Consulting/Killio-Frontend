@@ -106,8 +106,17 @@
     "generateBoards": "Generate Boards",
     "generateScripts": "Generate Scripts",
     "agentMode": "Agent Mode",
-    "chatWithAI": "Chat with AI",
     "agentToolsTitle": "Agent tools",
+    "voiceOn": "Enable voice",
+    "voiceOff": "Disable voice",
+    "deepThink": {
+      "trail": "Deep reasoning",
+      "plan": "Plan",
+      "answer": "Final answer",
+      "planning": "Planning approach...",
+      "usingTool": "Using {tool}...",
+      "synthesizing": "Synthesizing answer..."
+    },
     "step2Destination": "Step 2: Destination",
     "selectBoard": "Select board...",
     "selectBoardFirst": "Board first",
