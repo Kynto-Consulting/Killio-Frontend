@@ -111,6 +111,13 @@
     "voiceOff": "Disable voice",
     "agentNeedsTeam": "Agent mode needs at least one team. Create one or switch workspace.",
     "usedTools": "Tools used: {tools}",
+    "toolsSelected": "enabled",
+    "toolsAll": "All",
+    "toolsNone": "None",
+    "toolsFilter": "Filter tool...",
+    "toolsLoading": "Loading tools...",
+    "toolsEmpty": "No tools available.",
+    "toolRequired": "Required — cannot be disabled.",
     "deepThink": {
       "trail": "Deep reasoning",
       "plan": "Plan",

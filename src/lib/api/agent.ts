@@ -41,6 +41,27 @@ export type AgentStreamEvent =
     }
   | { type: 'error'; message: string };
 
+export interface AgentToolManifestEntry {
+  name: string;
+  category: string;
+  description: string;
+  tags: string[];
+  /** Cannot be disabled — backend re-adds it to the allowlist regardless. */
+  required?: boolean;
+}
+
+/** GET /agent/tools/manifest — every tool the backend can expose, used by
+ *  the UI tool-picker. Pass the returned names back as enabledToolIds and
+ *  the backend will hard-filter to only those tools for the request. */
+export async function getAgentToolsManifest(accessToken: string): Promise<AgentToolManifestEntry[]> {
+  const res = await fetch(`${API_BASE_URL}/agent/tools/manifest`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return [];
+  const body = await res.json();
+  return Array.isArray(body?.tools) ? body.tools as AgentToolManifestEntry[] : [];
+}
+
 /**
  * Streams an agentic chat response from the new /agent/chat/stream endpoint.
  * Returns a cancel function.
@@ -54,6 +75,8 @@ export function streamAgentChat(
     message: string;
     approvalDecision?: 'approved' | 'rejected';
     approvalToolCall?: { id?: string; name: string; input: any };
+    /** Whitelist of tool names — backend hard-filters to this set. Omit/empty = all tools. */
+    enabledToolIds?: string[];
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

@@ -6,7 +6,7 @@ import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSq
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope, listTeams } from "@/lib/api/contracts";
-import { streamAgentChat, AgentStreamEvent } from "@/lib/api/agent";
+import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentToolsManifest } from "@/lib/api/agent";
 import { CardDetailModal } from "./card-detail-modal";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -39,7 +39,14 @@ interface ToastMessage {
 
 type ExtractSourceKind = "pdf" | "audio" | "image" | "excel" | "docx" | "pptx" | "killio" | "text";
 type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents';
-type AgentToolId = 'search' | 'edit' | 'investigate' | 'docs' | 'boards' | 'scripts';
+// Backend tool names are dynamic. Frontend keeps them as plain strings —
+// the manifest fetched at panel open defines the universe.
+type AgentToolId = string;
+
+// Default-deny categories. These tools have side effects the user almost
+// always wants to opt into explicitly, so we start with them OFF even
+// though the rest of the manifest is ON.
+const DEFAULT_OFF_CATEGORIES = new Set(["web", "os", "git"]);
 
 // Files Killio reads natively as text on the client (kaml-based formats).
 const KILLIO_EXTS = /\.(kd|km|kb|ks|kaml|kts)$/i;
@@ -65,14 +72,10 @@ interface GeneratedAgentDraft {
   isSelected: boolean;
 }
 
-const AGENT_TOOL_OPTIONS: Array<{ id: AgentToolId; label: string; description: string }> = [
-  { id: 'search', label: 'Search', description: 'agentTools.search' },
-  { id: 'edit', label: 'Edit', description: 'agentTools.edit' },
-  { id: 'investigate', label: 'Investigate', description: 'agentTools.investigate' },
-  { id: 'docs', label: 'Docs', description: 'agentTools.docs' },
-  { id: 'boards', label: 'Boards', description: 'agentTools.boards' },
-  { id: 'scripts', label: 'Scripts', description: 'agentTools.scripts' },
-];
+// Legacy hardcoded option list removed — tool universe now comes from
+// /agent/tools/manifest (see toolManifest state). Each entry maps 1-to-1
+// with a real backend tool name; toggling here flows into the request as
+// enabledToolIds, which the backend hard-filters before invoking the LLM.
 
 const extractJsonObject = (rawText: string): any | null => {
   if (!rawText) return null;
@@ -286,6 +289,11 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     try { return window.localStorage.getItem("killio_ai_voice") === "1"; } catch { return false; }
   });
   const [agentSteps, setAgentSteps] = useState<Array<{ phase: string; tool?: AgentToolId; content: string }>>([]);
+  // Tool universe — every backend tool, fetched once when the panel opens.
+  const [toolManifest, setToolManifest] = useState<AgentToolManifestEntry[]>([]);
+  const [toolsLoaded, setToolsLoaded] = useState(false);
+  const [collapsedCategories, setCollapsedCategories] = useState<Set<string>>(new Set());
+  const [agentToolFilter, setAgentToolFilter] = useState("");
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [generationProgress, setGenerationProgress] = useState(0);
@@ -298,7 +306,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [previewAgents, setPreviewAgents] = useState<GeneratedAgentDraft[]>([]);
   const [expandedScriptPreviewIds, setExpandedScriptPreviewIds] = useState<string[]>([]);
   const [showGenerationTypeMenu, setShowGenerationTypeMenu] = useState(false);
-  const [enabledAgentTools, setEnabledAgentTools] = useState<AgentToolId[]>(['search', 'investigate', 'docs', 'boards', 'scripts']);
+  // Default selection is built off the fetched manifest (every tool whose
+  // category is NOT in DEFAULT_OFF_CATEGORIES). Empty until manifest loads.
+  const [enabledAgentTools, setEnabledAgentTools] = useState<AgentToolId[]>([]);
   const generationMenuRef = useRef<HTMLDivElement | null>(null);
 
   // State for Global Dispatching Dropdowns
@@ -345,6 +355,49 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       }).catch(console.error);
     }
   }, [isOpen, accessToken, activeTeamId]);
+
+  // Fetch the real tool manifest the first time the panel opens. The
+  // returned list IS the source of truth — backend hard-filters every
+  // request against enabledToolIds, so what's not in this manifest cannot
+  // be granted.
+  useEffect(() => {
+    if (!isOpen || !accessToken || toolsLoaded) return;
+    getAgentToolsManifest(accessToken).then((manifest) => {
+      setToolManifest(manifest);
+      setToolsLoaded(true);
+      // Restore saved selection or default-on every tool whose category
+      // isn't in DEFAULT_OFF_CATEGORIES.
+      let restored: string[] | null = null;
+      try {
+        const raw = window.localStorage.getItem("killio_ai_enabled_tools");
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed)) restored = parsed.filter((x) => typeof x === "string");
+        }
+      } catch { /* noop */ }
+      const requiredNames = manifest.filter((m) => m.required).map((m) => m.name);
+      if (restored && restored.length) {
+        const universe = new Set(manifest.map((m) => m.name));
+        const merged = new Set(restored.filter((n) => universe.has(n)));
+        for (const r of requiredNames) merged.add(r);
+        setEnabledAgentTools(Array.from(merged));
+      } else {
+        const def = new Set(manifest.filter((m) => !DEFAULT_OFF_CATEGORIES.has(m.category)).map((m) => m.name));
+        for (const r of requiredNames) def.add(r);
+        setEnabledAgentTools(Array.from(def));
+      }
+    }).catch((err) => {
+      console.error("getAgentToolsManifest failed", err);
+      setToolsLoaded(true);
+    });
+  }, [isOpen, accessToken, toolsLoaded]);
+
+  // Persist the user's selection so the same toggles come back on next open.
+  useEffect(() => {
+    if (!toolsLoaded) return;
+    try { window.localStorage.setItem("killio_ai_enabled_tools", JSON.stringify(enabledAgentTools)); }
+    catch { /* noop */ }
+  }, [enabledAgentTools, toolsLoaded]);
 
   useEffect(() => {
     if (defaultBoardId && accessToken) {
@@ -618,7 +671,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
-            { teamId: teamForAgent as string, message },
+            { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools },
             accessToken || '',
             (event: AgentStreamEvent) => {
               if (event.type === 'tool_start') {
@@ -752,6 +805,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   };
 
   const handleToggleAgentTool = (toolId: AgentToolId) => {
+    // Required tools (backend-marked) can never be disabled — bail silently.
+    const entry = toolManifest.find((m) => m.name === toolId);
+    if (entry?.required) return;
     setEnabledAgentTools((prev) => {
       if (prev.includes(toolId)) {
         return prev.filter((id) => id !== toolId);
@@ -1300,38 +1356,136 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                         </button>
                       )}
 
-                      {generationType === 'agents' && (
-                        <div className="relative group/tools">
-                          <button
-                            type="button"
-                            className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors"
-                            title={t("aiPanel.agentToolsTitle")}
-                          >
-                            <Wrench className="h-4.5 w-4.5 text-muted-foreground" />
-                          </button>
-                          <div className="absolute bottom-full right-0 z-30 mb-2 w-72 rounded-xl border border-border bg-card shadow-xl p-2 opacity-0 pointer-events-none transition-all duration-150 group-hover/tools:opacity-100 group-hover/tools:pointer-events-auto">
-                            <div className="max-h-64 overflow-y-auto space-y-1">
-                              {AGENT_TOOL_OPTIONS.map((tool) => {
-                                const selected = enabledAgentTools.includes(tool.id);
-                                return (
+                      {generationType === 'agents' && (() => {
+                        const enabledSet = new Set(enabledAgentTools);
+                        const filtered = agentToolFilter
+                          ? toolManifest.filter((m) => {
+                              const q = agentToolFilter.toLowerCase();
+                              return m.name.toLowerCase().includes(q) || m.description.toLowerCase().includes(q) || m.category.toLowerCase().includes(q);
+                            })
+                          : toolManifest;
+                        const grouped = new Map<string, AgentToolManifestEntry[]>();
+                        for (const tool of filtered) {
+                          const arr = grouped.get(tool.category) || [];
+                          arr.push(tool);
+                          grouped.set(tool.category, arr);
+                        }
+                        const cats = Array.from(grouped.keys()).sort();
+                        const totalEnabled = enabledAgentTools.length;
+                        const totalAvailable = toolManifest.length;
+                        return (
+                          <div className="relative group/tools">
+                            <button
+                              type="button"
+                              className="h-11 w-11 rounded-lg border border-border bg-card flex items-center justify-center hover:bg-accent/5 transition-colors relative"
+                              title={t("aiPanel.agentToolsTitle")}
+                            >
+                              <Wrench className="h-4.5 w-4.5 text-muted-foreground" />
+                              {totalAvailable > 0 && (
+                                <span className="absolute -top-1 -right-1 text-[9px] font-semibold rounded-full bg-accent text-accent-foreground px-1 min-w-[16px] text-center">{totalEnabled}</span>
+                              )}
+                            </button>
+                            <div className="absolute bottom-full right-0 z-30 mb-2 w-96 rounded-xl border border-border bg-card shadow-xl p-3 opacity-0 pointer-events-none transition-all duration-150 group-hover/tools:opacity-100 group-hover/tools:pointer-events-auto">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold">
+                                  {totalEnabled}/{totalAvailable} {t("aiPanel.toolsSelected")}
+                                </span>
+                                <div className="flex gap-1">
                                   <button
-                                    key={tool.id}
                                     type="button"
-                                    onClick={() => handleToggleAgentTool(tool.id)}
-                                    className={`w-full text-left rounded-lg border p-2 transition-colors ${selected ? 'border-accent/40 bg-accent/5' : 'border-transparent hover:border-border hover:bg-secondary/40'}`}
-                                  >
-                                    <div className="flex items-center justify-between">
-                                      <span className="text-xs font-semibold text-foreground">{tool.label}</span>
-                                      {selected && <CheckCircle2 className="h-3.5 w-3.5 text-accent" />}
-                                    </div>
-                                    <p className="text-[11px] text-muted-foreground mt-1">{t(tool.description)}</p>
-                                  </button>
-                                );
-                              })}
+                                    className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-accent/10"
+                                    onClick={() => setEnabledAgentTools(toolManifest.map((m) => m.name))}
+                                  >{t("aiPanel.toolsAll")}</button>
+                                  <button
+                                    type="button"
+                                    className="text-[10px] px-2 py-0.5 rounded border border-border hover:bg-accent/10"
+                                    onClick={() => setEnabledAgentTools(toolManifest.filter((m) => m.required).map((m) => m.name))}
+                                  >{t("aiPanel.toolsNone")}</button>
+                                </div>
+                              </div>
+                              <input
+                                type="text"
+                                value={agentToolFilter}
+                                onChange={(e) => setAgentToolFilter(e.target.value)}
+                                placeholder={t("aiPanel.toolsFilter")}
+                                className="w-full mb-2 rounded-md border border-border bg-background px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-accent"
+                              />
+                              {!toolsLoaded ? (
+                                <div className="text-[11px] text-muted-foreground p-3 text-center">{t("aiPanel.toolsLoading")}</div>
+                              ) : toolManifest.length === 0 ? (
+                                <div className="text-[11px] text-muted-foreground p-3 text-center">{t("aiPanel.toolsEmpty")}</div>
+                              ) : (
+                                <div className="max-h-72 overflow-y-auto space-y-1">
+                                  {cats.map((cat) => {
+                                    const collapsed = collapsedCategories.has(cat);
+                                    const tools = grouped.get(cat) || [];
+                                    const catEnabled = tools.filter((t) => enabledSet.has(t.name)).length;
+                                    return (
+                                      <div key={cat} className="border border-border/60 rounded-lg overflow-hidden">
+                                        <div className="flex items-center justify-between px-2 py-1.5 bg-secondary/30">
+                                          <button
+                                            type="button"
+                                            onClick={() => setCollapsedCategories((prev) => { const next = new Set(prev); if (next.has(cat)) next.delete(cat); else next.add(cat); return next; })}
+                                            className="flex-1 text-left flex items-center gap-1.5"
+                                          >
+                                            <span className="text-[10px]">{collapsed ? '▶' : '▼'}</span>
+                                            <span className="text-[11px] font-bold uppercase tracking-wide text-foreground">{cat}</span>
+                                            <span className="text-[10px] text-muted-foreground">({catEnabled}/{tools.length})</span>
+                                          </button>
+                                          <div className="flex gap-1">
+                                            <button
+                                              type="button"
+                                              onClick={() => setEnabledAgentTools((prev) => Array.from(new Set([...prev, ...tools.map((t) => t.name)])))}
+                                              className="text-[9px] px-1.5 py-0.5 rounded border border-border hover:bg-accent/10"
+                                            >+</button>
+                                            <button
+                                              type="button"
+                                              onClick={() => setEnabledAgentTools((prev) => prev.filter((n) => {
+                                                const t = tools.find((x) => x.name === n);
+                                                return !t || t.required;
+                                              }))}
+                                              className="text-[9px] px-1.5 py-0.5 rounded border border-border hover:bg-accent/10"
+                                            >−</button>
+                                          </div>
+                                        </div>
+                                        {!collapsed && (
+                                          <div className="p-1 space-y-0.5">
+                                            {tools.map((tool) => {
+                                              const selected = enabledSet.has(tool.name);
+                                              const locked = !!tool.required;
+                                              return (
+                                                <button
+                                                  key={tool.name}
+                                                  type="button"
+                                                  disabled={locked}
+                                                  onClick={() => handleToggleAgentTool(tool.name)}
+                                                  className={`w-full text-left rounded p-1.5 transition-colors flex items-start gap-2 ${selected ? 'bg-accent/10' : 'hover:bg-secondary/40'} ${locked ? 'opacity-90 cursor-not-allowed' : ''}`}
+                                                  title={locked ? t("aiPanel.toolRequired") : tool.name}
+                                                >
+                                                  <div className={`mt-0.5 h-3.5 w-3.5 rounded border shrink-0 flex items-center justify-center ${selected ? 'bg-accent border-accent text-accent-foreground' : 'border-border'}`}>
+                                                    {selected && <CheckCircle2 className="h-3 w-3" />}
+                                                  </div>
+                                                  <div className="min-w-0">
+                                                    <div className="text-[11px] font-mono font-semibold text-foreground truncate flex items-center gap-1">
+                                                      {tool.name}
+                                                      {locked && <span className="text-[9px] uppercase tracking-wider px-1 py-0.5 rounded bg-amber-500/10 text-amber-500 border border-amber-500/30">req</span>}
+                                                    </div>
+                                                    <p className="text-[10px] text-muted-foreground line-clamp-2">{tool.description}</p>
+                                                  </div>
+                                                </button>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                 )}

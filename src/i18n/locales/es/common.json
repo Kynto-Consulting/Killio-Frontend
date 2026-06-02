@@ -111,6 +111,13 @@
     "voiceOff": "Desactivar voz",
     "agentNeedsTeam": "El modo agente necesita al menos un team. Crea uno o cambia de workspace.",
     "usedTools": "Herramientas usadas: {tools}",
+    "toolsSelected": "habilitadas",
+    "toolsAll": "Todas",
+    "toolsNone": "Ninguna",
+    "toolsFilter": "Buscar herramienta...",
+    "toolsLoading": "Cargando herramientas...",
+    "toolsEmpty": "Sin herramientas disponibles.",
+    "toolRequired": "Requerida — no se puede desactivar.",
     "deepThink": {
       "trail": "Razonamiento profundo",
       "plan": "Plan",
