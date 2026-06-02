@@ -170,6 +170,9 @@ export function streamAgentChat(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      // Tells the backend to skip gzip compression on this response so SSE
+      // deltas stream progressively instead of arriving in one buffered burst.
+      Accept: 'text/event-stream',
       Authorization: `Bearer ${accessToken}`,
     },
     body: JSON.stringify(body),
