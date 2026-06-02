@@ -256,7 +256,9 @@
       "thumbsDown": "Respuesta mejorable",
       "retry": "Regenerar respuesta",
       "actionCount_one": "1 acción ejecutada",
-      "actionCount_other": "{{count}} acciones ejecutadas"
+      "actionCount_other": "{{count}} acciones ejecutadas",
+      "stepDone": "Paso {{slot}} completado",
+      "stepDoneNoSlot": "Paso completado"
     },
     "input": {
       "placeholder": "Pregunta algo o pide una acción…",

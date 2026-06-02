@@ -972,6 +972,16 @@ export function AssistantMessage({
             } catch { return null; }
           }
 
+          if (block.tag === "complete_step") {
+            const slot = typeof block.content === "string" ? block.content : "";
+            return (
+              <div key={key} className="my-1 inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-emerald-500/5 px-2.5 py-1 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                <Check className="h-3 w-3" />
+                {slot ? t("agent.messages.stepDone", { slot }) : t("agent.messages.stepDoneNoSlot")}
+              </div>
+            );
+          }
+
           if (block.tag === "asset") {
             const { type, src, width, height, title, kind: brickKind, screenshot } = block.attributes || {};
 

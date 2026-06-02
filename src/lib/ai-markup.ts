@@ -109,9 +109,13 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     `<(${tagList})\\b([^>]*?)(?:\\s*\\/>|>([\\s\\S]*?)<\\s*\\/\\s*(?:${tagList})\\s*>\\\\?)`,
     "gi"
   );
+  // Pattern D: complete_step shorthand marker — <complete_step slot=1 /> or
+  // <complete_step slot="1"></complete_step>. NOT the invoke form (that's
+  // handled by invokeRe). Renders as a small "step done" chip.
+  const completeStepRe = /<complete_step\b([^>]*?)(?:\s*\/>|>\s*<\/complete_step\s*>)/gi;
 
   // Merge all into a single scan by collecting all matches with positions
-  type RawMatch = { index: number; end: number; kind: "tool_call" | "invoke" | "tag"; raw: RegExpExecArray };
+  type RawMatch = { index: number; end: number; kind: "tool_call" | "invoke" | "tag" | "complete_step"; raw: RegExpExecArray };
   const allMatches: RawMatch[] = [];
 
   let m: RegExpExecArray | null;
@@ -131,6 +135,12 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   while ((m = collapsibleRe.exec(source)) !== null) {
     if (!isInsideCode(m.index)) {
       allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "tag", raw: m });
+    }
+  }
+  completeStepRe.lastIndex = 0;
+  while ((m = completeStepRe.exec(source)) !== null) {
+    if (!isInsideCode(m.index)) {
+      allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "complete_step", raw: m });
     }
   }
 
@@ -181,6 +191,9 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
       const parsedInput = parseInvokeParameters(rawInput);
       // Normalize to same "tool_call" block so the rest of the UI renders unchanged
       blocks.push({ tag: "tool_call", content: JSON.stringify({ id, name, input: parsedInput }) });
+    } else if (match.kind === "complete_step") {
+      const slotMatch = (match.raw[1] || "").match(/slot\s*=\s*(["']?)(\d+)\1/i);
+      blocks.push({ tag: "complete_step", content: slotMatch ? slotMatch[2] : "" });
     } else {
       const tag = match.raw[1].toLowerCase();
       if (INLINE_TOOL_META_TAGS.has(tag)) {

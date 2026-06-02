@@ -256,7 +256,9 @@
       "thumbsDown": "Room for improvement",
       "retry": "Regenerate response",
       "actionCount_one": "1 action executed",
-      "actionCount_other": "{{count}} actions executed"
+      "actionCount_other": "{{count}} actions executed",
+      "stepDone": "Step {{slot}} done",
+      "stepDoneNoSlot": "Step done"
     },
     "input": {
       "placeholder": "Ask something or request an action…",
