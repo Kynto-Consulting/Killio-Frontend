@@ -74,7 +74,7 @@
       "scripts": "Sube un archivo o pega texto y haz clic en \"Generar Scripts\" para crear automatizaciones.",
       "agents": "Describe tu agente y habilita tools para diseñarlo con reasoning y plan de acción."
     },
-    "createdAgents": "Se crearon {count} agentes como documentos de configuración.",
+    "createdAgents": "Se crearon {{count}} agentes como documentos de configuración.",
     "filterContextPlaceholder": "Ej. Filtra solo las tareas de backend...",
     "changeGenerationType": "Cambiar tipo de generación",
     "insufficientInfo": "El usuario no proporcionó información suficiente.",
@@ -110,7 +110,7 @@
     "voiceOn": "Activar voz",
     "voiceOff": "Desactivar voz",
     "agentNeedsTeam": "El modo agente necesita al menos un team. Crea uno o cambia de workspace.",
-    "usedTools": "Herramientas usadas: {tools}",
+    "usedTools": "Herramientas usadas: {{tools}}",
     "toolsSelected": "habilitadas",
     "toolsAll": "Todas",
     "toolsNone": "Ninguna",
@@ -120,15 +120,15 @@
     "toolRequired": "Requerida — no se puede desactivar.",
     "imports": "Para importar a tu workspace",
     "draftWorkspace": {
-      "title": "Carpeta del agente · {slug}",
+      "title": "Carpeta del agente · {{slug}}",
       "selectAll": "Seleccionar todo",
       "deselectAll": "Deseleccionar todo",
-      "importSelected": "Importar seleccionados ({n})",
+      "importSelected": "Importar seleccionados ({{n}})",
       "importAll": "Importar todo",
       "importing": "Importando...",
       "imported": "Importado",
       "errGeneric": "Error al importar",
-      "expiresIn": "expira en {mins} min",
+      "expiresIn": "expira en {{mins}} min",
       "discard": "Descartar y borrar carpeta"
     },
     "killioImport": {
@@ -142,10 +142,10 @@
       "doneLabel": "Importado",
       "errPrefix": "Error: ",
       "errGeneric": "No se pudo importar",
-      "invalidFile": "Archivo Killio inválido: {msg}",
+      "invalidFile": "Archivo Killio inválido: {{msg}}",
       "folderAck": "Marcador de carpeta procesado.",
-      "imported": "{kind} importado.",
-      "queuedLocal": "{kind} programado para importar al workspace local.",
+      "imported": "{{kind}} importado.",
+      "queuedLocal": "{{kind}} programado para importar al workspace local.",
       "noTarget": "Sin team activo y sin workspace local."
     },
     "deepThink": {
@@ -153,7 +153,7 @@
       "plan": "Plan",
       "answer": "Respuesta final",
       "planning": "Planificando enfoque...",
-      "usingTool": "Usando {tool}...",
+      "usingTool": "Usando {{tool}}...",
       "synthesizing": "Sintetizando respuesta..."
     },
     "step2Destination": "Paso 2: Destino",

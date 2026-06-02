@@ -49,10 +49,10 @@ type GenerationType = 'cards' | 'documents' | 'boards' | 'scripts' | 'agents';
 // the manifest fetched at panel open defines the universe.
 type AgentToolId = string;
 
-// Default-deny categories. These tools have side effects the user almost
-// always wants to opt into explicitly, so we start with them OFF even
-// though the rest of the manifest is ON.
-const DEFAULT_OFF_CATEGORIES = new Set(["web", "os", "git"]);
+// Default-deny categories. Only git is off by default — the draft agent
+// benefits from web research and the VFS/OS execution tools out of the box
+// (the user can still toggle them off per run).
+const DEFAULT_OFF_CATEGORIES = new Set(["git"]);
 
 // Files Killio reads natively as text on the client (kaml-based formats).
 const KILLIO_EXTS = /\.(kd|km|kb|ks|kaml|kts)$/i;
@@ -443,7 +443,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       // isn't in DEFAULT_OFF_CATEGORIES.
       let restored: string[] | null = null;
       try {
-        const raw = window.localStorage.getItem("killio_ai_enabled_tools");
+        const raw = window.localStorage.getItem("killio_ai_enabled_tools_v2");
         if (raw) {
           const parsed = JSON.parse(raw);
           if (Array.isArray(parsed)) restored = parsed.filter((x) => typeof x === "string");
@@ -469,7 +469,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   // Persist the user's selection so the same toggles come back on next open.
   useEffect(() => {
     if (!toolsLoaded) return;
-    try { window.localStorage.setItem("killio_ai_enabled_tools", JSON.stringify(enabledAgentTools)); }
+    try { window.localStorage.setItem("killio_ai_enabled_tools_v2", JSON.stringify(enabledAgentTools)); }
     catch { /* noop */ }
   }, [enabledAgentTools, toolsLoaded]);
 

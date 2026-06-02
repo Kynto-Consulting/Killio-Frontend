@@ -74,7 +74,7 @@
       "scripts": "Upload a file or paste text and click \"Generate Scripts\" to create automations.",
       "agents": "Describe your agent and enable tools to design it with reasoning and action plan."
     },
-    "createdAgents": "{count} agents created as configuration documents.",
+    "createdAgents": "{{count}} agents created as configuration documents.",
     "filterContextPlaceholder": "e.g. Filter only backend tasks...",
     "changeGenerationType": "Change generation type",
     "insufficientInfo": "The user did not provide sufficient information.",
@@ -110,7 +110,7 @@
     "voiceOn": "Enable voice",
     "voiceOff": "Disable voice",
     "agentNeedsTeam": "Agent mode needs at least one team. Create one or switch workspace.",
-    "usedTools": "Tools used: {tools}",
+    "usedTools": "Tools used: {{tools}}",
     "toolsSelected": "enabled",
     "toolsAll": "All",
     "toolsNone": "None",
@@ -120,15 +120,15 @@
     "toolRequired": "Required — cannot be disabled.",
     "imports": "Import into your workspace",
     "draftWorkspace": {
-      "title": "Agent folder · {slug}",
+      "title": "Agent folder · {{slug}}",
       "selectAll": "Select all",
       "deselectAll": "Deselect all",
-      "importSelected": "Import selected ({n})",
+      "importSelected": "Import selected ({{n}})",
       "importAll": "Import all",
       "importing": "Importing...",
       "imported": "Imported",
       "errGeneric": "Import failed",
-      "expiresIn": "expires in {mins} min",
+      "expiresIn": "expires in {{mins}} min",
       "discard": "Discard & delete folder"
     },
     "killioImport": {
@@ -142,10 +142,10 @@
       "doneLabel": "Imported",
       "errPrefix": "Error: ",
       "errGeneric": "Import failed",
-      "invalidFile": "Invalid Killio file: {msg}",
+      "invalidFile": "Invalid Killio file: {{msg}}",
       "folderAck": "Folder marker acknowledged.",
-      "imported": "{kind} imported.",
-      "queuedLocal": "{kind} queued for local workspace import.",
+      "imported": "{{kind}} imported.",
+      "queuedLocal": "{{kind}} queued for local workspace import.",
       "noTarget": "No active team and no local workspace."
     },
     "deepThink": {
@@ -153,7 +153,7 @@
       "plan": "Plan",
       "answer": "Final answer",
       "planning": "Planning approach...",
-      "usingTool": "Using {tool}...",
+      "usingTool": "Using {{tool}}...",
       "synthesizing": "Synthesizing answer..."
     },
     "step2Destination": "Step 2: Destination",

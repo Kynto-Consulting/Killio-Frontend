@@ -35,8 +35,13 @@ export function SwUpdater() {
     // bundle ships but Chrome keeps the old SW (and its precache of dead
     // chunk hashes) for another 24h on default heuristics, so users get
     // ERR_ABORTED 404 on every page load after a deploy.
+    let regRef: ServiceWorkerRegistration | null = null;
+    const checkForUpdate = () => {
+      regRef?.update().catch(() => { /* noop */ });
+    };
     navigator.serviceWorker.getRegistration().then((reg) => {
       if (!reg) return;
+      regRef = reg;
       reg.update().catch(() => { /* noop */ });
       if (reg.waiting) {
         try { reg.waiting.postMessage({ type: "SKIP_WAITING" }); } catch { /* noop */ }
@@ -51,6 +56,14 @@ export function SwUpdater() {
         });
       });
     }).catch(() => { /* noop */ });
+
+    // Long-lived tabs would otherwise sit on a stale SW for up to 24h. Poll
+    // for a new sw.js every 15 min AND whenever the tab regains focus, so a
+    // fresh deploy is picked up promptly and the cache renews on every update.
+    const interval = window.setInterval(checkForUpdate, 15 * 60 * 1000);
+    const onVisible = () => { if (document.visibilityState === "visible") checkForUpdate(); };
+    document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("focus", checkForUpdate);
 
     // 404 self-heal: if any /_next/static asset 404s in this page, the
     // active SW precache is stale — wipe caches + unregister + reload.
@@ -76,6 +89,9 @@ export function SwUpdater() {
       navigator.serviceWorker.removeEventListener("controllerchange", onCtrlChange);
       navigator.serviceWorker.removeEventListener("message", onMessage);
       window.removeEventListener("error", onError, true);
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("focus", checkForUpdate);
     };
   }, []);
   return null;
