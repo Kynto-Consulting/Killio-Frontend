@@ -165,13 +165,15 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
   const events: ToolEvent[] = [];
   if (!content) return events;
 
-  const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
+  // Matches both <invoke …>…</invoke> and <async_invoke …>…</async_invoke>.
+  const invokeRe = /<(async_)?invoke\s+([^>]+?)>([\s\S]*?)<\/\1?invoke>/gi;
   let m: RegExpExecArray | null;
   const invokeById = new Map<string, { id: string; tool: string; input: Record<string, unknown> }>();
 
   while ((m = invokeRe.exec(content)) !== null) {
-    const attrsStr = m[1] ?? "";
-    const inner = m[2] ?? "";
+    // m[1] = optional "async_" prefix; m[2] = attrs; m[3] = inner body.
+    const attrsStr = m[2] ?? "";
+    const inner = m[3] ?? "";
     const nameMatch = attrsStr.match(/name\s*=\s*["']([\w_]+)["']/);
     const idMatch = attrsStr.match(/id\s*=\s*["']([^"']+)["']/);
     if (!nameMatch) continue;

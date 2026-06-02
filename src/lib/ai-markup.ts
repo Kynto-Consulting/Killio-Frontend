@@ -104,6 +104,9 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   const toolCallRe = /<tool(?:_call)?\s+(?:name\s*=?\s*(["'])([^"']+)\1\s+)?input\s*=\s*(["'])([\s\S]*?)\3\s*\/?>/gi;
   // Pattern B: new Anthropic invoke format — <invoke name="x"> or <invoke id="tc-1" name="x"> (any attr order)
   const invokeRe = /<invoke\s+([^>]+?)>([\s\S]*?)<\/invoke>/gi;
+  // Pattern B2: async_invoke (fire-and-continue) — rendered as the same chip; the
+  // backend resolves its state via matching <tool_status>/<tool_output> by id.
+  const asyncInvokeRe = /<async_invoke\s+([^>]+?)>([\s\S]*?)<\/async_invoke>/gi;
   // Pattern C: collapsible tags (batch_tool, batch_invoke, pre_think, plan, etc.)
   const collapsibleRe = new RegExp(
     `<(${tagList})\\b([^>]*?)(?:\\s*\\/>|>([\\s\\S]*?)<\\s*\\/\\s*(?:${tagList})\\s*>\\\\?)`,
@@ -128,6 +131,13 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   invokeRe.lastIndex = 0;
   while ((m = invokeRe.exec(source)) !== null) {
     if (!isInsideCode(m.index)) {
+      allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "invoke", raw: m });
+    }
+  }
+  asyncInvokeRe.lastIndex = 0;
+  while ((m = asyncInvokeRe.exec(source)) !== null) {
+    if (!isInsideCode(m.index)) {
+      // Same [attrs, inner] group shape as invokeRe → reuse the "invoke" renderer.
       allMatches.push({ index: m.index, end: m.index + m[0].length, kind: "invoke", raw: m });
     }
   }
@@ -165,6 +175,7 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     t
       .replace(/<\/?step\b[^>]*>/gi, "")
       .replace(/<\/?plan\b[^>]*>/gi, "")
+      .replace(/<sleep\b[^>]*\/?>/gi, "") // async yield marker — never user-visible
       .replace(/[ \t]{2,}/g, " ")
       .trim();
 
