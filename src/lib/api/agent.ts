@@ -50,6 +50,33 @@ export interface AgentToolManifestEntry {
   required?: boolean;
 }
 
+/** POST /agent/import-mesh — bulk-import a parsed .km file as a new mesh
+ *  board in one round trip. Frontend decodes the KAML payload (via
+ *  deserializeKmToMesh) and ships the canonical mesh state here. */
+export async function importMeshFromKaml(
+  body: {
+    teamId: string;
+    name: string;
+    description?: string | null;
+    visibility?: string;
+    state: {
+      viewport?: { x: number; y: number; zoom: number };
+      rootOrder?: string[];
+      bricksById?: Record<string, any>;
+      connectionsById?: Record<string, any>;
+    };
+  },
+  accessToken: string,
+): Promise<{ meshId: string; url: string }> {
+  const res = await fetch(`${API_BASE_URL}/agent/import-mesh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Mesh import failed (${res.status})`);
+  return res.json();
+}
+
 /** GET /agent/tools/manifest — every tool the backend can expose, used by
  *  the UI tool-picker. Pass the returned names back as enabledToolIds and
  *  the backend will hard-filter to only those tools for the request. */

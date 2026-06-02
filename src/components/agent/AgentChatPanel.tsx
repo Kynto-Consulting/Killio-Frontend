@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
+import { KillioImportChip } from "@/components/agent/killio-import-chip";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
@@ -1538,6 +1539,27 @@ function AgentToolCallChip({
 }) {
   const events = message.toolEvents ?? [];
   const state = resolveToolCallRenderState(data, events, occurrenceIndex);
+
+  // killio_import is a UX-only tool: when it finishes successfully we render
+  // an import-chip card instead of the regular tool-call chip so the user
+  // can pull the generated .kd / .kb / .km / .ks / .kf into their workspace
+  // in one click.
+  if (data?.name === "killio_import" && state.isDone && !state.isError) {
+    const out: any = (state.output as any) ?? {};
+    if (out?.chip === "killio_import" && typeof out.path === "string" && typeof out.content === "string") {
+      return (
+        <KillioImportChip
+          path={String(out.path)}
+          kind={out.kind}
+          name={String(out.name || out.path)}
+          label={String(out.label || out.name || out.path)}
+          description={out.description ?? null}
+          content={String(out.content)}
+          size={Number(out.size || 0)}
+        />
+      );
+    }
+  }
 
   return (
     <ToolCallChip

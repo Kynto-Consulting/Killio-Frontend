@@ -289,6 +289,10 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     try { return window.localStorage.getItem("killio_ai_voice") === "1"; } catch { return false; }
   });
   const [agentSteps, setAgentSteps] = useState<Array<{ phase: string; tool?: AgentToolId; content: string }>>([]);
+  // killio_import outputs surfaced by the agent — each one renders as an
+  // import chip at the bottom of the draft so the user can pull the
+  // generated .kd / .kb / .km / .ks / .kf file into their workspace.
+  const [agentImports, setAgentImports] = useState<Array<{ path: string; kind: any; name: string; label: string; description: string | null; content: string; size: number }>>([]);
   // Tool universe — every backend tool, fetched once when the panel opens.
   const [toolManifest, setToolManifest] = useState<AgentToolManifestEntry[]>([]);
   const [toolsLoaded, setToolsLoaded] = useState(false);
@@ -522,6 +526,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewScripts([]);
     setPreviewAgents([]);
     setAgentSteps([]);
+    setAgentImports([]);
     setExpandedScriptPreviewIds([]);
 
     const progressInterval = setInterval(() => {
@@ -689,6 +694,19 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 if (idx >= 0) {
                   toolEvents[idx].output = output;
                   toolEvents[idx].success = (event as any).success ?? true;
+                }
+                // killio_import: capture the file payload so we can render
+                // an import chip at the end of the draft.
+                if (event.tool === 'killio_import' && output?.chip === 'killio_import' && typeof output?.content === 'string') {
+                  setAgentImports((prev) => [...prev, {
+                    path: String(output.path),
+                    kind: output.kind,
+                    name: String(output.name || output.path),
+                    label: String(output.label || output.name || output.path),
+                    description: output.description ?? null,
+                    content: String(output.content),
+                    size: Number(output.size || 0),
+                  }]);
                 }
                 setAgentSteps((prev) => {
                   const copy = [...prev];
