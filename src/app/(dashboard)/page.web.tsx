@@ -263,9 +263,19 @@ export default function WorkspacesPage() {
   };
 
   const handleDeleteBoard = async () => {
-    if (!accessToken || !boardToDelete || !activeTeamId) return;
+    if (!boardToDelete) return;
 
     try {
+      if (localMode) {
+        // Local board = a .kb file; its id IS the file path. Delete the file
+        // from the FileSystemDirectoryHandle (the local-workspace effect
+        // re-derives `boards` from localWs.files, so the row disappears).
+        await localWs.removeFile(boardToDelete.id);
+        setBoards((prev) => prev.filter((b) => b.id !== boardToDelete.id));
+        setBoardToDelete(null);
+        return;
+      }
+      if (!accessToken || !activeTeamId) return;
       await deleteBoard(boardToDelete.id, accessToken);
       const updated = boards.filter(b => b.id !== boardToDelete.id);
       setBoards(updated);
