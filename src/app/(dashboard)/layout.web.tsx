@@ -314,8 +314,10 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     href: `/d/${document.id}`,
   }));
 
-  // Prefetch board details in the background so clicking a board link is instant
-  if (accessToken) {
+  // Prefetch board details in the background so clicking a board link is instant.
+  // Skip in local mode: ids are .kb/.km file paths, not cloud board ids — a cloud
+  // GET /boards/<file>.km would 403.
+  if (accessToken && !localMode) {
     [...recentBoardLinks, ...recentMeshLinks].forEach(({ id }) => {
       apiCache.prefetch(
         cacheKey.board(id),
@@ -408,7 +410,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                     href={item.href}
                     className="group flex items-center gap-2 rounded-md px-3 py-1.5 text-sm text-foreground/75 transition-all hover:bg-accent/10 hover:text-foreground"
                     onMouseEnter={() => {
-                      if (!accessToken) return;
+                      if (!accessToken || localMode) return;
                       // On-hover prefetch for boards/meshes
                       if (item.href.startsWith('/b/') || item.href.startsWith('/m/')) {
                         apiCache.prefetch(cacheKey.board(item.id), () => getBoard(item.id, accessToken), CACHE_TTL.BOARD_DETAIL);

@@ -196,9 +196,18 @@ export default function BoardsPage() {
   };
 
   const handleDeleteBoard = async () => {
-    if (!accessToken || !boardToDelete) return;
+    if (!boardToDelete) return;
 
     try {
+      // Local workspace: board id IS the .kb/.km file path — delete the file.
+      if (workspaceMode === "local") {
+        await localWs.removeFile(boardToDelete.id);
+        setBoards(boards.filter(b => b.id !== boardToDelete.id));
+        setBoardToDelete(null);
+        toast(t("boardDeleteSuccess"), "success");
+        return;
+      }
+      if (!accessToken) return;
       await deleteBoard(boardToDelete.id, accessToken);
       setBoards(boards.filter(b => b.id !== boardToDelete.id));
       setBoardToDelete(null);
