@@ -97,6 +97,11 @@ export interface UseAgentChatOptions {
   entityType?: AgentEntityScope;
   entityId?: string;
   resolverContext?: ResolverContext;
+  /** When set, the agent runs in file-production mode pinned to this
+   *  scratch-folder slug (used in local workspaces — the agent writes
+   *  .kd/.kb/.km/.ks files and emits killio_import chips that the chat
+   *  renders, which then land in the local FS handle). */
+  workspaceSlug?: string;
 }
 
 function parseInvokeParameters(inputStr: string): Record<string, unknown> {
@@ -249,7 +254,7 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
   return events;
 }
 
-export function useAgentChat({ teamId, entityType, entityId, resolverContext }: UseAgentChatOptions) {
+export function useAgentChat({ teamId, entityType, entityId, resolverContext, workspaceSlug }: UseAgentChatOptions) {
   const { accessToken } = useSession();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -414,14 +419,14 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
       const toolEvts: ToolEvent[] = [];
 
       const cancel = streamAgentChat(
-        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message },
+        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug },
         accessToken!,
         makeStreamHandler(assistantId, toolEvts, accTextRef),
       );
 
       cancelRef.current = cancel;
     },
-    [inputValue, isLoading, accessToken, teamId, entityType, entityId, resolverContext, makeStreamHandler],
+    [inputValue, isLoading, accessToken, teamId, entityType, entityId, resolverContext, workspaceSlug, makeStreamHandler],
   );
 
   const retryMessage = useCallback(() => {
@@ -554,12 +559,13 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext }: 
         message: lastUserTextRef.current,
         approvalDecision: decision,
         approvalToolCall: { id: toolId, name: toolName, input },
+        workspaceSlug,
       },
       accessToken!,
       makeStreamHandler(assistantId, toolEvts, accTextRef),
     );
     cancelRef.current = cancel;
-  }, [messages, isLoading, accessToken, teamId, entityType, entityId, makeStreamHandler]);
+  }, [messages, isLoading, accessToken, teamId, entityType, entityId, workspaceSlug, makeStreamHandler]);
 
   const clearConversation = useCallback(() => {
     setMessages([]);

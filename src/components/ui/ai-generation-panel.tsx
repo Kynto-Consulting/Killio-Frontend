@@ -854,7 +854,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
-            { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools, workspaceSlug: sessionSlug },
+            { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools, workspaceSlug: sessionSlug, autoScan: true },
             accessToken || '',
             (event: AgentStreamEvent) => {
               if (event.type === 'tool_start') {

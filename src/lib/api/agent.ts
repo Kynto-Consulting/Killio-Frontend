@@ -150,8 +150,11 @@ export function streamAgentChat(
     approvalToolCall?: { id?: string; name: string; input: any };
     /** Whitelist of tool names — backend hard-filters to this set. Omit/empty = all tools. */
     enabledToolIds?: string[];
-    /** Optional 4-word scratch-folder slug (used by AI Draft Studio). */
+    /** Optional 4-word scratch-folder slug (file-production mode). */
     workspaceSlug?: string;
+    /** True when the caller auto-scans the folder (AI Draft Studio). Omit for
+     *  entity-scoped chats so the agent emits killio_import per file. */
+    autoScan?: boolean;
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

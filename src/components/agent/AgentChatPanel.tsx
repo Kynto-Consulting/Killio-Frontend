@@ -18,6 +18,8 @@ import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/l
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
 import { useSession } from "@/components/providers/session-provider";
+import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { generateWorkspaceSlug } from "@/lib/agent-workspace-slug";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTeamAiCreditsUpdate } from "@/hooks/use-team-ai-credits-update";
 import type { ResolverContext } from "@/lib/reference-resolver";
@@ -255,6 +257,15 @@ export function AgentChatPanel({
   const { accessToken } = useSession();
   const t = useTranslations("common");
 
+  // In a local workspace there is no cloud entity to mutate, so run the agent
+  // in file-production mode pinned to a stable per-mount scratch-folder slug.
+  // The agent writes .kd/.kb/.km/.ks + emits killio_import chips, which the
+  // chat renders and which land in the local FS handle on click.
+  const { mode: workspaceMode } = useLocalWorkspace();
+  const localSlugRef = useRef<string | null>(null);
+  if (workspaceMode === "local" && !localSlugRef.current) localSlugRef.current = generateWorkspaceSlug();
+  const localWorkspaceSlug = workspaceMode === "local" ? (localSlugRef.current ?? undefined) : undefined;
+
   const builtContext: ResolverContext = resolverContext ?? {
     documents,
     boards,
@@ -276,7 +287,7 @@ export function AgentChatPanel({
     clearConversation,
     sendToolApproval,
     conversationId,
-  } = useAgentChat({ teamId, entityType, entityId, resolverContext: builtContext });
+  } = useAgentChat({ teamId, entityType, entityId, resolverContext: builtContext, workspaceSlug: localWorkspaceSlug });
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const initialSentRef = useRef(false);
