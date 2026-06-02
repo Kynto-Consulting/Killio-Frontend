@@ -129,6 +129,7 @@
       "imported": "Imported",
       "errGeneric": "Import failed",
       "expiresIn": "expires in {{mins}} min",
+      "writing": "writing…",
       "discard": "Discard & delete folder"
     },
     "killioImport": {

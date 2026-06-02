@@ -129,6 +129,7 @@
       "imported": "Importado",
       "errGeneric": "Error al importar",
       "expiresIn": "expira en {{mins}} min",
+      "writing": "escribiendo…",
       "discard": "Descartar y borrar carpeta"
     },
     "killioImport": {

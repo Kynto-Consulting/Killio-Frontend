@@ -852,6 +852,27 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         });
         pushMsg(true);
 
+        // Build a provisional file card the instant a write_file tool completes,
+        // so the deliverable appears progressively (not all at once at done). The
+        // authoritative in-request scan at `done` replaces these by path.
+        const DRAFT_KINDS = new Set(['kd', 'kb', 'km', 'ks']);
+        const deriveDraftFile = (input: any): AgentVfsFile | null => {
+          const rawPath = input?.path ?? input?.filename;
+          if (typeof rawPath !== 'string' || !rawPath) return null;
+          const norm = rawPath.replace(/\\/g, '/').replace(/^\.?\//, '');
+          const name = norm.split('/').pop() || norm;
+          const ext = (name.split('.').pop() || '').toLowerCase();
+          if (!DRAFT_KINDS.has(ext)) return null;
+          const content = typeof input?.content === 'string' ? input.content : '';
+          const slashIdx = norm.lastIndexOf('/');
+          const folder = slashIdx >= 0 ? norm.slice(0, slashIdx) : null;
+          return { path: norm, name, kind: ext as AgentVfsFile['kind'], size: content.length, content, folder };
+        };
+        const upsertDraftFile = (f: AgentVfsFile) => {
+          setDraftFiles((prev) => [...prev.filter((x) => x.path !== f.path), f]);
+          setDraftSelected((prev) => { const n = new Set(prev); n.add(f.path); return n; });
+        };
+
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
             { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools, workspaceSlug: sessionSlug, autoScan: true },
@@ -872,6 +893,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 };
                 if (idx >= 0) toolEvts[idx] = done; else toolEvts.push(done);
                 pushMsg(true);
+                // Surface the written file as a card immediately (progressive
+                // deliverable). write_file carries the full path+content inline.
+                if (done.tool === 'write_file' && done.success !== false) {
+                  const f = deriveDraftFile(done.input ?? (event as any).input);
+                  if (f) upsertDraftFile(f);
+                }
               } else if (event.type === 'delta') {
                 rawText += event.text;
                 pushMsg(true);
@@ -1822,7 +1849,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                           <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5 min-w-0">
                             <FolderIcon className="h-3.5 w-3.5 shrink-0" />
                             <span className="truncate">{t("aiPanel.draftWorkspace.title", { slug: draftSlug ?? '' })}</span>
-                            {draftExpiresAt && (
+                            {agentRunning ? (
+                              <span className="ml-1 normal-case tracking-normal text-[10px] text-accent/90 inline-flex items-center gap-1">
+                                <Loader2Icon className="h-3 w-3 animate-spin" />
+                                {t("aiPanel.draftWorkspace.writing")}
+                              </span>
+                            ) : draftExpiresAt && (
                               <span className="ml-1 normal-case tracking-normal text-[10px] text-amber-500/90 inline-flex items-center gap-1">
                                 <Loader2Icon className="h-3 w-3 opacity-0 w-0" />
                                 {t("aiPanel.draftWorkspace.expiresIn", { mins: draftExpiryMins })}
@@ -1838,7 +1870,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                             <button
                               type="button"
                               onClick={() => handleDraftImport(selectedPaths)}
-                              disabled={draftImporting || selectedPaths.length === 0}
+                              disabled={draftImporting || agentRunning || selectedPaths.length === 0}
                               className="text-[11px] px-2 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 inline-flex items-center gap-1"
                             >
                               {draftImporting ? <Loader2Icon className="h-3 w-3 animate-spin" /> : null}
@@ -1847,7 +1879,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                             <button
                               type="button"
                               onClick={() => handleDraftImport(draftFiles.map((f) => f.path))}
-                              disabled={draftImporting || draftFiles.length === 0}
+                              disabled={draftImporting || agentRunning || draftFiles.length === 0}
                               className="text-[11px] px-2 py-1 rounded-md border border-accent/40 text-accent hover:bg-accent/10 disabled:opacity-50"
                             >{t("aiPanel.draftWorkspace.importAll")}</button>
                             <button
