@@ -2,7 +2,7 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useState, useEffect, useRef } from "react";
-import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX } from "lucide-react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX, ChevronRight, ChevronDown } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope, listTeams } from "@/lib/api/contracts";
@@ -1504,7 +1504,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                                             onClick={() => setCollapsedCategories((prev) => { const next = new Set(prev); if (next.has(cat)) next.delete(cat); else next.add(cat); return next; })}
                                             className="flex-1 text-left flex items-center gap-1.5"
                                           >
-                                            <span className="text-[10px]">{collapsed ? '▶' : '▼'}</span>
+                                            {collapsed ? <ChevronRight className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
                                             <span className="text-[11px] font-bold uppercase tracking-wide text-foreground">{cat}</span>
                                             <span className="text-[10px] text-muted-foreground">({catEnabled}/{tools.length})</span>
                                           </button>
