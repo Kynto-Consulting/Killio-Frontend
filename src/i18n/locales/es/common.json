@@ -119,6 +119,16 @@
     "toolsEmpty": "Sin herramientas disponibles.",
     "toolRequired": "Requerida — no se puede desactivar.",
     "imports": "Para importar a tu workspace",
+    "draftWorkspace": {
+      "title": "Carpeta del agente · {slug}",
+      "selectAll": "Seleccionar todo",
+      "deselectAll": "Deseleccionar todo",
+      "importSelected": "Importar seleccionados ({n})",
+      "importAll": "Importar todo",
+      "importing": "Importando...",
+      "imported": "Importado",
+      "errGeneric": "Error al importar"
+    },
     "killioImport": {
       "kd": "Documento",
       "kb": "Tablero",

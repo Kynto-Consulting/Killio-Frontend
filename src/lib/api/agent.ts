@@ -50,6 +50,52 @@ export interface AgentToolManifestEntry {
   required?: boolean;
 }
 
+export interface AgentVfsFile {
+  path: string;
+  name: string;
+  kind: "kd" | "kb" | "km" | "ks";
+  size: number;
+  content: string;
+  folder: string | null;
+}
+
+export interface AgentVfsFolderMeta {
+  name: string;
+  color?: string;
+  icon?: string;
+}
+
+/** GET /agent/vfs/scan — walks the draft-studio scratch folder
+ *  /tmp/draft-studio/<slug>/ and returns every .kd/.kb/.km/.ks file
+ *  inside with content embedded, plus any .kf folder-marker metadata. */
+export async function scanAgentWorkspace(
+  params: { slug: string; teamId: string; entityType?: string; entityId?: string },
+  accessToken: string,
+): Promise<{ slug: string; root: string; files: AgentVfsFile[]; folders: Record<string, AgentVfsFolderMeta> }> {
+  const q = new URLSearchParams({ slug: params.slug, teamId: params.teamId });
+  if (params.entityType) q.set("entityType", params.entityType);
+  if (params.entityId) q.set("entityId", params.entityId);
+  const res = await fetch(`${API_BASE_URL}/agent/vfs/scan?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Workspace scan failed (${res.status})`);
+  return res.json();
+}
+
+/** DELETE /agent/vfs/folder — wipes the scratch folder. Call after import. */
+export async function deleteAgentWorkspace(
+  params: { slug: string; teamId: string; entityType?: string; entityId?: string },
+  accessToken: string,
+): Promise<void> {
+  const q = new URLSearchParams({ slug: params.slug, teamId: params.teamId });
+  if (params.entityType) q.set("entityType", params.entityType);
+  if (params.entityId) q.set("entityId", params.entityId);
+  await fetch(`${API_BASE_URL}/agent/vfs/folder?${q.toString()}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+}
+
 /** POST /agent/import-mesh — bulk-import a parsed .km file as a new mesh
  *  board in one round trip. Frontend decodes the KAML payload (via
  *  deserializeKmToMesh) and ships the canonical mesh state here. */
@@ -104,6 +150,8 @@ export function streamAgentChat(
     approvalToolCall?: { id?: string; name: string; input: any };
     /** Whitelist of tool names — backend hard-filters to this set. Omit/empty = all tools. */
     enabledToolIds?: string[];
+    /** Optional 4-word scratch-folder slug (used by AI Draft Studio). */
+    workspaceSlug?: string;
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

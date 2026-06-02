@@ -6,7 +6,10 @@ import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSq
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope, listTeams } from "@/lib/api/contracts";
-import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentToolsManifest } from "@/lib/api/agent";
+import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentToolsManifest, scanAgentWorkspace, deleteAgentWorkspace, AgentVfsFile, AgentVfsFolderMeta } from "@/lib/api/agent";
+import { generateWorkspaceSlug } from "@/lib/agent-workspace-slug";
+import { importKillioFile } from "@/lib/killio-import-actions";
+import { FileText as FileTextIcon, Layout as LayoutIcon, Network as NetworkIcon, Workflow as WorkflowIcon, Folder as FolderIcon, Check as CheckIcon, X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -289,10 +292,16 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     try { return window.localStorage.getItem("killio_ai_voice") === "1"; } catch { return false; }
   });
   const [agentSteps, setAgentSteps] = useState<Array<{ phase: string; tool?: AgentToolId; content: string }>>([]);
-  // killio_import outputs surfaced by the agent — each one renders as an
-  // import chip at the bottom of the draft so the user can pull the
-  // generated .kd / .kb / .km / .ks / .kf file into their workspace.
-  const [agentImports, setAgentImports] = useState<Array<{ path: string; kind: any; name: string; label: string; description: string | null; content: string; size: number }>>([]);
+  // Files scanned out of the agent's scratch folder once the stream ends.
+  // Each entry → one selectable preview card; the user can import all or a
+  // subset, then we delete the scratch folder.
+  const [draftFiles, setDraftFiles] = useState<AgentVfsFile[]>([]);
+  const [draftFolderMeta, setDraftFolderMeta] = useState<Record<string, AgentVfsFolderMeta>>({});
+  const [draftSelected, setDraftSelected] = useState<Set<string>>(new Set());
+  const [draftSlug, setDraftSlug] = useState<string | null>(null);
+  const [draftStatusByPath, setDraftStatusByPath] = useState<Record<string, "idle" | "importing" | "done" | "error">>({});
+  const [draftErrorByPath, setDraftErrorByPath] = useState<Record<string, string>>({});
+  const [draftImporting, setDraftImporting] = useState(false);
   // Tool universe — every backend tool, fetched once when the panel opens.
   const [toolManifest, setToolManifest] = useState<AgentToolManifestEntry[]>([]);
   const [toolsLoaded, setToolsLoaded] = useState(false);
@@ -505,6 +514,42 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     } catch { /* noop */ }
   };
 
+  // Import a set of files from the agent's scratch folder, one by one, and
+  // wipe the folder when every selected file has imported (success OR
+  // error). The caller passes the subset of paths to import.
+  const handleDraftImport = async (paths: string[]) => {
+    if (!activeTeamId || !accessToken || paths.length === 0) return;
+    setDraftImporting(true);
+    try {
+      for (const p of paths) {
+        const file = draftFiles.find((f) => f.path === p);
+        if (!file) continue;
+        if (draftStatusByPath[p] === 'done') continue;
+        setDraftStatusByPath((s) => ({ ...s, [p]: 'importing' }));
+        try {
+          await importKillioFile(
+            { kind: file.kind, name: file.name, content: file.content },
+            { accessToken, activeTeamId },
+          );
+          setDraftStatusByPath((s) => ({ ...s, [p]: 'done' }));
+        } catch (err: any) {
+          setDraftStatusByPath((s) => ({ ...s, [p]: 'error' }));
+          setDraftErrorByPath((e) => ({ ...e, [p]: err?.message || 'Import failed' }));
+        }
+      }
+      // Cleanup scratch folder once nothing is left to import successfully.
+      const allHandled = draftFiles.every((f) => {
+        const st = draftStatusByPath[f.path];
+        return st === 'done' || st === 'error' || !paths.includes(f.path);
+      });
+      if (draftSlug && allHandled) {
+        try { await deleteAgentWorkspace({ slug: draftSlug, teamId: activeTeamId }, accessToken); } catch { /* noop */ }
+      }
+    } finally {
+      setDraftImporting(false);
+    }
+  };
+
   const toggleVoice = () => {
     setVoiceEnabled((v) => {
       const next = !v;
@@ -526,7 +571,11 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewScripts([]);
     setPreviewAgents([]);
     setAgentSteps([]);
-    setAgentImports([]);
+    setDraftFiles([]);
+    setDraftFolderMeta({});
+    setDraftSelected(new Set());
+    setDraftStatusByPath({});
+    setDraftErrorByPath({});
     setExpandedScriptPreviewIds([]);
 
     const progressInterval = setInterval(() => {
@@ -670,13 +719,18 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
         setGenerationProgress(35);
 
+        // Per-session scratch folder slug. Agent writes EVERY output here;
+        // we scan + offer selective import once the stream ends.
+        const sessionSlug = generateWorkspaceSlug();
+        setDraftSlug(sessionSlug);
+
         let streamedText = '';
         const toolEvents: Array<{ id: string; name: string; input?: any; output?: any; success?: boolean }> = [];
         const draftId = `draft-agent-${Date.now()}`;
 
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
-            { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools },
+            { teamId: teamForAgent as string, message, enabledToolIds: enabledAgentTools, workspaceSlug: sessionSlug },
             accessToken || '',
             (event: AgentStreamEvent) => {
               if (event.type === 'tool_start') {
@@ -694,19 +748,6 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 if (idx >= 0) {
                   toolEvents[idx].output = output;
                   toolEvents[idx].success = (event as any).success ?? true;
-                }
-                // killio_import: capture the file payload so we can render
-                // an import chip at the end of the draft.
-                if (event.tool === 'killio_import' && output?.chip === 'killio_import' && typeof output?.content === 'string') {
-                  setAgentImports((prev) => [...prev, {
-                    path: String(output.path),
-                    kind: output.kind,
-                    name: String(output.name || output.path),
-                    label: String(output.label || output.name || output.path),
-                    description: output.description ?? null,
-                    content: String(output.content),
-                    size: Number(output.size || 0),
-                  }]);
                 }
                 setAgentSteps((prev) => {
                   const copy = [...prev];
@@ -745,6 +786,23 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 setPreviewAgents([draft]);
                 speak(finalText);
                 setGenerationProgress(100);
+                // Scan the scratch folder for everything the agent wrote
+                // and surface a selectable preview list under the trail.
+                (async () => {
+                  try {
+                    const scan = await scanAgentWorkspace(
+                      { slug: sessionSlug, teamId: teamForAgent as string },
+                      accessToken || '',
+                    );
+                    setDraftFiles(scan.files);
+                    setDraftFolderMeta(scan.folders ?? {});
+                    // Default selection: every file selected so "Importar
+                    // todo" is the one-click path.
+                    setDraftSelected(new Set(scan.files.map((f) => f.path)));
+                  } catch (err) {
+                    console.error('scanAgentWorkspace failed', err);
+                  }
+                })();
                 resolve();
               } else if (event.type === 'error') {
                 setAgentSteps((prev) => [...prev, { phase: 'synth', content: `Error: ${event.message}` }]);
@@ -1640,6 +1698,106 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       ))}
                     </div>
                   )}
+
+                  {generationType === 'agents' && draftFiles.length > 0 && (() => {
+                    const KIND_ICON: Record<string, React.ReactNode> = {
+                      kd: <FileTextIcon className="h-4 w-4" />,
+                      kb: <LayoutIcon className="h-4 w-4" />,
+                      km: <NetworkIcon className="h-4 w-4" />,
+                      ks: <WorkflowIcon className="h-4 w-4" />,
+                    };
+                    const toggleSel = (p: string) => setDraftSelected((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(p)) next.delete(p); else next.add(p);
+                      return next;
+                    });
+                    const allSelected = draftFiles.every((f) => draftSelected.has(f.path));
+                    const selectedPaths = Array.from(draftSelected);
+                    const groups = new Map<string, AgentVfsFile[]>();
+                    for (const f of draftFiles) {
+                      const key = f.folder || '';
+                      const arr = groups.get(key) || [];
+                      arr.push(f);
+                      groups.set(key, arr);
+                    }
+                    return (
+                      <div className="space-y-3 mt-4">
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
+                            <FolderIcon className="h-3.5 w-3.5" />
+                            {t("aiPanel.draftWorkspace.title", { slug: draftSlug ?? '' })}
+                          </div>
+                          <div className="flex gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => setDraftSelected(allSelected ? new Set() : new Set(draftFiles.map((f) => f.path)))}
+                              className="text-[11px] px-2 py-1 rounded-md border border-border hover:bg-accent/5"
+                            >{allSelected ? t("aiPanel.draftWorkspace.deselectAll") : t("aiPanel.draftWorkspace.selectAll")}</button>
+                            <button
+                              type="button"
+                              onClick={() => handleDraftImport(selectedPaths)}
+                              disabled={draftImporting || selectedPaths.length === 0}
+                              className="text-[11px] px-2 py-1 rounded-md bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50 inline-flex items-center gap-1"
+                            >
+                              {draftImporting ? <Loader2Icon className="h-3 w-3 animate-spin" /> : null}
+                              {t("aiPanel.draftWorkspace.importSelected", { n: selectedPaths.length })}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDraftImport(draftFiles.map((f) => f.path))}
+                              disabled={draftImporting || draftFiles.length === 0}
+                              className="text-[11px] px-2 py-1 rounded-md border border-accent/40 text-accent hover:bg-accent/10 disabled:opacity-50"
+                            >{t("aiPanel.draftWorkspace.importAll")}</button>
+                          </div>
+                        </div>
+                        {Array.from(groups.entries()).map(([folder, files]) => {
+                          const meta = draftFolderMeta[folder];
+                          return (
+                            <div key={folder || '_root'} className="space-y-1.5">
+                              {folder && (
+                                <div className="text-[11px] font-semibold text-muted-foreground flex items-center gap-1.5">
+                                  <FolderIcon className="h-3.5 w-3.5" style={meta?.color ? { color: meta.color } : undefined} />
+                                  {meta?.name || folder}
+                                </div>
+                              )}
+                              {files.map((f) => {
+                                const sel = draftSelected.has(f.path);
+                                const st = draftStatusByPath[f.path] || 'idle';
+                                return (
+                                  <button
+                                    key={f.path}
+                                    type="button"
+                                    onClick={() => toggleSel(f.path)}
+                                    disabled={st === 'importing' || st === 'done'}
+                                    className={`w-full flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors ${sel ? 'border-accent/40 bg-accent/5' : 'border-border hover:bg-secondary/40'} ${st === 'done' ? 'opacity-70' : ''}`}
+                                  >
+                                    <div className={`mt-0.5 h-3.5 w-3.5 rounded border shrink-0 flex items-center justify-center ${sel ? 'bg-accent border-accent text-accent-foreground' : 'border-border'}`}>
+                                      {sel && <CheckIcon className="h-3 w-3" />}
+                                    </div>
+                                    <div className="mt-0.5 text-accent shrink-0">{KIND_ICON[f.kind]}</div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-xs font-semibold truncate">{f.name}</span>
+                                        <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent">{f.kind}</span>
+                                      </div>
+                                      <p className="text-[10px] text-muted-foreground mt-0.5 truncate" title={f.path}>{f.path}</p>
+                                      <div className="text-[10px] text-muted-foreground mt-1">
+                                        {st === 'importing' && <span className="inline-flex items-center gap-1"><Loader2Icon className="h-3 w-3 animate-spin" />{t("aiPanel.draftWorkspace.importing")}</span>}
+                                        {st === 'done' && <span className="inline-flex items-center gap-1 text-emerald-500"><CheckIcon className="h-3 w-3" />{t("aiPanel.draftWorkspace.imported")}</span>}
+                                        {st === 'error' && <span className="inline-flex items-center gap-1 text-red-500"><XIcon className="h-3 w-3" />{draftErrorByPath[f.path] || t("aiPanel.draftWorkspace.errGeneric")}</span>}
+                                        {(st === 'idle' || !st) && <span>{(f.size / 1024).toFixed(1)} KB</span>}
+                                      </div>
+                                    </div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })()}
+
                   {generationType === 'agents' && (
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">
                       <Sparkles className="h-5 w-5 mr-3 shrink-0 text-primary" />

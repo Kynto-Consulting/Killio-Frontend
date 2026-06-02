@@ -119,6 +119,16 @@
     "toolsEmpty": "No tools available.",
     "toolRequired": "Required — cannot be disabled.",
     "imports": "Import into your workspace",
+    "draftWorkspace": {
+      "title": "Agent folder · {slug}",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "importSelected": "Import selected ({n})",
+      "importAll": "Import all",
+      "importing": "Importing...",
+      "imported": "Imported",
+      "errGeneric": "Import failed"
+    },
     "killioImport": {
       "kd": "Document",
       "kb": "Board",
