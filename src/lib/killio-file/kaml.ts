@@ -161,12 +161,50 @@ export function parseInline(raw: string): unknown {
   return s; // bareword string
 }
 
+// True when ( ) [ ] and quotes are all balanced across the string — used to
+// detect a value continued over multiple physical lines.
+function isBalanced(s: string): boolean {
+  let depth = 0, inStr = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inStr) { if (c === "\\") i++; else if (c === '"') inStr = false; continue; }
+    if (c === '"') inStr = true;
+    else if (c === "(" || c === "[") depth++;
+    else if (c === ")" || c === "]") depth--;
+  }
+  return depth <= 0 && !inStr;
+}
+
+// Join physical lines into logical lines: a `key = [...]` / `(...)` value may
+// be pretty-printed across several lines (models love doing this). Accumulate
+// until brackets/quotes balance. Blank/comment lines inside a section header
+// are kept as their own logical line.
+function toLogicalLines(text: string): string[] {
+  const physical = text.split(/\r?\n/);
+  const out: string[] = [];
+  let buf = "";
+  for (const raw of physical) {
+    const trimmed = raw.trim();
+    if (buf === "") {
+      if (trimmed === "" || trimmed.startsWith("#")) { out.push(trimmed); continue; }
+      // Section headers are always single-line.
+      if (/^\[\[/.test(trimmed)) { out.push(trimmed); continue; }
+      buf = trimmed;
+    } else {
+      // continuation — join with a space so inline tokens stay separated
+      buf += " " + trimmed;
+    }
+    if (isBalanced(buf)) { out.push(buf); buf = ""; }
+  }
+  if (buf) out.push(buf);
+  return out;
+}
+
 export function parseKaml(text: string): unknown {
   const result: Record<string, unknown> = {};
   let currentObj: Record<string, unknown> | null = null;
 
-  for (const raw of text.split(/\r?\n/)) {
-    const line = raw.trim();
+  for (const line of toLogicalLines(text)) {
     if (line === "" || line.startsWith("#")) continue;
     const sectionMatch = line.match(/^\[\[\s*([^\]]+?)\s*\]\]$/);
     if (sectionMatch) {
