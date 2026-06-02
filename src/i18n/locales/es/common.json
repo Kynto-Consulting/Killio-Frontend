@@ -109,6 +109,8 @@
     "agentToolsTitle": "Tools del agente",
     "voiceOn": "Activar voz",
     "voiceOff": "Desactivar voz",
+    "agentNeedsTeam": "El modo agente necesita al menos un team. Crea uno o cambia de workspace.",
+    "usedTools": "Herramientas usadas: {tools}",
     "deepThink": {
       "trail": "Razonamiento profundo",
       "plan": "Plan",

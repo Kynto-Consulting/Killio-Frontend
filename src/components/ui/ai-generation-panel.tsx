@@ -5,7 +5,8 @@ import { useState, useEffect, useRef } from "react";
 import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
-import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope } from "@/lib/api/contracts";
+import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope, listTeams } from "@/lib/api/contracts";
+import { streamAgentChat, AgentStreamEvent } from "@/lib/api/agent";
 import { CardDetailModal } from "./card-detail-modal";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -575,101 +576,117 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         setPreviewScripts(scriptDrafts);
       } else if (generationType === 'agents') {
-        // Deep-think loop: plan → per-tool reasoning → synthesis. No team
-        // requirement — local workspace falls back to the user's personal
-        // scope so the agent always has somewhere to think.
-        const toolsList = enabledAgentTools.length > 0
-          ? enabledAgentTools.join(', ')
-          : t("aiPanel.noneTools");
-
-        const callAi = async (message: string): Promise<string> => {
-          const res = await chatWithAiScope(
-            { scope: agentScope, scopeId: agentScopeId, message, contextSummary: existingEntitiesSummary },
-            accessToken || '',
-          );
-          return res?.text || '';
-        };
-
-        // Step 1: planner.
-        setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
-        const planPrompt = `Eres un planificador de agentes Killio. Tienes herramientas disponibles: ${toolsList}.
-
-Devuelve SOLO JSON con el formato:
-{ "name": "...", "description": "...", "plan": ["paso 1", "paso 2", ...], "useTools": ["search", ...] }
-
-"useTools" debe ser un subconjunto de [${toolsList}] que realmente usarás (puede ser vacío).
-
-Contexto del usuario:
-${finalContent}`;
-        const planText = await callAi(planPrompt);
-        const plan = extractJsonObject(planText) || {};
-        const planSteps: string[] = Array.isArray(plan.plan) ? plan.plan.map(String) : [];
-        const useTools: AgentToolId[] = Array.isArray(plan.useTools)
-          ? plan.useTools.filter((t: any) => enabledAgentTools.includes(t as AgentToolId))
-          : enabledAgentTools;
-
-        setAgentSteps((prev) => [
-          ...prev,
-          { phase: 'plan', content: planSteps.length ? planSteps.map((s, i) => `${i + 1}. ${s}`).join('\n') : (planText.slice(0, 400)) },
-        ]);
-        setGenerationProgress(45);
-
-        // Step 2: per-tool reasoning sweep.
-        const toolFindings: Array<{ tool: AgentToolId; result: string }> = [];
-        for (let i = 0; i < useTools.length; i++) {
-          const tool = useTools[i];
-          setAgentSteps((prev) => [...prev, { phase: 'tool', tool, content: t("aiPanel.deepThink.usingTool", { tool }) }]);
-          const toolPrompt = `Como agente Killio usando la herramienta "${tool}", analiza esto y devuelve SOLO los hallazgos relevantes (máx 6 bullets), sin JSON.
-
-Contexto:
-${finalContent}
-
-Plan general:
-${planSteps.join('\n')}`;
-          const toolRes = await callAi(toolPrompt);
-          toolFindings.push({ tool, result: toolRes.trim() });
-          setAgentSteps((prev) => {
-            const copy = [...prev];
-            // replace last placeholder with real result
-            for (let j = copy.length - 1; j >= 0; j--) {
-              if (copy[j].phase === 'tool' && copy[j].tool === tool) {
-                copy[j] = { phase: 'tool', tool, content: toolRes.trim() };
-                break;
-              }
-            }
-            return copy;
-          });
-          setGenerationProgress(50 + Math.floor((i + 1) / Math.max(1, useTools.length) * 30));
+        // REAL agentic via the backend's /agent/chat/stream endpoint — same
+        // engine that powers AgentChatPanel. The backend runs an LLM tool-use
+        // loop, streaming tool_start/tool_done/delta/done events as it
+        // searches, reads, edits, and writes real entities. We just render
+        // the stream as a deep-think trail and keep the final text as the
+        // agent draft.
+        //
+        // Backend requires a teamId. Local-only users get fallback to their
+        // first available team — agentic mode needs a workspace to act on.
+        let teamForAgent = activeTeamId;
+        if (!teamForAgent && accessToken) {
+          try {
+            const list = await listTeams(accessToken);
+            if (list?.length) teamForAgent = list[0].id;
+          } catch { /* ignore */ }
+        }
+        if (!teamForAgent) {
+          throw new Error(t("aiPanel.agentNeedsTeam"));
         }
 
-        // Step 3: synthesis.
-        setAgentSteps((prev) => [...prev, { phase: 'synth', content: t("aiPanel.deepThink.synthesizing") }]);
-        const synthPrompt = `Eres el agente Killio. Sintetiza la respuesta final al usuario integrando los hallazgos.
+        // Compose the message: enabled tools as a soft hint, plus the file +
+        // user context as the actual instruction.
+        const toolsHint = enabledAgentTools.length > 0
+          ? `Herramientas habilitadas para esta tarea: ${enabledAgentTools.join(', ')}. Úsalas cuando aporten al objetivo.`
+          : '';
+        const fileNames = selectedFiles.map((f) => f.name).join(', ');
+        const message = [
+          toolsHint,
+          fileNames ? `Archivos adjuntos: ${fileNames}` : '',
+          finalContent,
+          'Investiga, planifica y produce una respuesta accionable. Si tiene sentido, crea/edita documentos (.kd), boards (.kb) o meshes (.km) usando las herramientas.',
+        ].filter(Boolean).join('\n\n');
 
-Devuelve SOLO JSON:
-{ "name": "${plan.name || 'Agente Killio'}", "description": "${plan.description || ''}", "reasoning": "razonamiento conciso 1-2 párrafos", "response": "respuesta conversacional final, completa y accionable" }
+        setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
+        setGenerationProgress(35);
 
-Hallazgos por herramienta:
-${toolFindings.map((f) => `### ${f.tool}\n${f.result}`).join('\n\n')}
+        let streamedText = '';
+        const toolEvents: Array<{ id: string; name: string; input?: any; output?: any; success?: boolean }> = [];
+        const draftId = `draft-agent-${Date.now()}`;
 
-Contexto original:
-${finalContent}`;
-        const synthText = await callAi(synthPrompt);
-        const parsed = extractJsonObject(synthText) || {};
-
-        const draft: GeneratedAgentDraft = {
-          id: `draft-agent-${Date.now()}`,
-          name: String(parsed?.name || plan?.name || 'Agent Draft'),
-          description: String(parsed?.description || plan?.description || t("aiPanel.noResultsDesc.agents")),
-          reasoning: String(parsed?.reasoning || planSteps.join(' → ') || t("aiPanel.noStructuredReasoning")),
-          response: String(parsed?.response || synthText || ''),
-          selectedTools: useTools,
-          isSelected: true,
-        };
-
-        setAgentSteps((prev) => [...prev, { phase: 'synth', content: draft.response }]);
-        setPreviewAgents([draft]);
-        speak(draft.response);
+        await new Promise<void>((resolve) => {
+          const cancel = streamAgentChat(
+            { teamId: teamForAgent as string, message },
+            accessToken || '',
+            (event: AgentStreamEvent) => {
+              if (event.type === 'tool_start') {
+                const id = event.id || `${event.tool}-${toolEvents.length}`;
+                toolEvents.push({ id, name: event.tool, input: event.input });
+                setAgentSteps((prev) => [
+                  ...prev,
+                  { phase: 'tool', tool: (event.tool as AgentToolId), content: `${event.tool} → ${JSON.stringify(event.input || {}).slice(0, 200)}` },
+                ]);
+                setGenerationProgress((p) => Math.min(90, p + 5));
+              } else if (event.type === 'tool_done' || event.type === 'tool_result') {
+                const id = event.id || `${event.tool}-${toolEvents.length - 1}`;
+                const idx = toolEvents.findIndex((e) => e.id === id);
+                const output: any = (event as any).output ?? (event as any).data;
+                if (idx >= 0) {
+                  toolEvents[idx].output = output;
+                  toolEvents[idx].success = (event as any).success ?? true;
+                }
+                setAgentSteps((prev) => {
+                  const copy = [...prev];
+                  for (let j = copy.length - 1; j >= 0; j--) {
+                    if (copy[j].phase === 'tool' && (copy[j].tool as string) === event.tool) {
+                      const preview = output ? JSON.stringify(output).slice(0, 400) : '✓';
+                      copy[j] = { phase: 'tool', tool: copy[j].tool, content: `${event.tool} → ${preview}` };
+                      break;
+                    }
+                  }
+                  return copy;
+                });
+              } else if (event.type === 'delta') {
+                streamedText += event.text;
+                setAgentSteps((prev) => {
+                  const copy = [...prev];
+                  const lastSynth = copy.findIndex((s) => s.phase === 'synth');
+                  if (lastSynth >= 0) copy[lastSynth] = { phase: 'synth', content: streamedText };
+                  else copy.push({ phase: 'synth', content: streamedText });
+                  return copy;
+                });
+              } else if (event.type === 'done') {
+                const finalText = event.text || streamedText;
+                const toolNames = (event.toolsUsed || toolEvents.map((e) => e.name)).filter((t, i, arr) => arr.indexOf(t) === i);
+                const draft: GeneratedAgentDraft = {
+                  id: draftId,
+                  name: `Agente · ${new Date().toLocaleString()}`,
+                  description: toolNames.length ? t("aiPanel.usedTools", { tools: toolNames.join(', ') }) : t("aiPanel.noResultsDesc.agents"),
+                  reasoning: toolEvents.length
+                    ? toolEvents.map((e) => `• ${e.name}${e.success === false ? ' (fallo)' : ''}`).join('\n')
+                    : t("aiPanel.noStructuredReasoning"),
+                  response: finalText,
+                  selectedTools: toolNames.filter((n) => enabledAgentTools.includes(n as AgentToolId)) as AgentToolId[],
+                  isSelected: true,
+                };
+                setPreviewAgents([draft]);
+                speak(finalText);
+                setGenerationProgress(100);
+                resolve();
+              } else if (event.type === 'error') {
+                setAgentSteps((prev) => [...prev, { phase: 'synth', content: `Error: ${event.message}` }]);
+                resolve();
+              }
+              // tool_approval_request intentionally ignored here — the panel
+              // doesn't support interactive approval; backend should auto-
+              // approve in agent-draft contexts.
+            },
+          );
+          // Hard ceiling so the panel never hangs forever on a stuck stream.
+          setTimeout(() => { try { cancel(); } catch { /* noop */ } resolve(); }, 180000);
+        });
       }
 
       setGenerationProgress(100);

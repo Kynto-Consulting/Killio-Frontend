@@ -109,6 +109,8 @@
     "agentToolsTitle": "Agent tools",
     "voiceOn": "Enable voice",
     "voiceOff": "Disable voice",
+    "agentNeedsTeam": "Agent mode needs at least one team. Create one or switch workspace.",
+    "usedTools": "Tools used: {tools}",
     "deepThink": {
       "trail": "Deep reasoning",
       "plan": "Plan",
