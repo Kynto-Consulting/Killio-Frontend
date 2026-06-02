@@ -157,11 +157,22 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     }
   }
 
+  // A complete `<plan>…</plan>` is captured as its own collapsible block, so any
+  // <step>/<plan> tags still sitting in a text segment are ORPHANS — a model that
+  // restated step status as prose, or an unterminated plan mid-stream. Render them
+  // as raw "<step id=1 status=…>" looks broken, so scrub them from visible text.
+  const scrubOrphanTags = (t: string): string =>
+    t
+      .replace(/<\/?step\b[^>]*>/gi, "")
+      .replace(/<\/?plan\b[^>]*>/gi, "")
+      .replace(/[ \t]{2,}/g, " ")
+      .trim();
+
   let lastIndex = 0;
   for (const match of filtered) {
-    const precedingText = source.slice(lastIndex, match.index);
-    if (precedingText.trim()) {
-      blocks.push({ tag: "text", content: precedingText.trim() });
+    const precedingText = scrubOrphanTags(source.slice(lastIndex, match.index));
+    if (precedingText) {
+      blocks.push({ tag: "text", content: precedingText });
     }
 
     if (match.kind === "tool_call") {
@@ -217,9 +228,9 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
     lastIndex = match.end;
   }
 
-  const remainingText = source.slice(lastIndex);
-  if (remainingText.trim()) {
-    blocks.push({ tag: "text", content: remainingText.trim() });
+  const remainingText = scrubOrphanTags(source.slice(lastIndex));
+  if (remainingText) {
+    blocks.push({ tag: "text", content: remainingText });
   }
 
   // Safety net: if AI used room_send_message as a reply (no visible text),
