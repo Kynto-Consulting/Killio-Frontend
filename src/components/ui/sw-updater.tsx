@@ -30,10 +30,52 @@ export function SwUpdater() {
     };
     navigator.serviceWorker.addEventListener("controllerchange", onCtrlChange);
     navigator.serviceWorker.addEventListener("message", onMessage);
-    navigator.serviceWorker.getRegistration().then((reg) => { reg?.update().catch(() => { /* noop */ }); }).catch(() => { /* noop */ });
+
+    // Force-update + force-activate any waiting SW. Without this the new
+    // bundle ships but Chrome keeps the old SW (and its precache of dead
+    // chunk hashes) for another 24h on default heuristics, so users get
+    // ERR_ABORTED 404 on every page load after a deploy.
+    navigator.serviceWorker.getRegistration().then((reg) => {
+      if (!reg) return;
+      reg.update().catch(() => { /* noop */ });
+      if (reg.waiting) {
+        try { reg.waiting.postMessage({ type: "SKIP_WAITING" }); } catch { /* noop */ }
+      }
+      reg.addEventListener("updatefound", () => {
+        const nw = reg.installing;
+        if (!nw) return;
+        nw.addEventListener("statechange", () => {
+          if (nw.state === "installed" && navigator.serviceWorker.controller) {
+            try { nw.postMessage({ type: "SKIP_WAITING" }); } catch { /* noop */ }
+          }
+        });
+      });
+    }).catch(() => { /* noop */ });
+
+    // 404 self-heal: if any /_next/static asset 404s in this page, the
+    // active SW precache is stale — wipe caches + unregister + reload.
+    // Once. Idempotent guard via sessionStorage.
+    const onError = (ev: Event) => {
+      const tgt: any = ev.target;
+      const src: string | undefined = tgt?.src || tgt?.href;
+      if (!src || !src.includes("/_next/static/")) return;
+      if (sessionStorage.getItem("killio_sw_self_heal")) return;
+      sessionStorage.setItem("killio_sw_self_heal", "1");
+      (async () => {
+        try {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        } catch { /* ignore */ }
+        window.location.reload();
+      })();
+    };
+    window.addEventListener("error", onError, true);
     return () => {
       navigator.serviceWorker.removeEventListener("controllerchange", onCtrlChange);
       navigator.serviceWorker.removeEventListener("message", onMessage);
+      window.removeEventListener("error", onError, true);
     };
   }, []);
   return null;

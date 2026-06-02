@@ -30,7 +30,7 @@ const SHELL_PRECACHE = [
 ].map((url) => ({ url, revision: null as string | null }));
 
 // Maps a deep path to its parent shell route. The shell is what the dashboard
-// layout renders for that section; once the shell HTML is in pages-cache-v3,
+// layout renders for that section; once the shell HTML is in pages-cache-v4,
 // every child route can boot offline through it (local-workspace data comes
 // from IndexedDB / FileSystemDirectoryHandle on the client).
 function shellFor(pathname: string): string | null {
@@ -136,7 +136,7 @@ const serwist = new Serwist({
     //   1. Try network (8s timeout). Cache the response only if it's a real
     //      200 text/html (no redirects, no error pages) — those were what
     //      poisoned the previous cache and made every later nav serve /offline.
-    //   2. On network fail, look up the exact URL in pages-cache-v3.
+    //   2. On network fail, look up the exact URL in pages-cache-v4.
     //   3. On exact miss, fall back to the parent SHELL route's cached HTML
     //      (e.g. /d/<id> → /d, /b/<id> → /b, /m/<id> → /m). The shell hydrates
     //      client-side and renders the local-workspace data from IndexedDB —
@@ -146,7 +146,7 @@ const serwist = new Serwist({
     {
       matcher: ({ request, url }) => request.mode === "navigate" && !url.pathname.startsWith("/api/"),
       handler: new NavigationWithShellFallback({
-        cacheName: "pages-cache-v3",
+        cacheName: "pages-cache-v4",
         plugins: [
           new ExpirationPlugin({
             maxEntries: 100,
@@ -217,12 +217,26 @@ serwist.addEventListeners();
 // entries are abandoned by the new versioned names above — delete them on
 // activate so they don't sit there forever taking quota and (more importantly
 // once SW deletes them, the browser memory cache stops hitting them either).
-const LEGACY_CACHES = new Set(["pages-cache", "api-cache", "pages-cache-v2"]);
+const LEGACY_CACHES = new Set(["pages-cache", "api-cache", "pages-cache-v2", "pages-cache-v3"]);
+// Honor the page's SKIP_WAITING postMessage so a fresh deploy can flip
+// over instantly instead of waiting for every tab to close.
+self.addEventListener("message", (event: any) => {
+  if (event?.data?.type === "SKIP_WAITING") {
+    (self as any).skipWaiting();
+  }
+});
+
 self.addEventListener("activate", (event: any) => {
   event.waitUntil(
     (async () => {
       const keys = await caches.keys();
-      await Promise.all(keys.filter((k) => LEGACY_CACHES.has(k)).map((k) => caches.delete(k)));
+      // Delete every previous serwist-precache (chunk hashes from old
+      // deploys) so the new SW doesn't keep serving 404'd JS/CSS to
+      // stale HTML.
+      await Promise.all(keys
+        .filter((k) => LEGACY_CACHES.has(k) || /^serwist-precache-v\d+/.test(k))
+        .map((k) => caches.delete(k)),
+      );
       // Tell every open client to (re-)warm the cache now that this SW is
       // controlling — picks up new shell routes without waiting for the 6h
       // TTL or the next mount of the dashboard layout.
