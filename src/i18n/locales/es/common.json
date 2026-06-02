@@ -127,7 +127,9 @@
       "importAll": "Importar todo",
       "importing": "Importando...",
       "imported": "Importado",
-      "errGeneric": "Error al importar"
+      "errGeneric": "Error al importar",
+      "expiresIn": "expira en {mins} min",
+      "discard": "Descartar y borrar carpeta"
     },
     "killioImport": {
       "kd": "Documento",

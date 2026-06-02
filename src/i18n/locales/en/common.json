@@ -127,7 +127,9 @@
       "importAll": "Import all",
       "importing": "Importing...",
       "imported": "Imported",
-      "errGeneric": "Import failed"
+      "errGeneric": "Import failed",
+      "expiresIn": "expires in {mins} min",
+      "discard": "Discard & delete folder"
     },
     "killioImport": {
       "kd": "Document",

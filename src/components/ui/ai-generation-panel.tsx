@@ -9,6 +9,9 @@ import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCar
 import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentToolsManifest, scanAgentWorkspace, deleteAgentWorkspace, AgentVfsFile, AgentVfsFolderMeta } from "@/lib/api/agent";
 import { generateWorkspaceSlug } from "@/lib/agent-workspace-slug";
 import { importKillioFile } from "@/lib/killio-import-actions";
+import { uploadFile } from "@/lib/api/uploads";
+import { AssistantMessage } from "@/components/agent/AgentChatPanel";
+import type { AgentMessage, ToolEvent } from "@/hooks/use-agent-chat";
 import { FileText as FileTextIcon, Layout as LayoutIcon, Network as NetworkIcon, Workflow as WorkflowIcon, Folder as FolderIcon, Check as CheckIcon, X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
 import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
@@ -335,7 +338,11 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     if (typeof window === "undefined") return false;
     try { return window.localStorage.getItem("killio_ai_voice") === "1"; } catch { return false; }
   });
-  const [agentSteps, setAgentSteps] = useState<Array<{ phase: string; tool?: AgentToolId; content: string }>>([]);
+  // Single assistant message rendered with the shared AgentChatPanel renderer
+  // (tool-call chips, asset attachments, plan/pre-think — same as the real
+  // agent chat) instead of a hand-rolled plain-text trail.
+  const [agentMsg, setAgentMsg] = useState<AgentMessage | null>(null);
+  const [agentRunning, setAgentRunning] = useState(false);
   // Files scanned out of the agent's scratch folder once the stream ends.
   // Each entry → one selectable preview card; the user can import all or a
   // subset, then we delete the scratch folder.
@@ -350,6 +357,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [draftStatusByPath, setDraftStatusByPath] = useState<Record<string, "idle" | "importing" | "done" | "error">>({});
   const [draftErrorByPath, setDraftErrorByPath] = useState<Record<string, string>>({});
   const [draftImporting, setDraftImporting] = useState(false);
+  // Scratch folder is private + ephemeral: auto-purge 30 min after the run
+  // ends, or when the user dismisses the preview. expiresAt drives a live
+  // countdown shown next to the import actions.
+  const [draftExpiresAt, setDraftExpiresAt] = useState<number | null>(null);
+  const draftExpiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [nowTick, setNowTick] = useState(() => Date.now());
   // Tool universe — every backend tool, fetched once when the panel opens.
   const [toolManifest, setToolManifest] = useState<AgentToolManifestEntry[]>([]);
   const [toolsLoaded, setToolsLoaded] = useState(false);
@@ -493,6 +506,17 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     };
   }, []);
 
+  // Tick once a minute while a scratch folder is alive so the expiry
+  // countdown stays fresh. Also clean up the purge timer on unmount.
+  useEffect(() => {
+    if (!draftExpiresAt) return;
+    setNowTick(Date.now());
+    const id = setInterval(() => setNowTick(Date.now()), 30 * 1000);
+    return () => clearInterval(id);
+  }, [draftExpiresAt]);
+  useEffect(() => () => { if (draftExpiryTimerRef.current) clearTimeout(draftExpiryTimerRef.current); }, []);
+
+  const draftExpiryMins = draftExpiresAt ? Math.max(0, Math.ceil((draftExpiresAt - nowTick) / 60000)) : 0;
 
   if (!isOpen) return null;
 
@@ -562,6 +586,33 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     } catch { /* noop */ }
   };
 
+  // Delete the scratch folder server-side and clear all draft preview state.
+  // Called on: explicit dismiss (X), 30-min expiry, or after import-all.
+  const discardDraftWorkspace = async () => {
+    if (draftExpiryTimerRef.current) { clearTimeout(draftExpiryTimerRef.current); draftExpiryTimerRef.current = null; }
+    const slug = draftSlug;
+    const cleanupTeam = activeTeamId || teamForScanRef.current;
+    setDraftFiles([]);
+    setDraftFolderMeta({});
+    setDraftSelected(new Set());
+    setDraftStatusByPath({});
+    setDraftErrorByPath({});
+    setDraftExpiresAt(null);
+    setDraftSlug(null);
+    if (slug && cleanupTeam && accessToken) {
+      try { await deleteAgentWorkspace({ slug, teamId: cleanupTeam }, accessToken); } catch { /* noop */ }
+    }
+  };
+
+  // Arm a 30-minute auto-purge of the private scratch folder. Resets any
+  // existing timer (e.g. on a fresh run).
+  const armDraftExpiry = () => {
+    if (draftExpiryTimerRef.current) clearTimeout(draftExpiryTimerRef.current);
+    const ms = 30 * 60 * 1000;
+    setDraftExpiresAt(Date.now() + ms);
+    draftExpiryTimerRef.current = setTimeout(() => { void discardDraftWorkspace(); }, ms);
+  };
+
   // Import a set of files from the agent's scratch folder, one by one, and
   // wipe the folder when every selected file has imported (success OR
   // error). The caller passes the subset of paths to import.
@@ -570,11 +621,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     // Cloud needs a team; local writes straight to the FS handle.
     if (!isLocalMode && !activeTeamId) return;
     setDraftImporting(true);
+    const handledStatus: Record<string, "done" | "error"> = {};
     try {
       for (const p of paths) {
         const file = draftFiles.find((f) => f.path === p);
         if (!file) continue;
-        if (draftStatusByPath[p] === 'done') continue;
+        if (draftStatusByPath[p] === 'done') { handledStatus[p] = 'done'; continue; }
         setDraftStatusByPath((s) => ({ ...s, [p]: 'importing' }));
         try {
           await importKillioFile(
@@ -583,22 +635,21 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               ? { mode: 'local', writeLocal: writeLocalFile, folder: file.folder }
               : { mode: 'cloud', accessToken, activeTeamId: activeTeamId as string },
           );
+          handledStatus[p] = 'done';
           setDraftStatusByPath((s) => ({ ...s, [p]: 'done' }));
         } catch (err: any) {
+          handledStatus[p] = 'error';
           setDraftStatusByPath((s) => ({ ...s, [p]: 'error' }));
           setDraftErrorByPath((e) => ({ ...e, [p]: err?.message || 'Import failed' }));
         }
       }
-      // Cleanup scratch folder once nothing is left to import successfully.
+      // If every file in the folder is now handled (done/error), purge it.
       const allHandled = draftFiles.every((f) => {
-        const st = draftStatusByPath[f.path];
-        return st === 'done' || st === 'error' || !paths.includes(f.path);
+        const st = handledStatus[f.path] || draftStatusByPath[f.path];
+        return st === 'done' || st === 'error';
       });
-      if (draftSlug && allHandled) {
-        const cleanupTeam = activeTeamId || teamForScanRef.current;
-        if (cleanupTeam) {
-          try { await deleteAgentWorkspace({ slug: draftSlug, teamId: cleanupTeam }, accessToken); } catch { /* noop */ }
-        }
+      if (allHandled) {
+        await discardDraftWorkspace();
       }
     } finally {
       setDraftImporting(false);
@@ -625,12 +676,14 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewBoards([]);
     setPreviewScripts([]);
     setPreviewAgents([]);
-    setAgentSteps([]);
+    setAgentMsg(null);
     setDraftFiles([]);
     setDraftFolderMeta({});
     setDraftSelected(new Set());
     setDraftStatusByPath({});
     setDraftErrorByPath({});
+    setDraftExpiresAt(null);
+    if (draftExpiryTimerRef.current) { clearTimeout(draftExpiryTimerRef.current); draftExpiryTimerRef.current = null; }
     setExpandedScriptPreviewIds([]);
 
     const progressInterval = setInterval(() => {
@@ -758,21 +811,30 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           throw new Error(t("aiPanel.agentNeedsTeam"));
         }
 
-        // Compose the message. The extracted file text is ALREADY inside
-        // finalContent ("Contenido del Archivo (name): ..."), so we tell the
-        // agent the content is inline and it must NOT try to read attachments
-        // (there is no chat attachment in the draft studio — it would fail).
+        // Upload each source file as a real asset so the agent can re-read the
+        // ORIGINAL (PDF/DOCX/XLSX) on demand via chat_read_attachment, not just
+        // the inline-extracted text. Best-effort: a failed upload just omits
+        // that asset tag.
+        const assetTags: string[] = [];
+        for (const f of selectedFiles) {
+          try {
+            const up = await uploadFile(f, accessToken || '', { ownerScopeType: 'team', ownerScopeId: teamForAgent as string });
+            if (up?.url) assetTags.push(`<asset type="document" src="${up.url}" title="${f.name}" />`);
+          } catch (e) { console.error('asset upload failed', f.name, e); }
+        }
+
         const toolsHint = enabledAgentTools.length > 0
           ? `Herramientas habilitadas: ${enabledAgentTools.join(', ')}.`
           : '';
         const message = [
           toolsHint,
+          assetTags.join('\n'),
           finalContent,
-          'El contenido de los archivos adjuntos ya está incluido arriba — NO uses chat_read_attachment. Primero PLANIFICA (bloque <plan> con pasos), luego construye el proyecto escribiendo archivos Killio (.kd/.kb/.km/.ks) con write_file en tu carpeta de trabajo. Usa los formatos y bricks reales (no texto plano).',
+          'El texto de los archivos ya está incluido arriba y además quedan adjuntos como assets (puedes re-leer el original con chat_read_attachment usando el src del asset). Primero PLANIFICA (bloque <plan> con pasos), luego construye el proyecto escribiendo archivos Killio (.kd/.kb/.km/.ks) con write_file en tu carpeta de trabajo. Usa los formatos y bricks reales (no texto plano).',
         ].filter(Boolean).join('\n\n');
 
-        setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
         setGenerationProgress(35);
+        setAgentRunning(true);
 
         // Per-session scratch folder slug. Agent writes EVERY output here;
         // we scan + offer selective import once the stream ends.
@@ -780,8 +842,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         setDraftSlug(sessionSlug);
         teamForScanRef.current = teamForAgent as string;
 
-        let streamedText = '';
-        const toolEvents: Array<{ id: string; name: string; input?: any; output?: any; success?: boolean }> = [];
+        // Build a single AgentMessage we render with the shared AssistantMessage
+        // component (tool chips, asset blocks, plan — identical to agent chat).
+        const msgId = `draft-${Date.now()}`;
+        let rawText = '';
+        const toolEvts: ToolEvent[] = [];
+        const pushMsg = (streaming: boolean) => setAgentMsg({
+          id: msgId, role: 'assistant', text: rawText, toolEvents: [...toolEvts], isStreaming: streaming,
+        });
+        pushMsg(true);
 
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
@@ -789,71 +858,30 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
             accessToken || '',
             (event: AgentStreamEvent) => {
               if (event.type === 'tool_start') {
-                const id = event.id || `${event.tool}-${toolEvents.length}`;
-                toolEvents.push({ id, name: event.tool, input: event.input });
-                setAgentSteps((prev) => [
-                  ...prev,
-                  { phase: 'tool', tool: (event.tool as AgentToolId), content: `${event.tool} → ${JSON.stringify(event.input || {}).slice(0, 200)}` },
-                ]);
+                toolEvts.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: 'start' });
+                pushMsg(true);
                 setGenerationProgress((p) => Math.min(90, p + 5));
               } else if (event.type === 'tool_done' || event.type === 'tool_result') {
-                const id = event.id || `${event.tool}-${toolEvents.length - 1}`;
-                const idx = toolEvents.findIndex((e) => e.id === id);
+                const id = (event as any).id;
                 const output: any = (event as any).output ?? (event as any).data;
-                if (idx >= 0) {
-                  toolEvents[idx].output = output;
-                  toolEvents[idx].success = (event as any).success ?? true;
-                }
-                setAgentSteps((prev) => {
-                  const copy = [...prev];
-                  for (let j = copy.length - 1; j >= 0; j--) {
-                    if (copy[j].phase === 'tool' && (copy[j].tool as string) === event.tool) {
-                      const preview = output ? JSON.stringify(output).slice(0, 400) : '✓';
-                      copy[j] = { phase: 'tool', tool: copy[j].tool, content: `${event.tool} → ${preview}` };
-                      break;
-                    }
-                  }
-                  return copy;
-                });
+                const idx = toolEvts.findIndex((e) => e.id === id && e.phase === 'start');
+                const done: ToolEvent = {
+                  id, tool: event.tool, input: (event as any).input,
+                  output, success: (event as any).success ?? true,
+                  durationMs: (event as any).durationMs, phase: 'done',
+                };
+                if (idx >= 0) toolEvts[idx] = done; else toolEvts.push(done);
+                pushMsg(true);
               } else if (event.type === 'delta') {
-                streamedText += event.text;
-                // Parse plan/think out of the running text → Plan card; keep
-                // only the clean answer (no XML) in the synth card.
-                const { plan, answer } = splitAgentStream(streamedText);
-                setAgentSteps((prev) => {
-                  const copy = [...prev];
-                  if (plan) {
-                    const planIdx = copy.findIndex((s) => s.phase === 'plan');
-                    if (planIdx >= 0) copy[planIdx] = { phase: 'plan', content: plan };
-                    else copy.unshift({ phase: 'plan', content: plan });
-                  }
-                  const lastSynth = copy.findIndex((s) => s.phase === 'synth');
-                  if (answer) {
-                    if (lastSynth >= 0) copy[lastSynth] = { phase: 'synth', content: answer };
-                    else copy.push({ phase: 'synth', content: answer });
-                  }
-                  return copy;
-                });
+                rawText += event.text;
+                pushMsg(true);
               } else if (event.type === 'done') {
-                const finalRaw = event.text || streamedText;
-                const { plan, answer } = splitAgentStream(finalRaw);
-                const finalText = answer || finalRaw;
-                setAgentSteps((prev) => {
-                  const copy = [...prev];
-                  if (plan) {
-                    const planIdx = copy.findIndex((s) => s.phase === 'plan');
-                    if (planIdx >= 0) copy[planIdx] = { phase: 'plan', content: plan };
-                    else copy.unshift({ phase: 'plan', content: plan });
-                  }
-                  const synthIdx = copy.findIndex((s) => s.phase === 'synth');
-                  if (synthIdx >= 0) copy[synthIdx] = { phase: 'synth', content: finalText };
-                  else copy.push({ phase: 'synth', content: finalText });
-                  return copy;
-                });
-                speak(finalText);
+                rawText = event.text || rawText;
+                pushMsg(false);
+                const { answer } = splitAgentStream(rawText);
+                speak(answer || rawText);
                 setGenerationProgress(100);
-                // Scan the scratch folder for everything the agent wrote
-                // and surface a selectable preview list under the trail.
+                // Scan the scratch folder for everything the agent wrote.
                 (async () => {
                   try {
                     const scan = await scanAgentWorkspace(
@@ -862,26 +890,24 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                     );
                     setDraftFiles(scan.files);
                     setDraftFolderMeta(scan.folders ?? {});
-                    // Default selection: every file selected so "Importar
-                    // todo" is the one-click path.
                     setDraftSelected(new Set(scan.files.map((f) => f.path)));
+                    if (scan.files.length > 0) armDraftExpiry();
                   } catch (err) {
                     console.error('scanAgentWorkspace failed', err);
                   }
                 })();
                 resolve();
               } else if (event.type === 'error') {
-                setAgentSteps((prev) => [...prev, { phase: 'synth', content: `Error: ${event.message}` }]);
+                rawText += `\n\nError: ${event.message}`;
+                pushMsg(false);
                 resolve();
               }
-              // tool_approval_request intentionally ignored here — the panel
-              // doesn't support interactive approval; backend should auto-
-              // approve in agent-draft contexts.
             },
           );
           // Hard ceiling so the panel never hangs forever on a stuck stream.
           setTimeout(() => { try { cancel(); } catch { /* noop */ } resolve(); }, 180000);
         });
+        setAgentRunning(false);
       }
 
       setGenerationProgress(100);
@@ -1693,7 +1719,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 (generationType === 'documents' && previewDocuments.length === 0) ||
                 (generationType === 'boards' && previewBoards.length === 0) ||
                 (generationType === 'scripts' && previewScripts.length === 0) ||
-                (generationType === 'agents' && previewAgents.length === 0 && agentSteps.length === 0)
+                (generationType === 'agents' && previewAgents.length === 0 && !agentMsg)
               ) ? (
                 <div className="flex-1 flex flex-col items-center justify-center opacity-70">
                   <div className="h-24 w-24 rounded-full bg-accent/5 flex items-center justify-center mb-6">
@@ -1746,22 +1772,19 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       </p>
                     </div>
                   )}
-                  {generationType === 'agents' && agentSteps.length > 0 && (
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                        <Sparkles className="h-3.5 w-3.5 text-accent" />
-                        {t("aiPanel.deepThink.trail")}
-                      </div>
-                      {agentSteps.map((step, i) => (
-                        <div key={i} className={`rounded-lg border p-3 text-xs leading-relaxed ${step.phase === 'plan' ? 'border-accent/30 bg-accent/5' : step.phase === 'tool' ? 'border-blue-500/30 bg-blue-500/5' : 'border-emerald-500/30 bg-emerald-500/5'}`}>
-                          <div className="flex items-center gap-1.5 mb-1 font-semibold">
-                            {step.phase === 'plan' && <><Sparkles className="h-3 w-3" /> {t("aiPanel.deepThink.plan")}</>}
-                            {step.phase === 'tool' && <><Wrench className="h-3 w-3" /> {step.tool}</>}
-                            {step.phase === 'synth' && <><CheckCircle2 className="h-3 w-3" /> {t("aiPanel.deepThink.answer")}</>}
-                          </div>
-                          <pre className="whitespace-pre-wrap font-sans text-foreground/90">{step.content}</pre>
-                        </div>
-                      ))}
+                  {generationType === 'agents' && agentMsg && (
+                    <div className="mb-4">
+                      <AssistantMessage
+                        t={t as any}
+                        message={agentMsg}
+                        isLast
+                        toolsExpanded
+                        onToggleTools={() => {}}
+                        onCopy={() => { try { navigator.clipboard.writeText(splitAgentStream(agentMsg.text).answer || agentMsg.text); } catch { /* noop */ } }}
+                        copied={false}
+                        onThumb={() => {}}
+                        onRetry={() => {}}
+                      />
                     </div>
                   )}
 
@@ -1787,13 +1810,19 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       groups.set(key, arr);
                     }
                     return (
-                      <div className="space-y-3 mt-4">
+                      <div className="space-y-3 mt-4 rounded-xl border border-border/60 bg-card/40 p-3">
                         <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5">
-                            <FolderIcon className="h-3.5 w-3.5" />
-                            {t("aiPanel.draftWorkspace.title", { slug: draftSlug ?? '' })}
+                          <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold flex items-center gap-1.5 min-w-0">
+                            <FolderIcon className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{t("aiPanel.draftWorkspace.title", { slug: draftSlug ?? '' })}</span>
+                            {draftExpiresAt && (
+                              <span className="ml-1 normal-case tracking-normal text-[10px] text-amber-500/90 inline-flex items-center gap-1">
+                                <Loader2Icon className="h-3 w-3 opacity-0 w-0" />
+                                {t("aiPanel.draftWorkspace.expiresIn", { mins: draftExpiryMins })}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex gap-1.5">
+                          <div className="flex gap-1.5 items-center">
                             <button
                               type="button"
                               onClick={() => setDraftSelected(allSelected ? new Set() : new Set(draftFiles.map((f) => f.path)))}
@@ -1814,6 +1843,13 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                               disabled={draftImporting || draftFiles.length === 0}
                               className="text-[11px] px-2 py-1 rounded-md border border-accent/40 text-accent hover:bg-accent/10 disabled:opacity-50"
                             >{t("aiPanel.draftWorkspace.importAll")}</button>
+                            <button
+                              type="button"
+                              onClick={() => { void discardDraftWorkspace(); }}
+                              disabled={draftImporting}
+                              title={t("aiPanel.draftWorkspace.discard")}
+                              className="text-[11px] p-1.5 rounded-md border border-border text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+                            ><XIcon className="h-3.5 w-3.5" /></button>
                           </div>
                         </div>
                         {Array.from(groups.entries()).map(([folder, files]) => {

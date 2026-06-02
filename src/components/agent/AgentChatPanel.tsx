@@ -782,7 +782,7 @@ function UserMessage({
 
 // ─── AssistantMessage ─────────────────────────────────────────────────────────
 
-function AssistantMessage({
+export function AssistantMessage({
   t,
   message,
   isLast,
