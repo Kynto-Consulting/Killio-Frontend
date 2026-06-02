@@ -881,19 +881,26 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 const { answer } = splitAgentStream(rawText);
                 speak(answer || rawText);
                 setGenerationProgress(100);
-                // Scan the scratch folder for everything the agent wrote.
+                // Prefer files the backend scanned inside THIS request (reliable
+                // in serverless — same warm kernel that wrote them). Fall back to
+                // a separate scan only if the done event didn't carry them.
                 (async () => {
                   try {
-                    const scan = await scanAgentWorkspace(
-                      { slug: sessionSlug, teamId: teamForAgent as string },
-                      accessToken || '',
-                    );
-                    setDraftFiles(scan.files);
-                    setDraftFolderMeta(scan.folders ?? {});
-                    setDraftSelected(new Set(scan.files.map((f) => f.path)));
-                    if (scan.files.length > 0) armDraftExpiry();
+                    let files = (event as any).draftFiles as AgentVfsFile[] | undefined;
+                    let folders = (event as any).draftFolders as Record<string, AgentVfsFolderMeta> | undefined;
+                    if (!files) {
+                      const scan = await scanAgentWorkspace(
+                        { slug: sessionSlug, teamId: teamForAgent as string },
+                        accessToken || '',
+                      );
+                      files = scan.files; folders = scan.folders;
+                    }
+                    setDraftFiles(files || []);
+                    setDraftFolderMeta(folders ?? {});
+                    setDraftSelected(new Set((files || []).map((f) => f.path)));
+                    if ((files || []).length > 0) armDraftExpiry();
                   } catch (err) {
-                    console.error('scanAgentWorkspace failed', err);
+                    console.error('draft scan failed', err);
                   }
                 })();
                 resolve();

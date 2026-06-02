@@ -38,6 +38,10 @@ export type AgentStreamEvent =
       billedTokens?: number;
       billedCredits?: number;
       modelUsed?: string;
+      /** Draft-studio: files scanned from the scratch folder in this same
+       *  request (reliable in serverless). Present when workspaceSlug was set. */
+      draftFiles?: AgentVfsFile[];
+      draftFolders?: Record<string, AgentVfsFolderMeta>;
     }
   | { type: 'error'; message: string };
 
