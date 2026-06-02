@@ -80,6 +80,50 @@ interface GeneratedAgentDraft {
 // with a real backend tool name; toggling here flows into the request as
 // enabledToolIds, which the backend hard-filters before invoking the LLM.
 
+// Split a streamed agent message into a clean "plan/reasoning" string and a
+// clean "answer" string. The model interleaves <plan>, <pre_think>, <think>,
+// <invoke>, <tool_status>, <tool_output> XML into the text; we surface the
+// plan/think content in the Plan card and strip ALL machine tags from the
+// visible final answer so the user never sees raw XML.
+function splitAgentStream(raw: string): { plan: string; answer: string } {
+  if (!raw) return { plan: "", answer: "" };
+  const planParts: string[] = [];
+
+  // <plan> ... </plan>  (preferred explicit plan)
+  for (const m of raw.matchAll(/<plan\b[^>]*>([\s\S]*?)<\/plan>/gi)) {
+    const steps = Array.from(m[1].matchAll(/<step\b[^>]*>([\s\S]*?)<\/step>/gi)).map((s) => s[1].trim());
+    planParts.push(steps.length ? steps.map((s, i) => `${i + 1}. ${s}`).join("\n") : m[1].trim());
+  }
+  // <pre_think> ... </pre_think>  → prefer the <strategy> sub-block
+  for (const m of raw.matchAll(/<pre_think\b[^>]*>([\s\S]*?)<\/pre_think>/gi)) {
+    const strat = m[1].match(/<strategy>([\s\S]*?)<\/strategy>/i);
+    planParts.push((strat ? strat[1] : m[1]).replace(/<\/?[a-z_]+>/gi, "").trim());
+  }
+  // standalone <think> blocks
+  for (const m of raw.matchAll(/<think\b[^>]*>([\s\S]*?)<\/think>/gi)) {
+    const inner = m[1].trim();
+    if (inner) planParts.push(inner);
+  }
+
+  let answer = raw
+    .replace(/<!--[\s\S]*?-->/g, "")
+    .replace(/<plan\b[^>]*>[\s\S]*?<\/plan>/gi, "")
+    .replace(/<pre_think\b[^>]*>[\s\S]*?<\/pre_think>/gi, "")
+    .replace(/<think\b[^>]*>[\s\S]*?<\/think>/gi, "")
+    .replace(/<batch_invoke\b[^>]*>[\s\S]*?<\/batch_invoke>/gi, "")
+    .replace(/<invoke\b[^>]*>[\s\S]*?<\/invoke>/gi, "")
+    .replace(/<tool_status\b[^>]*\/?>/gi, "")
+    .replace(/<tool_output\b[^>]*>[\s\S]*?<\/tool_output>/gi, "")
+    // malformed leaks like "<think<pre_think>" or unterminated trailing opens
+    .replace(/<think<pre_think>/gi, "")
+    .replace(/<\/?(plan|step|pre_think|think|invoke|parameters|batch_invoke|visual_description|assumptions|risks|strategy)\b[^>]*>/gi, "")
+    .replace(/<(invoke|think|pre_think|batch_invoke|plan)\b[^>]*$/i, "") // unclosed trailing open tag while streaming
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
+  return { plan: planParts.join("\n\n").trim(), answer };
+}
+
 const extractJsonObject = (rawText: string): any | null => {
   if (!rawText) return null;
   const trimmed = rawText.trim();
@@ -703,17 +747,17 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           throw new Error(t("aiPanel.agentNeedsTeam"));
         }
 
-        // Compose the message: enabled tools as a soft hint, plus the file +
-        // user context as the actual instruction.
+        // Compose the message. The extracted file text is ALREADY inside
+        // finalContent ("Contenido del Archivo (name): ..."), so we tell the
+        // agent the content is inline and it must NOT try to read attachments
+        // (there is no chat attachment in the draft studio — it would fail).
         const toolsHint = enabledAgentTools.length > 0
-          ? `Herramientas habilitadas para esta tarea: ${enabledAgentTools.join(', ')}. Úsalas cuando aporten al objetivo.`
+          ? `Herramientas habilitadas: ${enabledAgentTools.join(', ')}.`
           : '';
-        const fileNames = selectedFiles.map((f) => f.name).join(', ');
         const message = [
           toolsHint,
-          fileNames ? `Archivos adjuntos: ${fileNames}` : '',
           finalContent,
-          'Investiga, planifica y produce una respuesta accionable. Si tiene sentido, crea/edita documentos (.kd), boards (.kb) o meshes (.km) usando las herramientas.',
+          'El contenido de los archivos adjuntos ya está incluido arriba — NO uses chat_read_attachment. Primero PLANIFICA (bloque <plan> con pasos), luego construye el proyecto escribiendo archivos Killio (.kd/.kb/.km/.ks) con write_file en tu carpeta de trabajo. Usa los formatos y bricks reales (no texto plano).',
         ].filter(Boolean).join('\n\n');
 
         setAgentSteps([{ phase: 'plan', content: t("aiPanel.deepThink.planning") }]);
@@ -726,7 +770,6 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         let streamedText = '';
         const toolEvents: Array<{ id: string; name: string; input?: any; output?: any; success?: boolean }> = [];
-        const draftId = `draft-agent-${Date.now()}`;
 
         await new Promise<void>((resolve) => {
           const cancel = streamAgentChat(
@@ -762,28 +805,39 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 });
               } else if (event.type === 'delta') {
                 streamedText += event.text;
+                // Parse plan/think out of the running text → Plan card; keep
+                // only the clean answer (no XML) in the synth card.
+                const { plan, answer } = splitAgentStream(streamedText);
                 setAgentSteps((prev) => {
                   const copy = [...prev];
+                  if (plan) {
+                    const planIdx = copy.findIndex((s) => s.phase === 'plan');
+                    if (planIdx >= 0) copy[planIdx] = { phase: 'plan', content: plan };
+                    else copy.unshift({ phase: 'plan', content: plan });
+                  }
                   const lastSynth = copy.findIndex((s) => s.phase === 'synth');
-                  if (lastSynth >= 0) copy[lastSynth] = { phase: 'synth', content: streamedText };
-                  else copy.push({ phase: 'synth', content: streamedText });
+                  if (answer) {
+                    if (lastSynth >= 0) copy[lastSynth] = { phase: 'synth', content: answer };
+                    else copy.push({ phase: 'synth', content: answer });
+                  }
                   return copy;
                 });
               } else if (event.type === 'done') {
-                const finalText = event.text || streamedText;
-                const toolNames = (event.toolsUsed || toolEvents.map((e) => e.name)).filter((t, i, arr) => arr.indexOf(t) === i);
-                const draft: GeneratedAgentDraft = {
-                  id: draftId,
-                  name: `Agente · ${new Date().toLocaleString()}`,
-                  description: toolNames.length ? t("aiPanel.usedTools", { tools: toolNames.join(', ') }) : t("aiPanel.noResultsDesc.agents"),
-                  reasoning: toolEvents.length
-                    ? toolEvents.map((e) => `• ${e.name}${e.success === false ? ' (fallo)' : ''}`).join('\n')
-                    : t("aiPanel.noStructuredReasoning"),
-                  response: finalText,
-                  selectedTools: toolNames.filter((n) => enabledAgentTools.includes(n as AgentToolId)) as AgentToolId[],
-                  isSelected: true,
-                };
-                setPreviewAgents([draft]);
+                const finalRaw = event.text || streamedText;
+                const { plan, answer } = splitAgentStream(finalRaw);
+                const finalText = answer || finalRaw;
+                setAgentSteps((prev) => {
+                  const copy = [...prev];
+                  if (plan) {
+                    const planIdx = copy.findIndex((s) => s.phase === 'plan');
+                    if (planIdx >= 0) copy[planIdx] = { phase: 'plan', content: plan };
+                    else copy.unshift({ phase: 'plan', content: plan });
+                  }
+                  const synthIdx = copy.findIndex((s) => s.phase === 'synth');
+                  if (synthIdx >= 0) copy[synthIdx] = { phase: 'synth', content: finalText };
+                  else copy.push({ phase: 'synth', content: finalText });
+                  return copy;
+                });
                 speak(finalText);
                 setGenerationProgress(100);
                 // Scan the scratch folder for everything the agent wrote
