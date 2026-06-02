@@ -321,7 +321,7 @@ const inferSourceKind = (file: File): ExtractSourceKind => {
 export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const t = useTranslations("common");
   const { accessToken, activeTeamId, user } = useSession();
-  const { mode: workspaceMode } = useLocalWorkspace();
+  const { mode: workspaceMode, writeFile: writeLocalFile } = useLocalWorkspace();
   const isLocalMode = workspaceMode === "local";
   // Agentic mode in local mode (or before user picks a team) falls back to the
   // user's personal scope so the agent has somewhere to plan against.
@@ -343,6 +343,10 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [draftFolderMeta, setDraftFolderMeta] = useState<Record<string, AgentVfsFolderMeta>>({});
   const [draftSelected, setDraftSelected] = useState<Set<string>>(new Set());
   const [draftSlug, setDraftSlug] = useState<string | null>(null);
+  // Team used as the VFS owner scope for the scratch folder. In local mode
+  // activeTeamId is null, so we remember the fallback team here so scan +
+  // delete keep working after the stream ends.
+  const teamForScanRef = useRef<string | null>(null);
   const [draftStatusByPath, setDraftStatusByPath] = useState<Record<string, "idle" | "importing" | "done" | "error">>({});
   const [draftErrorByPath, setDraftErrorByPath] = useState<Record<string, string>>({});
   const [draftImporting, setDraftImporting] = useState(false);
@@ -562,7 +566,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   // wipe the folder when every selected file has imported (success OR
   // error). The caller passes the subset of paths to import.
   const handleDraftImport = async (paths: string[]) => {
-    if (!activeTeamId || !accessToken || paths.length === 0) return;
+    if (!accessToken || paths.length === 0) return;
+    // Cloud needs a team; local writes straight to the FS handle.
+    if (!isLocalMode && !activeTeamId) return;
     setDraftImporting(true);
     try {
       for (const p of paths) {
@@ -573,7 +579,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         try {
           await importKillioFile(
             { kind: file.kind, name: file.name, content: file.content },
-            { accessToken, activeTeamId },
+            isLocalMode
+              ? { mode: 'local', writeLocal: writeLocalFile, folder: file.folder }
+              : { mode: 'cloud', accessToken, activeTeamId: activeTeamId as string },
           );
           setDraftStatusByPath((s) => ({ ...s, [p]: 'done' }));
         } catch (err: any) {
@@ -587,7 +595,10 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         return st === 'done' || st === 'error' || !paths.includes(f.path);
       });
       if (draftSlug && allHandled) {
-        try { await deleteAgentWorkspace({ slug: draftSlug, teamId: activeTeamId }, accessToken); } catch { /* noop */ }
+        const cleanupTeam = activeTeamId || teamForScanRef.current;
+        if (cleanupTeam) {
+          try { await deleteAgentWorkspace({ slug: draftSlug, teamId: cleanupTeam }, accessToken); } catch { /* noop */ }
+        }
       }
     } finally {
       setDraftImporting(false);
@@ -767,6 +778,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         // we scan + offer selective import once the stream ends.
         const sessionSlug = generateWorkspaceSlug();
         setDraftSlug(sessionSlug);
+        teamForScanRef.current = teamForAgent as string;
 
         let streamedText = '';
         const toolEvents: Array<{ id: string; name: string; input?: any; output?: any; success?: boolean }> = [];

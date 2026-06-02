@@ -8,13 +8,7 @@
 
 import React from "react";
 import { FileText, Layout, Network, Workflow, Folder, Loader2, Check, X, Download } from "lucide-react";
-import { decodeKillioFile } from "@/lib/killio-file";
-import { kdToDocDraft, kbToBoardDraft, ksToScriptDraft } from "@/lib/local-workspace/adapters";
-import { deserializeKmToMesh } from "@/lib/mesh-file";
-import { createDocument, createDocumentBrick } from "@/lib/api/documents";
-import { createBoard, createList, createCard, createCardBrick } from "@/lib/api/contracts";
-import { createScript, saveScriptGraph } from "@/lib/api/scripts";
-import { importMeshFromKaml } from "@/lib/api/agent";
+import { importKillioFile } from "@/lib/killio-import-actions";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -43,7 +37,7 @@ const ICON: Record<KillioKind, React.ReactNode> = {
 export function KillioImportChip({ path, kind, name, label, description, content }: Props) {
   const t = useTranslations("common");
   const { accessToken, activeTeamId } = useSession();
-  const { mode: workspaceMode } = useLocalWorkspace();
+  const { mode: workspaceMode, writeFile: writeLocalFile } = useLocalWorkspace();
   const isLocal = workspaceMode === "local";
 
   const KIND_LABEL: Record<KillioKind, string> = {
@@ -62,116 +56,30 @@ export function KillioImportChip({ path, kind, name, label, description, content
     setState("importing");
     setErrMsg(null);
     try {
-      // Decode the KAML payload the agent produced.
-      let decoded;
-      try {
-        decoded = decodeKillioFile(content);
-      } catch (e: any) {
-        throw new Error(t("killioImport.invalidFile", { msg: e?.message || String(e) }));
-      }
-
-      if (kind === "kf") {
-        // .kf is a folder marker. In a cloud team the dashboard already
-        // owns folder grouping, so we just acknowledge.
-        toast(t("killioImport.folderAck"), "info");
-        setState("done");
-        return;
-      }
-
-      // Cloud import path.
-      if (!isLocal && activeTeamId && accessToken) {
-        if (kind === "kd") {
-          const draft = kdToDocDraft(decoded.payload);
-          const doc = await createDocument({ teamId: activeTeamId, title: draft.title }, accessToken);
-          for (const b of draft.bricks) {
-            await createDocumentBrick(
-              doc.id,
-              { kind: b.kind as any, position: b.position, content: (b.content as any) ?? {} },
-              accessToken,
-            );
-          }
-        } else if (kind === "kb") {
-          const draft = kbToBoardDraft(decoded.payload);
-          const slug = (draft.name || "board").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || `board-${Date.now()}`;
-          const board = await createBoard(
-            { name: draft.name, slug, description: draft.description ?? undefined, boardType: draft.boardType as any },
-            activeTeamId,
-            accessToken,
-          );
-          for (let li = 0; li < draft.lists.length; li++) {
-            const list = draft.lists[li];
-            const apiList = await createList(board.id, { name: list.name, position: li }, accessToken);
-            for (let ci = 0; ci < list.cards.length; ci++) {
-              const card = list.cards[ci];
-              const apiCard = await createCard(
-                {
-                  listId: apiList.id,
-                  title: card.title,
-                  summary: card.summary,
-                  tags: (card.tags ?? []).map((tg: any) => tg.name).filter(Boolean),
-                },
-                accessToken,
-              );
-              for (let bi = 0; bi < (card.blocks?.length ?? 0); bi++) {
-                const blk = (card.blocks as any[])[bi];
-                if (blk?.kind && blk?.content) {
-                  await createCardBrick(
-                    apiCard.id,
-                    { kind: blk.kind, content: blk.content } as any,
-                    accessToken,
-                  );
-                }
-              }
-            }
-          }
-        } else if (kind === "ks") {
-          const { summary, graph } = ksToScriptDraft(decoded.payload);
-          const sc = await createScript(
-            {
-              teamId: activeTeamId,
-              name: summary.name,
-              description: summary.description ?? undefined,
-              triggerConfig: { triggerType: summary.triggerType, ...((summary.triggerConfig as any) || {}) },
-            },
-            accessToken,
-          );
-          await saveScriptGraph(sc.id, activeTeamId, { nodes: graph.nodes as any, edges: graph.edges as any }, accessToken);
-        } else if (kind === "km") {
-          // Bulk mesh import via /agent/import-mesh — server inserts the
-          // board record + the seeded mesh_board_states row in one shot.
-          const { state: meshState, meta } = deserializeKmToMesh(decoded.payload);
-          await importMeshFromKaml(
-            {
-              teamId: activeTeamId,
-              name: meta.title || label,
-              state: {
-                viewport: meshState.viewport,
-                rootOrder: meshState.rootOrder ?? [],
-                bricksById: meshState.bricksById ?? {},
-                connectionsById: meshState.connectionsById ?? {},
-              },
-            },
-            accessToken,
-          );
-        }
+      if (isLocal) {
+        // Local workspace: write the raw KAML straight into the FS handle —
+        // a local workspace IS a folder of .kd/.kb/.km/.ks/.kf files, so the
+        // agent's output is already the native format.
+        await importKillioFile(
+          { kind, name, label, content },
+          { mode: "local", writeLocal: writeLocalFile },
+        );
         toast(t("killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
         setState("done");
         return;
       }
-
-      // Local workspace path. We don't reach into the FS handle from this
-      // chip — instead we hand the encoded content to the
-      // local-workspace-provider via a window event the host listens to.
-      if (isLocal) {
-        window.dispatchEvent(new CustomEvent("killio:local-import", {
-          detail: { kind, name, content, path },
-        }));
-        toast(t("killioImport.queuedLocal", { kind: KIND_LABEL[kind] }), "info");
+      if (!activeTeamId || !accessToken) throw new Error(t("killioImport.noTarget"));
+      if (kind === "kf") {
+        toast(t("killioImport.folderAck"), "info");
         setState("done");
         return;
       }
-
-      throw new Error(t("killioImport.noTarget"));
+      await importKillioFile(
+        { kind, name, label, content },
+        { mode: "cloud", accessToken, activeTeamId },
+      );
+      toast(t("killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
+      setState("done");
     } catch (err: any) {
       setErrMsg(err?.message || t("killioImport.errGeneric"));
       setState("error");

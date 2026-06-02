@@ -29,14 +29,34 @@ export interface KillioImportResult {
 }
 
 /**
- * Decode + create a single Killio entity in the user's active team.
- * Throws on any decode / API error so the caller can surface it.
+ * Where an imported file lands:
+ *  - cloud: decode KAML → create the matching entity in the active team.
+ *  - local: write the raw KAML file straight into the FileSystemDirectoryHandle
+ *           (a local workspace IS a folder of .kd/.kb/.km/.ks files, so the
+ *           agent's output is already the native format — no conversion).
+ */
+export type KillioImportTarget =
+  | { mode: "cloud"; accessToken: string; activeTeamId: string }
+  | { mode: "local"; writeLocal: (path: string, content: string) => Promise<void>; folder?: string | null };
+
+/**
+ * Import a single Killio file. In local mode the raw KAML is written to the
+ * workspace folder (optionally inside `folder`). In cloud mode the payload is
+ * decoded and the matching entity is created via the API. Throws on error.
  */
 export async function importKillioFile(
   input: KillioImportInput,
-  ctx: { accessToken: string; activeTeamId: string },
+  target: KillioImportTarget,
 ): Promise<KillioImportResult> {
-  const { accessToken, activeTeamId } = ctx;
+  // ── Local workspace: just write the file (it's already KAML) ──────────────
+  if (target.mode === "local") {
+    const rel = target.folder ? `${target.folder.replace(/\/+$/, "")}/${input.name}` : input.name;
+    await target.writeLocal(rel, input.content);
+    return { kind: input.kind, name: input.name, url: rel };
+  }
+
+  // ── Cloud: decode + create entity ─────────────────────────────────────────
+  const { accessToken, activeTeamId } = target;
   const decoded = decodeKillioFile(input.content);
 
   if (input.kind === "kf") {
