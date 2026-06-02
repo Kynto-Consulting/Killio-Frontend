@@ -163,7 +163,6 @@ export function parseInline(raw: string): unknown {
 
 export function parseKaml(text: string): unknown {
   const result: Record<string, unknown> = {};
-  let currentSection: string | null = null;
   let currentObj: Record<string, unknown> | null = null;
 
   for (const raw of text.split(/\r?\n/)) {
@@ -171,10 +170,31 @@ export function parseKaml(text: string): unknown {
     if (line === "" || line.startsWith("#")) continue;
     const sectionMatch = line.match(/^\[\[\s*([^\]]+?)\s*\]\]$/);
     if (sectionMatch) {
-      currentSection = sectionMatch[1];
+      const path = sectionMatch[1];
       currentObj = {};
-      if (!Array.isArray(result[currentSection])) result[currentSection] = [];
-      (result[currentSection] as Record<string, unknown>[]).push(currentObj);
+      if (path.includes(".")) {
+        // Nested section: [[parent.child]] attaches a new element to the
+        // `child` array of the LAST element of `parent`. Walk dotted segments,
+        // each resolving to "last element of the array at that key". Tolerant
+        // of models that emit [[lists.cards]] instead of inline cards arrays.
+        const segs = path.split(".").map((s) => s.trim()).filter(Boolean);
+        const childKey = segs.pop() as string;
+        let container: Record<string, unknown> = result;
+        let ok = true;
+        for (const seg of segs) {
+          const arr = container[seg];
+          if (!Array.isArray(arr) || arr.length === 0) { ok = false; break; }
+          container = arr[arr.length - 1] as Record<string, unknown>;
+        }
+        if (ok) {
+          if (!Array.isArray(container[childKey])) container[childKey] = [];
+          (container[childKey] as Record<string, unknown>[]).push(currentObj);
+          continue;
+        }
+        // Fallback: treat the dotted path as a flat key if parent missing.
+      }
+      if (!Array.isArray(result[path])) result[path] = [];
+      (result[path] as Record<string, unknown>[]).push(currentObj);
       continue;
     }
     const eq = findTopEquals(line);

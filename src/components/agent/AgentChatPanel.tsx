@@ -1161,10 +1161,22 @@ export function AssistantMessage({
 
           if (block.tag === "plan") {
             const steps: { id: string; status: string; content: string }[] = [];
-            const stepRegex = /<step\s+id=["']?([^"'>\s]+)["']?\s+status=["']?([^"'>\s]+)["']?>([\s\S]*?)<\/step>/gi;
+            // status is OPTIONAL — most models emit just <step id=1>...</step>.
+            // Also tolerate <step> with no id (auto-number) and bare list items.
+            const stepRegex = /<step\b([^>]*)>([\s\S]*?)<\/step>/gi;
             let match;
+            let autoId = 0;
             while ((match = stepRegex.exec(block.content)) !== null) {
-              steps.push({ id: match[1], status: match[2], content: match[3].trim() });
+              autoId += 1;
+              const attrs = match[1] || "";
+              const idM = attrs.match(/id\s*=\s*["']?([^"'>\s]+)/i);
+              const stM = attrs.match(/status\s*=\s*["']?([^"'>\s]+)/i);
+              steps.push({ id: idM ? idM[1] : String(autoId), status: stM ? stM[1] : "pending", content: match[2].trim() });
+            }
+            // Fallback: a <plan> with plain newline/numbered steps, no <step> tags.
+            if (steps.length === 0) {
+              const lines = block.content.replace(/<\/?[a-z][^>]*>/gi, "").split(/\n+/).map(s => s.replace(/^\s*\d+[.)]\s*/, "").trim()).filter(Boolean);
+              lines.forEach((line, i) => steps.push({ id: String(i + 1), status: "pending", content: line }));
             }
 
             // Collect step IDs marked done via complete_step tool calls
