@@ -6,7 +6,7 @@ import { Layout, Plus, Search, Trash2, Clock, ChevronRight } from "lucide-react"
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, deleteBoard, uploadFile, createBoard } from "@/lib/api/contracts";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
-import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -168,12 +168,14 @@ export default function BoardsPageMobile() {
         onSubmit={handleCreateSubmit}
         onUploadBackground={handleUploadCover}
       />
-      <ConfirmDeleteModal
+      <ConfirmDialog
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDelete}
         title={t("deleteTitle")}
         description={t("deleteDescription", { name: boardToDelete?.name || "" })}
+        confirmText={boardToDelete?.name || undefined}
+        variant="danger"
       />
     </div>
   );

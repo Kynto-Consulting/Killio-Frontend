@@ -902,6 +902,7 @@ export default function BoardPage() {
       description: t("confirmDelete.description"),
       confirmLabel: t("header.deleteBoard"),
       variant: "destructive",
+      requireTyping: boardName || undefined,
     });
     if (ok) deleteBoardAction.run(undefined);
   };

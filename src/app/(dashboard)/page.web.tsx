@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
-import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
@@ -300,12 +300,14 @@ export default function WorkspacesPage() {
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
-      <ConfirmDeleteModal
+      <ConfirmDialog
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDeleteBoard}
         title={t("deleteBoardTitle")}
         description={t("deleteBoardDescription", { name: boardToDelete?.name || "" })}
+        confirmText={boardToDelete?.name || undefined}
+        variant="danger"
       />
       <CreateBoardModal
         isOpen={isCreateBoardModalOpen}

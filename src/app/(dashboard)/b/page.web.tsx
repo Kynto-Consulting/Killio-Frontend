@@ -10,7 +10,7 @@ import { encodeKillioFile } from "@/lib/killio-file";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
-import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 export default function BoardsPage() {
@@ -214,12 +214,14 @@ export default function BoardsPage() {
 
   return (
     <div className="container mx-auto p-6 lg:p-10 max-w-6xl">
-      <ConfirmDeleteModal
+      <ConfirmDialog
         isOpen={!!boardToDelete}
         onClose={() => setBoardToDelete(null)}
         onConfirm={handleDeleteBoard}
         title={t("deleteTitle")}
         description={t("deleteDescription", { name: boardToDelete?.name || "" })}
+        confirmText={boardToDelete?.name || undefined}
+        variant="danger"
       />
       <CreateBoardModal 
         isOpen={isCreateBoardModalOpen}
