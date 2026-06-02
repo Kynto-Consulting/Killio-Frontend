@@ -1268,12 +1268,12 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
   return (
     <>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm p-4 sm:p-6 overflow-y-auto">
-        <div className="relative w-full max-w-6xl rounded-2xl border border-border bg-card shadow-2xl flex flex-col md:flex-row overflow-hidden animate-in fade-in zoom-in-95 duration-200 min-h-[600px] max-h-[90vh]">
+      <div className="fixed inset-0 z-[100] flex items-stretch sm:items-center justify-center bg-background/80 backdrop-blur-sm p-0 sm:p-4 md:p-6 overflow-y-auto">
+        <div className="relative w-full max-w-6xl sm:rounded-2xl border border-border bg-card shadow-2xl flex flex-col md:flex-row sm:overflow-hidden animate-in fade-in zoom-in-95 duration-200 min-h-[100svh] sm:min-h-[600px] sm:max-h-[92vh]">
 
           {/* Left Panel: Upload & Input */}
-          <div className="flex-1 lg:max-w-md border-r border-border p-6 flex flex-col bg-card/50">
-            <div className="flex items-center justify-between mb-8">
+          <div className="flex-1 lg:max-w-md border-r border-border p-4 sm:p-6 flex flex-col bg-card/50 min-h-0 md:overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-2xl font-bold flex items-center tracking-tight">
                 <Bot className="mr-2 h-7 w-7 text-accent" />
                 AI Draft Studio
@@ -1283,7 +1283,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
               </button>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-2 mb-3">
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {t("aiPanel.uploadDesc")}
               </p>
@@ -1352,7 +1352,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                   boards={boards}
                   users={teamMembers}
                   className="flex-1"
-                  inputClassName="h-full w-full min-h-[160px] rounded-xl bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-shadow align-top"
+                  inputClassName="h-full w-full min-h-[96px] sm:min-h-[120px] rounded-xl bg-background px-4 py-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-accent transition-shadow align-top"
                 />
 
               </div>
@@ -1570,14 +1570,14 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           </div>
 
           {/* Right Panel: Preview Area */}
-          <div className="flex-1 bg-background flex flex-col relative w-full overflow-hidden">
+          <div className="flex-1 bg-background flex flex-col relative w-full min-h-0 overflow-hidden">
             <div className="hidden md:flex absolute top-4 right-4 z-10">
               <button onClick={onClose} className="rounded-full p-2 hover:bg-accent/10 text-muted-foreground transition-colors bg-background/50 backdrop-blur-sm border border-border/50 shadow-sm">
                 <X className="h-5 w-5" />
               </button>
             </div>
 
-            <div className="p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar">
+            <div className="p-4 sm:p-6 md:p-8 flex-1 flex flex-col overflow-y-auto hide-scrollbar min-h-0">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-lg text-foreground">
                   {generationType === 'cards'
