@@ -1675,6 +1675,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       bottom: rect.bottom,
     });
     setIsFormatToolbarOpen(true);
+    // Singleton: tell every other brick to close its toolbar so only ONE shows.
+    try { window.dispatchEvent(new CustomEvent("killio:editor-toolbar-open", { detail: id })); } catch { /* noop */ }
   };
 
   // Document-level selection tracking — robust against mouse-ups released
@@ -1689,11 +1691,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const runCheck = () => {
       if (raf) cancelAnimationFrame(raf);
       raf = requestAnimationFrame(() => {
-        const sel = window.getSelection();
-        const root = contentRef.current;
-        if (!sel || !root) return;
-        const touches = (sel.anchorNode && root.contains(sel.anchorNode)) || (sel.focusNode && root.contains(sel.focusNode));
-        if (touches) checkSelRef.current();
+        if (!contentRef.current) return;
+        // ALWAYS evaluate: checkSelectionForToolbar opens the toolbar only when
+        // the WHOLE selection is inside THIS brick (commonAncestorContainer) and
+        // closes it otherwise. Gating on "selection touches this brick" left
+        // stale toolbars open in every brick the selection passed through →
+        // multiple toolbars stacked on screen.
+        checkSelRef.current();
       });
     };
     // While dragging, wait for release (Notion-style: toolbar after mouseup).
@@ -1702,13 +1706,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     const onSelChange = () => { if (!pointerDownRef.current) runCheck(); };
     const onPointerDown = () => { pointerDownRef.current = true; };
     const onPointerUp = () => { pointerDownRef.current = false; runCheck(); };
+    // Another brick opened its toolbar → close ours (singleton guarantee).
+    const onOtherToolbar = (e: Event) => { if ((e as CustomEvent).detail !== id) setIsFormatToolbarOpen(false); };
     document.addEventListener("selectionchange", onSelChange);
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("mouseup", onPointerUp);
+    window.addEventListener("killio:editor-toolbar-open", onOtherToolbar);
     return () => {
       document.removeEventListener("selectionchange", onSelChange);
       document.removeEventListener("mousedown", onPointerDown);
       document.removeEventListener("mouseup", onPointerUp);
+      window.removeEventListener("killio:editor-toolbar-open", onOtherToolbar);
       if (raf) cancelAnimationFrame(raf);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
