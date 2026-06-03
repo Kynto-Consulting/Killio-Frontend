@@ -3157,15 +3157,16 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
     const rawText = cell.text || "";
     const displayText = colType === "phone_number" ? formatPhoneDisplay(rawText) : rawText;
     const hasContent = !!(displayText && displayText.trim());
-    // Check if text contains LaTeX ($..$ or $$..$$)
-    const hasFormula = colType !== "phone_number" && hasContent && (rawText.includes("$") || rawText.includes("\\"));
+    // phone numbers stay plain; everything else renders through RichText so
+    // markdown/styles (#, **, [color:], [lu:], …) display instead of raw tokens.
+    const plain = colType === "phone_number";
     return (
       <div className={cn("w-full min-h-[24px] flex items-center cursor-text", column.wrap && "py-1")} onClick={() => startTextEdit(rawText)}>
         {hasContent ? (
-          hasFormula ? (
-            <RichText content={rawText} context={{ documents: [], boards: [], activeBricks: [], users: [] }} className="text-sm" />
-          ) : (
+          plain ? (
             <span className={cn("text-sm max-w-[280px]", column.wrap ? "whitespace-normal break-words" : "truncate")}>{displayText}</span>
+          ) : (
+            <RichText content={rawText} context={{ documents: [], boards: [], activeBricks: [], users: [] }} className={cn("text-sm", column.wrap ? "whitespace-normal break-words" : "truncate max-w-[280px]")} />
           )
         ) : (
           <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>

@@ -8,6 +8,7 @@ import { parseMermaidToChartSpec } from "@/lib/mermaid-to-chart";
 import { ChartBrickRender } from "@/components/ui/chart-brick";
 import { RefPill } from "./ref-pill";
 import { TagBadge } from "./tag-badge";
+import { resolveLucide } from "@/lib/lucide-icon-registry";
 
 // Dynamic to avoid a static rich-text ↔ brick-renderer import cycle (the canvas
 // renders bricks, which can include text bricks rendered via RichText).
@@ -271,10 +272,12 @@ export function RichText({
   return (
     <div className={className}>
       {lines.map((line, lineIdx) => {
-        const parts = ReferenceResolver.renderRich(line, context);
-        return (
-          <Fragment key={lineIdx}>
-            {parts.map((part, partIdx) => {
+        // Heading lines (#…######) render as h1–h6; the rest of the line is
+        // processed normally so inline styles/refs still work inside a heading.
+        const hm = line.match(/^(#{1,6})\s+(.*)$/);
+        const level = hm ? hm[1].length : 0;
+        const parts = ReferenceResolver.renderRich(hm ? hm[2] : line, context);
+        const lineNodes = parts.map((part, partIdx) => {
               if (typeof part === "string") {
                 return <Fragment key={partIdx}>{renderInlineMarkdown(part, availableTags)}</Fragment>;
               }
@@ -322,7 +325,14 @@ export function RichText({
               }
 
               return null;
-            })}
+        });
+        if (level > 0) {
+          const hcls = ["text-2xl font-bold", "text-xl font-bold", "text-lg font-semibold", "text-base font-semibold", "text-sm font-semibold", "text-xs font-semibold"][level - 1];
+          return React.createElement(`h${level}`, { key: lineIdx, className: `${hcls} my-1 leading-snug` }, lineNodes);
+        }
+        return (
+          <Fragment key={lineIdx}>
+            {lineNodes}
             {lineIdx < lines.length - 1 && <br />}
           </Fragment>
         );
@@ -333,7 +343,7 @@ export function RichText({
 
 function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
   const renderLeafMarkdown = (value: string, keyPrefix: string): ReactNode[] => {
-    const segments = value.split(/(`[^`]+`|\$[^$]+\$)/g);
+    const segments = value.split(/(`[^`]+`|\$[^$]+\$|\[lu:[\w-]+(?::[\d.]+)?\])/g);
 
     const renderDecorations = (input: string, decorationPrefix: string): ReactNode[] => {
       // Order matters: ** / __ before single * / _ so bold/underline win.
@@ -377,6 +387,15 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
 
     return segments
       .map((seg, index) => {
+        // [lu:NAME:SW] → inline lucide icon (matches the text-brick renderer).
+        if (seg.startsWith("[lu:") && seg.endsWith("]")) {
+          const m = seg.match(/^\[lu:([\w-]+)(?::([\d.]+))?\]$/);
+          if (m) {
+            const Icon = resolveLucide(m[1]);
+            if (Icon) return <Icon key={`${keyPrefix}-lu-${index}`} className="inline-block h-[1em] w-[1em] align-[-0.15em]" strokeWidth={m[2] ? Number(m[2]) : 2} />;
+          }
+          return <Fragment key={`${keyPrefix}-lu-raw-${index}`}>{seg}</Fragment>;
+        }
         if (seg.startsWith("`") && seg.endsWith("`") && seg.length > 2) {
           return (
             <code key={`${keyPrefix}-code-${index}`} className="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">
