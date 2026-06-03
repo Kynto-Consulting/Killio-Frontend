@@ -1574,6 +1574,27 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     requestAnimationFrame(() => root.focus());
   };
 
+  // Open the Lucide icon picker at the caret. Shared by the keyboard shortcut
+  // and the toolbar button (the shortcut alone is unreliable: Cmd+. is reserved
+  // on macOS, so Mac users need the button / an alt binding).
+  const openIconPicker = () => {
+    setIsFormatToolbarOpen(false);
+    closeSlashMenu();
+    setIsPickerOpen(false);
+    setIsDatePickerOpen(false); setIsEmojiPickerOpen(false); setIsMathPickerOpen(false);
+    const sel = window.getSelection();
+    if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+    const md = revertToMarkdown(contentRef.current?.innerHTML || "");
+    const offset = getMarkdownCursorOffset(contentRef.current) ?? md.length;
+    setPickerCursorOffset(offset);
+    try {
+      const r = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
+      if (r && (r.top || r.left)) setFormatToolbarPosition({ top: r.top, left: r.left + r.width / 2, bottom: r.bottom });
+    } catch { /* noop */ }
+    setIconPickerQuery("");
+    setIsIconPickerOpen(true);
+  };
+
   const checkSelectionForToolbar = () => {
     if (readonly) return;
     // Only one floating UI at a time — any other picker wins.
@@ -1777,29 +1798,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (!closedAny) contentRef.current?.blur();
       return;
     }
-    // Ctrl/Cmd + . → open icon picker. Priority over the format toolbar: closes
-    // any other floating UI first so only one stays open at a time.
-    if ((e.ctrlKey || e.metaKey) && e.key === ".") {
+    // Open icon picker. Ctrl+. (Win/Linux). On macOS Cmd+. is reserved by the OS
+    // (cancel) and never reaches us, so also accept Cmd+; / Ctrl+; as an alias,
+    // plus the toolbar's icon button.
+    if ((e.ctrlKey || e.metaKey) && (e.key === "." || e.key === ";")) {
       e.preventDefault();
-      setIsFormatToolbarOpen(false);
-      closeSlashMenu();
-      setIsPickerOpen(false);
-      setIsDatePickerOpen(false); setIsEmojiPickerOpen(false); setIsMathPickerOpen(false);
-      const sel = window.getSelection();
-      if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
-      // Capture cursor as a markdown offset — a Range gets invalidated when the
-      // brick's DOM re-renders, but an offset can always be re-resolved.
-      const md = revertToMarkdown(contentRef.current?.innerHTML || "");
-      const offset = getMarkdownCursorOffset(contentRef.current) ?? md.length;
-      setPickerCursorOffset(offset);
-      // Anchor on the caret rect using the same coords the format toolbar
-      // consumes — the picker then runs the same above/below + clamp logic.
-      try {
-        const r = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null;
-        if (r && (r.top || r.left)) setFormatToolbarPosition({ top: r.top, left: r.left + r.width / 2, bottom: r.bottom });
-      } catch { /* noop */ }
-      setIconPickerQuery("");
-      setIsIconPickerOpen(true);
+      openIconPicker();
       return;
     }
 
@@ -2318,6 +2322,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             }
             if (action === "clear") {
               clearFormattingInSelection();
+            } else if (action === "icon") {
+              openIconPicker();
             } else if (action.startsWith("block:")) {
               applyBlockType(action.slice(6));
             } else if (action === "emoji") {

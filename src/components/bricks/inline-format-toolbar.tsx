@@ -6,7 +6,7 @@ import {
   Underline, MessageSquare, SmilePlus, Calendar,
   PenSquare, Settings2, Sparkles, Sigma,
   ChevronDown, Type, Highlighter, Eraser,
-  Pilcrow, Quote, SquareCode
+  Pilcrow, Quote, SquareCode, Shapes
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -327,12 +327,19 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         >
           <MessageSquare className="w-3.5 h-3.5" /> Comentar
         </button>
-        <button 
+        <button
           onClick={() => onAction?.("emoji")}
-          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors" 
+          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
           title="Añadir emoji"
         >
           <SmilePlus className="w-3.5 h-3.5" />
+        </button>
+        <button
+          onClick={() => onAction?.("icon")}
+          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
+          title="Insertar icono (Lucide)"
+        >
+          <Shapes className="w-3.5 h-3.5" />
         </button>
         <button 
           onClick={() => onAction?.("date")}
