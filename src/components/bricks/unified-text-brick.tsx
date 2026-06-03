@@ -548,84 +548,84 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/\n$/, "");
   };
 
-  const getMarkdownLengthOfNode = (node: Node): number => {
-    if (node.nodeType === Node.TEXT_NODE) {
-      return (node.textContent || "").replace(/\u200b/g, "").length;
-    }
-
-    if (node.nodeType !== Node.ELEMENT_NODE) {
-      return 0;
-    }
-
-    const el = node as HTMLElement;
-    const token = el.getAttribute("data-token");
-    if (token) return token.length;
-    if (el.tagName === "BR") return 1;
-
-    let length = 0;
-    for (const child of Array.from(el.childNodes)) {
-      length += getMarkdownLengthOfNode(child);
-    }
-    return length;
+  // Markdown offset of the caret, faithfully mirroring revertToMarkdown's per-node
+  // output (heading prefixes, block newlines, **/*/__ wrappers, [color:]\u2026, lucide,
+  // pills) but STOPPING at (anchorNode, anchorOffset). The old version only summed
+  // visible text length, which is correct in classic source view but WRONG in
+  // Experimental mode where the editable holds rendered HTML \u2014 so @/icon inserts
+  // landed at the wrong place. This makes the offset correct in both modes.
+  const markdownLengthUpToCaret = (root: HTMLElement, anchorNode: Node, anchorOffset: number): number => {
+    let md = "";
+    let found = false;
+    const block = new Set(["div", "p", "h1", "h2", "h3", "h4", "h5", "h6", "li"]);
+    const headingHash: Record<string, string> = { h1: "# ", h2: "## ", h3: "### ", h4: "#### ", h5: "##### ", h6: "###### " };
+    const walkChildren = (el: Node) => {
+      for (const c of Array.from(el.childNodes)) { walk(c); if (found) return; }
+    };
+    const wrap = (open: string, close: string, el: Node) => { md += open; walkChildren(el); if (found) return; md += close; };
+    const walk = (node: Node) => {
+      if (found) return;
+      if (node === anchorNode) {
+        if (node.nodeType === Node.TEXT_NODE) {
+          md += (node.textContent || "").replace(/\u200b/g, "").slice(0, anchorOffset);
+        } else {
+          const kids = Array.from(node.childNodes);
+          for (let i = 0; i < Math.min(anchorOffset, kids.length); i++) { walk(kids[i]); if (found) return; }
+        }
+        found = true;
+        return;
+      }
+      if (node.nodeType === Node.TEXT_NODE) { md += (node.textContent || "").replace(/\u200b/g, ""); return; }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      const el = node as HTMLElement;
+      const tag = el.tagName.toLowerCase();
+      if (el.getAttribute("data-token")) { md += el.getAttribute("data-token") || ""; return; }
+      if (el.hasAttribute("data-lu-icon")) { md += `[lu:${el.getAttribute("data-lu-icon") || ""}:${el.getAttribute("data-lu-sw") || "2"}]`; return; }
+      if (tag === "br") { md += "\n"; return; }
+      if (el.hasAttribute("data-md-table") || el.hasAttribute("data-md-quote")) {
+        if (md.length > 0 && !md.endsWith("\n")) md += "\n";
+        md += el.getAttribute("data-md-table") || el.getAttribute("data-md-quote") || "";
+        if (!md.endsWith("\n")) md += "\n";
+        return;
+      }
+      if (block.has(tag)) {
+        if (md.length > 0 && !md.endsWith("\n")) md += "\n";
+        if (headingHash[tag]) md += headingHash[tag];
+        if (tag === "li") md += (el.parentElement?.tagName.toLowerCase() === "ol" ? "1. " : "- ");
+        walkChildren(el); if (found) return;
+        if (!md.endsWith("\n")) md += "\n";
+        return;
+      }
+      if (tag === "b" || tag === "strong") return wrap("**", "**", el);
+      if (tag === "i" || tag === "em") return wrap("*", "*", el);
+      if (tag === "u") return wrap("__", "__", el);
+      if (tag === "s" || tag === "strike") return wrap("~~", "~~", el);
+      if (el.hasAttribute("data-math")) { const m = el.getAttribute("data-math") || ""; md += el.hasAttribute("data-math-block") ? `$$\n${m}\n$$` : `$${m}$`; return; }
+      if (tag === "pre") { const lang = el.getAttribute("data-code-block") || ""; const code = el.querySelector("code")?.textContent ?? el.textContent ?? ""; if (md.length > 0 && !md.endsWith("\n")) md += "\n"; md += "```" + lang + "\n" + code + "\n```"; return; }
+      if (tag === "code") { md += "`" + (el.textContent || "") + "`"; return; }
+      if (el.classList.contains("mention-pill")) { md += `@[${el.getAttribute("data-type")}:${el.getAttribute("data-id")}:${el.textContent || ""}]`; return; }
+      if (el.classList.contains("user-mention")) { md += `@[user:${el.getAttribute("data-id")}:${(el.textContent || "").replace("@", "")}]`; return; }
+      if (tag === "span" && el.hasAttribute("data-bg")) return wrap(`[bg:${el.getAttribute("data-bg") || "transparent"}]`, "[/bg]", el);
+      if (tag === "span" && el.hasAttribute("data-color")) return wrap(`[color:${el.getAttribute("data-color") || "default"}]`, "[/color]", el);
+      if (tag === "span" && el.hasAttribute("data-size")) return wrap(`[size:${el.getAttribute("data-size") || "1rem"}]`, "[/size]", el);
+      if (tag === "a" && (el.getAttribute("data-link") || el.getAttribute("href"))) return wrap(`[link:${el.getAttribute("data-link") || el.getAttribute("href") || ""}]`, "[/link]", el);
+      if (el.classList.contains("deep-pill")) { md += `${el.getAttribute("data-prefix") || "#"}[${el.getAttribute("data-inner") || ""}]`; return; }
+      walkChildren(el);
+    };
+    Array.from(root.childNodes).forEach((c) => walk(c));
+    return md.length;
   };
 
   const getMarkdownCursorOffset = (root: HTMLElement | null): number | null => {
     if (!root || typeof window === "undefined") return null;
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return null;
-
     const range = selection.getRangeAt(0);
-    const anchorNode = range.startContainer;
-    const anchorOffset = range.startOffset;
-
-    let total = 0;
-    let found = false;
-
-    const walk = (node: Node) => {
-      if (found) return;
-
-      if (node === anchorNode) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          total += anchorOffset;
-        } else {
-          const children = Array.from(node.childNodes);
-          for (let i = 0; i < Math.min(anchorOffset, children.length); i += 1) {
-            total += getMarkdownLengthOfNode(children[i]);
-          }
-        }
-        found = true;
-        return;
-      }
-
-      if (node.nodeType === Node.TEXT_NODE) {
-        total += (node.textContent || "").replace(/\u200b/g, "").length;
-        return;
-      }
-
-      if (node.nodeType !== Node.ELEMENT_NODE) {
-        return;
-      }
-
-      const el = node as HTMLElement;
-      const token = el.getAttribute("data-token");
-      if (token) {
-        total += token.length;
-        return;
-      }
-
-      if (el.tagName === "BR") {
-        total += 1;
-        return;
-      }
-
-      for (const child of Array.from(el.childNodes)) {
-        walk(child);
-        if (found) return;
-      }
-    };
-
-    walk(root);
-    return total;
+    if (!root.contains(range.startContainer)) return null;
+    // Mirror revertToMarkdown so the offset is right even in Experimental mode
+    // (rendered HTML), where heading/bold/colour markup makes the visible text
+    // length differ from the markdown.
+    return markdownLengthUpToCaret(root, range.startContainer, range.startOffset);
   };
 
   const getMarkdownOffsetAtPosition = (
@@ -633,56 +633,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     anchorNode: Node,
     anchorOffset: number,
   ): number | null => {
-    if (!root) return null;
-
-    let total = 0;
-    let found = false;
-
-    const walk = (node: Node) => {
-      if (found) return;
-
-      if (node === anchorNode) {
-        if (node.nodeType === Node.TEXT_NODE) {
-          total += anchorOffset;
-        } else {
-          const children = Array.from(node.childNodes);
-          for (let i = 0; i < Math.min(anchorOffset, children.length); i += 1) {
-            total += getMarkdownLengthOfNode(children[i]);
-          }
-        }
-        found = true;
-        return;
-      }
-
-      if (node.nodeType === Node.TEXT_NODE) {
-        total += (node.textContent || "").replace(/\u200b/g, "").length;
-        return;
-      }
-
-      if (node.nodeType !== Node.ELEMENT_NODE) {
-        return;
-      }
-
-      const el = node as HTMLElement;
-      const token = el.getAttribute("data-token");
-      if (token) {
-        total += token.length;
-        return;
-      }
-
-      if (el.tagName === "BR") {
-        total += 1;
-        return;
-      }
-
-      for (const child of Array.from(el.childNodes)) {
-        walk(child);
-        if (found) return;
-      }
-    };
-
-    walk(root);
-    return found ? total : null;
+    if (!root || !root.contains(anchorNode)) return null;
+    return markdownLengthUpToCaret(root, anchorNode, anchorOffset);
   };
 
   const getSelectedMarkdownRange = (): DragSelectionPayload | null => {
@@ -2445,12 +2397,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               setQuery={setIconPickerQuery}
               onClose={() => { setIsIconPickerOpen(false); contentRef.current?.focus(); }}
               onPick={(name) => {
-                const token = `[lu:${name}:2] `;
-                const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");
-                const cursor = pickerCursorOffset ?? markdown.length;
-                const safe = Math.max(0, Math.min(cursor, markdown.length));
-                const newMarkdown = `${markdown.slice(0, safe)}${token}${markdown.slice(safe)}`;
-                commitInlineEdit(newMarkdown, { forceRepaint: true });
+                if (contentRef.current) {
+                  // Insert the token AT THE CARET (DOM range), not via a markdown
+                  // offset — in Experimental mode the editable shows rendered HTML
+                  // whose length differs from the markdown, so offsets land wrong.
+                  contentRef.current.focus();
+                  const sel = window.getSelection();
+                  if (savedRangeRef.current && sel) {
+                    sel.removeAllRanges();
+                    sel.addRange(savedRangeRef.current);
+                  }
+                  document.execCommand("insertText", false, `[lu:${name}:2] `);
+                  const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
+                  commitInlineEdit(newMarkdown, { forceRepaint: true });
+                }
                 setIsIconPickerOpen(false);
                 setPickerCursorOffset(null);
                 savedRangeRef.current = null;
