@@ -1666,7 +1666,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const el = canvasRef.current;
     if (!el) return;
     const prevent = (e: WheelEvent) => {
-      if (e.ctrlKey) e.preventDefault();
+      if (e.ctrlKey || e.metaKey) e.preventDefault(); // Cmd on macOS/iPad
     };
     el.addEventListener("wheel", prevent, { passive: false });
     return () => el.removeEventListener("wheel", prevent);
@@ -1946,7 +1946,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
   const fromEv = useCallback((e: { clientX: number; clientY: number }) => toCanvas(e.clientX, e.clientY), [toCanvas]);
 
   const onCanvasWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.ctrlKey) return;
+    if (!e.ctrlKey && !e.metaKey) return; // Cmd on macOS/iPad
     e.preventDefault();
     const el = canvasRef.current;
     if (!el) return;
@@ -5310,7 +5310,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
               <button
                 type="button"
-                title="Alejar (Ctrl+scroll)"
+                title="Alejar (Ctrl/⌘+scroll)"
                 onClick={() => {
                   const el = canvasRef.current;
                   const cx = el ? el.clientWidth / 2 : 0;
@@ -5348,7 +5348,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
               <button
                 type="button"
-                title="Acercar (Ctrl+scroll)"
+                title="Acercar (Ctrl/⌘+scroll)"
                 onClick={() => {
                   const el = canvasRef.current;
                   const cx = el ? el.clientWidth / 2 : 0;
