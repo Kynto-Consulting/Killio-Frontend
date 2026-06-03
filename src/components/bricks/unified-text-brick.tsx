@@ -38,6 +38,9 @@ interface TextBrickProps {
   /** Opens the brick-comment composer for this brick (wired by brick-renderer).
    *  When absent the Comment action in the format toolbar is hidden. */
   onComment?: () => void;
+  /** Style features to disable (hidden in the toolbar + not rendered). e.g. a
+   *  database cell passes ["heading","size"] — no #/## and no [size:…]. */
+  disabledStyles?: string[];
 }
 
 // Render a fenced diagram/preview block found in display HTML. `html` / `html[preview]`
@@ -183,7 +186,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   onPasteImage,
   onAiAction,
   onComment,
+  disabledStyles = [],
 }) => {
+  const noHeadingStyle = disabledStyles.includes("heading");
+  const noSizeStyle = disabledStyles.includes("size");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerFilter, setPickerFilter] = useState<any[] | undefined>(undefined);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
@@ -900,7 +906,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
           const size  = t.slice(nextStart + 6, openEnd).trim();
           const inner = t.slice(openEnd + 1, closeIndex);
-          result += `<span data-size="${escapeHtmlAttr(size)}" style="font-size: ${escapeHtmlAttr(size)}">${formatInline(inner)}</span>`;
+          // size disabled (e.g. database cells) → render inner at normal size.
+          result += noSizeStyle ? formatInline(inner) : `<span data-size="${escapeHtmlAttr(size)}" style="font-size: ${escapeHtmlAttr(size)}">${formatInline(inner)}</span>`;
           cursor = closeIndex + closeTag.length;
           continue;
         }
@@ -1077,7 +1084,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       const ul = trimmed.match(/^[-*]\s+(.*)/);
       const ol = trimmed.match(/^(\d+)\.\s+(.*)/);
 
-      if (h6) { flushList(); html += `<h6 class="text-sm font-semibold mb-1 mt-3 uppercase tracking-wide text-muted-foreground">${formatInline(h6[1])}</h6>`; }
+      const anyHeading = h1 || h2 || h3 || h4 || h5 || h6;
+      if (noHeadingStyle && anyHeading) { flushList(); html += `<div class="mb-1 leading-relaxed">${formatInline(anyHeading[1])}</div>`; }
+      else if (h6) { flushList(); html += `<h6 class="text-sm font-semibold mb-1 mt-3 uppercase tracking-wide text-muted-foreground">${formatInline(h6[1])}</h6>`; }
       else if (h5) { flushList(); html += `<h5 class="text-base font-semibold mb-1 mt-3 text-foreground/70">${formatInline(h5[1])}</h5>`; }
       else if (h4) { flushList(); html += `<h4 class="text-lg font-semibold mb-2 mt-3 text-foreground/75">${formatInline(h4[1])}</h4>`; }
       else if (h1) { flushList(); html += `<h1 class="text-3xl font-extrabold mb-4 mt-6 border-b border-border/50 pb-2 text-foreground tracking-tight">${formatInline(h1[1])}</h1>`; }
@@ -2331,6 +2340,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             isVisible={isFormatToolbarOpen}
             aiEnabled={!!onAiAction}
             commentsEnabled={!!onComment}
+            disabledStyles={disabledStyles}
             onFormat={handleFormat}
             onAction={(action) => {
             // Keep the toolbar open for inline style ops so the user can chain

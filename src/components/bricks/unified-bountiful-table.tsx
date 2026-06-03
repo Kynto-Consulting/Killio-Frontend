@@ -3208,6 +3208,7 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
           boards={tableData.boards as any}
           activeBricks={[]}
           users={tableData.users}
+          disabledStyles={["heading", "size"]}
         />
       </div>
     );
@@ -3228,7 +3229,7 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
           plain ? (
             <span className={cn("text-sm max-w-[280px]", column.wrap ? "whitespace-normal break-words" : "truncate")}>{displayText}</span>
           ) : (
-            <RichText content={rawText} context={refContext} className={cn("text-sm", column.wrap ? "whitespace-normal break-words" : "truncate max-w-[280px]")} />
+            <RichText content={rawText} context={refContext} disabledStyles={["heading", "size"]} className={cn("text-sm", column.wrap ? "whitespace-normal break-words" : "truncate max-w-[280px]")} />
           )
         ) : (
           <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>

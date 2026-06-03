@@ -1,11 +1,11 @@
 "use client";
 
 import React, { useState, useRef, useLayoutEffect } from "react";
-import { 
+import {
   Bold, Italic, Strikethrough, Code, Link,
   Underline, MessageSquare, SmilePlus, Calendar,
-  PenSquare, Settings2, Sparkles, Sigma,
-  ChevronDown, Type, Highlighter, Eraser,
+  PenSquare, Sparkles, Sigma,
+  Type, Highlighter, Eraser,
   Pilcrow, Quote, SquareCode, Shapes
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,9 @@ interface InlineFormatToolbarProps {
   aiEnabled?: boolean;
   /** When false the Comment action is hidden (no brick-comment host). */
   commentsEnabled?: boolean;
+  /** Style features to hide from the toolbar. e.g. database cells pass
+   *  ["heading","size"] so the size button + heading block options vanish. */
+  disabledStyles?: string[];
 }
 
 export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
@@ -30,7 +33,19 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
   isVisible,
   aiEnabled = true,
   commentsEnabled = true,
+  disabledStyles = [],
 }) => {
+  // Granular on/off for every toolbar feature. Pass any of these keys in
+  // disabledStyles to hide that control anywhere:
+  //   bold italic underline strike code link math
+  //   color highlight size block heading quote callout codeblock
+  //   lucide emoji date clear
+  const dis = (key: string) => disabledStyles.includes(key);
+  const noSize = dis("size");
+  const noHeading = dis("heading");
+  const BTN = "flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors";
+  const panelBtn = (active: boolean, extra = "") => cn("flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors", extra, active ? "bg-muted text-foreground" : "text-muted-foreground");
+  const Divider = () => <div className="w-[1px] h-4 bg-border/60 mx-0.5" />;
   const t = useTranslations("document-detail");
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPosition] = useState({ top: position.top, left: position.left });
@@ -120,112 +135,32 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
       }}
       onMouseDown={(e) => e.preventDefault()} // Prevent losing focus on editor
     >
-      {/* Row 1: Formatting Options */}
+      {/* Row 1: Formatting — basics first (Notion-style), then dropdowns. */}
       <div className="flex items-center flex-wrap gap-0.5">
-        <button
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors font-serif font-bold",
-            activePanel === 'color' ? "bg-muted text-foreground" : "text-muted-foreground"
-          )}
-          title="Text Color"
-          onClick={() => setActivePanel((p) => p === 'color' ? null : 'color')}
-        >
-          A
-        </button>
+        {!dis("bold") && <button onClick={() => onFormat("bold")} className={BTN} title={t("formatToolbar.bold") as string || "Bold"}><Bold className="h-4 w-4" /></button>}
+        {!dis("italic") && <button onClick={() => onFormat("italic")} className={BTN} title={t("formatToolbar.italic") as string || "Italic"}><Italic className="h-4 w-4" /></button>}
+        {!dis("underline") && <button onClick={() => onFormat("underline")} className={BTN} title="Underline"><Underline className="h-4 w-4" /></button>}
+        {!dis("strike") && <button onClick={() => onFormat("strike")} className={BTN} title={t("formatToolbar.strike") as string || "Strikethrough"}><Strikethrough className="h-4 w-4" /></button>}
+        {!dis("code") && <button onClick={() => onFormat("code")} className={BTN} title={t("formatToolbar.code") as string || "Code"}><Code className="h-4 w-4" /></button>}
+        {!dis("link") && <button onClick={() => onFormat("link")} className={BTN} title={t("formatToolbar.link") as string || "Link"}><Link className="h-4 w-4" /></button>}
 
-        <button
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
-            activePanel === 'size' ? "bg-muted text-foreground" : "text-muted-foreground"
-          )}
-          title="Text Size"
-          onClick={() => setActivePanel((p) => p === 'size' ? null : 'size')}
-        >
-          <Type className="h-4 w-4" />
-        </button>
+        <Divider />
 
-        <button
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
-            activePanel === 'highlight' ? "bg-muted text-foreground" : "text-muted-foreground"
-          )}
-          title="Highlight"
-          onClick={() => setActivePanel((p) => p === 'highlight' ? null : 'highlight')}
-        >
-          <Highlighter className="h-4 w-4" />
-        </button>
+        {!dis("color") && <button className={panelBtn(activePanel === 'color', "font-serif font-bold")} title="Text color" onClick={() => setActivePanel((p) => p === 'color' ? null : 'color')}>A</button>}
+        {!dis("highlight") && <button className={panelBtn(activePanel === 'highlight')} title="Highlight" onClick={() => setActivePanel((p) => p === 'highlight' ? null : 'highlight')}><Highlighter className="h-4 w-4" /></button>}
+        {!noSize && <button className={panelBtn(activePanel === 'size')} title="Text size" onClick={() => setActivePanel((p) => p === 'size' ? null : 'size')}><Type className="h-4 w-4" /></button>}
+        {!dis("block") && <button className={panelBtn(activePanel === 'block')} title="Turn into (heading, quote, code, callout)" onClick={() => setActivePanel((p) => p === 'block' ? null : 'block')}><Pilcrow className="h-4 w-4" /></button>}
 
-        <button
-          className={cn(
-            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
-            activePanel === 'block' ? "bg-muted text-foreground" : "text-muted-foreground"
-          )}
-          title="Block type (heading, quote, code, callout)"
-          onClick={() => setActivePanel((p) => p === 'block' ? null : 'block')}
-        >
-          <Pilcrow className="h-4 w-4" />
-        </button>
+        {(!dis("math") || !dis("clear")) && <Divider />}
 
-        <button
-          onClick={() => onFormat("bold")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={t("formatToolbar.bold") as string || "Bold"}
-        >
-          <Bold className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onFormat("italic")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={t("formatToolbar.italic") as string || "Italic"}
-        >
-          <Italic className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onFormat("underline")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Underline"
-        >
-          <Underline className="h-4 w-4" />
-        </button>
-
-        <div className="w-[1px] h-4 bg-border/60 mx-0.5"></div>
-
-        <button
-          onClick={() => onFormat("link")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={t("formatToolbar.link") as string || "Link"}
-        >
-          <Link className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onFormat("strike")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={t("formatToolbar.strike") as string || "Strikethrough"}
-        >
-          <Strikethrough className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onFormat("code")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title={t("formatToolbar.code") as string || "Code snippet"}
-        >
-          <Code className="h-4 w-4" />
-        </button>
-        <button
-          onClick={() => onAction?.("math")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Insert Math"
-        >
-          <Sigma className="h-4 w-4" />
-        </button>
-
-        <button
+        {!dis("math") && <button onClick={() => onAction?.("math")} className={BTN} title="Insert math"><Sigma className="h-4 w-4" /></button>}
+        {!dis("clear") && <button
           onClick={() => onAction?.("clear")}
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+          className={BTN}
           title="Clear formatting"
         >
           <Eraser className="h-4 w-4" />
-        </button>
+        </button>}
       </div>
 
       {/* Color picker panel */}
@@ -296,7 +231,7 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
             <button title="Text / clear" className="flex h-7 items-center gap-1 rounded px-2 bg-muted/40 hover:bg-muted text-foreground transition-colors" onClick={() => { onAction?.("block:paragraph"); setActivePanel(null); }}>
               <Pilcrow className="h-3.5 w-3.5" /> <span className="text-xs">Text</span>
             </button>
-            {([1, 2, 3, 4, 5] as const).map((h) => (
+            {!noHeading && ([1, 2, 3, 4, 5] as const).map((h) => (
               <button key={h} title={`Heading ${h}`} className="flex h-7 w-8 items-center justify-center rounded bg-muted/40 hover:bg-muted text-foreground font-bold transition-colors text-xs" onClick={() => { onAction?.(`block:h${h}`); setActivePanel(null); }}>
                 H{h}
               </button>
@@ -336,27 +271,27 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
             <MessageSquare className="w-3.5 h-3.5" /> {t("formatToolbar.comment") as string || "Comentar"}
           </button>
         )}
-        <button
+        {!dis("emoji") && <button
           onClick={() => onAction?.("emoji")}
           className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
           title="Añadir emoji"
         >
           <SmilePlus className="w-3.5 h-3.5" />
-        </button>
-        <button
+        </button>}
+        {!dis("lucide") && <button
           onClick={() => onAction?.("icon")}
           className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
           title="Insertar icono (Lucide)"
         >
           <Shapes className="w-3.5 h-3.5" />
-        </button>
-        <button 
+        </button>}
+        {!dis("date") && <button
           onClick={() => onAction?.("date")}
-          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors" 
+          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
           title="Añadir fecha"
         >
           <Calendar className="w-3.5 h-3.5" />
-        </button>
+        </button>}
         {aiEnabled && (
           <button
             onClick={() => onAction?.("edit")}
@@ -368,41 +303,20 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         )}
       </div>
 
-      {/* Row 3: Habilidades AI */}
+      {/* AI quick actions — compact chips (not 4 stacked rows). */}
       {aiEnabled && (
-      <div className="flex flex-col mt-1">
-        <div className="flex items-center justify-between px-2 py-1 mb-0.5">
-          <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">Habilidades</span>
-          <Settings2 className="w-3 h-3 text-muted-foreground cursor-pointer hover:text-foreground" />
-        </div>
-        
-        <div className="flex flex-col">
-          <button 
-            onClick={() => onAction?.("ai-improve")}
-            className="flex items-center px-2 py-1.5 text-sm hover:bg-muted rounded-md text-left text-foreground transition-colors"
-          >
-            Mejorar redacción
+      <div className="flex flex-wrap items-center gap-1 mt-1 pt-1 border-t border-border/40">
+        {([
+          { a: "ai-improve", l: "Mejorar" },
+          { a: "ai-fix", l: "Corregir" },
+          { a: "ai-explain", l: "Explicar" },
+          { a: "ai-format", l: "Formato" },
+        ] as const).map((it) => (
+          <button key={it.a} onClick={() => onAction?.(it.a)}
+            className="px-2 py-1 text-xs rounded-md bg-muted/40 hover:bg-muted text-foreground transition-colors">
+            {it.l}
           </button>
-          <button 
-            onClick={() => onAction?.("ai-fix")}
-            className="flex items-center px-2 py-1.5 text-sm hover:bg-muted rounded-md text-left text-foreground transition-colors"
-          >
-            Corregir
-          </button>
-          <button 
-            onClick={() => onAction?.("ai-explain")}
-            className="flex items-center px-2 py-1.5 text-sm hover:bg-muted rounded-md text-left text-foreground transition-colors"
-          >
-            Explicar
-          </button>
-          
-          <div 
-            onClick={() => onAction?.("ai-format")}
-            className="flex items-center justify-between px-2 py-1.5 text-sm hover:bg-muted hover:text-foreground rounded-md text-left text-muted-foreground transition-colors cursor-pointer">
-            <span>Modificar formato</span>
-            <ChevronDown className="w-3.5 h-3.5 opacity-50" />
-          </div>
-        </div>
+        ))}
       </div>
       )}
 

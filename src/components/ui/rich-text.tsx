@@ -25,6 +25,9 @@ interface RichTextProps {
   className?: string;
   onReferenceClick?: (type: string, id: string) => void;
   onSuggestionApply?: () => void;
+  /** Style features to NOT render (shown as plain text instead). e.g. in a
+   *  database cell: ["heading","size"] so #/## and [size:…] don't apply. */
+  disabledStyles?: string[];
 }
 
 // Render a ```mermaid``` / ```grarkdown``` / ```erDiagram``` block with the SAME
@@ -101,14 +104,17 @@ function findContextBrick(context: ResolverContext, brickId?: string) {
  * 2. Inline Markdown (Bold, Tag Slugs)
  * 3. AI Suggestions ([SUGGESTION:TYPE]...[/SUGGESTION])
  */
-export function RichText({ 
-  content, 
-  context, 
-  availableTags = [], 
-  className, 
+export function RichText({
+  content,
+  context,
+  availableTags = [],
+  className,
   onReferenceClick,
-  onSuggestionApply 
+  onSuggestionApply,
+  disabledStyles = [],
 }: RichTextProps) {
+  const noHeading = disabledStyles.includes("heading");
+  const noSize = disabledStyles.includes("size");
   const fallbackDocId = React.useMemo(() => {
     const map = (context as any)?.documentBricksById as Record<string, unknown> | undefined;
     const ids = map ? Object.keys(map) : [];
@@ -264,7 +270,7 @@ export function RichText({
     /\[(?:size|color|bg|link|width):/.test(content);
 
   if (hasMultilineWrappers) {
-    return <div className={className}>{renderInlineMarkdown(content, availableTags)}</div>;
+    return <div className={className}>{renderInlineMarkdown(content, availableTags, noSize)}</div>;
   }
 
   const lines = content.split(/\r?\n/);
@@ -275,11 +281,11 @@ export function RichText({
         // Heading lines (#…######) render as h1–h6; the rest of the line is
         // processed normally so inline styles/refs still work inside a heading.
         const hm = line.match(/^(#{1,6})\s+(.*)$/);
-        const level = hm ? hm[1].length : 0;
+        const level = (hm && !noHeading) ? hm[1].length : 0;
         const parts = ReferenceResolver.renderRich(hm ? hm[2] : line, context);
         const lineNodes = parts.map((part, partIdx) => {
               if (typeof part === "string") {
-                return <Fragment key={partIdx}>{renderInlineMarkdown(part, availableTags)}</Fragment>;
+                return <Fragment key={partIdx}>{renderInlineMarkdown(part, availableTags, noSize)}</Fragment>;
               }
 
               if (part.type === "mention") {
@@ -306,7 +312,7 @@ export function RichText({
                   const hasResolvedContent = String(resolvedText || "").trim().length > 0;
                   return (
                     <div key={partIdx} className="my-2 p-3 rounded-md border border-amber-500/20 bg-amber-500/5 text-sm whitespace-pre-wrap font-mono text-muted-foreground">
-                      {hasResolvedContent ? renderInlineMarkdown(String(resolvedText), availableTags) : part.label}
+                      {hasResolvedContent ? renderInlineMarkdown(String(resolvedText), availableTags, noSize) : part.label}
                     </div>
                   );
                 }
@@ -341,7 +347,7 @@ export function RichText({
   );
 }
 
-function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
+function renderInlineMarkdown(text: string, availableTags: any[], noSize = false): ReactNode {
   const renderLeafMarkdown = (value: string, keyPrefix: string): ReactNode[] => {
     const segments = value.split(/(`[^`]+`|\$[^$]+\$|\[lu:[\w-]+(?::[\d.]+)?\])/g);
 
@@ -554,11 +560,16 @@ function renderInlineMarkdown(text: string, availableTags: any[]): ReactNode {
 
         const size  = value.slice(nextStart + 6, openEnd).trim();
         const inner = value.slice(openEnd + 1, closeIndex);
-        nodes.push(
-          <span key={`${keyPrefix}-size-${partIndex++}`} data-size={size} style={{ fontSize: size }}>
-            {renderWithWrappers(inner, `${keyPrefix}-size-inner`) }
-          </span>,
-        );
+        if (noSize) {
+          // size disabled (e.g. database cells): render inner at normal size.
+          nodes.push(...renderWithWrappers(inner, `${keyPrefix}-size-inner-${partIndex++}`));
+        } else {
+          nodes.push(
+            <span key={`${keyPrefix}-size-${partIndex++}`} data-size={size} style={{ fontSize: size }}>
+              {renderWithWrappers(inner, `${keyPrefix}-size-inner`) }
+            </span>,
+          );
+        }
         cursor = closeIndex + closeTag.length;
         continue;
       }
