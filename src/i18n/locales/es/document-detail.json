@@ -343,7 +343,9 @@
     "strike": "Tachado",
     "code": "Código",
     "link": "Enlace",
-    "comment": "Comentar"
+    "comment": "Comentar",
+    "linkPlaceholder": "Pega o escribe una URL…",
+    "linkApply": "Aplicar"
   },
   "datePicker": {
     "title": "Seleccionar fecha / hora",

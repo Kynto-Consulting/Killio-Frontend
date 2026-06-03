@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon, Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Table, BarChart2 } from "lucide-react";
+import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon, Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Table, BarChart2, Link2 as LinkIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
@@ -188,6 +188,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [pickerFilter, setPickerFilter] = useState<any[] | undefined>(undefined);
   const [isEmojiPickerOpen, setIsEmojiPickerOpen] = useState(false);
   const [isDatePickerOpen, setIsDatePickerOpen] = useState(false);
+  const [isLinkInputOpen, setIsLinkInputOpen] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
   const [isMathPickerOpen, setIsMathPickerOpen] = useState(false);
   const [mathPickerInitialFormula, setMathPickerInitialFormula] = useState("");
   const [mathPickerInitialMode, setMathPickerInitialMode] = useState<MathMode>("block");
@@ -1449,10 +1451,16 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       case "italic": document.execCommand("italic", false, undefined); break;
       case "underline": document.execCommand("underline", false, undefined); break;
       case "strike": document.execCommand("strikeThrough", false, undefined); break;
-      case "link":
-        const url = prompt("Enter link URL:");
-        if (url) document.execCommand("createLink", false, url);
-        break;
+      case "link": {
+        // Open the custom link popover instead of a native prompt(). The
+        // selection is saved so we can re-apply it when the URL is confirmed.
+        const sel = window.getSelection();
+        if (sel && sel.rangeCount > 0) savedRangeRef.current = sel.getRangeAt(0).cloneRange();
+        setLinkUrl("");
+        setIsFormatToolbarOpen(false);
+        setIsLinkInputOpen(true);
+        return; // defer serialization until the URL is confirmed
+      }
       case "code":
         const selection = window.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -1466,6 +1474,30 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
     const md = revertToMarkdown(contentRef.current.innerHTML || "");
     onUpdate(md);
+  };
+
+  // Confirm the link popover: re-apply the saved selection and wrap it (or insert
+  // the URL as link text), then serialize. Normalizes bare domains to https://.
+  const applyLink = () => {
+    const root = contentRef.current;
+    const raw = linkUrl.trim();
+    setIsLinkInputOpen(false);
+    if (!root || !raw) { savedRangeRef.current = null; return; }
+    const href = /^(https?:|mailto:|tel:|\/|#)/i.test(raw) ? raw : `https://${raw}`;
+    root.focus();
+    const sel = window.getSelection();
+    if (savedRangeRef.current && sel) { sel.removeAllRanges(); sel.addRange(savedRangeRef.current); }
+    if (sel && !sel.isCollapsed) {
+      document.execCommand("createLink", false, href);
+    } else {
+      const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+      document.execCommand("insertHTML", false, `<a href="${esc(href)}" data-link="${esc(href)}">${esc(raw)}</a> `);
+    }
+    // createLink emits a bare <a href>; tag it so revertToMarkdown → [link:href].
+    root.querySelectorAll("a[href]:not([data-link])").forEach((a) => a.setAttribute("data-link", a.getAttribute("href") || ""));
+    const md = revertToMarkdown(root.innerHTML || "");
+    commitInlineEdit(md, { forceRepaint: true });
+    savedRangeRef.current = null;
   };
 
   // Clear all inline formatting from the current selection — native formats via
@@ -2380,9 +2412,37 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         </Portal>
       ) : null}
 
+        {isLinkInputOpen && !readonly && (
+          <Portal>
+            <div
+              data-editor-floating-ui="true"
+              className="fixed z-[999] flex items-center gap-1.5 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-1.5 shadow-xl w-[280px] animate-in fade-in zoom-in-95 duration-100"
+              style={{ top: (formatToolbarPosition.bottom || formatToolbarPosition.top) + 8, left: Math.max(12, formatToolbarPosition.left - 140) }}
+              onMouseDown={(e) => e.preventDefault()}
+            >
+              <LinkIcon className="h-4 w-4 shrink-0 text-muted-foreground ml-1" />
+              <input
+                autoFocus
+                type="url"
+                value={linkUrl}
+                onChange={(e) => setLinkUrl(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") { e.preventDefault(); applyLink(); }
+                  else if (e.key === "Escape") { e.preventDefault(); setIsLinkInputOpen(false); savedRangeRef.current = null; }
+                }}
+                placeholder={tDetail("formatToolbar.linkPlaceholder", { fallback: "Paste or type a URL…" }) as string}
+                className="flex-1 h-7 bg-transparent px-1 text-sm outline-none placeholder:text-muted-foreground/60"
+              />
+              <button type="button" onClick={applyLink} disabled={!linkUrl.trim()} className="h-7 px-2 rounded-md bg-accent text-accent-foreground text-xs font-medium disabled:opacity-50 hover:bg-accent/90 transition-colors">
+                {tDetail("formatToolbar.linkApply", { fallback: "Apply" }) as string}
+              </button>
+            </div>
+          </Portal>
+        )}
+
         {isDatePickerOpen && !readonly && (
           <Portal>
-            <DatePickerPopover 
+            <DatePickerPopover
               top={formatToolbarPosition.top || slashMenuPosition.top} 
               left={formatToolbarPosition.left || slashMenuPosition.left} 
               onClose={() => setIsDatePickerOpen(false)}

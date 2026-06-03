@@ -343,7 +343,9 @@
     "strike": "Strikethrough",
     "code": "Inline Code",
     "link": "Link",
-    "comment": "Comment"
+    "comment": "Comment",
+    "linkPlaceholder": "Paste or type a URL…",
+    "linkApply": "Apply"
   },
   "datePicker": {
     "title": "Select date / time",
