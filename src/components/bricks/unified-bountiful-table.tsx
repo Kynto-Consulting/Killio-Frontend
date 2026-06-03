@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 import { RefPill } from "../ui/ref-pill";
 import { RichText } from "../ui/rich-text";
-import { UnifiedTextBrick } from "./unified-text-brick";
+import { RichTextField } from "../ui/rich-text-field";
 import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -2725,7 +2725,6 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
   // Latest rich-editor markdown (UnifiedTextBrick.onUpdate only fires on blur,
   // so we keep the value in a ref to commit it reliably).
   const richTextRef = useRef("");
-  const richWrapRef = useRef<HTMLDivElement>(null);
 
   const colType = column.type;
   const cellType = normalizeStoredCellType(cell?.type);
@@ -2860,23 +2859,6 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
     setIsEditing(false);
     if (onCellChange) onCellChange({ ...cell, type: "text", text: richTextRef.current });
   };
-
-  // Focus the rich editor's contenteditable + drop the caret at the end when
-  // entering experimental edit mode.
-  useEffect(() => {
-    if (!isEditing) return;
-    const host = richWrapRef.current?.querySelector<HTMLElement>('[contenteditable="true"]');
-    if (!host) return;
-    host.focus();
-    try {
-      const r = document.createRange();
-      r.selectNodeContents(host);
-      r.collapse(false);
-      const sel = window.getSelection();
-      sel?.removeAllRanges();
-      sel?.addRange(r);
-    } catch { /* noop */ }
-  }, [isEditing]);
 
   // ── Magic / Metadata Columns (Read-only) ──
   if (colType === "created_time" || colType === "last_edited_time") {
@@ -3191,26 +3173,15 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
     // Experimental Editor Mode: edit the cell with the full rich text editor
     // (markdown, styles, #, [color:], [lu:], …). Commit on blur; Esc cancels.
     if (isEditing && getExperimentalEditorMode() && colType !== "phone_number") return (
-      <div
-        ref={richWrapRef}
-        className="w-full min-w-[180px]"
-        onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) commitRichText(); }}
-        onKeyDownCapture={(e) => {
-          e.stopPropagation();
-          if (e.key === "Escape") { e.preventDefault(); setIsEditing(false); }
-        }}
-      >
-        <UnifiedTextBrick
-          id={`cell-${column.id}`}
-          text={editText}
-          onUpdate={(val) => { richTextRef.current = val; }}
-          documents={tableData.documents as any}
-          boards={tableData.boards as any}
-          activeBricks={[]}
-          users={tableData.users}
-          disabledStyles={["heading", "size"]}
-        />
-      </div>
+      <RichTextField
+        value={editText}
+        autoFocus
+        placeholder={emptyLabel}
+        className="w-full text-sm leading-relaxed"
+        disabledStyles={["block"]}
+        onChange={(val) => { richTextRef.current = val; }}
+        onBlur={(val) => { richTextRef.current = val; commitRichText(); }}
+      />
     );
     if (isEditing) return (
       <input ref={inputRef} value={editText} onChange={e => setEditText(e.target.value)}
