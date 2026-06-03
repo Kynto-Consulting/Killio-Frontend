@@ -3,9 +3,7 @@
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React from "react";
 import { CheckSquare, Square, Plus, Trash2, GripVertical } from "lucide-react";
-import { ReferenceResolver } from "@/lib/reference-resolver";
-import { ReferenceTokenInput } from "../ui/reference-token-input";
-import { RefPill } from "../ui/ref-pill";
+import { UnifiedTextBrick } from "./unified-text-brick";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface ChecklistBrickProps {
@@ -20,26 +18,6 @@ interface ChecklistBrickProps {
 
 export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, items = [], onUpdate, readonly, documents = [], boards = [], users = [] }) => {
   const t = useTranslations("document-detail");
-  const renderLabelWithMentions = (content: string) => {
-    const richParts = ReferenceResolver.renderRich(content, { documents, boards, users } as any);
-    return richParts.map((part, i) => {
-      if (typeof part === 'string') return part;
-
-      if (part.type === 'mention') {
-        const mentionType = part.mentionType as 'doc' | 'board' | 'card' | 'user';
-        return (
-          <RefPill key={i} type={mentionType} id={part.id} name={part.name} workspaceUsers={users} />
-        );
-      }
-
-      if (part.type === 'deep') {
-        return (
-          <RefPill key={i} type="deep" id={part.inner?.split(':')[0] || ''} name={part.label} />
-        );
-      }
-      return null;
-    });
-  };
   const handleItemUpdate = (idx: number, data: any) => {
     const newItems = [...items];
     newItems[idx] = { ...newItems[idx], ...data };
@@ -86,37 +64,31 @@ export const UnifiedChecklistBrick: React.FC<ChecklistBrickProps> = ({ id: _id, 
             {item.checked ? <CheckSquare className="w-4 h-4 fill-accent/10" strokeWidth={2.5} /> : <Square className="w-4 h-4" strokeWidth={2} />}
           </button>
 
-          <div className="flex-1 relative">
-            {readonly ? (
-              <div className={`w-full p-1 text-sm leading-relaxed ${item.checked ? 'line-through text-muted-foreground opacity-60' : 'text-foreground'}`}>
-                {renderLabelWithMentions(item.label || "")}
-              </div>
-            ) : (
-              <ReferenceTokenInput
-                value={item.label}
-                onChange={(val) => {
-                  handleItemUpdate(idx, { label: val });
-                }}
-                onSubmit={() => addItem(idx)}
-                onKeyDown={(e, currentValue) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    addItem(idx);
-                  } else if (e.key === 'Backspace' && !currentValue.trim() && items.length > 1) {
-                    e.preventDefault();
-                    removeItem(idx);
-                  }
-                }}
-                documents={documents}
-                boards={boards}
-                users={users}
-                disabled={readonly}
-                submitOnEnter={false}
-                className="w-full"
-                inputClassName={`border-none bg-transparent px-1 py-1 shadow-none min-h-[30px] ${item.checked ? 'line-through text-muted-foreground opacity-50' : 'text-foreground'}`}
-                placeholder={t("checklist.addItemPlaceholder")}
-              />
-            )}
+          {/* Rich item text — same editor as text bricks (markdown, styles,
+              lucide, format toolbar, experimental mode). The capture handler
+              preserves checklist UX: Enter = new item, Backspace-on-empty =
+              delete, while Shift+Enter still inserts a newline. */}
+          <div
+            className={`flex-1 relative min-w-0 ${item.checked ? 'line-through text-muted-foreground opacity-50' : ''}`}
+            onKeyDownCapture={(e) => {
+              if (readonly) return;
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault(); e.stopPropagation(); addItem(idx);
+              } else if (e.key === 'Backspace' && !(item.label || '').trim() && items.length > 1) {
+                e.preventDefault(); e.stopPropagation(); removeItem(idx);
+              }
+            }}
+          >
+            <UnifiedTextBrick
+              id={`${_id}-item-${item.id || idx}`}
+              text={item.label || ''}
+              onUpdate={(val) => handleItemUpdate(idx, { label: val })}
+              readonly={readonly}
+              documents={documents as any}
+              boards={boards as any}
+              activeBricks={[]}
+              users={users}
+            />
           </div>
 
           {!readonly && (
