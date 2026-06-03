@@ -903,7 +903,16 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 rawText += event.text;
                 pushMsg(true);
               } else if (event.type === 'done') {
-                rawText = event.text || rawText;
+                // Keep whichever text carries the inline tool chips so they stay
+                // INSIDE the message (don't jump to the separate doneEvents
+                // summary at the top). The streamed deltas already include the
+                // <invoke> markup; only swap to the server's composed text if it
+                // also has chips (cleaner/deduped) or if neither does.
+                const composed = event.text || "";
+                const CHIP_RE = /<(?:async_)?invoke\b|<batch_(?:tool|invoke)\b/;
+                const composedHasChips = CHIP_RE.test(composed);
+                const streamedHasChips = CHIP_RE.test(rawText);
+                rawText = (composed && (composedHasChips || !streamedHasChips)) ? composed : rawText;
                 pushMsg(false);
                 const { answer } = splitAgentStream(rawText);
                 speak(answer || rawText);
