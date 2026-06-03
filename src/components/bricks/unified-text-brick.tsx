@@ -15,6 +15,7 @@ import { resolveLucide, LUCIDE_REGISTRY } from "@/lib/lucide-icon-registry";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
 import katex from "katex";
 // @ts-ignore
@@ -1121,6 +1122,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setIsSlashOpen(true);
   };
 
+  // Experimental Editor Mode: paint the editable surface with FULLY RENDERED HTML
+  // instead of the markdown-source view, so editing happens directly on rendered
+  // text (no round-trip flicker). Classic pills/source view when the flag is off.
+  const paintEditable = (md: string): string =>
+    getExperimentalEditorMode() ? processPseudoMarkdown(md, true) : processMarkdownWithPills(md);
+
   const applySlashCommand = (command: SlashCommand) => {
     if (!contentRef.current) return;
 
@@ -1140,7 +1147,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       let insertText = command.insertText || "";
       const nextMarkdown = `${before}${insertText}${after}`;
       onUpdate(nextMarkdown);
-      contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+      contentRef.current.innerHTML = paintEditable(nextMarkdown);
       
       const newCursorOffset = context.from + insertText.length;
       
@@ -1161,7 +1168,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         const fullText = revertToMarkdown(contentRef.current.innerHTML || "");
         const stripped = `${before}${after}`;
         onUpdate(stripped);
-        contentRef.current.innerHTML = processMarkdownWithPills(stripped);
+        contentRef.current.innerHTML = paintEditable(stripped);
         closeSlashMenu();
         onAiAction?.(command.id, fullText);
         return;
@@ -1169,7 +1176,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     } else if (command.blockKind && onAddBrick) {
       const nextMarkdown = `${before}${after}`;
       onUpdate(nextMarkdown);
-      contentRef.current.innerHTML = processMarkdownWithPills(nextMarkdown);
+      contentRef.current.innerHTML = paintEditable(nextMarkdown);
       onAddBrick(command.blockKind);
     }
 
@@ -1232,19 +1239,24 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
   const handleFocus = () => {
     if (contentRef.current) {
-      // Editing shows raw source — tear down any mounted diagram canvases first.
-      unmountDiagrams();
+      const experimental = getExperimentalEditorMode();
+      // Experimental mode keeps diagrams/rendered nodes live — don't tear down.
+      if (!experimental) unmountDiagrams();
       lastDisplayHtmlRef.current = null;
       const singleMathFormula = extractSingleBlockMath(text || "");
-      if (singleMathFormula) {
+      if (singleMathFormula && !experimental) {
         contentRef.current.innerHTML = processPseudoMarkdown(text || "");
         setMathPickerInitialFormula(singleMathFormula);
         setMathPickerInitialMode("block");
         setMathInsertMode("replace-all");
         setTimeout(() => setIsMathPickerOpen(true), 0);
+      } else if (experimental) {
+        // Edit directly on rendered HTML.
+        contentRef.current.innerHTML = processPseudoMarkdown(text || "", true);
+        mountDiagramsIn(contentRef.current);
       } else {
-      // In markdown mode keep references as pills and leave markdown syntax as plain text.
-        contentRef.current.innerHTML = processMarkdownWithPills(text || "");
+        // Classic: keep references as pills and leave markdown syntax as plain text.
+        contentRef.current.innerHTML = paintEditable(text || "");
       }
       if (isBrickEmpty(contentRef.current)) contentRef.current.setAttribute("data-empty", "true");
       else contentRef.current.removeAttribute("data-empty");
@@ -1999,7 +2011,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               const newMarkdown = `${markdown.slice(0, replaceFrom)}${insertToken} ${markdown.slice(safeCursor)}`;
               onUpdate(newMarkdown);
               if (contentRef.current) {
-                contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                contentRef.current.innerHTML = paintEditable(newMarkdown);
               }
               setIsPickerOpen(false);
               setPickerCursorOffset(null);
@@ -2148,7 +2160,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 }
                 const colorMd = revertToMarkdown(contentRef.current.innerHTML || "");
                 onUpdate(colorMd);
-                contentRef.current.innerHTML = processMarkdownWithPills(colorMd);
+                contentRef.current.innerHTML = paintEditable(colorMd);
               }
             } else if (action.startsWith('bg:')) {
               const bgValue = action.slice(3);
@@ -2167,7 +2179,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 }
                 const bgMd = revertToMarkdown(contentRef.current.innerHTML || "");
                 onUpdate(bgMd);
-                contentRef.current.innerHTML = processMarkdownWithPills(bgMd);
+                contentRef.current.innerHTML = paintEditable(bgMd);
               }
             } else if (action.startsWith('size:')) {
               const sizeValue = action.slice(5);
@@ -2184,7 +2196,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 }
                 const sizeMd = revertToMarkdown(contentRef.current.innerHTML || "");
                 onUpdate(sizeMd);
-                contentRef.current.innerHTML = processMarkdownWithPills(sizeMd);
+                contentRef.current.innerHTML = paintEditable(sizeMd);
               }
             } else {
               void action;
@@ -2211,7 +2223,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   document.execCommand("insertText", false, ts + " ");
                   const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
                   onUpdate(newMarkdown);
-                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                  contentRef.current.innerHTML = paintEditable(newMarkdown);
                 }
                 setIsDatePickerOpen(false);
                 setPickerCursorOffset(null);
@@ -2236,7 +2248,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 const newMarkdown = `${markdown.slice(0, safe)}${token}${markdown.slice(safe)}`;
                 onUpdate(newMarkdown);
                 if (contentRef.current) {
-                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                  contentRef.current.innerHTML = paintEditable(newMarkdown);
                 }
                 setIsIconPickerOpen(false);
                 setPickerCursorOffset(null);
@@ -2263,7 +2275,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   document.execCommand("insertText", false, emoji + " ");
                   const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
                   onUpdate(newMarkdown);
-                  contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                  contentRef.current.innerHTML = paintEditable(newMarkdown);
                 }
                 setIsEmojiPickerOpen(false);
                 setPickerCursorOffset(null);
@@ -2304,7 +2316,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                     document.execCommand("insertText", false, markdown + " ");
                     const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
                     onUpdate(newMarkdown);
-                    contentRef.current.innerHTML = processMarkdownWithPills(newMarkdown);
+                    contentRef.current.innerHTML = paintEditable(newMarkdown);
                   }
                 }
                 setIsMathPickerOpen(false);

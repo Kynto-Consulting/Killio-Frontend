@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Settings, Loader2, Moon, Globe } from "lucide-react";
+import { X, Settings, Loader2, Moon, Globe, FlaskConical } from "lucide-react";
 import { Locale } from "@/i18n";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
+import { useExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
   const tCommon = useTranslations("common");
   const [theme, setTheme]       = useState("dark");
   const [language, setLanguage] = useState<Locale>(locale);
+  const [experimentalEditor, setExperimentalEditor] = useExperimentalEditorMode();
 
   useEffect(() => { setLanguage(locale); }, [locale]);
 
@@ -106,6 +108,35 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
                 disabled={saveAction.isPending}
                 options={LANGUAGE_OPTIONS}
               />
+            </div>
+
+            <div className="h-px w-full bg-border/50" />
+
+            {/* Experimental — local, per-device */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium leading-none flex items-center">
+                <FlaskConical className="w-4 h-4 mr-2 text-amber-500" />
+                {t("experimental.title", { fallback: "Experimental" })}
+              </label>
+              <button
+                type="button"
+                onClick={() => setExperimentalEditor(!experimentalEditor)}
+                className="w-full flex items-start justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{t("experimental.editorMode.label", { fallback: "Experimental Editor Mode" })}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t("experimental.editorMode.desc", { fallback: "Edit text bricks directly on the rendered text — disables the markdown round-trip. May be unstable." })}
+                  </div>
+                </div>
+                <span
+                  role="switch"
+                  aria-checked={experimentalEditor}
+                  className={`relative mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${experimentalEditor ? "bg-primary" : "bg-muted"}`}
+                >
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${experimentalEditor ? "translate-x-4" : "translate-x-0.5"}`} />
+                </span>
+              </button>
             </div>
 
           </div>

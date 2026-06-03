@@ -12,5 +12,12 @@
   "languages": {
     "en": "Ingles",
     "es": "Espanol"
+  },
+  "experimental": {
+    "title": "Experimental",
+    "editorMode": {
+      "label": "Modo de editor experimental",
+      "desc": "Edita los bricks de texto directamente sobre el texto renderizado — desactiva el round-trip a markdown. Puede ser inestable."
+    }
   }
 }

@@ -12,5 +12,12 @@
   "languages": {
     "en": "English",
     "es": "Espanol"
+  },
+  "experimental": {
+    "title": "Experimental",
+    "editorMode": {
+      "label": "Experimental Editor Mode",
+      "desc": "Edit text bricks directly on the rendered text — disables the markdown round-trip. May be unstable."
+    }
   }
 }
