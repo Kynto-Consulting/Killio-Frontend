@@ -146,6 +146,8 @@ export default function DocumentPage() {
 
   const updateDocumentTitle = useCallback(async (id: string, title: string, token?: string | null): Promise<void> => {
     if (!localMode) return apiUpdateDocumentTitle(id, title, token as string);
+    // Local: persist into state → the autosave effect writes the .kd.
+    setDocument((prev) => prev ? { ...prev, title } : prev);
   }, [localMode]);
 
   const patchBrickCell = useCallback(async (id: string, brickId: string, patch: any, token?: string | null): Promise<any> => {
@@ -1528,7 +1530,10 @@ export default function DocumentPage() {
   };
 
   const handleUpdateTitle = async () => {
-    if (!accessToken || !document || !tempTitle.trim()) {
+    // Local mode has no accessToken — don't let the missing token block the
+    // rename. The optimistic title update below is persisted by the local
+    // autosave (docToKd → .kd); cloud mode persists via updateDocumentTitle.
+    if (!document || !tempTitle.trim() || (!localMode && !accessToken)) {
       setIsEditingTitle(false);
       return;
     }

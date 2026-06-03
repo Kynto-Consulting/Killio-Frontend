@@ -16,7 +16,7 @@ import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { encodeKillioFile } from "@/lib/killio-file";
+import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { docToKd } from "@/lib/local-workspace/adapters";
 import { ImportVaultModal } from "@/components/ui/import-vault-modal";
 import { importVaultLocal, importVaultOnline, type RawFile } from "@/lib/local-workspace/vault-import";
@@ -85,10 +85,24 @@ function DocumentsPageContent() {
 
   useEffect(() => {
     if (workspaceMode === "local") {
-      setDocuments(localWs.files.filter((f) => f.kind === "kd").map((f) => ({
-        id: f.path, title: f.name.replace(/\.kd$/, ""), folderId: f.folder || null,
-        updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
-      })) as unknown as DocumentSummary[]);
+      // The document NAME shown is the .kd payload TITLE (so renames reflect),
+      // falling back to the filename. Decode each file; tolerate failures.
+      (async () => {
+        const kd = localWs.files.filter((f) => f.kind === "kd");
+        const docs = await Promise.all(kd.map(async (f) => {
+          let title = f.name.replace(/\.kd$/, "");
+          try {
+            const txt = await localWs.readFile(f.path);
+            const payload = decodeKillioFile(txt).payload as { title?: string };
+            if (payload?.title && payload.title.trim()) title = payload.title;
+          } catch { /* fall back to filename */ }
+          return {
+            id: f.path, title, folderId: f.folder || null,
+            updatedAt: new Date(f.lastModified || Date.now()).toISOString(),
+          };
+        }));
+        setDocuments(docs as unknown as DocumentSummary[]);
+      })();
       // Local folders = disk subdirectories, mapped into the cloud Folder shape
       // so the FolderTree / FolderCard / FolderModal components work unchanged.
       setFolders(localWs.folders.map((f) => ({
@@ -182,6 +196,23 @@ function DocumentsPageContent() {
   };
 
   const handleEditDocumentSubmit = async (documentId: string, updates: { title?: string; folderId?: string | null }) => {
+    if (workspaceMode === "local") {
+      // Rename = update the .kd payload title (the local doc name is the title).
+      try {
+        if (updates.title && updates.title.trim()) {
+          const txt = await localWs.readFile(documentId);
+          const file = decodeKillioFile(txt);
+          const payload = { ...(file.payload as Record<string, unknown>), title: updates.title.trim() };
+          await localWs.writeFile(documentId, encodeKillioFile({ kind: "kd", schemaVersion: (file as { schemaVersion?: string }).schemaVersion || "2026-v1", payload }));
+        }
+        setDocuments((prev) => prev.map(d => d.id === documentId ? { ...d, title: updates.title?.trim() || d.title } : d));
+        toast(t("documentUpdated"), "success");
+      } catch (error) {
+        console.error(error);
+        throw error;
+      }
+      return;
+    }
     if (!accessToken || !activeTeamId) return;
 
     try {
