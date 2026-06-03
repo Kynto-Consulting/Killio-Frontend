@@ -1560,7 +1560,15 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     dismissedSelectionRef.current = "";
 
     savedRangeRef.current = range.cloneRange();
-    const rect = range.getBoundingClientRect();
+    // getBoundingClientRect() can collapse to 0×0 for some multi-node/edge
+    // selections — fall back to the first client rect, then the brick box, so
+    // the toolbar never lands in the top-left corner (looks like "didn't open").
+    let rect = range.getBoundingClientRect();
+    if (!rect || (rect.width === 0 && rect.height === 0)) {
+      const rects = range.getClientRects();
+      if (rects.length > 0) rect = rects[0];
+      else if (contentRef.current) rect = contentRef.current.getBoundingClientRect();
+    }
 
     setFormatToolbarPosition({
       top: rect.top,
@@ -1569,6 +1577,43 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     });
     setIsFormatToolbarOpen(true);
   };
+
+  // Document-level selection tracking — robust against mouse-ups released
+  // outside the brick, keyboard select-all, and programmatic selection that
+  // onMouseUp/onKeyUp miss. Mirrors how Notion/Docs detect selections.
+  const checkSelRef = useRef(checkSelectionForToolbar);
+  checkSelRef.current = checkSelectionForToolbar;
+  const pointerDownRef = useRef(false);
+  useEffect(() => {
+    if (readonly) return;
+    let raf = 0;
+    const runCheck = () => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const sel = window.getSelection();
+        const root = contentRef.current;
+        if (!sel || !root) return;
+        const touches = (sel.anchorNode && root.contains(sel.anchorNode)) || (sel.focusNode && root.contains(sel.focusNode));
+        if (touches) checkSelRef.current();
+      });
+    };
+    // While dragging, wait for release (Notion-style: toolbar after mouseup).
+    // Keyboard / programmatic selections fire selectionchange with no pointer
+    // down, so they surface immediately.
+    const onSelChange = () => { if (!pointerDownRef.current) runCheck(); };
+    const onPointerDown = () => { pointerDownRef.current = true; };
+    const onPointerUp = () => { pointerDownRef.current = false; runCheck(); };
+    document.addEventListener("selectionchange", onSelChange);
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("mouseup", onPointerUp);
+    return () => {
+      document.removeEventListener("selectionchange", onSelChange);
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("mouseup", onPointerUp);
+      if (raf) cancelAnimationFrame(raf);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readonly]);
 
   const handleKeyUp = (e: React.KeyboardEvent) => {
     if (!contentRef.current) return;
