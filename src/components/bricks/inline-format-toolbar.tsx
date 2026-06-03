@@ -2,10 +2,10 @@
 
 import React, { useState, useRef, useLayoutEffect } from "react";
 import { 
-  Bold, Italic, Strikethrough, Code, Link, 
-  Underline, List, MessageSquare, SmilePlus, Calendar, 
-  PenSquare, Settings2, Sparkles, Sigma, MoreHorizontal,
-  ChevronDown, Type, Highlighter
+  Bold, Italic, Strikethrough, Code, Link,
+  Underline, MessageSquare, SmilePlus, Calendar,
+  PenSquare, Settings2, Sparkles, Sigma,
+  ChevronDown, Type, Highlighter, Eraser
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -97,7 +97,7 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
       ref={toolbarRef}
       data-editor-floating-ui="true"
       data-inline-format-toolbar="true"
-      className="fixed z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-xl w-[260px] animate-in fade-in zoom-in-95 duration-100"
+      className="fixed z-[999] flex flex-col gap-2 rounded-xl border border-border bg-popover/95 backdrop-blur-md p-2 shadow-xl w-[300px] animate-in fade-in zoom-in-95 duration-100"
       style={{
         top: adjustedPos.top,
         left: adjustedPos.left,
@@ -105,17 +105,8 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
       onMouseDown={(e) => e.preventDefault()} // Prevent losing focus on editor
     >
       {/* Row 1: Formatting Options */}
-      <div className="flex items-center justify-between">
-        <button 
-          className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="Turn into list / Change format"
-        >
-          <List className="h-4 w-4" />
-        </button>
-        
-        <div className="w-[1px] h-4 bg-border/60 mx-0.5"></div>
-
-        <button 
+      <div className="flex items-center flex-wrap gap-0.5">
+        <button
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors font-serif font-bold",
             activePanel === 'color' ? "bg-muted text-foreground" : "text-muted-foreground"
@@ -200,12 +191,13 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         >
           <Sigma className="h-4 w-4" />
         </button>
-        
+
         <button
+          onClick={() => onAction?.("clear")}
           className="flex h-7 w-7 items-center justify-center rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-          title="More options"
+          title="Clear formatting"
         >
-          <MoreHorizontal className="h-4 w-4" />
+          <Eraser className="h-4 w-4" />
         </button>
       </div>
 

@@ -312,6 +312,71 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     return "";
   };
 
+  // Experimental Editor Mode: the contentEditable IS the style tree. After live
+  // edits it accumulates cruft — empty style spans, redundant nested spans of the
+  // same kind, adjacent twins, and browser-injected plain <span>s — which would
+  // serialize to broken markdown like [color:x][color:x]…[/color][/color]. This
+  // normalizes the tree (in place) so revertToMarkdown emits clean, balanced tags.
+  const PRESERVE_SPAN = "[data-lu-icon],[data-token],[data-math],.mention-pill,.user-mention,.deep-pill";
+  const styleSignature = (el: Element): string | null => {
+    const tag = el.tagName.toLowerCase();
+    if (tag === "span") {
+      const c = el.getAttribute("data-color");
+      const b = el.getAttribute("data-bg");
+      const s = el.getAttribute("data-size");
+      if (c || b || s) return `span|${c ?? ""}|${b ?? ""}|${s ?? ""}`;
+      return null;
+    }
+    if (["b", "strong", "i", "em", "u", "s", "strike", "code"].includes(tag)) return tag;
+    return null;
+  };
+  const STYLE_SELECTOR = "span[data-color],span[data-bg],span[data-size],b,strong,i,em,u,s,strike,code";
+  const normalizeStyleTree = (container: HTMLElement) => {
+    // 1. Unwrap plain <span> with no style signature (browser-injected wrappers),
+    //    preserving icons/pills/math/tokens.
+    container.querySelectorAll("span").forEach((sp) => {
+      if (styleSignature(sp) !== null) return;
+      if (sp.closest(PRESERVE_SPAN)) return; // self or inside an icon/pill/math/token
+      if (sp.querySelector(PRESERVE_SPAN)) return;
+      if (sp.hasAttribute("data-lu-mount")) return;
+      const p = sp.parentNode;
+      if (!p) return;
+      while (sp.firstChild) p.insertBefore(sp.firstChild, sp);
+      p.removeChild(sp);
+    });
+    let changed = true;
+    let guard = 0;
+    while (changed && guard++ < 25) {
+      changed = false;
+      // 2. Remove empty style elements.
+      container.querySelectorAll(STYLE_SELECTOR).forEach((el) => {
+        if ((el.textContent || "").length === 0 && !el.querySelector("[data-lu-icon],img,[data-math]")) {
+          el.remove();
+          changed = true;
+        }
+      });
+      // 3. Unwrap a style element nested directly inside an identical-signature parent.
+      container.querySelectorAll(STYLE_SELECTOR).forEach((el) => {
+        const parent = el.parentElement;
+        if (parent && styleSignature(parent) && styleSignature(parent) === styleSignature(el)) {
+          while (el.firstChild) parent.insertBefore(el.firstChild, el);
+          el.remove();
+          changed = true;
+        }
+      });
+      // 4. Merge adjacent siblings with the same signature.
+      container.querySelectorAll(STYLE_SELECTOR).forEach((el) => {
+        const next = el.nextSibling as Element | null;
+        if (next && next.nodeType === Node.ELEMENT_NODE && styleSignature(el) && styleSignature(next) === styleSignature(el)) {
+          while (next.firstChild) el.appendChild(next.firstChild);
+          next.remove();
+          changed = true;
+        }
+      });
+    }
+    container.normalize();
+  };
+
   /**
    * Converts rendered HTML back to a plain markdown string (with \n)
    * This is used for saving and for the focus state.
@@ -319,6 +384,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const revertToMarkdown = (html: string): string => {
     const tempDiv = document.createElement("div");
     tempDiv.innerHTML = html;
+    if (getExperimentalEditorMode()) normalizeStyleTree(tempDiv);
 
     let markdown = "";
 
@@ -1128,6 +1194,21 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const paintEditable = (md: string): string =>
     getExperimentalEditorMode() ? processPseudoMarkdown(md, true) : processMarkdownWithPills(md);
 
+  // Commit an inline edit (style span, emoji, clear…) that already mutated the
+  // LIVE DOM. In Experimental mode we DON'T overwrite innerHTML — the styled
+  // result is already on screen, so the caret/selection survive (Notion/Docs
+  // feel). Classic mode must repaint to swap the source/pills view. Pass
+  // forceRepaint for ops that injected a raw token needing re-render (icons,
+  // reference pills, slash blocks).
+  const commitInlineEdit = (md: string, opts?: { forceRepaint?: boolean }) => {
+    onUpdate(md);
+    if (!contentRef.current) return;
+    if (opts?.forceRepaint || !getExperimentalEditorMode()) {
+      contentRef.current.innerHTML = paintEditable(md);
+      if (getExperimentalEditorMode()) mountDiagramsIn(contentRef.current);
+    }
+  };
+
   const applySlashCommand = (command: SlashCommand) => {
     if (!contentRef.current) return;
 
@@ -1420,6 +1501,33 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     }
     const md = revertToMarkdown(contentRef.current.innerHTML || "");
     onUpdate(md);
+  };
+
+  // Clear all inline formatting from the current selection — native formats via
+  // execCommand plus our custom color/bg/size spans — then re-serialize cleanly.
+  const clearFormattingInSelection = () => {
+    const root = contentRef.current;
+    if (!root) return;
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) return;
+    const range = sel.getRangeAt(0);
+    if (!root.contains(range.commonAncestorContainer)) return;
+    try { document.execCommand("removeFormat"); } catch { /* noop */ }
+    const sel2 = window.getSelection();
+    const activeRange = sel2 && sel2.rangeCount > 0 ? sel2.getRangeAt(0) : range;
+    root.querySelectorAll("span[data-color],span[data-bg],span[data-size]").forEach((span) => {
+      let hit = false;
+      try { hit = activeRange.intersectsNode(span); } catch { hit = false; }
+      if (!hit) return;
+      const p = span.parentNode;
+      if (!p) return;
+      while (span.firstChild) p.insertBefore(span.firstChild, span);
+      p.removeChild(span);
+    });
+    root.normalize();
+    const md = revertToMarkdown(root.innerHTML || "");
+    commitInlineEdit(md);
+    setIsFormatToolbarOpen(false);
   };
 
   const checkSelectionForToolbar = () => {
@@ -2009,10 +2117,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
               const replaceFrom = isTriggerChar ? safeCursor - 1 : safeCursor;
               
               const newMarkdown = `${markdown.slice(0, replaceFrom)}${insertToken} ${markdown.slice(safeCursor)}`;
-              onUpdate(newMarkdown);
-              if (contentRef.current) {
-                contentRef.current.innerHTML = paintEditable(newMarkdown);
-              }
+              commitInlineEdit(newMarkdown, { forceRepaint: true });
               setIsPickerOpen(false);
               setPickerCursorOffset(null);
               // Bring focus back to text block
@@ -2108,7 +2213,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             isVisible={isFormatToolbarOpen}
             onFormat={handleFormat}
             onAction={(action) => {
-            setIsFormatToolbarOpen(false);
+            // Keep the toolbar open for inline style ops so the user can chain
+            // color → size → highlight on the same selection (Notion/Docs feel).
+            const isStyleOp = action.startsWith("color:") || action.startsWith("bg:") || action.startsWith("size:");
+            if (!isStyleOp) setIsFormatToolbarOpen(false);
             const sel = window.getSelection();
             if (sel && sel.rangeCount > 0) {
               const r = sel.getRangeAt(0);
@@ -2119,7 +2227,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 if (offset !== null) setPickerCursorOffset(offset);
               }
             }
-            if (action === "emoji") {
+            if (action === "clear") {
+              clearFormattingInSelection();
+            } else if (action === "emoji") {
               setIsEmojiPickerOpen(true);
             } else if (action === "math") {
               setMathInsertMode("insert");
@@ -2156,11 +2266,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   colorSpan.style.color = colorValue;
                   colorSpan.appendChild(range2.extractContents());
                   range2.insertNode(colorSpan);
-                  if (sel2) sel2.removeAllRanges();
+                  // Keep the styled text selected (Notion-style: chain more styles).
+                  if (sel2) { sel2.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(colorSpan); sel2.addRange(rr); }
                 }
                 const colorMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                onUpdate(colorMd);
-                contentRef.current.innerHTML = paintEditable(colorMd);
+                commitInlineEdit(colorMd);
               }
             } else if (action.startsWith('bg:')) {
               const bgValue = action.slice(3);
@@ -2175,11 +2285,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   bgSpan.style.borderRadius = "3px";
                   bgSpan.appendChild(rangeBg.extractContents());
                   rangeBg.insertNode(bgSpan);
-                  if (selBg) selBg.removeAllRanges();
+                  if (selBg) { selBg.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(bgSpan); selBg.addRange(rr); }
                 }
                 const bgMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                onUpdate(bgMd);
-                contentRef.current.innerHTML = paintEditable(bgMd);
+                commitInlineEdit(bgMd);
               }
             } else if (action.startsWith('size:')) {
               const sizeValue = action.slice(5);
@@ -2192,11 +2301,10 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   sizeSpan.style.fontSize = sizeValue;
                   sizeSpan.appendChild(range3.extractContents());
                   range3.insertNode(sizeSpan);
-                  if (sel3) sel3.removeAllRanges();
+                  if (sel3) { sel3.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(sizeSpan); sel3.addRange(rr); }
                 }
                 const sizeMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                onUpdate(sizeMd);
-                contentRef.current.innerHTML = paintEditable(sizeMd);
+                commitInlineEdit(sizeMd);
               }
             } else {
               void action;
@@ -2222,8 +2330,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   }
                   document.execCommand("insertText", false, ts + " ");
                   const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                  onUpdate(newMarkdown);
-                  contentRef.current.innerHTML = paintEditable(newMarkdown);
+                  commitInlineEdit(newMarkdown);
                 }
                 setIsDatePickerOpen(false);
                 setPickerCursorOffset(null);
@@ -2246,10 +2353,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 const cursor = pickerCursorOffset ?? markdown.length;
                 const safe = Math.max(0, Math.min(cursor, markdown.length));
                 const newMarkdown = `${markdown.slice(0, safe)}${token}${markdown.slice(safe)}`;
-                onUpdate(newMarkdown);
-                if (contentRef.current) {
-                  contentRef.current.innerHTML = paintEditable(newMarkdown);
-                }
+                commitInlineEdit(newMarkdown, { forceRepaint: true });
                 setIsIconPickerOpen(false);
                 setPickerCursorOffset(null);
                 savedRangeRef.current = null;
@@ -2274,8 +2378,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   }
                   document.execCommand("insertText", false, emoji + " ");
                   const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                  onUpdate(newMarkdown);
-                  contentRef.current.innerHTML = paintEditable(newMarkdown);
+                  commitInlineEdit(newMarkdown);
                 }
                 setIsEmojiPickerOpen(false);
                 setPickerCursorOffset(null);
@@ -2315,8 +2418,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                     }
                     document.execCommand("insertText", false, markdown + " ");
                     const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                    onUpdate(newMarkdown);
-                    contentRef.current.innerHTML = paintEditable(newMarkdown);
+                    commitInlineEdit(newMarkdown, { forceRepaint: true });
                   }
                 }
                 setIsMathPickerOpen(false);
