@@ -5,7 +5,8 @@ import {
   Bold, Italic, Strikethrough, Code, Link,
   Underline, MessageSquare, SmilePlus, Calendar,
   PenSquare, Settings2, Sparkles, Sigma,
-  ChevronDown, Type, Highlighter, Eraser
+  ChevronDown, Type, Highlighter, Eraser,
+  Pilcrow, Quote, SquareCode
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -26,7 +27,15 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
   const t = useTranslations("document-detail");
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [adjustedPos, setAdjustedPosition] = useState({ top: position.top, left: position.left });
-  const [activePanel, setActivePanel] = useState<'color' | 'size' | 'highlight' | null>(null);
+  const [activePanel, setActivePanel] = useState<'color' | 'size' | 'highlight' | 'block' | null>(null);
+
+  const CALLOUT_PRESETS = [
+    { label: "Note",      type: "note",      color: "#38bdf8" },
+    { label: "Tip",       type: "tip",       color: "#34d399" },
+    { label: "Important", type: "important", color: "#a78bfa" },
+    { label: "Warning",   type: "warning",   color: "#fbbf24" },
+    { label: "Danger",    type: "danger",    color: "#fb7185" },
+  ];
 
   const COLOR_PRESETS = [
     { label: "Default", value: "inherit" },
@@ -137,6 +146,17 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
           onClick={() => setActivePanel((p) => p === 'highlight' ? null : 'highlight')}
         >
           <Highlighter className="h-4 w-4" />
+        </button>
+
+        <button
+          className={cn(
+            "flex h-7 w-7 items-center justify-center rounded hover:bg-muted hover:text-foreground transition-colors",
+            activePanel === 'block' ? "bg-muted text-foreground" : "text-muted-foreground"
+          )}
+          title="Block type (heading, quote, code, callout)"
+          onClick={() => setActivePanel((p) => p === 'block' ? null : 'block')}
+        >
+          <Pilcrow className="h-4 w-4" />
         </button>
 
         <button
@@ -259,6 +279,43 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
             onChange={(e) => onAction?.(`bg:${e.target.value}`)}
             onBlur={() => setActivePanel(null)}
           />
+        </div>
+      )}
+
+      {/* Block type panel — set/clear headings, quote, code, callouts */}
+      {activePanel === 'block' && (
+        <div className="flex flex-col gap-1.5 border-t border-border/40 px-1 py-2">
+          <div className="flex flex-wrap items-center gap-1">
+            <button title="Text / clear" className="flex h-7 items-center gap-1 rounded px-2 bg-muted/40 hover:bg-muted text-foreground transition-colors" onClick={() => { onAction?.("block:paragraph"); setActivePanel(null); }}>
+              <Pilcrow className="h-3.5 w-3.5" /> <span className="text-xs">Text</span>
+            </button>
+            {([1, 2, 3, 4, 5] as const).map((h) => (
+              <button key={h} title={`Heading ${h}`} className="flex h-7 w-8 items-center justify-center rounded bg-muted/40 hover:bg-muted text-foreground font-bold transition-colors text-xs" onClick={() => { onAction?.(`block:h${h}`); setActivePanel(null); }}>
+                H{h}
+              </button>
+            ))}
+            <button title="Quote" className="flex h-7 w-8 items-center justify-center rounded bg-muted/40 hover:bg-muted text-foreground transition-colors" onClick={() => { onAction?.("block:quote"); setActivePanel(null); }}>
+              <Quote className="h-3.5 w-3.5" />
+            </button>
+            <button title="Code block" className="flex h-7 w-8 items-center justify-center rounded bg-muted/40 hover:bg-muted text-foreground transition-colors" onClick={() => { onAction?.("block:code"); setActivePanel(null); }}>
+              <SquareCode className="h-3.5 w-3.5" />
+            </button>
+          </div>
+          <div className="flex flex-wrap items-center gap-1">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/70 px-0.5">Callout</span>
+            {CALLOUT_PRESETS.map((c) => (
+              <button key={c.type} title={c.label} className="flex h-6 items-center gap-1 rounded px-1.5 border border-border/50 hover:bg-muted text-foreground transition-colors text-[11px]" onClick={() => { onAction?.(`block:callout:${c.type}`); setActivePanel(null); }}>
+                <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ background: c.color }} /> {c.label}
+              </button>
+            ))}
+            <input
+              type="color"
+              className="h-5 w-5 cursor-pointer rounded border border-border/60 bg-transparent p-0"
+              title="Custom callout color"
+              onChange={(e) => { onAction?.(`block:callout:${e.target.value}`); }}
+              onBlur={() => setActivePanel(null)}
+            />
+          </div>
         </div>
       )}
 

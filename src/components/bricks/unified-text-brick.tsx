@@ -1530,6 +1530,50 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setIsFormatToolbarOpen(false);
   };
 
+  // Block-level transforms (headings, paragraph, quote, callout, code) applied to
+  // the line(s) the selection covers. Operates in markdown space so it can both
+  // SET and CLEAR a block type (e.g. H2 → paragraph). Needs a repaint to re-render
+  // the new block structure.
+  const stripBlockPrefix = (l: string): string =>
+    l.replace(/^(\s*)#{1,6}\s+/, "$1").replace(/^(\s*)>\s?(\[![^\]]*\][+-]?\s*)?/, "$1");
+  const applyBlockType = (type: string) => {
+    const root = contentRef.current;
+    if (!root) return;
+    const md = revertToMarkdown(root.innerHTML || "");
+    const startOff = getMarkdownCursorOffset(root) ?? md.length;
+    const lines = md.split("\n");
+    let acc = 0;
+    let startLine = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const len = lines[i].length + 1;
+      if (startOff < acc + len) { startLine = i; break; }
+      acc += len;
+      startLine = i;
+    }
+    const sel = window.getSelection();
+    const extra = sel && !sel.isCollapsed ? (sel.toString().match(/\n/g)?.length ?? 0) : 0;
+    const endLine = Math.min(lines.length - 1, startLine + extra);
+
+    if (type === "code") {
+      const body = lines.slice(startLine, endLine + 1).map(stripBlockPrefix).join("\n");
+      lines.splice(startLine, endLine - startLine + 1, "```\n" + body + "\n```");
+    } else {
+      const transform = (l: string): string => {
+        const body = stripBlockPrefix(l);
+        if (type === "paragraph") return body;
+        if (/^h[1-6]$/.test(type)) return "#".repeat(Number(type[1])) + " " + body;
+        if (type === "quote") return "> " + body;
+        if (type.startsWith("callout:")) return `> [!${type.slice(8)}] ` + body;
+        return l;
+      };
+      for (let i = startLine; i <= endLine; i++) lines[i] = transform(lines[i]);
+    }
+
+    commitInlineEdit(lines.join("\n"), { forceRepaint: true });
+    setIsFormatToolbarOpen(false);
+    requestAnimationFrame(() => root.focus());
+  };
+
   const checkSelectionForToolbar = () => {
     if (readonly) return;
     // Only one floating UI at a time — any other picker wins.
@@ -2274,6 +2318,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             }
             if (action === "clear") {
               clearFormattingInSelection();
+            } else if (action.startsWith("block:")) {
+              applyBlockType(action.slice(6));
             } else if (action === "emoji") {
               setIsEmojiPickerOpen(true);
             } else if (action === "math") {
