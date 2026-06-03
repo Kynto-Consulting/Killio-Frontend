@@ -191,6 +191,7 @@ export function UnifiedBrickRenderer({
           users={users}
           onPasteImage={(payload) => onPasteImageInTextBrick?.({ ...payload, brickId: brick.id })}
           onAiAction={onAiAction}
+          onComment={() => setIsCommentsOpen(true)}
         />
       );
       break;

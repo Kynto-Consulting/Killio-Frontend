@@ -1876,7 +1876,7 @@ export default function DocumentPage() {
               onCrossContainerDrop={handleCrossContainerDrop}
               onPasteImageInTextBrick={handlePasteImageInTextBrick}
               onUploadMediaFiles={handleUploadMediaFiles}
-              onAiAction={handleAiAction}
+              onAiAction={localMode ? undefined : handleAiAction}
               selectedBrickIds={brickSelection}
               onBrickSelectToggle={(id) => setBrickSelection((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n; })}
             />

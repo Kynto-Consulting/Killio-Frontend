@@ -16,6 +16,11 @@ interface InlineFormatToolbarProps {
   onFormat: (type: "bold" | "italic" | "strike" | "code" | "link" | "underline" | "math") => void;
   onAction?: (action: string) => void;
   isVisible: boolean;
+  /** When false the AI-powered actions (improve/fix/explain/suggest-edit/Edit
+   *  with AI) are hidden — e.g. local workspaces where the copilot is off. */
+  aiEnabled?: boolean;
+  /** When false the Comment action is hidden (no brick-comment host). */
+  commentsEnabled?: boolean;
 }
 
 export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
@@ -23,6 +28,8 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
   onFormat,
   onAction,
   isVisible,
+  aiEnabled = true,
+  commentsEnabled = true,
 }) => {
   const t = useTranslations("document-detail");
   const toolbarRef = useRef<HTMLDivElement>(null);
@@ -321,12 +328,14 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
 
       {/* Row 2: Basic Actions */}
       <div className="flex items-center gap-1.5 mt-0.5">
-        <button 
-          onClick={() => onAction?.("comment")}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/40 hover:bg-muted text-xs font-medium rounded-md flex-1 text-foreground transition-colors"
-        >
-          <MessageSquare className="w-3.5 h-3.5" /> Comentar
-        </button>
+        {commentsEnabled && (
+          <button
+            onClick={() => onAction?.("comment")}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/40 hover:bg-muted text-xs font-medium rounded-md flex-1 text-foreground transition-colors"
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> {t("formatToolbar.comment") as string || "Comentar"}
+          </button>
+        )}
         <button
           onClick={() => onAction?.("emoji")}
           className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
@@ -348,16 +357,19 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         >
           <Calendar className="w-3.5 h-3.5" />
         </button>
-        <button 
-          onClick={() => onAction?.("edit")}
-          className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors" 
-          title="Sugerir edición"
-        >
-          <PenSquare className="w-3.5 h-3.5" />
-        </button>
+        {aiEnabled && (
+          <button
+            onClick={() => onAction?.("edit")}
+            className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
+            title="Sugerir edición"
+          >
+            <PenSquare className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
 
       {/* Row 3: Habilidades AI */}
+      {aiEnabled && (
       <div className="flex flex-col mt-1">
         <div className="flex items-center justify-between px-2 py-1 mb-0.5">
           <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">Habilidades</span>
@@ -392,10 +404,12 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
           </div>
         </div>
       </div>
+      )}
 
       {/* Footer: Editar con IA */}
+      {aiEnabled && (
       <div className="mt-1 pt-1 border-t border-border/60">
-        <button 
+        <button
           onClick={() => onAction?.("ai-edit-prompt")}
           className="flex items-center justify-between px-2 py-1.5 text-sm font-medium hover:bg-primary/10 hover:text-primary rounded-md text-left w-full transition-colors group mt-0.5"
         >
@@ -408,6 +422,7 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
           </kbd>
         </button>
       </div>
+      )}
     </div>
   );
 };

@@ -16,7 +16,7 @@ import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
-import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover } from "./inline-pickers";
+import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover, formatDateToken, type DateTokenFormat } from "./inline-pickers";
 import katex from "katex";
 // @ts-ignore
 import "katex/dist/katex.min.css";
@@ -35,6 +35,9 @@ interface TextBrickProps {
   users?: WorkspaceMemberLike[];
   onPasteImage?: (payload: { file: File; cursorOffset: number; markdown: string }) => Promise<string | void> | string | void;
   onAiAction?: (action: string, contextText: string) => void;
+  /** Opens the brick-comment composer for this brick (wired by brick-renderer).
+   *  When absent the Comment action in the format toolbar is hidden. */
+  onComment?: () => void;
 }
 
 // Render a fenced diagram/preview block found in display HTML. `html` / `html[preview]`
@@ -178,7 +181,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   activeBricks,
   users = [],
   onPasteImage,
-  onAiAction
+  onAiAction,
+  onComment,
 }) => {
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerFilter, setPickerFilter] = useState<any[] | undefined>(undefined);
@@ -223,6 +227,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const pasteInFlightRef = useRef(false);
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
   const router = useRouter();
+  const { locale } = useI18n();
   const tDetail = useTranslations("document-detail");
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -750,6 +755,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       .replace(/\[lu:([\w-]+)(?::([\d.]+))?\]/g, (_, name: string, sw?: string) => {
         const tok = `[lu:${name}${sw ? `:${sw}` : ""}]`;
         return `<span data-lu-icon="${escapeHtmlAttr(name)}" data-lu-sw="${escapeHtmlAttr(sw ?? "2")}" contenteditable="false" class="relative inline-block h-[1em] w-[1em] align-[-0.15em]"><span aria-hidden="false" class="pointer-events-none absolute inset-0 select-text opacity-0">${escapeHtml(tok)}</span><span data-lu-mount class="absolute inset-0 inline-flex"></span></span>`;
+      })
+      // [t:UNIX:date|time|time-to] → locale-formatted date pill. Carries the raw
+      // token in data-token so revertToMarkdown serializes it straight back, and
+      // contenteditable=false so it edits as one atomic unit.
+      .replace(/\[t:(\d+):(date|time|time-to)\]/g, (_, unixStr: string, fmt: string) => {
+        const tok = `[t:${unixStr}:${fmt}]`;
+        const label = formatDateToken(Number(unixStr), fmt as DateTokenFormat, locale) || tok;
+        return `<span data-token="${escapeHtmlAttr(tok)}" contenteditable="false" class="inline-flex items-center rounded bg-accent/10 text-accent px-1 text-[0.95em] font-medium align-baseline">${escapeHtml(label)}</span>`;
       })
       .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt: string, rawUrl: string) => {
         const src = normalizeImageUrl(rawUrl);
@@ -2256,6 +2269,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           <InlineFormatToolbar
             position={formatToolbarPosition}
             isVisible={isFormatToolbarOpen}
+            aiEnabled={!!onAiAction}
+            commentsEnabled={!!onComment}
             onFormat={handleFormat}
             onAction={(action) => {
             // Keep the toolbar open for inline style ops so the user can chain
@@ -2274,6 +2289,8 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             }
             if (action === "clear") {
               clearFormattingInSelection();
+            } else if (action === "comment") {
+              onComment?.();
             } else if (action === "icon") {
               openIconPicker();
             } else if (action.startsWith("block:")) {
@@ -2379,7 +2396,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                   }
                   document.execCommand("insertText", false, ts + " ");
                   const newMarkdown = revertToMarkdown(contentRef.current.innerHTML || "");
-                  commitInlineEdit(newMarkdown);
+                  commitInlineEdit(newMarkdown, { forceRepaint: true });
                 }
                 setIsDatePickerOpen(false);
                 setPickerCursorOffset(null);

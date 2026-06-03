@@ -295,7 +295,6 @@ export default function DocumentMobilePage() {
           onCrossContainerDrop={async () => {}}
           onPasteImageInTextBrick={async () => {}}
           onUploadMediaFiles={async () => {}}
-          onAiAction={() => {}}
         />
 
         <div className="h-20" />

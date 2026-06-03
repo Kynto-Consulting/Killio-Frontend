@@ -5,30 +5,74 @@ import EmojiPicker from "emoji-picker-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import katex from "katex";
-import { useTranslations } from "@/components/providers/i18n-provider";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 // @ts-ignore
 import "katex/dist/katex.min.css";
 
 // Basic input components so we don't have to import the heavy ones if they aren't standard
+// The three token formats a date can render as. Kept as a token (`[t:UNIX:fmt]`)
+// so it round-trips and re-localizes on every render:
+//  - date:    day month year            (24 de mayo de 2026)
+//  - time:    day month + hour          (24 de mayo, 18:00)
+//  - time-to: relative from now         (en 3 días / hace 2 horas)
+export type DateTokenFormat = "date" | "time" | "time-to";
+
+export function formatDateToken(unix: number, fmt: DateTokenFormat, locale: string): string {
+  const dt = new Date(unix * 1000);
+  if (Number.isNaN(dt.getTime())) return "";
+  if (fmt === "time") return dt.toLocaleString(locale, { day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  if (fmt === "time-to") {
+    const diffSec = unix - Math.floor(Date.now() / 1000);
+    const abs = Math.abs(diffSec);
+    const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+    const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [["year", 31536000], ["month", 2592000], ["day", 86400], ["hour", 3600], ["minute", 60]];
+    for (const [unit, secs] of units) { if (abs >= secs) return rtf.format(Math.round(diffSec / secs), unit); }
+    return rtf.format(diffSec, "second");
+  }
+  return dt.toLocaleDateString(locale, { day: "numeric", month: "long", year: "numeric" });
+}
+
 export function DatePickerPopover({ onSelect, onClose, top, left }: { onSelect: (ts: string) => void, onClose: () => void, top: number, left: number }) {
+  const { locale } = useI18n();
+  const t = useTranslations("document-detail");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
+  const [fmt, setFmt] = useState<DateTokenFormat>("date");
+
+  const dt = date ? new Date(`${date}T${time || "00:00"}`) : null;
+  const unix = dt && !Number.isNaN(dt.getTime()) ? Math.floor(dt.getTime() / 1000) : null;
 
   const handleApply = () => {
-    if (!date) return;
-    const dt = new Date(`${date}T${time || "00:00"}`);
-    const unix = Math.floor(dt.getTime() / 1000);
-    onSelect(`<t:${unix}:F>`);
+    if (unix === null) return;
+    // Keep it a TOKEN so it re-localizes/recomputes on render.
+    onSelect(`[t:${unix}:${fmt}]`);
   };
+
+  const FORMATS: Array<{ key: DateTokenFormat; label: string }> = [
+    { key: "date", label: t("datePicker.fmtDate", { fallback: "Date" }) },
+    { key: "time", label: t("datePicker.fmtTime", { fallback: "Time" }) },
+    { key: "time-to", label: t("datePicker.fmtTimeTo", { fallback: "Countdown" }) },
+  ];
 
   return (
     <div className="fixed z-[150] p-4 flex flex-col gap-3 rounded-xl border border-border bg-card shadow-2xl w-[260px]" style={{ top, left }}>
-      <div className="text-sm font-medium">Seleccionar Fecha/Hora</div>
+      <div className="text-sm font-medium">{t("datePicker.title", { fallback: "Select date / time" })}</div>
       <input type="date" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" value={date} onChange={e => setDate(e.target.value)} />
       <input type="time" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50" value={time} onChange={e => setTime(e.target.value)} />
-      <div className="flex gap-2 justify-end mt-2">
-        <Button size="sm" variant="ghost" onClick={onClose}>Cancelar</Button>
-        <Button size="sm" onClick={handleApply}>Insertar</Button>
+      <div className="flex gap-1">
+        {FORMATS.map((f) => (
+          <button key={f.key} type="button" onClick={() => setFmt(f.key)}
+            className={cn("flex-1 h-7 rounded-md text-xs font-medium transition-colors", fmt === f.key ? "bg-primary text-primary-foreground" : "bg-muted/40 hover:bg-muted text-muted-foreground")}>
+            {f.label}
+          </button>
+        ))}
+      </div>
+      {unix !== null && (
+        <div className="text-xs text-muted-foreground truncate">{t("datePicker.preview", { fallback: "Preview" })}: <span className="text-foreground font-medium">{formatDateToken(unix, fmt, locale)}</span></div>
+      )}
+      <div className="flex gap-2 justify-end mt-1">
+        <Button size="sm" variant="ghost" onClick={onClose}>{t("datePicker.cancel", { fallback: "Cancel" })}</Button>
+        <Button size="sm" disabled={unix === null} onClick={handleApply}>{t("datePicker.insert", { fallback: "Insert" })}</Button>
       </div>
     </div>
   );

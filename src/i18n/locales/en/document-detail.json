@@ -342,7 +342,17 @@
     "italic": "Italic",
     "strike": "Strikethrough",
     "code": "Inline Code",
-    "link": "Link"
+    "link": "Link",
+    "comment": "Comment"
+  },
+  "datePicker": {
+    "title": "Select date / time",
+    "cancel": "Cancel",
+    "insert": "Insert",
+    "preview": "Preview",
+    "fmtDate": "Date",
+    "fmtTime": "Time",
+    "fmtTimeTo": "Countdown"
   },
   "mathEditor": {
     "title": "Formula Editor",

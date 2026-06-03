@@ -342,7 +342,17 @@
     "italic": "Cursiva",
     "strike": "Tachado",
     "code": "Código",
-    "link": "Enlace"
+    "link": "Enlace",
+    "comment": "Comentar"
+  },
+  "datePicker": {
+    "title": "Seleccionar fecha / hora",
+    "cancel": "Cancelar",
+    "insert": "Insertar",
+    "preview": "Vista previa",
+    "fmtDate": "Fecha",
+    "fmtTime": "Hora",
+    "fmtTimeTo": "Cuenta regresiva"
   },
   "mathEditor": {
     "title": "Editor de Fórmula",
