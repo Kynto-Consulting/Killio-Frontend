@@ -2575,6 +2575,11 @@ function AIAutocompleteModal({
   );
 }
 
+// Workspace data (documents/boards/users) for in-cell reference resolution +
+// the rich cell editor. Provided once by the table, consumed by every cell —
+// avoids prop-drilling through Table/Board/Gallery/... views.
+const TableDataContext = React.createContext<{ documents: any[]; boards: any[]; users: WorkspaceMemberLike[] }>({ documents: [], boards: [], users: [] });
+
 // ─── Module-scope pure helpers (moved out of CellRenderer to avoid re-creation per render) ─
 
 function parseDateInput(raw: string): Date | null {
@@ -2708,6 +2713,8 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
   users?: WorkspaceMemberLike[];
 }) {
   const t = useTranslations("document-detail");
+  const tableData = React.useContext(TableDataContext);
+  const refContext = { documents: tableData.documents, boards: tableData.boards, activeBricks: [], users: tableData.users };
   const emptyLabel = ""; // Empty cells show nothing, just clickable area
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState("");
@@ -3197,9 +3204,10 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
           id={`cell-${column.id}`}
           text={editText}
           onUpdate={(val) => { richTextRef.current = val; }}
-          documents={[]}
-          boards={[]}
+          documents={tableData.documents as any}
+          boards={tableData.boards as any}
           activeBricks={[]}
+          users={tableData.users}
         />
       </div>
     );
@@ -3220,7 +3228,7 @@ const CellRenderer = React.memo(function CellRenderer({ cell, column, row, reado
           plain ? (
             <span className={cn("text-sm max-w-[280px]", column.wrap ? "whitespace-normal break-words" : "truncate")}>{displayText}</span>
           ) : (
-            <RichText content={rawText} context={{ documents: [], boards: [], activeBricks: [], users: [] }} className={cn("text-sm", column.wrap ? "whitespace-normal break-words" : "truncate max-w-[280px]")} />
+            <RichText content={rawText} context={refContext} className={cn("text-sm", column.wrap ? "whitespace-normal break-words" : "truncate max-w-[280px]")} />
           )
         ) : (
           <span className="text-muted-foreground/30 text-xs">{emptyLabel}</span>
@@ -4851,6 +4859,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
   }, []);
 
   const content = (
+    <TableDataContext.Provider value={{ documents, boards, users }}>
     <div className={cn(
       "bountiful-table-container rounded-xl border border-border bg-card/70 shadow-sm overflow-hidden flex flex-col select-none",
       isFullscreen ? "fixed inset-4 z-[9999] bg-card h-[calc(100vh-2rem)]" : "w-full my-4"
@@ -5209,6 +5218,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
         />
       )}
     </div>
+    </TableDataContext.Provider>
   );
 
   if (isFullscreen) {

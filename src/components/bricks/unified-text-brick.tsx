@@ -1527,6 +1527,34 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setIsFormatToolbarOpen(false);
   };
 
+  // Apply color/bg/size to the selection as ONE clean span. Prunes any existing
+  // spans of the SAME kind inside the selection first, so a new value REPLACES
+  // the old instead of nesting (red over blue → red, not stacked) — only the
+  // wrap that's actually needed. revertToMarkdown's normalizeStyleTree then
+  // merges adjacent twins, keeping the markdown balanced.
+  const applyInlineStyle = (attr: "data-color" | "data-bg" | "data-size", value: string, style: Partial<CSSStyleDeclaration>) => {
+    const root = contentRef.current;
+    if (!root) return;
+    const range = resolveFormattingRange();
+    if (range) {
+      const frag = range.extractContents();
+      frag.querySelectorAll(`span[${attr}]`).forEach((sp) => {
+        const p = sp.parentNode;
+        if (!p) return;
+        while (sp.firstChild) p.insertBefore(sp.firstChild, sp);
+        p.removeChild(sp);
+      });
+      const span = document.createElement("span");
+      span.setAttribute(attr, value);
+      Object.assign(span.style, style);
+      span.appendChild(frag);
+      range.insertNode(span);
+      const sel = window.getSelection();
+      if (sel) { sel.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(span); sel.addRange(rr); }
+    }
+    commitInlineEdit(revertToMarkdown(root.innerHTML || ""));
+  };
+
   // Block-level transforms (headings, paragraph, quote, callout, code) applied to
   // the line(s) the selection covers. Operates in markdown space so it can both
   // SET and CLEAR a block type (e.g. H2 → paragraph). Needs a repaint to re-render
@@ -2354,56 +2382,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
                 onAiAction?.(action, aiContext);
               }
             } else if (action.startsWith('color:')) {
-              const colorValue = action.slice(6);
-              if (contentRef.current) {
-                const range2 = resolveFormattingRange();
-                if (range2) {
-                  const sel2 = window.getSelection();
-                  const colorSpan = document.createElement("span");
-                  colorSpan.setAttribute("data-color", colorValue);
-                  colorSpan.style.color = colorValue;
-                  colorSpan.appendChild(range2.extractContents());
-                  range2.insertNode(colorSpan);
-                  // Keep the styled text selected (Notion-style: chain more styles).
-                  if (sel2) { sel2.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(colorSpan); sel2.addRange(rr); }
-                }
-                const colorMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                commitInlineEdit(colorMd);
-              }
+              applyInlineStyle("data-color", action.slice(6), { color: action.slice(6) });
             } else if (action.startsWith('bg:')) {
               const bgValue = action.slice(3);
-              if (contentRef.current) {
-                const rangeBg = resolveFormattingRange();
-                if (rangeBg) {
-                  const selBg = window.getSelection();
-                  const bgSpan = document.createElement("span");
-                  bgSpan.setAttribute("data-bg", bgValue);
-                  bgSpan.style.backgroundColor = bgValue;
-                  bgSpan.style.padding = "0 2px";
-                  bgSpan.style.borderRadius = "3px";
-                  bgSpan.appendChild(rangeBg.extractContents());
-                  rangeBg.insertNode(bgSpan);
-                  if (selBg) { selBg.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(bgSpan); selBg.addRange(rr); }
-                }
-                const bgMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                commitInlineEdit(bgMd);
-              }
+              applyInlineStyle("data-bg", bgValue, { backgroundColor: bgValue, padding: "0 2px", borderRadius: "3px" });
             } else if (action.startsWith('size:')) {
               const sizeValue = action.slice(5);
-              if (contentRef.current) {
-                const range3 = resolveFormattingRange();
-                if (range3) {
-                  const sel3 = window.getSelection();
-                  const sizeSpan = document.createElement("span");
-                  sizeSpan.setAttribute("data-size", sizeValue);
-                  sizeSpan.style.fontSize = sizeValue;
-                  sizeSpan.appendChild(range3.extractContents());
-                  range3.insertNode(sizeSpan);
-                  if (sel3) { sel3.removeAllRanges(); const rr = document.createRange(); rr.selectNodeContents(sizeSpan); sel3.addRange(rr); }
-                }
-                const sizeMd = revertToMarkdown(contentRef.current.innerHTML || "");
-                commitInlineEdit(sizeMd);
-              }
+              applyInlineStyle("data-size", sizeValue, { fontSize: sizeValue });
             } else {
               void action;
             }
