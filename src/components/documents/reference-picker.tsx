@@ -18,9 +18,21 @@ import {
 import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
+import { useTranslations } from "@/components/providers/i18n-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { getIntegration, buildExtensionToken, INTEGRATION_CATALOG, IntegrationUI } from "@/lib/integrations/integration-catalog";
+import { searchIntegrationRefs, IntegrationRefEntity } from "@/lib/api/integrations";
+
+/** provider → ref kinds the backend can live-search (others ref the app/kind directly). */
+const SEARCHABLE_KINDS: Record<string, Set<string>> = {
+  notion: new Set(["page", "database"]),
+  google_drive: new Set(["file"]),
+  onedrive: new Set(["file"]),
+  github: new Set(["repo"]),
+  trello: new Set(["board"]),
+};
+const isSearchable = (provider: string, kind: string) => !!SEARCHABLE_KINDS[provider]?.has(kind);
 
 type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
 type AllowedMentionType = MentionType | "document";
@@ -73,7 +85,7 @@ interface ReferencePickerProps {
   onLoadDocumentsInFolder?: (folderId: string) => Promise<DocumentSummary[]>;
 }
 
-type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors" | "integrations-list" | "integration-kinds";
+type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors" | "integrations-list" | "integration-kinds" | "integration-entities";
 type SelectorOption = { value: string; label: string };
 type SelectorSuggestion = SelectorOption & { isCustom?: boolean };
 
@@ -230,8 +242,9 @@ export function ReferencePicker({
   allowedTypes,
   onLoadDocumentsInFolder,
 }: ReferencePickerProps) {
-  const { accessToken } = useSession();
+  const { accessToken, activeTeamId } = useSession();
   const [query, setQuery] = useState("");
+  const t = useTranslations("common");
   const [mode, setMode] = useState<PickerMode>("root");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedDoc, setSelectedDoc] = useState<DocumentSummary | null>(null);
@@ -241,6 +254,10 @@ export function ReferencePicker({
   const [documentBricks, setDocumentBricks] = useState<ActiveBrick[]>([]);
   const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
   const [selectedIntegration, setSelectedIntegration] = useState<IntegrationUI | null>(null);
+  const [entityKind, setEntityKind] = useState<string>("");
+  const [entities, setEntities] = useState<IntegrationRefEntity[]>([]);
+  const [entitiesLoading, setEntitiesLoading] = useState(false);
+  const [entitiesConnected, setEntitiesConnected] = useState(true);
 
   // Expand documents to include nested ones from folders
   const expandedDocuments = useMemo(() => {
@@ -420,7 +437,7 @@ export function ReferencePicker({
       { key: "locals", label: "Locales", subtitle: "Referencia del documento actual" },
       { key: "documents", label: "Documentos", subtitle: "Referencia de otro documento" },
       { key: "meshes", label: "Meshes", subtitle: "Referencia de otro mesh board" },
-      { key: "integrations", label: "Integraciones", subtitle: "Referencia a apps conectadas (Notion, Drive, Slack…)" },
+      { key: "integrations", label: t("referencePicker.integrations"), subtitle: t("referencePicker.integrationsSubtitle") },
     ];
 
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
@@ -433,7 +450,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes]);
+  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -495,15 +512,53 @@ export function ReferencePicker({
   const integrationKindRows = useMemo(() => {
     if (!selectedIntegration) return [] as { kind: string; label: string }[];
     return [
-      { kind: "app", label: "Toda la app" },
+      { kind: "app", label: t("referencePicker.wholeApp") },
       ...selectedIntegration.refKinds.map((rk) => ({ kind: rk.kind, label: rk.label })),
     ];
-  }, [selectedIntegration]);
+  }, [selectedIntegration, t]);
 
   const integrationKindsFiltered = useMemo(() => {
     const q = query.toLowerCase().trim();
     return integrationKindRows.filter((r) => !q || r.label.toLowerCase().includes(q) || r.kind.toLowerCase().includes(q));
   }, [integrationKindRows, query]);
+
+  // Live entity rows: an "app-level" fallback first, then the fetched entities.
+  const entityRows = useMemo<IntegrationRefEntity[]>(
+    () => [{ externalId: "root", label: t("referencePicker.wholeApp"), kind: "app" }, ...entities],
+    [entities, t],
+  );
+
+  // Debounced live search while in the entities mode.
+  useEffect(() => {
+    if (mode !== "integration-entities" || !selectedIntegration || !activeTeamId || !accessToken) return;
+    let alive = true;
+    setEntitiesLoading(true);
+    const provider = selectedIntegration.provider;
+    const handle = setTimeout(async () => {
+      try {
+        // Try the team scope first; if the app isn't connected there, fall back to
+        // the user's personal workspace (personal integrations reused everywhere).
+        let r = await searchIntegrationRefs(activeTeamId, provider, query, accessToken);
+        if (!r.connected) {
+          const personal = await searchIntegrationRefs(activeTeamId, provider, query, accessToken, "personal");
+          if (personal.connected) r = personal;
+        }
+        if (!alive) return;
+        setEntities(r.entities || []);
+        setEntitiesConnected(r.connected !== false);
+      } catch {
+        if (!alive) return;
+        setEntities([]);
+        setEntitiesConnected(false);
+      } finally {
+        if (alive) setEntitiesLoading(false);
+      }
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(handle);
+    };
+  }, [mode, selectedIntegration, activeTeamId, accessToken, query]);
 
   const closeAndSelect = (item: ReferencePickerSelection) => {
     onSelect(item);
@@ -551,9 +606,23 @@ export function ReferencePicker({
     closeAndSelect({ token, label, category: "extension", extProvider: integ.provider });
   };
 
+  const openEntities = (integ: IntegrationUI, kind: string) => {
+    setSelectedIntegration(integ);
+    setEntityKind(kind);
+    setEntities([]);
+    setEntitiesConnected(true);
+    setQuery("");
+    setMode("integration-entities");
+  };
+
   const selectIntegration = (integ: IntegrationUI) => {
-    // 0/1 ref kind → clean app-level ref; >1 → drill into the app's sub-categories.
-    if (!integ.refKinds || integ.refKinds.length <= 1) return insertIntegrationRef(integ, "app");
+    const single = (integ.refKinds?.length ?? 0) <= 1;
+    if (single) {
+      const kind = integ.refKinds?.[0]?.kind;
+      // Live-pick a real entity when supported; otherwise insert an app-level ref.
+      if (kind && isSearchable(integ.provider, kind)) return openEntities(integ, kind);
+      return insertIntegrationRef(integ, "app");
+    }
     setSelectedIntegration(integ);
     setQuery("");
     setMode("integration-kinds");
@@ -561,7 +630,21 @@ export function ReferencePicker({
 
   const selectIntegrationKind = (row: { kind: string; label: string }) => {
     if (!selectedIntegration) return;
-    insertIntegrationRef(selectedIntegration, row.kind, row.kind === "app" ? undefined : row.label);
+    if (row.kind === "app") return insertIntegrationRef(selectedIntegration, "app");
+    if (isSearchable(selectedIntegration.provider, row.kind)) return openEntities(selectedIntegration, row.kind);
+    insertIntegrationRef(selectedIntegration, row.kind, row.label);
+  };
+
+  const selectEntity = (e: IntegrationRefEntity) => {
+    if (!selectedIntegration) return;
+    if (e.kind === "app") return insertIntegrationRef(selectedIntegration, "app");
+    const token = buildExtensionToken({
+      provider: selectedIntegration.provider,
+      kind: e.kind || entityKind || "item",
+      externalId: e.externalId,
+      label: e.label,
+    });
+    closeAndSelect({ token, label: e.label, category: "extension", extProvider: selectedIntegration.provider });
   };
 
   const selectBrickAndGoSelectors = (brick: ActiveBrick) => {
@@ -702,6 +785,20 @@ export function ReferencePicker({
       return;
     }
 
+    if (mode === "integration-entities") {
+      // back to kinds for multi-kind apps, else to the integrations list
+      const multi = (selectedIntegration?.refKinds?.length ?? 0) > 1;
+      setEntities([]);
+      setQuery("");
+      if (multi) {
+        setMode("integration-kinds");
+      } else {
+        setSelectedIntegration(null);
+        setMode("integrations-list");
+      }
+      return;
+    }
+
     setMode("root");
     setQuery("");
   };
@@ -715,6 +812,7 @@ export function ReferencePicker({
     if (mode === "mesh-bricks") return meshBricksFiltered.length;
     if (mode === "integrations-list") return integrationsFiltered.length;
     if (mode === "integration-kinds") return integrationKindsFiltered.length;
+    if (mode === "integration-entities") return entityRows.length;
     return selectorSuggestions.length;
   };
 
@@ -743,6 +841,12 @@ export function ReferencePicker({
     if (mode === "integration-kinds") {
       const row = integrationKindsFiltered[index];
       if (row) selectIntegrationKind(row);
+      return;
+    }
+
+    if (mode === "integration-entities") {
+      const e = entityRows[index];
+      if (e) selectEntity(e);
       return;
     }
 
@@ -827,9 +931,11 @@ export function ReferencePicker({
               : mode === "mesh-bricks"
                 ? selectedMesh?.name || "Bricks del mesh"
             : mode === "integrations-list"
-              ? "Integraciones"
+              ? t("referencePicker.integrations")
               : mode === "integration-kinds"
-                ? selectedIntegration?.name || "Integración"
+                ? selectedIntegration?.name || t("referencePicker.fallbackIntegration")
+            : mode === "integration-entities"
+              ? selectedIntegration?.name || t("referencePicker.fallbackIntegration")
             : `Selector ${selectedBrick?.kind || ""}`;
 
   const headerSubtitle =
@@ -846,9 +952,11 @@ export function ReferencePicker({
               : mode === "mesh-bricks"
                 ? "Elige un brick del mesh"
             : mode === "integrations-list"
-              ? "Elige una app conectada"
+              ? t("referencePicker.chooseApp")
               : mode === "integration-kinds"
-                ? "Elige qué referenciar"
+                ? t("referencePicker.chooseWhat")
+            : mode === "integration-entities"
+              ? t("referencePicker.searchIn", { app: selectedIntegration?.name || "" })
             : "Elige el selector segun tipo";
 
   return (
@@ -1134,7 +1242,7 @@ export function ReferencePicker({
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-sm font-medium truncate">{integ.name}{multi ? " >" : ""}</span>
                       <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">
-                        {multi ? integ.refKinds.map((r) => r.label).join(" · ") : "integración"}
+                        {multi ? integ.refKinds.map((r) => r.label).join(" · ") : t("referencePicker.integration")}
                       </span>
                     </div>
                     {multi && <ChevronRight className="h-4 w-4 opacity-60" />}
@@ -1142,7 +1250,7 @@ export function ReferencePicker({
                 );
               })}
               {integrationsFiltered.length === 0 && (
-                <div className="p-6 text-center text-muted-foreground text-sm">Sin integraciones</div>
+                <div className="p-6 text-center text-muted-foreground text-sm">{t("referencePicker.noIntegrations")}</div>
               )}
             </>
           )}
@@ -1175,6 +1283,52 @@ export function ReferencePicker({
                   </button>
                 );
               })}
+            </>
+          )}
+
+          {mode === "integration-entities" && (
+            <>
+              {!entitiesConnected && (
+                <div className="px-3 py-2 text-[11px] text-amber-500/90">
+                  {t("referencePicker.notConnected", { app: selectedIntegration?.name || "" })}
+                </div>
+              )}
+              {entityRows.map((e, idx) => {
+                const Icon = selectedIntegration ? (resolveLucide(selectedIntegration.icon) || Puzzle) : Puzzle;
+                return (
+                  <button
+                    key={`${e.kind}-${e.externalId}`}
+                    ref={(el) => {
+                      if (el) itemRefs.current.set(idx, el);
+                      else itemRefs.current.delete(idx);
+                    }}
+                    onMouseDown={(ev) => ev.preventDefault()}
+                    onClick={() => selectEntity(e)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                      idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" style={selectedIntegration ? { color: selectedIntegration.color } : undefined} />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">{e.label}</span>
+                      <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">
+                        {e.kind === "app" ? t("referencePicker.referenceWholeApp") : e.kind}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+              {entitiesLoading && (
+                <div className="p-4 text-center text-muted-foreground text-sm flex items-center justify-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin" /> {t("referencePicker.searching")}
+                </div>
+              )}
+              {!entitiesLoading && entitiesConnected && entities.length === 0 && (
+                <div className="px-3 py-2 text-[11px] text-muted-foreground">
+                  {query.trim() ? t("referencePicker.noResults") : t("referencePicker.typeToSearch", { app: selectedIntegration?.name || "" })}
+                </div>
+              )}
             </>
           )}
 

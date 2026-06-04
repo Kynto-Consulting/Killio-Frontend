@@ -1,4 +1,20 @@
 {
+  "referencePicker": {
+    "integrations": "Integraciones",
+    "integrationsSubtitle": "Referencia a apps conectadas (Notion, Drive, Slack…)",
+    "integration": "integración",
+    "chooseApp": "Elige una app conectada",
+    "chooseWhat": "Elige qué referenciar",
+    "searchIn": "Busca en {{app}}",
+    "wholeApp": "Toda la app",
+    "referenceWholeApp": "referencia toda la app",
+    "noIntegrations": "Sin integraciones",
+    "notConnected": "{{app}} no está conectada en este workspace. Puedes referenciar la app igual.",
+    "searching": "Buscando…",
+    "noResults": "Sin resultados",
+    "typeToSearch": "Escribe para buscar en {{app}}",
+    "fallbackIntegration": "Integración"
+  },
   "enabled": "Habilitado",
   "disabled": "Deshabilitado",
   "offline": {

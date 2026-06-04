@@ -128,6 +128,34 @@ export async function getConfiguredIntegrations(
   return res.json();
 }
 
+export interface IntegrationRefEntity {
+  externalId: string;
+  label: string;
+  kind: string;
+  url?: string;
+}
+
+/**
+ * Live entity search for the @-reference picker. Resolves the connected
+ * credential for the scope and returns real entities (Notion pages, Drive/
+ * OneDrive files, GitHub repos, Trello boards) to reference as @[ext:...].
+ */
+export async function searchIntegrationRefs(
+  teamId: string,
+  provider: string,
+  q: string,
+  accessToken: string,
+  scope?: "team" | "personal",
+): Promise<{ connected: boolean; entities: IntegrationRefEntity[]; error?: string }> {
+  const params = new URLSearchParams({ provider, q: q || "" });
+  if (scope) params.set("scope", scope);
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/ref-search?${params.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error("Integration ref-search failed");
+  return res.json();
+}
+
 export async function listGithubInstallations(
   teamId: string,
   accessToken: string,
