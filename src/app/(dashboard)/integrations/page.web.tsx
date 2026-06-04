@@ -28,6 +28,7 @@ import {
   GithubAppInstallation,
   GithubInstallationBranch,
   GithubInstallationRepository,
+  getConfiguredIntegrations,
   listGithubInstallationBranches,
   listGithubInstallationRepositories,
   listGithubInstallations,
@@ -815,8 +816,18 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
     })
     : null;
 
+  const [configuredProviders, setConfiguredProviders] = useState<Set<string> | null>(null);
+  useEffect(() => {
+    if (!accessToken) return;
+    getConfiguredIntegrations(accessToken)
+      .then((r) => setConfiguredProviders(new Set(r.providers)))
+      .catch(() => setConfiguredProviders(null));
+  }, [accessToken]);
+
   const teamCatalog = useMemo(() => integrationsForScope("team"), []);
-  const availableCount = teamCatalog.filter((i) => !i.comingSoon).length;
+  const availableCount = teamCatalog.filter(
+    (i) => !i.comingSoon && (configuredProviders ? configuredProviders.has(i.provider) : true),
+  ).length;
   const comingSoonCount = teamCatalog.filter((i) => i.comingSoon).length + 1; // +1 = Meta tutorial card
 
   const tabsPortalContent = (

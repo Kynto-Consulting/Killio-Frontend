@@ -113,6 +113,21 @@ async function parseApiError(res: Response, fallbackMessage: string): Promise<ne
   throw new Error(message);
 }
 
+/**
+ * Provider ids the backend can currently offer (OAuth apps with creds in env +
+ * manual-credential providers). The integrations grid renders connect cards
+ * ONLY for these so we never advertise an integration the backend can't finish.
+ */
+export async function getConfiguredIntegrations(
+  accessToken: string,
+): Promise<{ providers: string[]; report?: Array<{ provider: string; configured: boolean; manual: boolean; missingEnv: string[] }> }> {
+  const res = await fetch(`${BASE_URL}/integrations/configured`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error('Failed to fetch configured integrations');
+  return res.json();
+}
+
 export async function listGithubInstallations(
   teamId: string,
   accessToken: string,

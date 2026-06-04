@@ -1,14 +1,15 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import {
   IntegrationScopeKind,
   IntegrationUI,
   integrationsForScope,
 } from "@/lib/integrations/integration-catalog";
+import { getConfiguredIntegrations } from "@/lib/api/integrations";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
-import { Clock3, Puzzle } from "lucide-react";
+import { Clock3, Loader2, Puzzle } from "lucide-react";
 import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPanel";
 import { WhatsappIntegrationPanel } from "@/components/scripts/WhatsappIntegrationPanel";
 import { SlackWebhookIntegrationPanel } from "@/components/scripts/SlackWebhookIntegrationPanel";
@@ -174,10 +175,36 @@ export function IntegrationCatalogGrid({
 }) {
   const t = useTranslations("integrations");
 
+  // Backend tells us which providers have working credentials/config. We render
+  // connect cards ONLY for those — never advertise an integration the backend
+  // can't complete. `null` = still loading; on error we fall back to showing all.
+  const [configured, setConfigured] = useState<Set<string> | null>(null);
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    setLoaded(false);
+    getConfiguredIntegrations(accessToken)
+      .then((r) => { if (alive) { setConfigured(new Set(r.providers)); setLoaded(true); } })
+      .catch(() => { if (alive) { setConfigured(null); setLoaded(true); } });
+    return () => { alive = false; };
+  }, [accessToken]);
+
+  const isConfigured = (p: string) => (configured ? configured.has(p) : true);
+
   const all = integrationsForScope(scope);
-  const connectable = all.filter((i) => !i.comingSoon && i.panel && PANEL_REGISTRY[i.panel]);
+  const connectable = all.filter(
+    (i) => !i.comingSoon && i.panel && PANEL_REGISTRY[i.panel] && isConfigured(i.provider),
+  );
   const coming = all.filter((i) => i.comingSoon || !i.panel || !PANEL_REGISTRY[i.panel!]);
   const hasComing = coming.length > 0 || !!extraComingSoon;
+
+  if (!loaded) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} />
+      </div>
+    );
+  }
 
   const appName = (i: IntegrationUI) =>
     t(`integrations.catalog.apps.${i.i18nKey ?? i.id}.name`, { fallback: i.name });

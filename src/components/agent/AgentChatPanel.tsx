@@ -1156,8 +1156,24 @@ export function AssistantMessage({
             );
           }
 
-          // "text" blocks are rendered in the bottom bubble via visibleText — skip here
-          if (block.tag === "text") return null;
+          // "text" blocks: when the message carries inline tool chips, render the
+          // prose INLINE here so narration interleaves with the chips in document
+          // order (sentence → chip → sentence), instead of all chips stacking above
+          // one consolidated bubble. Without inline chips it's rendered once in the
+          // bottom bubble via visibleText.
+          if (block.tag === "text") {
+            if (!hasInlineToolChips) return null;
+            const seg = splitAtPartialToolTag(block.content ?? "").clean.replace(/\s+$/g, "");
+            if (!seg.trim()) return null;
+            return (
+              <div
+                key={key}
+                className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded"
+              >
+                <ReactMarkdown>{seg}</ReactMarkdown>
+              </div>
+            );
+          }
 
           if (block.tag === "plan") {
             const steps: { id: string; status: string; content: string }[] = [];
@@ -1405,19 +1421,36 @@ export function AssistantMessage({
           <ToolResultCards t={t} results={message.toolResults} />
         )}
 
-        <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-sm leading-relaxed">
-          {visibleText ? (
-            <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
-              <ReactMarkdown>{visibleText}</ReactMarkdown>
+        {!hasInlineToolChips ? (
+          <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-sm leading-relaxed">
+            {visibleText ? (
+              <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
+                <ReactMarkdown>{visibleText}</ReactMarkdown>
+              </div>
+            ) : message.isStreaming && !hasPartialToolCall ? (
+              <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
+                <Bot className="w-3.5 h-3.5" />
+                <span className="text-[11px]">{t("agent.header.thinking")}</span>
+              </div>
+            ) : null}
+            {hasPartialToolCall && <BuildingToolCallChip t={t} />}
+          </div>
+        ) : (
+          // Inline mode: prose is already rendered between the chips above. Only
+          // show a slim streaming tail (building chip / thinking), no extra bubble.
+          (message.isStreaming || hasPartialToolCall) && (
+            <div className="px-1 py-0.5">
+              {hasPartialToolCall ? (
+                <BuildingToolCallChip t={t} />
+              ) : message.isStreaming ? (
+                <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
+                  <Bot className="w-3.5 h-3.5" />
+                  <span className="text-[11px]">{t("agent.header.thinking")}</span>
+                </div>
+              ) : null}
             </div>
-          ) : message.isStreaming && !hasPartialToolCall ? (
-            <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
-              <Bot className="w-3.5 h-3.5" />
-              <span className="text-[11px]">{t("agent.header.thinking")}</span>
-            </div>
-          ) : null}
-          {hasPartialToolCall && <BuildingToolCallChip t={t} />}
-        </div>
+          )
+        )}
 
         {!message.isStreaming && visibleText && (
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity pl-0.5">
