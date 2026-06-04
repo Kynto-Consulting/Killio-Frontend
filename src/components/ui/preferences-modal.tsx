@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Settings, Loader2, Moon, Globe, FlaskConical } from "lucide-react";
+import { X, Settings, Loader2, Moon, Globe, FlaskConical, Puzzle, ChevronRight } from "lucide-react";
 import { Locale } from "@/i18n";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
 import { useExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
+import { PersonalIntegrationsModal } from "@/components/integrations/personal-integrations-modal";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
   const [theme, setTheme]       = useState("dark");
   const [language, setLanguage] = useState<Locale>(locale);
   const [experimentalEditor, setExperimentalEditor] = useExperimentalEditorMode();
+  const [showPersonalIntegrations, setShowPersonalIntegrations] = useState(false);
 
   useEffect(() => { setLanguage(locale); }, [locale]);
 
@@ -139,6 +141,29 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
               </button>
             </div>
 
+            <div className="h-px w-full bg-border/50" />
+
+            {/* Personal integrations — the user's own apps, reused across workspaces */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium leading-none flex items-center">
+                <Puzzle className="w-4 h-4 mr-2 text-muted-foreground" />
+                {t("personalIntegrations.label", { fallback: "Personal integrations" })}
+              </label>
+              <button
+                type="button"
+                onClick={() => setShowPersonalIntegrations(true)}
+                className="w-full flex items-center justify-between gap-3 rounded-lg border border-border p-3 text-left transition-colors hover:bg-accent/5"
+              >
+                <div className="min-w-0">
+                  <div className="text-sm font-medium">{t("personalIntegrations.manage", { fallback: "Manage your connected apps" })}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    {t("personalIntegrations.desc", { fallback: "Connect apps to your personal workspace — available in your private chats across every team." })}
+                  </div>
+                </div>
+                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              </button>
+            </div>
+
           </div>
 
           <div className="flex justify-end gap-3 pt-4 border-t border-border/50">
@@ -164,6 +189,11 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
           </div>
         </form>
       </div>
+
+      <PersonalIntegrationsModal
+        isOpen={showPersonalIntegrations}
+        onClose={() => setShowPersonalIntegrations(false)}
+      />
     </div>
   );
 }

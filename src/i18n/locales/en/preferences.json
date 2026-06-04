@@ -19,5 +19,13 @@
       "label": "Experimental Editor Mode",
       "desc": "Edit text bricks directly on the rendered text — disables the markdown round-trip. May be unstable."
     }
+  },
+  "personalIntegrations": {
+    "label": "Personal integrations",
+    "manage": "Manage your connected apps",
+    "desc": "Connect apps to your personal workspace — available in your private chats across every team.",
+    "title": "Personal integrations",
+    "subtitle": "Your own connected apps, reused across every workspace and private chat.",
+    "noPersonalTeam": "No personal workspace found for your account yet."
   }
 }

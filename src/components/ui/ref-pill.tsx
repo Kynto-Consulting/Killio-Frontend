@@ -2,7 +2,9 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2 } from "lucide-react";
+import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2, Puzzle } from "lucide-react";
+import { resolveLucide } from "@/lib/lucide-icon-registry";
+import { getIntegration } from "@/lib/integrations/integration-catalog";
 import { useRouter } from "next/navigation";
 import { getCardContext, listTeamMembers } from "@/lib/api/contracts";
 import { findOrCreateDm } from "@/lib/api/rooms";
@@ -15,7 +17,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'ext';
   id: string;
   name: string;
   label?: string;
@@ -23,6 +25,10 @@ interface RefPillProps {
   workspaceUsers?: WorkspaceMemberLike[];
   workspaceName?: string;
   teamId?: string;
+  /** Extension refs only: the integration provider (google_drive, notion…) + the
+   *  referenced kind (file, page, event). Drives icon/colour from the catalog. */
+  provider?: string;
+  extKind?: string;
 }
 
 function normalizeRoleLabel(role: string | null): string {
@@ -90,6 +96,8 @@ export function RefPill({
   workspaceUsers = [],
   workspaceName,
   teamId,
+  provider,
+  extKind,
 }: RefPillProps) {
   const t = useTranslations("common");
   const router = useRouter();
@@ -293,7 +301,10 @@ export function RefPill({
     transcript: MessageSquare,
   };
 
-  const Icon = Icons[type] || Database;
+  // Extension refs draw their icon/colour from the integration catalog.
+  const extIntegration = type === 'ext' && provider ? getIntegration(provider) : null;
+  const ExtIcon = extIntegration ? (resolveLucide(extIntegration.icon) || Puzzle) : Puzzle;
+  const Icon = type === 'ext' ? ExtIcon : (Icons[type] || Database);
   const userForMenu = resolvedUser || fallbackUser;
   const normalizedStatus = normalizeStatusLabel(userForMenu.status);
   const infoRows = [
@@ -322,7 +333,9 @@ export function RefPill({
         ref={triggerRef}
         type="button" // Siempre es buena práctica definir el tipo
         onClick={handleClick}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm align-middle relative -top-px ${colors[type] || colors.deep}`}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm align-middle relative -top-px ${type === 'ext' ? 'border-current/25 bg-current/10 hover:bg-current/20' : (colors[type] || colors.deep)}`}
+        style={type === 'ext' && extIntegration ? { color: extIntegration.color } : undefined}
+        title={type === 'ext' ? `${extIntegration?.name ?? provider} · ${extKind ?? ''}` : undefined}
       >
         <Icon className="h-3 w-3 transition-transform group-hover:scale-110" />
         <span>{displayText}</span>

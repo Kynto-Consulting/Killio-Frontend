@@ -100,6 +100,20 @@
   "integrations": {
     "catalog": {
       "comingSoon": "Próximamente",
+      "apps": {
+        "googleCalendar": {
+          "name": "Google Calendar",
+          "description": "Lista y crea eventos en tu calendario conectado desde el chat y los scripts."
+        },
+        "n8n": {
+          "name": "n8n",
+          "description": "Dispara y orquesta flujos de n8n directamente desde Killio. Próximamente."
+        },
+        "jira": {
+          "name": "Jira",
+          "description": "La sincronización de issues y la automatización bidireccional con Jira está planificada para la siguiente etapa."
+        }
+      },
       "manualSetup": "Configuración manual",
       "tutorial": "Tutorial",
       "viewTutorial": "Ver tutorial",

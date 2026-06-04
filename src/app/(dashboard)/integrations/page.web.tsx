@@ -42,21 +42,13 @@ import { ScriptList } from "@/components/scripts/ScriptList";
 import { ScriptCanvas } from "@/components/scripts/ScriptCanvas";
 import { KillioTable } from "../../../components/scripts/KillioTable";
 import { RunLogsPanel } from "@/components/scripts/RunLogsPanel";
-import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPanel";
-import { WhatsappIntegrationPanel } from "@/components/scripts/WhatsappIntegrationPanel";
-import { SlackWebhookIntegrationPanel } from "@/components/scripts/SlackWebhookIntegrationPanel";
-import { NotionIntegrationPanel } from "@/components/scripts/NotionIntegrationPanel";
-import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPanel";
-import { GoogleDriveIntegrationPanel } from "@/components/scripts/GoogleDriveIntegrationPanel";
-import { OneDriveIntegrationPanel } from "@/components/scripts/OneDriveIntegrationPanel";
-import { StripeIntegrationPanel } from "@/components/scripts/StripeIntegrationPanel";
-import { PaypalIntegrationPanel } from "@/components/scripts/PaypalIntegrationPanel";
-import { MercadopagoIntegrationPanel } from "@/components/scripts/MercadopagoIntegrationPanel";
+import { IntegrationCatalogGrid } from "@/components/integrations/integration-catalog-grid";
+import { integrationsForScope } from "@/lib/integrations/integration-catalog";
 import { ScriptLogicGuide } from "@/components/scripts/ScriptLogicGuide";
 import { EnvVarsPanel } from "@/components/scripts/EnvVarsPanel";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
-import { Zap, Loader2, BarChart3, Globe, SquareKanban, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
+import { Zap, Loader2, BarChart3, Globe, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
 
 type Tab = "integrations" | "scripts" | "table" | "env";
 type ScriptSubView = "canvas" | "runs";
@@ -823,6 +815,10 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
     })
     : null;
 
+  const teamCatalog = useMemo(() => integrationsForScope("team"), []);
+  const availableCount = teamCatalog.filter((i) => !i.comingSoon).length;
+  const comingSoonCount = teamCatalog.filter((i) => i.comingSoon).length + 1; // +1 = Meta tutorial card
+
   const tabsPortalContent = (
     <div className="space-y-1 py-1">
       {TABS.map((tabItem) => (
@@ -927,11 +923,11 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
               {/* Stat row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>10</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>{availableCount}</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.available")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>2</div>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>{comingSoonCount}</div>
                   <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
                 </div>
                 <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
@@ -942,31 +938,12 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                 </div>
               </div>
 
-              {/* Available integrations */}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
-                  {t("stats.available")}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
-                  <GithubIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <WhatsappIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <SlackWebhookIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <NotionIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <TrelloIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <GoogleDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <OneDriveIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <StripeIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <PaypalIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                  <MercadopagoIntegrationPanel teamId={activeTeamId} accessToken={accessToken} />
-                </div>
-              </div>
-
-              {/* Coming soon */}
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.22)", marginBottom: 12 }}>
-                  {t("stats.comingSoon")}
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 14 }}>
+              {/* Catalog-driven render (single source: integration-catalog.ts) */}
+              <IntegrationCatalogGrid
+                scope="team"
+                teamId={activeTeamId}
+                accessToken={accessToken}
+                extraComingSoon={
                   <ComingSoonIntegrationCard
                     title={t("integrations.catalog.metaTitle")}
                     description={t("integrations.catalog.metaDescription")}
@@ -975,14 +952,8 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                     actionLabel={t("integrations.catalog.viewTutorial")}
                     onAction={() => setShowMetaTutorialModal(true)}
                   />
-                  <ComingSoonIntegrationCard
-                    title={t("integrations.catalog.jiraTitle")}
-                    description={t("integrations.catalog.jiraDescription")}
-                    icon={SquareKanban}
-                    badge={t("integrations.catalog.comingSoon")}
-                  />
-                </div>
-              </div>
+                }
+              />
 
             </div>
           </div>

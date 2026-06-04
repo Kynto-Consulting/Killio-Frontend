@@ -288,6 +288,12 @@ export function RichText({
                 return <Fragment key={partIdx}>{renderInlineMarkdown(part, availableTags, noSize)}</Fragment>;
               }
 
+              if (part.type === "ext") {
+                return (
+                  <RefPill key={partIdx} type="ext" id={part.id} name={part.name} provider={part.provider} extKind={part.extKind} />
+                );
+              }
+
               if (part.type === "mention") {
                 const mentionClick = onReferenceClick
                   ? () => onReferenceClick(part.mentionType, part.id)

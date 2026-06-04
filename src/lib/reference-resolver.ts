@@ -499,9 +499,15 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
+      // Extension reference: @[ext:provider:kind:externalId:label] → app pill.
+      const extMatch = part.match(/@\[ext:([^:\]]+):([^:\]]+):([^:\]]+):([^\]]*)\]/);
+      if (extMatch) {
+        const [, provider, extKind, externalId, label] = extMatch;
+        return { type: 'ext', provider, extKind, id: externalId, name: String(label || provider), key: i };
+      }
       const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread|transcript):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;

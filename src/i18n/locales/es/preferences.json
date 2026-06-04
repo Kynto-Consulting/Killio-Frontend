@@ -19,5 +19,13 @@
       "label": "Modo de editor experimental",
       "desc": "Edita los bricks de texto directamente sobre el texto renderizado — desactiva el round-trip a markdown. Puede ser inestable."
     }
+  },
+  "personalIntegrations": {
+    "label": "Integraciones personales",
+    "manage": "Gestiona tus apps conectadas",
+    "desc": "Conecta apps a tu espacio personal — disponibles en tus chats privados en todos los equipos.",
+    "title": "Integraciones personales",
+    "subtitle": "Tus propias apps conectadas, reutilizadas en cada workspace y chat privado.",
+    "noPersonalTeam": "Aún no se encontró un espacio personal para tu cuenta."
   }
 }

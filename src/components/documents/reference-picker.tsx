@@ -13,11 +13,14 @@ import {
   Folder,
   ScrollText,
   Radio,
+  Puzzle,
 } from "lucide-react";
 import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
+import { resolveLucide } from "@/lib/lucide-icon-registry";
+import { getIntegration, buildExtensionToken } from "@/lib/integrations/integration-catalog";
 
 type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
 type AllowedMentionType = MentionType | "document";
@@ -32,14 +35,23 @@ type ActiveBrick = {
 export interface ReferencePickerSelection {
   token: string;
   label: string;
-  category: "mention" | "deep-local" | "deep-doc" | "deep-mesh" | "template";
+  category: "mention" | "deep-local" | "deep-doc" | "deep-mesh" | "template" | "extension";
   mentionType?: MentionType;
+  /** provider id for category "extension" (github / google_drive / ...) */
+  extProvider?: string;
 }
 
 interface MentionResult extends ReferencePickerSelection {
   search: string;
   subtitle?: string;
   avatarUrl?: string | null;
+}
+
+/** An app the agent reported connected in this context — feeds the "Extensiones" section. */
+export interface ExtensionEntry {
+  provider: string;
+  name?: string;
+  refKinds?: { kind: string; label: string }[];
 }
 
 interface ReferencePickerProps {
@@ -53,6 +65,7 @@ interface ReferencePickerProps {
   rooms?: Array<{ id: string; name: string; type: string }>;
   transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
   activeCallId?: string;
+  extensions?: ExtensionEntry[];
   activeBricks?: ActiveBrick[];
   localScopeId?: string;
   docScopeId?: string;
@@ -211,6 +224,7 @@ export function ReferencePicker({
   rooms = [],
   transcripts = [],
   activeCallId,
+  extensions = [],
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
@@ -379,6 +393,19 @@ export function ReferencePicker({
         }] : []),
     ];
 
+    // Extensiones — connected apps (per-user / per-team) contribute @-refs to their entities.
+    for (const ext of extensions) {
+      const integ = getIntegration(ext.provider);
+      const name = ext.name || integ?.name || ext.provider;
+      mentions.push({
+        token: buildExtensionToken({ provider: ext.provider, kind: "app", externalId: "root", label: name }),
+        label: name,
+        category: "extension" as const,
+        extProvider: ext.provider,
+        search: `extension app integration ${name} ${ext.provider}`.toLowerCase(),
+      });
+    }
+
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
       mentions = mentions.filter(m => m.mentionType && normalizedAllowedTypes.includes(m.mentionType));
     }
@@ -404,7 +431,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, query, normalizedAllowedTypes]);
+  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -812,9 +839,14 @@ export function ReferencePicker({
                     (item.avatarUrl ? <img src={item.avatarUrl} className="h-4 w-4 rounded-full" alt="avatar" /> : <User className="h-4 w-4 opacity-70" />)}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label === "Llamada en curso" && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label !== "Llamada en curso" && <ScrollText className="h-4 w-4 opacity-70" />}
+                  {item.category === "extension" && (() => {
+                    const integ = item.extProvider ? getIntegration(item.extProvider) : undefined;
+                    const ExtIcon = (integ ? resolveLucide(integ.icon) : null) || Puzzle;
+                    return <ExtIcon className="h-4 w-4 shrink-0" style={integ ? { color: integ.color } : undefined} />;
+                  })()}
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-medium truncate">{item.label}</span>
-                    <span className="text-[10px] uppercase tracking-wider opacity-50">{item.mentionType || item.category}</span>
+                    <span className="text-[10px] uppercase tracking-wider opacity-50">{item.category === "extension" ? "extensión" : (item.mentionType || item.category)}</span>
                   </div>
                 </button>
               ))}
