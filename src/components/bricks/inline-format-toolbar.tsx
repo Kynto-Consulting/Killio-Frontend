@@ -4,7 +4,7 @@ import React, { useState, useRef, useLayoutEffect } from "react";
 import {
   Bold, Italic, Strikethrough, Code, Link,
   Underline, MessageSquare, SmilePlus, Calendar,
-  PenSquare, Sparkles, Sigma,
+  Sparkles, Sigma,
   Type, Highlighter, Eraser,
   Pilcrow, Quote, SquareCode, Shapes
 } from "lucide-react";
@@ -292,15 +292,6 @@ export const InlineFormatToolbar: React.FC<InlineFormatToolbarProps> = ({
         >
           <Calendar className="w-3.5 h-3.5" />
         </button>}
-        {aiEnabled && (
-          <button
-            onClick={() => onAction?.("edit")}
-            className="p-1.5 bg-muted/40 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors"
-            title="Sugerir edición"
-          >
-            <PenSquare className="w-3.5 h-3.5" />
-          </button>
-        )}
       </div>
 
       {/* AI quick actions — compact chips (not 4 stacked rows). */}
