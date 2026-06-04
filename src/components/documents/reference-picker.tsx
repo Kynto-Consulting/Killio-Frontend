@@ -20,7 +20,7 @@ import { DocumentSummary, getDocument } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
-import { getIntegration, buildExtensionToken } from "@/lib/integrations/integration-catalog";
+import { getIntegration, buildExtensionToken, INTEGRATION_CATALOG, IntegrationUI } from "@/lib/integrations/integration-catalog";
 
 type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
 type AllowedMentionType = MentionType | "document";
@@ -73,7 +73,7 @@ interface ReferencePickerProps {
   onLoadDocumentsInFolder?: (folderId: string) => Promise<DocumentSummary[]>;
 }
 
-type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors";
+type PickerMode = "root" | "local-bricks" | "doc-list" | "doc-bricks" | "mesh-list" | "mesh-bricks" | "selectors" | "integrations-list" | "integration-kinds";
 type SelectorOption = { value: string; label: string };
 type SelectorSuggestion = SelectorOption & { isCustom?: boolean };
 
@@ -240,6 +240,7 @@ export function ReferencePicker({
   const [selectedSource, setSelectedSource] = useState<"local" | "document" | "mesh" | null>(null);
   const [documentBricks, setDocumentBricks] = useState<ActiveBrick[]>([]);
   const [meshBricks, setMeshBricks] = useState<ActiveBrick[]>([]);
+  const [selectedIntegration, setSelectedIntegration] = useState<IntegrationUI | null>(null);
 
   // Expand documents to include nested ones from folders
   const expandedDocuments = useMemo(() => {
@@ -419,6 +420,7 @@ export function ReferencePicker({
       { key: "locals", label: "Locales", subtitle: "Referencia del documento actual" },
       { key: "documents", label: "Documentos", subtitle: "Referencia de otro documento" },
       { key: "meshes", label: "Meshes", subtitle: "Referencia de otro mesh board" },
+      { key: "integrations", label: "Integraciones", subtitle: "Referencia a apps conectadas (Notion, Drive, Slack…)" },
     ];
 
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
@@ -481,6 +483,28 @@ export function ReferencePicker({
     return currentSelectors.filter((s) => !q || s.label.toLowerCase().includes(q) || s.value.toLowerCase().includes(q));
   }, [currentSelectors, query]);
 
+  // ─── Integrations reference (Notion / Slack / Drive / … — catalog-driven so a
+  //     new app like Spotify appears automatically once added to the catalog) ──
+  const integrationsFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return INTEGRATION_CATALOG.filter(
+      (i) => !q || i.name.toLowerCase().includes(q) || i.provider.toLowerCase().includes(q),
+    );
+  }, [query]);
+
+  const integrationKindRows = useMemo(() => {
+    if (!selectedIntegration) return [] as { kind: string; label: string }[];
+    return [
+      { kind: "app", label: "Toda la app" },
+      ...selectedIntegration.refKinds.map((rk) => ({ kind: rk.kind, label: rk.label })),
+    ];
+  }, [selectedIntegration]);
+
+  const integrationKindsFiltered = useMemo(() => {
+    const q = query.toLowerCase().trim();
+    return integrationKindRows.filter((r) => !q || r.label.toLowerCase().includes(q) || r.kind.toLowerCase().includes(q));
+  }, [integrationKindRows, query]);
+
   const closeAndSelect = (item: ReferencePickerSelection) => {
     onSelect(item);
   };
@@ -512,6 +536,32 @@ export function ReferencePicker({
     setMeshBricks([]);
     setQuery("");
     setMode("mesh-list");
+  };
+
+  const openIntegrations = () => {
+    setSelectedIntegration(null);
+    setSelectedBrick(null);
+    setQuery("");
+    setMode("integrations-list");
+  };
+
+  const insertIntegrationRef = (integ: IntegrationUI, kind: string, kindLabel?: string) => {
+    const label = kind === "app" ? integ.name : `${integ.name} · ${kindLabel ?? kind}`;
+    const token = buildExtensionToken({ provider: integ.provider, kind, externalId: "root", label });
+    closeAndSelect({ token, label, category: "extension", extProvider: integ.provider });
+  };
+
+  const selectIntegration = (integ: IntegrationUI) => {
+    // 0/1 ref kind → clean app-level ref; >1 → drill into the app's sub-categories.
+    if (!integ.refKinds || integ.refKinds.length <= 1) return insertIntegrationRef(integ, "app");
+    setSelectedIntegration(integ);
+    setQuery("");
+    setMode("integration-kinds");
+  };
+
+  const selectIntegrationKind = (row: { kind: string; label: string }) => {
+    if (!selectedIntegration) return;
+    insertIntegrationRef(selectedIntegration, row.kind, row.kind === "app" ? undefined : row.label);
   };
 
   const selectBrickAndGoSelectors = (brick: ActiveBrick) => {
@@ -645,6 +695,13 @@ export function ReferencePicker({
       return;
     }
 
+    if (mode === "integration-kinds") {
+      setSelectedIntegration(null);
+      setMode("integrations-list");
+      setQuery("");
+      return;
+    }
+
     setMode("root");
     setQuery("");
   };
@@ -656,6 +713,8 @@ export function ReferencePicker({
     if (mode === "doc-bricks") return docBricksFiltered.length;
     if (mode === "mesh-list") return meshesFiltered.length;
     if (mode === "mesh-bricks") return meshBricksFiltered.length;
+    if (mode === "integrations-list") return integrationsFiltered.length;
+    if (mode === "integration-kinds") return integrationKindsFiltered.length;
     return selectorSuggestions.length;
   };
 
@@ -671,6 +730,19 @@ export function ReferencePicker({
       if (item.key === "locals") openLocals();
       if (item.key === "documents") openDocuments();
       if (item.key === "meshes") openMeshes();
+      if (item.key === "integrations") openIntegrations();
+      return;
+    }
+
+    if (mode === "integrations-list") {
+      const integ = integrationsFiltered[index];
+      if (integ) selectIntegration(integ);
+      return;
+    }
+
+    if (mode === "integration-kinds") {
+      const row = integrationKindsFiltered[index];
+      if (row) selectIntegrationKind(row);
       return;
     }
 
@@ -754,6 +826,10 @@ export function ReferencePicker({
               ? "Meshes"
               : mode === "mesh-bricks"
                 ? selectedMesh?.name || "Bricks del mesh"
+            : mode === "integrations-list"
+              ? "Integraciones"
+              : mode === "integration-kinds"
+                ? selectedIntegration?.name || "Integración"
             : `Selector ${selectedBrick?.kind || ""}`;
 
   const headerSubtitle =
@@ -769,6 +845,10 @@ export function ReferencePicker({
               ? "Elige mesh origen"
               : mode === "mesh-bricks"
                 ? "Elige un brick del mesh"
+            : mode === "integrations-list"
+              ? "Elige una app conectada"
+              : mode === "integration-kinds"
+                ? "Elige qué referenciar"
             : "Elige el selector segun tipo";
 
   return (
@@ -865,13 +945,14 @@ export function ReferencePicker({
                       if (item.key === "locals") openLocals();
                       else if (item.key === "documents") openDocuments();
                       else if (item.key === "meshes") openMeshes();
+                      else if (item.key === "integrations") openIntegrations();
                     }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
                       idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
                     }`}
                   >
-                    <FileText className="h-4 w-4 opacity-70" />
+                    {item.key === "integrations" ? <Puzzle className="h-4 w-4 opacity-70" /> : <FileText className="h-4 w-4 opacity-70" />}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-sm font-medium truncate">{item.label} &gt;</span>
                       <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">{item.subtitle}</span>
@@ -1027,6 +1108,73 @@ export function ReferencePicker({
                   </button>
                 ))
               )}
+            </>
+          )}
+
+          {mode === "integrations-list" && (
+            <>
+              {integrationsFiltered.map((integ, idx) => {
+                const Icon = resolveLucide(integ.icon) || Puzzle;
+                const multi = (integ.refKinds?.length ?? 0) > 1;
+                return (
+                  <button
+                    key={integ.id}
+                    ref={(el) => {
+                      if (el) itemRefs.current.set(idx, el);
+                      else itemRefs.current.delete(idx);
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectIntegration(integ)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                      idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" style={{ color: integ.color }} />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">{integ.name}{multi ? " >" : ""}</span>
+                      <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">
+                        {multi ? integ.refKinds.map((r) => r.label).join(" · ") : "integración"}
+                      </span>
+                    </div>
+                    {multi && <ChevronRight className="h-4 w-4 opacity-60" />}
+                  </button>
+                );
+              })}
+              {integrationsFiltered.length === 0 && (
+                <div className="p-6 text-center text-muted-foreground text-sm">Sin integraciones</div>
+              )}
+            </>
+          )}
+
+          {mode === "integration-kinds" && (
+            <>
+              {integrationKindsFiltered.map((row, idx) => {
+                const Icon = selectedIntegration ? (resolveLucide(selectedIntegration.icon) || Puzzle) : Puzzle;
+                return (
+                  <button
+                    key={row.kind}
+                    ref={(el) => {
+                      if (el) itemRefs.current.set(idx, el);
+                      else itemRefs.current.delete(idx);
+                    }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectIntegrationKind(row)}
+                    onMouseEnter={() => setSelectedIndex(idx)}
+                    className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
+                      idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4 shrink-0" style={selectedIntegration ? { color: selectedIntegration.color } : undefined} />
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <span className="text-sm font-medium truncate">{row.label}</span>
+                      <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">
+                        {selectedIntegration?.name} · {row.kind}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
             </>
           )}
 
