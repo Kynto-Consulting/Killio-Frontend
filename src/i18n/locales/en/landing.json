@@ -355,6 +355,7 @@
         "f3": "7-day activity history",
         "f4": "Community support",
         "f5": "Unlimited boards & docs",
+        "f6": "1 Vault agent",
         "cta": "Get started free"
       },
       "pro": {
@@ -370,6 +371,7 @@
         "f4": "Up to 10 Mesh boards",
         "f5": "Priority support",
         "f6": "14-day free trial",
+        "f7": "5 Vault agents",
         "cta": "Start Pro trial"
       },
       "max": {
@@ -386,6 +388,7 @@
         "f5": "SSO & SCIM provisioning",
         "f6": "Audit logs",
         "f7": "14-day free trial",
+        "f8": "20 Vault agents",
         "cta": "Start Max trial"
       }
     },

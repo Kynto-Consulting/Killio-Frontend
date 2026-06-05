@@ -2,7 +2,7 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2, Puzzle } from "lucide-react";
+import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2, Puzzle, Calendar } from "lucide-react";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { getIntegration } from "@/lib/integrations/integration-catalog";
 import { useRouter } from "next/navigation";
@@ -17,7 +17,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'ext';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'event' | 'ext';
   id: string;
   name: string;
   label?: string;
@@ -286,6 +286,7 @@ export function RefPill({
     room: "bg-teal-500/10 border-teal-500/20 text-teal-600 hover:bg-teal-500/20",
     thread: "bg-cyan-500/10 border-cyan-500/20 text-cyan-600 hover:bg-cyan-500/20",
     transcript: "bg-violet-500/10 border-violet-500/20 text-violet-600 hover:bg-violet-500/20",
+    event: "bg-orange-500/10 border-orange-500/20 text-orange-600 hover:bg-orange-500/20",
   };
 
   const Icons: Record<string, any> = {
@@ -299,6 +300,7 @@ export function RefPill({
     room: MessageSquare,
     thread: GitBranch,
     transcript: MessageSquare,
+    event: Calendar,
   };
 
   // Extension refs draw their icon/colour from the integration catalog.

@@ -408,17 +408,17 @@ function PricingSection({ t }: { t: T }) {
     {
       key: "free", variant: "free", ctaV: "free",
       monthly: t("kl.pricing.free.price"), yearly: t("kl.pricing.free.price"),
-      features: ["f1", "f2", "f3", "f4", "f5"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
+      features: ["f1", "f2", "f3", "f4", "f5", "f6"].map((fk) => ({ text: t(`kl.pricing.free.${fk}`), chk: "lime" })),
     },
     {
       key: "pro", variant: "pro", ctaV: "pro",
       monthly: t("kl.pricing.pro.price"), yearly: t("kl.pricing.pro.priceYearly"),
-      features: ["f1", "f2", "f3", "f4", "f5", "f6"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
+      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7"].map((fk) => ({ text: t(`kl.pricing.pro.${fk}`), chk: "indigo" })),
     },
     {
       key: "max", variant: "max", ctaV: "max",
       monthly: t("kl.pricing.max.price"), yearly: t("kl.pricing.max.priceYearly"),
-      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
+      features: ["f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8"].map((fk) => ({ text: t(`kl.pricing.max.${fk}`), chk: "cyan" })),
     },
   ];
   return (

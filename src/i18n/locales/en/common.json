@@ -523,7 +523,26 @@
       "tag":                "Tag action",
       "integration":        "Integration action",
       "computed":           "Computed data",
-      "attachmentRead":     "Read attachment"
+      "attachmentRead":     "Read attachment",
+      "ttsSearch":          "Search diary \"{{target}}\"",
+      "docSearchKeyword":   "Search docs \"{{target}}\"",
+      "vaultDisconnect":    "End conversation",
+      "vaultUploadScreenshot": "Upload screenshot",
+      "calendarList":       "Read calendar",
+      "calendarCreate":     "Create event {{title}}",
+      "contactsSearch":     "Find contact {{target}}",
+      "getLocation":        "Current location",
+      "sendSms":            "Send SMS",
+      "callNumber":         "Call {{target}}",
+      "openBrowser":        "Open browser",
+      "openApp":            "Open app",
+      "saveMemory":         "Save memory",
+      "searchMemory":       "Search memory",
+      "listMemory":         "List memory",
+      "readMemory":         "Read memory",
+      "whatsappPersonal":   "WhatsApp (personal)",
+      "whatsappBusiness":   "WhatsApp Business",
+      "generic":            "Tool"
     }
   }
 }

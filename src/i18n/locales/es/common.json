@@ -523,7 +523,26 @@
       "tag":                "Acción de etiqueta",
       "integration":        "Acción de integración",
       "computed":           "Calculó datos",
-      "attachmentRead":     "Leyó adjunto"
+      "attachmentRead":     "Leyó adjunto",
+      "ttsSearch":          "Buscar en diario \"{{target}}\"",
+      "docSearchKeyword":   "Buscar docs \"{{target}}\"",
+      "vaultDisconnect":    "Cerrar conversación",
+      "vaultUploadScreenshot": "Subir captura",
+      "calendarList":       "Leer calendario",
+      "calendarCreate":     "Crear evento {{title}}",
+      "contactsSearch":     "Buscar contacto {{target}}",
+      "getLocation":        "Ubicación actual",
+      "sendSms":            "Enviar SMS",
+      "callNumber":         "Llamar {{target}}",
+      "openBrowser":        "Abrir navegador",
+      "openApp":            "Abrir app",
+      "saveMemory":         "Guardar memoria",
+      "searchMemory":       "Buscar memoria",
+      "listMemory":         "Listar memoria",
+      "readMemory":         "Leer memoria",
+      "whatsappPersonal":   "WhatsApp (personal)",
+      "whatsappBusiness":   "WhatsApp Business",
+      "generic":            "Herramienta"
     }
   }
 }

@@ -355,6 +355,7 @@
         "f3": "7 dias de historial",
         "f4": "Soporte de comunidad",
         "f5": "Tableros y documentos ilimitados",
+        "f6": "1 agente Vault",
         "cta": "Empezar gratis"
       },
       "pro": {
@@ -370,6 +371,7 @@
         "f4": "Hasta 10 tableros Mesh",
         "f5": "Soporte prioritario",
         "f6": "14 dias de prueba gratis",
+        "f7": "5 agentes Vault",
         "cta": "Iniciar prueba Pro"
       },
       "max": {
@@ -386,6 +388,7 @@
         "f5": "SSO y aprovisionamiento SCIM",
         "f6": "Logs de auditoria",
         "f7": "14 dias de prueba gratis",
+        "f8": "20 agentes Vault",
         "cta": "Iniciar prueba Max"
       }
     },

@@ -45,6 +45,14 @@ export interface BillingPlanDefinition {
     custom: boolean;
     ssoScim: boolean;
   };
+  vault?: {
+    enabled: boolean;
+    onDeviceDiary: boolean;
+    cloudSttMinutesMonthly: number;
+    screenCapture: boolean;
+    localAgents: number | null;
+    wakeWord: boolean;
+  };
   checkoutEnabled: boolean;
 }
 

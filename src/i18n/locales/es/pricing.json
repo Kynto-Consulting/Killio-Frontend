@@ -57,6 +57,7 @@
     "tables": "Killio Tables: {{value}}",
     "activityHistory": "Historial de actividad: {{value}}",
     "meshBoards": "Mesh Boards: {{value}}",
+    "vaultAgents": "Agentes Vault: {{value}}",
     "prioritySupport": "Soporte prioritario",
     "ssoScim": "SSO / SCIM",
     "auditLogs": "Audit logs"

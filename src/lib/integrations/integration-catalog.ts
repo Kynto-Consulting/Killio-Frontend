@@ -20,7 +20,8 @@ export type IntegrationCategory =
   | "communication"
   | "automation"
   | "payments"
-  | "calendar";
+  | "calendar"
+  | "media";
 
 export interface IntegrationRefKind {
   kind: string; // e.g. "file", "event", "page"
@@ -137,15 +138,30 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     refKinds: [],
   },
   {
-    id: "whatsapp",
-    name: "WhatsApp",
+    id: "whatsapp_business",
+    name: "WhatsApp Business",
     provider: "whatsapp",
     scopes: ["team"],
     icon: "message-circle",
     color: "#25d366",
     category: "communication",
-    i18nKey: "whatsapp",
+    i18nKey: "whatsappBusiness",
     panel: "whatsapp",
+    refKinds: [],
+  },
+  {
+    // WhatsApp Personal — Baileys QR pairing. UI panel renders the QR; backend
+    // runs the WS worker (a separate Render/Railway worker forwards messages
+    // back via webhook). Keep separate from Business so users pick consciously.
+    id: "whatsapp_personal",
+    name: "WhatsApp (personal)",
+    provider: "whatsapp_personal",
+    scopes: ["personal"],
+    icon: "smartphone",
+    color: "#128c7e",
+    category: "communication",
+    i18nKey: "whatsappPersonal",
+    panel: "whatsapp_personal",
     refKinds: [],
   },
   {
@@ -207,6 +223,54 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     i18nKey: "jira",
     comingSoon: true,
     refKinds: [],
+  },
+  {
+    id: "gmail",
+    name: "Gmail",
+    provider: "gmail",
+    scopes: ["personal"],
+    icon: "mail",
+    color: "#ea4335",
+    category: "communication",
+    i18nKey: "gmail",
+    comingSoon: true,
+    refKinds: [{ kind: "email", label: "Email" }],
+  },
+  {
+    id: "spotify",
+    name: "Spotify",
+    provider: "spotify",
+    scopes: ["personal"],
+    icon: "music",
+    color: "#1db954",
+    category: "media",
+    i18nKey: "spotify",
+    comingSoon: true,
+    refKinds: [{ kind: "track", label: "Track" }],
+  },
+  {
+    id: "google_tasks",
+    name: "Google Tasks",
+    provider: "google_tasks",
+    scopes: ["team", "personal"],
+    icon: "list-checks",
+    color: "#4285f4",
+    category: "productivity",
+    i18nKey: "googleTasks",
+    comingSoon: true,
+    refKinds: [{ kind: "task", label: "Task" }],
+  },
+  {
+    id: "todoist",
+    name: "Todoist",
+    provider: "todoist",
+    scopes: ["team", "personal"],
+    icon: "list-todo",
+    color: "#e44332",
+    category: "productivity",
+    i18nKey: "todoist",
+    comingSoon: true,
+    refKinds: [{ kind: "task", label: "Task" }],
   },
 ];
 

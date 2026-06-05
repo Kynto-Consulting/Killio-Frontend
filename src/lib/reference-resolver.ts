@@ -499,7 +499,7 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript|event):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
       // Extension reference: @[ext:provider:kind:externalId:label] → app pill.
@@ -508,12 +508,12 @@ export class ReferenceResolver {
         const [, provider, extKind, externalId, label] = extMatch;
         return { type: 'ext', provider, extKind, id: externalId, name: String(label || provider), key: i };
       }
-      const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread|transcript):([^:\]]+)(?::([^\]]+))?\]/);
+      const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread|transcript|event):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
-        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
+        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript" | "event";
         const isMeshBoard = parsedMentionType === "board" && context.boards.find((b) => b.id === id)?.boardType === "mesh";
-        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
+        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript" | "event";
         const fallbackName =
           mentionType === "doc"
             ? context.documents.find((d) => d.id === id)?.title

@@ -453,6 +453,12 @@ function PricingPageInner() {
               ? t("common.unlimited")
               : String(plan.meshBoards.maxBoards);
 
+            const agentsValue = plan.vault
+              ? plan.vault.localAgents === null
+                ? t("common.unlimited")
+                : String(plan.vault.localAgents)
+              : null;
+
             const planTitle = t(`plans.${plan.tier}.name`) || plan.label;
             const planHeadline = t(`plans.${plan.tier}.headline`);
             const badge = t(`plans.${plan.tier}.badge`);
@@ -579,6 +585,12 @@ function PricingPageInner() {
                       <li className="flex items-start gap-3">
                         <LayoutGrid className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
                         <span>{t("plans.meshBoards", { value: meshBoardsValue })}</span>
+                      </li>
+                    )}
+                    {agentsValue !== null && (
+                      <li className="flex items-start gap-3">
+                        <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                        <span>{t("plans.vaultAgents", { value: agentsValue })}</span>
                       </li>
                     )}
                     {(plan.support.priority || plan.support.custom || plan.support.ssoScim || plan.activity.auditLogs) && (
