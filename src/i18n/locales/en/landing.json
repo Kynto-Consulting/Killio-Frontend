@@ -231,6 +231,19 @@
         "three": "Automate recurring work with AI actions."
       },
       "cta": "Get started free"
+    },
+    "vault": {
+      "kicker": "Killio Vault",
+      "title": "Your workspace, in your pocket.",
+      "description": "An Android-first companion that captures your day, listens for your voice, and runs Killio tools on the phone.",
+      "points": {
+        "diary": "24/7 on-device audio diary that streams into your workspace.",
+        "assistant": "Voice assistant with wake word and per-conversation memory.",
+        "tools": "Calls, opens apps, sends SMS, reads your calendar, controls Spotify."
+      },
+      "downloadCta": "Download APK",
+      "learnMore": "Learn more",
+      "platform": "Android only · iOS in the roadmap"
     }
   },
   "offline": {
@@ -251,7 +264,8 @@
       "integrations": "Integrations",
       "pricing": "Pricing",
       "signIn": "Sign in",
-      "getStarted": "Get started free"
+      "getStarted": "Get started free",
+      "apkTitle": "Download Killio Vault (Android)"
     },
     "vault": {
       "eyebrow": "Killio Vault",
@@ -316,7 +330,10 @@
       "sub": "Kanban boards, rich documents, infinite mesh canvases — wired together with AI automation. One workspace. Zero friction.",
       "ctaPrimary": "Start for free",
       "ctaSecondary": "Explore features",
+      "apkCta": "Download Vault APK",
+      "apkHint": "Killio Vault for Android — sideload the latest build",
       "notice": "No credit card required · Free plan forever",
+      "vaultStrip": "Killio Vault — Android companion is live",
       "stats": {
         "teamsValue": "2,400+",
         "teamsLabel": "Teams onboarded",
@@ -489,6 +506,8 @@
       "terms": "Terms",
       "cookies": "Cookies",
       "contact": "Contact",
+      "vault": "Killio Vault",
+      "apk": "Download APK",
       "copyright": "© 2026 Killio. Built by Kynto Studio."
     }
   }

@@ -231,6 +231,19 @@
         "three": "Automatiza trabajo recurrente con acciones de IA."
       },
       "cta": "Empezar gratis"
+    },
+    "vault": {
+      "kicker": "Killio Vault",
+      "title": "Tu workspace, en tu bolsillo.",
+      "description": "Una app Android-first que captura tu día, escucha tu voz y ejecuta tools de Killio en el teléfono.",
+      "points": {
+        "diary": "Diario de audio 24/7 en el dispositivo que se sincroniza con tu workspace.",
+        "assistant": "Asistente por voz con palabra clave y memoria por conversación.",
+        "tools": "Llama, abre apps, envía SMS, lee tu calendario, controla Spotify."
+      },
+      "downloadCta": "Descargar APK",
+      "learnMore": "Conocer más",
+      "platform": "Solo Android · iOS en la hoja de ruta"
     }
   },
   "offline": {
@@ -251,7 +264,8 @@
       "integrations": "Integraciones",
       "pricing": "Precios",
       "signIn": "Iniciar sesion",
-      "getStarted": "Empezar gratis"
+      "getStarted": "Empezar gratis",
+      "apkTitle": "Descarga Killio Vault (Android)"
     },
     "vault": {
       "eyebrow": "Killio Vault",
@@ -315,6 +329,9 @@
       "titleSuffix": "Cada. Maldito. Dia.",
       "sub": "Tableros Kanban, documentos enriquecidos, lienzos infinitos — conectados con automatizacion IA. Un workspace. Cero friccion.",
       "ctaPrimary": "Empieza gratis",
+      "apkCta": "Descargar APK Vault",
+      "apkHint": "Killio Vault para Android — instala el último APK",
+      "vaultStrip": "Killio Vault — compañero Android disponible",
       "ctaSecondary": "Ver funcionalidades",
       "notice": "Sin tarjeta de credito · Plan gratis para siempre",
       "stats": {
@@ -489,6 +506,8 @@
       "terms": "Terminos",
       "cookies": "Cookies",
       "contact": "Contacto",
+      "vault": "Killio Vault",
+      "apk": "Descargar APK",
       "copyright": "© 2026 Killio. Creado por Kynto Studio."
     }
   }

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, Bot, CheckCircle2, ShieldCheck, Sparkles, Workflow } from "lucide-react";
+import { ArrowRight, Bot, CheckCircle2, Download, ShieldCheck, Smartphone, Sparkles, Workflow } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
 const highlights = [
@@ -99,6 +99,48 @@ export default function LandingPageMobile() {
               <p className="mt-2 text-sm leading-6 text-muted-foreground">{t(`mobile.highlights.${item.key}.description`)}</p>
             </article>
           ))}
+        </section>
+
+        {/* Killio Vault Android APK */}
+        <section className="mt-5 rounded-3xl border border-[#d8ff72]/40 bg-[linear-gradient(135deg,rgba(216,255,114,0.18),rgba(34,211,238,0.08))] p-5">
+          <div className="inline-flex items-center gap-1 rounded-full border border-[#d8ff72]/40 bg-[#d8ff72]/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#d8ff72]">
+            <Smartphone className="h-3 w-3" />
+            {t("mobile.vault.kicker")}
+          </div>
+          <h2 className="mt-2 text-xl font-semibold tracking-tight">{t("mobile.vault.title")}</h2>
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">{t("mobile.vault.description")}</p>
+          <ul className="mt-3 space-y-1.5 text-xs text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-3 w-3 text-[#d8ff72]" />
+              {t("mobile.vault.points.diary")}
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-3 w-3 text-[#d8ff72]" />
+              {t("mobile.vault.points.assistant")}
+            </li>
+            <li className="flex items-start gap-2">
+              <CheckCircle2 className="mt-0.5 h-3 w-3 text-[#d8ff72]" />
+              {t("mobile.vault.points.tools")}
+            </li>
+          </ul>
+          <div className="mt-4 flex gap-2">
+            <a
+              href="/download/vault"
+              className="inline-flex h-10 flex-1 items-center justify-center gap-1 rounded-full bg-[#d8ff72] px-4 text-sm font-semibold text-background"
+            >
+              <Download className="h-4 w-4" />
+              {t("mobile.vault.downloadCta")}
+            </a>
+            <Link
+              href="/vault"
+              className="inline-flex h-10 items-center justify-center rounded-full border border-border px-4 text-xs font-medium"
+            >
+              {t("mobile.vault.learnMore")}
+            </Link>
+          </div>
+          <p className="mt-2 text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+            {t("mobile.vault.platform")}
+          </p>
         </section>
 
         <section className="mt-5 rounded-3xl border border-border/70 bg-[linear-gradient(135deg,rgba(216,255,114,0.12),rgba(255,255,255,0.03))] p-5">

@@ -73,6 +73,14 @@ function Nav({ t }: { t: T }) {
           <a href="#pricing">{t("kl.nav.pricing")}</a>
         </div>
         <div className="nav-actions">
+          <a
+            href="/download/vault"
+            className="btn-ghost"
+            style={{ display: "inline-flex", alignItems: "center", gap: 6 }}
+            title={t("kl.nav.apkTitle")}
+          >
+            <Download className="h-3 w-3" /> APK
+          </a>
           <a href="/login" className="btn-ghost">{t("kl.nav.signIn")}</a>
           <a href="/signup" className="btn-lime">{t("kl.nav.getStarted")}</a>
         </div>
@@ -107,10 +115,32 @@ function Hero({ t }: { t: T }) {
         <div className="hero-actions">
           <a href="/signup" className="btn-lime-lg">{t("kl.hero.ctaPrimary")} <ArrowRight className="h-4 w-4" /></a>
           <a href="#features" className="btn-outline-lg">{t("kl.hero.ctaSecondary")}</a>
+          <a
+            href="/download/vault"
+            className="btn-outline-lg"
+            style={{ display: "inline-flex", alignItems: "center", gap: 8 }}
+            title={t("kl.hero.apkHint")}
+          >
+            <Download className="h-4 w-4" /> {t("kl.hero.apkCta")}
+          </a>
         </div>
         <div className="hero-notice">
           <Sparkles className="h-4 w-4" /> {t("kl.hero.notice")}
         </div>
+        <a
+          href="/vault"
+          className="hero-notice"
+          style={{
+            marginTop: 8,
+            color: "var(--lime)",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 6,
+          }}
+        >
+          <Smartphone className="h-3 w-3" /> {t("kl.hero.vaultStrip")} <ArrowRight className="h-3 w-3" />
+        </a>
         <div className="stats-row">
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.actionsValue")}</div><div className="stat-label">{t("kl.hero.stats.actionsLabel")}</div></div>
@@ -652,6 +682,8 @@ function Footer({ t }: { t: T }) {
           <span>Killio</span>
         </a>
         <div className="footer-links">
+          <a href="/vault">{t("kl.footer.vault")}</a>
+          <a href="/download/vault">{t("kl.footer.apk")}</a>
           <a href="/privacy">{t("kl.footer.privacy")}</a>
           <a href="/terms">{t("kl.footer.terms")}</a>
           <a href="/cookies">{t("kl.footer.cookies")}</a>
