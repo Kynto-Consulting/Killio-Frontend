@@ -1,0 +1,225 @@
+{
+  "meta": {
+    "title": "Killio Vault — compañero AI Android-first",
+    "description": "Vault convierte tu teléfono Android en un workspace AI 24/7: diario de audio, asistente por voz, agentes locales con RAG y todas las tools de Killio en el bolsillo.",
+    "ogTitle": "Killio Vault — tu teléfono como workspace AI 24/7",
+    "ogDescription": "Diario de audio en el dispositivo, asistente push-to-talk con wake-word, agentes locales con memoria RAG y tools de cliente para llamar, abrir apps y más."
+  },
+  "nav": {
+    "features": "Funciones",
+    "screens": "Pantallas",
+    "privacy": "Privacidad",
+    "download": "Descargar APK",
+    "backToHome": "Volver al inicio"
+  },
+  "hero": {
+    "badge": "Killio Vault para Android",
+    "titlePrefix": "Killio Vault — tu teléfono como",
+    "titleAccent": "workspace AI 24/7.",
+    "titleSuffix": "Diario, asistente y agentes locales en el bolsillo.",
+    "sub": "Vault graba y transcribe tu día localmente, te escucha cuando dices \"Hey Killio\" y ejecuta los mismos agentes que usas en killio.dev — sin enviar nada al servidor que no quieras.",
+    "ctaDownload": "Descargar APK",
+    "ctaWeb": "Empezar gratis → killio.dev",
+    "platformNote": "Android 10+ · sideload · iOS en la hoja de ruta",
+    "phoneWake": "Hey Killio",
+    "phoneListening": "Escuchando…",
+    "phoneTranscript": "Resume mis reuniones de hoy"
+  },
+  "features": {
+    "eyebrow": "Qué incluye",
+    "title": "Seis pilares, un solo compañero siempre activo.",
+    "sub": "Cada superficie de Killio adaptada a móvil — sin cortar prestaciones.",
+    "items": {
+      "assistant": {
+        "title": "Asistente por voz",
+        "desc": "Push-to-talk o por wake-word. Mismo loop /agent que el web, con TTS nativo del dispositivo."
+      },
+      "diary": {
+        "title": "Diario 24/7",
+        "desc": "Servicio de micrófono en primer plano que graba y transcribe localmente — sin gastar créditos."
+      },
+      "workspace": {
+        "title": "Workspace móvil",
+        "desc": "Documentos, boards y rooms del workspace renderizados 1:1 con el web — incluyendo modo edición."
+      },
+      "agents": {
+        "title": "Agentes locales con RAG",
+        "desc": "Memoria persistente por usuario y workspace que el agente busca antes de cada respuesta."
+      },
+      "wakeword": {
+        "title": "Wake-word \"Hey Killio\"",
+        "desc": "Detector local opt-in que activa el asistente sin tocar el teléfono — todo on-device."
+      },
+      "clientTools": {
+        "title": "Tools de cliente",
+        "desc": "call_number, open_app, send_sms, open_browser — el agente actúa en el teléfono con confirmación."
+      }
+    }
+  },
+  "screens": {
+    "eyebrow": "Cada pantalla",
+    "title": "Diseñado para móvil, no encogido.",
+    "sub": "Siete superficies pensadas para gesto, voz y bolsillo."
+  },
+  "assistant": {
+    "title": "Asistente",
+    "desc": "Habla con Killio como con un colega: pregunta, pídele que ejecute una tool o que busque en tu memoria.",
+    "bullets": {
+      "one": "Wake-word local \"Hey Killio\" — opt-in y completamente en el dispositivo.",
+      "two": "Push-to-talk con botón grande para llamadas manos libres o ambientes ruidosos.",
+      "three": "Respuestas con TTS nativo, transcripción en vivo y acciones confirmadas en pantalla."
+    },
+    "mockup": {
+      "wake": "Hey Killio",
+      "status": "Escuchando…",
+      "transcript": "Agéndame una sesión de focus de 2h mañana",
+      "reply": "Listo — bloque de 09:00 a 11:00 creado en \"Sprint Q3\"."
+    }
+  },
+  "diary": {
+    "title": "Diario",
+    "desc": "Tu día queda capturado como un documento — entradas de audio transcritas, resumen AI y momentos destacados.",
+    "bullets": {
+      "one": "Servicio en primer plano que graba en segmentos cortos y los transcribe localmente.",
+      "two": "Resumen automático del día y tags por tema generados por el agente.",
+      "three": "Entradas privadas por defecto — el diario nunca sale del dispositivo a menos que tú lo sincronices."
+    },
+    "mockup": {
+      "date": "Lunes 5 de junio",
+      "summary": "3h de focus · 2 reuniones · 1 idea destacada",
+      "entry1": "09:14 · Standup del equipo backend",
+      "entry2": "11:02 · Idea: split del módulo de auth",
+      "entry3": "14:30 · Walk meeting con Ana"
+    }
+  },
+  "documents": {
+    "title": "Documentos",
+    "desc": "El renderer de bricks completo — texto rico, callouts, tablas y checklists — directo en el teléfono.",
+    "bullets": {
+      "one": "Árbol de carpetas y lista de documentos del workspace, con búsqueda.",
+      "two": "Bricks 1:1 con el web — incluyendo modo edición experimental.",
+      "three": "Funciona offline: ediciones se sincronizan cuando vuelves a tener conexión."
+    },
+    "mockup": {
+      "folder": "Sprint Q3 / Specs",
+      "docTitle": "Plan de sprint",
+      "h1": "Objetivos del sprint",
+      "p": "Cerrar el módulo de auth y empezar onboarding mobile.",
+      "callout": "Recordatorio: revisar bugs P0 antes del jueves.",
+      "tableHeader": "Tarea · Owner · Status"
+    }
+  },
+  "boardsKanban": {
+    "title": "Boards · Kanban",
+    "desc": "Tableros con drag, asignados, tags y prioridad — los mismos del web pero pensados para pulgar.",
+    "bullets": {
+      "one": "Selector de listas en chips horizontales para cambiar de columna sin desorientarte.",
+      "two": "Cards con avatares de asignados, dot de prioridad y tags de color.",
+      "three": "Long-press y arrastra entre listas, o pide al asistente que mueva por ti."
+    },
+    "mockup": {
+      "listTodo": "Por hacer",
+      "listDoing": "En curso",
+      "listDone": "Hecho",
+      "card1": "Diseño de onboarding mobile",
+      "card2": "Refactor módulo auth",
+      "card3": "Bug: TTS se corta en Android 14",
+      "tagDesign": "diseño",
+      "tagUrgent": "urgente",
+      "tagBug": "bug"
+    }
+  },
+  "boardsGantt": {
+    "title": "Boards · Gantt",
+    "desc": "Mira tu sprint en una línea de tiempo. Toggle entre día, semana y mes sin abrir el portátil.",
+    "bullets": {
+      "one": "Toggle día / semana / mes en el header — el grid se reajusta automáticamente.",
+      "two": "Barras de colores por lista, con asignados y progreso visible al tap.",
+      "three": "Pinch-to-zoom y scroll horizontal para sprints largos."
+    },
+    "mockup": {
+      "toggleDay": "Día",
+      "toggleWeek": "Semana",
+      "toggleMonth": "Mes",
+      "task1": "Onboarding",
+      "task2": "Auth refactor",
+      "task3": "QA mobile",
+      "task4": "Release",
+      "weekLabel": "Lun · Mar · Mié · Jue · Vie · Sáb · Dom"
+    }
+  },
+  "rooms": {
+    "title": "Rooms",
+    "desc": "Chats del workspace con AI integrada — menciona @killio y el agente responde con contexto completo.",
+    "bullets": {
+      "one": "Burbujas de chat por usuario con avatares y timestamps relativos.",
+      "two": "Menciona @killio para invocar al agente del workspace — usa tus tools y memoria.",
+      "three": "Mensajes de voz con transcripción automática para responder en movimiento."
+    },
+    "mockup": {
+      "channelName": "#producto",
+      "user1": "Ana",
+      "msg1": "¿Alguien revisó los mocks del onboarding?",
+      "user2": "Carlos",
+      "msg2": "@killio resume las decisiones del último standup",
+      "killio": "Killio",
+      "killioReply": "Decidieron mover el wake-word a fase 2 y priorizar el diario."
+    }
+  },
+  "agents": {
+    "title": "Agentes locales",
+    "desc": "Crea agentes con personalidad propia, wake-phrase custom y herramientas seleccionadas — todo configurado on-device.",
+    "bullets": {
+      "one": "Picker de agentes con wake-phrase personalizada (\"Hey Coach\", \"Oye Asistente\").",
+      "two": "Preview de personalidad y system prompt antes de activar.",
+      "three": "La configuración de agentes locales nunca sale del teléfono."
+    },
+    "mockup": {
+      "agent1": "Coach personal",
+      "agent1Wake": "Hey Coach",
+      "agent1Desc": "Mentor de hábitos y focus.",
+      "agent2": "Asistente de trabajo",
+      "agent2Wake": "Hey Killio",
+      "agent2Desc": "Workspace, calendario y tools.",
+      "agent3": "Diario reflexivo",
+      "agent3Wake": "Hey Journal",
+      "agent3Desc": "Te ayuda a procesar el día."
+    }
+  },
+  "how": {
+    "eyebrow": "Cómo empezar",
+    "title": "Tres pasos para tu compañero 24/7.",
+    "steps": {
+      "one": {
+        "title": "Instala el APK",
+        "desc": "Descarga el último build, habilita \"instalar desde fuentes desconocidas\" y dale install."
+      },
+      "two": {
+        "title": "Concede micrófono y servicio en primer plano",
+        "desc": "Vault necesita estos permisos para grabar el diario y mantener el asistente activo sin que Android lo mate."
+      },
+      "three": {
+        "title": "Di \"Hey Killio\"",
+        "desc": "El wake-word se activa al toque. Pregunta cualquier cosa o pídele que ejecute una tool del workspace."
+      }
+    }
+  },
+  "privacy": {
+    "eyebrow": "Privacidad",
+    "title": "Tus datos viven en el teléfono por defecto.",
+    "desc": "Vault está diseñado para que decidas qué sale del dispositivo y cuándo. Diario, memoria de agente y wake-word funcionan 100% on-device.",
+    "bullets": {
+      "one": "STT del diario corre on-device — sin costo ni transmisión al servidor.",
+      "two": "La configuración de agentes locales (wake-phrase, prompt, tools) nunca abandona el teléfono.",
+      "three": "Banner de consentimiento explícito antes de activar grabación o wake-word."
+    }
+  },
+  "cta": {
+    "eyebrow": "Listo cuando tú lo estés",
+    "title": "Descarga Vault y empieza ahora.",
+    "sub": "El APK más reciente siempre está a un click. Sideloadea, inicia sesión con tu cuenta Killio y elige un workspace.",
+    "primary": "Descargar APK Vault",
+    "secondary": "Star en GitHub",
+    "platform": "Android 10+ · ~22 MB · gratis durante la beta"
+  }
+}

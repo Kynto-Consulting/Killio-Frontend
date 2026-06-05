@@ -332,8 +332,10 @@
       "apkCta": "Descargar APK Vault",
       "apkHint": "Killio Vault para Android — instala el último APK",
       "vaultStrip": "Killio Vault — compañero Android disponible",
+      "vaultLive": "Killio Vault — companion Android disponible",
       "ctaSecondary": "Ver funcionalidades",
       "notice": "Sin tarjeta de credito · Plan gratis para siempre",
+      "noCard": "Sin tarjeta · Plan gratis para siempre",
       "stats": {
         "teamsValue": "2.400+",
         "teamsLabel": "Equipos registrados",

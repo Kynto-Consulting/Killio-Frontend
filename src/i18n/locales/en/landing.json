@@ -327,13 +327,15 @@
       "titlePrefix": "Where teams",
       "titleAccent": "kill it.",
       "titleSuffix": "Every. Single. Day.",
-      "sub": "Kanban boards, rich documents, infinite mesh canvases — wired together with AI automation. One workspace. Zero friction.",
+      "sub": "Kanban boards, rich documents, infinite Mesh Board — wired together with AI automation. One workspace. Zero friction.",
       "ctaPrimary": "Start for free",
       "ctaSecondary": "Explore features",
       "apkCta": "Download Vault APK",
       "apkHint": "Killio Vault for Android — sideload the latest build",
       "notice": "No credit card required · Free plan forever",
+      "noCard": "No credit card required · Free plan forever",
       "vaultStrip": "Killio Vault — Android companion is live",
+      "vaultLive": "Killio Vault — Android companion is live",
       "stats": {
         "teamsValue": "2,400+",
         "teamsLabel": "Teams onboarded",
@@ -486,7 +488,7 @@
       },
       "sharing": {
         "title": "Public Sharing",
-        "desc": "Share any board, document, or mesh canvas publicly with a single link."
+        "desc": "Share any board, document, or Mesh Board publicly with a single link."
       },
       "folders": {
         "title": "Folder Organization",

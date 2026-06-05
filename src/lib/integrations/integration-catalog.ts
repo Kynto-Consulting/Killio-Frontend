@@ -138,6 +138,9 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     refKinds: [],
   },
   {
+    // WhatsApp Business — Cloud API / templates / catalogs for teams. Users
+    // bring their own access token + phone number id; reusable from script
+    // nodes for outbound messaging at workspace scope.
     id: "whatsapp_business",
     name: "WhatsApp Business",
     provider: "whatsapp",
@@ -150,11 +153,13 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     refKinds: [],
   },
   {
-    // WhatsApp Personal — Baileys QR pairing. UI panel renders the QR; backend
-    // runs the WS worker (a separate Render/Railway worker forwards messages
-    // back via webhook). Keep separate from Business so users pick consciously.
+    // WhatsApp Personal — Baileys QR pairing for the user's own consumer
+    // number (chats + 1:1 messages). UI panel renders the QR; backend runs the
+    // WS worker (a separate Render/Railway worker forwards messages back via
+    // webhook). Personal scope only — kept separate from Business so users
+    // pick consciously between consumer chat vs. Cloud API.
     id: "whatsapp_personal",
-    name: "WhatsApp (personal)",
+    name: "WhatsApp Personal",
     provider: "whatsapp_personal",
     scopes: ["personal"],
     icon: "smartphone",

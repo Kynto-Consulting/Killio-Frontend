@@ -101,6 +101,7 @@ function ComingSoonIntegrationCard({
   icon: Icon,
   badge,
   actionLabel,
+  notifyLabel,
   onAction,
   actionDisabled,
 }: {
@@ -109,6 +110,7 @@ function ComingSoonIntegrationCard({
   icon: React.ComponentType<{ className?: string }>;
   badge: string;
   actionLabel?: string;
+  notifyLabel: string;
   onAction?: () => void;
   actionDisabled?: boolean;
 }) {
@@ -167,7 +169,7 @@ function ComingSoonIntegrationCard({
             }}
           >
             <Clock3 className="h-3.5 w-3.5" />
-            Notify me
+            {notifyLabel}
           </button>
         )}
       </div>
@@ -872,7 +874,7 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
             className="hidden items-center gap-1 rounded-md border border-border bg-background px-2 py-0.5 font-medium text-foreground hover:bg-accent/10 xl:inline-flex"
           >
             <CreditCard className="h-3.5 w-3.5" />
-            Upgrade
+            {t("usage.upgrade")}
           </button>
         </>
       ) : (
@@ -961,6 +963,7 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
                     icon={Globe}
                     badge={t("integrations.catalog.tutorial")}
                     actionLabel={t("integrations.catalog.viewTutorial")}
+                    notifyLabel={t("integrations.catalog.notifyMe")}
                     onAction={() => setShowMetaTutorialModal(true)}
                   />
                 }

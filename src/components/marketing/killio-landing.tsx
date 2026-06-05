@@ -35,6 +35,7 @@ import {
   SiZapier,
 } from "react-icons/si";
 import { TbBrandOnedrive } from "react-icons/tb";
+import Link from "next/link";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import "@/app/landing.css";
 
@@ -68,7 +69,7 @@ function Nav({ t }: { t: T }) {
         <div className="nav-links">
           <a href="#features">{t("kl.nav.features")}</a>
           <a href="#ai">{t("kl.nav.ai")}</a>
-          <a href="#vault">{t("kl.nav.vault")}</a>
+          <a href="/vault">{t("kl.nav.vault")}</a>
           <a href="#integrations">{t("kl.nav.integrations")}</a>
           <a href="#pricing">{t("kl.nav.pricing")}</a>
         </div>
@@ -124,23 +125,17 @@ function Hero({ t }: { t: T }) {
             <Download className="h-4 w-4" /> {t("kl.hero.apkCta")}
           </a>
         </div>
-        <div className="hero-notice">
-          <Sparkles className="h-4 w-4" /> {t("kl.hero.notice")}
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mt-4 text-xs">
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1 text-foreground/80">
+            <Sparkles className="h-3 w-3 text-primary" />
+            {t("kl.hero.noCard")}
+          </span>
+          <Link href="/vault" className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-primary hover:bg-primary/15 transition-colors">
+            <Smartphone className="h-3 w-3" />
+            {t("kl.hero.vaultLive")}
+            <ArrowRight className="h-3 w-3" />
+          </Link>
         </div>
-        <a
-          href="/vault"
-          className="hero-notice"
-          style={{
-            marginTop: 8,
-            color: "var(--lime)",
-            textDecoration: "none",
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          <Smartphone className="h-3 w-3" /> {t("kl.hero.vaultStrip")} <ArrowRight className="h-3 w-3" />
-        </a>
         <div className="stats-row">
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.actionsValue")}</div><div className="stat-label">{t("kl.hero.stats.actionsLabel")}</div></div>

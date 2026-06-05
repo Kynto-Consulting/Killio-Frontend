@@ -19,7 +19,8 @@
     "billing": "Billing",
     "billingSubject": "Billing Killio",
     "billingBody": "Hola equipo, quiero mejorar mi plan de Scripts e Integraciones.",
-    "error": "No se pudo cargar el uso mensual de scripts."
+    "error": "No se pudo cargar el uso mensual de scripts.",
+    "upgrade": "Mejorar plan"
   },
   "billing": {
     "cardTitle": "Planes y Billing",
@@ -100,6 +101,7 @@
   "integrations": {
     "catalog": {
       "comingSoon": "Próximamente",
+      "notifyMe": "Avísame",
       "apps": {
         "googleCalendar": {
           "name": "Google Calendar",
@@ -112,6 +114,14 @@
         "jira": {
           "name": "Jira",
           "description": "La sincronización de issues y la automatización bidireccional con Jira está planificada para la siguiente etapa."
+        },
+        "whatsappBusiness": {
+          "name": "WhatsApp Business",
+          "description": "WhatsApp Cloud API para equipos: guarda token + phone number id reutilizables, envía mensajes con plantillas y conecta flujos de catálogo desde nodos de scripts."
+        },
+        "whatsappPersonal": {
+          "name": "WhatsApp Personal",
+          "description": "Vincula tu número personal de WhatsApp con un código QR para leer y responder tus chats de siempre desde Killio."
         }
       },
       "manualSetup": "Configuración manual",

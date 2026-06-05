@@ -19,7 +19,8 @@
     "billing": "Billing",
     "billingSubject": "Killio Billing",
     "billingBody": "Hi team, I want to upgrade my Scripts and Integrations plan.",
-    "error": "Failed to load monthly script usage."
+    "error": "Failed to load monthly script usage.",
+    "upgrade": "Upgrade"
   },
   "billing": {
     "cardTitle": "Plans & Billing",
@@ -100,6 +101,7 @@
   "integrations": {
     "catalog": {
       "comingSoon": "Coming soon",
+      "notifyMe": "Notify me",
       "apps": {
         "googleCalendar": {
           "name": "Google Calendar",
@@ -112,6 +114,14 @@
         "jira": {
           "name": "Jira",
           "description": "Issue syncing and bidirectional workflow automation with Jira is planned next."
+        },
+        "whatsappBusiness": {
+          "name": "WhatsApp Business",
+          "description": "WhatsApp Cloud API for teams: save reusable token + phone number id, send template messages, and wire catalog flows from script nodes."
+        },
+        "whatsappPersonal": {
+          "name": "WhatsApp Personal",
+          "description": "Pair your personal WhatsApp number with a QR code to read and reply to your everyday chats from Killio."
         }
       },
       "manualSetup": "Manual setup",
