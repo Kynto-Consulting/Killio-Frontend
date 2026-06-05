@@ -20,6 +20,10 @@ import {
   Globe,
   Folder,
   Users,
+  Download,
+  Mic,
+  Phone,
+  Smartphone,
 } from "lucide-react";
 import {
   SiGithub,
@@ -64,6 +68,7 @@ function Nav({ t }: { t: T }) {
         <div className="nav-links">
           <a href="#features">{t("kl.nav.features")}</a>
           <a href="#ai">{t("kl.nav.ai")}</a>
+          <a href="#vault">{t("kl.nav.vault")}</a>
           <a href="#integrations">{t("kl.nav.integrations")}</a>
           <a href="#pricing">{t("kl.nav.pricing")}</a>
         </div>
@@ -477,6 +482,111 @@ function PricingSection({ t }: { t: T }) {
   );
 }
 
+// ─── Vault Section ──────────────────────────────────────────────────────────
+function VaultSection({ t }: { t: T }) {
+  const ref = useFadeRef();
+  const bullets = ["diary", "assistant", "voice", "memory", "tools"] as const;
+  return (
+    <section className="features-section" id="vault" style={{ paddingBottom: 0 }}>
+      <div className="container">
+        <div className="section-header fade-up" ref={ref}>
+          <span className="eyebrow">{t("kl.vault.eyebrow")}</span>
+          <h2 className="section-title">{t("kl.vault.title")}</h2>
+          <p className="section-sub">{t("kl.vault.sub")}</p>
+        </div>
+        <div className="bento-grid" style={{ gridTemplateColumns: "1.1fr 0.9fr" }}>
+          <div className="bento-card span-2" style={{ overflow: "hidden" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", minHeight: 320 }}>
+              <div className="bento-card-body" style={{ display: "flex", flexDirection: "column", justifyContent: "center", gap: 18 }}>
+                <span className="bento-tag lime">
+                  <Smartphone className="h-4 w-4" /> {t("kl.vault.tag")}
+                </span>
+                <h3 className="bento-title">{t("kl.vault.cardTitle")}</h3>
+                <p className="bento-desc">{t("kl.vault.cardDesc")}</p>
+                <ul style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 4 }}>
+                  {bullets.map((b) => (
+                    <li
+                      key={b}
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 10,
+                        color: "var(--muted)",
+                        fontSize: 13,
+                      }}
+                    >
+                      <Check className="h-4 w-4" style={{ marginTop: 3, color: "var(--lime)", flexShrink: 0 }} />
+                      <span style={{ lineHeight: 1.55 }}>{t(`kl.vault.bullets.${b}`)}</span>
+                    </li>
+                  ))}
+                </ul>
+                <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+                  <a href="/download/vault" className="btn-lime-lg" style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+                    <Download className="h-4 w-4" /> {t("kl.vault.ctaDownload")}
+                  </a>
+                  <a href="/vault" className="btn-outline-lg">
+                    {t("kl.vault.ctaLearnMore")} <ArrowRight className="h-4 w-4" />
+                  </a>
+                </div>
+                <p style={{ fontSize: 11, color: "var(--muted)", marginTop: 2 }}>
+                  {t("kl.vault.platform")}
+                </p>
+              </div>
+              <div style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+                <VaultPhonePreview t={t} />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function VaultPhonePreview({ t }: { t: T }) {
+  return (
+    <div
+      style={{
+        position: "relative",
+        width: 240,
+        height: 480,
+        borderRadius: 36,
+        background: "linear-gradient(160deg,#0a1220 0%,#04070f 100%)",
+        border: "1px solid var(--card-border)",
+        boxShadow: "0 30px 60px -30px rgba(216,255,114,0.18), 0 0 0 6px rgba(0,0,0,0.6)",
+        padding: "18px 16px",
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        gap: 12,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 4px 12px", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ width: 10, height: 10, borderRadius: 5, background: "var(--lime)" }} />
+        <div style={{ fontSize: 11, fontWeight: 700, color: "#fff" }}>Killio Vault</div>
+        <div style={{ marginLeft: "auto", fontSize: 10, color: "var(--muted)" }}>{t("kl.vault.phoneStatus")}</div>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 11 }}>
+        <div style={{ background: "rgba(216,255,114,0.08)", border: "1px solid rgba(216,255,114,0.25)", borderRadius: 12, padding: "10px 12px", color: "#d8ff72", display: "flex", alignItems: "center", gap: 8 }}>
+          <Mic className="h-3 w-3" /> {t("kl.vault.phoneDiary")}
+        </div>
+        <div style={{ background: "rgba(99,102,241,0.08)", border: "1px solid rgba(99,102,241,0.25)", borderRadius: 12, padding: "10px 12px", color: "#a5b4fc", display: "flex", alignItems: "center", gap: 8 }}>
+          <BrainCircuit className="h-3 w-3" /> {t("kl.vault.phoneAssistant")}
+        </div>
+        <div style={{ background: "rgba(34,211,238,0.08)", border: "1px solid rgba(34,211,238,0.25)", borderRadius: 12, padding: "10px 12px", color: "#67e8f9", display: "flex", alignItems: "center", gap: 8 }}>
+          <Phone className="h-3 w-3" /> {t("kl.vault.phoneCall")}
+        </div>
+        <div style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: "10px 12px", color: "var(--muted)", display: "flex", alignItems: "center", gap: 8 }}>
+          <FileText className="h-3 w-3" /> {t("kl.vault.phoneDocs")}
+        </div>
+      </div>
+      <div style={{ marginTop: "auto", display: "flex", justifyContent: "center", padding: 4 }}>
+        <div style={{ width: 60, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.2)" }} />
+      </div>
+    </div>
+  );
+}
+
 // â”€â”€â”€ Features Strip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function FeaturesStrip({ t }: { t: T }) {
   const ref = useFadeRef();
@@ -571,6 +681,7 @@ export function KillioLanding() {
       <Hero t={t} />
       <FeaturesSection t={t} />
       <AISection t={t} />
+      <VaultSection t={t} />
       <IntegrationsSection t={t} />
       <PricingSection t={t} />
       <FeaturesStrip t={t} />

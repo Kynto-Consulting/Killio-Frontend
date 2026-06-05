@@ -247,10 +247,66 @@
     "nav": {
       "features": "Funcionalidades",
       "ai": "IA y Automatizacion",
+      "vault": "Vault (móvil)",
       "integrations": "Integraciones",
       "pricing": "Precios",
       "signIn": "Iniciar sesion",
       "getStarted": "Empezar gratis"
+    },
+    "vault": {
+      "eyebrow": "Killio Vault",
+      "title": "Tu workspace, en tu bolsillo.",
+      "sub": "Una app Android-first que captura tu día, escucha tu voz y ejecuta acciones de Killio en el teléfono — incluso con la app cerrada.",
+      "tag": "Android dev-build",
+      "cardTitle": "Diario de audio, asistente manos libres y agentes en el dispositivo.",
+      "cardDesc": "Vault es una app nativa de Killio: graba y transcribe el audio que tú decidas, te responde por el parlante del teléfono y puede llamar, abrir apps, enviar mensajes o sacarte un evento del calendario — todo desde el mismo workspace.",
+      "ctaDownload": "Descargar último APK",
+      "ctaLearnMore": "Conocer más",
+      "platform": "Solo Android · iOS en la hoja de ruta.",
+      "phoneStatus": "Escuchando",
+      "phoneDiary": "Diario · 11:42 · capturado",
+      "phoneAssistant": "Oye Killio, resume el día",
+      "phoneCall": "open_app → WhatsApp · Ana",
+      "phoneDocs": "Documentos · Plan de sprint",
+      "bullets": {
+        "diary": "Transcripción en el dispositivo 24/7 o por horarios que aparece como documento del día en tu workspace personal — sin gastar créditos.",
+        "assistant": "Asistente push-to-talk o por palabra clave usando el mismo loop /agent que ya usas en la web.",
+        "voice": "Llama, abre apps, envía SMS, lee el calendario, busca contactos — todas las tools de Killio expuestas al teléfono.",
+        "memory": "Memoria persistente por usuario y contexto por workspace para que el asistente realmente te recuerde entre sesiones.",
+        "tools": "Navega documentos, mira carpetas y edita bricks en vivo con el mismo renderer del web."
+      }
+    },
+    "vaultPage": {
+      "badge": "Killio Vault para Android",
+      "titlePrefix": "Killio,",
+      "titleAccent": "donde sea que vayas.",
+      "titleSuffix": "Diario de audio, asistente por voz, workspace móvil.",
+      "sub": "Vault convierte tu teléfono en una superficie Killio: captura tu día con transcripción local, te deja hablarle a tus workspaces y ejecuta las mismas tools del agente que usas en la web — incluyendo llamadas, abrir apps y editar documentos.",
+      "ctaAccount": "Crear cuenta Killio",
+      "platform": "Solo Android. Sideload el APK en cualquier dispositivo Android 10+.",
+      "pillarsEyebrow": "Qué incluye",
+      "pillarsTitle": "Seis pilares, un solo compañero siempre activo.",
+      "pillarsSub": "Vault no es solo un chat — cada superficie de Killio adaptada a móvil.",
+      "pillars": {
+        "diary": "Servicio de micrófono en primer plano que graba y transcribe localmente. El diario ingresa como documento del día en diary/{tu-alias}/.",
+        "assistant": "Stream de chat a /agent/chat con TTS nativo. Wake-word y push-to-talk funcionan; el agente hereda tus tools.",
+        "voice": "Tools de acción del cliente — call_number, open_app, open_browser, send_sms — se ejecutan en el dispositivo con confirmación.",
+        "memory": "save_user_memory, search_user_memory, list_user_memories. Los matches top se inyectan en cada turno del asistente.",
+        "tools": "Árbol de carpetas, lista de documentos y BrickRenderer completo con modo edición experimental — texto, cita, callout, checklist.",
+        "workspaces": "Alterna entre Vault mode (diario + asistente) y Workspace mode (documentos + vista principal) sin perder contexto."
+      },
+      "modesTag": "Dos modos",
+      "modesTitle": "Vault mode y Workspace mode, en la misma app.",
+      "modesDesc": "La mayor parte del tiempo vives en Vault mode — la superficie de voz siempre activa. Activa el switch del sidenav cuando quieras navegar tus workspaces como en la web, optimizado para móvil.",
+      "modes": {
+        "mode1": "Vault mode: diario, asistente, historial, agentes, integraciones, horarios, uso, captura y privacidad.",
+        "mode2": "Workspace mode: pantalla principal del workspace y documentos (con carpetas), renderer de bricks 1:1 incluyendo modo edición experimental.",
+        "mode3": "El switch persiste por dispositivo — tu último modo se restaura al abrir junto con el workspace activo.",
+        "mode4": "El modo local-only está en la hoja de ruta: un workspace de Killio que vive completamente en el dispositivo para uso offline."
+      },
+      "ctaEyebrow": "Listo cuando tú lo estés",
+      "ctaTitle": "Instala Vault ahora.",
+      "ctaSub": "El APK más reciente siempre está a un click. Sideloadea, inicia sesión con tu cuenta Killio y elige un workspace."
     },
     "hero": {
       "badge": "Ahora en beta publica",

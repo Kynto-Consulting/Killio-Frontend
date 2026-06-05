@@ -58,6 +58,11 @@
     "activityHistory": "Historial de actividad: {{value}}",
     "meshBoards": "Mesh Boards: {{value}}",
     "vaultAgents": "Agentes Vault: {{value}}",
+    "vaultDiaryOnly": "Diario Vault (en el dispositivo, gratis)",
+    "vaultCloudStt": "STT en la nube: {{value}} min / mes",
+    "vaultWakeWord": "Palabra clave \"Hey Killio\"",
+    "vaultSubUsers": "Vault en workspaces compartidos",
+    "vaultSubUsersNo": "Vault solo en workspace personal",
     "prioritySupport": "Soporte prioritario",
     "ssoScim": "SSO / SCIM",
     "auditLogs": "Audit logs"

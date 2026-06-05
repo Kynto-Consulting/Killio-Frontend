@@ -52,6 +52,7 @@ export interface BillingPlanDefinition {
     screenCapture: boolean;
     localAgents: number | null;
     wakeWord: boolean;
+    allowSubUsers: boolean;
   };
   checkoutEnabled: boolean;
 }

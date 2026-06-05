@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { CircleDollarSign, ClipboardCheck, Cpu, Headset, History, LayoutGrid, Loader2, Mail, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { CircleDollarSign, ClipboardCheck, Cpu, Download, Headset, History, LayoutGrid, Loader2, Mail, Mic, Radio, ShieldCheck, Sparkles, UserPlus, Users, Zap } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import {
@@ -592,6 +592,35 @@ function PricingPageInner() {
                         <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
                         <span>{t("plans.vaultAgents", { value: agentsValue })}</span>
                       </li>
+                    )}
+                    {plan.vault?.enabled && (
+                      <>
+                        <li className="flex items-start gap-3">
+                          <Mic className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                          <span>
+                            {plan.vault.cloudSttMinutesMonthly > 0
+                              ? t("plans.vaultCloudStt", { value: plan.vault.cloudSttMinutesMonthly })
+                              : t("plans.vaultDiaryOnly")}
+                          </span>
+                        </li>
+                        {plan.vault.wakeWord && (
+                          <li className="flex items-start gap-3">
+                            <Radio className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <span>{t("plans.vaultWakeWord")}</span>
+                          </li>
+                        )}
+                        {plan.vault.allowSubUsers ? (
+                          <li className="flex items-start gap-3">
+                            <UserPlus className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <span>{t("plans.vaultSubUsers")}</span>
+                          </li>
+                        ) : (
+                          <li className="flex items-start gap-3">
+                            <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                            <span className="text-slate-500">{t("plans.vaultSubUsersNo")}</span>
+                          </li>
+                        )}
+                      </>
                     )}
                     {(plan.support.priority || plan.support.custom || plan.support.ssoScim || plan.activity.auditLogs) && (
                       <>
