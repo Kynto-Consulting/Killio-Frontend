@@ -1,0 +1,14 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.killio.vault",
+      "sha256_cert_fingerprints": [
+        "C7:B0:47:4B:63:DB:9C:5E:37:78:AB:BA:AC:65:10:A9:E3:80:65:99:60:19:3A:1E:17:32:00:1A:BE:BF:6F:46"
+      ]
+    }
+  }
+]
