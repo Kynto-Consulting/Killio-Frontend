@@ -540,6 +540,11 @@
       "searchMemory":       "Search memory",
       "listMemory":         "List memory",
       "readMemory":         "Read memory",
+      "saveUserMemory":     "Remember for later",
+      "searchUserMemory":   "Search my memories",
+      "listUserMemories":   "List my memories",
+      "getWorkspaces":      "List workspaces",
+      "getWorkspaceMembers":"Workspace members",
       "whatsappPersonal":   "WhatsApp (personal)",
       "whatsappBusiness":   "WhatsApp Business",
       "generic":            "Tool"
