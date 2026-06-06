@@ -122,6 +122,22 @@
         "whatsappPersonal": {
           "name": "WhatsApp Personal",
           "description": "Vincula tu número personal de WhatsApp con un código QR para leer y responder tus chats de siempre desde Killio."
+        },
+        "gmail": {
+          "name": "Gmail",
+          "description": "Lee, envía y organiza correos de Gmail desde el chat y los scripts — etiquetas, borradores e hilos."
+        },
+        "spotify": {
+          "name": "Spotify",
+          "description": "Reproduce, pausa y busca música en tu dispositivo activo de Spotify desde el asistente."
+        },
+        "googleTasks": {
+          "name": "Google Tasks",
+          "description": "Sincroniza y crea tareas en tus listas de Google Tasks desde el chat y los scripts. Próximamente."
+        },
+        "todoist": {
+          "name": "Todoist",
+          "description": "Sincronización bidireccional de proyectos y tareas de Todoist con los tableros de Killio. Próximamente."
         }
       },
       "manualSetup": "Configuración manual",
