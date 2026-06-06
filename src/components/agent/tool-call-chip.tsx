@@ -23,6 +23,8 @@ import {
   ArrowUpFromLine, ArrowDownToLine, Copy, Plus, FileCode,
   // Room / Chat tools
   MessageSquare, Hash, Send,
+  // Sub-agent
+  Bot,
 } from "lucide-react";
 
 export type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -46,6 +48,12 @@ export function getToolActionLabel(
   const file   = trunc(input?.path   ?? input?.filePath ?? input?.file);
   const list   = trunc(input?.listName ?? input?.toList ?? input?.listId);
   const names  = Array.isArray(input?.tool_names) ? (input.tool_names as string[]).join(", ") : "";
+
+  // ── Sub-agent ───────────────────────────────────────────────────────────────
+  if (n === "sub_agent") {
+    const label = trunc(input?.label ?? input?.prompt, 40);
+    return label ? `${t("agent.toolAction.subAgent")}: ${label}` : t("agent.toolAction.subAgent");
+  }
 
   // ── Git (specific) ─────────────────────────────────────────────────────────
   if (n.includes("git_")) {
@@ -539,6 +547,10 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
 
 function getToolIcon(toolName: string) {
   const n = toolName.toLowerCase();
+
+  // ── Sub-agent ──────────────────────────────────────────────────────────────
+  if (n === "sub_agent")
+    return <Bot className="w-3 h-3" />;
 
   // ── Cards ────────────────────────────────────────────────────────────────
   if (n.includes("card_create") || n.includes("create_card"))

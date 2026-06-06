@@ -450,6 +450,7 @@
       "remaining": "{{remaining}} restantes"
     },
     "toolAction": {
+      "subAgent":           "Sub-agente",
       "cardCreated":        "Creó tarjeta {{title}}",
       "cardMoved":          "Movió tarjeta → {{list}}",
       "cardUpdated":        "Actualizó tarjeta {{title}}",

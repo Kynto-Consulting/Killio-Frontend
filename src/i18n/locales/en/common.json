@@ -450,6 +450,7 @@
       "remaining": "{{remaining}} remaining"
     },
     "toolAction": {
+      "subAgent":           "Sub-agent",
       "cardCreated":        "Created card {{title}}",
       "cardMoved":          "Moved card → {{list}}",
       "cardUpdated":        "Updated card {{title}}",

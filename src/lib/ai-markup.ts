@@ -176,6 +176,11 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
       .replace(/<\/?step\b[^>]*>/gi, "")
       .replace(/<\/?plan\b[^>]*>/gi, "")
       .replace(/<sleep\b[^>]*\/?>/gi, "") // async yield marker — never user-visible
+      // <end_agent><reason>…</reason></end_agent> is a sub-agent completion
+      // control token — strip it (closed form + any dangling open tag) so it
+      // never renders as raw text.
+      .replace(/<end_agent\b[^>]*>[\s\S]*?<\/end_agent>/gi, "")
+      .replace(/<end_agent\b[^>]*>[\s\S]*$/i, "")
       .replace(/[ \t]{2,}/g, " ")
       .trim();
 
