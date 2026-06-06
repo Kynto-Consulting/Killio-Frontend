@@ -51,7 +51,7 @@ import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import scriptPresetsCatalog from "@/config/script-presets.json";
 import { Zap, Loader2, BarChart3, Globe, Clock3, X, CheckCircle2, AlertCircle, Trash2, CreditCard } from "lucide-react";
 
-type Tab = "integrations" | "scripts" | "table" | "env";
+export type Tab = "integrations" | "scripts" | "table" | "env";
 type ScriptSubView = "canvas" | "runs";
 
 interface CreateScriptForm {
@@ -87,13 +87,6 @@ interface PresetCatalogEntry {
 }
 
 const PRESET_CATALOG: PresetCatalogEntry[] = scriptPresetsCatalog.presets as PresetCatalogEntry[];
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "integrations", label: "tabs.integrations" },
-  { id: "scripts", label: "tabs.scripts" },
-  { id: "table", label: "tabs.table" },
-  { id: "env", label: "tabs.envVars" },
-];
 
 function ComingSoonIntegrationCard({
   title,
@@ -177,31 +170,40 @@ function ComingSoonIntegrationCard({
   );
 }
 
-export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobileScriptsOptimized?: boolean } = {}) {
+export function IntegrationsPageView({
+  mobileScriptsOptimized = false,
+  activeTab,
+}: {
+  mobileScriptsOptimized?: boolean;
+  /**
+   * When provided, the tab is controlled by the route (real-route architecture).
+   * The internal tab state is ignored and the sidebar owns navigation between
+   * sub-routes. When omitted, the page falls back to internal tab state.
+   */
+  activeTab?: Tab;
+} = {}) {
   const router = useRouter();
   const { locale } = useI18n();
   const t = useTranslations("integrations");
   const { user, accessToken, activeTeamId } = useSession();
   const { role, isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
 
-  const [tab, setTab] = useState<Tab>(mobileScriptsOptimized ? "scripts" : "integrations");
+  const [internalTab, setInternalTab] = useState<Tab>(mobileScriptsOptimized ? "scripts" : "integrations");
+  // Route-controlled tab takes precedence over internal state.
+  const tab: Tab = activeTab ?? internalTab;
+  const setTab = setInternalTab;
   const [scripts, setScripts] = useState<ScriptSummary[]>([]);
   const [scriptsLoading, setScriptsLoading] = useState(false);
   const [selectedScript, setSelectedScript] = useState<ScriptSummary | null>(null);
 
-  // Portal targets
-  const [sidebarOptionsEl, setSidebarOptionsEl] = useState<Element | null>(null);
-  const [mobileSidebarOptionsEl, setMobileSidebarOptionsEl] = useState<Element | null>(null);
+  // Portal target for the usage widget in the top navbar. The sidebar sub-tabs
+  // are now real routes owned by the sidebar (layout.web.tsx), so the page no
+  // longer portals a tab strip into the sidebar.
   const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
 
   useEffect(() => {
     const checkDomElements = () => {
-      const side = document.getElementById("sidebar-scripts-options");
-      const mobSide = document.getElementById("sidebar-scripts-options-mobile");
       const navSlot = document.getElementById("navbar-usage-slot");
-
-      setSidebarOptionsEl((prev) => (prev === side ? prev : side));
-      setMobileSidebarOptionsEl((prev) => (prev === mobSide ? prev : mobSide));
       setNavbarUsageSlotEl((prev) => (prev === navSlot ? prev : navSlot));
     };
 
@@ -832,25 +834,6 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
   ).length;
   const comingSoonCount = teamCatalog.filter((i) => i.comingSoon).length + 1; // +1 = Meta tutorial card
 
-  const tabsPortalContent = (
-    <div className="space-y-1 py-1">
-      {TABS.map((tabItem) => (
-        <button
-          key={tabItem.id}
-          type="button"
-          onClick={() => setTab(tabItem.id)}
-          className={`w-full rounded-md px-2.5 py-1.5 text-left text-sm font-medium transition-colors ${
-            tab === tabItem.id
-              ? "bg-accent/20 text-accent"
-              : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"
-          }`}
-        >
-          {t(tabItem.label)}
-        </button>
-      ))}
-    </div>
-  );
-
   const usagePortalContent = tab === "scripts" ? (
     <div className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-md border border-border bg-card/80 px-2 py-1 text-[11px] text-muted-foreground">
       {usageLoading ? (
@@ -910,8 +893,6 @@ export function IntegrationsPageView({ mobileScriptsOptimized = false }: { mobil
 
   return (
     <>
-      {sidebarOptionsEl ? createPortal(tabsPortalContent, sidebarOptionsEl) : null}
-      {mobileSidebarOptionsEl ? createPortal(tabsPortalContent, mobileSidebarOptionsEl) : null}
       {navbarUsageSlotEl && usagePortalContent ? createPortal(usagePortalContent, navbarUsageSlotEl) : null}
 
       <div className="flex h-full flex-col bg-background text-foreground">

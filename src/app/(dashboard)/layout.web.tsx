@@ -54,7 +54,19 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const tShare = useTranslations("share-local");
   const tCommon = useTranslations("common");
   const tRooms = useTranslations("rooms");
+  const tIntegrations = useTranslations("integrations");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
+
+  // Scripts group sub-routes (real routes, owned by the sidebar). Each forces
+  // its tab on the shared integrations workspace component.
+  const scriptsSubRoutes = [
+    { href: "/integrations", label: tIntegrations("tabs.integrations") },
+    { href: "/scripts", label: tIntegrations("tabs.scripts") },
+    { href: "/integrations/table", label: tIntegrations("tabs.table") },
+    { href: "/integrations/env", label: tIntegrations("tabs.envVars") },
+  ];
+  // True on any of the 4 Scripts sub-routes (incl. the standalone /scripts).
+  const isScriptsRouteActive = isPathActive("/integrations") || pathname === "/scripts";
 
   const navigation = [
     { name: tDashboard("nav.workspaces"), href: "/", icon: LayoutDashboard },
@@ -130,7 +142,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const [ismeshsOpen, setIsmeshsOpen] = useState(false);
   const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => isPathActive("/d"));
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(() => isPathActive("/marketplace"));
-  const [isScriptsOpen, setIsScriptsOpen] = useState(() => isPathActive("/integrations"));
+  const [isScriptsOpen, setIsScriptsOpen] = useState(() => isPathActive("/integrations") || pathname === "/scripts");
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
@@ -202,7 +214,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     if (isPathActive("/marketplace")) {
       setIsMarketplaceOpen(true);
     }
-    if (isPathActive("/integrations")) {
+    if (isPathActive("/integrations") || pathname === "/scripts") {
       setIsScriptsOpen(true);
     }
   }, [pathname]);
@@ -562,9 +574,12 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
             )}
 
             {navigationItems.map((item) => {
-              const isActive = isPathActive(item.href);
               const isScriptsMenu = item.href === "/integrations";
               const isMarketplaceMenu = item.href === "/marketplace";
+              // Scripts group spans 4 real routes; highlight the parent on any of them.
+              const isActive = isScriptsMenu
+                ? isScriptsRouteActive
+                : isPathActive(item.href);
               const isNestedMenu = isScriptsMenu || isMarketplaceMenu;
               // Archived workspace: only /teams is accessible
               const isBlockedByArchive = isActiveTeamArchived && item.href !== "/teams";
@@ -696,12 +711,23 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                         </button>
                       )}
                     </div>
-                    {/* Render slot for integrations sub-tabs (portaled from the integrations page) */}
+                    {/* Real sub-route links (no longer portaled from the page). */}
                     {isScriptsOpen && !isSidebarCollapsed && (
-                      <div
-                        id="sidebar-scripts-options"
-                        className="ml-5 mt-1 space-y-1 border-l border-border/70 pl-3"
-                      ></div>
+                      <div className="ml-5 mt-1 space-y-1 border-l border-border/70 pl-3">
+                        {scriptsSubRoutes.map((sub) => (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                              pathname === sub.href
+                                ? "bg-accent/10 text-foreground"
+                                : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                            }`}
+                          >
+                            {sub.label}
+                          </Link>
+                        ))}
+                      </div>
                     )}
                   </div>
                 );

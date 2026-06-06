@@ -47,6 +47,7 @@ export function MobileNavSheet({
   const pathname = usePathname();
   const tDashboard = useTranslations("dashboard");
   const tCommon = useTranslations("common");
+  const tIntegrations = useTranslations("integrations");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 
   const [isOpen, setIsOpen] = useState(false);
@@ -300,11 +301,28 @@ export function MobileNavSheet({
                       <item.icon className="h-4 w-4 opacity-70" />
                       <span>{item.name}</span>
                     </Link>
-                    {isActive && isScriptsMenu && (
-                      <div
-                        id="sidebar-scripts-options-mobile"
-                        className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
-                      ></div>
+                    {isScriptsMenu && (isActive || pathname === "/scripts") && (
+                      <div className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3">
+                        {[
+                          { href: "/integrations", label: tIntegrations("tabs.integrations") },
+                          { href: "/scripts", label: tIntegrations("tabs.scripts") },
+                          { href: "/integrations/table", label: tIntegrations("tabs.table") },
+                          { href: "/integrations/env", label: tIntegrations("tabs.envVars") },
+                        ].map((sub) => (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            onClick={() => setIsOpen(false)}
+                            className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
+                              pathname === sub.href
+                                ? "bg-accent/10 text-foreground"
+                                : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"
+                            }`}
+                          >
+                            {sub.label}
+                          </Link>
+                        ))}
+                      </div>
                     )}
 
                     {isActive && isMarketplaceMenu && (
