@@ -1,8 +1,8 @@
 "use client";
 
-import { UserPlus, Lock, MoreHorizontal, Shield } from "lucide-react";
+import { UserPlus, Lock, MoreHorizontal, Shield, Copy, Check } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createInvite,
   listTeamInvites,
@@ -27,6 +27,9 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
+import { useRealtime } from "@/components/providers/realtime-provider";
+import { realtimeChannel } from "@/lib/realtime/channels";
+import type { MessageListener } from "@/lib/realtime/types";
 
 const MEMBER_COLORS = ["#22d3ee", "#6366f1", "#f472b6", "#fb923c", "#a78bfa", "#34d399", "#fbbf24", "#f87171"];
 
@@ -43,7 +46,20 @@ function roleBadgeStyle(role: string): React.CSSProperties {
   if (role === "guest") {
     return { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" };
   }
+  if (role === "viewer") {
+    return { color: "rgba(161,161,170,0.85)", background: "rgba(113,113,122,0.15)", border: "1px solid rgba(113,113,122,0.3)" };
+  }
   return { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" };
+}
+
+/** Build a shareable accept-invite URL from either the explicit acceptUrl returned
+ *  by the backend or the raw token (fallback when acceptUrl is missing). */
+function buildInviteLink(invite: Pick<InviteSummary, "token" | "acceptUrl">): string | null {
+  if (invite.acceptUrl) return invite.acceptUrl;
+  if (invite.token && typeof window !== "undefined") {
+    return `${window.location.origin}/accept-invite?token=${encodeURIComponent(invite.token)}`;
+  }
+  return null;
 }
 
 export default function TeamsPage() {

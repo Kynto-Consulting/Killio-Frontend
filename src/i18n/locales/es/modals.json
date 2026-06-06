@@ -48,10 +48,15 @@
       "admin": "Admin",
       "member": "Miembro",
       "guest": "Invitado",
+      "viewer": "Visor",
       "adminHelp": "Gestiona miembros, invitaciones y contenido del workspace.",
       "memberHelp": "Puede crear tableros e invitar miembros e invitados.",
-      "guestHelp": "Acceso limitado. No puede invitar ni crear tableros."
-    }
+      "guestHelp": "Acceso limitado. No puede invitar ni crear tableros.",
+      "viewerHelp": "Solo lectura. No puede invitar, comentar ni editar."
+    },
+    "copyInviteLink": "Copiar link de invitacion",
+    "inviteLinkCopied": "Copiado",
+    "inviteLinkExpiresNote": "Caduca cuando se acepte o se revoque."
   },
   "switchAccount": {
     "title": "Cambiar cuenta",

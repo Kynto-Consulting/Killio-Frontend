@@ -2,7 +2,7 @@
  * Killio — Unified Permission Definitions
  *
  * Two role systems exist in the DB:
- *   team_memberships.role  : 'owner' | 'admin' | 'member' | 'guest'
+ *   team_memberships.role  : 'owner' | 'admin' | 'member' | 'guest' | 'viewer'
  *   board_memberships.role : 'owner' | 'editor' | 'commenter' | 'viewer'
  *
  * Board role is authoritative for board actions. When a user has no explicit
@@ -10,7 +10,7 @@
  */
 
 export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer';
-export type TeamRole  = 'owner' | 'admin'  | 'member'    | 'guest';
+export type TeamRole  = 'owner' | 'admin'  | 'member'    | 'guest' | 'viewer';
 
 const BOARD_ROLE_RANK: Record<BoardRole, number> = {
   owner: 4, editor: 3, commenter: 2, viewer: 1,

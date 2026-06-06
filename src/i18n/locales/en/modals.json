@@ -48,10 +48,15 @@
       "admin": "Admin",
       "member": "Member",
       "guest": "Guest",
+      "viewer": "Viewer",
       "adminHelp": "Manages members, invitations and workspace content.",
       "memberHelp": "Can create boards and invite members and guests.",
-      "guestHelp": "Limited access. Cannot invite or create boards."
-    }
+      "guestHelp": "Limited access. Cannot invite or create boards.",
+      "viewerHelp": "Read-only. Cannot invite, comment, or edit anything."
+    },
+    "copyInviteLink": "Copy invite link",
+    "inviteLinkCopied": "Copied",
+    "inviteLinkExpiresNote": "Expires when accepted or revoked."
   },
   "switchAccount": {
     "title": "Switch Account",

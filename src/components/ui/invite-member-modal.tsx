@@ -1,11 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, UserPlus, Check, Mail, Shield, Loader2 } from "lucide-react";
-import { createInvite, TeamRole } from "@/lib/api/contracts";
+import { X, UserPlus, Check, Mail, Shield, Loader2, Copy } from "lucide-react";
+import { createInvite, InviteSummary, TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useForm } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
+
+/** Build a shareable accept-invite URL from either the explicit acceptUrl returned
+ *  by the backend or the raw token (fallback when acceptUrl is missing). */
+function buildInviteLink(invite: Pick<InviteSummary, "token" | "acceptUrl">): string | null {
+  if (invite.acceptUrl) return invite.acceptUrl;
+  if (invite.token && typeof window !== "undefined") {
+    return `${window.location.origin}/accept-invite?token=${encodeURIComponent(invite.token)}`;
+  }
+  return null;
+}
 
 export function InviteMemberModal({
   isOpen,
@@ -27,6 +37,8 @@ export function InviteMemberModal({
   const t = useTranslations("modals");
   const [role, setRole] = useState<Exclude<TeamRole, "owner">>("member");
   const [invited, setInvited] = useState(false);
+  const [inviteLink, setInviteLink] = useState<string | null>(null);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   const form = useForm({
     fields: {
@@ -42,7 +54,14 @@ export function InviteMemberModal({
     },
     submit: async ({ values, reset }) => {
       const invite = await createInvite({ email: values.email as string, role }, teamId, accessToken);
+      // Capture acceptUrl/token before deciding whether to surface a delivery error so
+      // the user still gets a copyable link when SMTP failed/skipped.
+      const link = buildInviteLink(invite);
       if (invite.deliveryStatus !== "sent") {
+        if (link) {
+          // Make the link available even if email delivery failed.
+          setInviteLink(link);
+        }
         throw new Error(
           invite.deliveryStatus === "skipped"
             ? t("inviteMember.deliverySkipped")
@@ -50,11 +69,29 @@ export function InviteMemberModal({
         );
       }
       setInvited(true);
+      setInviteLink(link);
       reset();
       if (onInvited) await onInvited();
-      setTimeout(() => { setInvited(false); onClose(); }, 900);
+      // Keep modal open a bit longer when there's a copyable link so the user can grab it.
+      setTimeout(() => {
+        setInvited(false);
+        setInviteLink(null);
+        setLinkCopied(false);
+        onClose();
+      }, link ? 4000 : 900);
     },
   });
+
+  const handleCopyInviteLink = async () => {
+    if (!inviteLink) return;
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      // Silently ignore clipboard failures (e.g. insecure context).
+    }
+  };
 
   const roleOptionsByInviter: Record<
     TeamRole,
@@ -64,18 +101,24 @@ export function InviteMemberModal({
       { value: "admin",  label: t("inviteMember.roles.admin"),  help: t("inviteMember.roles.adminHelp") },
       { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
       { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
+      { value: "viewer", label: t("inviteMember.roles.viewer"), help: t("inviteMember.roles.viewerHelp") },
     ],
     admin: [
       { value: "admin",  label: t("inviteMember.roles.admin"),  help: t("inviteMember.roles.adminHelp") },
       { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
       { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
+      { value: "viewer", label: t("inviteMember.roles.viewer"), help: t("inviteMember.roles.viewerHelp") },
     ],
     member: [
       { value: "member", label: t("inviteMember.roles.member"), help: t("inviteMember.roles.memberHelp") },
       { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
+      { value: "viewer", label: t("inviteMember.roles.viewer"), help: t("inviteMember.roles.viewerHelp") },
     ],
     guest: [
       { value: "guest",  label: t("inviteMember.roles.guest"),  help: t("inviteMember.roles.guestHelp") },
+    ],
+    viewer: [
+      { value: "viewer", label: t("inviteMember.roles.viewer"), help: t("inviteMember.roles.viewerHelp") },
     ],
   };
 
@@ -186,6 +229,26 @@ export function InviteMemberModal({
               )}
             </button>
           </div>
+
+          {inviteLink && (
+            <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <code className="flex-1 text-xs text-muted-foreground truncate font-mono">{inviteLink}</code>
+                <button
+                  type="button"
+                  onClick={handleCopyInviteLink}
+                  className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-border/60 bg-background text-xs font-medium hover:bg-accent/10 transition-colors shrink-0"
+                >
+                  {linkCopied ? (
+                    <><Check className="w-3 h-3" />{t("inviteMember.inviteLinkCopied")}</>
+                  ) : (
+                    <><Copy className="w-3 h-3" />{t("inviteMember.copyInviteLink")}</>
+                  )}
+                </button>
+              </div>
+              <p className="text-[10px] text-muted-foreground">{t("inviteMember.inviteLinkExpiresNote")}</p>
+            </div>
+          )}
         </form>
 
         <div className="px-6 py-4 bg-muted/30 border-t border-border/50">

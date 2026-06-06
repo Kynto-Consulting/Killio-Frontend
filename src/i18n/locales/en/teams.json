@@ -97,6 +97,17 @@
       "No invites",
       "No board creation",
       "Limited access"
+    ],
+    "viewer": [
+      "Read-only access",
+      "No invites",
+      "No board creation",
+      "Cannot comment or edit"
     ]
-  }
+  },
+  "roleViewer": "Viewer",
+  "inviteLinkReady": "Invite link ready.",
+  "copyInviteLink": "Copy link",
+  "inviteLinkCopied": "Link copied",
+  "inviteLinkExpiresNote": "Expires when accepted or revoked."
 }

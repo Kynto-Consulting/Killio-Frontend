@@ -30,7 +30,7 @@ export type TeamView = {
   myRole?: string | null;
 };
 
-export type TeamRole = 'owner' | 'admin' | 'member' | 'guest';
+export type TeamRole = 'owner' | 'admin' | 'member' | 'guest' | 'viewer';
 
 /**
  * Resumen de un board para listas y vistas generales.
@@ -66,6 +66,16 @@ export type InviteSummary = {
   status: string;
   deliveryStatus: string;
   createdAt: string;
+  /**
+   * Raw invite token (one-time use). Only present on POST /teams/:teamId/invites
+   * responses, never on list-invites responses (which omit it for security).
+   */
+  token?: string | null;
+  /**
+   * Pre-built accept URL the inviter can copy to share manually. Only present on
+   * POST /teams/:teamId/invites; null/undefined on list-invites responses.
+   */
+  acceptUrl?: string | null;
 };
 
 export type AcceptInviteResult = {

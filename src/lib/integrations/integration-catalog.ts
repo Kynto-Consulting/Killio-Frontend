@@ -144,7 +144,10 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     id: "whatsapp_business",
     name: "WhatsApp Business",
     provider: "whatsapp",
-    scopes: ["team"],
+    // Visible on every workspace surface (team + personal) so users in a
+    // personal workspace can also connect a Cloud-API number — the page
+    // groups it next to whatsapp_personal so the choice is explicit.
+    scopes: ["team", "personal"],
     icon: "message-circle",
     color: "#25d366",
     category: "communication",
@@ -156,12 +159,12 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     // WhatsApp Personal — Baileys QR pairing for the user's own consumer
     // number (chats + 1:1 messages). UI panel renders the QR; backend runs the
     // WS worker (a separate Render/Railway worker forwards messages back via
-    // webhook). Personal scope only — kept separate from Business so users
-    // pick consciously between consumer chat vs. Cloud API.
+    // webhook). Both scopes — workspaces can also have a "personal" Baileys
+    // pairing tied to the owner's number so the assistant can read/send chats.
     id: "whatsapp_personal",
     name: "WhatsApp Personal",
     provider: "whatsapp_personal",
-    scopes: ["personal"],
+    scopes: ["team", "personal"],
     icon: "smartphone",
     color: "#128c7e",
     category: "communication",

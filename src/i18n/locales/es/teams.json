@@ -97,6 +97,17 @@
       "Sin invitaciones",
       "Sin creacion de tableros",
       "Acceso limitado"
+    ],
+    "viewer": [
+      "Acceso de solo lectura",
+      "Sin invitaciones",
+      "Sin creacion de tableros",
+      "No puede comentar ni editar"
     ]
-  }
+  },
+  "roleViewer": "Visor",
+  "inviteLinkReady": "Link de invitacion listo.",
+  "copyInviteLink": "Copiar link",
+  "inviteLinkCopied": "Link copiado",
+  "inviteLinkExpiresNote": "Caduca cuando se acepte o se revoque."
 }
