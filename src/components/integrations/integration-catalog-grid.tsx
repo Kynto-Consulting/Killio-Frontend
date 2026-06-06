@@ -12,6 +12,7 @@ import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { Clock3, Loader2, Puzzle } from "lucide-react";
 import { GithubIntegrationPanel } from "@/components/scripts/GithubIntegrationPanel";
 import { WhatsappIntegrationPanel } from "@/components/scripts/WhatsappIntegrationPanel";
+import { WhatsappPersonalIntegrationPanel } from "@/components/scripts/WhatsappPersonalIntegrationPanel";
 import { SlackWebhookIntegrationPanel } from "@/components/scripts/SlackWebhookIntegrationPanel";
 import { NotionIntegrationPanel } from "@/components/scripts/NotionIntegrationPanel";
 import { TrelloIntegrationPanel } from "@/components/scripts/TrelloIntegrationPanel";
@@ -36,6 +37,7 @@ const PANEL_REGISTRY: Record<string, React.ComponentType<PanelProps>> = {
   trello: TrelloIntegrationPanel,
   slack: SlackWebhookIntegrationPanel,
   whatsapp: WhatsappIntegrationPanel,
+  whatsapp_personal: WhatsappPersonalIntegrationPanel,
   stripe: StripeIntegrationPanel,
   paypal: PaypalIntegrationPanel,
   mercadopago: MercadopagoIntegrationPanel,

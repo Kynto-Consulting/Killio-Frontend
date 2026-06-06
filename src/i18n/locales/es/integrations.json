@@ -201,6 +201,23 @@
       "connect": "Conectar WhatsApp",
       "connectModalTitle": "Conectar credenciales de WhatsApp"
     },
+    "whatsappPersonal": {
+      "title": "WhatsApp Personal",
+      "description": "Vincula tu número personal de WhatsApp para que el asistente pueda leer y enviar tus chats.",
+      "phoneLabel": "Número de teléfono",
+      "phonePlaceholder": "+51 999 999 999",
+      "phoneHint": "Formato internacional (E.164), con código de país. Ej.: +51 para Perú.",
+      "getCode": "Obtener código de vinculación",
+      "codeInstructions": "Abre WhatsApp → Ajustes → Dispositivos vinculados → Vincular un dispositivo → Vincular con número de teléfono → ingresa este código.",
+      "expiresIn": "Expira en {{seconds}}s",
+      "codeExpired": "El código expiró. Solicita uno nuevo.",
+      "connecting": "Conectando…",
+      "connectedAs": "Conectado como {{phone}}",
+      "disconnect": "Desconectar",
+      "disconnectError": "No se pudo desconectar WhatsApp Personal.",
+      "useQr": "Usar QR en su lugar",
+      "unavailable": "La vinculación no está disponible por el momento."
+    },
     "slack": {
       "title": "Slack",
       "description": "Guarda una vez tus URLs de Slack y reutilízalas en tus automatizaciones.",

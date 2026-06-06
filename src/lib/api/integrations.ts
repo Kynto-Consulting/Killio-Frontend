@@ -884,3 +884,66 @@ export async function deleteMercadopagoCredential(teamId: string, credentialId: 
   });
   if (!res.ok) return parseApiError(res, 'Failed to delete MercadoPago credential');
 }
+
+// ─── WhatsApp Personal (Baileys pairing) ──────────────────────────────────────
+
+export interface WhatsappPersonalStatus {
+  connected: boolean;
+  phone: string | null;
+}
+
+export interface WhatsappPersonalPairCode {
+  code: string;
+  expiresInSec: number;
+}
+
+export async function getWhatsappPersonalConnectUrl(
+  teamId: string,
+  accessToken: string,
+): Promise<{ url: string }> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/connect-url`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to get WhatsApp Personal connect URL');
+  return res.json();
+}
+
+export async function requestWhatsappPersonalPairCode(
+  teamId: string,
+  phone: string,
+  accessToken: string,
+): Promise<WhatsappPersonalPairCode> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/pair-code`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ phone }),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to request WhatsApp Personal pairing code');
+  return res.json();
+}
+
+export async function getWhatsappPersonalStatus(
+  teamId: string,
+  accessToken: string,
+): Promise<WhatsappPersonalStatus> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/status`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch WhatsApp Personal status');
+  return res.json();
+}
+
+export async function disconnectWhatsappPersonal(
+  teamId: string,
+  accessToken: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/disconnect`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to disconnect WhatsApp Personal');
+  return res.json();
+}

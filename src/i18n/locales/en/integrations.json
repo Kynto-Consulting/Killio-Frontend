@@ -201,6 +201,23 @@
       "connect": "Connect WhatsApp",
       "connectModalTitle": "Connect WhatsApp credentials"
     },
+    "whatsappPersonal": {
+      "title": "WhatsApp Personal",
+      "description": "Link your personal WhatsApp number so the assistant can read and send your chats.",
+      "phoneLabel": "Phone number",
+      "phonePlaceholder": "+1 555 555 5555",
+      "phoneHint": "International format (E.164), including country code. E.g. +1 for the US.",
+      "getCode": "Get pairing code",
+      "codeInstructions": "Open WhatsApp → Settings → Linked Devices → Link a Device → Link with phone number → enter this code.",
+      "expiresIn": "Expires in {{seconds}}s",
+      "codeExpired": "Code expired. Request a new one.",
+      "connecting": "Connecting…",
+      "connectedAs": "Connected as {{phone}}",
+      "disconnect": "Disconnect",
+      "disconnectError": "Failed to disconnect WhatsApp Personal.",
+      "useQr": "Use QR instead",
+      "unavailable": "Pairing is temporarily unavailable."
+    },
     "slack": {
       "title": "Slack",
       "description": "Save Slack connection URLs once and reuse them across automations.",
