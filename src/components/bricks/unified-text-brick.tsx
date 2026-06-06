@@ -778,6 +778,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         return `<img src="${escapeHtmlAttr(src)}" alt="${escapeHtmlAttr(alt)}" class="my-2 max-h-[460px] w-full rounded-md border border-border/60 object-contain bg-muted/20" loading="lazy" />`;
       })
       .replace(/`([^`]+)`/g, '<code class="bg-muted/60 rounded px-1 py-0.5 text-xs font-mono border border-border/60">$1</code>')
+      // Standard markdown links `[label](url)` (http(s)/mailto). Rendered like the
+      // toolbar's [link:] format. Parsed BEFORE bare-URL autolink so the label
+      // (which may itself contain a URL) isn't double-linked.
+      .replace(/\[([^\]]+)\]\(((?:https?:|mailto:)[^)\s]+)\)/g, (_, label: string, url: string) =>
+        `<a href="${escapeHtmlAttr(url)}" data-link="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer" class="underline decoration-dotted underline-offset-2">${escapeHtml(label)}</a>`)
+      // Bare URL autolink — not already inside an href="…" / src="…" / "(…)".
+      .replace(/(?<![("=])\bhttps?:\/\/[^\s<>)]+/g, (url: string) =>
+        `<a href="${escapeHtmlAttr(url)}" data-link="${escapeHtmlAttr(url)}" target="_blank" rel="noopener noreferrer" class="underline decoration-dotted underline-offset-2">${escapeHtml(url)}</a>`)
       .replace(/\*\*(.*?)\*\*/g, "<b>$1</b>")
       .replace(/__(.*?)__/g, "<u>$1</u>")
       .replace(/\*(.*?)\*/g, "<i>$1</i>")
