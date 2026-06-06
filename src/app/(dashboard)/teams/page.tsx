@@ -127,6 +127,7 @@ function TeamsPageInner() {
     admin: [t("roleCapabilities.admin.0"), t("roleCapabilities.admin.1"), t("roleCapabilities.admin.2"), t("roleCapabilities.admin.3")],
     member: [t("roleCapabilities.member.0"), t("roleCapabilities.member.1"), t("roleCapabilities.member.2"), t("roleCapabilities.member.3")],
     guest: [t("roleCapabilities.guest.0"), t("roleCapabilities.guest.1"), t("roleCapabilities.guest.2"), t("roleCapabilities.guest.3")],
+    viewer: [t("roleCapabilities.guest.0"),  t("roleCapabilities.guest.1"), t("roleCapabilities.guest.2"), t("roleCapabilities.guest.3")]
   }), [t]);
 
   const reloadInvites = async () => {
