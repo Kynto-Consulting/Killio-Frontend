@@ -130,6 +130,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const [ismeshsOpen, setIsmeshsOpen] = useState(false);
   const [isDocumentsOpen, setIsDocumentsOpen] = useState(() => isPathActive("/d"));
   const [isMarketplaceOpen, setIsMarketplaceOpen] = useState(() => isPathActive("/marketplace"));
+  const [isScriptsOpen, setIsScriptsOpen] = useState(() => isPathActive("/integrations"));
 
   const [recentDocuments, setRecentDocuments] = useState<DocumentSummary[]>([]);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
@@ -200,6 +201,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     }
     if (isPathActive("/marketplace")) {
       setIsMarketplaceOpen(true);
+    }
+    if (isPathActive("/integrations")) {
+      setIsScriptsOpen(true);
     }
   }, [pathname]);
 
@@ -668,6 +672,41 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 );
               }
 
+              if (isScriptsMenu) {
+                return (
+                  <div key={item.name} className="flex flex-col">
+                    <div className={`group flex items-center rounded-md transition-colors ${isSidebarCollapsed ? "justify-center px-0" : "pl-3"} ${isActive ? "bg-accent/5 text-foreground" : "text-muted-foreground hover:bg-accent/10 hover:text-foreground"}`}>
+                      <button
+                        type="button"
+                        onClick={() => isSidebarCollapsed ? router.push(item.href) : setIsScriptsOpen((v) => !v)}
+                        title={isSidebarCollapsed ? item.name : undefined}
+                        className={`flex min-w-0 items-center space-x-3 py-2 text-left text-sm font-medium ${isSidebarCollapsed ? "justify-center w-full px-0" : "flex-1 pr-3"}`}
+                      >
+                        <item.icon className={`h-4 w-4 shrink-0 ${isActive ? "opacity-100" : "opacity-70"}`} />
+                        {!isSidebarCollapsed && <span className="truncate">{item.name}</span>}
+                      </button>
+                      {!isSidebarCollapsed && (
+                        <button
+                          type="button"
+                          onClick={() => setIsScriptsOpen((v) => !v)}
+                          aria-label={isScriptsOpen ? `Collapse ${item.name}` : `Expand ${item.name}`}
+                          className="ml-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          <ChevronRight className={`h-3.5 w-3.5 transition-transform ${isScriptsOpen ? "rotate-90" : ""}`} />
+                        </button>
+                      )}
+                    </div>
+                    {/* Render slot for integrations sub-tabs (portaled from the integrations page) */}
+                    {isScriptsOpen && !isSidebarCollapsed && (
+                      <div
+                        id="sidebar-scripts-options"
+                        className="ml-5 mt-1 space-y-1 border-l border-border/70 pl-3"
+                      ></div>
+                    )}
+                  </div>
+                );
+              }
+
               return (
                 <div key={item.name} className="flex flex-col">
                   <Link
@@ -683,14 +722,6 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                     <item.icon className={`h-4 w-4 ${isActive ? "opacity-100" : "opacity-70"}`} />
                     {!isSidebarCollapsed && <span>{item.name}</span>}
                   </Link>
-
-                  {/* Render slot for integrations sub-tabs */}
-                  {isActive && isScriptsMenu && (
-                    <div
-                      id="sidebar-scripts-options"
-                      className="ml-[1.4rem] mt-1 space-y-1 border-l border-border pl-3"
-                    ></div>
-                  )}
                 </div>
               );
             })}
