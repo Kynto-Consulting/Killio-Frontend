@@ -385,9 +385,13 @@ Team Context: ${activeTeamId}.`;
       metadata: { ...billingMetadata } 
     });
 
-          // Save to DB and broadcast to others via backend
+          // Save to DB and broadcast to others via backend. Pass `localBotId`
+          // so the realtime echo of THIS message reconciles the optimistic
+          // `bot-…` bubble in place (useRoomChat onMessage nonce match) instead
+          // of appending a second identical AI bubble — the duplicate-reply bug.
           sendAiRoomMessage(roomId, buildRoomAiContent(finalContent, toolEvents), accessToken, {
-            ...billingMetadata
+            ...billingMetadata,
+            localBotId: botMsgId,
           }).catch(console.error);
 
           // Speak AI response aloud when user is in an active call
