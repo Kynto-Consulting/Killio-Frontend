@@ -107,6 +107,10 @@
           "name": "Google Calendar",
           "description": "Lista y crea eventos en tu calendario conectado desde el chat y los scripts."
         },
+        "mcp": {
+          "name": "Servidores MCP personalizados",
+          "description": "Registra tus propios servidores Model Context Protocol — sus herramientas quedan disponibles para el asistente."
+        },
         "n8n": {
           "name": "n8n",
           "description": "Dispara y orquesta flujos de n8n directamente desde Killio. Próximamente."
@@ -236,6 +240,31 @@
       "deleteError": "No se pudo eliminar la credencial de webhook de Slack.",
       "connect": "Conectar Slack",
       "connectModalTitle": "Conectar URL de Slack"
+    },
+    "mcp": {
+      "title": "Servidores MCP personalizados",
+      "description": "Registra tus propios servidores MCP para que sus herramientas estén disponibles para el asistente.",
+      "fields": {
+        "name": "Nombre del servidor",
+        "url": "URL del servidor",
+        "transport": "Transporte",
+        "transportHttp": "HTTP (Streamable)",
+        "transportSse": "SSE",
+        "authHeader": "Encabezado de autorización (opcional)"
+      },
+      "save": "Guardar servidor",
+      "saved": "Servidor MCP guardado correctamente.",
+      "savedServers": "Servidores registrados",
+      "noServers": "Aún no hay servidores MCP registrados.",
+      "enabled": "Activado",
+      "disabled": "Desactivado",
+      "delete": "Eliminar",
+      "deleteConfirm": "¿Eliminar este servidor MCP?",
+      "loadError": "No se pudieron cargar los servidores MCP.",
+      "saveError": "No se pudo guardar el servidor MCP.",
+      "deleteError": "No se pudo eliminar el servidor MCP.",
+      "connect": "Agregar servidor MCP",
+      "connectModalTitle": "Agregar un servidor MCP personalizado"
     },
     "notion": {
       "title": "Notion",

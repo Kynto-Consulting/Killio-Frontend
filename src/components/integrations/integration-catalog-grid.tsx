@@ -21,6 +21,7 @@ import { OneDriveIntegrationPanel } from "@/components/scripts/OneDriveIntegrati
 import { StripeIntegrationPanel } from "@/components/scripts/StripeIntegrationPanel";
 import { PaypalIntegrationPanel } from "@/components/scripts/PaypalIntegrationPanel";
 import { MercadopagoIntegrationPanel } from "@/components/scripts/MercadopagoIntegrationPanel";
+import { McpServersIntegrationPanel } from "@/components/scripts/McpServersIntegrationPanel";
 
 /**
  * Connect-panel registry: maps a catalog entry's `panel` id → its component.
@@ -41,7 +42,11 @@ const PANEL_REGISTRY: Record<string, React.ComponentType<PanelProps>> = {
   stripe: StripeIntegrationPanel,
   paypal: PaypalIntegrationPanel,
   mercadopago: MercadopagoIntegrationPanel,
+  mcp: McpServersIntegrationPanel,
 };
+
+/** Panels that need no server-side credential config → always connectable. */
+const ALWAYS_AVAILABLE_PANELS = new Set<string>(["mcp"]);
 
 function SectionHeader({ label }: { label: string }) {
   return (
@@ -195,7 +200,11 @@ export function IntegrationCatalogGrid({
 
   const all = integrationsForScope(scope);
   const connectable = all.filter(
-    (i) => !i.comingSoon && i.panel && PANEL_REGISTRY[i.panel] && isConfigured(i.provider),
+    (i) =>
+      !i.comingSoon &&
+      i.panel &&
+      PANEL_REGISTRY[i.panel] &&
+      (ALWAYS_AVAILABLE_PANELS.has(i.panel) || isConfigured(i.provider)),
   );
   const coming = all.filter((i) => i.comingSoon || !i.panel || !PANEL_REGISTRY[i.panel!]);
   const hasComing = coming.length > 0 || !!extraComingSoon;

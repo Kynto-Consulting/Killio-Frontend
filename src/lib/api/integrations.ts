@@ -256,6 +256,69 @@ export async function deleteSlackWebhookCredential(
   if (!res.ok) return parseApiError(res, 'Failed to delete Slack webhook credential');
 }
 
+// ─── BYO MCP servers ─────────────────────────────────────────────────────────
+// Users register their OWN MCP servers. Persisted server-side in the existing
+// team env-var store (no new table). The auth header is a secret, so the API
+// only ever returns hasAuthHeader, never the value.
+
+export interface McpServerConfig {
+  id: string;
+  name: string;
+  url: string;
+  transport: "http" | "sse";
+  hasAuthHeader: boolean;
+  enabled: boolean;
+}
+
+export async function listMcpServers(
+  teamId: string,
+  accessToken: string,
+): Promise<McpServerConfig[]> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/mcp-servers`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to fetch MCP servers');
+  const data = await res.json();
+  return data.servers ?? [];
+}
+
+export async function saveMcpServer(
+  teamId: string,
+  payload: {
+    id?: string;
+    name: string;
+    url: string;
+    transport: "http" | "sse";
+    /** Omit to keep the existing secret on update; "" clears it. */
+    authHeader?: string;
+    enabled?: boolean;
+  },
+  accessToken: string,
+): Promise<McpServerConfig> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/mcp-servers`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to save MCP server');
+  return res.json();
+}
+
+export async function deleteMcpServer(
+  teamId: string,
+  id: string,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/mcp-servers/${id}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to delete MCP server');
+}
+
 export async function listNotionCredentials(
   teamId: string,
   accessToken: string,

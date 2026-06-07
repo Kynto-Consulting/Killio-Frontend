@@ -107,6 +107,10 @@
           "name": "Google Calendar",
           "description": "List and create events on your connected calendar from chat and scripts."
         },
+        "mcp": {
+          "name": "Custom MCP servers",
+          "description": "Register your own Model Context Protocol servers — their tools become available to the assistant."
+        },
         "n8n": {
           "name": "n8n",
           "description": "Trigger and orchestrate n8n workflows directly from Killio. Coming soon."
@@ -236,6 +240,31 @@
       "deleteError": "Failed to delete Slack webhook credential.",
       "connect": "Connect Slack",
       "connectModalTitle": "Connect Slack URL"
+    },
+    "mcp": {
+      "title": "Custom MCP servers",
+      "description": "Register your own MCP servers so their tools are available to the assistant.",
+      "fields": {
+        "name": "Server name",
+        "url": "Server URL",
+        "transport": "Transport",
+        "transportHttp": "HTTP (Streamable)",
+        "transportSse": "SSE",
+        "authHeader": "Authorization header (optional)"
+      },
+      "save": "Save server",
+      "saved": "MCP server saved successfully.",
+      "savedServers": "Registered servers",
+      "noServers": "No MCP servers registered yet.",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "delete": "Delete",
+      "deleteConfirm": "Delete this MCP server?",
+      "loadError": "Failed to load MCP servers.",
+      "saveError": "Failed to save MCP server.",
+      "deleteError": "Failed to delete MCP server.",
+      "connect": "Add MCP server",
+      "connectModalTitle": "Add a custom MCP server"
     },
     "notion": {
       "title": "Notion",

@@ -173,6 +173,21 @@ export const INTEGRATION_CATALOG: IntegrationUI[] = [
     refKinds: [],
   },
   {
+    // Custom MCP servers — users register their OWN MCP servers (BYO). No
+    // backend OAuth/credential config is required, so the grid always treats
+    // this entry as connectable. Configs are stored in the team env-var store.
+    id: "mcp_servers",
+    name: "Custom MCP servers",
+    provider: "mcp_servers",
+    scopes: ["team", "personal"],
+    icon: "plug",
+    color: "#7c3aed",
+    category: "automation",
+    i18nKey: "mcp",
+    panel: "mcp",
+    refKinds: [],
+  },
+  {
     id: "n8n",
     name: "n8n",
     provider: "n8n",
