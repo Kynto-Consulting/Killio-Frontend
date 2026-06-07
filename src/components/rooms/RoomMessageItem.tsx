@@ -9,6 +9,7 @@ import {
   ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download,
 } from "lucide-react";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
+import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
@@ -980,6 +981,37 @@ function RoomToolCallChip({
 
   const candidateOutputs = [state.output, matchingResult?.data, matchingResult?.output, matchingResult?.content];
   const output = candidateOutputs.find(hasUsefulOutput);
+
+  // sub_agent: render the nested run's full activity flow (thinking + tool chips
+  // + text) through the SAME markup pipeline as the assistant panel — never the
+  // raw {activity, reason, label} JSON. Mirrors AgentToolCallChip's special-case.
+  if (searchName === "sub_agent" && state.isDone && !state.isError) {
+    let out: any = output ?? {};
+    // History/legacy paths can carry the tool_output as a JSON string — parse it
+    // so we can pull `.activity`/`.reason` rather than rendering the raw string.
+    if (typeof out === "string") {
+      try { out = JSON.parse(out); } catch { out = {}; }
+    }
+    const activity = typeof out.activity === "string" ? out.activity : "";
+    const reason = typeof out.reason === "string" ? out.reason : "";
+    if (activity || reason) {
+      return (
+        <div>
+          <ToolCallChip
+            t={t}
+            toolName="sub_agent"
+            input={state.input ?? data.input}
+            isDone
+            isRunning={false}
+            isError={false}
+            needsApproval={false}
+            output={undefined}
+          />
+          <SubAgentActivity t={t} activity={activity} reason={reason} />
+        </div>
+      );
+    }
+  }
 
   return (
     <ToolCallChip

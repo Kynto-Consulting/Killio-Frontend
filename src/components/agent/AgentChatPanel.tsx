@@ -13,7 +13,8 @@ import {
 import ReactMarkdown from "react-markdown";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { KillioImportChip } from "@/components/agent/killio-import-chip";
-import { useAgentChat, AgentMessage, ToolEvent, ToolResult, resolveToolCallRenderState, parseInlineToolEvents } from "@/hooks/use-agent-chat";
+import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
+import { useAgentChat, AgentMessage, ToolEvent, ToolResult, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
 import { ReferenceTokenInput } from "@/components/ui/reference-token-input";
@@ -1587,64 +1588,6 @@ function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
   );
 }
 
-// ─── SubAgentActivity — renders a nested run's full activity flow ────────────
-// The sub_agent tool_output carries `activity`: a self-contained markup string
-// (visible text + inline <invoke>/<tool_status>/<tool_output> blocks). We parse
-// it the SAME way a top-level assistant message is parsed — toolEvents from the
-// inline markup, blocks from parseAiMarkup — so the sub-agent's tool chips + its
-// text render nested under the parent's sub_agent chip. Bounded length so a huge
-// nested run can't blow up the parent bubble, but tool chips are NEVER stripped.
-
-const SUB_AGENT_ACTIVITY_MAX = 8000;
-
-function SubAgentActivity({ t, activity, reason }: { t: TFn; activity: string; reason: string }) {
-  const bounded = useMemo(
-    () => (activity.length > SUB_AGENT_ACTIVITY_MAX ? activity.slice(0, SUB_AGENT_ACTIVITY_MAX) + "…" : activity),
-    [activity],
-  );
-  // Build a synthetic AgentMessage so the nested chips resolve their state from
-  // the activity's own inline <tool_status>/<tool_output> (matched by id).
-  const nestedMessage = useMemo<AgentMessage>(
-    () => ({ id: "sub-agent-nested", role: "assistant", text: bounded, toolEvents: parseInlineToolEvents(bounded) }),
-    [bounded],
-  );
-  const { blocks } = useMemo(() => parseAiMarkup(bounded), [bounded]);
-
-  return (
-    <div className="ml-6 mt-1 mb-1 flex flex-col gap-1 border-l-2 border-violet-200 dark:border-violet-900/50 pl-3">
-      {reason && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
-          <Bot className="w-3 h-3 shrink-0" />
-          <span className="truncate">{reason}</span>
-        </div>
-      )}
-      {blocks.map((block, index) => {
-        const key = `sa-${block.tag}-${index}`;
-        if (block.tag === "tool_call") {
-          try {
-            const d = JSON.parse(block.content);
-            return (
-              <div key={key} className="my-0.5">
-                <AgentToolCallChip t={t} data={d} message={nestedMessage} />
-              </div>
-            );
-          } catch {
-            return null;
-          }
-        }
-        if (block.tag === "text" && typeof block.content === "string" && block.content.trim()) {
-          return (
-            <div key={key} className="text-[13px] leading-relaxed text-neutral-700 dark:text-neutral-300 whitespace-pre-wrap break-words">
-              {block.content.trim()}
-            </div>
-          );
-        }
-        return null;
-      })}
-    </div>
-  );
-}
-
 // ─── AgentToolCallChip — resolves AgentMessage events → ToolCallChip props ───
 
 function AgentToolCallChip({
@@ -1669,7 +1612,10 @@ function AgentToolCallChip({
   // sub_agent chip and, under it, the nested activity THROUGH the same markup
   // pipeline (tool chips + text) instead of escaped JSON, plus the reason line.
   if (data?.name === "sub_agent" && state.isDone && !state.isError) {
-    const out: any = (state.output as any) ?? {};
+    let out: any = state.output ?? {};
+    if (typeof out === "string") {
+      try { out = JSON.parse(out); } catch { out = {}; }
+    }
     const activity = typeof out.activity === "string" ? out.activity : "";
     const reason = typeof out.reason === "string" ? out.reason : "";
     if (activity || reason) {
