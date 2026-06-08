@@ -539,7 +539,16 @@ export function AgentChatPanel({
         )}
 
         {messages.map((msg) =>
-          msg.role === "user" ? (
+          msg.kind === "checkpoint" ? (
+            <div key={msg.id} className="my-2 flex items-center gap-2 px-2 text-[11px] text-muted-foreground">
+              <div className="h-px flex-1 bg-border" />
+              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5">
+                🗜️ {t("agent.messages.compressed", { defaultValue: "Historial comprimido" })}
+                {msg.coversCount ? ` · ${msg.coversCount}` : ""}
+              </span>
+              <div className="h-px flex-1 bg-border" />
+            </div>
+          ) : msg.role === "user" ? (
             <UserMessage
               key={msg.id}
               t={t}

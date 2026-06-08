@@ -30,6 +30,10 @@ export interface AgentMessage {
     phase: string;
     timestamp: string;
   }>;
+  /** Marks a compressed-history checkpoint — rendered as a divider pill, not a bubble. */
+  kind?: "checkpoint";
+  /** For checkpoint: how many messages it summarized. */
+  coversCount?: number;
 }
 
 export interface ToolEvent {
@@ -469,14 +473,20 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     setIsLoading(true);
     try {
       const raw = await getAgentMessages(conversationId, accessToken);
-      // Defensive: never render compressed-history checkpoints as chat bubbles.
-      // The backend already filters these server-side; this guards older rows.
-      const visible = raw.filter(
-        (m) =>
-          m?.metadata?.compressed !== true &&
-          !(typeof m?.content === "string" && m.content.startsWith("<compressed>")),
-      );
-      const mapped: AgentMessage[] = visible.map((m) => {
+      const isCheckpoint = (m: any) =>
+        m?.metadata?.compressed === true ||
+        (typeof m?.content === "string" && m.content.startsWith("<compressed>"));
+      const mapped: AgentMessage[] = raw.map((m) => {
+        // Compressed-history checkpoints render as a divider pill, not a bubble.
+        if (isCheckpoint(m)) {
+          return {
+            id: m.id,
+            role: "assistant" as const,
+            text: "",
+            kind: "checkpoint" as const,
+            coversCount: Number(m?.metadata?.coversCount) || undefined,
+          };
+        }
         // 1. Try parsing toolEvents from inline <invoke>/<tool_output> content (new format)
         const contentToolEvents = m.content ? parseToolEventsFromContent(m.content) : [];
         if (contentToolEvents.length > 0) {
