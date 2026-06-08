@@ -221,7 +221,10 @@
       "disconnectError": "No se pudo desconectar WhatsApp Personal.",
       "useQr": "Usar QR en su lugar",
       "unavailable": "La vinculación no está disponible por el momento.",
-      "linkSignIn": "Iniciá sesión y seleccioná un workspace para vincular WhatsApp."
+      "linkSignIn": "Iniciá sesión y seleccioná un workspace para vincular WhatsApp.",
+      "qrInstructions": "Abrí WhatsApp → Ajustes → Dispositivos vinculados → Vincular dispositivo, y escaneá este código.",
+      "qrLoading": "Generando QR…",
+      "usePairCode": "Usar código por número en su lugar"
     },
     "slack": {
       "title": "Slack",

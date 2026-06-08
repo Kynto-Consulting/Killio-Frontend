@@ -999,6 +999,25 @@ export async function getWhatsappPersonalStatus(
   return res.json();
 }
 
+export interface WhatsappPersonalQr {
+  /** Raw QR string to render as a QR image (rotates ~20s). null = not ready. */
+  qr: string | null;
+  expiresInSec?: number;
+  /** false when the Baileys worker isn't configured server-side. */
+  configured?: boolean;
+}
+
+export async function getWhatsappPersonalQr(
+  teamId: string,
+  accessToken: string,
+): Promise<WhatsappPersonalQr> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/qr`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return { qr: null, configured: false };
+  return res.json();
+}
+
 export async function disconnectWhatsappPersonal(
   teamId: string,
   accessToken: string,
