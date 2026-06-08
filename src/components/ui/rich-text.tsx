@@ -278,6 +278,13 @@ export function RichText({
   return (
     <div className={className}>
       {lines.map((line, lineIdx) => {
+        // Horizontal rule: a line consisting ONLY of 3+ of the same rule char
+        // (`-`, `*`, or `_`), with optional spaces between/around. Matches the
+        // CommonMark thematic-break rule. Must be the whole line so `--` inside
+        // prose or a table separator row never triggers it.
+        if (/^\s*([-*_])(?:\s*\1){2,}\s*$/.test(line)) {
+          return <hr key={lineIdx} className="my-3 border-0 border-t border-border/60" />;
+        }
         // Heading lines (#…######) render as h1–h6; the rest of the line is
         // processed normally so inline styles/refs still work inside a heading.
         const hm = line.match(/^(#{1,6})\s+(.*)$/);
