@@ -240,6 +240,20 @@
     "inCall": "En llamada",
     "you": "(tú)"
   },
+  "vaultLanding": {
+    "greeting": "Hola {{name}}, soy Killio",
+    "greetingGeneric": "Hola, soy Killio",
+    "subtitle": "Pregúntame lo que sea, ejecuta una herramienta o busca en tu espacio de trabajo. Tu primer mensaje inicia una nueva conversación.",
+    "inputPlaceholder": "Pregúntale lo que sea a Killio…",
+    "send": "Enviar",
+    "hint": "Presiona Enter para empezar · Shift + Enter para nueva línea",
+    "suggestions": [
+      "Resume qué cambió en mi espacio esta semana",
+      "Redacta un brief para una nueva función",
+      "Encuentra el documento sobre onboarding",
+      "Crea una lista de tareas para hoy"
+    ]
+  },
   "errors": {
     "recordFailed": "La grabación no está soportada en este navegador."
   },

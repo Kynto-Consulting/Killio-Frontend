@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { usePlatform } from "@/components/providers/platform-provider";
@@ -85,6 +85,7 @@ export default function RoomDetailWeb() {
   const t = useTranslations("rooms");
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const roomId = params.roomId as string;
   const { accessToken, activeTeamId, user } = useSession();
   const realtime = useRealtime();
@@ -467,6 +468,21 @@ Team Context: ${activeTeamId}.`;
       handleAiTrigger(content.replace(/^#ai\s*/i, ""));
     }
   }, [chatInput, chatHook, handleAiTrigger, replyTo]);
+
+  // When arriving from /rooms/vault, the first message is passed via `?ai=`.
+  // Send it to the room and trigger the AI once the room + chat are ready, then
+  // strip the param so a refresh doesn't re-send. Reuses the normal AI flow.
+  const pendingAiSentRef = useRef(false);
+  useEffect(() => {
+    if (pendingAiSentRef.current) return;
+    if (isLoadingRoom || !room || chatHook.isLoading) return;
+    const pending = searchParams.get("ai");
+    if (!pending) return;
+    pendingAiSentRef.current = true;
+    router.replace(`/rooms/${roomId}`);
+    handleSend(`#ai ${pending}`);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoadingRoom, room, chatHook.isLoading, searchParams, roomId]);
 
   const handleJoinCall = useCallback(() => {
     stopRing();

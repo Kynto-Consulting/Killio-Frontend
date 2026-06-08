@@ -240,6 +240,20 @@
     "inCall": "In call",
     "you": "(you)"
   },
+  "vaultLanding": {
+    "greeting": "Hi {{name}}, I'm Killio",
+    "greetingGeneric": "Hi, I'm Killio",
+    "subtitle": "Ask me anything, run a tool, or search your workspace. Your first message starts a new conversation.",
+    "inputPlaceholder": "Ask Killio anything…",
+    "send": "Send",
+    "hint": "Press Enter to start · Shift + Enter for a new line",
+    "suggestions": [
+      "Summarize what changed in my workspace this week",
+      "Draft a project brief for a new feature",
+      "Find the document about onboarding",
+      "Create a checklist for today's tasks"
+    ]
+  },
   "errors": {
     "recordFailed": "Recording is not supported in this browser."
   },
