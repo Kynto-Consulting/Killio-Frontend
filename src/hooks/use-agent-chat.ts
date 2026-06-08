@@ -469,7 +469,14 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     setIsLoading(true);
     try {
       const raw = await getAgentMessages(conversationId, accessToken);
-      const mapped: AgentMessage[] = raw.map((m) => {
+      // Defensive: never render compressed-history checkpoints as chat bubbles.
+      // The backend already filters these server-side; this guards older rows.
+      const visible = raw.filter(
+        (m) =>
+          m?.metadata?.compressed !== true &&
+          !(typeof m?.content === "string" && m.content.startsWith("<compressed>")),
+      );
+      const mapped: AgentMessage[] = visible.map((m) => {
         // 1. Try parsing toolEvents from inline <invoke>/<tool_output> content (new format)
         const contentToolEvents = m.content ? parseToolEventsFromContent(m.content) : [];
         if (contentToolEvents.length > 0) {
