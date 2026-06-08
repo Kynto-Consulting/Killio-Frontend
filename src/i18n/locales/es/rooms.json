@@ -35,7 +35,8 @@
     "createGroup": "Nueva categoría",
     "noChannels": "Sin canales aún",
     "noLinked": "Sin hilos vinculados",
-    "noDMs": "Sin mensajes directos"
+    "noDMs": "Sin mensajes directos",
+    "openKillioChat": "Chatear con Killio"
   },
   "header": {
     "call": "Iniciar llamada",

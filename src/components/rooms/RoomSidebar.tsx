@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Plus, Hash, Link2, MessageSquare, Loader2, ChevronDown, ChevronRight, FolderOpen, X } from "lucide-react";
+import NextLink from "next/link";
+import { Plus, Hash, Link2, MessageSquare, Loader2, ChevronDown, ChevronRight, FolderOpen, X, Sparkles } from "lucide-react";
 import type { Room, RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
@@ -65,6 +66,10 @@ function ChannelGroupSection({ group, rooms, activeRoomId, canCreate, onCreateRo
     ? `${group.emoji ? group.emoji + " " : ""}${group.name}`
     : t("sidebar.channels");
 
+  // The VAULT group doubles as a route: a sparkle button opens /rooms/vault,
+  // a full-page Killio assistant (chat with the AI directly).
+  const isVault = (group?.name ?? "").trim().toLowerCase() === "vault";
+
   return (
     <div className="mb-1">
       {/* Group header */}
@@ -80,15 +85,26 @@ function ChannelGroupSection({ group, rooms, activeRoomId, canCreate, onCreateRo
           )}
           <span className="truncate">{label}</span>
         </button>
-        {canCreate && (
-          <button
-            onClick={() => onCreateRoom(group?.id)}
-            title={t("sidebar.createChannel")}
-            className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/header:opacity-100"
-          >
-            <Plus className="w-3 h-3" />
-          </button>
-        )}
+        <div className="flex items-center gap-1">
+          {isVault && (
+            <NextLink
+              href="/rooms/vault"
+              title={t("sidebar.openKillioChat")}
+              className="w-4 h-4 flex items-center justify-center rounded text-cyan-500 hover:text-cyan-400 transition-colors"
+            >
+              <Sparkles className="w-3 h-3" />
+            </NextLink>
+          )}
+          {canCreate && (
+            <button
+              onClick={() => onCreateRoom(group?.id)}
+              title={t("sidebar.createChannel")}
+              className="w-4 h-4 flex items-center justify-center rounded text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover/header:opacity-100"
+            >
+              <Plus className="w-3 h-3" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Rooms in group */}
@@ -122,6 +138,7 @@ export function RoomSidebar({
   const channels = rooms.filter((r) => r.type === "channel");
   const threads = rooms.filter((r) => r.type === "thread");
   const dms = rooms.filter((r) => r.type === "dm");
+  const [linkedCollapsed, setLinkedCollapsed] = useState(false);
 
   // Sort groups by sortOrder
   const sortedGroups = [...groups].sort((a, b) => a.sortOrder - b.sortOrder);
@@ -194,19 +211,30 @@ export function RoomSidebar({
               />
             ))}
 
-            {/* Linked threads (boards, docs, meshes) */}
+            {/* Linked threads (boards, docs, meshes) — collapsible */}
             {threads.length > 0 && (
               <div className="mb-1 mt-2">
-                <div className="px-2 py-1">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                <button
+                  onClick={() => setLinkedCollapsed((v) => !v)}
+                  className="w-full px-2 py-1 flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {linkedCollapsed ? (
+                    <ChevronRight className="w-3 h-3 shrink-0" />
+                  ) : (
+                    <ChevronDown className="w-3 h-3 shrink-0" />
+                  )}
+                  <span className="text-[10px] font-bold uppercase tracking-widest">
                     {t("sidebar.linked")}
                   </span>
-                </div>
-                <div className="pl-2">
-                  {threads.map((r) => (
-                    <RoomItem key={r.id} room={r} isActive={r.id === activeRoomId} />
-                  ))}
-                </div>
+                  <span className="ml-auto text-[10px] tabular-nums opacity-60">{threads.length}</span>
+                </button>
+                {!linkedCollapsed && (
+                  <div className="pl-2">
+                    {threads.map((r) => (
+                      <RoomItem key={r.id} room={r} isActive={r.id === activeRoomId} />
+                    ))}
+                  </div>
+                )}
               </div>
             )}
 
