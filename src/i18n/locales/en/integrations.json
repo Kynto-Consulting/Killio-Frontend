@@ -220,7 +220,8 @@
       "disconnect": "Disconnect",
       "disconnectError": "Failed to disconnect WhatsApp Personal.",
       "useQr": "Use QR instead",
-      "unavailable": "Pairing is temporarily unavailable."
+      "unavailable": "Pairing is temporarily unavailable.",
+      "linkSignIn": "Sign in and pick a workspace to link WhatsApp."
     },
     "slack": {
       "title": "Slack",

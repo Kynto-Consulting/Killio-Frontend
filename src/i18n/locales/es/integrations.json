@@ -220,7 +220,8 @@
       "disconnect": "Desconectar",
       "disconnectError": "No se pudo desconectar WhatsApp Personal.",
       "useQr": "Usar QR en su lugar",
-      "unavailable": "La vinculación no está disponible por el momento."
+      "unavailable": "La vinculación no está disponible por el momento.",
+      "linkSignIn": "Iniciá sesión y seleccioná un workspace para vincular WhatsApp."
     },
     "slack": {
       "title": "Slack",
