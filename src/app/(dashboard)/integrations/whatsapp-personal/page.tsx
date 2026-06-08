@@ -78,7 +78,7 @@ function Inner() {
   if (!accessToken || !teamId) {
     return (
       <div className="mx-auto max-w-md p-6 text-sm text-muted-foreground">
-        {t("whatsappPersonal.linkSignIn")}
+        {t("integrations.whatsappPersonal.linkSignIn")}
       </div>
     );
   }
@@ -86,7 +86,7 @@ function Inner() {
   return (
     <div className="mx-auto max-w-md p-4 sm:p-6">
       <h1 className="mb-1 text-lg font-semibold text-foreground">
-        {t("whatsappPersonal.title")}
+        {t("integrations.whatsappPersonal.title")}
       </h1>
 
       {usePairCode ? (
@@ -96,17 +96,17 @@ function Inner() {
             onClick={() => setUsePairCode(false)}
             className="mt-3 text-xs text-cyan-500 underline"
           >
-            {t("whatsappPersonal.useQr")}
+            {t("integrations.whatsappPersonal.useQr")}
           </button>
         </>
       ) : connected ? (
         <div className="rounded-xl border border-border bg-secondary/40 p-4 text-sm text-foreground">
-          {t("whatsappPersonal.connectedAs", { phone: phone ?? "" })}
+          {t("integrations.whatsappPersonal.connectedAs", { phone: phone ?? "" })}
         </div>
       ) : (
         <div className="rounded-xl border border-border bg-secondary/30 p-5">
           <p className="mb-4 text-sm text-muted-foreground">
-            {t("whatsappPersonal.qrInstructions")}
+            {t("integrations.whatsappPersonal.qrInstructions")}
           </p>
           <div className="flex items-center justify-center rounded-lg bg-white p-4">
             {qr ? (
@@ -114,8 +114,8 @@ function Inner() {
             ) : (
               <div className="flex h-[232px] w-[232px] items-center justify-center text-center text-xs text-neutral-500">
                 {configured
-                  ? t("whatsappPersonal.qrLoading")
-                  : t("whatsappPersonal.unavailable")}
+                  ? t("integrations.whatsappPersonal.qrLoading")
+                  : t("integrations.whatsappPersonal.unavailable")}
               </div>
             )}
           </div>
@@ -123,7 +123,7 @@ function Inner() {
             onClick={() => setUsePairCode(true)}
             className="mt-4 text-xs text-cyan-500 underline"
           >
-            {t("whatsappPersonal.usePairCode")}
+            {t("integrations.whatsappPersonal.usePairCode")}
           </button>
         </div>
       )}
