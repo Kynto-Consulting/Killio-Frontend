@@ -85,7 +85,14 @@ const COLLAPSIBLE_AI_TAGS = [
 const INLINE_TOOL_META_TAGS = new Set(["tool_status", "tool_output"]);
 
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
-  const source = String(value || "");
+  // Models (esp. Claude) emit reasoning as <think>…</think> (or <thinking>…),
+  // not Killio's <pre_think>. Normalize so it renders as the collapsible
+  // thinking block (which already strips nested assumptions/risks/strategy/
+  // visual_description sub-tags) instead of leaking <think> + raw sections as
+  // text. Also drop any dangling unterminated <think>/<thinking> open tag.
+  const source = String(value || "")
+    .replace(/<think(?:ing)?\b[^>]*>([\s\S]*?)<\/think(?:ing)?>/gi, (_m, inner) => `<pre_think>${String(inner).trim()}</pre_think>`)
+    .replace(/<\/?think(?:ing)?\b[^>]*>/gi, "");
   const blocks: AiMarkupBlock[] = [];
 
   // Detect code block ranges to skip XML parsing inside them
