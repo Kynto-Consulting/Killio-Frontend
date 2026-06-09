@@ -1029,3 +1029,20 @@ export async function disconnectWhatsappPersonal(
   if (!res.ok) return parseApiError(res, 'Failed to disconnect WhatsApp Personal');
   return res.json();
 }
+
+/**
+ * Force reset: WIPES the stored WhatsApp link (worker logs out + deletes the
+ * DB-backed auth blob) so a brand-new QR is generated. Use when a disconnected
+ * user is stuck and the QR page never shows a fresh code.
+ */
+export async function forceResetWhatsappPersonal(
+  teamId: string,
+  accessToken: string,
+): Promise<{ ok: boolean }> {
+  const res = await fetch(`${BASE_URL}/integrations/${teamId}/whatsapp/personal/reset`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) return parseApiError(res, 'Failed to reset WhatsApp Personal');
+  return res.json();
+}

@@ -84,6 +84,12 @@ const COLLAPSIBLE_AI_TAGS = [
 
 const INLINE_TOOL_META_TAGS = new Set(["tool_status", "tool_output"]);
 
+// Tools that still EXECUTE in the agent loop but must NEVER render a visible
+// tool pill/chip in the chat. ai_generate_room_name silently titles the
+// conversation — its invoke + tool_status/tool_output are kept in the stream so
+// the loop runs it, but we skip emitting any block so the user sees nothing.
+const HIDDEN_TOOLS = new Set(["ai_generate_room_name"]);
+
 export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
   // Models (esp. Claude) emit reasoning as <think>…</think> (or <thinking>…),
   // not Killio's <pre_think>. Normalize so it renders as the collapsible
@@ -209,6 +215,10 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
         rawInput = rawInput.substring(0, rawInput.lastIndexOf('}') + 1);
       }
 
+      if (HIDDEN_TOOLS.has(name)) {
+        lastIndex = match.end;
+        continue;
+      }
       const parsedInput = parseInvokeParameters(rawInput);
       blocks.push({ tag: "tool_call", content: JSON.stringify({ id, name, input: parsedInput }) });
     } else if (match.kind === "invoke") {
@@ -218,6 +228,12 @@ export function parseAiMarkup(value?: string | null): ParsedAiMarkup {
       const idMatch = attrsStr.match(/id\s*=\s*(["'])([^"']+)\1/);
       const name = nameMatch ? nameMatch[2] : (attrsStr.trim() || "");
       const id = idMatch ? idMatch[2] : undefined;
+      if (HIDDEN_TOOLS.has(name)) {
+        // Hidden tool (e.g. ai_generate_room_name): executed in the loop but
+        // never rendered as a chip. Drop the whole invoke block silently.
+        lastIndex = match.end;
+        continue;
+      }
       const innerContent = match.raw[2] || "";
       // Extract content from <parameters>...</parameters>
       const paramsMatch = innerContent.match(/<parameters\s*>([\s\S]*?)<\/parameters\s*>/i);

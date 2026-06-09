@@ -8,6 +8,7 @@ import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { WhatsappPersonalIntegrationPanel } from "@/components/scripts/WhatsappPersonalIntegrationPanel";
 import {
+  forceResetWhatsappPersonal,
   getWhatsappPersonalQr,
   getWhatsappPersonalStatus,
 } from "@/lib/api/integrations";
@@ -38,12 +39,36 @@ function Inner() {
   const [connected, setConnected] = useState(false);
   const [phone, setPhone] = useState<string | null>(null);
   const [usePairCode, setUsePairCode] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [resetNonce, setResetNonce] = useState(0);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const stop = useCallback(() => {
     if (pollRef.current) clearInterval(pollRef.current);
     pollRef.current = null;
   }, []);
+
+  const handleForceReset = useCallback(async () => {
+    if (!teamId || !accessToken) return;
+    if (typeof window !== "undefined" && !window.confirm(t("integrations.whatsappPersonal.resetConfirm"))) {
+      return;
+    }
+    setResetting(true);
+    try {
+      await forceResetWhatsappPersonal(teamId, accessToken);
+      // Clear the connected/QR state and bump the nonce to restart polling so a
+      // brand-new QR is fetched from the worker.
+      setConnected(false);
+      setPhone(null);
+      setQr(null);
+      setUsePairCode(false);
+      setResetNonce((n) => n + 1);
+    } catch {
+      /* surface nothing — the QR poll will reflect the new state */
+    } finally {
+      setResetting(false);
+    }
+  }, [teamId, accessToken, t]);
 
   useEffect(() => {
     if (!teamId || !accessToken || usePairCode) {
@@ -73,7 +98,7 @@ function Inner() {
       cancelled = true;
       stop();
     };
-  }, [teamId, accessToken, usePairCode, stop]);
+  }, [teamId, accessToken, usePairCode, stop, resetNonce]);
 
   if (!accessToken || !teamId) {
     return (
@@ -119,12 +144,21 @@ function Inner() {
               </div>
             )}
           </div>
-          <button
-            onClick={() => setUsePairCode(true)}
-            className="mt-4 text-xs text-cyan-500 underline"
-          >
-            {t("integrations.whatsappPersonal.usePairCode")}
-          </button>
+          <div className="mt-4 flex items-center justify-between gap-2">
+            <button
+              onClick={() => setUsePairCode(true)}
+              className="text-xs text-cyan-500 underline"
+            >
+              {t("integrations.whatsappPersonal.usePairCode")}
+            </button>
+            <button
+              onClick={handleForceReset}
+              disabled={resetting}
+              className="text-xs font-medium text-destructive underline disabled:opacity-50"
+            >
+              {t("integrations.whatsappPersonal.forceReset")}
+            </button>
+          </div>
         </div>
       )}
     </div>

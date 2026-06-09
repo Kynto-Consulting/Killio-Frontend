@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import {
   disconnectWhatsappPersonal,
+  forceResetWhatsappPersonal,
   getWhatsappPersonalConnectUrl,
   getWhatsappPersonalStatus,
   requestWhatsappPersonalPairCode,
 } from "@/lib/api/integrations";
-import { MessageCircle, Loader2, CheckCircle, AlertCircle, Link2, X } from "lucide-react";
+import { MessageCircle, Loader2, CheckCircle, AlertCircle, Link2, X, RotateCcw } from "lucide-react";
 
 interface WhatsappPersonalIntegrationPanelProps {
   teamId: string;
@@ -36,6 +37,7 @@ export function WhatsappPersonalIntegrationPanel({ teamId, accessToken }: Whatsa
   const [secondsLeft, setSecondsLeft] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [disconnecting, setDisconnecting] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -129,6 +131,30 @@ export function WhatsappPersonalIntegrationPanel({ teamId, accessToken }: Whatsa
     }
   };
 
+  const handleForceReset = async () => {
+    if (typeof window !== "undefined" && !window.confirm(t("integrations.whatsappPersonal.resetConfirm"))) {
+      return;
+    }
+    setResetting(true);
+    setError(null);
+    try {
+      await forceResetWhatsappPersonal(teamId, accessToken);
+      // Wipe the connected/pairing UI so a brand-new QR/code can be requested.
+      setConnected(false);
+      setPhone(null);
+      setPairCode(null);
+      setPhoneInput("");
+      setSecondsLeft(0);
+      // Restart status polling so a fresh pairing (new QR) is detected.
+      stopPolling();
+      pollRef.current = setInterval(() => void poll(), POLL_INTERVAL_MS);
+    } catch {
+      setError(t("integrations.whatsappPersonal.resetError"));
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const canReRequest = secondsLeft === 0;
 
   return (
@@ -163,6 +189,15 @@ export function WhatsappPersonalIntegrationPanel({ teamId, accessToken }: Whatsa
           >
             {disconnecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <X className="h-4 w-4" />}
             {t("integrations.whatsappPersonal.disconnect")}
+          </button>
+          <button
+            type="button"
+            onClick={handleForceReset}
+            disabled={resetting}
+            className="mt-2 inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+          >
+            {resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            {t("integrations.whatsappPersonal.forceReset")}
           </button>
         </div>
       ) : (
@@ -217,6 +252,16 @@ export function WhatsappPersonalIntegrationPanel({ teamId, accessToken }: Whatsa
             className="w-full text-center text-[11px] font-medium text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
           >
             {t("integrations.whatsappPersonal.useQr")}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleForceReset}
+            disabled={resetting}
+            className="inline-flex w-full items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-[11px] font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+          >
+            {resetting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RotateCcw className="h-3.5 w-3.5" />}
+            {t("integrations.whatsappPersonal.forceReset")}
           </button>
         </div>
       )}
