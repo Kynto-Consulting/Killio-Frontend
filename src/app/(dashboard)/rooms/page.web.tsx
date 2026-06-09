@@ -76,6 +76,7 @@ export default function RoomsPageWeb() {
           onClose={() => setIsCreateOpen(false)}
           teamId={activeTeamId}
           accessToken={accessToken}
+          rooms={rooms}
           onCreated={(roomId) => router.push(`/rooms/${roomId}`)}
           t={t}
         />

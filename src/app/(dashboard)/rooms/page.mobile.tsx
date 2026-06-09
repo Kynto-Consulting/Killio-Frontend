@@ -161,6 +161,7 @@ export default function RoomsPageMobile() {
             teamId={activeTeamId}
             accessToken={accessToken}
             groups={groups}
+            rooms={rooms}
             initialGroupId={initialGroupId}
             onCreated={(roomId) => {
               setIsCreateOpen(false);

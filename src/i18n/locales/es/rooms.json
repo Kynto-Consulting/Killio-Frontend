@@ -226,7 +226,8 @@
     "descriptionPlaceholder": "¿De qué trata este canal?",
     "submitButton": "Crear",
     "cancel": "Cancelar",
-    "createError": "Ocurrió un error al crear la sala."
+    "createError": "Ocurrió un error al crear la sala.",
+    "duplicateName": "Ya existe una sala con ese nombre."
   },
   "createGroup": {
     "title": "Nueva categoría",

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { X, Loader2, ChevronDown, Hash } from "lucide-react";
 import { usePlatform } from "@/components/providers/platform-provider";
-import { createRoom, type CreateRoomInput, type RoomGroup } from "@/lib/api/rooms";
+import { createRoom, type CreateRoomInput, type Room, type RoomGroup } from "@/lib/api/rooms";
 
 type TFn = (key: string) => string;
 
@@ -13,10 +13,15 @@ interface CreateRoomModalProps {
   teamId: string;
   accessToken: string;
   groups?: RoomGroup[];
+  /** Existing rooms in the team — used to block creating a duplicate-named room. */
+  rooms?: Room[];
   initialGroupId?: string;
   onCreated: (roomId: string) => void;
   t: TFn;
 }
+
+/** Normalize a room name the same way the API stores it (slug-like). */
+const normalizeRoomName = (raw: string) => raw.trim().toLowerCase().replace(/\s+/g, "-");
 
 export function CreateRoomModal({
   isOpen,
@@ -24,6 +29,7 @@ export function CreateRoomModal({
   teamId,
   accessToken,
   groups = [],
+  rooms = [],
   initialGroupId,
   onCreated,
   t,
@@ -39,11 +45,17 @@ export function CreateRoomModal({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim()) return;
+    const normalizedName = normalizeRoomName(name);
+    // Block creating a room whose normalized name collides with an existing one.
+    if (rooms.some((r) => normalizeRoomName(r.name) === normalizedName)) {
+      setError(t("createRoom.duplicateName"));
+      return;
+    }
     setIsCreating(true);
     setError(null);
     try {
       const input: CreateRoomInput = {
-        name: name.trim().toLowerCase().replace(/\s+/g, "-"),
+        name: normalizedName,
         type: "channel",
         groupId,
         description: description.trim() || undefined,
@@ -109,7 +121,10 @@ export function CreateRoomModal({
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (error) setError(null);
+              }}
               placeholder={t("createRoom.namePlaceholder")}
               className="w-full px-3 py-2 text-sm rounded-xl border border-border bg-background focus:outline-none focus:ring-1 focus:ring-accent"
               required

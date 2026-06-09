@@ -748,6 +748,7 @@ Team Context: ${activeTeamId}.`;
             teamId={activeTeamId}
             accessToken={accessToken}
             groups={groups}
+            rooms={rooms}
             initialGroupId={createInitialGroupId}
             onCreated={(newRoomId) => {
               setIsCreateOpen(false);
