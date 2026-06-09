@@ -46,23 +46,25 @@ function pickApkAsset(release: GithubRelease | null): GithubAsset | null {
   return release.assets.find((a) => a.name.toLowerCase().endsWith(".apk")) ?? null;
 }
 
-/** Fetch a release by tag (or `releases/latest` when tag is null). */
+/** Fetch a release by tag (or `releases/latest` when tag is null). The repo is
+ *  public, so the token is optional — when absent we hit the API anonymously. */
 async function fetchRelease(
   repo: string,
-  token: string,
+  token: string | null,
   tag: string | null,
 ): Promise<GithubRelease | null> {
   const path = tag
     ? `releases/tags/${encodeURIComponent(tag)}`
     : `releases/latest`;
   try {
+    const headers: Record<string, string> = {
+      Accept: "application/vnd.github+json",
+      "X-GitHub-Api-Version": "2022-11-28",
+      "User-Agent": "killio-vault-download",
+    };
+    if (token) headers.Authorization = `Bearer ${token}`;
     const res = await fetch(`https://api.github.com/repos/${repo}/${path}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "killio-vault-download",
-      },
+      headers,
       cache: "no-store",
     });
     if (!res.ok) return null;
@@ -79,8 +81,10 @@ async function fetchRelease(
  */
 async function resolveAssetSignedUrl(
   asset: GithubAsset,
-  token: string,
+  token: string | null,
 ): Promise<string | null> {
+  // Public repo: the browser_download_url is directly fetchable, no token dance.
+  if (!token) return asset.browser_download_url ?? null;
   try {
     const res = await fetch(asset.url, {
       method: "GET",
@@ -102,8 +106,7 @@ async function resolveAssetSignedUrl(
 }
 
 async function resolveGithubApkUrl(): Promise<string | null> {
-  const token = githubToken();
-  if (!token) return null;
+  const token = githubToken(); // optional — repo is public
   const repo = process.env.VAULT_GITHUB_REPO ?? DEFAULT_REPO;
   const tag = process.env.VAULT_RELEASE_TAG ?? DEFAULT_RELEASE_TAG;
 
