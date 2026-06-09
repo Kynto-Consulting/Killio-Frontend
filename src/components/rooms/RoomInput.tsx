@@ -26,6 +26,7 @@ interface RoomInputProps {
   onTyping?: () => void;
   disabled?: boolean;
   readOnly?: boolean;
+  isAiRoom?: boolean;
   roomName?: string;
   documents?: DocumentSummary[];
   boards?: any[];
@@ -47,6 +48,7 @@ export function RoomInput({
   onTyping,
   disabled = false,
   readOnly = false,
+  isAiRoom = false,
   roomName = "",
   documents,
   boards,
@@ -231,7 +233,7 @@ export function RoomInput({
         <ReferenceTokenInput
           value={value}
           onChange={handleChange}
-          placeholder={t("chat.inputPlaceholder", { roomName })}
+          placeholder={isAiRoom ? t("chat.inputPlaceholderAi") : t("chat.inputPlaceholder", { roomName })}
           documents={documents}
           boards={boards}
           users={users}

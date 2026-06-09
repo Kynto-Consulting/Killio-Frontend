@@ -36,6 +36,7 @@ interface RoomChatAreaProps {
   currentUserId: string;
   teamId?: string;
   canPost: boolean;
+  isAiRoom?: boolean;
   showReadReceipts?: boolean;
   roomName?: string;
   documents?: DocumentSummary[];
@@ -91,6 +92,7 @@ export function RoomChatArea({
   currentUserId,
   teamId,
   canPost,
+  isAiRoom,
   showReadReceipts,
   roomName,
   documents,
@@ -331,6 +333,7 @@ export function RoomChatArea({
         onSend={handleSend}
         onTyping={onTyping}
         readOnly={!canPost}
+        isAiRoom={isAiRoom}
         roomName={roomName}
         documents={documents}
         boards={boards}

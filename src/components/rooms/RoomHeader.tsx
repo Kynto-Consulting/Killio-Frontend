@@ -19,6 +19,8 @@ interface RoomHeaderProps {
   isMembersPanelOpen: boolean;
   canCall: boolean;
   canManage: boolean;
+  /** AI assistant room (Killio "vault" group): hide member/permission management. */
+  isAiRoom?: boolean;
   onStartCall: () => void;
   onLeaveCall: () => void;
   onToggleAiPanel: () => void;
@@ -106,6 +108,7 @@ export function RoomHeader({
   isMembersPanelOpen,
   canCall,
   canManage,
+  isAiRoom = false,
   onStartCall,
   onLeaveCall,
   onToggleAiPanel,
@@ -153,13 +156,15 @@ export function RoomHeader({
             <Bot className="w-5 h-5" />
           </button>
 
-          <button
-            onClick={onToggleMembersPanel}
-            title={t("header.members")}
-            className={`p-2 rounded-md ${isMembersPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
-          >
-            <Users className="w-5 h-5" />
-          </button>
+          {!isAiRoom && (
+            <button
+              onClick={onToggleMembersPanel}
+              title={t("header.members")}
+              className={`p-2 rounded-md ${isMembersPanelOpen ? "bg-accent/20 text-accent" : "hover:bg-accent/10 text-muted-foreground"}`}
+            >
+              <Users className="w-5 h-5" />
+            </button>
+          )}
         </div>
       </div>
     );
@@ -259,24 +264,26 @@ export function RoomHeader({
           <Bot className="w-3.5 h-3.5" />
         </button>
 
-        {/* Members button */}
-        <button
-          onClick={onToggleMembersPanel}
-          title={t("header.members")}
-          className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
-            isMembersPanelOpen
-              ? "bg-accent/20 text-accent"
-              : "hover:bg-accent/10 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Users className="w-3.5 h-3.5" />
-        </button>
+        {/* Members button — hidden in AI rooms (private 1:1 with Killio, no humans to manage) */}
+        {!isAiRoom && (
+          <button
+            onClick={onToggleMembersPanel}
+            title={t("header.members")}
+            className={`flex items-center justify-center w-7 h-7 rounded-md transition-colors ${
+              isMembersPanelOpen
+                ? "bg-accent/20 text-accent"
+                : "hover:bg-accent/10 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+          </button>
+        )}
 
         {/* Notification preference button */}
         <NotificationPrefButton roomId={room.id} t={t} />
 
-        {/* Permissions button */}
-        {canManage && (
+        {/* Permissions button — hidden in AI rooms (no roles/members/invites to manage) */}
+        {canManage && !isAiRoom && (
           <button
             onClick={onOpenPermissions}
             title={t("header.permissions")}

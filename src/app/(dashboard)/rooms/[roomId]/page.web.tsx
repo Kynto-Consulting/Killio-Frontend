@@ -110,6 +110,16 @@ export default function RoomDetailWeb() {
 
   const { permissions } = useRoomPermissions(roomId, accessToken);
 
+  // An "AI room" is any room under the room group named "vault" (the Killio AI
+  // assistant group, created from /rooms/vault). These behave like a private 1:1
+  // chat with Killio: every message goes to the AI, and member/permission
+  // management is disabled (no humans to add).
+  const isAiRoom = useMemo(() => {
+    if (!room?.groupId) return false;
+    const group = groups.find((g) => g.id === room.groupId);
+    return (group?.name ?? "").trim().toLowerCase() === "vault";
+  }, [room?.groupId, groups]);
+
   const userInfo = user
     ? {
       id: user.id,
@@ -461,13 +471,24 @@ Team Context: ${activeTeamId}.`;
 
     const isReplyingToAi = replyTo?.type === "ai";
     setReplyTo(null);
+
+    // In an AI room the whole conversation IS the assistant: every message
+    // triggers the AI, with no "#ai" prefix required. Strip a leading "#ai" if
+    // the user still typed it so it doesn't show up in their bubble.
+    if (isAiRoom) {
+      const aiContent = content.replace(/^#ai\s*/i, "");
+      await chatHook.sendMessage(aiContent, metadata);
+      handleAiTrigger(aiContent);
+      return;
+    }
+
     await chatHook.sendMessage(content, metadata);
 
     if (content.toLowerCase().startsWith("#ai") || isReplyingToAi) {
       // Trigger AI after sending the user message to the room
       handleAiTrigger(content.replace(/^#ai\s*/i, ""));
     }
-  }, [chatInput, chatHook, handleAiTrigger, replyTo]);
+  }, [chatInput, chatHook, handleAiTrigger, replyTo, isAiRoom]);
 
   // When arriving from /rooms/vault, the first message is passed via `?ai=`.
   // Send it to the room and trigger the AI once the room + chat are ready, then
@@ -566,6 +587,7 @@ Team Context: ${activeTeamId}.`;
               isMembersPanelOpen={isMembersPanelOpen}
               canCall={permissions.canCall}
               canManage={permissions.canManage}
+              isAiRoom={isAiRoom}
               onStartCall={handleJoinCall}
               onLeaveCall={leaveRoomCall}
               onToggleAiPanel={handleToggleAiPanel}
@@ -622,6 +644,7 @@ Team Context: ${activeTeamId}.`;
               currentUserId={user?.id ?? ""}
               teamId={activeTeamId ?? undefined}
               canPost={permissions.canPost}
+              isAiRoom={isAiRoom}
               showReadReceipts={showReadReceipts}
               transcripts={(callHistoryHook.calls as any[]).map((c) => ({
                 callId: c.id,

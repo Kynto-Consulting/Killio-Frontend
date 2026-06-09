@@ -53,6 +53,7 @@
   },
   "chat": {
     "inputPlaceholder": "Message {{roomName}}... (#AI for copilot)",
+    "inputPlaceholderAi": "Ask Killio…",
     "loadMore": "Load older messages",
     "noMessages": "No messages yet. Be the first to say something!",
     "typing_one": "{{name}} is typing...",
