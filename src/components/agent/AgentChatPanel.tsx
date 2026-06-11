@@ -8,7 +8,7 @@ import {
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
   Clock, MessageSquare, Tag, AlertCircle, Info,
   ListChecks, FileCode, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ShieldAlert,
-  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download
+  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download, User, Phone
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -28,7 +28,7 @@ import { useTeamAiCreditsUpdate } from "@/hooks/use-team-ai-credits-update";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
-import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RichText } from "../ui/rich-text";
 import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
 import { uploadFile } from "@/lib/api/uploads";
@@ -1003,6 +1003,12 @@ export function AssistantMessage({
             } catch { return null; }
           }
 
+          if (block.tag === "contact") {
+            const { name, number } = parseContactBlock(block.content);
+            if (!name && !number) return null;
+            return <ContactChip key={key} t={t} name={name} number={number} />;
+          }
+
           if (block.tag === "complete_step") {
             const slot = typeof block.content === "string" ? block.content : "";
             return (
@@ -1578,6 +1584,52 @@ function ActionButton({
 }
 
 // ─── ToolResultCards ──────────────────────────────────────────────────────────
+
+// ─── ContactChip — renders a <contact> block (contacts_search output) ────────
+// A clean contact row: person icon + name + number. The number is tap-to-copy
+// and exposes a tel: call link. Matches the pill/chip styling used elsewhere.
+function ContactChip({ t, name, number }: { t: TFn; name: string; number: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    if (!number) return;
+    try {
+      await navigator.clipboard.writeText(number);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  };
+  const telHref = number ? `tel:${number.replace(/[^\d+]/g, "")}` : undefined;
+  return (
+    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/60 text-xs">
+      <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+        <User className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        {name && <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate">{name}</p>}
+        {number && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            title={copied ? t("agent.contact.copied") : t("agent.contact.copyNumber")}
+            className="inline-flex items-center gap-1 text-neutral-500 dark:text-neutral-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+          >
+            <span className="truncate">{number}</span>
+            {copied ? <Check className="h-3 w-3 shrink-0 text-emerald-500" /> : <Copy className="h-3 w-3 shrink-0 opacity-60" />}
+          </button>
+        )}
+      </div>
+      {telHref && (
+        <a
+          href={telHref}
+          title={t("agent.contact.call")}
+          className="ml-auto shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+        >
+          <Phone className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </div>
+  );
+}
 
 function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
   return (

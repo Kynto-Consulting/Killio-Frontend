@@ -80,7 +80,28 @@ const COLLAPSIBLE_AI_TAGS = [
   "poll",
   "batch_tool",
   "batch_invoke",
+  // contacts_search embeds <contact><name>…</name><number>…</number></contact>
+  // blocks in the assistant markup. Parse them as their own blocks so the
+  // renderer can show a clean contact chip instead of leaking raw tags.
+  "contact",
 ];
+
+export type ContactInfo = { name: string; number: string };
+
+/**
+ * Extract { name, number } from a parsed <contact> block's inner content
+ * (e.g. "<name>Ana</name><number>+51 999…</number>"). Tolerates missing tags
+ * and falls back to the raw inner text as the name.
+ */
+export function parseContactBlock(content: string): ContactInfo {
+  const src = String(content ?? "");
+  const name = src.match(/<name>([\s\S]*?)<\/name>/i)?.[1]?.trim() ?? "";
+  const number = src.match(/<number>([\s\S]*?)<\/number>/i)?.[1]?.trim() ?? "";
+  if (!name && !number) {
+    return { name: src.replace(/<[^>]*>/g, "").trim(), number: "" };
+  }
+  return { name, number };
+}
 
 const INLINE_TOOL_META_TAGS = new Set(["tool_status", "tool_output"]);
 
@@ -341,7 +362,7 @@ function escapeLooseXmlTags(value: string): string {
   return value.replace(/<\/?([a-z][a-z0-9_-]*)(?:\s[^>]*)?>/gi, (match, tagName) => {
     const tag = String(tagName || "").toLowerCase();
     if (isCommonMarkdownHtmlTag(tag)) return match;
-    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call" || tag === "invoke" || tag === "parameters" || tag === "tool_output" || tag === "tool_status") return match;
+    if (COLLAPSIBLE_AI_TAGS.includes(tag) || tag === "tool_call" || tag === "invoke" || tag === "parameters" || tag === "tool_output" || tag === "tool_status" || tag === "name" || tag === "number") return match;
     return match.replace(/</g, "&lt;").replace(/>/g, "&gt;");
   });
 }

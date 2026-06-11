@@ -11,7 +11,12 @@
     "assumptions": "Suposiciones",
     "risks": "Riesgos",
     "strategy": "Estrategia",
-    "thinking": "Razonamiento"
+    "thinking": "Razonamiento",
+    "contact": {
+      "copyNumber": "Copiar número",
+      "copied": "Copiado",
+      "call": "Llamar"
+    }
   },
   "poll": {
     "label": "Encuesta",

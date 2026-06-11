@@ -11,7 +11,12 @@
     "assumptions": "Assumptions",
     "risks": "Risks",
     "strategy": "Strategy",
-    "thinking": "Thinking"
+    "thinking": "Thinking",
+    "contact": {
+      "copyNumber": "Copy number",
+      "copied": "Copied",
+      "call": "Call"
+    }
   },
   "poll": {
     "label": "Poll",

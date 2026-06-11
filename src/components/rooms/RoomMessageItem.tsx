@@ -6,7 +6,7 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
-  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download,
+  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download, User, Phone,
 } from "lucide-react";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
@@ -14,7 +14,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { ResolverContext } from "@/lib/reference-resolver";
-import { getAiMarkupLabel, parseAiMarkup, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
+import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
 import { EmojiReactionPicker, trackEmojiUse } from "./EmojiReactionPicker";
 import { UserProfileCard } from "./UserProfileCard";
@@ -225,6 +225,51 @@ function MessageStatusIcon({ status }: { status?: MessageStatus }) {
   if (status === "failed") return <AlertCircle className="w-2.5 h-2.5 text-destructive" />;
   if (status === "read") return <CheckCheck className="w-2.5 h-2.5 text-accent" />;
   return null;
+}
+
+// Renders a <contact> block (contacts_search output): person icon + name +
+// tap-to-copy number + tel: call link. Matches the room chip/pill styling.
+function RoomContactChip({ t, name, number }: { t: TFn; name: string; number: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = async () => {
+    if (!number) return;
+    try {
+      await navigator.clipboard.writeText(number);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* ignore */ }
+  };
+  const telHref = number ? `tel:${number.replace(/[^\d+]/g, "")}` : undefined;
+  return (
+    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border bg-card text-xs">
+      <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+        <User className="h-3.5 w-3.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        {name && <p className="font-medium text-foreground truncate">{name}</p>}
+        {number && (
+          <button
+            type="button"
+            onClick={handleCopy}
+            title={copied ? t("ai.contact.copied") : t("ai.contact.copyNumber")}
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+          >
+            <span className="truncate">{number}</span>
+            {copied ? <Check className="h-3 w-3 shrink-0 text-emerald-500" /> : <Copy className="h-3 w-3 shrink-0 opacity-60" />}
+          </button>
+        )}
+      </div>
+      {telHref && (
+        <a
+          href={telHref}
+          title={t("ai.contact.call")}
+          className="ml-auto shrink-0 flex h-7 w-7 items-center justify-center rounded-full text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 transition-colors"
+        >
+          <Phone className="h-3.5 w-3.5" />
+        </a>
+      )}
+    </div>
+  );
 }
 
 const EMPTY_CONTEXT: ResolverContext = { documents: [], boards: [] };
@@ -446,6 +491,12 @@ export function RoomMessageItem({
                       </BatchToolChip>
                     </div>
                   );
+                }
+
+                if (block.tag === "contact") {
+                  const { name, number } = parseContactBlock(block.content);
+                  if (!name && !number) return null;
+                  return <RoomContactChip key={key} t={t} name={name} number={number} />;
                 }
 
                 if (block.tag === "tool_call") {
