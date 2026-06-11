@@ -893,7 +893,7 @@ export async function setOtpLoginPreference(accessToken: string, enabled: boolea
 
 export async function updateProfile(
   accessToken: string,
-  data: { name?: string; avatarUrl?: string; bio?: string; timezone?: string; locale?: string }
+  data: { name?: string; avatarUrl?: string; bio?: string; timezone?: string; locale?: string; defaultModel?: string }
 ): Promise<{ ok: boolean }> {
   return request<{ ok: boolean }>('/auth/profile', {
     method: 'POST',

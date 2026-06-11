@@ -20,6 +20,11 @@
     "en": "English",
     "es": "Español"
   },
+  "defaultModel": {
+    "title": "Default AI model",
+    "label": "Preferred model",
+    "hint": "Used as the starting model for new conversations."
+  },
   "otpLogin": {
     "title": "One-time password login",
     "description": "When enabled, you can use OTP / magic link for sign-in as an extra security layer."

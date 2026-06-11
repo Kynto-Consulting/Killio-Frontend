@@ -281,6 +281,11 @@
       "placeholder": "Ask something or request an action…",
       "hint": "Enter to send · Shift+Enter for new line · @ to mention"
     },
+    "model": {
+      "select": "Model",
+      "locked": "The model can only be changed once per conversation",
+      "upgrade": "Upgrade"
+    },
     "emptyState": {
       "title": "How can I help you?",
       "fullAccess": "I have full access to this {{entity}}",

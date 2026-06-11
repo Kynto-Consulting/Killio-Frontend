@@ -281,6 +281,11 @@
       "placeholder": "Pregunta algo o pide una acción…",
       "hint": "Enter para enviar · Shift+Enter para nueva línea · @ para mencionar"
     },
+    "model": {
+      "select": "Modelo",
+      "locked": "El modelo solo se puede cambiar una vez",
+      "upgrade": "Mejorar plan"
+    },
     "emptyState": {
       "title": "¿En qué puedo ayudarte?",
       "fullAccess": "Tengo acceso completo a este {{entity}}",

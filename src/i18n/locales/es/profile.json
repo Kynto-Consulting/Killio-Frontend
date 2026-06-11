@@ -20,6 +20,11 @@
     "en": "English",
     "es": "Español"
   },
+  "defaultModel": {
+    "title": "Modelo de IA predeterminado",
+    "label": "Modelo preferido",
+    "hint": "Se usa como modelo inicial para las nuevas conversaciones."
+  },
   "otpLogin": {
     "title": "Inicio de sesión con contraseña de un solo uso",
     "description": "Cuando esté activo, podrás usar OTP / enlace mágico para iniciar sesión con una capa extra de seguridad."

@@ -19,7 +19,7 @@ import { realtimeChannel } from "@/lib/realtime/channels";
 import { streamAgentChat } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { getFullBrickSchemaContext } from "@/lib/bricks/brick-schema-registry";
-import { AgentChatPanel } from "@/components/agent";
+import { AgentChatPanel, ModelSelector } from "@/components/agent";
 import { parseAiMarkup } from "@/lib/ai-markup";
 import { NavbarAiCredits } from "@/components/ui/navbar-ai-credits";
 import { RoomsLayout } from "@/components/rooms/RoomsLayout";
@@ -107,6 +107,9 @@ export default function RoomDetailWeb() {
   const [showReadReceipts, setShowReadReceipts] = useState(true);
   const [activeCallInRoom, setActiveCallInRoom] = useState<RoomCall | null>(null);
   const [navbarUsageSlotEl, setNavbarUsageSlotEl] = useState<Element | null>(null);
+  // Model chosen for the next AI message in an AI room. Threaded into
+  // streamAgentChat as `model` (backend clamps to plan + once-only lock).
+  const [selectedModel, setSelectedModel] = useState<string | null>(null);
 
   const { permissions } = useRoomPermissions(roomId, accessToken);
 
@@ -290,6 +293,7 @@ Team Context: ${activeTeamId}.`;
         message: fullPrompt,
         approvalDecision,
         approvalToolCall,
+        model: selectedModel ?? undefined,
       },
       accessToken,
       (event) => {
@@ -425,7 +429,7 @@ Team Context: ${activeTeamId}.`;
         }
       }
     );
-  }, [roomId, accessToken, activeTeamId, chatHook, room?.name]);
+  }, [roomId, accessToken, activeTeamId, chatHook, room?.name, selectedModel]);
 
   const handleToolApproval = useCallback((toolName: string, input: any, decision: 'approved' | 'rejected') => {
     // Resume AI trigger with decision
@@ -653,6 +657,14 @@ Team Context: ${activeTeamId}.`;
                 startedAt: c.startedAt,
               }))}
               activeCallId={(call.isInCall && activeRoomId === roomId) ? (call.callId ?? undefined) : undefined}
+              modelSelector={isAiRoom && activeTeamId ? (
+                <ModelSelector
+                  teamId={activeTeamId}
+                  value={selectedModel}
+                  onChange={setSelectedModel}
+                  variant="compact"
+                />
+              ) : undefined}
               t={t}
             />
           </div>

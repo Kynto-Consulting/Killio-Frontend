@@ -50,6 +50,8 @@ interface RoomChatAreaProps {
   onToolApproval?: (toolName: string, input: any, decision: 'approved' | 'rejected') => void;
   replyTo?: RoomMessage | null;
   onReply?: (message: RoomMessage | null) => void;
+  /** Optional model picker rendered next to the composer (AI rooms only). */
+  modelSelector?: React.ReactNode;
   t: TFn;
 }
 
@@ -106,6 +108,7 @@ export function RoomChatArea({
   onToolApproval,
   replyTo,
   onReply,
+  modelSelector,
   t,
 }: RoomChatAreaProps) {
   const { accessToken } = useSession();
@@ -323,6 +326,13 @@ export function RoomChatArea({
           >
             <X className="w-3 h-3" />
           </button>
+        </div>
+      )}
+
+      {/* Model selector (AI rooms) — sits right above the composer. */}
+      {modelSelector && (
+        <div className={`${isMobile ? "mx-3" : "mx-4"} mb-2 flex items-center justify-end`}>
+          {modelSelector}
         </div>
       )}
 

@@ -45,6 +45,44 @@ export type AgentStreamEvent =
     }
   | { type: 'error'; message: string };
 
+/** One model in the catalog returned by GET /agent/models. */
+export interface AgentModelOption {
+  id: string;
+  label: string;
+  description: string;
+  minPlanTier: string;
+  /** False when the current plan tier doesn't include this model. */
+  allowed: boolean;
+}
+
+/** Response of GET /agent/models?teamId&conversationId. */
+export interface AgentModelOptions {
+  planTier: string;
+  models: AgentModelOption[];
+  defaultModel: string | null;
+  conversation: {
+    id: string;
+    model: string | null;
+    changeCount: number;
+    /** Once-only change already spent — the selector must lock. */
+    locked: boolean;
+  } | null;
+}
+
+/** GET /agent/models — model entitlements for the selector UIs. */
+export async function getAgentModels(
+  params: { teamId: string; conversationId?: string },
+  accessToken: string,
+): Promise<AgentModelOptions> {
+  const q = new URLSearchParams({ teamId: params.teamId });
+  if (params.conversationId) q.set('conversationId', params.conversationId);
+  const res = await fetch(`${API_BASE_URL}/agent/models?${q.toString()}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) throw new Error(`Failed to load models (${res.status})`);
+  return res.json();
+}
+
 export interface AgentToolManifestEntry {
   name: string;
   category: string;
@@ -159,6 +197,9 @@ export function streamAgentChat(
     /** True when the caller auto-scans the folder (AI Draft Studio). Omit for
      *  entity-scoped chats so the agent emits killio_import per file. */
     autoScan?: boolean;
+    /** Preferred model id for this message. Validated + clamped to plan
+     *  server-side; once-only change per conversation is enforced there. */
+    model?: string;
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,

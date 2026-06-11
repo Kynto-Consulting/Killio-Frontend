@@ -269,6 +269,13 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
   const conversationIdRef = useRef<string | undefined>(undefined);
   const cancelRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef<string>("");
+  // Preferred model for the next message. Threaded into /agent/chat/stream as
+  // `model`; the backend validates, clamps to the plan, and enforces the
+  // once-only change per conversation. A ref keeps it stable inside callbacks.
+  const selectedModelRef = useRef<string | undefined>(undefined);
+  const setSelectedModel = useCallback((model: string | undefined) => {
+    selectedModelRef.current = model || undefined;
+  }, []);
 
   /**
    * Shared streaming event handler factory.
@@ -425,7 +432,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
       const toolEvts: ToolEvent[] = [];
 
       const cancel = streamAgentChat(
-        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug },
+        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug, model: selectedModelRef.current },
         accessToken!,
         makeStreamHandler(assistantId, toolEvts, accTextRef),
       );
@@ -579,6 +586,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
         approvalDecision: decision,
         approvalToolCall: { id: toolId, name: toolName, input },
         workspaceSlug,
+        model: selectedModelRef.current,
       },
       accessToken!,
       makeStreamHandler(assistantId, toolEvts, accTextRef),
@@ -610,6 +618,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
     cancel,
     clearConversation,
     sendToolApproval,
+    setSelectedModel,
     conversationId: conversationIdRef.current,
   };
 }

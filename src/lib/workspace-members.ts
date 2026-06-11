@@ -12,6 +12,7 @@ export type SessionUser = AuthResponse["user"] & {
   bio?: string | null;
   timezone?: string | null;
   locale?: string | null;
+  defaultModel?: string | null;
 };
 
 export type WorkspaceMemberLike = Partial<TeamMemberSummary> &
@@ -147,5 +148,6 @@ export function normalizeSessionUser(input: unknown): SessionUser | null {
     bio: asCleanString(raw.bio),
     timezone: asCleanString(raw.timezone),
     locale: asCleanString(raw.locale),
+    defaultModel: asCleanString(raw.defaultModel),
   };
 }

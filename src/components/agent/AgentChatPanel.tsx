@@ -15,6 +15,7 @@ import remarkGfm from "remark-gfm";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { KillioImportChip } from "@/components/agent/killio-import-chip";
 import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
+import { ModelSelector } from "@/components/agent/model-selector";
 import { useAgentChat, AgentMessage, ToolEvent, ToolResult, resolveToolCallRenderState } from "@/hooks/use-agent-chat";
 import { AgentEntityScope, AgentConversation, listAgentConversations } from "@/lib/api/agent";
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
@@ -288,8 +289,16 @@ export function AgentChatPanel({
     cancel,
     clearConversation,
     sendToolApproval,
+    setSelectedModel,
     conversationId,
   } = useAgentChat({ teamId, entityType, entityId, resolverContext: builtContext, workspaceSlug: localWorkspaceSlug });
+
+  // Model chosen in the composer selector. Kept in sync with the chat hook so
+  // it rides along on the next /agent/chat/stream request as `model`.
+  const [selectedModel, setSelectedModelState] = useState<string | null>(null);
+  useEffect(() => {
+    setSelectedModel(selectedModel ?? undefined);
+  }, [selectedModel, setSelectedModel]);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const initialSentRef = useRef(false);
@@ -627,6 +636,17 @@ export function AgentChatPanel({
             )}
           </div>
         )}
+
+        {/* Model selector — rides along on the next message as `model`. */}
+        <div className="flex items-center justify-end mb-2">
+          <ModelSelector
+            teamId={teamId}
+            conversationId={conversationId}
+            value={selectedModel}
+            onChange={setSelectedModelState}
+            variant="compact"
+          />
+        </div>
 
         <div className="flex items-end gap-2">
           <input

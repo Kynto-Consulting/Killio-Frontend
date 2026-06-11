@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { X, Loader2, Upload, User, Shield, Camera, Check, Globe, Clock } from "lucide-react";
+import { X, Loader2, Upload, User, Shield, Camera, Check, Globe, Clock, Sparkles } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { getOtpLoginPreference, setOtpLoginPreference, updateProfile } from "@/lib/api/contracts";
 import { uploadFile } from "@/lib/api/uploads";
 import { useAsyncAction } from "@/hooks/ui";
+import { ModelSelector } from "@/components/agent/model-selector";
 
 type Tab = "profile" | "security";
 
@@ -26,7 +27,7 @@ function useSavedFeedback() {
 }
 
 export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalProps) {
-  const { user, accessToken, updateUser } = useSession();
+  const { user, accessToken, updateUser, activeTeamId } = useSession();
   const t = useTranslations("profile");
   const tCommon = useTranslations("common");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -43,6 +44,10 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
+
+  // Default AI model
+  const [defaultModel, setDefaultModel] = useState<string | null>(null);
+  const modelSaved = useSavedFeedback();
 
   // OTP
   const [isOtpLoading, setIsOtpLoading] = useState(false);
@@ -71,12 +76,13 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
       setBio(user?.bio || "");
       setTimezone(user?.timezone || "");
       setLocale(user?.locale || "");
+      setDefaultModel(user?.defaultModel || null);
       setSelectedFile(null);
       setPreviewUrl(null);
       setFileError(null);
       setActiveTab("profile");
     }
-  }, [isOpen, user?.displayName, user?.name, user?.bio, user?.timezone, user?.locale]);
+  }, [isOpen, user?.displayName, user?.name, user?.bio, user?.timezone, user?.locale, user?.defaultModel]);
 
   // OTP preference
   useEffect(() => {
@@ -119,6 +125,14 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
     });
     updateUser({ bio: bio.trim() || null, timezone: timezone || null, locale: locale || null });
     infoSaved.show();
+  });
+
+  const saveModelAction = useAsyncAction(async (modelId: string) => {
+    if (!accessToken || !user) return;
+    await updateProfile(accessToken, { defaultModel: modelId });
+    updateUser({ defaultModel: modelId });
+    setDefaultModel(modelId);
+    modelSaved.show();
   });
 
   const otpAction = useAsyncAction(async (enabled: boolean) => {
@@ -399,6 +413,35 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                       </button>
                     </div>
                   </section>
+
+                  {/* Default AI model */}
+                  {activeTeamId && (
+                    <section>
+                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">
+                        {t("defaultModel.title") || "Default AI model"}
+                      </p>
+                      <div className="flex items-center gap-1.5 mb-2 text-sm font-medium">
+                        <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+                        {t("defaultModel.label") || "Preferred model"}
+                        {modelSaved.saved && (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-500 font-medium">
+                            <Check className="h-3 w-3" />
+                            {tCommon("actions.saved") || "Saved!"}
+                          </span>
+                        )}
+                      </div>
+                      <ModelSelector
+                        teamId={activeTeamId}
+                        value={defaultModel}
+                        onChange={(modelId) => void saveModelAction.run(modelId)}
+                        variant="full"
+                      />
+                      <p className="text-xs text-muted-foreground mt-1.5">
+                        {t("defaultModel.hint") || "Used as the starting model for new conversations."}
+                      </p>
+                      {saveModelAction.error && <p className="text-xs text-destructive mt-1">{saveModelAction.error}</p>}
+                    </section>
+                  )}
                 </>
               )}
 
