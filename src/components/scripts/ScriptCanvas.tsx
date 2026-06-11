@@ -22,6 +22,9 @@ import "@xyflow/react/dist/style.css";
 import { GithubTriggerNode } from "./nodes/GithubTriggerNode";
 import { ManualTriggerNode } from "./nodes/ManualTriggerNode";
 import { WebhookTriggerNode } from "./nodes/WebhookTriggerNode";
+import { WhatsappIncomingTriggerNode } from "./nodes/WhatsappIncomingTriggerNode";
+import { AiResponseNode } from "./nodes/AiResponseNode";
+import { WhatsappPersonalSendNode } from "./nodes/WhatsappPersonalSendNode";
 import { RegexConditionNode } from "./nodes/RegexConditionNode";
 import { FieldCompareNode } from "./nodes/FieldCompareNode";
 import { JsonMapNode } from "./nodes/JsonMapNode";
@@ -80,6 +83,7 @@ const nodeTypes: NodeTypes = {
   "github.trigger.commit": GithubTriggerNode,
   "core.trigger.manual": ManualTriggerNode,
   "core.trigger.webhook": WebhookTriggerNode,
+  "whatsapp.trigger.incoming": WhatsappIncomingTriggerNode,
   "core.condition.regex_match": RegexConditionNode,
   "core.condition.field_compare": FieldCompareNode,
   "core.transform.json_map": JsonMapNode,
@@ -109,6 +113,8 @@ const nodeTypes: NodeTypes = {
   "core.filter.first_seen": FirstSeenNode,
   "core.logic.switch": SwitchNode,
   "core.action.http_request": HttpRequestNode,
+  "core.action.whatsapp_personal_send": WhatsappPersonalSendNode,
+  "core.action.ai_response": AiResponseNode,
   "core.action.js_code": JsCodeNode,
 };
 
@@ -808,6 +814,15 @@ const NODE_CONFIG_FIELDS: Partial<Record<NodeKind, ConfigField[]>> = {
     { key: "code", type: "code", labelKey: "canvas.fields.code", placeholderKey: "canvas.placeholders.code" },
     { key: "timeoutMs", type: "number", labelKey: "canvas.placeholders.delayMs" },
   ],
+  "core.action.ai_response": [
+    { key: "prompt", type: "textarea", labelKey: "canvas.fields.aiPrompt", placeholderKey: "canvas.placeholders.aiPrompt" },
+    { key: "sourcePath", type: "text", labelKey: "canvas.fields.sourcePath", placeholderKey: "canvas.placeholders.aiSourcePath" },
+    { key: "outputPath", type: "text", labelKey: "canvas.fields.outputPath", placeholderKey: "canvas.placeholders.aiOutputPath" },
+  ],
+  "core.action.whatsapp_personal_send": [
+    { key: "toNumber", type: "text", labelKey: "canvas.fields.toNumber", placeholderKey: "canvas.placeholders.toNumber" },
+    { key: "text", type: "textarea", labelKey: "canvas.fields.messageText", placeholderKey: "canvas.placeholders.whatsappPersonalText" },
+  ],
 };
 
 interface ScriptCanvasProps {
@@ -1028,6 +1043,19 @@ function buildNodePayloadPreview(node: Node | null): Record<string, unknown> | n
         query: {
           token: "abc",
         },
+      },
+    };
+  }
+
+  if (node.type === "whatsapp.trigger.incoming") {
+    return {
+      externalKey: "wamid.ABC123",
+      data: {
+        number: "51999888777",
+        sender: "51999888777",
+        receiver: "51911222333",
+        message: "Hola! Quisiera más información",
+        ts: Math.floor(Date.now() / 1000),
       },
     };
   }

@@ -638,7 +638,10 @@
       "whatsappSendMessage": "WhatsApp Send Message",
       "slackSendMessage": "Slack Send Message",
       "metaWebhookTrigger": "Meta Webhook Trigger",
-      "metaSendConversion": "Meta Send Conversion"
+      "metaSendConversion": "Meta Send Conversion",
+      "whatsappIncomingTrigger": "WhatsApp Message Received",
+      "aiResponse": "AI Response",
+      "whatsappPersonalSend": "WhatsApp (personal): Send"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -746,7 +749,9 @@
       "mentionSourcePath": "Mention source path",
       "fallbackToCommitAuthor": "Fallback to commit author",
       "commitAuthorPath": "Commit author path",
-      "staticAssigneeIds": "Static assignee IDs"
+      "staticAssigneeIds": "Static assignee IDs",
+      "aiPrompt": "Extra prompt",
+      "toNumber": "To number"
     },
     "placeholders": {
       "repoFullName": "owner/repo",
@@ -836,7 +841,12 @@
       "tableId": "Table id",
       "keyPath": "todoHash",
       "outputPath": "tableRow",
-      "valuesPath": "item.data"
+      "valuesPath": "item.data",
+      "aiPrompt": "E.g. Reply politely in Spanish to this WhatsApp message: {message}",
+      "aiSourcePath": "message",
+      "aiOutputPath": "aiResponse",
+      "toNumber": "{number}",
+      "whatsappPersonalText": "{aiResponse}"
     },
     "options": {
       "sourceMode": {
@@ -965,6 +975,15 @@
     },
     "documentCreate": {
       "noTitleTemplate": "No title template"
+    },
+    "whatsappIncoming": {
+      "description": "Fires when a personal WhatsApp message arrives. Emits number, sender, receiver and message."
+    },
+    "aiResponse": {
+      "description": "Runs the Killio agent on the incoming data plus an optional extra prompt and outputs clean text."
+    },
+    "whatsappPersonalSend": {
+      "description": "Sends a message via your paired personal WhatsApp. Bind fields like {number} and {aiResponse}."
     }
   },
   "guide": {

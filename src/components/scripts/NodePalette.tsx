@@ -6,7 +6,7 @@ import { NodeKind } from "@/lib/api/scripts";
 import {
   GitBranch, Filter, PlusSquare, Pencil, ArrowRight, UserPlus, Play,
   Scale, ArrowRightLeft, FileText, Split, Clock3, Webhook, Database,
-  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send,
+  HardDriveUpload, Hash, SlidersHorizontal, Layers, GitFork, Globe, Code2, Repeat, Scissors, Braces, FilePlus2, MessageCircle, Send, Sparkles,
 } from "lucide-react";
 
 export type PaletteIntegrationKey = "core" | "github" | "whatsapp" | "slack";
@@ -140,6 +140,16 @@ const PALETTE_ITEMS: PaletteItem[] = [
       label: "WhatsApp Webhook Trigger",
       config: { _webhookType: "whatsapp" },
     },
+  },
+  {
+    id: "whatsapp.incoming.trigger",
+    kind: "whatsapp.trigger.incoming",
+    labelKey: "whatsappIncomingTrigger",
+    icon: MessageCircle,
+    color: "bg-emerald-600 text-white",
+    category: "triggers",
+    integration: "whatsapp",
+    searchTerms: ["whatsapp", "incoming", "message", "received", "personal", "baileys"],
   },
   // ── Conditions ──────────────────────────────────────────────────────────
   {
@@ -436,6 +446,33 @@ const PALETTE_ITEMS: PaletteItem[] = [
         },
         bodyTemplate: "{\"text\":\"{messageText}\"}",
         outputPath: "slackResponse",
+      },
+    },
+  },
+  {
+    id: "core.ai.response",
+    kind: "core.action.ai_response",
+    labelKey: "aiResponse",
+    icon: Sparkles,
+    color: "bg-violet-600 text-white",
+    category: "actions",
+    integration: "core",
+    searchTerms: ["ai", "agent", "response", "assistant", "llm"],
+  },
+  {
+    id: "whatsapp.personal.send",
+    kind: "core.action.whatsapp_personal_send",
+    labelKey: "whatsappPersonalSend",
+    icon: Send,
+    color: "bg-emerald-700 text-white",
+    category: "actions",
+    integration: "whatsapp",
+    searchTerms: ["whatsapp", "personal", "send", "message", "baileys"],
+    template: {
+      label: "WhatsApp (personal) — Send",
+      config: {
+        toNumber: "{number}",
+        text: "{aiResponse}",
       },
     },
   },

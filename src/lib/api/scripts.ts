@@ -13,6 +13,7 @@ export type NodeKind =
   | 'github.trigger.commit'
   | 'core.trigger.manual'
   | 'core.trigger.webhook'
+  | 'whatsapp.trigger.incoming'
   | 'core.transform.json_normalize'
   | 'core.transform.regex'
   | 'core.transform.regex_extract_files'
@@ -48,6 +49,8 @@ export type NodeKind =
   | 'core.filter.dedup'
   | 'core.filter.first_seen'
   | 'core.action.http_request'
+  | 'core.action.whatsapp_personal_send'
+  | 'core.action.ai_response'
   | 'core.action.js_code';
 
 export interface ScriptNodeData {

@@ -11,6 +11,7 @@ import {
   Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { KillioImportChip } from "@/components/agent/killio-import-chip";
 import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
@@ -1180,7 +1181,7 @@ export function AssistantMessage({
                 key={key}
                 className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded"
               >
-                <ReactMarkdown>{seg}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{seg}</ReactMarkdown>
               </div>
             );
           }
@@ -1435,7 +1436,7 @@ export function AssistantMessage({
           <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-sm leading-relaxed">
             {visibleText ? (
               <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
-                <ReactMarkdown>{visibleText}</ReactMarkdown>
+                <ReactMarkdown remarkPlugins={[remarkGfm]}>{visibleText}</ReactMarkdown>
               </div>
             ) : message.isStreaming && !hasPartialToolCall ? (
               <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">

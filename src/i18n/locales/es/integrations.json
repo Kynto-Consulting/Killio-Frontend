@@ -638,7 +638,10 @@
       "whatsappSendMessage": "Enviar mensaje de WhatsApp",
       "slackSendMessage": "Enviar mensaje a Slack",
       "metaWebhookTrigger": "Webhook de Meta",
-      "metaSendConversion": "Enviar conversión a Meta"
+      "metaSendConversion": "Enviar conversión a Meta",
+      "whatsappIncomingTrigger": "WhatsApp: Mensaje recibido",
+      "aiResponse": "Respuesta IA",
+      "whatsappPersonalSend": "WhatsApp (personal): Enviar"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -746,7 +749,9 @@
       "mentionSourcePath": "Ruta fuente de menciones",
       "fallbackToCommitAuthor": "Fallback al autor del commit",
       "commitAuthorPath": "Ruta del autor del commit",
-      "staticAssigneeIds": "IDs de asignados estaticos"
+      "staticAssigneeIds": "IDs de asignados estaticos",
+      "aiPrompt": "Prompt adicional",
+      "toNumber": "Numero destino"
     },
     "placeholders": {
       "repoFullName": "owner/repo",
@@ -836,7 +841,12 @@
       "tableId": "ID de tabla",
       "keyPath": "todoHash",
       "outputPath": "tableRow",
-      "valuesPath": "item.data"
+      "valuesPath": "item.data",
+      "aiPrompt": "Ej. Responde amablemente en espanol a este mensaje de WhatsApp: {message}",
+      "aiSourcePath": "message",
+      "aiOutputPath": "aiResponse",
+      "toNumber": "{number}",
+      "whatsappPersonalText": "{aiResponse}"
     },
     "options": {
       "sourceMode": {
@@ -965,6 +975,15 @@
     },
     "documentCreate": {
       "noTitleTemplate": "Sin plantilla de título"
+    },
+    "whatsappIncoming": {
+      "description": "Se dispara cuando llega un mensaje personal de WhatsApp. Emite number, sender, receiver y message."
+    },
+    "aiResponse": {
+      "description": "Ejecuta el agente de Killio sobre los datos entrantes mas un prompt adicional opcional y devuelve texto limpio."
+    },
+    "whatsappPersonalSend": {
+      "description": "Envia un mensaje por tu WhatsApp personal vinculado. Usa campos como {number} y {aiResponse}."
     }
   },
   "guide": {
