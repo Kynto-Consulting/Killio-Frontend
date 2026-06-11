@@ -223,6 +223,32 @@ export async function getDocumentBricks(
   return fetchApi(`/documents/${documentId}/bricks`, { accessToken });
 }
 
+export interface DocumentBricksPage {
+  bricks: DocumentBrick[];
+  total: number;
+  hasMore: boolean;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Paginated bricks fetch for large docs (e.g. the voice diary, 700+ bricks/day).
+ * Backed by `GET /documents/:id/bricks?limit&offset` which returns an envelope
+ * `{ bricks, total, hasMore, limit, offset }` ordered by position ASC. Lets the
+ * doc viewer load the first page fast and page in the rest on scroll.
+ */
+export async function getDocumentBricksPage(
+  documentId: string,
+  accessToken: string,
+  limit = 50,
+  offset = 0,
+): Promise<DocumentBricksPage> {
+  return fetchApi(
+    `/documents/${documentId}/bricks?limit=${limit}&offset=${offset}`,
+    { accessToken },
+  );
+}
+
 export async function reorderDocumentBricks(
   documentId: string,
   updates: { id: string; position: number }[],

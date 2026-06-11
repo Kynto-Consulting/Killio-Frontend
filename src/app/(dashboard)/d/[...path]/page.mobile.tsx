@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import {
@@ -22,6 +22,10 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
 import { DocumentShareModal } from "@/components/ui/document-share-modal";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
+
+// Progressive-render window: render the first N top-level bricks, reveal more on
+// scroll. Large diary docs (700+ bricks/day) otherwise mount everything at once.
+const BRICK_PAGE_SIZE = 50;
 
 export default function DocumentMobilePage() {
   const t = useTranslations("document-detail");
@@ -47,6 +51,31 @@ export default function DocumentMobilePage() {
   useEffect(() => {
     if (document?.bricks) documentBricksRef.current = document.bricks;
   }, [document?.bricks]);
+
+  // Progressive-render window (see BRICK_PAGE_SIZE above).
+  const [visibleCount, setVisibleCount] = useState(BRICK_PAGE_SIZE);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => { setVisibleCount(BRICK_PAGE_SIZE); }, [docId]);
+
+  const topLevelBricks = useMemo(() => {
+    if (!document) return [] as DocumentBrick[];
+    const topIds = getTopLevelBrickIds(document.bricks);
+    return document.bricks.filter(b => topIds.has(b.id)).sort((a, b) => a.position - b.position);
+  }, [document]);
+  const visibleBricks = useMemo(() => topLevelBricks.slice(0, visibleCount), [topLevelBricks, visibleCount]);
+  const hasMoreBricks = visibleCount < topLevelBricks.length;
+
+  useEffect(() => {
+    if (!hasMoreBricks) return;
+    const el = loadMoreSentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      entries => { if (entries.some(e => e.isIntersecting)) setVisibleCount(c => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length)); },
+      { rootMargin: "600px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMoreBricks, topLevelBricks.length]);
 
   const sanitize = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
     const deduped = Array.from(new Map(bricks.map(b => [b.id, b])).values());
@@ -281,7 +310,7 @@ export default function DocumentMobilePage() {
         </h1>
 
         <UnifiedBrickList
-          bricks={document.bricks.filter(b => getTopLevelBrickIds(document.bricks).has(b.id))}
+          bricks={visibleBricks}
           activeBricks={document.bricks}
           canEdit={canEdit}
           documents={[]}
@@ -296,6 +325,17 @@ export default function DocumentMobilePage() {
           onPasteImageInTextBrick={async () => {}}
           onUploadMediaFiles={async () => {}}
         />
+
+        {hasMoreBricks && (
+          <div ref={loadMoreSentinelRef} className="flex justify-center py-4">
+            <button
+              onClick={() => setVisibleCount(c => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length))}
+              className="px-4 py-2 rounded-lg text-sm font-medium border border-border text-foreground hover:bg-accent/5 transition-colors"
+            >
+              {t("loadMore", { fallback: "Cargar más" })} ({topLevelBricks.length - visibleCount})
+            </button>
+          </div>
+        )}
 
         <div className="h-20" />
       </main>

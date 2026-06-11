@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
 import { Folder as FolderIcon, FileText, Loader2, ArrowLeft, Plus, MoreVertical, GripVertical, Trash2, MessageSquare, Share2, Users, X, Check, Download, Printer, Settings } from "lucide-react";
@@ -44,6 +44,13 @@ import { useOpHistory } from "@/lib/history/use-op-history";
 import { computeDocBatch, makeDocApplier } from "@/lib/history/doc-ops";
 import type { OpScope } from "@/lib/history/types";
 
+// Progressive-render window. Large diary docs grow to 700+ top-level bricks/day;
+// rendering all of them on first paint is slow. We render the first PAGE_SIZE
+// and reveal more PAGE_SIZE at a time as a sentinel scrolls into view (or via a
+// "Cargar más" button). All bricks stay in `document.bricks`, so editing,
+// realtime, op-history and nesting are unaffected — this only caps what mounts.
+const BRICK_PAGE_SIZE = 50;
+
 // ── Op-history helpers (pure, module-level so they're stable) ────────────────
 const historyTick = () => new Promise<void>((r) => setTimeout(r, 0));
 const cloneBricks = (bricks?: DocumentBrick[]): DocumentBrick[] =>
@@ -84,6 +91,10 @@ export default function DocumentPage() {
   const [isExporting, setIsExporting] = useState(false);
   const [sidebarTab, setSidebarTab] = useState<'copilot' | 'comments' | 'activity'>('comments');
   const [parentDoc, setParentDoc] = useState<DocumentSummary | null>(null);
+
+  // How many top-level bricks are currently mounted (progressive render window).
+  const [visibleCount, setVisibleCount] = useState(BRICK_PAGE_SIZE);
+  const loadMoreSentinelRef = useRef<HTMLDivElement | null>(null);
 
   const documentBricksRef = useRef<DocumentBrick[]>([]);
   useEffect(() => {
@@ -226,6 +237,45 @@ export default function DocumentPage() {
   useEffect(() => {
     fetchDoc();
   }, [fetchDoc]);
+
+  // Reset the progressive-render window whenever we navigate to another doc.
+  useEffect(() => {
+    setVisibleCount(BRICK_PAGE_SIZE);
+  }, [docId]);
+
+  // Top-level bricks in render order. Sliced to `visibleCount` so large docs
+  // mount progressively. Memoized so the slice + observer below stay stable.
+  const topLevelBricks = useMemo(() => {
+    if (!document) return [] as DocumentBrick[];
+    const topIds = getTopLevelBrickIds(document.bricks);
+    return document.bricks
+      .filter((b) => topIds.has(b.id))
+      .sort((a, b) => a.position - b.position);
+  }, [document]);
+
+  const visibleBricks = useMemo(
+    () => topLevelBricks.slice(0, visibleCount),
+    [topLevelBricks, visibleCount],
+  );
+  const hasMoreBricks = visibleCount < topLevelBricks.length;
+
+  // Reveal the next page when the sentinel scrolls into view. Falls back to the
+  // "Cargar más" button (rendered below) when IntersectionObserver is absent.
+  useEffect(() => {
+    if (!hasMoreBricks) return;
+    const el = loadMoreSentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) {
+          setVisibleCount((c) => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length));
+        }
+      },
+      { rootMargin: "600px 0px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMoreBricks, topLevelBricks.length]);
 
   // Local autosave: serialize the whole doc → .kd file (debounced).
   const localDirtyRef = useRef(false);
@@ -1865,7 +1915,7 @@ export default function DocumentPage() {
 
           <div className="pb-32">
             <UnifiedBrickList
-              bricks={document.bricks.filter((b) => getTopLevelBrickIds(document.bricks).has(b.id))}
+              bricks={visibleBricks}
               activeBricks={document.bricks}
               canEdit={canEdit}
               documents={teamDocs}
@@ -1885,6 +1935,16 @@ export default function DocumentPage() {
               selectedBrickIds={brickSelection}
               onBrickSelectToggle={(id) => setBrickSelection((cur) => { const n = new Set(cur); n.has(id) ? n.delete(id) : n.add(id); return n; })}
             />
+            {hasMoreBricks && (
+              <div ref={loadMoreSentinelRef} className="flex justify-center py-6">
+                <Button
+                  variant="outline"
+                  onClick={() => setVisibleCount((c) => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length))}
+                >
+                  {t("loadMore", { fallback: "Cargar más" })} ({topLevelBricks.length - visibleCount})
+                </Button>
+              </div>
+            )}
           </div>
         </div>
       </main>
