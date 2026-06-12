@@ -389,6 +389,26 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     return <FileDiffOutput path={o.path} operation={o.operation} diff={o.diff} />;
   }
 
+  // The most useful SECONDARY scalar to show next to an item's label — prefers a
+  // phone/number/value/email/url/status (don't hide numbers), id last.
+  const secondaryValue = (obj: Record<string, unknown>): string => {
+    if (obj.phone || obj.number || Array.isArray(obj.numbers)) {
+      const num =
+        obj.phone ??
+        obj.number ??
+        (Array.isArray(obj.numbers) ? (obj.numbers as unknown[])[0] : undefined);
+      if (num != null && String(num).trim()) return formatScalar(num, 40);
+    }
+    for (const key of ["value", "email", "url", "status"]) {
+      if (obj[key] != null && String(obj[key]).trim()) return formatScalar(obj[key], 40);
+    }
+    for (const key of ["boardType", "visibility", "updatedAt"]) {
+      if (obj[key] != null && String(obj[key]).trim()) return formatScalar(obj[key], 40);
+    }
+    if (obj.id != null && String(obj.id).trim()) return formatScalar(obj.id, 40);
+    return "";
+  };
+
   const formatPreviewItem = (item: unknown): string => {
     if (item === null || item === undefined) return "—";
     if (typeof item === "string" || typeof item === "number" || typeof item === "boolean") {
@@ -400,13 +420,8 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     if (typeof item === "object") {
       const obj = item as Record<string, unknown>;
       const primary = formatScalar(obj.title ?? obj.name ?? obj.label ?? obj.id, 80);
-      const details = [
-        obj.boardType ? formatScalar(obj.boardType, 40) : "",
-        obj.visibility ? formatScalar(obj.visibility, 40) : "",
-        obj.status ? formatScalar(obj.status, 40) : "",
-        obj.updatedAt ? formatScalar(obj.updatedAt, 40) : "",
-      ].filter(Boolean);
-      return details.length > 0 ? `${primary} · ${details.join(" · ")}` : primary;
+      const secondary = secondaryValue(obj);
+      return secondary && secondary !== primary ? `${primary} · ${secondary}` : primary;
     }
     return formatScalar(item, 80);
   };
@@ -477,15 +492,19 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
         </p>
       );
     }
-    // Success pill + important fields
-    const importantKeys = ["title", "name", "id", "status", "count", "message", "result", "output", "content"];
+    // Success pill + important fields. phone/number/value/count are ALWAYS
+    // surfaced so a contact/result object never collapses to just a label; id last.
+    const importantKeys = [
+      "title", "name", "label", "phone", "number", "numbers", "value", "email",
+      "url", "status", "count", "message", "result", "output", "content", "id",
+    ];
     const shownEntries: [string, unknown][] = [];
     for (const k of importantKeys) {
       if (k in obj && obj[k] !== null && obj[k] !== undefined) shownEntries.push([k, obj[k]]);
     }
-    // Remaining non-id keys (up to 4 total)
+    // Remaining non-id keys (up to 6 total)
     for (const [k, v] of Object.entries(obj)) {
-      if (shownEntries.length >= 4) break;
+      if (shownEntries.length >= 6) break;
       if (importantKeys.includes(k) || SKIP_KEYS.has(k)) continue;
       if (v === null || v === undefined) continue;
       if (Array.isArray(v)) {
@@ -527,7 +546,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
               renderArrayPreview(v)
             ) : (
               <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
-                {formatScalar(v)}
+                {formatScalar(v, 120)}
               </span>
             )}
           </div>
