@@ -125,15 +125,23 @@ function Hero({ t }: { t: T }) {
             <Download className="h-4 w-4" /> {t("kl.hero.apkCta")}
           </a>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 mt-4 text-xs">
-          <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card/50 px-3 py-1 text-foreground/80">
-            <Sparkles className="h-3 w-3 text-primary" />
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2.5 mt-5 text-xs">
+          {/* Trust signal — light inline line, no box */}
+          <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
             {t("kl.hero.noCard")}
           </span>
-          <Link href="/vault" className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-primary hover:bg-primary/15 transition-colors">
-            <Smartphone className="h-3 w-3" />
+          {/* "Live" pill with a pulsing dot — feels alive, doubles as a CTA */}
+          <Link
+            href="/vault"
+            className="group inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-medium text-primary transition-colors hover:bg-primary/15"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+            </span>
             {t("kl.hero.vaultLive")}
-            <ArrowRight className="h-3 w-3" />
+            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
           </Link>
         </div>
         <div className="stats-row">
