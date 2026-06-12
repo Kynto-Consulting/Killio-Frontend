@@ -125,24 +125,12 @@ function Hero({ t }: { t: T }) {
             <Download className="h-4 w-4" /> {t("kl.hero.apkCta")}
           </a>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2.5 mt-5 text-xs">
+        <div className="flex items-center justify-center mt-5 text-xs">
           {/* Trust signal — light inline line, no box */}
           <span className="inline-flex items-center gap-1.5 text-muted-foreground">
             <Check className="h-3.5 w-3.5 text-primary" strokeWidth={2.5} />
             {t("kl.hero.noCard")}
           </span>
-          {/* "Live" pill with a pulsing dot — feels alive, doubles as a CTA */}
-          <Link
-            href="/vault"
-            className="group inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 font-medium text-primary transition-colors hover:bg-primary/15"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-            </span>
-            {t("kl.hero.vaultLive")}
-            <ArrowRight className="h-3 w-3 transition-transform group-hover:translate-x-0.5" />
-          </Link>
         </div>
         <div className="stats-row">
           <div className="stat-item"><div className="stat-val">{t("kl.hero.stats.teamsValue")}</div><div className="stat-label">{t("kl.hero.stats.teamsLabel")}</div></div>
