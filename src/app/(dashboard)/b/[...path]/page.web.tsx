@@ -30,7 +30,7 @@ import { kbToBoardDraft, boardToKb } from "@/lib/local-workspace/adapters";
 import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
-import { publishLocalBoard } from "@/lib/local-workspace/publish-local";
+import { publishLocalBoard, resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -2350,7 +2350,7 @@ export default function BoardPage() {
         onClose={() => setIsPublishOpen(false)}
         kind="board"
         online={online}
-        canPublish={!!accessToken && !!activeTeamId}
+        canPublish={!!accessToken}
         publish={async () => publishLocalBoard(
           boardToKb({
             id: localFile, name: boardName, description: boardDescription,
@@ -2358,7 +2358,7 @@ export default function BoardPage() {
             visibility: boardVisibility,
             lists: lists.map((l: any) => ({ id: l.id, name: l.title, cards: l.cards })),
           }),
-          { teamId: activeTeamId as string, accessToken: accessToken as string },
+          { teamId: await resolvePublishTeamId(accessToken as string, activeTeamId), accessToken: accessToken as string },
           { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
         )}
       />

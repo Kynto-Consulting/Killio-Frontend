@@ -28,7 +28,7 @@ import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, ensure
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
 import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
-import { publishLocalDocument } from "@/lib/local-workspace/publish-local";
+import { publishLocalDocument, resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1970,10 +1970,10 @@ export default function DocumentPage() {
         onClose={() => setIsPublishOpen(false)}
         kind="document"
         online={online}
-        canPublish={!!accessToken && !!activeTeamId}
+        canPublish={!!accessToken}
         publish={async () => publishLocalDocument(
           docToKd({ id: localFile, title: document?.title, bricks: (document?.bricks ?? []) as unknown as { id: string; kind: string; position: number; content: unknown }[] }),
-          { teamId: activeTeamId as string, accessToken: accessToken as string },
+          { teamId: await resolvePublishTeamId(accessToken as string, activeTeamId), accessToken: accessToken as string },
           { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
         )}
       />

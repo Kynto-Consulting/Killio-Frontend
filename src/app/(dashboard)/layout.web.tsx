@@ -25,6 +25,7 @@ import { useOnline } from "@/hooks/use-online";
 import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
 import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
+import { resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -501,7 +502,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
         isOpen={isWsPublishOpen}
         onClose={() => setIsWsPublishOpen(false)}
         online={online}
-        canPublish={!!accessToken && !!activeTeamId}
+        canPublish={!!accessToken}
         itemCount={localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb").length}
         run={async (onProgress) => {
           const dir = localWs.getDir();
@@ -512,7 +513,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           }
           return publishLocalWorkspace(
             wsFiles,
-            { teamId: activeTeamId as string, accessToken: accessToken as string },
+            { teamId: await resolvePublishTeamId(accessToken as string, activeTeamId), accessToken: accessToken as string },
             {
               onProgress,
               readAsset: dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined,

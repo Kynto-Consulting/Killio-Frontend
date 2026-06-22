@@ -17,6 +17,7 @@ import {
   updateMeshState,
   updateMeshVisibility,
   uploadFile,
+  listTeams,
   type BrickMutationInput,
 } from "@/lib/api/contracts";
 import { kdToDocDraft, kbToBoardDraft } from "./adapters.ts";
@@ -24,6 +25,27 @@ import { deserializeKmToMesh } from "@/lib/mesh-file";
 
 export type PublishCtx = { teamId: string; accessToken: string };
 export type PublishResult = { id: string; route: string };
+
+/**
+ * Resolve the team to publish a local entity INTO. Publishing targets the user's
+ * PERSONAL workspace, which is NOT necessarily the currently-active team (when
+ * viewing a local workspace `activeTeamId` is null, and the active cloud team may
+ * be a shared one). So we always resolve the `isPersonal` team from the account;
+ * fall back to the given `preferredTeamId`, then the first team. Throws only when
+ * the account has no team at all.
+ */
+export async function resolvePublishTeamId(
+  accessToken: string,
+  preferredTeamId?: string | null,
+): Promise<string> {
+  const teams = await listTeams(accessToken);
+  const personal = teams.find((tm) => tm.isPersonal && !tm.isArchived);
+  if (personal) return personal.id;
+  if (preferredTeamId && teams.some((tm) => tm.id === preferredTeamId)) return preferredTeamId;
+  const firstActive = teams.find((tm) => !tm.isArchived) ?? teams[0];
+  if (firstActive) return firstActive.id;
+  throw new Error("No team available to publish into.");
+}
 /** Optional asset reader so publish can upload local images referenced by asset:<name>. */
 export type PublishOpts = { readAsset?: (name: string) => Promise<File | null> };
 

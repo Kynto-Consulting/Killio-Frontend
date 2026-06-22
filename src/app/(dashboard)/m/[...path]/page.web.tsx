@@ -55,7 +55,7 @@ import { makeEnvelope, writeBricksToClipboard, writeBricksToDataTransfer, ensure
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
 import { bricksFromClipboardEvent, bricksFromDataTransfer } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
-import { publishLocalMesh } from "@/lib/local-workspace/publish-local";
+import { publishLocalMesh, resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
 import { downloadKillioFile, readKillioFile, killioFilename, KILLIO_EXT, encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
@@ -5888,10 +5888,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       onClose={() => setIsPublishOpen(false)}
       kind="mesh"
       online={online}
-      canPublish={!!accessToken && !!activeTeamId}
+      canPublish={!!accessToken}
       publish={async () => publishLocalMesh(
         serializeMeshToKm(state, { meshId: localFile, title: meshBoardName }),
-        { teamId: activeTeamId as string, accessToken: accessToken as string },
+        { teamId: await resolvePublishTeamId(accessToken as string, activeTeamId), accessToken: accessToken as string },
         { readAsset: async (n) => { const dir = localWs.getDir(); if (!dir) return null; try { return await readAssetFile(dir, n); } catch { return null; } } },
       )}
     />
