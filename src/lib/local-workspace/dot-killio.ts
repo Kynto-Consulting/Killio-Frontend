@@ -53,40 +53,40 @@ guide to read and edit it like a Killio agent would.
 4. Preserve the \`#killio\` header + KAML shape. Don't rename ids. The authoritative kind is the **brick-level \`kind\`** (a redundant \`content.kind\` may also appear — keep them in sync).
 
 ## Document bricks (\`.kd\` + card blocks in \`.kb\`)
-The brick-level \`kind\` is authoritative. \`content\` fields per \`kind\`:
+The brick-level \`kind\` is authoritative (a redundant \`content.kind\` may mirror it — keep in sync). Every brick is \`{ id, kind, position, content }\`. \`content\` fields per \`kind\`:
 
 ### Text & structure
-- **text** — \`markdown\` (rich-text tokens below). \`displayStyle: paragraph|heading|checklist|quote|code|callout\` picks how the same markdown renders. Headings also read \`level: 1..4\`.
-- **checklist** — \`items: [{ id, label, checked:boolean }]\`. Order = array order.
-- **quote** — \`markdown\` (rendered as a blockquote). **callout** — \`markdown\` + optional \`tone: info|warn|success|danger\`, \`emoji\`.
-- **divider** — no fields (a horizontal rule).
-- **code** — \`code\` (the source string), \`language\` (e.g. \`ts\`, \`py\`), optional \`filename\`.
-- **math** — \`latex\` (a KaTeX/LaTeX expression).
+- **text** — \`markdown: string\` (rich-text tokens below). \`displayStyle: paragraph | h1 | h2 | h3 | checklist | quote | code | callout\` (default \`paragraph\`) decides how the SAME markdown renders. Optional \`formField\` makes it a form input when nested in a **form**: \`{ fieldId, type: text|textarea|number|email|select|checkbox|date, label, required:boolean, placeholder?, options?:[{label,value}], condition?:{enabled, sourceFieldId, operator, value} }\`.
+- **quote** — \`markdown: string\`, optional \`author: string\`. Stylized blockquote.
+- **callout** — \`markdown: string\`, \`icon: string\` (emoji or Lucide icon name). Highlighted box.
+- **divider** — no fields. Horizontal rule.
 
 ### Data
-- **table** — simple grid: \`rows: string[][]\` (row 0 = header), optional \`title\`.
-- **beautiful_table** — database-grade: \`title\`, \`columns: [{ id, name, type:text|number|select|date|check|…, options? }]\`, \`rows: [{ id, cells:{ <columnId>: value } }]\`, \`views: [{ id, type:table|board|gallery|calendar|list, … }]\`.
-- **graph** — \`type: line|bar|pie\`, \`data: [{ label, value }]\` (or series), \`title\`.
-- **database** — embedded queryable collection (online): \`source, columns, filters, sort\`.
+- **table** — simple grid. \`rows: string[][]\` (row 0 = header), optional \`title: string\`.
+- **beautiful_table** — database-grade (a.k.a. Bountiful Table). \`title?\`, \`columns: [{ id, name, type: text|number|select|multi_select|date|checkbox|user|doc|board|card|phone|formula }]\`, \`rows: [{ id, cells: { <columnId>: value }, meta?: { _lastEditedAt, _lastEditedBy } }]\`. May also carry \`views: [{ id, type: table|board|gallery|calendar|list, … }]\`.
+- **graph** — \`type: line|bar|pie|area|scatter\`, \`title?\`, \`data: [{ <key>: value }]\` (e.g. \`[{ name:"Jan", value:100 }]\`), \`config: { xKey: string, yKeys: string[], colors?: string[] }\`.
 
-### Containers (hold other bricks via \`childrenByContainer: { <slotId>: [brickId,…] }\`)
-- **accordion** — \`title\`, \`isExpanded:boolean\`; body bricks live in \`childrenByContainer\`.
-- **tabs** — \`tabs: [{ id, label }]\`; each tab id is a child slot.
-- **columns** — \`columns: [{ id, width? }]\`; each column id is a child slot.
+### Containers — children live in \`childrenByContainer: { <slotId>: [brickId,…] }\`, NOT inline
+- **accordion** — \`title: string\` (header), \`isExpanded: boolean\`, slot \`body\`. (Legacy \`body: string\` markdown still read; prefer nesting.)
+- **tabs** — \`tabs: [{ id, label }]\`; one child slot **per tab id**.
+- **columns** — multi-column layout. \`columns: [{ id }]\`; one child slot **per column id**. (This is the multi-column brick — each column holds its own bricks.)
+- **form** — intake form. \`title, description, submitLabel, webhookUrl\`, \`pages: [{ id, label }]\`; one child slot **per page id**, holding **text** bricks that carry a \`formField\` (above).
 
-### Media — \`mediaType, title, url, mimeType, sizeBytes, caption\`
-One brick family; \`mediaType\`/extension picks the renderer. Local assets use \`url = "asset:<name>"\` (the bytes live next to the file); cloud assets use \`url = "/uploads/…"\` or an absolute URL.
+### Media — shared family: \`url, title?, caption?, mimeType?, sizeBytes?, mediaType\`
+\`mediaType\`/extension picks the renderer. Local assets: \`url = "asset:<name>"\` (bytes next to the file). Cloud: \`url = "/uploads/…"\` or an absolute URL.
 - **image** — png/jpg/gif/webp/svg. **video** — mp4/webm/mov. **audio** — mp3/wav/ogg.
-- **file** — any other download (pdf, docx, …); shows a download chip.
-- **bookmark** — \`url\` is a web link; renders a link card (\`mimeType:"text/html"\`).
-- **model3d** — a **3D model**: \`url\` ends in \`.glb\` or \`.gltf\` (or \`mimeType:"model/gltf-binary"\`). Prefer **\`.glb\`** — a single file embedding geometry + textures + materials, so it works identically for \`asset:\` and \`/uploads/\` refs. Renders interactive (orbit / zoom / auto-rotate) via \`<model-viewer>\`. The carousel \`caption\` may pack layout/border/shadow as \`__media_meta_v1__:{…}\` — keep it intact.
-- **widget** — a runnable **code widget** (\`kind:"widget"\` / \`mediaType:"widget"\`). Extra content fields: \`code\` (the source string), \`widgetLang: html|js|ts|jsx|tsx\`, \`widgetArgs\` (an object passed to the function). Contract: \`html\` renders verbatim; \`js\`/\`ts\` export \`default (args) => htmlString\`; \`tsx\`/\`jsx\` export \`default (args) => ReactElement\`. Source may also come from an uploaded \`.html/.js/.ts/.tsx\` asset via \`url\`. Runs inside a **sandboxed iframe** (no app/session access). When editing, keep \`code\` and \`widgetArgs\` valid; \`widgetArgs\` must be JSON-serializable.
+- **file** — any other download (pdf, docx, …); download chip.
+- **bookmark** — \`url\` is an external web link; renders a link card (\`mimeType:"text/html"\`).
+- **model3d** — **3D model**. \`url\` ends in \`.glb\`/\`.gltf\` (or \`mimeType:"model/gltf-binary"\`). Prefer **\`.glb\`** (one file = geometry + textures + materials). Interactive orbit/zoom/auto-rotate via \`<model-viewer>\`. The \`caption\` may pack layout/border/shadow as \`__media_meta_v1__:{…}\` — keep intact.
+- **widget** — runnable **code widget** (\`kind:"widget"\`/\`mediaType:"widget"\`). Fields: \`code: string\` (source), \`widgetLang: html|js|ts|jsx|tsx\`, \`widgetArgs: object\` (JSON-serializable, passed to the fn). Contract: \`html\`→verbatim; \`js\`/\`ts\`→\`export default (args)=>htmlString\`; \`tsx\`/\`jsx\`→\`export default (args)=>ReactElement\`. Source may instead come from an uploaded \`.html/.js/.ts/.tsx\` asset via \`url\`. Runs in a **sandboxed iframe** (no app/session access). Persisted locally via KAML (newlines escaped) → works offline for HTML; TS/TSX need a connection to load the compiler.
 
-### Specialized (mostly online)
-- **form** — \`fields:[{ id, type, label, required }]\`, \`submitLabel\`, \`action\`.
+### Specialized (mostly online; may render as a placeholder offline)
 - **payment** — \`amount, currency, provider, status\`.
 - **popup_document** — \`targetDocId, label\` (opens a doc in a modal).
-- **ai** — a saved AI block: \`prompt, output, model\`.
+- **ai** — saved AI block: \`prompt, output, model\`.
+- **database** — embedded queryable collection: \`source, columns, filters, sort\`.
+
+> Container bricks (accordion/tabs/columns/form) NEVER inline their children — the child bricks are normal top-level bricks referenced by id inside \`childrenByContainer\`. Editing one means editing the referenced brick + the slot's id array.
 
 ## Mesh bricks (\`.km\`) — kind → content
 - **board_empty / frame** — \`{ isContainer:true, childOrder:[ids], label?, style? }\` (a container board).
@@ -110,18 +110,23 @@ A **meta-brick** is a \`portal\`/\`mirror\` whose \`content.unifierKind\` render
 - **Script**: \`{ id, name, triggerType, nodes:[{id,nodeKind,label,config,positionX,positionY}], edges:[{id,sourceNodeId,targetNodeId,sourceHandle,targetHandle}] }\` — \`nodeKind\` examples: \`core.trigger.manual\`, \`core.condition.regex_match\`, \`core.transform.template\`, \`core.logic.if_else\`, \`killio.action.create_card\`, \`killio.action.add_brick\`, \`core.action.http_request\`, \`core.action.js_code\`.
 
 ## Rich-text tokens (inside any brick \`markdown\`)
-Formatting: \`**bold**\`, \`*italic*\`, \`__underline__\`, \`~~strike~~\`, \`[color:#hex]text[/color]\`, \`[size:1.2rem]text[/size]\`. Standard markdown links \`[label](url)\` also render.
+**Formatting:** \`**bold**\`, \`*italic*\`, \`__underline__\`, \`~~strike~~\`, \`\`inline code\`\`, \`[link:url]label[/link]\` (also plain \`[label](url)\`).
+**Styling:** \`[color:#hex|name]text[/color]\`, \`[bg:#hex|name]text[/bg]\`, \`[size:1.2rem]text[/size]\`.
+**Blocks:** fenced \`\`\`lang … \`\`\` code, \`![alt](url)\` image, LaTeX \`$inline$\` and \`$$block$$\`.
 
 ### Reference pills — \`@[<kind>:<id>:<label>]\`
 Inline **@-mention** tokens that render as clickable pills. Keep them intact byte-for-byte; never rewrite the id.
-- \`@[doc:<id>:<Title>]\` — link to a document.
-- \`@[board:<id>:<Name>]\` — link to a board (\`.kb\`).
-- \`@[mesh:<id>:<Name>]\` — link to a mesh board (\`.km\`).
-- \`@[card:<id>:<Title>]\` — link to a card. \`@[user:<id>:<Name>]\` — mention a person.
-- **Deep value ref** \`@[doc:<id>:<brickId>:<A1|property>]\` — pulls a live cell/property *value* (not a link), e.g. a table cell.
-- **In a LOCAL workspace the \`<id>\` is the entity's relative file path** (e.g. \`@[doc:notes/plan.kd:Plan]\`), not a uuid — that is how offline refs resolve to \`/d|/b|/m/<path>\`.
+- \`@[doc:<id>:<Title>]\` document · \`@[board:<id>:<Name>]\` board · \`@[mesh:<id>:<Name>]\` mesh · \`@[card:<id>:<Title>]\` card · \`@[user:<id>:<Name>]\` person.
+- **In a LOCAL workspace the \`<id>\` is the entity's relative file path** (e.g. \`@[doc:notes/plan.kd:Plan]\`), not a uuid — that is how offline refs resolve to \`/d|/b|/m/<path>\`. \`<label>\` is display-only.
 
-The \`<label>\` is display-only; the \`<id>\` is what resolves. When writing new refs by hand, the picker normally generates them — copy an existing pill's shape.
+### Deep data tokens — pull LIVE values from another brick
+- \`$[<path>]\` — resolves to the actual **value** (inlined as text).
+- \`#[<path>]\` — a visual **pill** that previews that property.
+- **Path:** \`[entityType:scopeId:]brickId:selector[:args]\`
+  - \`entityType\`: \`doc|board|card|mesh\` (omit if same document). \`scopeId\`: the doc/board/card id (required when entityType present; in local workspaces = relative path).
+  - \`brickId\`: the target brick id, OR an alias \`brick1\`,\`brick2\`,… (Nth brick in scope).
+  - \`selector\`: \`text | title | body | cell | row | col | range | kind | json | raw\`. \`args\`: \`cell\`→\`A1\`, \`row\`→\`1\`, \`col\`→\`A\`, \`range\`→\`A1:B10\`.
+  - Examples: \`$[doc:plan.kd:brick1:title]\`, \`#[brick2:cell:B2]\`.
 
 See \`kml.md\` for the exact KAML grammar, every \`ShapePreset\`, and per-format examples.
 `;
