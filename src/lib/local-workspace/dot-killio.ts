@@ -80,6 +80,7 @@ One brick family; \`mediaType\`/extension picks the renderer. Local assets use \
 - **file** — any other download (pdf, docx, …); shows a download chip.
 - **bookmark** — \`url\` is a web link; renders a link card (\`mimeType:"text/html"\`).
 - **model3d** — a **3D model**: \`url\` ends in \`.glb\` or \`.gltf\` (or \`mimeType:"model/gltf-binary"\`). Prefer **\`.glb\`** — a single file embedding geometry + textures + materials, so it works identically for \`asset:\` and \`/uploads/\` refs. Renders interactive (orbit / zoom / auto-rotate) via \`<model-viewer>\`. The carousel \`caption\` may pack layout/border/shadow as \`__media_meta_v1__:{…}\` — keep it intact.
+- **widget** — a runnable **code widget** (\`kind:"widget"\` / \`mediaType:"widget"\`). Extra content fields: \`code\` (the source string), \`widgetLang: html|js|ts|jsx|tsx\`, \`widgetArgs\` (an object passed to the function). Contract: \`html\` renders verbatim; \`js\`/\`ts\` export \`default (args) => htmlString\`; \`tsx\`/\`jsx\` export \`default (args) => ReactElement\`. Source may also come from an uploaded \`.html/.js/.ts/.tsx\` asset via \`url\`. Runs inside a **sandboxed iframe** (no app/session access). When editing, keep \`code\` and \`widgetArgs\` valid; \`widgetArgs\` must be JSON-serializable.
 
 ### Specialized (mostly online)
 - **form** — \`fields:[{ id, type, label, required }]\`, \`submitLabel\`, \`action\`.

@@ -6,6 +6,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { isAssetRef, readAssetFile } from "@/lib/local-workspace/assets";
 import { getImageUrl } from "@/lib/image-cache";
+import { WidgetBrick } from "./widget-brick";
+import { isWidgetUrl } from "@/lib/widget-sandbox";
 
 // Resolve any `asset:<name>` refs in the given urls to displayable URLs via the
 // global image cache (deduped + pooled, no per-render objectURL churn). In cloud
@@ -221,6 +223,23 @@ export const UnifiedMediaBrick: React.FC<{
     return url;
   };
 
+  // Code widget (HTML/JS/TS/TSX) — a distinct asset type that runs sandboxed.
+  // Delegated to its own component (inline-code editor + iframe sandbox).
+  const widgetActive = isWidgetUrl(
+    activeItem?.url, mime, content.mediaType as string, kind,
+    typeof content.code === "string" && !!content.code,
+  );
+  if (widgetActive) {
+    return (
+      <WidgetBrick
+        content={content as Record<string, any>}
+        canEdit={canEdit}
+        onUpdate={(next) => onUpdate(next)}
+        layout={layout}
+      />
+    );
+  }
+
   const getContainerClassName = () => {
     let classes = "relative group flex flex-col my-4 ";
     if (layout === "left") classes += "items-start ";
@@ -303,7 +322,7 @@ export const UnifiedMediaBrick: React.FC<{
                     <input
                       type="file"
                       multiple
-                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.glb,.gltf,model/gltf-binary"}
+                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.glb,.gltf,model/gltf-binary,.html,.htm,.js,.mjs,.ts,.tsx,.jsx"}
                       className="hidden"
                       onChange={(event) => {
                         const files = Array.from(event.target.files || []);

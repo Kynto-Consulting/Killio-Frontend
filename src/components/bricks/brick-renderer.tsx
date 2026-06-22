@@ -381,6 +381,7 @@ export function UnifiedBrickRenderer({
     case 'video':
     case 'audio':
     case 'bookmark':
+    case 'widget':
     case 'file': {
       brickBody = (
         <UnifiedMediaBrick
