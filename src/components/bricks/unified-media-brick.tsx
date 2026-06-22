@@ -36,6 +36,54 @@ function useResolvedAssetMap(urls: string[]): Record<string, string> {
   return map;
 }
 
+// ── 3D model (.glb/.gltf) support ─────────────────────────────────────────
+// glB bundles geometry + textures + materials in ONE file, so it works
+// identically for cloud (`/uploads/...`) and local-workspace (`asset:`) refs —
+// no sidecar files to resolve. Rendered with Google's <model-viewer> web
+// component (orbit / pinch-zoom / auto-rotate), lazy-loaded from CDN so it adds
+// zero bundle weight and is SSR-safe (only touches the DOM in an effect).
+let modelViewerRequested = false;
+function ensureModelViewer() {
+  if (typeof window === "undefined" || modelViewerRequested) return;
+  if (window.customElements?.get?.("model-viewer")) { modelViewerRequested = true; return; }
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = "https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js";
+  document.head.appendChild(s);
+  modelViewerRequested = true;
+}
+
+function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; full?: boolean }) {
+  React.useEffect(() => { ensureModelViewer(); }, []);
+  // Use createElement so we don't need a global JSX intrinsic-element typing;
+  // props cast to any because model-viewer's custom attributes aren't in
+  // React's HTMLAttributes.
+  return React.createElement("model-viewer", {
+    src,
+    alt: alt || "3D model",
+    "camera-controls": true,
+    "auto-rotate": true,
+    "touch-action": "pan-y",
+    "shadow-intensity": "1",
+    exposure: "1",
+    "interaction-prompt": "none",
+    loading: "eager",
+    style: {
+      width: full ? "100%" : "min(100%, 540px)",
+      height: full ? "70vh" : "420px",
+      background: "transparent",
+      ["--poster-color" as any]: "transparent",
+    },
+  } as any);
+}
+
+const is3DUrl = (url?: string | null, mime?: string | null, mediaType?: string | null, kind?: string) =>
+  mime === "model/gltf-binary" ||
+  mime === "model/gltf+json" ||
+  /\.(glb|gltf)(\?|#|$)/i.test(url || "") ||
+  mediaType === "model3d" ||
+  kind === "model3d";
+
 export type MediaCarouselItem = {
   url: string;
   title?: string | null;
@@ -140,6 +188,7 @@ export const UnifiedMediaBrick: React.FC<{
   const isVideo = mime.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(activeItem?.url || "") || content.mediaType === "video" || kind === "video";
   const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "") || content.mediaType === "audio" || kind === "audio";
   const isWebBookmark = content.mediaType === "bookmark" || kind === "bookmark" || mime === "text/html";
+  const is3D = is3DUrl(activeItem?.url, mime, content.mediaType, kind);
 
   const updateMeta = (nextMeta: MediaMeta, nextIndex = 0) => {
     const first = nextMeta.items[0];
@@ -213,6 +262,10 @@ export const UnifiedMediaBrick: React.FC<{
                 <div className="text-xs text-muted-foreground truncate opacity-80">{activeItem.url}</div>
               </div>
             </a>
+          ) : is3D ? (
+            <div className={`flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5 ${layout === "full" ? "w-full" : "w-auto mx-auto"}`}>
+              <ModelViewer src={resolveUrl(activeItem.url)} alt={activeItem.title || content.title} full={layout === "full"} />
+            </div>
           ) : isVideo ? (
             <video src={resolveUrl(activeItem.url)} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
           ) : isAudio ? (
@@ -250,7 +303,7 @@ export const UnifiedMediaBrick: React.FC<{
                     <input
                       type="file"
                       multiple
-                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"}
+                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.glb,.gltf,model/gltf-binary"}
                       className="hidden"
                       onChange={(event) => {
                         const files = Array.from(event.target.files || []);
