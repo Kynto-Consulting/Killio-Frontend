@@ -112,6 +112,40 @@ ${reactTags}
 </script></body></html>`;
 }
 
+// ── Local asset resolution ────────────────────────────────────────────────
+// A widget runs in a null-origin sandboxed iframe, so it can't load files from
+// the user's local workspace by name (`<img src="hola.png">` resolves to nothing).
+// We rewrite any asset reference — `asset:hola.png` or a bare `hola.png` /
+// `./img/hola.png` with a known media extension — to an inline data: URI before
+// injecting, so local textures "just work" both online and offline.
+const ASSET_EXT = "png|jpe?g|gif|webp|avif|bmp|ico|svg|mp3|wav|ogg|m4a|mp4|webm|glb|gltf";
+const ASSET_TOKEN_RE = new RegExp(
+  `asset:([A-Za-z0-9_\\-./]+)|([A-Za-z0-9_\\-./]+\\.(?:${ASSET_EXT}))`,
+  "gi",
+);
+
+/** The flat asset filename for a token (basename, prefix/path stripped). */
+const assetBasename = (raw: string) => raw.replace(/^asset:/i, "").split(/[\\/]/).pop() || raw;
+
+/** Collect the distinct asset filenames referenced in a widget's code/args. */
+export function collectWidgetAssetNames(text: string): string[] {
+  const out = new Set<string>();
+  if (!text) return [];
+  for (const m of text.matchAll(ASSET_TOKEN_RE)) {
+    out.add(assetBasename(m[1] ?? m[2] ?? ""));
+  }
+  return [...out].filter(Boolean);
+}
+
+/** Replace every asset token with its resolved URL (data: URI) from the map. */
+export function applyWidgetAssetMap(text: string, map: Record<string, string>): string {
+  if (!text) return text;
+  return text.replace(ASSET_TOKEN_RE, (full, a?: string, b?: string) => {
+    const name = assetBasename(a ?? b ?? "");
+    return map[name] || full;
+  });
+}
+
 /** Starter snippets shown when a new widget brick is created, per language. */
 export function widgetStarter(lang: WidgetLang): string {
   switch (lang) {

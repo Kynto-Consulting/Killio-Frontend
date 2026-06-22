@@ -8,6 +8,8 @@ import {
   buildWidgetSrcdoc,
   widgetLangFrom,
   widgetStarter,
+  collectWidgetAssetNames,
+  applyWidgetAssetMap,
   type WidgetLang,
 } from "@/lib/widget-sandbox";
 
@@ -101,10 +103,41 @@ export function WidgetBrick({
     setEditing(false);
   };
 
-  const srcdoc = React.useMemo(
-    () => (code ? buildWidgetSrcdoc({ lang, code, args }) : ""),
-    [lang, code, args],
-  );
+  // Resolve local-workspace asset references (`asset:hola.png` or a bare
+  // `hola.png`) to inline data: URIs so textures load inside the null-origin
+  // sandbox. Cloud (/uploads, absolute) URLs are left as-is (they load over the
+  // network). Async (reads files), so the srcdoc lands via state.
+  const [srcdoc, setSrcdoc] = React.useState("");
+  React.useEffect(() => {
+    let cancelled = false;
+    if (!code) { setSrcdoc(""); return; }
+    (async () => {
+      const argsStr = JSON.stringify(args);
+      const names = collectWidgetAssetNames(code + " " + argsStr);
+      const dir = names.length ? getDir() : null;
+      const map: Record<string, string> = {};
+      if (dir) {
+        await Promise.all(names.map(async (name) => {
+          try {
+            const file = await readAssetFile(dir, name);
+            const data: string = await new Promise((res, rej) => {
+              const r = new FileReader();
+              r.onload = () => res(String(r.result));
+              r.onerror = () => rej(r.error);
+              r.readAsDataURL(file);
+            });
+            map[name] = data;
+          } catch { /* leave unresolved */ }
+        }));
+      }
+      const rCode = applyWidgetAssetMap(code, map);
+      let rArgs = args;
+      try { rArgs = JSON.parse(applyWidgetAssetMap(argsStr, map)); } catch { /* keep */ }
+      const doc = buildWidgetSrcdoc({ lang, code: rCode, args: rArgs });
+      if (!cancelled) setSrcdoc(doc);
+    })();
+    return () => { cancelled = true; };
+  }, [lang, code, args, getDir]);
 
   // ── Editor ──────────────────────────────────────────────────────────────
   if (editing) {
