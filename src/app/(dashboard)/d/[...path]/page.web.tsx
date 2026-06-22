@@ -30,6 +30,7 @@ import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalDocument, resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { applyTablePatch } from "@/lib/local-workspace/table-patch";
+import { normalizeBountifulContent } from "@/lib/bricks/normalize-bountiful";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
@@ -110,10 +111,16 @@ export default function DocumentPage() {
     // Keep one brick per id to prevent optimistic-create + realtime duplicates.
     const deduped = Array.from(new Map(bricks.map((brick) => [brick.id, brick])).values());
     const ids = new Set(deduped.map((brick) => brick.id));
-    return deduped.map((brick) => ({
-      ...brick,
-      content: sanitizeChildrenByContainer(brick.content || {}, ids),
-    }));
+    return deduped.map((brick) => {
+      let content = sanitizeChildrenByContainer(brick.content || {}, ids);
+      // Canonicalize beautiful_table content (string columns / array rows →
+      // {id,name,type} columns + {id,cells} rows) so cell patches match by id
+      // and persist. Without this an AI/legacy table looks locked/uneditable.
+      if (brick.kind === "beautiful_table") {
+        content = normalizeBountifulContent(content).content;
+      }
+      return { ...brick, content };
+    });
   }, []);
 
   // ── Local persistence seam ──────────────────────────────────────────────────
@@ -1641,8 +1648,10 @@ export default function DocumentPage() {
     );
   }
 
-  const canEdit = document.role === 'owner' || document.role === 'editor';
-  const canManageDocument = document.role === 'owner';
+  // In a LOCAL workspace the file lives on the user's own disk — they always own
+  // it, so it's always editable (the doc may not carry a server 'role').
+  const canEdit = localMode || document.role === 'owner' || document.role === 'editor';
+  const canManageDocument = localMode || document.role === 'owner';
 
   // Build breadcrumb path
   const getBreadcrumbs = () => {
