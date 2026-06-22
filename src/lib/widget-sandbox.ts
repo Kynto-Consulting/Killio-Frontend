@@ -63,17 +63,52 @@ const escapeForScript = (s: string) => JSON.stringify(s ?? "");
  * Build the full HTML document to drop into an iframe's `srcdoc`.
  * Pure + deterministic (no Date/Math.random) so it's safe in any environment.
  */
+// Inlined into the sandbox: resolves `asset:<name>` refs to data: URIs from the
+// embedded map, AFTER the widget renders (so args are evaluated and dynamically
+// built markup is covered too), then keeps watching the DOM for new nodes.
+const ASSET_RUNTIME = `
+(function(){
+  var MAP = window.__KA__ || {};
+  function base(v){ return String(v).replace(/^asset:/i,'').split(/[\\\\/]/).pop(); }
+  function res(v){ if(!v) return v; var i=v.indexOf('asset:'); if(i<0) return v;
+    return v.replace(/asset:[A-Za-z0-9_\\-.\\/]+/g, function(m){ var d=MAP[base(m)]; return d||m; }); }
+  window.kasset = function(n){ return MAP[base(n)] || n; };
+  function sweep(rootEl){
+    if(!rootEl||!rootEl.querySelectorAll) return;
+    var els = rootEl.querySelectorAll('[src],[href],[poster],[style]');
+    for(var i=0;i<els.length;i++){ var el=els[i];
+      ['src','href','poster'].forEach(function(a){ var v=el.getAttribute&&el.getAttribute(a);
+        if(v&&v.indexOf('asset:')===0){ var d=MAP[base(v)]; if(d) el.setAttribute(a,d); } });
+      var st=el.getAttribute&&el.getAttribute('style'); if(st&&st.indexOf('asset:')>-1) el.setAttribute('style',res(st));
+    }
+  }
+  window.__ksweep__ = sweep;
+  function go(){ sweep(document.body);
+    try{ new MutationObserver(function(ms){ for(var i=0;i<ms.length;i++){ var an=ms[i].addedNodes; for(var j=0;j<an.length;j++) sweep(an[j]); if(ms[i].type==='attributes') sweep(ms[i].target); } })
+      .observe(document.body,{childList:true,subtree:true,attributes:true,attributeFilter:['src','href','poster','style']}); }catch(e){}
+  }
+  if(document.body) go(); else document.addEventListener('DOMContentLoaded', go);
+})();`;
+
 export function buildWidgetSrcdoc(opts: {
   lang: WidgetLang;
   code: string;
   args?: Record<string, unknown> | null;
+  /** name → data: URI map for local-workspace assets referenced by the widget. */
+  assets?: Record<string, string> | null;
   /** background: "transparent" (default) or a CSS color for the widget canvas. */
   background?: string;
 }): string {
-  const { lang, code, args, background = "transparent" } = opts;
+  const { lang, code, args, assets, background = "transparent" } = opts;
+  const assetsJson = escapeForScript(JSON.stringify(assets ?? {}));
 
-  // Pure HTML widgets need no toolchain — host the source directly.
-  if (lang === "html") return code;
+  // Pure HTML widgets need no toolchain — host the source directly, but still
+  // run the asset runtime so `asset:` refs in the HTML resolve.
+  if (lang === "html") {
+    return `<!doctype html><html><head><meta charset="utf-8">
+<script>window.__KA__=JSON.parse(${assetsJson});</script></head><body>${code}
+<script>${ASSET_RUNTIME}</script></body></html>`;
+  }
 
   const needsReact = lang === "tsx" || lang === "jsx";
   const presets = needsReact ? "['typescript','react']" : "['typescript']";
@@ -86,6 +121,7 @@ export function buildWidgetSrcdoc(opts: {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;padding:0;background:${background};font-family:system-ui,-apple-system,sans-serif;color:#111}
 .k-werr{color:#b00020;background:#fff0f0;padding:12px;margin:0;white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace}</style>
+<script>window.__KA__=JSON.parse(${assetsJson});</script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
 ${reactTags}
 </head><body><div id="root"></div>
@@ -109,6 +145,7 @@ ${reactTags}
       : `root.innerHTML = (out == null ? '' : String(out));`}
   } catch (e) { fail(e); }
 })();
+${ASSET_RUNTIME}
 </script></body></html>`;
 }
 

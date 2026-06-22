@@ -9,7 +9,6 @@ import {
   widgetLangFrom,
   widgetStarter,
   collectWidgetAssetNames,
-  applyWidgetAssetMap,
   type WidgetLang,
 } from "@/lib/widget-sandbox";
 
@@ -130,10 +129,9 @@ export function WidgetBrick({
           } catch { /* leave unresolved */ }
         }));
       }
-      const rCode = applyWidgetAssetMap(code, map);
-      let rArgs = args;
-      try { rArgs = JSON.parse(applyWidgetAssetMap(argsStr, map)); } catch { /* keep */ }
-      const doc = buildWidgetSrcdoc({ lang, code: rCode, args: rArgs });
+      // Pass the asset map into the sandbox; it resolves `asset:` refs AFTER the
+      // widget runs (args evaluated, dynamic markup produced) + on DOM mutations.
+      const doc = buildWidgetSrcdoc({ lang, code, args, assets: map });
       if (!cancelled) setSrcdoc(doc);
     })();
     return () => { cancelled = true; };
