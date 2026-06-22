@@ -114,6 +114,13 @@ A **meta-brick** is a \`portal\`/\`mirror\` whose \`content.unifierKind\` render
 **Styling:** \`[color:#hex|name]text[/color]\`, \`[bg:#hex|name]text[/bg]\`, \`[size:1.2rem]text[/size]\`.
 **Blocks:** fenced \`\`\`lang … \`\`\` code, \`![alt](url)\` image, LaTeX \`$inline$\` and \`$$block$$\`.
 
+### Live diagram / chart fences (inside any text \`markdown\`)
+Certain fenced-code languages are NOT shown as code — they render as a **live diagram or chart** using Killio's own renderers. Write them as a normal fenced block in a text brick:
+- \`\`\`\`mermaid\`\`\` (or \`mmd\`) — Mermaid. Flow/sequence/class/state diagrams render as a mini **mesh**; chart-type Mermaid (\`pie\`, \`bar\`, \`radar\`, …) renders as a native **chart** (SVG).
+- \`\`\`\`grarkdown\`\`\` (or \`grark\`) — **Grarkdown**, Killio's terse graph-markup → rendered as a mesh diagram.
+- \`\`\`\`erDiagram\`\`\` (or \`erd\`/\`er\`) — entity-relationship diagram → mesh.
+Any other \`lang\` stays a normal syntax-highlighted code block. Unparseable diagram source falls back to plain code, so it's safe to use.
+
 ### Reference pills — \`@[<kind>:<id>:<label>]\`
 Inline **@-mention** tokens that render as clickable pills. Keep them intact byte-for-byte; never rewrite the id.
 - \`@[doc:<id>:<Title>]\` document · \`@[board:<id>:<Name>]\` board · \`@[mesh:<id>:<Name>]\` mesh · \`@[card:<id>:<Title>]\` card · \`@[user:<id>:<Name>]\` person.
