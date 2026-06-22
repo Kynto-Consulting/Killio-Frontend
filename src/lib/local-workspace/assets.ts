@@ -77,6 +77,51 @@ export async function readAssetFile(dir: DirHandle, name: string): Promise<File>
   return fileHandle.getFile();
 }
 
+/** List every asset filename in <workspace>/assets/ (empty if none). */
+export async function listAssetNames(dir: DirHandle): Promise<string[]> {
+  try {
+    const assets = await getAssetsDir(dir, false);
+    const names: string[] = [];
+    // FileSystemDirectoryHandle is async-iterable; types lag, so cast.
+    for await (const [name, handle] of assets as unknown as AsyncIterable<[string, { kind: string }]>) {
+      if (handle.kind === "file") names.push(name);
+    }
+    return names;
+  } catch { return []; }
+}
+
+const fileToDataUrl = (file: File): Promise<string> =>
+  new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = () => rej(r.error);
+    r.readAsDataURL(file);
+  });
+
+/**
+ * Read EVERY asset in <workspace>/assets/ as a { name → data: URI } map. Used by
+ * widgets, whose markup may reference assets by dynamically-built names we can't
+ * statically scan — so we hand the sandbox the whole set. `max` caps total bytes
+ * to avoid embedding a huge folder (default ~24MB).
+ */
+export async function readAllAssetsAsDataUrls(
+  dir: DirHandle,
+  max = 24 * 1024 * 1024,
+): Promise<Record<string, string>> {
+  const map: Record<string, string> = {};
+  const names = await listAssetNames(dir);
+  let total = 0;
+  for (const name of names) {
+    try {
+      const file = await readAssetFile(dir, name);
+      total += file.size;
+      if (total > max) break;
+      map[name] = await fileToDataUrl(file);
+    } catch { /* skip unreadable */ }
+  }
+  return map;
+}
+
 /** Resolve an `asset:` ref to a blob object URL for display. Caller revokes it. */
 export async function resolveAssetUrl(dir: DirHandle, ref: string): Promise<string> {
   const file = await readAssetFile(dir, assetNameFromRef(ref));

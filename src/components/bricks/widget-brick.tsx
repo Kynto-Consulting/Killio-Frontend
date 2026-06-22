@@ -3,12 +3,11 @@
 import React from "react";
 import { Code2, Play, Pencil, AlertTriangle, Settings2 } from "lucide-react";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { assetNameFromRef, readAssetFile } from "@/lib/local-workspace/assets";
+import { assetNameFromRef, readAssetFile, readAllAssetsAsDataUrls } from "@/lib/local-workspace/assets";
 import {
   buildWidgetSrcdoc,
   widgetLangFrom,
   widgetStarter,
-  collectWidgetAssetNames,
   type WidgetLang,
 } from "@/lib/widget-sandbox";
 
@@ -111,24 +110,11 @@ export function WidgetBrick({
     let cancelled = false;
     if (!code) { setSrcdoc(""); return; }
     (async () => {
-      const argsStr = JSON.stringify(args);
-      const names = collectWidgetAssetNames(code + " " + argsStr);
-      const dir = names.length ? getDir() : null;
-      const map: Record<string, string> = {};
-      if (dir) {
-        await Promise.all(names.map(async (name) => {
-          try {
-            const file = await readAssetFile(dir, name);
-            const data: string = await new Promise((res, rej) => {
-              const r = new FileReader();
-              r.onload = () => res(String(r.result));
-              r.onerror = () => rej(r.error);
-              r.readAsDataURL(file);
-            });
-            map[name] = data;
-          } catch { /* leave unresolved */ }
-        }));
-      }
+      // Widgets often build asset names dynamically (`asset:${id}.png`), so a
+      // static scan can miss them. Read the WHOLE local assets/ folder into a
+      // { name → data: URI } map and let the sandbox resolve any `asset:` ref.
+      const dir = getDir();
+      const map: Record<string, string> = dir ? await readAllAssetsAsDataUrls(dir) : {};
       // Pass the asset map into the sandbox; it resolves `asset:` refs AFTER the
       // widget runs (args evaluated, dynamic markup produced) + on DOM mutations.
       const doc = buildWidgetSrcdoc({ lang, code, args, assets: map });
