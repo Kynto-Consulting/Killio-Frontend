@@ -34,7 +34,33 @@ interface RichTextProps {
 // read-only meshboard renderer (PublicMeshCanvas) so it matches the actual board
 // output. The i18n/session hooks fall back to safe defaults outside a provider,
 // so this works even when mounted into a detached React root (text brick).
+// Convert a SINGLE-LINE fenced block — ```lang body``` with the lang, body and
+// closing fence all on one line — into the canonical multi-line form the block
+// splitter expects (```lang\nbody\n```). Multi-line fences (a newline right after
+// the lang) are left untouched because the lang here must be followed by spaces,
+// not a newline. Lets users paste a whole ```mermaid …``` on one line.
+export function normalizeSingleLineFences(src: string): string {
+  return src.replace(
+    /```([A-Za-z0-9_[\]-]+)[ \t]+([^\n]*?)[ \t]*```/g,
+    (_m, lang: string, body: string) => "```" + lang + "\n" + body.trim() + "\n```",
+  );
+}
+
+// A Mermaid flowchart squished onto one line ("flowchart TD A[..] --> B[..] B -->
+// C[..]") has no newlines, but the parser splits on \n. Re-insert breaks: after
+// the direction header, and before each new statement (a node id that starts a
+// fresh edge right after a previous node's closing bracket).
+export function normalizeInlineMermaid(code: string): string {
+  if (/\n/.test(code.trim())) return code; // already multi-line — leave it
+  return code
+    // header: `flowchart TD <rest>` / `graph LR <rest>` → break after direction
+    .replace(/^(\s*(?:flowchart|graph)\s+(?:TD|TB|BT|LR|RL))\s+/i, "$1\n")
+    // statement boundary: `]`/`)`/`}` then an id that begins a new edge (id --)
+    .replace(/([\]\)}])\s+(?=[A-Za-z0-9_]+\s*(?:--|==|-\.))/g, "$1\n");
+}
+
 export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
+  code = /^(grarkdown|grark)$/i.test(lang) ? code : normalizeInlineMermaid(code);
   // Chart-type mermaid fences (pie/bar/radar/…) render as a native ChartBrick
   // SVG — no detached canvas, no providers, no exploded primitives.
   try {
@@ -122,6 +148,7 @@ export function RichText({
   }, [context]);
 
   if (!content) return null;
+  content = normalizeSingleLineFences(content);
 
   const stripWrappedBold = (value: string): string => {
     const trimmed = value.trim();
