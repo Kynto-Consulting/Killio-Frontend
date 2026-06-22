@@ -13,7 +13,7 @@ import { logLocalActivity } from "@/lib/local-workspace/local-activity";
 import { makeEnvelope, writeBricksToDataTransfer, ensureClipboardChannel, type ClipboardBrick } from "@/lib/clipboard/brick-clipboard";
 import { bricksToMarkdown, bricksToHtml } from "@/lib/clipboard/brick-serialize";
 import { bricksFromClipboardEvent } from "@/lib/clipboard/brick-deserialize";
-import { writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
+import { writeAsset, assetFilenameForFile, makeAssetRef } from "@/lib/local-workspace/assets";
 import type { BoardBrick, BrickMutationInput, ActivityLogEntry } from "../../lib/api/contracts";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { useSession } from "../providers/session-provider";
@@ -168,7 +168,7 @@ export function CardDetailModal({
     if (!localMode) return apiUploadFile(file, tok, opts);
     const dir = localWs.getDir();
     if (!dir) throw new Error("No local workspace folder");
-    const name = assetFilename(file.type, genCardId());
+    const name = assetFilenameForFile(file, genCardId());
     await writeAsset(dir, name, file);
     return { key: name, url: makeAssetRef(name), isPrivate: false } as any;
   }, [localMode, localWs]);

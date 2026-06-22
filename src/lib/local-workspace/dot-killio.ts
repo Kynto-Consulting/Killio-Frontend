@@ -53,16 +53,39 @@ guide to read and edit it like a Killio agent would.
 4. Preserve the \`#killio\` header + KAML shape. Don't rename ids. The authoritative kind is the **brick-level \`kind\`** (a redundant \`content.kind\` may also appear — keep them in sync).
 
 ## Document bricks (\`.kd\` + card blocks in \`.kb\`)
-\`content\` fields per \`kind\`:
-- **text** — \`markdown\`; \`displayStyle: paragraph|heading|checklist|quote|code|callout\`.
-- **checklist** — \`items: [{id,label,checked}]\`.
-- **quote / callout** — \`markdown\`.  **divider** — (no fields).
-- **table** — \`rows: string[][]\`, \`title?\`.
-- **beautiful_table** — \`title, columns[], rows[], views[]\`.
-- **graph** — \`type: line|bar|pie\`, \`data[]\`, \`title\`.
-- **accordion** — \`title, body, isExpanded\`.  **tabs** — \`tabs:[{id,label,content?}]\`.  **columns** — \`columns:[{id}]\`. (container bricks use \`childrenByContainer\`.)
-- **media / image / video / audio / file / bookmark** — \`mediaType, title, url, mimeType, sizeBytes, caption\` (local assets: \`url = "asset:<name>"\`).
-- **form, payment, popup_document, ai, math, code, database** — online/specialized (payment: \`amount, currency, provider, status\`).
+The brick-level \`kind\` is authoritative. \`content\` fields per \`kind\`:
+
+### Text & structure
+- **text** — \`markdown\` (rich-text tokens below). \`displayStyle: paragraph|heading|checklist|quote|code|callout\` picks how the same markdown renders. Headings also read \`level: 1..4\`.
+- **checklist** — \`items: [{ id, label, checked:boolean }]\`. Order = array order.
+- **quote** — \`markdown\` (rendered as a blockquote). **callout** — \`markdown\` + optional \`tone: info|warn|success|danger\`, \`emoji\`.
+- **divider** — no fields (a horizontal rule).
+- **code** — \`code\` (the source string), \`language\` (e.g. \`ts\`, \`py\`), optional \`filename\`.
+- **math** — \`latex\` (a KaTeX/LaTeX expression).
+
+### Data
+- **table** — simple grid: \`rows: string[][]\` (row 0 = header), optional \`title\`.
+- **beautiful_table** — database-grade: \`title\`, \`columns: [{ id, name, type:text|number|select|date|check|…, options? }]\`, \`rows: [{ id, cells:{ <columnId>: value } }]\`, \`views: [{ id, type:table|board|gallery|calendar|list, … }]\`.
+- **graph** — \`type: line|bar|pie\`, \`data: [{ label, value }]\` (or series), \`title\`.
+- **database** — embedded queryable collection (online): \`source, columns, filters, sort\`.
+
+### Containers (hold other bricks via \`childrenByContainer: { <slotId>: [brickId,…] }\`)
+- **accordion** — \`title\`, \`isExpanded:boolean\`; body bricks live in \`childrenByContainer\`.
+- **tabs** — \`tabs: [{ id, label }]\`; each tab id is a child slot.
+- **columns** — \`columns: [{ id, width? }]\`; each column id is a child slot.
+
+### Media — \`mediaType, title, url, mimeType, sizeBytes, caption\`
+One brick family; \`mediaType\`/extension picks the renderer. Local assets use \`url = "asset:<name>"\` (the bytes live next to the file); cloud assets use \`url = "/uploads/…"\` or an absolute URL.
+- **image** — png/jpg/gif/webp/svg. **video** — mp4/webm/mov. **audio** — mp3/wav/ogg.
+- **file** — any other download (pdf, docx, …); shows a download chip.
+- **bookmark** — \`url\` is a web link; renders a link card (\`mimeType:"text/html"\`).
+- **model3d** — a **3D model**: \`url\` ends in \`.glb\` or \`.gltf\` (or \`mimeType:"model/gltf-binary"\`). Prefer **\`.glb\`** — a single file embedding geometry + textures + materials, so it works identically for \`asset:\` and \`/uploads/\` refs. Renders interactive (orbit / zoom / auto-rotate) via \`<model-viewer>\`. The carousel \`caption\` may pack layout/border/shadow as \`__media_meta_v1__:{…}\` — keep it intact.
+
+### Specialized (mostly online)
+- **form** — \`fields:[{ id, type, label, required }]\`, \`submitLabel\`, \`action\`.
+- **payment** — \`amount, currency, provider, status\`.
+- **popup_document** — \`targetDocId, label\` (opens a doc in a modal).
+- **ai** — a saved AI block: \`prompt, output, model\`.
 
 ## Mesh bricks (\`.km\`) — kind → content
 - **board_empty / frame** — \`{ isContainer:true, childOrder:[ids], label?, style? }\` (a container board).
@@ -85,8 +108,19 @@ A **meta-brick** is a \`portal\`/\`mirror\` whose \`content.unifierKind\` render
 - **Board**: \`{ id, name, boardType, lists:[{id,name,cards:[{id,title,status,position,tags,blocks[]}]}] }\` — \`blocks\` are document bricks (same set above).
 - **Script**: \`{ id, name, triggerType, nodes:[{id,nodeKind,label,config,positionX,positionY}], edges:[{id,sourceNodeId,targetNodeId,sourceHandle,targetHandle}] }\` — \`nodeKind\` examples: \`core.trigger.manual\`, \`core.condition.regex_match\`, \`core.transform.template\`, \`core.logic.if_else\`, \`killio.action.create_card\`, \`killio.action.add_brick\`, \`core.action.http_request\`, \`core.action.js_code\`.
 
-## Rich-text tokens (inside any brick markdown)
-\`**bold**\`, \`*italic*\`, \`__underline__\`, \`~~strike~~\`, \`[color:#hex]text[/color]\`, \`[size:1.2rem]text[/size]\`. Reference pills + tags are inline tokens — keep them intact.
+## Rich-text tokens (inside any brick \`markdown\`)
+Formatting: \`**bold**\`, \`*italic*\`, \`__underline__\`, \`~~strike~~\`, \`[color:#hex]text[/color]\`, \`[size:1.2rem]text[/size]\`. Standard markdown links \`[label](url)\` also render.
+
+### Reference pills — \`@[<kind>:<id>:<label>]\`
+Inline **@-mention** tokens that render as clickable pills. Keep them intact byte-for-byte; never rewrite the id.
+- \`@[doc:<id>:<Title>]\` — link to a document.
+- \`@[board:<id>:<Name>]\` — link to a board (\`.kb\`).
+- \`@[mesh:<id>:<Name>]\` — link to a mesh board (\`.km\`).
+- \`@[card:<id>:<Title>]\` — link to a card. \`@[user:<id>:<Name>]\` — mention a person.
+- **Deep value ref** \`@[doc:<id>:<brickId>:<A1|property>]\` — pulls a live cell/property *value* (not a link), e.g. a table cell.
+- **In a LOCAL workspace the \`<id>\` is the entity's relative file path** (e.g. \`@[doc:notes/plan.kd:Plan]\`), not a uuid — that is how offline refs resolve to \`/d|/b|/m/<path>\`.
+
+The \`<label>\` is display-only; the \`<id>\` is what resolves. When writing new refs by hand, the picker normally generates them — copy an existing pill's shape.
 
 See \`kml.md\` for the exact KAML grammar, every \`ShapePreset\`, and per-format examples.
 `;

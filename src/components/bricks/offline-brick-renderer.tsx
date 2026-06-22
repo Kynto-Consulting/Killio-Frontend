@@ -13,7 +13,7 @@ import type { BoardSummary } from "@/lib/api/contracts";
 import { UnifiedBrickRenderer } from "@/components/bricks/brick-renderer";
 import { localDocsForPicker, localBoardsForPicker } from "@/lib/local-workspace/local-references";
 import { offlineBrickSupport } from "@/lib/local-workspace/offline-bricks";
-import { isAssetRef, resolveAssetUrl, writeAsset, assetFilename, makeAssetRef } from "@/lib/local-workspace/assets";
+import { isAssetRef, resolveAssetUrl, writeAsset, assetFilenameForFile, makeAssetRef } from "@/lib/local-workspace/assets";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { uploadFilesAsMediaItems, parseMediaMeta, buildMediaCaption, type MediaCarouselItem } from "@/lib/media-bricks";
 
@@ -79,7 +79,7 @@ export function OfflineBrickRenderer({ brick, canEdit = false, onUpdate }: Offli
       accessToken: "offline",
       allowLocalBlobFallback: false,
       uploadFile: async (file: File) => {
-        const name = assetFilename(file.type, (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}`);
+        const name = assetFilenameForFile(file, (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}`);
         await writeAsset(dir, name, file);
         return { key: name, url: makeAssetRef(name), isPrivate: false };
       },

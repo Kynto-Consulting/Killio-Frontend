@@ -11,6 +11,8 @@ const MIME_TO_EXT: Record<string, string> = {
   "image/png": "png", "image/jpeg": "jpg", "image/jpg": "jpg", "image/gif": "gif",
   "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif",
   "application/pdf": "pdf", "video/mp4": "mp4", "audio/mpeg": "mp3", "audio/wav": "wav",
+  // 3D models — keep the .glb/.gltf extension so the media brick can detect them.
+  "model/gltf-binary": "glb", "model/gltf+json": "gltf",
 };
 
 export function extFromMime(mime: string): string {
@@ -20,6 +22,19 @@ export function extFromMime(mime: string): string {
 /** Build a stable asset filename `<id>.<ext>` from a mime type. Pure. */
 export function assetFilename(mime: string, id: string): string {
   return `${id}.${extFromMime(mime)}`;
+}
+
+/**
+ * Like assetFilename but prefers the file's OWN extension when the mime is
+ * unknown/empty (browsers often report no mime for `.glb`/`.gltf` and other
+ * less-common types). Keeps the real extension so extension-based renderers
+ * (e.g. the 3D model brick) still work, instead of falling back to `.bin`.
+ */
+export function assetFilenameForFile(file: { name?: string; type?: string }, id: string): string {
+  const fromMime = extFromMime(file.type ?? "");
+  if (fromMime !== "bin") return `${id}.${fromMime}`;
+  const m = /\.([a-z0-9]{1,8})$/i.exec(file.name ?? "");
+  return `${id}.${m ? m[1].toLowerCase() : "bin"}`;
 }
 
 export function makeAssetRef(name: string): string {
