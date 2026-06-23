@@ -139,6 +139,18 @@ export async function createDocument(
   });
 }
 
+/** Bulk-create many documents (optionally public) in ONE request. */
+export async function createDocumentsBatch(
+  documents: Array<{ teamId: string; title?: string; folderId?: string; visibility?: 'private' | 'team' | 'public_link' }>,
+  accessToken: string
+): Promise<Array<{ id: string; title: string }>> {
+  return fetchApi('/documents/batch', {
+    method: 'POST',
+    body: JSON.stringify({ documents }),
+    accessToken,
+  });
+}
+
 export async function getDocument(documentId: string, accessToken: string): Promise<DocumentView> {
   return fetchApi(`/documents/${documentId}`, { accessToken });
 }

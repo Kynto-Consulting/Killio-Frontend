@@ -6,6 +6,7 @@
 
 import {
   createDocument,
+  createDocumentsBatch,
   createDocumentBricks,
   updateDocumentVisibility,
   deleteDocument,
@@ -194,16 +195,29 @@ export async function publishLocalWorkspace(
     .filter(Boolean) as Array<WorkspaceFile & { payload: unknown }>;
 
   // 1) Create cloud shells so we know every entity's new id before remapping.
+  //    Documents are created in ONE batch (already public, so no per-doc
+  //    visibility call); boards/meshes individually.
   const refMap = new Map<string, RefEntry>();
   const created: Array<{ file: WorkspaceFile & { payload: unknown }; entry: RefEntry }> = [];
-  for (const f of decoded) {
+  const kdFiles = decoded.filter((f) => f.kind === "kd");
+  if (kdFiles.length) {
     try {
-      if (f.kind === "kd") {
-        const draft = kdToDocDraft(f.payload);
-        const doc = await createDocument({ teamId: ctx.teamId, title: draft.title }, ctx.accessToken);
-        const entry: RefEntry = { type: "doc", id: doc.id, route: `/d/${doc.id}` };
+      const createdDocs = await createDocumentsBatch(
+        kdFiles.map((f) => ({ teamId: ctx.teamId, title: kdToDocDraft(f.payload).title, visibility: "public_link" as const })),
+        ctx.accessToken,
+      );
+      kdFiles.forEach((f, i) => {
+        const d = createdDocs[i];
+        if (!d) return;
+        const entry: RefEntry = { type: "doc", id: d.id, route: `/d/${d.id}` };
         refMap.set(f.path, entry); created.push({ file: f, entry });
-      } else if (f.kind === "kb") {
+      });
+    } catch { /* docs batch failed → all reported below */ }
+  }
+  for (const f of decoded) {
+    if (f.kind === "kd") continue;
+    try {
+      if (f.kind === "kb") {
         const kb = kbToBoardDraft(f.payload);
         const board = await createBoard({ name: kb.name, slug: slug(kb.name), boardType: "kanban", description: kb.description ?? undefined }, ctx.teamId, ctx.accessToken);
         const entry: RefEntry = { type: "board", id: board.id, route: `/b/${board.id}` };
@@ -214,7 +228,7 @@ export async function publishLocalWorkspace(
         const entry: RefEntry = { type: "mesh", id: board.id, route: `/m/${board.id}` };
         refMap.set(f.path, entry); created.push({ file: f, entry });
       }
-    } catch { /* shell creation failed → entity will be reported as failed below */ }
+    } catch { /* shell creation failed → entity reported as failed below */ }
   }
 
   // 2) Upload referenced assets once → asset:<name> → cloud url map.
@@ -231,7 +245,7 @@ export async function publishLocalWorkspace(
         const draft = kdToDocDraft(f.payload);
         const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
         if (bricks.length) await createDocumentBricks(entry.id, bricks, ctx.accessToken); // 1 request
-        await updateDocumentVisibility(entry.id, "public_link", ctx.accessToken);
+        // visibility already public from the batch shell-create.
       } else if (f.kind === "kb") {
         const kb = kbToBoardDraft(f.payload);
         for (let li = 0; li < kb.lists.length; li += 1) {
