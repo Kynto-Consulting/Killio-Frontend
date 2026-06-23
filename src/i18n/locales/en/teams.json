@@ -73,6 +73,12 @@
   "confirmDeleteWorkspaceBtn": "Delete permanently",
   "deleteWorkspaceError": "Could not delete workspace.",
   "personalCannotDelete": "Personal workspaces cannot be deleted.",
+  "inviteExpiry": {
+    "label": "Expires in",
+    "days": "{{n}} days",
+    "never": "Never expires",
+    "neverWarning": "Dangerous: this link never expires. Anyone with the link can join the workspace forever unless you revoke it manually."
+  },
   "roleName": {
     "owner": "Owner",
     "admin": "Admin",

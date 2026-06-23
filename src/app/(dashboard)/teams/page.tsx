@@ -99,6 +99,8 @@ function TeamsPageInner() {
   const [inlineInviteRole, setInlineInviteRole] = useState<Exclude<TeamRole, "owner">>("member");
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [showPermTable, setShowPermTable] = useState(false);
+  const [inlineExpiry, setInlineExpiry] = useState<number>(3); // days; -1 = never
+  const [expiryMenuOpen, setExpiryMenuOpen] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [isInlineInviting, setIsInlineInviting] = useState(false);
   const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
@@ -167,7 +169,7 @@ function TeamsPageInner() {
     setInviteError(null);
     setIsInlineInviting(true);
     try {
-      const invite = await createInvite({ email: inlineInviteEmail.trim(), role: inlineInviteRole }, activeTeamId, accessToken);
+      const invite = await createInvite({ email: inlineInviteEmail.trim(), role: inlineInviteRole, expiresInDays: inlineExpiry }, activeTeamId, accessToken);
       if (invite.deliveryStatus !== "sent") {
         setInviteError(
           invite.deliveryStatus === "skipped"
@@ -427,6 +429,36 @@ function TeamsPageInner() {
                   aria-label={t("permTable.title")}
                   style={{ height: 38, width: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: showPermTable ? "rgba(216,255,114,0.12)" : "rgba(0,0,0,0.25)", color: showPermTable ? "#d8ff72" : "rgba(255,255,255,0.6)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >ⓘ</button>
+                {/* Expiry selector */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => setExpiryMenuOpen((o) => !o)}
+                    disabled={!canInvite || isInlineInviting}
+                    title={t("inviteExpiry.label")}
+                    style={{ height: 38, minWidth: 120, borderRadius: 10, border: inlineExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: inlineExpiry === -1 ? "rgba(248,113,113,0.08)" : "rgba(0,0,0,0.25)", color: inlineExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{inlineExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: inlineExpiry })}</span>
+                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
+                  </button>
+                  {expiryMenuOpen && (
+                    <div
+                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      onMouseLeave={() => setExpiryMenuOpen(false)}
+                    >
+                      {[3, 7, 14, 31, -1].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => { setInlineExpiry(d); setExpiryMenuOpen(false); }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === inlineExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "rgba(255,255,255,0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === inlineExpiry ? 700 : 500 }}
+                        >
+                          {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <button
                   onClick={sendInlineInvite}
                   disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
@@ -435,6 +467,11 @@ function TeamsPageInner() {
                   {isInlineInviting ? "..." : t("sendInvite")}
                 </button>
               </div>
+              {inlineExpiry === -1 && (
+                <p style={{ marginTop: 10, fontSize: 12, color: "#f87171", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                  <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
+                </p>
+              )}
               {showPermTable && (
                 <div style={{ marginTop: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.28)", overflow: "hidden" }}>
                   <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", fontSize: 12, fontWeight: 700, color: "#fff" }}>{t("permTable.title")}</div>
