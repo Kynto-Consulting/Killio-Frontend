@@ -32,7 +32,6 @@ import {
 import { decodeKillioFile } from "@/lib/killio-file";
 import { kdToDocDraft, kbToBoardDraft } from "./adapters.ts";
 import { deserializeKmToMesh } from "@/lib/mesh-file";
-import { assetNameFromRef } from "./assets.ts";
 
 export type PublishCtx = { teamId: string; accessToken: string };
 
@@ -69,7 +68,44 @@ type RefEntry = { type: "doc" | "board" | "mesh"; id: string; route: string };
 const slug = (s: string) =>
   s.toLowerCase().replace(/[^a-z0-9]+/gi, "-").replace(/^-+|-+$/g, "").slice(0, 48) || "untitled";
 
-const ASSET_RE = /asset:([A-Za-z0-9._\-]+)/g;
+// Allow path separators so `asset:img/icon.png` is captured whole; the file is
+// stored flat under assets/<basename>, so we read/replace by basename.
+const ASSET_RE = /asset:([A-Za-z0-9._\-/]+)/g;
+const assetBase = (name: string) => name.split("/").pop() || name;
+
+/**
+ * Upload ONLY the assets actually referenced by the entities (or by widget code
+ * inside them) — collected via collectAssetNames — deduped by basename. Returns
+ * a map of every captured ref token → its cloud URL so references can be remapped
+ * everywhere.
+ */
+async function uploadUsedAssets(
+  decoded: Array<{ payload: unknown }>,
+  ctx: PublishCtx,
+  readAsset?: (name: string) => Promise<File | null>,
+): Promise<Map<string, string>> {
+  const assetMap = new Map<string, string>();
+  if (!readAsset) return assetMap;
+  const refs = new Set<string>();
+  decoded.forEach((f) => collectAssetNames(f.payload, refs));
+  if (!refs.size) return assetMap;
+  const urlByBase = new Map<string, string>();
+  for (const ref of refs) {
+    const base = assetBase(ref);
+    if (!urlByBase.has(base)) {
+      try {
+        const file = await readAsset(base);
+        if (file) {
+          const up = await uploadFile(file, ctx.accessToken, { ownerScopeType: "team", ownerScopeId: ctx.teamId });
+          urlByBase.set(base, up.url);
+        }
+      } catch { /* leave unmapped */ }
+    }
+    const url = urlByBase.get(base);
+    if (url) assetMap.set(ref, url); // key by the exact token so remap matches
+  }
+  return assetMap;
+}
 
 // ── Reference remapping ───────────────────────────────────────────────────────
 
@@ -174,19 +210,7 @@ export async function publishLocalWorkspace(
   }
 
   // 2) Upload referenced assets once → asset:<name> → cloud url map.
-  const assetMap = new Map<string, string>();
-  if (opts.readAsset) {
-    const names = new Set<string>();
-    decoded.forEach((f) => collectAssetNames(f.payload, names));
-    for (const name of names) {
-      try {
-        const file = await opts.readAsset(assetNameFromRef(`asset:${name}`));
-        if (!file) continue;
-        const up = await uploadFile(file, ctx.accessToken, { ownerScopeType: "team", ownerScopeId: ctx.teamId });
-        assetMap.set(name, up.url);
-      } catch { /* leave asset ref unmapped */ }
-    }
-  }
+  const assetMap = await uploadUsedAssets(decoded, ctx, opts.readAsset);
 
   const remap = makeRemapString(refMap, assetMap);
 
@@ -306,20 +330,8 @@ export async function mergeLocalWorkspace(
     } catch { /* shell failed → reported below */ }
   }
 
-  // 2) Upload assets once.
-  const assetMap = new Map<string, string>();
-  if (opts.readAsset) {
-    const names = new Set<string>();
-    decoded.forEach((f) => collectAssetNames(f.payload, names));
-    for (const name of names) {
-      try {
-        const file = await opts.readAsset(assetNameFromRef(`asset:${name}`));
-        if (!file) continue;
-        const up = await uploadFile(file, ctx.accessToken, { ownerScopeType: "team", ownerScopeId: ctx.teamId });
-        assetMap.set(name, up.url);
-      } catch { /* unmapped */ }
-    }
-  }
+  // 2) Upload only the assets actually referenced (incl. inside widget code).
+  const assetMap = await uploadUsedAssets(decoded, ctx, opts.readAsset);
   const remap = makeRemapString(refMap, assetMap);
 
   const fillDoc = async (id: string, payload: unknown, wipe: boolean) => {
