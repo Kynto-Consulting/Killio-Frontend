@@ -60,38 +60,51 @@ export function normalizeInlineMermaid(code: string): string {
 }
 
 export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
-  code = /^(grarkdown|grark)$/i.test(lang) ? code : normalizeInlineMermaid(code);
-  // Chart-type mermaid fences (pie/bar/radar/…) render as a native ChartBrick
-  // SVG — no detached canvas, no providers, no exploded primitives.
-  try {
-    if (/^(mermaid|mmd)$/i.test(lang) || !lang) {
-      const chart = parseMermaidToChartSpec(code);
-      if (chart) {
-        return (
-          <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
-            <ChartBrickRender chart={chart} w={720} h={400} className="h-full w-full" />
-          </div>
-        );
+  // Parse ONCE per (lang, code). RichText re-renders often; computing the
+  // template/mesh-state inline produced a new state object each render, which
+  // re-triggered PublicMeshCanvas's fit effect on every render so the viewport
+  // never settled and the canvas stayed blank.
+  const result = React.useMemo<
+    | { kind: "chart"; chart: ReturnType<typeof parseMermaidToChartSpec> }
+    | { kind: "mesh"; state: ReturnType<typeof templateToMeshState> }
+    | { kind: "code"; text: string }
+  >(() => {
+    const src = /^(grarkdown|grark)$/i.test(lang) ? code : normalizeInlineMermaid(code);
+    // Chart-type mermaid fences (pie/bar/radar/…) → native ChartBrick SVG.
+    try {
+      if (/^(mermaid|mmd)$/i.test(lang) || !lang) {
+        const chart = parseMermaidToChartSpec(src);
+        if (chart) return { kind: "chart", chart };
       }
-    }
-  } catch { /* fall through */ }
-  let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
-  try {
-    if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(code));
-    else if (/^(erdiagram|erd|er)$/i.test(lang)) tpl = generatedMeshToTemplate(parseMermaidToMesh(/erDiagram/i.test(code) ? code : `erDiagram\n${code}`));
-    else tpl = generatedMeshToTemplate(parseMermaidToMesh(code));
-  } catch { tpl = null; }
-  if (!tpl || !tpl.bricks.length) {
+    } catch { /* fall through */ }
+    let tpl: ReturnType<typeof generatedMeshToTemplate> | null = null;
+    try {
+      if (/^(grarkdown|grark)$/i.test(lang)) tpl = generatedMeshToTemplate(parseGrarkdownToMesh(src));
+      else if (/^(erdiagram|erd|er)$/i.test(lang)) tpl = generatedMeshToTemplate(parseMermaidToMesh(/erDiagram/i.test(src) ? src : `erDiagram\n${src}`));
+      else tpl = generatedMeshToTemplate(parseMermaidToMesh(src));
+    } catch { tpl = null; }
+    if (!tpl || !tpl.bricks.length) return { kind: "code", text: src };
+    return { kind: "mesh", state: templateToMeshState(tpl) };
+  }, [lang, code]);
+
+  if (result.kind === "chart" && result.chart) {
     return (
-      <pre className="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto">
-        <code className="text-xs font-mono text-foreground/80 whitespace-pre">{code}</code>
-      </pre>
+      <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
+        <ChartBrickRender chart={result.chart} w={720} h={400} className="h-full w-full" />
+      </div>
+    );
+  }
+  if (result.kind === "mesh") {
+    return (
+      <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
+        <PublicMeshCanvas state={result.state} />
+      </div>
     );
   }
   return (
-    <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
-      <PublicMeshCanvas state={templateToMeshState(tpl)} />
-    </div>
+    <pre className="my-2 rounded-lg bg-muted/60 border border-border/60 p-3 overflow-x-auto">
+      <code className="text-xs font-mono text-foreground/80 whitespace-pre">{result.kind === "code" ? result.text : code}</code>
+    </pre>
   );
 }
 
