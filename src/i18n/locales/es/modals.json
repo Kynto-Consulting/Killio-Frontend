@@ -85,7 +85,9 @@
     "roles": {
       "viewer": "Lector",
       "commenter": "Comentador",
-      "editor": "Editor"
+      "editor": "Editor",
+      "member": "Editor",
+      "admin": "Administrador"
     },
     "invite": "Invitar",
     "loadingMembers": "Cargando miembros…",

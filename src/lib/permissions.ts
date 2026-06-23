@@ -1,58 +1,57 @@
 /**
  * Killio — Unified Permission Definitions
  *
- * Two role systems exist in the DB:
- *   team_memberships.role  : 'owner' | 'admin' | 'member' | 'guest' | 'viewer'
- *   board_memberships.role : 'owner' | 'editor' | 'commenter' | 'viewer'
+ * One role set across team + entities (boards, docs, mesh):
+ *   owner > admin > member > viewer > guest
+ *   - owner   : creator, full control + delete + manage members
+ *   - admin   : manage members + everything below
+ *   - member  : create / edit content
+ *   - viewer  : read-only, part of the team
+ *   - guest   : external, only sees what's explicitly shared (read-only)
  *
- * Board role is authoritative for board actions. When a user has no explicit
- * board membership, we derive a safe default from their team role.
+ * An explicit entity (board/doc) membership wins; otherwise the team role
+ * carries over 1:1 (a team member's team role IS their entity role).
  */
 
-export type BoardRole = 'owner' | 'editor' | 'commenter' | 'viewer';
-export type TeamRole  = 'owner' | 'admin'  | 'member'    | 'guest' | 'viewer';
+export type Role = 'owner' | 'admin' | 'member' | 'viewer' | 'guest';
+// Back-compat aliases (same underlying set).
+export type BoardRole = Role;
+export type TeamRole = Role;
 
-const BOARD_ROLE_RANK: Record<BoardRole, number> = {
-  owner: 4, editor: 3, commenter: 2, viewer: 1,
+export const ROLE_RANK: Record<Role, number> = {
+  owner: 5, admin: 4, member: 3, viewer: 2, guest: 1,
 };
+const rankOf = (role: string | null | undefined): number => (role ? ROLE_RANK[role as Role] ?? 0 : 0);
+
+/** Display order for role pickers (most → least capable). */
+export const ROLE_OPTIONS: Role[] = ['owner', 'admin', 'member', 'viewer', 'guest'];
 
 /**
- * Derives the user's effective BoardRole from their board + team roles.
- *
- * Priority:
- *   1. Explicit board membership role (always wins).
- *   2. Team role fallback:
- *        owner / admin / member → 'editor' (team members get write access)
- *        guest                  → 'viewer' (read-only)
- *   3. Unknown / no membership  → 'viewer' (safest default)
+ * Effective role from an explicit entity membership + the user's team role.
+ * Entity membership wins; else the team role carries over; else 'guest'.
  */
 export function getEffectiveBoardRole(
   boardRole: string | null | undefined,
-  teamRole:  string | null | undefined,
-): BoardRole {
-  const b = boardRole as BoardRole | undefined;
-  if (b && BOARD_ROLE_RANK[b] !== undefined) return b;
-
-  if (teamRole === 'owner' || teamRole === 'admin' || teamRole === 'member') {
-    return 'editor';
-  }
-  // guest team role OR no role at all → read-only
-  return 'viewer';
+  teamRole: string | null | undefined,
+): Role {
+  if (boardRole && ROLE_RANK[boardRole as Role] !== undefined) return boardRole as Role;
+  if (teamRole && ROLE_RANK[teamRole as Role] !== undefined) return teamRole as Role;
+  return 'guest';
 }
 
 // ─── Capability helpers ────────────────────────────────────────────────────
 
-/** Can create / edit / delete cards, move cards, manage tags and assignees. */
-export function canEditCards(role: BoardRole): boolean {
-  return role === 'owner' || role === 'editor';
+/** Can create / edit / delete content (cards, bricks, lists, …). member+. */
+export function canEditCards(role: Role): boolean {
+  return rankOf(role) >= ROLE_RANK.member;
 }
 
-/** Can post comments (commenter, editor, owner — NOT viewer). */
-export function canComment(role: BoardRole): boolean {
-  return role !== 'viewer';
+/** Can post comments. member+ (viewer/guest are read-only). */
+export function canComment(role: Role): boolean {
+  return rankOf(role) >= ROLE_RANK.member;
 }
 
-/** Can add lists, delete the board, change board settings. */
-export function canManageBoard(role: BoardRole): boolean {
-  return role === 'owner';
+/** Can add lists, delete the entity, change settings, manage members. admin+. */
+export function canManageBoard(role: Role): boolean {
+  return rankOf(role) >= ROLE_RANK.admin;
 }

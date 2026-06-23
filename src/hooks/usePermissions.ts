@@ -22,7 +22,7 @@ export interface PermissionState {
 /** While permissions are being resolved, default everything to "allowed" so
  *  the UI doesn't flash a false "no permission" state before data arrives. */
 const LOADING: PermissionState = {
-  effectiveRole: "editor",
+  effectiveRole: "member",
   canEdit: true,
   canComment: true,
   canManageBoard: false,
@@ -42,7 +42,7 @@ const VIEWER: PermissionState = {
 /** Local workspace boards are your own files on disk → always fully editable
  *  (there are no cloud memberships to resolve). */
 const LOCAL_OWNER: PermissionState = {
-  effectiveRole: "editor",
+  effectiveRole: "member",
   canEdit: true,
   canComment: true,
   canManageBoard: true,

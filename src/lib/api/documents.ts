@@ -1,6 +1,6 @@
 import { fetchApi } from './client';
 
-export type DocumentMembershipRole = 'owner' | 'editor' | 'commenter' | 'viewer';
+export type DocumentMembershipRole = 'owner' | 'admin' | 'member' | 'viewer' | 'guest';
 
 export type DocumentSummary = {
   id: string;

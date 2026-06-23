@@ -69,8 +69,8 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
 
   const roleLabels: Record<string, string> = {
     viewer: t("shareModal.viewer"),
-    commenter: t("shareModal.commenter"),
-    editor: t("shareModal.editor"),
+    member: t("shareModal.member") || t("shareModal.editor"),
+    admin: t("shareModal.admin") || "Admin",
   };
 
   useEffect(() => {
@@ -151,7 +151,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
                 </button>
                 {isRoleDropdownOpen && (
                   <div className="absolute right-0 top-10 w-28 rounded-md border border-border bg-popover text-popover-foreground shadow-md z-50 overflow-hidden">
-                    {["viewer", "commenter", "editor"].map(role => (
+                    {["viewer", "member", "admin"].map(role => (
                       <div
                         key={role}
                         className="relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground capitalize"

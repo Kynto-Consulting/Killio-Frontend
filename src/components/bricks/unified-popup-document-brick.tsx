@@ -79,7 +79,7 @@ function buildFallbackDocumentView(documentId: string, title: string, bricks: Do
     createdByUserId: "",
     createdAt: now,
     updatedAt: now,
-    role: "editor",
+    role: "member",
     bricks,
   };
 }

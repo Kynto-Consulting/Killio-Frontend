@@ -194,7 +194,7 @@ export default function DocumentMobilePage() {
     }
   };
 
-  const canEdit = document?.role === "owner" || document?.role === "editor";
+  const canEdit = ["owner","admin","member"].includes(document?.role ?? "");
 
   if (isLoading) {
     return (

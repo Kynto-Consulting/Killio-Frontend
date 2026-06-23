@@ -61,8 +61,8 @@ export function MeshShareModal({
 
   const roleLabels: Record<string, string> = {
     viewer: t("meshShareModal.roles.viewer"),
-    commenter: t("meshShareModal.roles.commenter"),
-    editor: t("meshShareModal.roles.editor"),
+    member: t("meshShareModal.roles.member") || t("meshShareModal.roles.editor"),
+    admin: t("meshShareModal.roles.admin") || "Admin",
   };
 
   useEffect(() => {
@@ -130,7 +130,7 @@ export function MeshShareModal({
                 </button>
                 {isRoleDropdownOpen && (
                   <div className="absolute right-0 top-10 w-32 rounded-md border border-border bg-popover shadow-md z-50 overflow-hidden">
-                    {["viewer", "commenter", "editor"].map(role => (
+                    {["viewer", "member", "admin"].map(role => (
                       <div key={role} className="cursor-pointer px-3 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground capitalize"
                         onClick={() => { setInviteRole(role); setIsRoleDropdownOpen(false); }}>
                         {roleLabels[role]}

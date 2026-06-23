@@ -73,6 +73,34 @@
   "confirmDeleteWorkspaceBtn": "Eliminar permanentemente",
   "deleteWorkspaceError": "No se pudo eliminar el workspace.",
   "personalCannotDelete": "Los workspaces personales no se pueden eliminar.",
+  "roleName": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "member": "Miembro",
+    "viewer": "Lector",
+    "guest": "Invitado"
+  },
+  "roleShort": {
+    "owner": "Control total del workspace",
+    "admin": "Gestiona miembros y contenido",
+    "member": "Puede crear y editar contenido",
+    "viewer": "Solo lectura del workspace",
+    "guest": "Externo, solo lo compartido"
+  },
+  "permTable": {
+    "title": "Permisos por rol",
+    "feature": "Función",
+    "guestNote": "El invitado solo ve lo que se le comparte explícitamente.",
+    "lvl": { "manage": "Gestionar", "edit": "Editar", "view": "Ver" },
+    "rows": {
+      "kanban": "Tableros Kanban",
+      "mesh": "Tableros Mesh",
+      "docs": "Documentos",
+      "scripts": "Scripts",
+      "members": "Miembros",
+      "workspace": "Ajustes del workspace"
+    }
+  },
   "roleCapabilities": {
     "owner": [
       "Invitar admin/member/guest",

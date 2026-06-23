@@ -1650,7 +1650,7 @@ export default function DocumentPage() {
 
   // In a LOCAL workspace the file lives on the user's own disk — they always own
   // it, so it's always editable (the doc may not carry a server 'role').
-  const canEdit = localMode || document.role === 'owner' || document.role === 'editor';
+  const canEdit = localMode || ['owner','admin','member'].includes(document.role);
   const canManageDocument = localMode || document.role === 'owner';
 
   // Build breadcrumb path

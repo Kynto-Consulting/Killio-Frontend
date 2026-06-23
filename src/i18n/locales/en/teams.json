@@ -73,6 +73,34 @@
   "confirmDeleteWorkspaceBtn": "Delete permanently",
   "deleteWorkspaceError": "Could not delete workspace.",
   "personalCannotDelete": "Personal workspaces cannot be deleted.",
+  "roleName": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member",
+    "viewer": "Viewer",
+    "guest": "Guest"
+  },
+  "roleShort": {
+    "owner": "Full control of the workspace",
+    "admin": "Manages members and content",
+    "member": "Can create and edit content",
+    "viewer": "Read-only across the workspace",
+    "guest": "External, only what's shared"
+  },
+  "permTable": {
+    "title": "Permissions by role",
+    "feature": "Feature",
+    "guestNote": "A guest only sees what's explicitly shared with them.",
+    "lvl": { "manage": "Manage", "edit": "Edit", "view": "View" },
+    "rows": {
+      "kanban": "Kanban boards",
+      "mesh": "Mesh boards",
+      "docs": "Documents",
+      "scripts": "Scripts",
+      "members": "Members",
+      "workspace": "Workspace settings"
+    }
+  },
   "roleCapabilities": {
     "owner": [
       "Invite admin/member/guest",

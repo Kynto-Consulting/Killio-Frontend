@@ -52,6 +52,19 @@ function roleBadgeStyle(role: string): React.CSSProperties {
   return { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" };
 }
 
+// Per-role capability matrix shown in the invite "info" popover. Columns are the
+// unified roles; rows are feature areas. Level: 2=manage, 1=edit/use, 0.5=view, 0=none.
+type PermLevel = 0 | 0.5 | 1 | 2;
+const PERM_ROLES = ["owner", "admin", "member", "viewer", "guest"] as const;
+const PERM_MATRIX: { key: string; levels: Record<(typeof PERM_ROLES)[number], PermLevel> }[] = [
+  { key: "kanban",    levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
+  { key: "mesh",      levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
+  { key: "docs",      levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0.5 } },
+  { key: "scripts",   levels: { owner: 2, admin: 2, member: 1, viewer: 0.5, guest: 0 } },
+  { key: "members",   levels: { owner: 2, admin: 2, member: 1, viewer: 0, guest: 0 } },
+  { key: "workspace", levels: { owner: 2, admin: 1, member: 0, viewer: 0, guest: 0 } },
+];
+
 /** Build a shareable accept-invite URL from either the explicit acceptUrl returned
  *  by the backend or the raw token (fallback when acceptUrl is missing). */
 function buildInviteLink(invite: Pick<InviteSummary, "token" | "acceptUrl">): string | null {
@@ -84,6 +97,8 @@ function TeamsPageInner() {
   const [activeMemberMenu, setActiveMemberMenu] = useState<string | null>(null);
   const [inlineInviteEmail, setInlineInviteEmail] = useState("");
   const [inlineInviteRole, setInlineInviteRole] = useState<Exclude<TeamRole, "owner">>("member");
+  const [roleMenuOpen, setRoleMenuOpen] = useState(false);
+  const [showPermTable, setShowPermTable] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [isInlineInviting, setIsInlineInviting] = useState(false);
   const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
@@ -368,14 +383,50 @@ function TeamsPageInner() {
                   disabled={!canInvite || isInlineInviting}
                   style={{ flex: 1, minWidth: 200, height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
                 />
-                <select
-                  value={inlineInviteRole}
-                  onChange={(e) => setInlineInviteRole(e.target.value as Exclude<TeamRole, "owner">)}
-                  disabled={!canInvite || isInlineInviting}
-                  style={{ height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.75)", fontSize: 13, padding: "0 12px", outline: "none" }}
-                >
-                  {inviteRoleOptions.map((role) => <option key={role} value={role}>{role}</option>)}
-                </select>
+                {/* Custom (non-vanilla) role selector */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => setRoleMenuOpen((o) => !o)}
+                    disabled={!canInvite || isInlineInviting}
+                    style={{ height: 38, minWidth: 130, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.85)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                  >
+                    <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(inlineInviteRole) }} />
+                      <span style={{ fontWeight: 600 }}>{t(`roleName.${inlineInviteRole}`)}</span>
+                    </span>
+                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
+                  </button>
+                  {roleMenuOpen && (
+                    <div
+                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 230, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      onMouseLeave={() => setRoleMenuOpen(false)}
+                    >
+                      {inviteRoleOptions.map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => { setInlineInviteRole(role); setRoleMenuOpen(false); }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: role === inlineInviteRole ? "rgba(216,255,114,0.08)" : "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                        >
+                          <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(role) }} />
+                            {t(`roleName.${role}`)}
+                          </span>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", paddingLeft: 15 }}>{t(`roleShort.${role}`)}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                {/* Info button → permissions table */}
+                <button
+                  type="button"
+                  onClick={() => setShowPermTable((s) => !s)}
+                  title={t("permTable.title")}
+                  aria-label={t("permTable.title")}
+                  style={{ height: 38, width: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: showPermTable ? "rgba(216,255,114,0.12)" : "rgba(0,0,0,0.25)", color: showPermTable ? "#d8ff72" : "rgba(255,255,255,0.6)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                >ⓘ</button>
                 <button
                   onClick={sendInlineInvite}
                   disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
@@ -384,6 +435,37 @@ function TeamsPageInner() {
                   {isInlineInviting ? "..." : t("sendInvite")}
                 </button>
               </div>
+              {showPermTable && (
+                <div style={{ marginTop: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.28)", overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", fontSize: 12, fontWeight: 700, color: "#fff" }}>{t("permTable.title")}</div>
+                  <div style={{ overflowX: "auto" }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
+                      <thead>
+                        <tr>
+                          <th style={{ textAlign: "left", padding: "8px 14px", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>{t("permTable.feature")}</th>
+                          {PERM_ROLES.map((r) => (
+                            <th key={r} style={{ padding: "8px 10px", color: "rgba(255,255,255,0.7)", fontWeight: 600, textTransform: "capitalize", minWidth: 64 }}>{t(`roleName.${r}`)}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {PERM_MATRIX.map((row) => (
+                          <tr key={row.key} style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+                            <td style={{ padding: "8px 14px", color: "rgba(255,255,255,0.82)", fontWeight: 500 }}>{t(`permTable.rows.${row.key}`)}</td>
+                            {PERM_ROLES.map((r) => {
+                              const lvl = row.levels[r];
+                              const label = lvl === 2 ? t("permTable.lvl.manage") : lvl === 1 ? t("permTable.lvl.edit") : lvl === 0.5 ? t("permTable.lvl.view") : "—";
+                              const color = lvl === 2 ? "#d8ff72" : lvl === 1 ? "#a3e635" : lvl === 0.5 ? "rgba(161,161,170,0.9)" : "rgba(255,255,255,0.25)";
+                              return <td key={r} style={{ padding: "8px 10px", textAlign: "center", color, fontWeight: lvl >= 1 ? 600 : 400 }}>{label}</td>;
+                            })}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ padding: "8px 14px", fontSize: 11, color: "rgba(255,255,255,0.4)", borderTop: "1px solid rgba(255,255,255,0.07)" }}>{t("permTable.guestNote")}</div>
+                </div>
+              )}
               {inviteError && <p style={{ marginTop: 8, fontSize: 12, color: "#f87171" }}>{inviteError}</p>}
               {inviteDisabledReason && <p style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.42)" }}>{inviteDisabledReason}</p>}
             </div>
