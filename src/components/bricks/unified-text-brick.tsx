@@ -421,6 +421,19 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
           markdown += `[lu:${luName}:${luSw}]`;
           return;
         }
+        // Rendered diagram (mermaid/grarkdown/er/html preview) placeholder —
+        // emit the ORIGINAL fenced source (kept in diagramBlocksRef), NOT the
+        // mounted canvas's text. Without this, clicking the diagram and editing
+        // re-serialized the rendered SVG to plain text and lost the source.
+        if (el.hasAttribute("data-diagram-idx")) {
+          const di = parseInt(el.getAttribute("data-diagram-idx") || "", 10);
+          const block = diagramBlocksRef.current[di];
+          if (block) {
+            if (markdown.length > 0 && !markdown.endsWith("\n")) markdown += "\n";
+            markdown += "```" + (block.lang || "") + "\n" + block.code + "\n```\n";
+            return;
+          }
+        }
 
         if (tag === "br") {
           markdown += "\n";
@@ -614,6 +627,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (tag === "u") return wrap("__", "__", el);
       if (tag === "s" || tag === "strike") return wrap("~~", "~~", el);
       if (el.hasAttribute("data-math")) { const m = el.getAttribute("data-math") || ""; md += el.hasAttribute("data-math-block") ? `$$\n${m}\n$$` : `$${m}$`; return; }
+      if (el.hasAttribute("data-diagram-idx")) { const di = parseInt(el.getAttribute("data-diagram-idx") || "", 10); const b = diagramBlocksRef.current[di]; if (b) { if (md.length > 0 && !md.endsWith("\n")) md += "\n"; md += "```" + (b.lang || "") + "\n" + b.code + "\n```\n"; return; } }
       if (tag === "pre") { const lang = el.getAttribute("data-code-block") || ""; const code = el.querySelector("code")?.textContent ?? el.textContent ?? ""; if (md.length > 0 && !md.endsWith("\n")) md += "\n"; md += "```" + lang + "\n" + code + "\n```"; return; }
       if (tag === "code") { md += "`" + (el.textContent || "") + "`"; return; }
       if (el.classList.contains("mention-pill")) { md += `@[${el.getAttribute("data-type")}:${el.getAttribute("data-id")}:${el.textContent || ""}]`; return; }
