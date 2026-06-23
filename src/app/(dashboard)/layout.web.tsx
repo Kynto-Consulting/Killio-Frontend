@@ -24,7 +24,7 @@ import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
 import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
-import { publishLocalWorkspace, deleteWorkspaceEntities, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
+import { publishLocalWorkspace, deleteWorkspaceEntities, mergeLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
 import { resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readWorkspaceSync, writeWorkspaceSync, hashWorkspaceFiles } from "@/lib/local-workspace/workspace-sync";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -522,39 +522,32 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           const entries = localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb");
           const wsFiles: WorkspaceFile[] = [];
           for (const f of entries) {
-            try { wsFiles.push({ path: f.path, kind: f.kind as WorkspaceFile["kind"], text: await localWs.readFile(f.path) }); } catch { /* skip unreadable */ }
+            try { wsFiles.push({ path: f.path, kind: f.kind as WorkspaceFile["kind"], text: await localWs.readFile(f.path), lastModified: (f as { lastModified?: number }).lastModified }); } catch { /* skip unreadable */ }
           }
-          // Re-use the cloud workspace this folder was uploaded to before (so a
-          // second upload targets the same workspace), else resolve the personal one.
+          // Re-use the cloud workspace this folder was uploaded to before, else
+          // resolve the personal one.
           const prevSync = dir ? await readWorkspaceSync(dir) : null;
           const teamId = prevSync?.workspaceId || await resolvePublishTeamId(accessToken as string, activeTeamId);
           const ctx = { teamId, accessToken: accessToken as string };
-          // Override = wipe the prior upload first, then publish fresh. Merge =
-          // publish on top (cloud-only entities survive), and keep the prior map
-          // entries that aren't re-published this round.
-          if (mode === "override" && prevSync?.entityMap) {
-            await deleteWorkspaceEntities(prevSync.entityMap, ctx);
+          const readAsset = dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined;
+
+          let summary;
+          if (mode === "merge" && prevSync) {
+            // Last-writer-wins per entity, in-place updates (Phase 3).
+            summary = await mergeLocalWorkspace(wsFiles, ctx, prevSync.entityMap, prevSync.uploadedAt, { onProgress, readAsset });
+          } else {
+            // Override wipes the prior upload first; create/override publish fresh.
+            if (mode === "override" && prevSync?.entityMap) await deleteWorkspaceEntities(prevSync.entityMap, ctx);
+            summary = await publishLocalWorkspace(wsFiles, ctx, { onProgress, readAsset });
           }
-          const summary = await publishLocalWorkspace(
-            wsFiles,
-            ctx,
-            {
-              onProgress,
-              readAsset: dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined,
-            },
-          );
-          // Persist sync state: which cloud workspace, the content hash at upload,
-          // and the local→cloud entity map (for future Merge/Override).
+          // Persist sync state (entityMap already carries the full union for merge).
           if (dir && summary.published > 0) {
             try {
-              const entityMap = mode === "merge" && prevSync
-                ? { ...prevSync.entityMap, ...summary.entityMap }
-                : summary.entityMap;
               await writeWorkspaceSync(dir, {
                 workspaceId: teamId,
                 uploadHash: hashWorkspaceFiles(wsFiles),
                 uploadedAt: new Date().toISOString(),
-                entityMap,
+                entityMap: summary.entityMap,
               });
             } catch { /* non-fatal */ }
           }
