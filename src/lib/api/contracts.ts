@@ -1071,6 +1071,19 @@ export async function createCard(body: { id?: string; listId: string; title: str
   return created;
 }
 
+/** Bulk-create many cards (each with its bricks) in ONE request. */
+export async function createCardsBatch(
+  cards: Array<{ id?: string; listId: string; title: string; summary?: string; dueAt?: string; tags?: string[]; assignees?: string[]; blocks?: BrickMutationInput[] }>,
+  accessToken: string,
+): Promise<Array<{ id: string }>> {
+  if (!cards.length) return [];
+  return request<Array<{ id: string }>>(`/cards/batch`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify({ cards }),
+  });
+}
+
 export async function improveCardWithAi(
   body: {
     scope: 'personal' | 'team' | 'board' | 'list';

@@ -18,8 +18,7 @@ import {
 import {
   createBoard,
   createList,
-  createCard,
-  createCardBrick,
+  createCardsBatch,
   updateBoardVisibility,
   getMesh,
   updateMeshState,
@@ -183,6 +182,32 @@ function toCardBrickInput(kind: string, content: any): BrickMutationInput | null
   return { kind: "text", displayStyle: "paragraph", markdown: typeof content === "string" ? content : "" };
 }
 
+/** Create a board's lists (few) then ALL its cards + bricks in ONE batch request. */
+async function fillBoardLists(
+  boardId: string,
+  kb: ReturnType<typeof kbToBoardDraft>,
+  remap: (s: string) => string,
+  ctx: PublishCtx,
+): Promise<void> {
+  const allCards: Array<{ listId: string; title: string; dueAt?: string; blocks: BrickMutationInput[] }> = [];
+  for (let li = 0; li < kb.lists.length; li += 1) {
+    const list = kb.lists[li];
+    const createdList = await createList(boardId, { name: list.name, position: li }, ctx.accessToken);
+    for (const card of list.cards) {
+      const blocks = (Array.isArray(card.blocks) ? card.blocks : ([] as any[]))
+        .map((blk: any) => toCardBrickInput(blk?.kind, deepRemap(blk?.content ?? blk, remap)))
+        .filter(Boolean) as BrickMutationInput[];
+      allCards.push({
+        listId: createdList.id,
+        title: remap(card.title || "Card"),
+        dueAt: typeof card.dueAt === "string" ? card.dueAt : undefined,
+        blocks,
+      });
+    }
+  }
+  if (allCards.length) await createCardsBatch(allCards, ctx.accessToken); // 1 request for all cards+bricks
+}
+
 // ── Workspace publish ─────────────────────────────────────────────────────────
 
 export async function publishLocalWorkspace(
@@ -248,20 +273,7 @@ export async function publishLocalWorkspace(
         if (bricks.length) await createDocumentBricks(entry.id, bricks, ctx.accessToken); // 1 request
         // visibility already public from the batch shell-create.
       } else if (f.kind === "kb") {
-        const kb = kbToBoardDraft(f.payload);
-        for (let li = 0; li < kb.lists.length; li += 1) {
-          const list = kb.lists[li];
-          const createdList = await createList(entry.id, { name: list.name, position: li }, ctx.accessToken);
-          for (const card of list.cards) {
-            try {
-              const createdCard = await createCard({ listId: createdList.id, title: remap(card.title || "Card"), dueAt: typeof card.dueAt === "string" ? card.dueAt : undefined }, ctx.accessToken);
-              for (const blk of (Array.isArray(card.blocks) ? card.blocks : []) as any[]) {
-                const input = toCardBrickInput(blk?.kind, deepRemap(blk?.content ?? blk, remap));
-                if (input) { try { await createCardBrick(createdCard.id, input, ctx.accessToken); } catch { /* skip */ } }
-              }
-            } catch { /* skip card */ }
-          }
-        }
+        await fillBoardLists(entry.id, kbToBoardDraft(f.payload), remap, ctx);
         await updateBoardVisibility(entry.id, "public_link", ctx.accessToken);
       } else if (f.kind === "km") {
         const { state } = deserializeKmToMesh(f.payload);
@@ -375,19 +387,7 @@ export async function mergeLocalWorkspace(
         for (const l of ((board as any).lists ?? []) as Array<{ id: string }>) { try { await deleteList(l.id, ctx.accessToken); } catch { /* skip */ } }
       } catch { /* none */ }
     }
-    for (let li = 0; li < kb.lists.length; li += 1) {
-      const list = kb.lists[li];
-      const createdList = await createList(id, { name: list.name, position: li }, ctx.accessToken);
-      for (const card of list.cards) {
-        try {
-          const createdCard = await createCard({ listId: createdList.id, title: remap(card.title || "Card"), dueAt: typeof card.dueAt === "string" ? card.dueAt : undefined }, ctx.accessToken);
-          for (const blk of (Array.isArray(card.blocks) ? card.blocks : []) as any[]) {
-            const input = toCardBrickInput(blk?.kind, deepRemap(blk?.content ?? blk, remap));
-            if (input) { try { await createCardBrick(createdCard.id, input, ctx.accessToken); } catch { /* skip */ } }
-          }
-        } catch { /* skip card */ }
-      }
-    }
+    await fillBoardLists(id, kb, remap, ctx);
     await updateBoardVisibility(id, "public_link", ctx.accessToken);
   };
   const fillMesh = async (id: string, payload: unknown) => {
