@@ -31,7 +31,7 @@ import {
   type BrickMutationInput,
 } from "@/lib/api/contracts";
 import { decodeKillioFile } from "@/lib/killio-file";
-import { createFolder } from "@/lib/api/folders";
+import { createFoldersBatch } from "@/lib/api/folders";
 import { normalizeBountifulContent } from "@/lib/bricks/normalize-bountiful";
 import { sanitizeChildrenByContainer } from "@/lib/bricks/nesting";
 import { kdToDocDraft, kbToBoardDraft } from "./adapters.ts";
@@ -52,17 +52,24 @@ const dirOf = (p: string): string => { const i = p.lastIndexOf("/"); return i < 
  */
 async function createFolderTree(folders: WorkspaceFolder[], ctx: PublishCtx): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  // Depth-sort (shallower first) so a parent exists before its children.
-  const ordered = [...folders].sort((a, b) => a.path.split("/").length - b.path.split("/").length);
-  for (const f of ordered) {
+  if (!folders.length) return map;
+  // Group by depth (root first) and create each LEVEL in one batch request —
+  // within a level all parents already exist (created by the prior level).
+  const byDepth = new Map<number, WorkspaceFolder[]>();
+  for (const f of folders) {
+    const d = f.path.split("/").length;
+    if (!byDepth.has(d)) byDepth.set(d, []);
+    byDepth.get(d)!.push(f);
+  }
+  for (const depth of [...byDepth.keys()].sort((a, b) => a - b)) {
+    const level = byDepth.get(depth)!;
     try {
-      const parentFolderId = f.parent ? map.get(f.parent) : undefined;
-      const created = await createFolder(
-        { teamId: ctx.teamId, name: f.name, parentFolderId, icon: f.icon ?? undefined, color: f.color ?? undefined },
+      const createdFolders = await createFoldersBatch(
+        level.map((f) => ({ teamId: ctx.teamId, name: f.name, parentFolderId: f.parent ? map.get(f.parent) : undefined, icon: f.icon ?? undefined, color: f.color ?? undefined })),
         ctx.accessToken,
       );
-      map.set(f.path, created.id);
-    } catch { /* skip folder; its docs land at root */ }
+      level.forEach((f, i) => { const c = createdFolders[i]; if (c?.id) map.set(f.path, c.id); });
+    } catch { /* skip this level; its docs land at the parent/root */ }
   }
   return map;
 }

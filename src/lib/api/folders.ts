@@ -34,6 +34,19 @@ export async function createFolder(
   });
 }
 
+/** Bulk-create folders (one depth level per call) in ONE request. */
+export async function createFoldersBatch(
+  folders: Array<{ teamId: string; name: string; parentFolderId?: string; icon?: string; color?: string }>,
+  accessToken: string
+): Promise<Folder[]> {
+  if (!folders.length) return [];
+  return fetchApi('/folders/batch', {
+    method: 'POST',
+    body: JSON.stringify({ folders }),
+    accessToken,
+  });
+}
+
 export async function updateFolder(
   id: string,
   payload: { name?: string; icon?: string; color?: string },
