@@ -221,19 +221,62 @@ function toCardBrickInput(kind: string, content: any): BrickMutationInput | null
   return { kind: "text", displayStyle: "paragraph", markdown: typeof content === "string" ? content : "" };
 }
 
+const genBrickId = (): string =>
+  (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `b_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+
+/** Recursively apply `fn` to every string in a JSON-able value. */
+function mapStrings(value: any, fn: (s: string) => string): any {
+  if (typeof value === "string") return fn(value);
+  if (Array.isArray(value)) return value.map((v) => mapStrings(v, fn));
+  if (value && typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) out[k] = mapStrings(v, fn);
+    return out;
+  }
+  return value;
+}
+
+/** Remap a document's container child ids (childrenByContainer values) via idMap. */
+function remapChildIds(content: any, idMap: Map<string, string>): any {
+  if (!content || typeof content !== "object") return content;
+  const cbc = content.childrenByContainer;
+  if (!cbc || typeof cbc !== "object") return content;
+  const next: Record<string, any> = {};
+  for (const [slot, ids] of Object.entries(cbc)) {
+    next[slot] = Array.isArray(ids) ? ids.map((id) => (typeof id === "string" ? idMap.get(id) ?? id : id)) : ids;
+  }
+  return { ...content, childrenByContainer: next };
+}
+
 /** Remap + normalize ALL of a document's bricks before upload so the cloud
- *  renders/edits them the same as local: resolve refs/assets (deepRemap), prune
- *  dangling container-child ids (sanitizeChildrenByContainer), and canonicalize
- *  beautiful_table content (string columns / raw cells → editable shape). */
+ *  renders/edits them the same as local. CRITICAL: brick `id` is a GLOBAL text
+ *  primary key, but local/AI ids (e.g. "items", "a-flow") collide across docs and
+ *  break the whole INSERT (doc ends up empty). So each brick gets a fresh unique
+ *  id and all intra-doc references (childrenByContainer + same-doc $[]/#[] deep
+ *  refs) are rewritten to match. Also: deepRemap (refs/assets), prune dangling
+ *  child ids, canonicalize beautiful_table. */
 function normDocBricks(
   draft: ReturnType<typeof kdToDocDraft>,
   remap: (s: string) => string,
 ): Array<{ id: string; kind: string; position: number; content: any }> {
-  const validIds = new Set(draft.bricks.map((b) => b.id));
+  const oldIds = new Set(draft.bricks.map((b) => b.id));
+  const idMap = new Map<string, string>();
+  for (const b of draft.bricks) idMap.set(b.id, genBrickId());
+  // Rewrite same-doc deep refs `$[brickId:…]` / `#[brickId:…]` to the new id.
+  const remapDeepBrickRefs = (s: string): string =>
+    s.replace(/([#$])\[([^\]]+)\]/g, (m, sig, inner) => {
+      const toks = String(inner).split(":");
+      const nid = idMap.get(toks[0]);
+      if (nid) { toks[0] = nid; return `${sig}[${toks.join(":")}]`; }
+      return m;
+    });
+
   return draft.bricks.map((b, i) => {
-    let content = sanitizeChildrenByContainer(deepRemap(b.content ?? {}, remap), validIds);
+    let content = sanitizeChildrenByContainer(deepRemap(b.content ?? {}, remap), oldIds);
+    content = remapChildIds(content, idMap);
+    content = mapStrings(content, remapDeepBrickRefs);
     if (b.kind === "beautiful_table") content = normalizeBountifulContent(content).content;
-    return { id: b.id, kind: b.kind, position: b.position ?? i, content };
+    return { id: idMap.get(b.id)!, kind: b.kind, position: b.position ?? i, content };
   });
 }
 
