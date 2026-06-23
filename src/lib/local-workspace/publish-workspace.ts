@@ -33,6 +33,7 @@ import {
 import { decodeKillioFile } from "@/lib/killio-file";
 import { createFolder } from "@/lib/api/folders";
 import { normalizeBountifulContent } from "@/lib/bricks/normalize-bountiful";
+import { sanitizeChildrenByContainer } from "@/lib/bricks/nesting";
 import { kdToDocDraft, kbToBoardDraft } from "./adapters.ts";
 import { deserializeKmToMesh } from "@/lib/mesh-file";
 
@@ -213,12 +214,20 @@ function toCardBrickInput(kind: string, content: any): BrickMutationInput | null
   return { kind: "text", displayStyle: "paragraph", markdown: typeof content === "string" ? content : "" };
 }
 
-/** Canonicalize a brick's content before upload so the cloud renders/edits it the
- *  same as local — esp. beautiful_table (AI/legacy tables ship string columns +
- *  raw cell values, which otherwise upload un-editable). */
-function normBrickContent(kind: string, content: any): any {
-  if (kind === "beautiful_table") return normalizeBountifulContent(content || {}).content;
-  return content;
+/** Remap + normalize ALL of a document's bricks before upload so the cloud
+ *  renders/edits them the same as local: resolve refs/assets (deepRemap), prune
+ *  dangling container-child ids (sanitizeChildrenByContainer), and canonicalize
+ *  beautiful_table content (string columns / raw cells → editable shape). */
+function normDocBricks(
+  draft: ReturnType<typeof kdToDocDraft>,
+  remap: (s: string) => string,
+): Array<{ id: string; kind: string; position: number; content: any }> {
+  const validIds = new Set(draft.bricks.map((b) => b.id));
+  return draft.bricks.map((b, i) => {
+    let content = sanitizeChildrenByContainer(deepRemap(b.content ?? {}, remap), validIds);
+    if (b.kind === "beautiful_table") content = normalizeBountifulContent(content).content;
+    return { id: b.id, kind: b.kind, position: b.position ?? i, content };
+  });
 }
 
 /** Create a board's lists (few) then ALL its cards + bricks in ONE batch request. */
@@ -315,7 +324,7 @@ export async function publishLocalWorkspace(
     try {
       if (f.kind === "kd") {
         const draft = kdToDocDraft(f.payload);
-        draft.bricks.forEach((b, i) => docBricks.push({ documentId: entry.id, id: b.id, kind: b.kind, position: b.position ?? i, content: normBrickContent(b.kind, deepRemap(b.content ?? {}, remap)) }));
+        normDocBricks(draft, remap).forEach((nb) => docBricks.push({ documentId: entry.id, ...nb }));
         // visibility already public from the batch shell-create.
       } else if (f.kind === "kb") {
         await fillBoardLists(entry.id, kbToBoardDraft(f.payload), remap, ctx);
@@ -425,7 +434,7 @@ export async function mergeLocalWorkspace(
         for (const b of existing as Array<{ id: string }>) { try { await deleteDocumentBrick(id, b.id, ctx.accessToken); } catch { /* skip */ } }
       } catch { /* none */ }
     }
-    const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: normBrickContent(b.kind, deepRemap(b.content ?? {}, remap)) }));
+    const bricks = normDocBricks(draft, remap);
     if (bricks.length) await createDocumentBricks(id, bricks, ctx.accessToken); // 1 request
     await updateDocumentVisibility(id, "public_link", ctx.accessToken);
   };
