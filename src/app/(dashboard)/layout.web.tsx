@@ -112,9 +112,18 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     const dir = localWs.getDir();
     if (!dir) { setWsHasSync(false); return; }
     let cancelled = false;
-    readWorkspaceSync(dir).then((s) => { if (!cancelled) setWsHasSync(!!s?.workspaceId); }).catch(() => {});
+    (async () => {
+      const s = await readWorkspaceSync(dir).catch(() => null);
+      let exists = !!s?.workspaceId;
+      // Only offer Merge/Override if the cloud workspace still exists (it may
+      // have been deleted — then it's a plain fresh upload).
+      if (exists && accessToken) {
+        try { const teams = await listTeams(accessToken); exists = teams.some((t) => t.id === s!.workspaceId); } catch { /* keep */ }
+      }
+      if (!cancelled) setWsHasSync(exists);
+    })();
     return () => { cancelled = true; };
-  }, [isWsPublishOpen, localWs]);
+  }, [isWsPublishOpen, localWs, accessToken]);
   const online = useOnline();
   const [isOfflineSwitchOpen, setIsOfflineSwitchOpen] = useState(false);
   // First time the dashboard mounts online, prefetch every top-level route
@@ -528,7 +537,16 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           // FIRST upload, CREATE a dedicated cloud workspace (team) named after the
           // local folder. Fall back to the personal workspace if team creation
           // fails (e.g. plan caps the number of teams).
-          const prevSync = dir ? await readWorkspaceSync(dir) : null;
+          let prevSync = dir ? await readWorkspaceSync(dir) : null;
+          // If the cloud workspace was DELETED, the stored sync is stale — treat
+          // this as a first upload (create a fresh workspace) instead of trying to
+          // Merge/Override into a workspace that no longer exists.
+          if (prevSync?.workspaceId) {
+            try {
+              const teams = await listTeams(accessToken as string);
+              if (!teams.some((t) => t.id === prevSync!.workspaceId)) prevSync = null;
+            } catch { /* verification failed → keep prevSync */ }
+          }
           let teamId = prevSync?.workspaceId;
           if (!teamId) {
             const wsName = (localWs.active?.name || "Workspace").slice(0, 60);
