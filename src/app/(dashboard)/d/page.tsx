@@ -13,7 +13,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
-import { Folder, listFolders, createFolder, updateFolder } from "@/lib/api/folders";
+import { Folder, listFolders, createFolder, updateFolder, deleteFolder } from "@/lib/api/folders";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
@@ -323,6 +323,32 @@ function DocumentsPageContent() {
     }
   };
 
+  const [deleteFolderTarget, setDeleteFolderTarget] = useState<Folder | null>(null);
+  const [deletingFolder, setDeletingFolder] = useState(false);
+  const confirmDeleteFolder = async () => {
+    const folder = deleteFolderTarget;
+    if (!folder) return;
+    setDeletingFolder(true);
+    try {
+      if (workspaceMode === "local") {
+        await localWs.removeFolder(folder.id); // local folder id = relative path
+      } else {
+        if (!accessToken) return;
+        await deleteFolder(folder.id, accessToken);
+      }
+      toast(t("folderDeleted", { fallback: "Folder deleted" }), "success");
+      setDeleteFolderTarget(null);
+      // Leave the (now-gone) folder → its parent. Reload picks up the change.
+      setActiveFolderId(folder.parentFolderId || null);
+      if (workspaceMode !== "local") setFolders((prev) => prev.filter((f) => f.id !== folder.id));
+    } catch (e) {
+      console.error(e);
+      toast(t("folderDeleteError", { fallback: "Couldn't delete folder" }), "error");
+    } finally {
+      setDeletingFolder(false);
+    }
+  };
+
 
   return (
     <div className="container mx-auto p-4 lg:p-8 max-w-[1400px]">
@@ -384,6 +410,13 @@ function DocumentsPageContent() {
                className="inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border border-border bg-card hover:bg-accent hover:text-accent-foreground shadow-sm h-9 px-4"
              >
                {t("editFolder")}
+             </button>
+             <button
+               onClick={() => setDeleteFolderTarget(currentFolder || null)}
+               className="inline-flex items-center justify-center gap-1.5 rounded-md text-sm font-medium transition-colors border border-border bg-card text-destructive hover:bg-destructive/10 shadow-sm h-9 px-4"
+             >
+               <Trash2 className="h-4 w-4" />
+               {t("deleteFolder", { fallback: "Delete folder" })}
              </button>
              <button
                onClick={() => {
@@ -595,6 +628,18 @@ function DocumentsPageContent() {
         title={t("deleteDialogTitle", { fallback: "Eliminar documento" })}
         description={t("deleteDialogDescription", { fallback: "Esta acción no se puede deshacer. Escribe el nombre del documento para confirmar." })}
         confirmText={deleteDocumentTarget?.title}
+        confirmLabel={t("deleteDialogConfirm", { fallback: "Eliminar" })}
+        cancelLabel={t("deleteDialogCancel", { fallback: "Cancelar" })}
+        variant="danger"
+      />
+
+      <ConfirmDialog
+        isOpen={!!deleteFolderTarget}
+        onClose={() => !deletingFolder && setDeleteFolderTarget(null)}
+        onConfirm={confirmDeleteFolder}
+        title={t("deleteFolderDialogTitle", { fallback: "Eliminar carpeta" })}
+        description={t("deleteFolderDialogDescription", { fallback: "Se elimina la carpeta y todo su contenido. Esta acción no se puede deshacer. Escribe el nombre de la carpeta para confirmar." })}
+        confirmText={deleteFolderTarget?.name}
         confirmLabel={t("deleteDialogConfirm", { fallback: "Eliminar" })}
         cancelLabel={t("deleteDialogCancel", { fallback: "Cancelar" })}
         variant="danger"
