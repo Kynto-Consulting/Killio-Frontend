@@ -118,18 +118,26 @@ function makeRemapString(refMap: Map<string, RefEntry>, assetMap: Map<string, st
       if (!entry) return m;
       return `@[${entry.type}:${entry.id}${rest || ""}]`;
     });
-    // Deep refs: $[<docPath>:brick:selector] or $[mesh:<meshPath>:brick:selector]
-    s = s.replace(/\$\[([^\]]+)\]/g, (m, inner) => {
-      const tokens = String(inner).split(":");
-      if (tokens[0]?.toLowerCase() === "mesh" && tokens[1]) {
-        const e = refMap.get(tokens[1]);
-        if (e) { tokens[1] = e.id; return `$[${tokens.join(":")}]`; }
+    // Deep tokens: $[…] (inlined value) AND #[…] (visual pill) — same path
+    // grammar [entityType:scopeId:]brickId:selector, where the scope id is a
+    // local path that must become the cloud id. Both sigils are remapped.
+    const remapDeep = (sigil: "$" | "#") => {
+      const re = new RegExp(`\\${sigil}\\[([^\\]]+)\\]`, "g");
+      s = s.replace(re, (m, inner) => {
+        const tokens = String(inner).split(":");
+        // entityType-prefixed form: doc|board|card|mesh:<scopePath>:…
+        if (/^(doc|board|card|mesh)$/i.test(tokens[0] ?? "") && tokens[1]) {
+          const e = refMap.get(tokens[1]);
+          if (e) { tokens[1] = e.id; return `${sigil}[${tokens.join(":")}]`; }
+          return m;
+        }
+        const e = refMap.get(tokens[0]);
+        if (e) { tokens[0] = e.id; return `${sigil}[${tokens.join(":")}]`; }
         return m;
-      }
-      const e = refMap.get(tokens[0]);
-      if (e) { tokens[0] = e.id; return `$[${tokens.join(":")}]`; }
-      return m;
-    });
+      });
+    };
+    remapDeep("$");
+    remapDeep("#");
     // Asset refs anywhere in the string (covers url/src fields + JSON captions).
     s = s.replace(ASSET_RE, (m, name) => assetMap.get(name) ?? m);
     // Bare id fields that equal a known local path (e.g. portal targetId /
