@@ -73,6 +73,18 @@
   "confirmDeleteWorkspaceBtn": "Delete permanently",
   "deleteWorkspaceError": "Could not delete workspace.",
   "personalCannotDelete": "Personal workspaces cannot be deleted.",
+  "inviteLink": {
+    "title": "Invite link",
+    "subtitle": "A reusable link: anyone with it joins the workspace.",
+    "roleAs": "They join as {{role}}",
+    "maxUsesPlaceholder": "Max uses (∞)",
+    "generate": "Generate link",
+    "copy": "Copy",
+    "copied": "Copied!",
+    "revoke": "Revoke link",
+    "hiddenUrl": "Link hidden — generate a new one to copy it",
+    "createError": "Could not create the link."
+  },
   "inviteExpiry": {
     "label": "Expires in",
     "days": "{{n}} days",

@@ -5,6 +5,10 @@ import { useSession } from "@/components/providers/session-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   createInvite,
+  createInviteLink,
+  listInviteLinks,
+  revokeInviteLink,
+  type InviteLink,
   listTeamInvites,
   listTeams,
   listTeamMembers,
@@ -101,6 +105,12 @@ function TeamsPageInner() {
   const [showPermTable, setShowPermTable] = useState(false);
   const [inlineExpiry, setInlineExpiry] = useState<number>(3); // days; -1 = never
   const [expiryMenuOpen, setExpiryMenuOpen] = useState(false);
+  // Reusable invite links
+  const [inviteLinks, setInviteLinks] = useState<InviteLink[]>([]);
+  const [linkExpiry, setLinkExpiry] = useState<number>(3);
+  const [linkMaxUses, setLinkMaxUses] = useState<string>(""); // "" = unlimited
+  const [isCreatingLink, setIsCreatingLink] = useState(false);
+  const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [isInlineInviting, setIsInlineInviting] = useState(false);
   const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
@@ -154,6 +164,43 @@ function TeamsPageInner() {
       setInvites(await listTeamInvites(activeTeamId, accessToken));
     } catch { setInvites([]); }
     finally { setIsLoadingInvites(false); }
+  };
+
+  const reloadLinks = async () => {
+    if (!accessToken || !activeTeamId || !canInvite) return;
+    try { setInviteLinks(await listInviteLinks(activeTeamId, accessToken)); } catch { setInviteLinks([]); }
+  };
+
+  useEffect(() => { reloadLinks(); /* eslint-disable-next-line */ }, [activeTeamId, accessToken, canInvite]);
+
+  const copyLink = async (link: InviteLink) => {
+    const url = link.acceptUrl
+      || (typeof window !== "undefined" ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(link.token ?? "")}` : "");
+    if (!url) return;
+    try { await navigator.clipboard.writeText(url); setCopiedLinkId(link.id); setTimeout(() => setCopiedLinkId(null), 1800); } catch { /* noop */ }
+  };
+
+  const createLink = async () => {
+    if (!accessToken || !activeTeamId || !canInvite || isCreatingLink) return;
+    setIsCreatingLink(true);
+    setInviteError(null);
+    try {
+      const max = linkMaxUses.trim() === "" ? null : Math.max(1, parseInt(linkMaxUses, 10) || 1);
+      const link = await createInviteLink(activeTeamId, { role: inlineInviteRole, expiresInDays: linkExpiry, maxUses: max }, accessToken);
+      // Show the brand-new link at the top (carries token/acceptUrl) and copy it.
+      setInviteLinks((prev) => [link, ...prev]);
+      await copyLink(link);
+    } catch (err: any) {
+      setInviteError(err?.message || t("inviteLink.createError"));
+    } finally {
+      setIsCreatingLink(false);
+    }
+  };
+
+  const revokeLink = async (id: string) => {
+    if (!accessToken || !activeTeamId) return;
+    setInviteLinks((prev) => prev.filter((l) => l.id !== id));
+    try { await revokeInviteLink(activeTeamId, id, accessToken); } catch { reloadLinks(); }
   };
 
   const reloadMembers = async () => {
@@ -505,6 +552,78 @@ function TeamsPageInner() {
               )}
               {inviteError && <p style={{ marginTop: 8, fontSize: 12, color: "#f87171" }}>{inviteError}</p>}
               {inviteDisabledReason && <p style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.42)" }}>{inviteDisabledReason}</p>}
+            </div>
+          </div>
+        )}
+
+        {/* ── REUSABLE INVITE LINK CARD ── */}
+        {canInvite && (
+          <div style={surface}>
+            <div style={cardHeader}>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("inviteLink.title")}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{t("inviteLink.subtitle")}</div>
+              </div>
+            </div>
+            <div style={cardBody}>
+              <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{t("inviteLink.roleAs", { role: t(`roleName.${inlineInviteRole}`) })}</span>
+                {/* Expiry */}
+                <select
+                  value={linkExpiry}
+                  onChange={(e) => setLinkExpiry(parseInt(e.target.value, 10))}
+                  style={{ height: 36, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: linkExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 10px", outline: "none" }}
+                >
+                  {[3, 7, 14, 31].map((d) => <option key={d} value={d}>{t("inviteExpiry.days", { n: d })}</option>)}
+                  <option value={-1}>⚠ {t("inviteExpiry.never")}</option>
+                </select>
+                {/* Max uses */}
+                <input
+                  type="number"
+                  min={1}
+                  value={linkMaxUses}
+                  onChange={(e) => setLinkMaxUses(e.target.value)}
+                  placeholder={t("inviteLink.maxUsesPlaceholder")}
+                  style={{ width: 130, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.85)", fontSize: 13, padding: "0 12px", outline: "none" }}
+                />
+                <button
+                  onClick={createLink}
+                  disabled={isCreatingLink}
+                  style={{ height: 36, padding: "0 16px", borderRadius: 10, border: "none", background: "#d8ff72", color: "#0a1200", fontSize: 12, fontWeight: 700, cursor: isCreatingLink ? "default" : "pointer", opacity: isCreatingLink ? 0.5 : 1 }}
+                >
+                  {isCreatingLink ? "..." : t("inviteLink.generate")}
+                </button>
+              </div>
+              {linkExpiry === -1 && (
+                <p style={{ marginTop: 10, fontSize: 12, color: "#f87171", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                  <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
+                </p>
+              )}
+
+              {inviteLinks.length > 0 && (
+                <div style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 8 }}>
+                  {inviteLinks.map((link) => {
+                    const url = link.acceptUrl || (typeof window !== "undefined" && link.token ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(link.token)}` : null);
+                    return (
+                      <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.22)" }}>
+                        <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, ...roleBadgeStyle(link.role), fontWeight: 600, textTransform: "capitalize" }}>{t(`roleName.${link.role}`)}</span>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: url ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {url || t("inviteLink.hiddenUrl")}
+                        </span>
+                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>
+                          {link.maxUses != null ? `${link.useCount}/${link.maxUses}` : `${link.useCount}`} · {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : t("inviteExpiry.never")}
+                        </span>
+                        {url && (
+                          <button onClick={() => copyLink(link)} style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: copiedLinkId === link.id ? "#d8ff72" : "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                            {copiedLinkId === link.id ? t("inviteLink.copied") : t("inviteLink.copy")}
+                          </button>
+                        )}
+                        <button onClick={() => revokeLink(link.id)} title={t("inviteLink.revoke")} style={{ height: 30, width: 30, borderRadius: 8, border: "1px solid rgba(248,113,113,0.2)", background: "transparent", color: "#f87171", fontSize: 14, cursor: "pointer" }}>✕</button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         )}

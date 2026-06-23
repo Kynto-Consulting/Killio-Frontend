@@ -1561,6 +1561,44 @@ export async function createInvite(payload: InvitePayload, teamId: string, acces
   });
 }
 
+export type InviteLink = {
+  id: string;
+  role: string;
+  reusable?: true;
+  maxUses: number | null;
+  useCount: number;
+  expiresAt: string | null;
+  createdAt: string;
+  token?: string;
+  acceptUrl?: string;
+};
+
+export async function createInviteLink(
+  teamId: string,
+  payload: { role: Exclude<TeamRole, 'owner'>; expiresInDays?: number; maxUses?: number | null },
+  accessToken: string,
+): Promise<InviteLink> {
+  return request<InviteLink>(`/teams/${teamId}/invite-links`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function listInviteLinks(teamId: string, accessToken: string): Promise<InviteLink[]> {
+  return request<InviteLink[]>(`/teams/${teamId}/invite-links`, {
+    method: 'GET',
+    headers: authHeaders(accessToken),
+  });
+}
+
+export async function revokeInviteLink(teamId: string, inviteId: string, accessToken: string): Promise<{ revoked: boolean }> {
+  return request<{ revoked: boolean }>(`/teams/${teamId}/invite-links/${inviteId}`, {
+    method: 'DELETE',
+    headers: authHeaders(accessToken),
+  });
+}
+
 export async function acceptTeamInvite(token: string, accessToken: string): Promise<AcceptInviteResult> {
   return request<AcceptInviteResult>(`/teams/invites/accept`, {
     method: 'POST',
