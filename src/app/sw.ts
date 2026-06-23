@@ -34,16 +34,12 @@ const SHELL_PRECACHE = [
 // every child route can boot offline through it (local-workspace data comes
 // from IndexedDB / FileSystemDirectoryHandle on the client).
 function shellFor(pathname: string): string | null {
-  if (pathname.startsWith("/d/")) return "/d";
-  if (pathname.startsWith("/b/")) return "/b";
-  if (pathname.startsWith("/m/")) return "/m";
-  if (pathname.startsWith("/graph/")) return "/graph";
-  if (pathname.startsWith("/rooms/")) return "/rooms";
-  if (pathname.startsWith("/marketplace/")) return "/marketplace";
-  if (pathname.startsWith("/teams/")) return "/teams";
-  if (pathname.startsWith("/metrics/")) return "/metrics";
-  if (pathname.startsWith("/history/")) return "/history";
-  if (pathname.startsWith("/integrations/")) return "/integrations";
+  // Match the section base for BOTH the exact base (e.g. "/d", as hit by
+  // "/d?folderId=…") and any child path ("/d/<id>"). Without the exact case a
+  // query-only navigation like "/d?folderId=4 Foreign" found no shell → the
+  // handler returned Response.error() ("no-response").
+  const BASES = ["/d", "/b", "/m", "/graph", "/rooms", "/marketplace", "/teams", "/metrics", "/history", "/integrations"];
+  for (const b of BASES) if (pathname === b || pathname.startsWith(`${b}/`)) return b;
   if (pathname.startsWith("/public-board/")) return "/";
   if (pathname.startsWith("/public-document/")) return "/";
   if (pathname.startsWith("/public-mesh/")) return "/";
@@ -64,9 +60,12 @@ class NavigationWithShellFallback extends Strategy {
       return response;
     } catch { /* fall through to cache */ }
 
-    // 2. Exact cache match for this URL.
+    // 2. Exact cache match for this URL, then the same path ignoring the query
+    //    string (so "/d?folderId=…" reuses the cached "/d" shell).
     const exact = await handler.cacheMatch(request);
     if (exact) return exact;
+    const noQuery = await caches.match(request, { ignoreSearch: true, cacheName: "pages-cache-v4" });
+    if (noQuery) return noQuery;
 
     // 3. Parent shell route from same cache (e.g. /d/<id> → /d, even
     //    multi-segment local paths like /d/ws/sub/file.kd).
