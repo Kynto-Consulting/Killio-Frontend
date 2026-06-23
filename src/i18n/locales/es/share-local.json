@@ -1,7 +1,7 @@
 {
   "button": "Compartir",
   "title": "¿Compartir esto?",
-  "question": "¿Quieres compartir este {kind}?",
+  "question": "¿Quieres compartir este {{kind}}?",
   "description": "Se subirá una copia a tu workspace personal y se hará pública. Tu archivo local se queda en tu disco, intacto.",
   "kindDocument": "documento",
   "kindBoard": "tablero",
@@ -30,9 +30,9 @@
   "wsOverrideDesc": "Borra la copia anterior en la nube y sube todo de nuevo.",
   "wsDescription": "Cada documento, tablero y mesh se copiará a tu workspace personal y se hará público. Las referencias entre ellos se remapean y los archivos se suben para que todo funcione. Tus archivos locales quedan en tu disco, intactos.",
   "wsConfirm": "Sí, subir todo",
-  "wsProgress": "Subiendo {done}/{total}…",
+  "wsProgress": "Subiendo {{done}}/{{total}}…",
   "wsSuccessTitle": "Workspace subido",
-  "wsSuccessDescription": "{published} de {total} elementos ya están en tu workspace personal y son públicos.",
-  "wsFailedNote": "{failed} elemento(s) no se pudieron subir.",
+  "wsSuccessDescription": "{{published}} de {{total}} elementos ya están en tu workspace personal y son públicos.",
+  "wsFailedNote": "{{failed}} elemento(s) no se pudieron subir.",
   "wsEmpty": "Este workspace aún no tiene nada para subir."
 }

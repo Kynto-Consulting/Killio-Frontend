@@ -21,16 +21,28 @@ export async function fetchApi<T>(
 ): Promise<T> {
   const { method = 'GET', body, accessToken, headers = {} } = options;
 
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers: {
-      ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
-      ...headers,
-    },
-    body,
-    cache: 'no-store',
-  });
+  // Retry on 429 (throttler) with exponential backoff + jitter so bulk flows
+  // (workspace upload/merge fire many requests) don't fail mid-way.
+  const MAX_RETRIES = 5;
+  let res: Response | null = null;
+  for (let attempt = 0; ; attempt++) {
+    res = await fetch(`${API_BASE_URL}${path}`, {
+      method,
+      headers: {
+        ...(body instanceof FormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+        ...headers,
+      },
+      body,
+      cache: 'no-store',
+    });
+    if (res.status !== 429 || attempt >= MAX_RETRIES) break;
+    const retryAfter = Number(res.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : Math.min(8000, 2 ** attempt * 500) + Math.floor(Math.random() * 300);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;

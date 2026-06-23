@@ -724,15 +724,24 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
   const defaultHeaders: Record<string, string> = isFormData ? {} : { 'Content-Type': 'application/json' };
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    credentials: 'include',
-    ...init,
-    headers: {
-      ...defaultHeaders,
-      ...(init?.headers ?? {}),
-    },
-    cache: 'no-store',
-  });
+  // Retry on 429 (rate limit) with exponential backoff + jitter — bulk flows
+  // like a workspace upload fire many requests and trip the server throttler.
+  const MAX_RETRIES = 5;
+  let response: Response | null = null;
+  for (let attempt = 0; ; attempt++) {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      credentials: 'include',
+      ...init,
+      headers: { ...defaultHeaders, ...(init?.headers ?? {}) },
+      cache: 'no-store',
+    });
+    if (response.status !== 429 || attempt >= MAX_RETRIES) break;
+    const retryAfter = Number(response.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? retryAfter * 1000
+      : Math.min(8000, 2 ** attempt * 500) + Math.floor(Math.random() * 300);
+    await new Promise((r) => setTimeout(r, waitMs));
+  }
 
   if (!response.ok) {
     const message = await readErrorMessage(response);
