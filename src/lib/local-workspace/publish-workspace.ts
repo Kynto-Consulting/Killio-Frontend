@@ -6,7 +6,7 @@
 
 import {
   createDocument,
-  createDocumentBrick,
+  createDocumentBricks,
   updateDocumentVisibility,
   deleteDocument,
   deleteDocumentBrick,
@@ -229,11 +229,8 @@ export async function publishLocalWorkspace(
     try {
       if (f.kind === "kd") {
         const draft = kdToDocDraft(f.payload);
-        for (let i = 0; i < draft.bricks.length; i += 1) {
-          const b = draft.bricks[i];
-          const content = deepRemap(b.content ?? {}, remap);
-          try { await createDocumentBrick(entry.id, { kind: b.kind, position: b.position ?? i, content }, ctx.accessToken); } catch { /* skip brick */ }
-        }
+        const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
+        if (bricks.length) await createDocumentBricks(entry.id, bricks, ctx.accessToken); // 1 request
         await updateDocumentVisibility(entry.id, "public_link", ctx.accessToken);
       } else if (f.kind === "kb") {
         const kb = kbToBoardDraft(f.payload);
@@ -351,11 +348,8 @@ export async function mergeLocalWorkspace(
         for (const b of existing as Array<{ id: string }>) { try { await deleteDocumentBrick(id, b.id, ctx.accessToken); } catch { /* skip */ } }
       } catch { /* none */ }
     }
-    for (let i = 0; i < draft.bricks.length; i += 1) {
-      const b = draft.bricks[i];
-      const content = deepRemap(b.content ?? {}, remap);
-      try { await createDocumentBrick(id, { kind: b.kind, position: b.position ?? i, content }, ctx.accessToken); } catch { /* skip */ }
-    }
+    const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
+    if (bricks.length) await createDocumentBricks(id, bricks, ctx.accessToken); // 1 request
     await updateDocumentVisibility(id, "public_link", ctx.accessToken);
   };
   const fillBoard = async (id: string, payload: unknown, wipe: boolean) => {

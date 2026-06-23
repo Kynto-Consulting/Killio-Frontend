@@ -216,6 +216,19 @@ export async function createDocumentBrick(
   });
 }
 
+/** Bulk-create many bricks in ONE request (used by workspace upload/merge). */
+export async function createDocumentBricks(
+  documentId: string,
+  bricks: Array<{ id: string; kind: string; position: number; content: any }>,
+  accessToken: string
+): Promise<{ created: number }> {
+  return fetchApi(`/documents/${documentId}/bricks/batch`, {
+    method: 'POST',
+    body: JSON.stringify({ bricks }),
+    accessToken,
+  });
+}
+
 export async function getDocumentBricks(
   documentId: string,
   accessToken: string
