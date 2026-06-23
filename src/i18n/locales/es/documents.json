@@ -70,5 +70,10 @@
   "documentCount": "{{count}} documentos",
   "newFolder": "Nueva Carpeta",
   "editFolder": "Editar Carpeta",
+  "deleteFolder": "Eliminar carpeta",
+  "folderDeleted": "Carpeta eliminada",
+  "folderDeleteError": "No se pudo eliminar la carpeta",
+  "deleteFolderDialogTitle": "Eliminar carpeta",
+  "deleteFolderDialogDescription": "Se elimina la carpeta y todo su contenido. Esta acción no se puede deshacer. Escribe el nombre de la carpeta para confirmar.",
   "goUpLevel": "Subir nivel"
 }

@@ -70,5 +70,10 @@
   "documentCount": "{{count}} documents",
   "newFolder": "New Folder",
   "editFolder": "Edit Folder",
+  "deleteFolder": "Delete folder",
+  "folderDeleted": "Folder deleted",
+  "folderDeleteError": "Couldn't delete folder",
+  "deleteFolderDialogTitle": "Delete folder",
+  "deleteFolderDialogDescription": "This deletes the folder and everything inside it. This action cannot be undone. Type the folder name to confirm.",
   "goUpLevel": "Go up"
 }

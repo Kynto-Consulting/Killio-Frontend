@@ -38,15 +38,34 @@ export function normalizeBountifulContent(content: Rec): { content: Rec; changed
     return { id: slug(name, `col-${i}`), name, type: col?.type ?? "text" };
   });
 
+  // Coerce a single cell value into the editor's `{type,...}` cell object. AI/
+  // legacy tables often store a bare string/number/bool per cell, which renders
+  // but isn't editable (the editor reads cell.text/.number). Already-shaped
+  // cells (have a `type`) pass through.
+  const normCell = (v: any): any => {
+    if (v && typeof v === "object" && !Array.isArray(v) && typeof v.type === "string") return v;
+    if (v === undefined || v === null || v === "") return null;
+    if (typeof v === "number") { changed = true; return { type: "number", number: v }; }
+    if (typeof v === "boolean") { changed = true; return { type: "checkbox", checked: v }; }
+    changed = true;
+    return { type: "text", text: String(v) };
+  };
+
   const rawRows = Array.isArray(c.rows) ? c.rows : [];
   const rows = rawRows.map((r: any, ri: number) => {
-    if (r && typeof r === "object" && !Array.isArray(r) && r.cells) return r;
+    // Already-canonical row (object with a cells map): still normalize each cell
+    // VALUE so raw-string cells become editable.
+    if (r && typeof r === "object" && !Array.isArray(r) && r.cells && typeof r.cells === "object") {
+      const cells: Record<string, any> = {};
+      for (const [k, v] of Object.entries(r.cells)) { const nc = normCell(v); if (nc !== null) cells[k] = nc; }
+      return { ...r, id: typeof r.id === "string" ? r.id : `row-${ri}`, cells };
+    }
     changed = true;
     const arr = Array.isArray(r) ? r : [];
-    const cells: Record<string, { type: "text"; text: string }> = {};
+    const cells: Record<string, any> = {};
     cols.forEach((col: any, ci: number) => {
-      const v = arr[ci];
-      if (v !== undefined && v !== null && v !== "") cells[col.id] = { type: "text", text: String(v) };
+      const nc = normCell(arr[ci]);
+      if (nc !== null) cells[col.id] = nc;
     });
     return { id: typeof r?.id === "string" ? r.id : `row-${ri}`, cells };
   });
