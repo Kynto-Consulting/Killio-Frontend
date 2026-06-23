@@ -32,6 +32,7 @@ export function PublishWorkspaceModal({
   const [phase, setPhase] = React.useState<Phase>("confirm");
   const [progress, setProgress] = React.useState({ done: 0, total: 0 });
   const [summary, setSummary] = React.useState<WorkspacePublishSummary | null>(null);
+  const [chosenMode, setChosenMode] = React.useState<PublishMode>("create");
 
   React.useEffect(() => {
     if (isOpen) { setPhase("confirm"); setProgress({ done: 0, total: 0 }); setSummary(null); }
@@ -42,7 +43,6 @@ export function PublishWorkspaceModal({
   const blocked = !online || !canPublish || itemCount === 0;
   const blockedMsg = !online ? t("offline") : !canPublish ? t("needAccount") : t("wsEmpty");
 
-  const [chosenMode, setChosenMode] = React.useState<PublishMode>("create");
   const start = async (mode: PublishMode = "create") => {
     setChosenMode(mode);
     setPhase("publishing");

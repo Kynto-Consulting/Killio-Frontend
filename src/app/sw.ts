@@ -25,13 +25,12 @@ declare const self: typeof globalThis & WorkerGlobalScope;
 // Those routes are populated by `cacheOnNavigation` (next.config) on the
 // user's first online visit + by warmCache() in the dashboard layout, both
 // of which run with the session cookie attached.
+// NOTE: /vendor/* (Babel + React UMD for the offline widget sandbox) are NOT
+// listed here — Serwist already precaches everything under public/ via
+// __SW_MANIFEST (with a content revision), and adding them again caused
+// "add-to-cache-list-conflicting-entries".
 const SHELL_PRECACHE = [
   "/", "/offline", "/login",
-  // Widget toolchain — embedded into the (null-origin) widget sandbox so code
-  // widgets transpile + render offline.
-  "/vendor/babel.min.js",
-  "/vendor/react.production.min.js",
-  "/vendor/react-dom.production.min.js",
 ].map((url) => ({ url, revision: null as string | null }));
 
 // Maps a deep path to its parent shell route. The shell is what the dashboard
