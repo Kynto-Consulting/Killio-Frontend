@@ -30,6 +30,11 @@ export function essentialText(content: unknown, depth = 0): string {
     ]) {
       if (Array.isArray(o[key])) parts.push(essentialText(o[key], depth + 1));
     }
+    // beautiful_table rows carry a `cells` MAP (column id → cell) — recurse its
+    // values so cell text + entity-ref labels are indexed too.
+    if (o.cells && typeof o.cells === "object" && !Array.isArray(o.cells)) {
+      parts.push(essentialText(Object.values(o.cells as Record<string, unknown>), depth + 1));
+    }
     // Chart metabrick: content.chart = { type, spec }. Recurse into spec.
     if (o.chart && typeof o.chart === "object") {
       const ch = o.chart as Record<string, unknown>;
@@ -82,6 +87,32 @@ function extractRefs(text: string): string[] {
   return [...ids];
 }
 
+/** Pull STRUCTURED entity refs out of a brick content object — the ids that
+ *  don't appear as @[]/$[] tokens. Covers beautiful_table relation cells
+ *  (cells.<col>.documents|boards|cards[].id), popup/inline doc refs
+ *  (inlineDocumentId), and portal/mirror targets (targetId/sourceId). */
+function structuredRefIds(value: unknown, acc: Set<string>, depth = 0): void {
+  if (depth > 9 || value == null) return;
+  if (Array.isArray(value)) { for (const v of value) structuredRefIds(v, acc, depth + 1); return; }
+  if (typeof value !== "object") return;
+  const o = value as Record<string, unknown>;
+  for (const key of ["documents", "boards", "cards", "users"]) {
+    const arr = o[key];
+    if (Array.isArray(arr)) for (const it of arr) { const id = (it as { id?: unknown })?.id; if (typeof id === "string") acc.add(id); }
+  }
+  for (const key of ["inlineDocumentId", "targetId", "sourceId", "docId", "boardId", "cardId", "meshId"]) {
+    if (typeof o[key] === "string") acc.add(o[key] as string);
+  }
+  for (const v of Object.values(o)) structuredRefIds(v, acc, depth + 1);
+}
+
+/** All refs in a brick: token-based (@[]/$[]) + structured (relation cells). */
+function brickRefs(content: unknown): string[] {
+  const ids = new Set<string>(extractRefs(essentialText(content)));
+  structuredRefIds(content, ids);
+  return [...ids];
+}
+
 export function buildGraph(entities: EntityInput[], opts: { includeMeshBricks?: boolean } = {}): GraphData {
   const nodes: GNode[] = [];
   const edges: GEdge[] = [];
@@ -115,16 +146,16 @@ export function buildGraph(entities: EntityInput[], opts: { includeMeshBricks?: 
   for (const e of entities) {
     const from = e.id;
     if (e.type === "document") {
-      for (const b of e.bricks) for (const ref of extractRefs(essentialText(b.content))) if (nodeIds.has(ref) && ref !== from) edges.push({ source: from, target: ref, type: "ref", weight: 1 });
+      for (const b of e.bricks) for (const ref of brickRefs(b.content)) if (nodeIds.has(ref) && ref !== from) edges.push({ source: from, target: ref, type: "ref", weight: 1 });
     } else if (e.type === "board") {
       for (const c of e.cards) {
-        for (const b of c.blocks) for (const ref of extractRefs(essentialText(b.content))) if (nodeIds.has(ref) && ref !== c.id) edges.push({ source: c.id, target: ref, type: "ref", weight: 1 });
+        for (const b of c.blocks) for (const ref of brickRefs(b.content)) if (nodeIds.has(ref) && ref !== c.id) edges.push({ source: c.id, target: ref, type: "ref", weight: 1 });
       }
     } else if (e.type === "mesh") {
       for (const b of e.bricks) {
         const o = (b.content && typeof b.content === "object" ? b.content : {}) as Record<string, unknown>;
-        // refs inside mesh brick text
-        for (const ref of extractRefs(essentialText(b.content))) if (nodeIds.has(ref) && ref !== from) edges.push({ source: from, target: ref, type: "ref", weight: 1 });
+        // refs inside mesh brick text + structured relation refs
+        for (const ref of brickRefs(b.content)) if (nodeIds.has(ref) && ref !== from) edges.push({ source: from, target: ref, type: "ref", weight: 1 });
         // portal / mirror targets
         const target = (typeof o.targetId === "string" && o.targetId) || (typeof o.sourceId === "string" && o.sourceId) || "";
         if (target && nodeIds.has(target) && target !== from) edges.push({ source: from, target, type: b.kind === "mirror" ? "mirror" : "portal", weight: 1 });
