@@ -26,6 +26,7 @@ import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
 import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
 import { resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
+import { readWorkspaceSync, writeWorkspaceSync, hashWorkspaceFiles } from "@/lib/local-workspace/workspace-sync";
 import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
 import { listDocuments, DocumentSummary } from "@/lib/api/documents";
@@ -511,14 +512,31 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           for (const f of entries) {
             try { wsFiles.push({ path: f.path, kind: f.kind as WorkspaceFile["kind"], text: await localWs.readFile(f.path) }); } catch { /* skip unreadable */ }
           }
-          return publishLocalWorkspace(
+          // Re-use the cloud workspace this folder was uploaded to before (so a
+          // second upload targets the same workspace), else resolve the personal one.
+          const prevSync = dir ? await readWorkspaceSync(dir) : null;
+          const teamId = prevSync?.workspaceId || await resolvePublishTeamId(accessToken as string, activeTeamId);
+          const summary = await publishLocalWorkspace(
             wsFiles,
-            { teamId: await resolvePublishTeamId(accessToken as string, activeTeamId), accessToken: accessToken as string },
+            { teamId, accessToken: accessToken as string },
             {
               onProgress,
               readAsset: dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined,
             },
           );
+          // Persist sync state: which cloud workspace, the content hash at upload,
+          // and the local→cloud entity map (for future Merge/Override).
+          if (dir && summary.published > 0) {
+            try {
+              await writeWorkspaceSync(dir, {
+                workspaceId: teamId,
+                uploadHash: hashWorkspaceFiles(wsFiles),
+                uploadedAt: new Date().toISOString(),
+                entityMap: summary.entityMap,
+              });
+            } catch { /* non-fatal */ }
+          }
+          return summary;
         }}
       />
       <ProfileSettingsModal

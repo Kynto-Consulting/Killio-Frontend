@@ -35,6 +35,8 @@ export type WorkspacePublishSummary = {
   published: number;
   failed: number;
   results: Array<{ path: string; route?: string; ok: boolean }>;
+  /** local file path → the cloud entity it was published as (for later merge). */
+  entityMap: Record<string, { type: "doc" | "board" | "mesh"; id: string }>;
 };
 
 type RefEntry = { type: "doc" | "board" | "mesh"; id: string; route: string };
@@ -214,5 +216,7 @@ export async function publishLocalWorkspace(
   }
 
   const published = results.filter((r) => r.ok).length;
-  return { total: decoded.length, published, failed: decoded.length - published, results };
+  const entityMap: Record<string, { type: "doc" | "board" | "mesh"; id: string }> = {};
+  for (const [path, entry] of refMap) entityMap[path] = { type: entry.type, id: entry.id };
+  return { total: decoded.length, published, failed: decoded.length - published, results, entityMap };
 }
