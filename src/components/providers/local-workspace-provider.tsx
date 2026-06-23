@@ -13,6 +13,7 @@ import {
 } from "@/lib/local-workspace/fs-access";
 import { saveDirHandle, loadDirHandle, deleteDirHandle } from "@/lib/local-workspace/dir-handle-store";
 import { ensureDotKillio } from "@/lib/local-workspace/dot-killio";
+import { reconcileWorkspaceHistory, type ReconcileFile } from "@/lib/local-workspace/reconcile-history";
 import {
   listLocalFolders,
   createLocalFolder,
@@ -100,6 +101,19 @@ export function LocalWorkspaceProvider({ children }: { children: React.ReactNode
         files, folders,
         readFile: (p) => readWorkspaceFile(handle, p),
       });
+      // Reconcile external (hand-)edits into the activity history: read each
+      // entity, compare per-unit hashes to the manifest baseline, log a diff for
+      // changes the app didn't already record. Same throttle as .killio refresh.
+      void (async () => {
+        try {
+          const entityFiles = files.filter((f) => f.kind === "kd" || f.kind === "kb" || f.kind === "km");
+          const rf: ReconcileFile[] = [];
+          for (const f of entityFiles) {
+            try { rf.push({ path: f.path, kind: f.kind as ReconcileFile["kind"], text: await readWorkspaceFile(handle, f.path) }); } catch { /* skip */ }
+          }
+          await reconcileWorkspaceHistory(handle, rf, new Date().toISOString());
+        } catch { /* best-effort */ }
+      })();
     }
   }, []);
 
