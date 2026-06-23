@@ -95,8 +95,11 @@ export function DiagramBlock({ lang, code }: { lang: string; code: string }) {
     );
   }
   if (result.kind === "mesh") {
+    // `flex` is required: PublicMeshCanvas's root is `flex-1`, so without a flex
+    // parent it collapsed to ~0 height → the fit-to-content effect bailed
+    // (clientHeight < 8) and the diagram rendered at raw (0,0,1), overflowing.
     return (
-      <div className="relative my-2 h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
+      <div className="relative my-2 flex h-[400px] w-full overflow-hidden rounded-lg border border-border/60 bg-card/40">
         <PublicMeshCanvas state={result.state} />
       </div>
     );
