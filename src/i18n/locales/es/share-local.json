@@ -32,7 +32,7 @@
   "wsConfirm": "Sí, subir todo",
   "wsProgress": "Subiendo {{done}}/{{total}}…",
   "wsSuccessTitle": "Workspace subido",
-  "wsSuccessDescription": "{{published}} de {{total}} elementos ya están en tu workspace personal y son públicos.",
+  "wsSuccessDescription": "{{published}} de {{total}} elementos subidos al workspace «{{name}}».",
   "wsFailedNote": "{{failed}} elemento(s) no se pudieron subir.",
   "wsEmpty": "Este workspace aún no tiene nada para subir."
 }

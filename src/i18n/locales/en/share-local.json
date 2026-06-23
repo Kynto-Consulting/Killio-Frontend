@@ -32,7 +32,7 @@
   "wsConfirm": "Yes, upload all",
   "wsProgress": "Uploading {{done}}/{{total}}…",
   "wsSuccessTitle": "Workspace uploaded",
-  "wsSuccessDescription": "{{published}} of {{total}} items are now in your personal workspace and public.",
+  "wsSuccessDescription": "{{published}} of {{total}} items uploaded to workspace “{{name}}”.",
   "wsFailedNote": "{{failed}} item(s) couldn't be uploaded.",
   "wsEmpty": "This workspace has nothing to upload yet."
 }

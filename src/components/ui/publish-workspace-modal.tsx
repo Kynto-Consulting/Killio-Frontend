@@ -136,7 +136,7 @@ export function PublishWorkspaceModal({
           {phase === "success" && summary && (
             <>
               <p className="text-center text-[13px] leading-relaxed text-muted-foreground">
-                {t("wsSuccessDescription", { published: summary.published, total: summary.total })}
+                {t("wsSuccessDescription", { published: summary.published, total: summary.total, name: summary.workspaceName || "" })}
               </p>
               {summary.failed > 0 ? (
                 <div className="flex items-center justify-center gap-2 rounded-lg border border-amber-400/30 bg-amber-500/5 px-3 py-2 text-xs text-amber-600">

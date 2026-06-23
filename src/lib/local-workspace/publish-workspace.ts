@@ -31,12 +31,40 @@ import {
   type BrickMutationInput,
 } from "@/lib/api/contracts";
 import { decodeKillioFile } from "@/lib/killio-file";
+import { createFolder } from "@/lib/api/folders";
+import { normalizeBountifulContent } from "@/lib/bricks/normalize-bountiful";
 import { kdToDocDraft, kbToBoardDraft } from "./adapters.ts";
 import { deserializeKmToMesh } from "@/lib/mesh-file";
 
 export type PublishCtx = { teamId: string; accessToken: string };
 
 export type WorkspaceFile = { path: string; kind: "kd" | "km" | "kb"; text: string; lastModified?: number };
+export type WorkspaceFolder = { path: string; name: string; parent: string; color?: string | null; icon?: string | null };
+
+/** Directory portion of a relative file path ("a/b/x.kd" → "a/b", "x.kd" → ""). */
+const dirOf = (p: string): string => { const i = p.lastIndexOf("/"); return i < 0 ? "" : p.slice(0, i); };
+
+/**
+ * Recreate the local folder hierarchy in the cloud, parents before children and
+ * in listing order, so documents keep their folder + ordering. Returns a map of
+ * local folder path → cloud folder id (root "" → undefined).
+ */
+async function createFolderTree(folders: WorkspaceFolder[], ctx: PublishCtx): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  // Depth-sort (shallower first) so a parent exists before its children.
+  const ordered = [...folders].sort((a, b) => a.path.split("/").length - b.path.split("/").length);
+  for (const f of ordered) {
+    try {
+      const parentFolderId = f.parent ? map.get(f.parent) : undefined;
+      const created = await createFolder(
+        { teamId: ctx.teamId, name: f.name, parentFolderId, icon: f.icon ?? undefined, color: f.color ?? undefined },
+        ctx.accessToken,
+      );
+      map.set(f.path, created.id);
+    } catch { /* skip folder; its docs land at root */ }
+  }
+  return map;
+}
 
 /**
  * Delete previously-published cloud entities (used by "Override" re-sync — wipe
@@ -62,6 +90,8 @@ export type WorkspacePublishSummary = {
   results: Array<{ path: string; route?: string; ok: boolean }>;
   /** local file path → the cloud entity it was published as (for later merge). */
   entityMap: Record<string, { type: "doc" | "board" | "mesh"; id: string }>;
+  /** Cloud workspace (team) name, filled by the caller for the success message. */
+  workspaceName?: string;
 };
 
 type RefEntry = { type: "doc" | "board" | "mesh"; id: string; route: string };
@@ -183,6 +213,14 @@ function toCardBrickInput(kind: string, content: any): BrickMutationInput | null
   return { kind: "text", displayStyle: "paragraph", markdown: typeof content === "string" ? content : "" };
 }
 
+/** Canonicalize a brick's content before upload so the cloud renders/edits it the
+ *  same as local — esp. beautiful_table (AI/legacy tables ship string columns +
+ *  raw cell values, which otherwise upload un-editable). */
+function normBrickContent(kind: string, content: any): any {
+  if (kind === "beautiful_table") return normalizeBountifulContent(content || {}).content;
+  return content;
+}
+
 /** Create a board's lists (few) then ALL its cards + bricks in ONE batch request. */
 async function fillBoardLists(
   boardId: string,
@@ -214,23 +252,27 @@ async function fillBoardLists(
 export async function publishLocalWorkspace(
   files: WorkspaceFile[],
   ctx: PublishCtx,
-  opts: { readAsset?: (name: string) => Promise<File | null>; onProgress?: (done: number, total: number) => void } = {},
+  opts: { readAsset?: (name: string) => Promise<File | null>; onProgress?: (done: number, total: number) => void; folders?: WorkspaceFolder[] } = {},
 ): Promise<WorkspacePublishSummary> {
   // Decode everything up front.
   const decoded = files
     .map((f) => { try { return { ...f, payload: decodeKillioFile(f.text).payload }; } catch { return null; } })
     .filter(Boolean) as Array<WorkspaceFile & { payload: unknown }>;
 
+  // 0) Recreate the local folder hierarchy in the cloud (parents first, in order)
+  //    so documents land in the same folders. Maps local path → cloud folder id.
+  const folderIdByPath = await createFolderTree(opts.folders ?? [], ctx);
+
   // 1) Create cloud shells so we know every entity's new id before remapping.
-  //    Documents are created in ONE batch (already public, so no per-doc
-  //    visibility call); boards/meshes individually.
+  //    Documents are created in ONE batch (already public, in their folder);
+  //    boards/meshes individually.
   const refMap = new Map<string, RefEntry>();
   const created: Array<{ file: WorkspaceFile & { payload: unknown }; entry: RefEntry }> = [];
   const kdFiles = decoded.filter((f) => f.kind === "kd");
   if (kdFiles.length) {
     try {
       const createdDocs = await createDocumentsBatch(
-        kdFiles.map((f) => ({ teamId: ctx.teamId, title: kdToDocDraft(f.payload).title, visibility: "public_link" as const })),
+        kdFiles.map((f) => ({ teamId: ctx.teamId, title: kdToDocDraft(f.payload).title, folderId: folderIdByPath.get(dirOf(f.path)), visibility: "public_link" as const })),
         ctx.accessToken,
       );
       kdFiles.forEach((f, i) => {
@@ -273,7 +315,7 @@ export async function publishLocalWorkspace(
     try {
       if (f.kind === "kd") {
         const draft = kdToDocDraft(f.payload);
-        draft.bricks.forEach((b, i) => docBricks.push({ documentId: entry.id, id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
+        draft.bricks.forEach((b, i) => docBricks.push({ documentId: entry.id, id: b.id, kind: b.kind, position: b.position ?? i, content: normBrickContent(b.kind, deepRemap(b.content ?? {}, remap)) }));
         // visibility already public from the batch shell-create.
       } else if (f.kind === "kb") {
         await fillBoardLists(entry.id, kbToBoardDraft(f.payload), remap, ctx);
@@ -383,7 +425,7 @@ export async function mergeLocalWorkspace(
         for (const b of existing as Array<{ id: string }>) { try { await deleteDocumentBrick(id, b.id, ctx.accessToken); } catch { /* skip */ } }
       } catch { /* none */ }
     }
-    const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
+    const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: normBrickContent(b.kind, deepRemap(b.content ?? {}, remap)) }));
     if (bricks.length) await createDocumentBricks(id, bricks, ctx.accessToken); // 1 request
     await updateDocumentVisibility(id, "public_link", ctx.accessToken);
   };

@@ -544,6 +544,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           const ctx = { teamId, accessToken: accessToken as string };
           const readAsset = dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined;
 
+          // Local folder hierarchy → recreated in the cloud so docs keep order.
+          const folders = localWs.folders.map((f) => ({ path: f.path, name: f.name, parent: f.parent, color: f.color, icon: f.icon }));
+          const wsName = localWs.active?.name || "Workspace";
           let summary;
           if (mode === "merge" && prevSync) {
             // Last-writer-wins per entity, in-place updates (Phase 3).
@@ -551,8 +554,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           } else {
             // Override wipes the prior upload first; create/override publish fresh.
             if (mode === "override" && prevSync?.entityMap) await deleteWorkspaceEntities(prevSync.entityMap, ctx);
-            summary = await publishLocalWorkspace(wsFiles, ctx, { onProgress, readAsset });
+            summary = await publishLocalWorkspace(wsFiles, ctx, { onProgress, readAsset, folders });
           }
+          summary = { ...summary, workspaceName: wsName };
           // Persist sync state (entityMap already carries the full union for merge).
           if (dir && summary.published > 0) {
             try {
