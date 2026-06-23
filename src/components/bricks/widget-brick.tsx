@@ -13,6 +13,25 @@ import {
 
 const LANGS: WidgetLang[] = ["html", "js", "ts", "jsx", "tsx"];
 
+// Fetch + concatenate same-origin vendor scripts (Babel, React) ONCE per session
+// and cache the text. These are SW-precached so this works offline. Returns null
+// if unreachable (the sandbox then falls back to the CDN tag — online only).
+const vendorCache = new Map<string, Promise<string | null>>();
+function loadVendor(...urls: string[]): Promise<string | null> {
+  const key = urls.join("|");
+  let p = vendorCache.get(key);
+  if (!p) {
+    p = (async () => {
+      try {
+        const parts = await Promise.all(urls.map((u) => fetch(u).then((r) => (r.ok ? r.text() : Promise.reject(new Error(String(r.status)))))));
+        return parts.join("\n;\n");
+      } catch { return null; }
+    })();
+    vendorCache.set(key, p);
+  }
+  return p;
+}
+
 /**
  * Code-widget asset: HTML/JS/TS/TSX that renders inside a **sandboxed iframe**
  * (`allow-scripts`, no `allow-same-origin`) so it can never touch Killio's
@@ -115,9 +134,18 @@ export function WidgetBrick({
       // { name → data: URI } map and let the sandbox resolve any `asset:` ref.
       const dir = getDir();
       const map: Record<string, string> = dir ? await readAllAssetsAsDataUrls(dir) : {};
+      // Embed the compiler (+ React for jsx/tsx) INLINE so the widget runs
+      // offline — the null-origin sandbox can't load <script src> through the
+      // service worker. Sources are same-origin + SW-precached, fetched once.
+      let compilerSource: string | null = null;
+      let reactSource: string | null = null;
+      if (lang !== "html") {
+        compilerSource = await loadVendor("/vendor/babel.min.js");
+        if (lang === "tsx" || lang === "jsx") reactSource = await loadVendor("/vendor/react.production.min.js", "/vendor/react-dom.production.min.js");
+      }
       // Pass the asset map into the sandbox; it resolves `asset:` refs AFTER the
       // widget runs (args evaluated, dynamic markup produced) + on DOM mutations.
-      const doc = buildWidgetSrcdoc({ lang, code, args, assets: map });
+      const doc = buildWidgetSrcdoc({ lang, code, args, assets: map, compilerSource, reactSource });
       if (!cancelled) setSrcdoc(doc);
     })();
     return () => { cancelled = true; };

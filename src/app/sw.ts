@@ -27,6 +27,11 @@ declare const self: typeof globalThis & WorkerGlobalScope;
 // of which run with the session cookie attached.
 const SHELL_PRECACHE = [
   "/", "/offline", "/login",
+  // Widget toolchain — embedded into the (null-origin) widget sandbox so code
+  // widgets transpile + render offline.
+  "/vendor/babel.min.js",
+  "/vendor/react.production.min.js",
+  "/vendor/react-dom.production.min.js",
 ].map((url) => ({ url, revision: null as string | null }));
 
 // Maps a deep path to its parent shell route. The shell is what the dashboard

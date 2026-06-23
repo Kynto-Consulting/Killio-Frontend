@@ -102,10 +102,14 @@ export function buildWidgetSrcdoc(opts: {
   args?: Record<string, unknown> | null;
   /** name → data: URI map for local-workspace assets referenced by the widget. */
   assets?: Record<string, string> | null;
+  /** Inline @babel/standalone source — when present it's embedded (offline) instead of CDN. */
+  compilerSource?: string | null;
+  /** Inline react + react-dom UMD source — embedded for tsx/jsx when present (offline). */
+  reactSource?: string | null;
   /** background: "transparent" (default) or a CSS color for the widget canvas. */
   background?: string;
 }): string {
-  const { lang, code, args, assets, background = "transparent" } = opts;
+  const { lang, code, args, assets, compilerSource, reactSource, background = "transparent" } = opts;
   const assetsJson = escapeForScript(JSON.stringify(assets ?? {}));
 
   // Pure HTML widgets need no toolchain — host the source directly, but still
@@ -118,17 +122,25 @@ export function buildWidgetSrcdoc(opts: {
 
   const needsReact = lang === "tsx" || lang === "jsx";
   const presets = needsReact ? "['typescript','react']" : "['typescript']";
-  const reactTags = needsReact
-    ? `<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>` +
-      `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>`
-    : "";
+  // Prefer INLINE (offline-capable: the iframe is a null origin → its <script
+  // src> fetches bypass the service worker, so they can't be cached; embedding
+  // the source is the only way it runs offline). Fall back to CDN when not
+  // provided (online).
+  const compilerTag = compilerSource
+    ? `<script>${compilerSource}</script>`
+    : `<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>`;
+  const reactTags = !needsReact ? ""
+    : reactSource
+      ? `<script>${reactSource}</script>`
+      : `<script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>` +
+        `<script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>`;
 
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <style>html,body{margin:0;padding:0;background:${background};font-family:system-ui,-apple-system,sans-serif;color:#111}
 .k-werr{color:#b00020;background:#fff0f0;padding:12px;margin:0;white-space:pre-wrap;font:12px/1.5 ui-monospace,monospace}</style>
 <script>window.__KA__=JSON.parse(${assetsJson});</script>
-<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+${compilerTag}
 ${reactTags}
 </head><body><div id="root"></div>
 <script>
