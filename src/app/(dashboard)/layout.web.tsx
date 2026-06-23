@@ -524,10 +524,23 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           for (const f of entries) {
             try { wsFiles.push({ path: f.path, kind: f.kind as WorkspaceFile["kind"], text: await localWs.readFile(f.path), lastModified: (f as { lastModified?: number }).lastModified }); } catch { /* skip unreadable */ }
           }
-          // Re-use the cloud workspace this folder was uploaded to before, else
-          // resolve the personal one.
+          // Re-use the cloud workspace this folder was uploaded to before; on the
+          // FIRST upload, CREATE a dedicated cloud workspace (team) named after the
+          // local folder. Fall back to the personal workspace if team creation
+          // fails (e.g. plan caps the number of teams).
           const prevSync = dir ? await readWorkspaceSync(dir) : null;
-          const teamId = prevSync?.workspaceId || await resolvePublishTeamId(accessToken as string, activeTeamId);
+          let teamId = prevSync?.workspaceId;
+          if (!teamId) {
+            const wsName = (localWs.active?.name || "Workspace").slice(0, 60);
+            const base = wsName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 32) || "workspace";
+            const wsSlug = `${base}-${Date.now().toString(36).slice(-5)}`;
+            try {
+              const team = await createTeam({ name: wsName, slug: wsSlug }, accessToken as string);
+              teamId = team.id;
+            } catch {
+              teamId = await resolvePublishTeamId(accessToken as string, activeTeamId);
+            }
+          }
           const ctx = { teamId, accessToken: accessToken as string };
           const readAsset = dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined;
 
