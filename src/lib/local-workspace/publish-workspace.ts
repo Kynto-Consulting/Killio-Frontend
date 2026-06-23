@@ -8,6 +8,7 @@ import {
   createDocument,
   createDocumentsBatch,
   createDocumentBricks,
+  createDocumentBricksMulti,
   updateDocumentVisibility,
   deleteDocument,
   deleteDocumentBrick,
@@ -262,15 +263,17 @@ export async function publishLocalWorkspace(
 
   const remap = makeRemapString(refMap, assetMap);
 
-  // 3) Fill content (remapped) + make public.
+  // 3) Fill content (remapped) + make public. Document bricks are ACCUMULATED
+  //    across all docs and flushed in fixed chunks (≤30) so many small docs are
+  //    a few requests, not one per doc.
   const results: WorkspacePublishSummary["results"] = [];
+  const docBricks: Array<{ documentId: string; id: string; kind: string; position: number; content: unknown }> = [];
   let done = 0;
   for (const { file: f, entry } of created) {
     try {
       if (f.kind === "kd") {
         const draft = kdToDocDraft(f.payload);
-        const bricks = draft.bricks.map((b, i) => ({ id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
-        if (bricks.length) await createDocumentBricks(entry.id, bricks, ctx.accessToken); // 1 request
+        draft.bricks.forEach((b, i) => docBricks.push({ documentId: entry.id, id: b.id, kind: b.kind, position: b.position ?? i, content: deepRemap(b.content ?? {}, remap) }));
         // visibility already public from the batch shell-create.
       } else if (f.kind === "kb") {
         await fillBoardLists(entry.id, kbToBoardDraft(f.payload), remap, ctx);
@@ -289,6 +292,11 @@ export async function publishLocalWorkspace(
     }
     done += 1;
     opts.onProgress?.(done, created.length);
+  }
+  // Flush accumulated document bricks in ≤30-brick chunks (across documents).
+  const BRICK_CHUNK = 30;
+  for (let i = 0; i < docBricks.length; i += BRICK_CHUNK) {
+    try { await createDocumentBricksMulti(docBricks.slice(i, i + BRICK_CHUNK) as any, ctx.accessToken); } catch { /* best-effort */ }
   }
 
   // Files whose shell creation failed.

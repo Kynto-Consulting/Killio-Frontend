@@ -241,6 +241,19 @@ export async function createDocumentBricks(
   });
 }
 
+/** Bulk-create bricks spanning MULTIPLE documents in ONE request. */
+export async function createDocumentBricksMulti(
+  bricks: Array<{ documentId: string; id: string; kind: string; position: number; content: any }>,
+  accessToken: string
+): Promise<{ created: number }> {
+  if (!bricks.length) return { created: 0 };
+  return fetchApi('/documents/bricks/batch', {
+    method: 'POST',
+    body: JSON.stringify({ bricks }),
+    accessToken,
+  });
+}
+
 export async function getDocumentBricks(
   documentId: string,
   accessToken: string
