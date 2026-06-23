@@ -24,7 +24,7 @@ import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
 import { useOnline } from "@/hooks/use-online";
 import { warmCache, warmImages, warmEntities } from "@/lib/warm-cache";
 import { PublishWorkspaceModal } from "@/components/ui/publish-workspace-modal";
-import { publishLocalWorkspace, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
+import { publishLocalWorkspace, deleteWorkspaceEntities, type WorkspaceFile } from "@/lib/local-workspace/publish-workspace";
 import { resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readWorkspaceSync, writeWorkspaceSync, hashWorkspaceFiles } from "@/lib/local-workspace/workspace-sync";
 import { readAssetFile } from "@/lib/local-workspace/assets";
@@ -104,6 +104,17 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateWorkspaceModalOpen, setIsCreateWorkspaceModalOpen] = useState(false);
   const [isWsPublishOpen, setIsWsPublishOpen] = useState(false);
+  // Whether this local folder was already uploaded to a cloud workspace → the
+  // modal offers Merge/Override instead of a plain upload.
+  const [wsHasSync, setWsHasSync] = useState(false);
+  useEffect(() => {
+    if (!isWsPublishOpen) return;
+    const dir = localWs.getDir();
+    if (!dir) { setWsHasSync(false); return; }
+    let cancelled = false;
+    readWorkspaceSync(dir).then((s) => { if (!cancelled) setWsHasSync(!!s?.workspaceId); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [isWsPublishOpen, localWs]);
   const online = useOnline();
   const [isOfflineSwitchOpen, setIsOfflineSwitchOpen] = useState(false);
   // First time the dashboard mounts online, prefetch every top-level route
@@ -504,8 +515,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
         onClose={() => setIsWsPublishOpen(false)}
         online={online}
         canPublish={!!accessToken}
+        hasExisting={wsHasSync}
         itemCount={localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb").length}
-        run={async (onProgress) => {
+        run={async (mode, onProgress) => {
           const dir = localWs.getDir();
           const entries = localWs.files.filter((f) => f.kind === "kd" || f.kind === "km" || f.kind === "kb");
           const wsFiles: WorkspaceFile[] = [];
@@ -516,9 +528,16 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           // second upload targets the same workspace), else resolve the personal one.
           const prevSync = dir ? await readWorkspaceSync(dir) : null;
           const teamId = prevSync?.workspaceId || await resolvePublishTeamId(accessToken as string, activeTeamId);
+          const ctx = { teamId, accessToken: accessToken as string };
+          // Override = wipe the prior upload first, then publish fresh. Merge =
+          // publish on top (cloud-only entities survive), and keep the prior map
+          // entries that aren't re-published this round.
+          if (mode === "override" && prevSync?.entityMap) {
+            await deleteWorkspaceEntities(prevSync.entityMap, ctx);
+          }
           const summary = await publishLocalWorkspace(
             wsFiles,
-            { teamId, accessToken: accessToken as string },
+            ctx,
             {
               onProgress,
               readAsset: dir ? async (name: string) => { try { return await readAssetFile(dir, name); } catch { return null; } } : undefined,
@@ -528,11 +547,14 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
           // and the local→cloud entity map (for future Merge/Override).
           if (dir && summary.published > 0) {
             try {
+              const entityMap = mode === "merge" && prevSync
+                ? { ...prevSync.entityMap, ...summary.entityMap }
+                : summary.entityMap;
               await writeWorkspaceSync(dir, {
                 workspaceId: teamId,
                 uploadHash: hashWorkspaceFiles(wsFiles),
                 uploadedAt: new Date().toISOString(),
-                entityMap: summary.entityMap,
+                entityMap,
               });
             } catch { /* non-fatal */ }
           }

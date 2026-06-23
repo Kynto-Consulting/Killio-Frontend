@@ -8,6 +8,7 @@ import {
   createDocument,
   createDocumentBrick,
   updateDocumentVisibility,
+  deleteDocument,
 } from "@/lib/api/documents";
 import {
   createBoard,
@@ -19,6 +20,7 @@ import {
   updateMeshState,
   updateMeshVisibility,
   uploadFile,
+  deleteBoard,
   type BrickMutationInput,
 } from "@/lib/api/contracts";
 import { decodeKillioFile } from "@/lib/killio-file";
@@ -29,6 +31,23 @@ import { assetNameFromRef } from "./assets.ts";
 export type PublishCtx = { teamId: string; accessToken: string };
 
 export type WorkspaceFile = { path: string; kind: "kd" | "km" | "kb"; text: string };
+
+/**
+ * Delete previously-published cloud entities (used by "Override" re-sync — wipe
+ * the prior upload, then publish fresh). Meshes are boards, so both go through
+ * deleteBoard. Best-effort: already-deleted entities are ignored.
+ */
+export async function deleteWorkspaceEntities(
+  entityMap: Record<string, { type: "doc" | "board" | "mesh"; id: string }>,
+  ctx: PublishCtx,
+): Promise<void> {
+  for (const ref of Object.values(entityMap)) {
+    try {
+      if (ref.type === "doc") await deleteDocument(ref.id, ctx.accessToken);
+      else await deleteBoard(ref.id, ctx.accessToken);
+    } catch { /* already gone / no access → skip */ }
+  }
+}
 
 export type WorkspacePublishSummary = {
   total: number;

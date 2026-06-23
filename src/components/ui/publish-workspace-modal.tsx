@@ -2,10 +2,11 @@
 
 import React from "react";
 import { createPortal } from "react-dom";
-import { CloudUpload, Loader2, Check, AlertTriangle, X, WifiOff } from "lucide-react";
+import { CloudUpload, Loader2, Check, AlertTriangle, X, WifiOff, GitMerge, RefreshCw } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import type { WorkspacePublishSummary } from "@/lib/local-workspace/publish-workspace";
 
+export type PublishMode = "create" | "merge" | "override";
 type Phase = "confirm" | "publishing" | "success" | "error";
 
 export function PublishWorkspaceModal({
@@ -14,6 +15,7 @@ export function PublishWorkspaceModal({
   online,
   canPublish,
   itemCount,
+  hasExisting = false,
   run,
 }: {
   isOpen: boolean;
@@ -21,8 +23,10 @@ export function PublishWorkspaceModal({
   online: boolean;
   canPublish: boolean;
   itemCount: number;
-  /** Runs the workspace publish, reporting progress; resolves with the summary. */
-  run: (onProgress: (done: number, total: number) => void) => Promise<WorkspacePublishSummary>;
+  /** True when this folder was already uploaded → offer Merge/Override. */
+  hasExisting?: boolean;
+  /** Runs the workspace publish in the given mode, reporting progress. */
+  run: (mode: PublishMode, onProgress: (done: number, total: number) => void) => Promise<WorkspacePublishSummary>;
 }) {
   const t = useTranslations("share-local");
   const [phase, setPhase] = React.useState<Phase>("confirm");
@@ -38,10 +42,12 @@ export function PublishWorkspaceModal({
   const blocked = !online || !canPublish || itemCount === 0;
   const blockedMsg = !online ? t("offline") : !canPublish ? t("needAccount") : t("wsEmpty");
 
-  const start = async () => {
+  const [chosenMode, setChosenMode] = React.useState<PublishMode>("create");
+  const start = async (mode: PublishMode = "create") => {
+    setChosenMode(mode);
     setPhase("publishing");
     try {
-      const s = await run((done, total) => setProgress({ done, total }));
+      const s = await run(mode, (done, total) => setProgress({ done, total }));
       setSummary(s);
       setPhase("success");
     } catch {
@@ -79,12 +85,40 @@ export function PublishWorkspaceModal({
                   {!online ? <WifiOff className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}{blockedMsg}
                 </div>
               ) : null}
-              <div className="flex items-center justify-end gap-2 pt-1">
-                <button onClick={onClose} className="h-9 rounded-lg px-4 text-sm font-semibold text-muted-foreground hover:bg-muted/60 transition-colors">{t("cancel")}</button>
-                <button onClick={start} disabled={blocked} className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 disabled:opacity-50 transition-colors">
-                  <CloudUpload className="h-4 w-4" /> {t("wsConfirm")}
-                </button>
-              </div>
+
+              {hasExisting && !blocked ? (
+                <>
+                  <div className="rounded-lg border border-border/50 bg-muted/10 px-3 py-2 text-center text-[12px] text-muted-foreground">
+                    {t("wsAlreadyUploaded", { fallback: "This workspace is already in the cloud. Choose how to sync your local changes." })}
+                  </div>
+                  <div className="flex flex-col gap-2 pt-1">
+                    <button onClick={() => start("merge")} className="flex items-start gap-3 rounded-xl border border-border bg-card px-3.5 py-3 text-left hover:border-accent/50 hover:bg-accent/5 transition-colors">
+                      <GitMerge className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
+                      <span className="flex flex-col">
+                        <span className="text-sm font-semibold">{t("wsMerge", { fallback: "Merge" })}</span>
+                        <span className="text-[12px] text-muted-foreground">{t("wsMergeDesc", { fallback: "Add and update from local; keep items only in the cloud." })}</span>
+                      </span>
+                    </button>
+                    <button onClick={() => start("override")} className="flex items-start gap-3 rounded-xl border border-border bg-card px-3.5 py-3 text-left hover:border-destructive/50 hover:bg-destructive/5 transition-colors">
+                      <RefreshCw className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                      <span className="flex flex-col">
+                        <span className="text-sm font-semibold">{t("wsOverride", { fallback: "Override" })}</span>
+                        <span className="text-[12px] text-muted-foreground">{t("wsOverrideDesc", { fallback: "Delete the previous cloud copy and upload everything fresh." })}</span>
+                      </span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-end pt-1">
+                    <button onClick={onClose} className="h-9 rounded-lg px-4 text-sm font-semibold text-muted-foreground hover:bg-muted/60 transition-colors">{t("cancel")}</button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button onClick={onClose} className="h-9 rounded-lg px-4 text-sm font-semibold text-muted-foreground hover:bg-muted/60 transition-colors">{t("cancel")}</button>
+                  <button onClick={() => start("create")} disabled={blocked} className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 disabled:opacity-50 transition-colors">
+                    <CloudUpload className="h-4 w-4" /> {t("wsConfirm")}
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -120,7 +154,7 @@ export function PublishWorkspaceModal({
               <p className="text-center text-[13px] leading-relaxed text-muted-foreground">{t("errorDescription")}</p>
               <div className="flex items-center justify-end gap-2 pt-1">
                 <button onClick={onClose} className="h-9 rounded-lg px-4 text-sm font-semibold text-muted-foreground hover:bg-muted/60 transition-colors">{t("cancel")}</button>
-                <button onClick={start} className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 transition-colors">
+                <button onClick={() => start(chosenMode)} className="inline-flex h-9 items-center gap-2 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground shadow-sm hover:bg-accent/90 transition-colors">
                   <CloudUpload className="h-4 w-4" /> {t("retry")}
                 </button>
               </div>
