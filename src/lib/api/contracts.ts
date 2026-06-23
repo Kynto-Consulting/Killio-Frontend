@@ -2005,3 +2005,28 @@ export async function uploadFile(
   return { ...uploaded, url: normalizedUrl };
 }
 
+/** Upload MANY files in ONE request. Results are returned in input order. */
+export async function uploadFiles(
+  files: File[],
+  accessToken: string,
+  options?: { ownerScopeType?: 'user' | 'team' | 'board' | 'card' | 'ingestion_job' | 'document'; ownerScopeId?: string; usage?: string },
+): Promise<Array<{ key: string; url: string; isPrivate: boolean }>> {
+  if (!files.length) return [];
+  const formData = new FormData();
+  for (const f of files) formData.append('files', f);
+  if (options?.ownerScopeType) formData.append('ownerScopeType', options.ownerScopeType);
+  if (options?.ownerScopeId) formData.append('ownerScopeId', options.ownerScopeId);
+  if (options?.usage) formData.append('usage', options.usage);
+
+  const res = await request<{ files: Array<{ key: string; url: string; isPrivate: boolean }> }>(`/uploads/batch`, {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: formData,
+  });
+  return (res.files ?? []).map((u) => {
+    let url = u.url;
+    if (url.startsWith('/')) url = `${API_BASE_URL}${url}`;
+    return { ...u, url };
+  });
+}
+

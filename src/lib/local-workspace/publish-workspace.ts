@@ -24,7 +24,7 @@ import {
   getMesh,
   updateMeshState,
   updateMeshVisibility,
-  uploadFile,
+  uploadFiles,
   deleteBoard,
   deleteList,
   getBoard,
@@ -90,19 +90,20 @@ async function uploadUsedAssets(
   const refs = new Set<string>();
   decoded.forEach((f) => collectAssetNames(f.payload, refs));
   if (!refs.size) return assetMap;
+  // Read each unique asset file (local FS), then upload them ALL in ONE request.
+  const bases = [...new Set([...refs].map(assetBase))];
+  const files: File[] = [];
+  const baseOrder: string[] = [];
+  for (const base of bases) {
+    try { const file = await readAsset(base); if (file) { files.push(file); baseOrder.push(base); } } catch { /* skip */ }
+  }
   const urlByBase = new Map<string, string>();
+  try {
+    const uploaded = await uploadFiles(files, ctx.accessToken, { ownerScopeType: "team", ownerScopeId: ctx.teamId });
+    uploaded.forEach((u, i) => { if (u?.url) urlByBase.set(baseOrder[i], u.url); });
+  } catch { /* leave unmapped */ }
   for (const ref of refs) {
-    const base = assetBase(ref);
-    if (!urlByBase.has(base)) {
-      try {
-        const file = await readAsset(base);
-        if (file) {
-          const up = await uploadFile(file, ctx.accessToken, { ownerScopeType: "team", ownerScopeId: ctx.teamId });
-          urlByBase.set(base, up.url);
-        }
-      } catch { /* leave unmapped */ }
-    }
-    const url = urlByBase.get(base);
+    const url = urlByBase.get(assetBase(ref));
     if (url) assetMap.set(ref, url); // key by the exact token so remap matches
   }
   return assetMap;
