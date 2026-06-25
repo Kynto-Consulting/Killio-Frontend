@@ -1,10 +1,11 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Folder } from "@/lib/api/folders";
-import { Folder as FolderIcon, Star, Heart, Briefcase, Book, Image as ImageIcon, Music, Video, Check } from "lucide-react";
+import { Folder as FolderIcon, Star, Heart, Briefcase, Book, Image as ImageIcon, Music, Video, Plus, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { resolveFolderIcon } from "./FolderIconPicker";
+import { LUCIDE_REGISTRY } from "@/lib/lucide-icon-registry";
 
 interface FolderModalProps {
   isOpen: boolean;
@@ -37,6 +38,22 @@ export function FolderModal({ isOpen, onClose, onSubmit, initialData, folders, c
   const [icon, setIcon] = useState("folder");
   const [color, setColor] = useState("#3b82f6");
   const [parentFolderId, setParentFolderId] = useState<string | null>(null);
+  const [showIconGallery, setShowIconGallery] = useState(false);
+  const [iconQuery, setIconQuery] = useState("");
+
+  // Full gallery of valid icons (deduped by component, searchable by name/alias).
+  const galleryIcons = useMemo(() => {
+    const q = iconQuery.trim().toLowerCase();
+    const seen = new Set<unknown>();
+    const out: { name: string; Comp: React.ComponentType<{ className?: string }> }[] = [];
+    for (const [name, Comp] of Object.entries(LUCIDE_REGISTRY)) {
+      if (q && !name.includes(q)) continue;
+      if (seen.has(Comp)) continue;
+      seen.add(Comp);
+      out.push({ name, Comp });
+    }
+    return out;
+  }, [iconQuery]);
 
   useEffect(() => {
     if (isOpen) {
@@ -44,6 +61,8 @@ export function FolderModal({ isOpen, onClose, onSubmit, initialData, folders, c
       setIcon(initialData?.icon || "folder");
       setColor(initialData?.color || "#3b82f6");
       setParentFolderId(initialData ? (initialData.parentFolderId || null) : (currentParentId || null));
+      setShowIconGallery(false);
+      setIconQuery("");
     }
   }, [isOpen, initialData, currentParentId]);
 
@@ -96,7 +115,7 @@ export function FolderModal({ isOpen, onClose, onSubmit, initialData, folders, c
             <div className="flex-1">
               <label className="text-sm font-semibold mb-3 block">{t("icon")}</label>
               <div className="grid grid-cols-4 gap-3">
-                {PRESET_ICONS.map(i => {
+                {PRESET_ICONS.slice(0, 7).map(i => {
                   const IconComp = i.icon;
                   const isSelected = icon === i.id;
                   return (
@@ -106,19 +125,79 @@ export function FolderModal({ isOpen, onClose, onSubmit, initialData, folders, c
                       onClick={() => setIcon(i.id)}
                       className={cn(
                         "w-10 h-10 rounded-xl flex items-center justify-center border transition-all hover:bg-accent",
-                        isSelected 
-                          ? "border-2 shadow-sm scale-110" 
+                        isSelected
+                          ? "border-2 shadow-sm scale-110"
                           : "border-border text-muted-foreground/70"
                       )}
                       style={isSelected && color ? { borderColor: color, color } : {}}
                     >
-                      <IconComp className={cn("w-5 h-5", isSelected ? "" : "")} />
+                      <IconComp className="w-5 h-5" />
                     </button>
                   );
                 })}
+                {/* "More" → full icon gallery. Highlighted when the selected icon
+                    isn't one of the 7 presets (i.e. came from the gallery). */}
+                {(() => {
+                  const customSelected = !PRESET_ICONS.slice(0, 7).some((p) => p.id === icon);
+                  const CustomIcon = customSelected ? resolveFolderIcon(icon) : null;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() => setShowIconGallery((s) => !s)}
+                      title={t("iconMore")}
+                      aria-label={t("iconMore")}
+                      className={cn(
+                        "w-10 h-10 rounded-xl flex items-center justify-center border transition-all hover:bg-accent",
+                        showIconGallery || customSelected ? "border-2 shadow-sm" : "border-dashed border-border text-muted-foreground/70"
+                      )}
+                      style={customSelected && color ? { borderColor: color, color } : {}}
+                    >
+                      {CustomIcon ? <CustomIcon className="w-5 h-5" /> : <Plus className="w-5 h-5" />}
+                    </button>
+                  );
+                })()}
               </div>
             </div>
           </div>
+
+          {showIconGallery && (
+            <div className="rounded-xl border border-border bg-background/50 p-3">
+              <div className="flex items-center gap-2 mb-3 rounded-lg border border-input bg-card px-3 h-9">
+                <Search className="w-4 h-4 text-muted-foreground/70" />
+                <input
+                  type="text"
+                  value={iconQuery}
+                  onChange={(e) => setIconQuery(e.target.value)}
+                  placeholder={t("iconSearchPlaceholder")}
+                  className="flex-1 bg-transparent text-sm outline-none"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-8 gap-2 max-h-52 overflow-y-auto pr-1">
+                {galleryIcons.map(({ name, Comp }) => {
+                  const isSelected = icon === name;
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      title={name}
+                      onClick={() => { setIcon(name); setShowIconGallery(false); }}
+                      className={cn(
+                        "w-9 h-9 rounded-lg flex items-center justify-center border transition-all hover:bg-accent",
+                        isSelected ? "border-2 shadow-sm" : "border-border text-muted-foreground/70"
+                      )}
+                      style={isSelected && color ? { borderColor: color, color } : {}}
+                    >
+                      <Comp className="w-[18px] h-[18px]" />
+                    </button>
+                  );
+                })}
+                {galleryIcons.length === 0 && (
+                  <div className="col-span-8 py-6 text-center text-xs text-muted-foreground">{t("iconNoResults")}</div>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="pt-2">
              <label className="text-sm font-semibold mb-3 block">{t("preview")}</label>
