@@ -329,7 +329,9 @@ export const UnifiedMediaBrick: React.FC<{
     if (!activeItem?.url) return classes + "w-full"; // Single simple wrapper for empty state
 
     classes += "overflow-hidden ";
-    if (layout === "full") classes += "w-full ";
+    // 3D models need a definite-width track (contain:strict won't grow a w-auto
+    // parent), so never let the wrapper shrink-to-fit for them.
+    if (layout === "full" || is3D) classes += "w-full ";
     else classes += "w-auto max-w-full ";
 
     if (border === "soft") classes += "rounded-xl border border-border/40 ";
@@ -358,7 +360,10 @@ export const UnifiedMediaBrick: React.FC<{
               </div>
             </a>
           ) : is3D ? (
-            <div className={`flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5 ${layout === "full" ? "w-full" : "w-auto mx-auto"}`}>
+            // model-viewer has `contain: strict` (no intrinsic content size like
+            // <img>), so a shrink-to-fit (w-auto) parent collapses it to its 300x150
+            // default. Always give it a full-width track so the viewer can size up.
+            <div className="flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5 w-full">
               <ModelViewer src={resolveModelUrl(activeItem.url)} alt={activeItem.title || content.title} full={layout === "full"} />
             </div>
           ) : isVideo ? (
