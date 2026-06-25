@@ -266,6 +266,7 @@ export const CACHE_TTL = {
   BOARD_DETAIL: 30 * 1000,      // 30s — individual board with all cards
   DOCUMENT:     30 * 1000,      // 30s — document with all bricks
   MEMBERS:      5 * 60 * 1000,  // 5 min
+  FOLDERS:      3 * 60 * 1000,  // 3 min — folder tree (stale-while-revalidate)
 } as const;
 
 // ─── Cache key builders ───────────────────────────────────────────────────────
@@ -278,4 +279,5 @@ export const cacheKey = {
   board:     (boardId: string) => `board:${boardId}`,
   document:  (docId: string)   => `document:${docId}`,
   members:   (teamId: string)  => `members:${teamId}`,
+  folders:   (teamId: string)  => `folders:${teamId}`,
 } as const;

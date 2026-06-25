@@ -215,8 +215,12 @@ export default function DocumentPage() {
         // Serve cached team data immediately (no extra latency on revisit)
         const cachedBoards  = apiCache.get<BoardSummary[]>(cacheKey.boards(activeTeamId));
         const cachedMembers = apiCache.get<TeamMemberSummary[]>(cacheKey.members(activeTeamId));
+        const cachedFolders = apiCache.get<Folder[]>(cacheKey.folders(activeTeamId));
         if (cachedBoards)  setTeamBoards(cachedBoards);
         if (cachedMembers) setTeamMembers(cachedMembers);
+        // Paint cached folders instantly, but always refetch below so folders
+        // created on other devices/sessions replace the stale set on reload.
+        if (cachedFolders) setFolders(cachedFolders);
 
         const [docs, freshBoards, freshMembers, flds] = await Promise.all([
           listAllTeamDocuments(activeTeamId, accessToken!),
@@ -232,6 +236,7 @@ export default function DocumentPage() {
         if (Array.isArray(flds)) parsedFlds = flds;
         else if (flds && typeof flds === 'object' && Array.isArray((flds as any).data)) parsedFlds = (flds as any).data;
         setFolders(parsedFlds);
+        apiCache.set(cacheKey.folders(activeTeamId), parsedFlds, CACHE_TTL.FOLDERS);
       }
     } catch (e: any) {
       setError(e.message || t("loadError"));
@@ -1376,7 +1381,7 @@ export default function DocumentPage() {
     brickId: string;
     files: File[];
   }) => {
-    if (!accessToken || !document || files.length === 0) return;
+    if ((!accessToken && !localMode) || !document || files.length === 0) return;
 
     const target = document.bricks.find((brick) => brick.id === brickId);
     if (!target) return;
@@ -1395,15 +1400,18 @@ export default function DocumentPage() {
     const existingMeta = parseMediaMeta(target.content?.caption, fallback);
 
     const uploadedItems = await uploadFilesAsMediaItems({
+      // In local mode there's no token; pass a truthy sentinel so the uploader
+      // calls our local uploadFile (writeAsset → asset: ref) instead of a blob: URL.
+      accessToken: localMode ? 'offline' : accessToken,
       files,
-      accessToken,
       uploadFile,
       onUploadError: (err) => {
         // Upload failure is surfaced via toast; log as warning only
         if (process.env.NODE_ENV !== 'production') console.warn('Failed to upload media file for document brick', err);
         toast(t("uploadError"), 'error');
       },
-      allowLocalBlobFallback: true,
+      // Never persist a blob: URL — it's revoked on reload and fails to load later.
+      allowLocalBlobFallback: false,
     });
 
     if (uploadedItems.length === 0) {
@@ -1433,7 +1441,7 @@ export default function DocumentPage() {
         )),
       };
     });
-  }, [accessToken, docId, document, t]);
+  }, [accessToken, localMode, uploadFile, docId, document, t]);
 
   const handlePasteImageInTextBrick = useCallback(async ({
     brickId,
@@ -1457,7 +1465,7 @@ export default function DocumentPage() {
       });
     }
 
-    if (!accessToken || !document) return;
+    if ((!accessToken && !localMode) || !document) return;
 
     const targetIndex = document.bricks.findIndex((brick) => brick.id === brickId);
     if (targetIndex < 0) return;
@@ -1554,7 +1562,7 @@ export default function DocumentPage() {
       toast(t("createBlockError"), "error");
       return;
     }
-  }, [accessToken, docId, document, t]);
+  }, [accessToken, localMode, uploadFile, docId, document, t]);
 
   const handleExport = async () => {
     if (!accessToken || !document) return;

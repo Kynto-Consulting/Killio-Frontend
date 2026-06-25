@@ -14,6 +14,7 @@ import { FolderTree, FolderNode } from "@/components/folders/FolderTree";
 import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder, deleteFolder } from "@/lib/api/folders";
+import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
@@ -114,6 +115,11 @@ function DocumentsPageContent() {
     }
     if (!accessToken || !activeTeamId) return;
 
+    // Stale-while-revalidate: paint cached folders instantly, then always refetch
+    // the latest so folders created on other devices/sessions replace the stale set.
+    const cachedFolders = apiCache.get<Folder[]>(cacheKey.folders(activeTeamId));
+    if (cachedFolders) setFolders(cachedFolders);
+
     setIsLoading(true);
 
     Promise.all([
@@ -126,9 +132,11 @@ function DocumentsPageContent() {
       if (Array.isArray(docs)) parsedDocs = docs;
       else if (docs && typeof docs === 'object' && Array.isArray((docs as any).data)) parsedDocs = (docs as any).data;
       else if (docs && typeof docs === 'object' && Array.isArray((docs as any).documents)) parsedDocs = (docs as any).documents;
-      
+
+      const parsedFlds = Array.isArray(flds) ? flds : [];
       setDocuments(parsedDocs);
-      setFolders(Array.isArray(flds) ? flds : []);
+      setFolders(parsedFlds);
+      apiCache.set(cacheKey.folders(activeTeamId), parsedFlds, CACHE_TTL.FOLDERS);
     })
     .catch(console.error)
     .finally(() => setIsLoading(false));
@@ -163,6 +171,8 @@ function DocumentsPageContent() {
         setFolders([...folders, f]);
         toast(t("folderCreated"), "success");
       }
+      // Drop the cached folder tree so a reload reflects this change immediately.
+      if (activeTeamId) apiCache.invalidate(cacheKey.folders(activeTeamId));
       setIsFolderModalOpen(false);
     } catch (e) {
       console.error(e);
@@ -335,6 +345,7 @@ function DocumentsPageContent() {
       } else {
         if (!accessToken) return;
         await deleteFolder(folder.id, accessToken);
+        if (activeTeamId) apiCache.invalidate(cacheKey.folders(activeTeamId));
       }
       toast(t("folderDeleted", { fallback: "Folder deleted" }), "success");
       setDeleteFolderTarget(null);
