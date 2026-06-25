@@ -78,5 +78,9 @@
   "folderDeleteError": "No se pudo eliminar la carpeta",
   "deleteFolderDialogTitle": "Eliminar carpeta",
   "deleteFolderDialogDescription": "Se elimina la carpeta y todo su contenido. Esta acción no se puede deshacer. Escribe el nombre de la carpeta para confirmar.",
-  "goUpLevel": "Subir nivel"
+  "goUpLevel": "Subir nivel",
+  "visibilityTeam": "Workspace",
+  "visibilityTeamHint": "Todos los miembros del workspace",
+  "visibilityPrivate": "Privado",
+  "visibilityPrivateHint": "Solo tú"
 }

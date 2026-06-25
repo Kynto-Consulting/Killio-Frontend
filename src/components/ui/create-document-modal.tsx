@@ -1,27 +1,30 @@
 "use client";
 
-import { useRef, useEffect } from "react";
-import { X, Loader2, FileText } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { X, Loader2, FileText, Users, Lock } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useForm } from "@/hooks/ui";
+
+type DocVisibility = "team" | "private";
 
 interface CreateDocumentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (title: string) => Promise<void> | void;
+  onSubmit: (title: string, visibility: DocVisibility) => Promise<void> | void;
 }
 
 export function CreateDocumentModal({ isOpen, onClose, onSubmit }: CreateDocumentModalProps) {
   const t = useTranslations("documents");
   const tCommon = useTranslations("common");
   const inputRef = useRef<HTMLInputElement>(null);
+  const [visibility, setVisibility] = useState<DocVisibility>("team");
 
   const form = useForm({
     fields: {
       title: { type: "text", transform: "trim", constraints: { required: true, minLength: 1 } },
     },
     submit: async ({ values, reset }) => {
-      await onSubmit(values.title);
+      await onSubmit(values.title, visibility);
       reset();
       onClose();
     },
@@ -30,6 +33,7 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit }: CreateDocumen
   useEffect(() => {
     if (!isOpen) return;
     form.reset();
+    setVisibility("team");
     const id = setTimeout(() => inputRef.current?.focus(), 100);
     return () => clearTimeout(id);
   }, [isOpen]);
@@ -69,6 +73,32 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit }: CreateDocumen
             {(form.fields.title.error || form.formError) && (
               <p className="text-sm text-destructive font-medium">{form.fields.title.error || form.formError}</p>
             )}
+          </div>
+
+          {/* Visibility: team (shared with all non-guest members) vs private (only you) */}
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => setVisibility("team")}
+              className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${visibility === "team" ? "border-primary bg-primary/5" : "border-input hover:bg-accent"}`}
+            >
+              <Users className={`h-4 w-4 mt-0.5 ${visibility === "team" ? "text-primary" : "text-muted-foreground"}`} />
+              <span>
+                <span className="block text-sm font-medium">{t("visibilityTeam") || "Workspace"}</span>
+                <span className="block text-xs text-muted-foreground">{t("visibilityTeamHint") || "Todos los miembros"}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setVisibility("private")}
+              className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${visibility === "private" ? "border-primary bg-primary/5" : "border-input hover:bg-accent"}`}
+            >
+              <Lock className={`h-4 w-4 mt-0.5 ${visibility === "private" ? "text-primary" : "text-muted-foreground"}`} />
+              <span>
+                <span className="block text-sm font-medium">{t("visibilityPrivate") || "Privado"}</span>
+                <span className="block text-xs text-muted-foreground">{t("visibilityPrivateHint") || "Solo tú"}</span>
+              </span>
+            </button>
           </div>
 
           <div className="flex w-full items-center justify-end gap-3 pt-2">

@@ -78,5 +78,9 @@
   "folderDeleteError": "Couldn't delete folder",
   "deleteFolderDialogTitle": "Delete folder",
   "deleteFolderDialogDescription": "This deletes the folder and everything inside it. This action cannot be undone. Type the folder name to confirm.",
-  "goUpLevel": "Go up"
+  "goUpLevel": "Go up",
+  "visibilityTeam": "Workspace",
+  "visibilityTeamHint": "All workspace members",
+  "visibilityPrivate": "Private",
+  "visibilityPrivateHint": "Only you"
 }

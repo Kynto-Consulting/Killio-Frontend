@@ -205,7 +205,7 @@ function DocumentsPageContent() {
     }
   };
 
-  const handleCreateDocument = async (title: string) => {
+  const handleCreateDocument = async (title: string, visibility: "team" | "private" = "team") => {
     if (workspaceMode === "local") {
       const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "") || `doc-${Date.now()}`;
       const path = activeFolderId ? `${activeFolderId}/${slug}.kd` : `${slug}.kd`;
@@ -218,7 +218,7 @@ function DocumentsPageContent() {
     if (!accessToken || !activeTeamId) return;
 
     try {
-      const resp = await createDocument({ teamId: activeTeamId, title, folderId: activeFolderId || undefined }, accessToken);
+      const resp = await createDocument({ teamId: activeTeamId, title, folderId: activeFolderId || undefined, visibility }, accessToken);
       const doc = (resp && (resp as any).data) ? (resp as any).data : resp;
       if (doc && doc.id) {
         setDocuments([doc, ...documents]);
@@ -616,8 +616,8 @@ function DocumentsPageContent() {
       <CreateDocumentModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onSubmit={async (title) => {
-          await handleCreateDocument(title);
+        onSubmit={async (title, visibility) => {
+          await handleCreateDocument(title, visibility);
           setIsCreateModalOpen(false);
         }}
       />

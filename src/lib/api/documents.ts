@@ -125,7 +125,7 @@ export async function listAllTeamDocuments(teamId: string, accessToken: string):
 }
 
 export async function createDocument(
-  payload: { teamId: string; title?: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string },
+  payload: { teamId: string; title?: string; folderId?: string; isInlinePopup?: boolean; parentDocumentId?: string; visibility?: 'private' | 'team' | 'public_link' },
   accessToken: string
 ): Promise<DocumentSummary> {
   const body = {
