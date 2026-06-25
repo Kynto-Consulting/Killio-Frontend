@@ -74,6 +74,18 @@ function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; ful
   );
   React.useEffect(() => { ensureModelViewer(() => setReady(true)); }, []);
 
+  const [err, setErr] = React.useState<string | null>(null);
+  // Attach load/error listeners on the actual element so failures (CORS, 404,
+  // bad GLB) become visible instead of an empty black canvas.
+  const onRef = React.useCallback((el: any) => {
+    if (!el) return;
+    el.addEventListener("load", () => setErr(null));
+    el.addEventListener("error", (e: any) => {
+      const d = e?.detail;
+      setErr(d?.sourceError?.message || d?.type || "No se pudo cargar el modelo 3D");
+    });
+  }, []);
+
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
   }
@@ -83,24 +95,38 @@ function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; ful
   // Use createElement so we don't need a global JSX intrinsic-element typing;
   // props cast to any because model-viewer's custom attributes aren't in
   // React's HTMLAttributes.
-  return React.createElement("model-viewer", {
-    key: src,
-    src,
-    alt: alt || "3D model",
-    "camera-controls": true,
-    "auto-rotate": true,
-    "touch-action": "pan-y",
-    "shadow-intensity": "1",
-    exposure: "1",
-    "interaction-prompt": "none",
-    loading: "eager",
-    style: {
-      width: full ? "100%" : "min(100%, 540px)",
-      height: full ? "70vh" : "420px",
-      background: "transparent",
-      ["--poster-color" as any]: "transparent",
-    },
-  } as any);
+  return React.createElement(
+    "div",
+    { style: { position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" } },
+    React.createElement("model-viewer", {
+      key: src,
+      ref: onRef,
+      src,
+      alt: alt || "3D model",
+      "camera-controls": true,
+      "auto-rotate": true,
+      "touch-action": "pan-y",
+      "shadow-intensity": "1",
+      exposure: "1",
+      "environment-image": "neutral",
+      "interaction-prompt": "none",
+      crossorigin: "anonymous",
+      loading: "eager",
+      style: {
+        width: "100%",
+        height: full ? "70vh" : "420px",
+        background: "transparent",
+        ["--poster-color" as any]: "transparent",
+      },
+    } as any),
+    err
+      ? React.createElement(
+          "div",
+          { style: { position: "absolute", bottom: 8, left: 8, right: 8, fontSize: 11, color: "#f87171", background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 6, textAlign: "center" } },
+          `⚠ ${err}`,
+        )
+      : null,
+  );
 }
 
 const is3DUrl = (url?: string | null, mime?: string | null, mediaType?: string | null, kind?: string) =>
@@ -264,6 +290,15 @@ export const UnifiedMediaBrick: React.FC<{
     return url;
   };
 
+  // model-viewer fetches the model with fetch() (unlike <img>), so a cross-origin
+  // cloud URL would need CORS. Serve cloud uploads from the same origin (Next
+  // rewrites /uploads/* to the backend) to dodge CORS entirely. Local asset blobs
+  // and absolute URLs go through the normal resolver.
+  const resolveModelUrl = (url: string | null | undefined) => {
+    if (url && url.startsWith('/uploads/')) return url; // same-origin via Next rewrite
+    return resolveUrl(url);
+  };
+
   // Code widget (HTML/JS/TS/TSX) — a distinct asset type that runs sandboxed.
   // Delegated to its own component (inline-code editor + iframe sandbox).
   const widgetActive = isWidgetUrl(
@@ -324,7 +359,7 @@ export const UnifiedMediaBrick: React.FC<{
             </a>
           ) : is3D ? (
             <div className={`flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5 ${layout === "full" ? "w-full" : "w-auto mx-auto"}`}>
-              <ModelViewer src={resolveUrl(activeItem.url)} alt={activeItem.title || content.title} full={layout === "full"} />
+              <ModelViewer src={resolveModelUrl(activeItem.url)} alt={activeItem.title || content.title} full={layout === "full"} />
             </div>
           ) : isVideo ? (
             <video src={resolveUrl(activeItem.url)} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />
