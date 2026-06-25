@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useEffect, useState } from "react";
-import { X, Loader2, FileText, Users, Lock } from "lucide-react";
+import { X, Loader2, FileText, Users, Lock, Check } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useForm } from "@/hooks/ui";
 
@@ -40,83 +40,91 @@ export function CreateDocumentModal({ isOpen, onClose, onSubmit }: CreateDocumen
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
-        <button
-          onClick={onClose}
-          className="absolute right-4 top-4 z-10 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
-        >
-          <X className="h-5 w-5" />
-          <span className="sr-only">{tCommon?.("actions.close") || "Cerrar"}</span>
-        </button>
+  const titleValue = form.fields.title.inputProps.value?.toString() ?? "";
 
-        <div className="mb-6 flex flex-col items-center justify-center gap-3">
-          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <FileText className="h-6 w-6 text-primary" />
+  const VisCard = ({ value, icon: Icon, title, hint }: { value: DocVisibility; icon: typeof Users; title: string; hint: string }) => {
+    const active = visibility === value;
+    return (
+      <button
+        type="button"
+        onClick={() => setVisibility(value)}
+        className={`relative flex flex-col gap-1.5 rounded-xl border p-3.5 text-left transition-all ${active ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:border-border/80 hover:bg-accent/40"}`}
+      >
+        <span className="flex items-center justify-between">
+          <Icon className={`h-4 w-4 ${active ? "text-primary" : "text-muted-foreground"}`} />
+          {active && (
+            <span className="flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              <Check className="h-3 w-3" />
+            </span>
+          )}
+        </span>
+        <span className="text-sm font-semibold leading-none">{title}</span>
+        <span className="text-xs text-muted-foreground leading-snug">{hint}</span>
+      </button>
+    );
+  };
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200 p-4">
+      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card shadow-2xl animate-in zoom-in-95 duration-200 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-start gap-3 border-b border-border/60 p-5">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+            <FileText className="h-5 w-5 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold">{t("newDocument")}</h2>
-          <p className="text-sm text-muted-foreground text-center">
-            {t("createPrompt")}
-          </p>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-semibold leading-tight">{t("newDocument")}</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">{t("createPrompt")}</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="shrink-0 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:opacity-100 hover:bg-accent"
+          >
+            <X className="h-4 w-4" />
+            <span className="sr-only">{tCommon?.("actions.close") || "Cerrar"}</span>
+          </button>
         </div>
 
-        <form onSubmit={form.submit} className="space-y-6">
-          <div className="space-y-2">
+        <form onSubmit={form.submit} className="p-5 space-y-5">
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{t("documentTitle")}</label>
             <input
               ref={inputRef}
               {...form.fields.title.inputProps}
-              placeholder="Ej: Reporte Técnico, Notas de la Reunión..."
+              placeholder={t("titlePlaceholder") || "Ej: Reporte técnico, Notas de la reunión…"}
               disabled={form.isSubmitting}
-              className="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex h-10 w-full rounded-lg border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary disabled:cursor-not-allowed disabled:opacity-50"
             />
             {(form.fields.title.error || form.formError) && (
-              <p className="text-sm text-destructive font-medium">{form.fields.title.error || form.formError}</p>
+              <p className="text-xs text-destructive font-medium">{form.fields.title.error || form.formError}</p>
             )}
           </div>
 
-          {/* Visibility: team (shared with all non-guest members) vs private (only you) */}
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              type="button"
-              onClick={() => setVisibility("team")}
-              className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${visibility === "team" ? "border-primary bg-primary/5" : "border-input hover:bg-accent"}`}
-            >
-              <Users className={`h-4 w-4 mt-0.5 ${visibility === "team" ? "text-primary" : "text-muted-foreground"}`} />
-              <span>
-                <span className="block text-sm font-medium">{t("visibilityTeam") || "Workspace"}</span>
-                <span className="block text-xs text-muted-foreground">{t("visibilityTeamHint") || "Todos los miembros"}</span>
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={() => setVisibility("private")}
-              className={`flex items-start gap-2 rounded-lg border p-3 text-left transition-colors ${visibility === "private" ? "border-primary bg-primary/5" : "border-input hover:bg-accent"}`}
-            >
-              <Lock className={`h-4 w-4 mt-0.5 ${visibility === "private" ? "text-primary" : "text-muted-foreground"}`} />
-              <span>
-                <span className="block text-sm font-medium">{t("visibilityPrivate") || "Privado"}</span>
-                <span className="block text-xs text-muted-foreground">{t("visibilityPrivateHint") || "Solo tú"}</span>
-              </span>
-            </button>
+          {/* Visibility */}
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">{t("visibilityLabel") || "Acceso"}</label>
+            <div className="grid grid-cols-2 gap-2">
+              <VisCard value="team" icon={Users} title={t("visibilityTeam") || "Workspace"} hint={t("visibilityTeamHint") || "Todos los miembros"} />
+              <VisCard value="private" icon={Lock} title={t("visibilityPrivate") || "Privado"} hint={t("visibilityPrivateHint") || "Solo tú"} />
+            </div>
           </div>
 
-          <div className="flex w-full items-center justify-end gap-3 pt-2">
+          <div className="flex w-full items-center justify-end gap-2 pt-1">
             <button
               type="button"
               onClick={onClose}
               disabled={form.isSubmitting}
-              className="h-10 px-4 py-2 rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground text-sm font-medium transition-colors"
+              className="h-9 px-4 rounded-lg border border-input bg-background hover:bg-accent text-sm font-medium transition-colors"
             >
-              Cancel
+              {tCommon?.("actions.cancel") || "Cancelar"}
             </button>
             <button
               type="submit"
-              disabled={!form.fields.title.inputProps.value?.toString().trim() || form.isSubmitting}
-              className="h-10 px-4 py-2 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium flex items-center justify-center transition-colors disabled:opacity-50"
+              disabled={!titleValue.trim() || form.isSubmitting}
+              className="h-9 px-5 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-semibold flex items-center justify-center gap-2 transition-colors disabled:opacity-50"
             >
-              {form.isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("newDocument")}
+              {form.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("create") || t("newDocument")}
             </button>
           </div>
         </form>

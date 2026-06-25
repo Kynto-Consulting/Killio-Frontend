@@ -82,5 +82,8 @@
   "visibilityTeam": "Workspace",
   "visibilityTeamHint": "Todos los miembros del workspace",
   "visibilityPrivate": "Privado",
-  "visibilityPrivateHint": "Solo tú"
+  "visibilityPrivateHint": "Solo tú",
+  "documentTitle": "Título",
+  "titlePlaceholder": "Ej: Reporte técnico, Notas de la reunión…",
+  "visibilityLabel": "Acceso"
 }
