@@ -83,6 +83,7 @@ export default function DocumentPage() {
   const [brickSelection, setBrickSelection] = useState<Set<string>>(new Set());
   const [isEditingTitle, setIsEditingTitle] = useState(false);
   const [tempTitle, setTempTitle] = useState("");
+  const [isDroppingFile, setIsDroppingFile] = useState(false);
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [aiInitialInput, setAiInitialInput] = useState("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
@@ -1443,6 +1444,35 @@ export default function DocumentPage() {
     });
   }, [accessToken, localMode, uploadFile, docId, document, t]);
 
+  // Drag a file (image / video / audio / .glb / .gltf / any) onto the doc body to
+  // auto-create a media brick and upload it — no manual "add media" step.
+  const handleDropFiles = useCallback(async (files: File[]) => {
+    const mayEdit = localMode || ['owner', 'admin', 'member'].includes(document?.role as string);
+    if (!document || (!accessToken && !localMode) || files.length === 0 || !mayEdit) return;
+    let pos = document.bricks.length ? Math.max(...document.bricks.map((b) => b.position)) + 1 : 0;
+    for (const file of files) {
+      let uploaded: { url: string } | null = null;
+      try { uploaded = await uploadFile(file, accessToken); }
+      catch { toast(t("uploadError"), "error"); continue; }
+      if (!uploaded?.url) continue;
+      const name = file.name || "Media";
+      const is3d = /\.(glb|gltf)$/i.test(name) || file.type === "model/gltf-binary" || file.type === "model/gltf+json";
+      const isImg = file.type.startsWith("image/");
+      const isVid = file.type.startsWith("video/");
+      const isAud = file.type.startsWith("audio/");
+      const mediaType = is3d ? "model3d" : isImg ? "image" : isVid ? "video" : isAud ? "audio" : "file";
+      const mimeType = file.type || (is3d ? "model/gltf-binary" : null);
+      const item = { url: uploaded.url, title: name, mimeType, sizeBytes: file.size || null };
+      const content = {
+        mediaType, title: name, url: uploaded.url, mimeType, sizeBytes: file.size || null,
+        caption: buildMediaCaption({ subtitle: "", items: [item] }),
+      };
+      const kind = isImg ? "image" : "file";
+      const created = await createDocumentBrick(docId, { kind, position: pos++, content }, accessToken);
+      setDocument((cur) => cur ? { ...cur, bricks: [...cur.bricks, created].sort((a, b) => a.position - b.position) } : cur);
+    }
+  }, [document, accessToken, localMode, uploadFile, docId, t]);
+
   const handlePasteImageInTextBrick = useCallback(async ({
     brickId,
     file,
@@ -1897,7 +1927,20 @@ export default function DocumentPage() {
       />
 
       {/* Editor Content Area */}
-      <main className="flex-1 overflow-y-auto w-full flex justify-center py-10 px-4 sm:px-6 lg:px-8">
+      <main
+        className={`flex-1 overflow-y-auto w-full flex justify-center py-10 px-4 sm:px-6 lg:px-8 ${isDroppingFile ? 'ring-2 ring-accent/60 ring-inset bg-accent/5' : ''}`}
+        onDragOver={(e) => {
+          if (Array.from(e.dataTransfer?.types || []).includes('Files')) { e.preventDefault(); setIsDroppingFile(true); }
+        }}
+        onDragLeave={(e) => { if (e.currentTarget === e.target) setIsDroppingFile(false); }}
+        onDrop={(e) => {
+          const files = Array.from(e.dataTransfer?.files || []);
+          if (files.length === 0) return;
+          e.preventDefault();
+          setIsDroppingFile(false);
+          void handleDropFiles(files);
+        }}
+      >
         <div className="max-w-4xl w-full">
           {isEditingTitle ? (
             <div className="flex items-center gap-2 mb-8 animate-in slide-in-from-left-2 duration-200">

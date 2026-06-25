@@ -68,23 +68,64 @@ function ensureModelViewer(onReady?: () => void) {
   load(0);
 }
 
-function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; full?: boolean }) {
+export type Model3DCfg = { animation?: string; loop?: boolean; speed?: number; autoplay?: boolean };
+
+const SPEED_STEPS = [0.5, 1, 1.5, 2];
+
+function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
+  src: string;
+  alt?: string | null;
+  full?: boolean;
+  cfg?: Model3DCfg;
+  onCfgChange?: (next: Model3DCfg) => void;
+}) {
   const [ready, setReady] = React.useState(
     typeof window !== "undefined" && !!window.customElements?.get?.("model-viewer"),
   );
   React.useEffect(() => { ensureModelViewer(() => setReady(true)); }, []);
 
   const [err, setErr] = React.useState<string | null>(null);
-  // Attach load/error listeners on the actual element so failures (CORS, 404,
-  // bad GLB) become visible instead of an empty black canvas.
-  const onRef = React.useCallback((el: any) => {
+  const [anims, setAnims] = React.useState<string[]>([]);
+  const elRef = React.useRef<any>(null);
+
+  const animation = cfg?.animation || "";
+  const speed = cfg?.speed ?? 1;
+  const loop = cfg?.loop !== false;        // default: loop on
+  const [playing, setPlaying] = React.useState(cfg?.autoplay !== false);
+
+  // Push the current config onto the live model-viewer element.
+  const apply = React.useCallback((el: any) => {
     if (!el) return;
-    el.addEventListener("load", () => setErr(null));
+    try {
+      const list: string[] = Array.isArray(el.availableAnimations) ? el.availableAnimations : [];
+      const name = animation && list.includes(animation) ? animation : (list[0] || "");
+      if (name) el.animationName = name;
+      el.timeScale = speed;
+      if (playing && name) el.play({ repetitions: loop ? Infinity : 1 });
+      else el.pause();
+    } catch { /* element not ready */ }
+  }, [animation, speed, loop, playing]);
+
+  const onRef = React.useCallback((el: any) => {
+    elRef.current = el;
+    if (!el) return;
+    el.addEventListener("load", () => {
+      setErr(null);
+      const list: string[] = Array.isArray(el.availableAnimations) ? el.availableAnimations : [];
+      setAnims(list);
+      apply(el);
+    });
     el.addEventListener("error", (e: any) => {
       const d = e?.detail;
       setErr(d?.sourceError?.message || d?.type || "No se pudo cargar el modelo 3D");
     });
+    el.addEventListener("finished", () => { if (cfg?.loop === false) setPlaying(false); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  React.useEffect(() => { apply(elRef.current); }, [apply]);
+
+  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, ...p });
 
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
@@ -92,40 +133,66 @@ function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; ful
   if (!ready) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground animate-pulse" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
   }
-  // Use createElement so we don't need a global JSX intrinsic-element typing;
-  // props cast to any because model-viewer's custom attributes aren't in
-  // React's HTMLAttributes.
-  return React.createElement(
-    "div",
-    { style: { position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" } },
-    React.createElement("model-viewer", {
-      key: src,
-      ref: onRef,
-      src,
-      alt: alt || "3D model",
-      "camera-controls": true,
-      "auto-rotate": true,
-      "touch-action": "pan-y",
-      "shadow-intensity": "1",
-      exposure: "1",
-      "environment-image": "neutral",
-      "interaction-prompt": "none",
-      crossorigin: "anonymous",
-      loading: "eager",
-      style: {
-        width: "100%",
-        height: full ? "70vh" : "420px",
-        background: "transparent",
-        ["--poster-color" as any]: "transparent",
-      },
-    } as any),
-    err
-      ? React.createElement(
-          "div",
-          { style: { position: "absolute", bottom: 8, left: 8, right: 8, fontSize: 11, color: "#f87171", background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 6, textAlign: "center" } },
-          `⚠ ${err}`,
-        )
-      : null,
+
+  return (
+    <div style={{ position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" }}>
+      {React.createElement("model-viewer", {
+        key: src,
+        ref: onRef,
+        src,
+        alt: alt || "3D model",
+        "camera-controls": true,
+        "auto-rotate": true,
+        "touch-action": "pan-y",
+        "shadow-intensity": "1",
+        exposure: "1",
+        "environment-image": "neutral",
+        "interaction-prompt": "none",
+        crossorigin: "anonymous",
+        loading: "eager",
+        style: { width: "100%", height: full ? "70vh" : "420px", background: "transparent", ["--poster-color" as any]: "transparent" },
+      } as any)}
+
+      {err && (
+        <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, fontSize: 11, color: "#f87171", background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 6, textAlign: "center" }}>⚠ {err}</div>
+      )}
+
+      {anims.length > 0 && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-background/85 backdrop-blur border border-border/50 px-2.5 py-1 shadow-sm text-xs">
+          <button
+            type="button"
+            onClick={() => { const next = !playing; setPlaying(next); patch({ autoplay: next }); }}
+            className="px-1.5 hover:text-accent"
+            title={playing ? "Pause" : "Play"}
+          >{playing ? "❚❚" : "►"}</button>
+
+          {anims.length > 1 && (
+            <select
+              value={animation || anims[0]}
+              onChange={(e) => patch({ animation: e.target.value })}
+              className="bg-transparent outline-none max-w-[120px] truncate"
+              title="Animation"
+            >
+              {anims.map((a) => <option key={a} value={a}>{a}</option>)}
+            </select>
+          )}
+
+          <button
+            type="button"
+            onClick={() => patch({ loop: !loop })}
+            className={`px-1.5 ${loop ? "text-accent" : "text-muted-foreground/70"}`}
+            title={loop ? "Loop on" : "Loop off"}
+          >⟳</button>
+
+          <button
+            type="button"
+            onClick={() => { const i = (SPEED_STEPS.indexOf(speed) + 1) % SPEED_STEPS.length; patch({ speed: SPEED_STEPS[i < 0 ? 1 : i] }); }}
+            className="px-1.5 hover:text-accent tabular-nums"
+            title="Speed"
+          >{speed}×</button>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -364,7 +431,13 @@ export const UnifiedMediaBrick: React.FC<{
             // <img>), so a shrink-to-fit (w-auto) parent collapses it to its 300x150
             // default. Always give it a full-width track so the viewer can size up.
             <div className="flex items-center justify-center bg-gradient-to-br from-muted/20 to-muted/5 w-full">
-              <ModelViewer src={resolveModelUrl(activeItem.url)} alt={activeItem.title || content.title} full={layout === "full"} />
+              <ModelViewer
+                src={resolveModelUrl(activeItem.url)}
+                alt={activeItem.title || content.title}
+                full={layout === "full"}
+                cfg={content.model3d as Model3DCfg | undefined}
+                onCfgChange={canEdit ? (next) => onUpdate({ ...content, model3d: next }) : undefined}
+              />
             </div>
           ) : isVideo ? (
             <video src={resolveUrl(activeItem.url)} controls className={`bg-black/5 ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[60vh] object-contain w-auto mx-auto"}`} />

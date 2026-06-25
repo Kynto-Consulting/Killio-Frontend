@@ -15,6 +15,7 @@ import { FolderCard } from "@/components/folders/FolderCard";
 import { FolderModal } from "@/components/folders/FolderModal";
 import { Folder, listFolders, createFolder, updateFolder, deleteFolder } from "@/lib/api/folders";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
+import { useTeamRealtime } from "@/hooks/useTeamRealtime";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { encodeKillioFile, decodeKillioFile } from "@/lib/killio-file";
@@ -141,6 +142,30 @@ function DocumentsPageContent() {
     .catch(console.error)
     .finally(() => setIsLoading(false));
   }, [accessToken, activeTeamId, activeFolderId, workspaceMode, localWs.files, localWs.folders]);
+
+  // Live updates: when another client creates/renames/deletes a folder (or creates
+  // a document) on this team, reflect it without a manual reload.
+  useTeamRealtime(workspaceMode === "local" ? null : activeTeamId, (event) => {
+    const p = event.payload || {};
+    if (event.type === "folder.created" && p.folderId) {
+      setFolders((cur) => cur.some((f) => f.id === p.folderId) ? cur : [...cur, {
+        id: p.folderId, teamId: activeTeamId || "", parentFolderId: p.parentFolderId ?? null,
+        name: p.name || "Folder", icon: p.icon ?? null, color: p.color ?? null, createdAt: "", updatedAt: "",
+      } as unknown as Folder]);
+      if (activeTeamId) apiCache.invalidate(cacheKey.folders(activeTeamId));
+    } else if (event.type === "folder.updated" && p.folderId) {
+      setFolders((cur) => cur.map((f) => f.id === p.folderId ? { ...f, name: p.name ?? f.name, icon: p.icon ?? f.icon, color: p.color ?? f.color, parentFolderId: p.parentFolderId ?? f.parentFolderId } : f));
+      if (activeTeamId) apiCache.invalidate(cacheKey.folders(activeTeamId));
+    } else if (event.type === "folder.deleted" && p.folderId) {
+      setFolders((cur) => cur.filter((f) => f.id !== p.folderId));
+      if (activeTeamId) apiCache.invalidate(cacheKey.folders(activeTeamId));
+    } else if (event.type === "document.created" && p.documentId) {
+      setDocuments((cur) => cur.some((d) => d.id === p.documentId) ? cur : [{
+        id: p.documentId, title: p.title || "Untitled", teamId: activeTeamId || "", visibility: "team",
+        folderId: p.folderId ?? undefined, createdByUserId: "", createdAt: "", updatedAt: "",
+      } as unknown as DocumentSummary, ...cur]);
+    }
+  });
 
   const handleFolderSubmit = async (data: { name: string; icon: string; color: string; parentFolderId: string | null }) => {
     if (workspaceMode === "local") {
