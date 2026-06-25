@@ -44,23 +44,47 @@ function useResolvedAssetMap(urls: string[]): Record<string, string> {
 // no sidecar files to resolve. Rendered with Google's <model-viewer> web
 // component (orbit / pinch-zoom / auto-rotate), lazy-loaded from CDN so it adds
 // zero bundle weight and is SSR-safe (only touches the DOM in an effect).
+const MODEL_VIEWER_CDNS = [
+  "https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js",
+  "https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js",
+];
 let modelViewerRequested = false;
-function ensureModelViewer() {
-  if (typeof window === "undefined" || modelViewerRequested) return;
-  if (window.customElements?.get?.("model-viewer")) { modelViewerRequested = true; return; }
-  const s = document.createElement("script");
-  s.type = "module";
-  s.src = "https://unpkg.com/@google/model-viewer@3.5.0/dist/model-viewer.min.js";
-  document.head.appendChild(s);
+function ensureModelViewer(onReady?: () => void) {
+  if (typeof window === "undefined") return;
+  if (window.customElements?.get?.("model-viewer")) { modelViewerRequested = true; onReady?.(); return; }
+  // Notify caller once the element registers, regardless of which load kicked it off.
+  if (onReady) window.customElements?.whenDefined?.("model-viewer").then(onReady).catch(() => {});
+  if (modelViewerRequested) return;
   modelViewerRequested = true;
+  // Try CDNs in order; if one fails to load, fall back to the next.
+  const load = (i: number) => {
+    if (i >= MODEL_VIEWER_CDNS.length) return;
+    const s = document.createElement("script");
+    s.type = "module";
+    s.src = MODEL_VIEWER_CDNS[i];
+    s.onerror = () => load(i + 1);
+    document.head.appendChild(s);
+  };
+  load(0);
 }
 
 function ModelViewer({ src, alt, full }: { src: string; alt?: string | null; full?: boolean }) {
-  React.useEffect(() => { ensureModelViewer(); }, []);
+  const [ready, setReady] = React.useState(
+    typeof window !== "undefined" && !!window.customElements?.get?.("model-viewer"),
+  );
+  React.useEffect(() => { ensureModelViewer(() => setReady(true)); }, []);
+
+  if (!src) {
+    return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
+  }
+  if (!ready) {
+    return <div className="flex items-center justify-center text-xs text-muted-foreground animate-pulse" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
+  }
   // Use createElement so we don't need a global JSX intrinsic-element typing;
   // props cast to any because model-viewer's custom attributes aren't in
   // React's HTMLAttributes.
   return React.createElement("model-viewer", {
+    key: src,
     src,
     alt: alt || "3D model",
     "camera-controls": true,
@@ -161,6 +185,11 @@ export const UnifiedMediaBrick: React.FC<{
 
   const meta = parseMediaMeta(content.caption, fallback);
   const [activeIndex, setActiveIndex] = React.useState(0);
+  // Local buffer for the subtitle input. Without it, the controlled value is
+  // re-derived from content.caption every render and reverts mid-typing while
+  // the parent's onUpdate is still in flight.
+  const [subtitleDraft, setSubtitleDraft] = React.useState(meta.subtitle || "");
+  React.useEffect(() => { setSubtitleDraft(meta.subtitle || ""); }, [meta.subtitle]);
   const [showSettings, setShowSettings] = React.useState(false);
   
   const [emptyTab, setEmptyTab] = React.useState<"upload" | "link">(kind === "bookmark" ? "link" : "upload");
@@ -192,12 +221,24 @@ export const UnifiedMediaBrick: React.FC<{
   const isWebBookmark = content.mediaType === "bookmark" || kind === "bookmark" || mime === "text/html";
   const is3D = is3DUrl(activeItem?.url, mime, content.mediaType, kind);
 
+  // Derive the persisted mediaType from the first item so editing (e.g. the
+  // subtitle) never downgrades a 3D model / audio / bookmark back to "image".
+  const mediaTypeForItem = (it?: MediaCarouselItem): string => {
+    const m = (it?.mimeType || "").toLowerCase();
+    const u = it?.url || "";
+    if (is3DUrl(u, m, content.mediaType, kind)) return "model3d";
+    if (m.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(u)) return "video";
+    if (m.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(u)) return "audio";
+    if (m === "text/html" || content.mediaType === "bookmark" || kind === "bookmark") return "bookmark";
+    return "image";
+  };
+
   const updateMeta = (nextMeta: MediaMeta, nextIndex = 0) => {
     const first = nextMeta.items[0];
     onUpdate({
       ...content,
       kind: "media",
-      mediaType: first?.mimeType?.startsWith("video/") ? "file" : "image",
+      mediaType: mediaTypeForItem(first),
       title: first?.title || content.title || "Media",
       url: first?.url || "",
       mimeType: first?.mimeType || null,
@@ -424,8 +465,8 @@ export const UnifiedMediaBrick: React.FC<{
         <div className="mt-2 w-full max-w-2xl text-center flex flex-col items-center">
            {canEdit ? (
              <input
-               value={meta.subtitle || ""}
-               onChange={(event) => updateMeta({ ...meta, subtitle: event.target.value }, activeIndex)}
+               value={subtitleDraft}
+               onChange={(event) => { setSubtitleDraft(event.target.value); updateMeta({ ...meta, subtitle: event.target.value }, activeIndex); }}
                placeholder={t("brickRenderer.subtitlePlaceholder")}
                className="bg-transparent text-center text-sm text-muted-foreground outline-none border-none placeholder:text-muted-foreground/50 w-full resize-none min-h-[1.5rem]"
              />
@@ -496,9 +537,9 @@ export const UnifiedMediaBrick: React.FC<{
               </div>
 
                <input 
-                 value={meta.subtitle || ""} 
-                 placeholder={t("brickRenderer.subtitleGeneralPlaceholder")} 
-                 onChange={(e) => updateMeta({ ...meta, subtitle: e.target.value }, activeIndex)}
+                 value={subtitleDraft}
+                 placeholder={t("brickRenderer.subtitleGeneralPlaceholder")}
+                 onChange={(e) => { setSubtitleDraft(e.target.value); updateMeta({ ...meta, subtitle: e.target.value }, activeIndex); }}
                  className="w-full rounded-md border border-input shadow-sm bg-background px-3 py-1.5 text-sm outline-none" 
                />
 

@@ -111,6 +111,7 @@ function TeamsPageInner() {
   const [linkMaxUses, setLinkMaxUses] = useState<string>(""); // "" = unlimited
   const [isCreatingLink, setIsCreatingLink] = useState(false);
   const [copiedLinkId, setCopiedLinkId] = useState<string | null>(null);
+  const [linkExpiryMenuOpen, setLinkExpiryMenuOpen] = useState(false);
   const [inviteError, setInviteError] = useState<string | null>(null);
   const [isInlineInviting, setIsInlineInviting] = useState(false);
   const [isMutatingMember, setIsMutatingMember] = useState<string | null>(null);
@@ -568,15 +569,35 @@ function TeamsPageInner() {
             <div style={cardBody}>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
                 <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{t("inviteLink.roleAs", { role: t(`roleName.${inlineInviteRole}`) })}</span>
-                {/* Expiry */}
-                <select
-                  value={linkExpiry}
-                  onChange={(e) => setLinkExpiry(parseInt(e.target.value, 10))}
-                  style={{ height: 36, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: linkExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 10px", outline: "none" }}
-                >
-                  {[3, 7, 14, 31].map((d) => <option key={d} value={d}>{t("inviteExpiry.days", { n: d })}</option>)}
-                  <option value={-1}>⚠ {t("inviteExpiry.never")}</option>
-                </select>
+                {/* Expiry (custom dropdown) */}
+                <div style={{ position: "relative" }}>
+                  <button
+                    type="button"
+                    onClick={() => setLinkExpiryMenuOpen((o) => !o)}
+                    title={t("inviteExpiry.label")}
+                    style={{ height: 36, minWidth: 120, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: linkExpiry === -1 ? "rgba(248,113,113,0.08)" : "rgba(0,0,0,0.25)", color: linkExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                  >
+                    <span style={{ fontWeight: 600 }}>{linkExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: linkExpiry })}</span>
+                    <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
+                  </button>
+                  {linkExpiryMenuOpen && (
+                    <div
+                      style={{ position: "absolute", top: 42, left: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      onMouseLeave={() => setLinkExpiryMenuOpen(false)}
+                    >
+                      {[3, 7, 14, 31, -1].map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => { setLinkExpiry(d); setLinkExpiryMenuOpen(false); }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === linkExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "rgba(255,255,255,0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === linkExpiry ? 700 : 500 }}
+                        >
+                          {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {/* Max uses */}
                 <input
                   type="number"
