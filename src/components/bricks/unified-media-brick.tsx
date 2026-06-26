@@ -68,9 +68,31 @@ function ensureModelViewer(onReady?: () => void) {
   load(0);
 }
 
-export type Model3DCfg = { animation?: string; loop?: boolean; speed?: number; autoplay?: boolean };
+export type Model3DCfg = {
+  animation?: string;
+  loop?: boolean;
+  speed?: number;
+  autoplay?: boolean;
+  exposure?: number;        // illumination brightness 0.2–2
+  environment?: string;     // model-viewer env preset ('neutral' | 'legacy')
+  cameraOrbit?: string;     // default camera angle, e.g. "180deg 75deg auto"
+  lockRotation?: boolean;   // disable user orbit/zoom
+  autoRotate?: boolean;     // idle spin (default on)
+};
 
 const SPEED_STEPS = [0.5, 1, 1.5, 2];
+const DEFAULT_ORBIT = "180deg 75deg auto";
+const ANGLE_PRESETS: { key: string; label: string; orbit: string }[] = [
+  { key: "front", label: "Frente", orbit: "180deg 75deg auto" },
+  { key: "back", label: "Atrás", orbit: "0deg 75deg auto" },
+  { key: "left", label: "Izq", orbit: "270deg 75deg auto" },
+  { key: "right", label: "Der", orbit: "90deg 75deg auto" },
+  { key: "top", label: "Arriba", orbit: "180deg 15deg auto" },
+];
+const ENV_PRESETS = [
+  { key: "neutral", label: "Neutral" },
+  { key: "legacy", label: "Estudio" },
+];
 
 function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
   src: string;
@@ -86,14 +108,21 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
 
   const [err, setErr] = React.useState<string | null>(null);
   const [anims, setAnims] = React.useState<string[]>([]);
+  const [animMenuOpen, setAnimMenuOpen] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
   const elRef = React.useRef<any>(null);
 
+  const editable = !!onCfgChange;
   const animation = cfg?.animation || "";
   const speed = cfg?.speed ?? 1;
-  const loop = cfg?.loop !== false;        // default: loop on
+  const loop = cfg?.loop !== false;
+  const exposure = cfg?.exposure ?? 1;
+  const environment = cfg?.environment || "neutral";
+  const cameraOrbit = cfg?.cameraOrbit || DEFAULT_ORBIT;
+  const lockRotation = cfg?.lockRotation === true;
+  const autoRotate = cfg?.autoRotate !== false && !lockRotation;
   const [playing, setPlaying] = React.useState(cfg?.autoplay !== false);
 
-  // Push the current config onto the live model-viewer element.
   const apply = React.useCallback((el: any) => {
     if (!el) return;
     try {
@@ -125,7 +154,7 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
 
   React.useEffect(() => { apply(elRef.current); }, [apply]);
 
-  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, ...p });
+  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, cameraOrbit, lockRotation, autoRotate, ...p });
 
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
@@ -134,66 +163,116 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
     return <div className="flex items-center justify-center text-xs text-muted-foreground animate-pulse" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
   }
 
+  const mvProps: any = {
+    key: src + cameraOrbit, // remount when the default angle changes so it re-frames
+    ref: onRef,
+    src,
+    alt: alt || "3D model",
+    "auto-rotate": autoRotate ? true : undefined,
+    "camera-orbit": cameraOrbit,
+    "touch-action": "pan-y",
+    "shadow-intensity": "1",
+    exposure: String(exposure),
+    "environment-image": environment,
+    "interaction-prompt": "none",
+    crossorigin: "anonymous",
+    loading: "eager",
+    style: { width: "100%", height: full ? "70vh" : "420px", background: "transparent", ["--poster-color" as any]: "transparent" },
+  };
+  if (!lockRotation) mvProps["camera-controls"] = true; // locked → no orbit/zoom
+
   return (
     <div style={{ position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" }}>
-      {React.createElement("model-viewer", {
-        key: src,
-        ref: onRef,
-        src,
-        alt: alt || "3D model",
-        "camera-controls": true,
-        "auto-rotate": true,
-        // Default view from the "north" looking south (azimuth 180°) — Blockbench
-        // exports face away from model-viewer's default 0° camera, so without this
-        // the model shows its back.
-        "camera-orbit": "180deg 75deg auto",
-        "touch-action": "pan-y",
-        "shadow-intensity": "1",
-        exposure: "1",
-        "environment-image": "neutral",
-        "interaction-prompt": "none",
-        crossorigin: "anonymous",
-        loading: "eager",
-        style: { width: "100%", height: full ? "70vh" : "420px", background: "transparent", ["--poster-color" as any]: "transparent" },
-      } as any)}
+      {React.createElement("model-viewer", mvProps)}
 
       {err && (
         <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, fontSize: 11, color: "#f87171", background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 6, textAlign: "center" }}>⚠ {err}</div>
       )}
 
+      {/* Quick controls bar */}
       {anims.length > 0 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-full bg-background/85 backdrop-blur border border-border/50 px-2.5 py-1 shadow-sm text-xs">
-          <button
-            type="button"
-            onClick={() => { const next = !playing; setPlaying(next); patch({ autoplay: next }); }}
-            className="px-1.5 hover:text-accent"
-            title={playing ? "Pause" : "Play"}
-          >{playing ? "❚❚" : "►"}</button>
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur border border-border/50 px-2 py-1 shadow-sm text-xs">
+          <button type="button" onClick={() => { const next = !playing; setPlaying(next); patch({ autoplay: next }); }} className="px-1.5 hover:text-accent" title={playing ? "Pause" : "Play"}>{playing ? "❚❚" : "►"}</button>
 
           {anims.length > 1 && (
-            <select
-              value={animation || anims[0]}
-              onChange={(e) => patch({ animation: e.target.value })}
-              className="bg-transparent outline-none max-w-[120px] truncate"
-              title="Animation"
-            >
-              {anims.map((a) => <option key={a} value={a}>{a}</option>)}
-            </select>
+            <div className="relative">
+              <button type="button" onClick={() => setAnimMenuOpen((o) => !o)} className="flex items-center gap-1 px-1.5 hover:text-accent max-w-[120px]" title="Animation">
+                <span className="truncate">{animation || anims[0]}</span>
+                <span className="opacity-50 text-[9px]">▾</span>
+              </button>
+              {animMenuOpen && (
+                <div className="absolute bottom-8 left-0 z-30 min-w-[140px] rounded-lg border border-border bg-popover shadow-md overflow-hidden" onMouseLeave={() => setAnimMenuOpen(false)}>
+                  {anims.map((a) => (
+                    <button key={a} type="button" onClick={() => { patch({ animation: a }); setAnimMenuOpen(false); }} className={`block w-full text-left px-3 py-1.5 hover:bg-accent truncate ${a === (animation || anims[0]) ? "text-accent font-medium" : ""}`}>{a}</button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => patch({ loop: !loop })}
-            className={`px-1.5 ${loop ? "text-accent" : "text-muted-foreground/70"}`}
-            title={loop ? "Loop on" : "Loop off"}
-          >⟳</button>
+          <button type="button" onClick={() => patch({ loop: !loop })} className={`px-1.5 ${loop ? "text-accent" : "text-muted-foreground/70"}`} title={loop ? "Loop on" : "Loop off"}>⟳</button>
+          <button type="button" onClick={() => { const i = (SPEED_STEPS.indexOf(speed) + 1) % SPEED_STEPS.length; patch({ speed: SPEED_STEPS[i < 0 ? 1 : i] }); }} className="px-1.5 hover:text-accent tabular-nums" title="Speed">{speed}×</button>
+        </div>
+      )}
 
-          <button
-            type="button"
-            onClick={() => { const i = (SPEED_STEPS.indexOf(speed) + 1) % SPEED_STEPS.length; patch({ speed: SPEED_STEPS[i < 0 ? 1 : i] }); }}
-            className="px-1.5 hover:text-accent tabular-nums"
-            title="Speed"
-          >{speed}×</button>
+      {/* Settings gear (only when editable) */}
+      {editable && (
+        <button type="button" onClick={() => setSettingsOpen((o) => !o)} title="Ajustes 3D"
+          className={`absolute top-2 left-2 rounded-md border border-border/50 p-1.5 shadow-sm transition-colors ${settingsOpen ? "bg-accent text-accent-foreground" : "bg-background/90 text-foreground hover:bg-muted"}`}>
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        </button>
+      )}
+
+      {editable && settingsOpen && (
+        <div className="absolute top-11 left-2 z-30 w-60 rounded-xl border border-border bg-popover p-3 shadow-xl text-xs space-y-3">
+          {/* Default animation */}
+          {anims.length > 0 && (
+            <div>
+              <div className="font-medium mb-1.5 text-muted-foreground">Animación por defecto</div>
+              <div className="grid grid-cols-2 gap-1">
+                {anims.map((a) => (
+                  <button key={a} type="button" onClick={() => patch({ animation: a })} className={`px-2 py-1 rounded-md border truncate ${a === (animation || anims[0]) ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{a}</button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Default angle */}
+          <div>
+            <div className="font-medium mb-1.5 text-muted-foreground">Ángulo por defecto</div>
+            <div className="flex flex-wrap gap-1">
+              {ANGLE_PRESETS.map((p) => (
+                <button key={p.key} type="button" onClick={() => patch({ cameraOrbit: p.orbit })} className={`px-2 py-1 rounded-md border ${cameraOrbit === p.orbit ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{p.label}</button>
+              ))}
+            </div>
+          </div>
+
+          {/* Illumination */}
+          <div>
+            <div className="font-medium mb-1.5 text-muted-foreground">Iluminación</div>
+            <div className="flex gap-1 mb-2">
+              {ENV_PRESETS.map((e) => (
+                <button key={e.key} type="button" onClick={() => patch({ environment: e.key })} className={`px-2 py-1 rounded-md border ${environment === e.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{e.label}</button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Brillo</span>
+              <input type="range" min={0.2} max={2} step={0.1} value={exposure} onChange={(e) => patch({ exposure: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
+              <span className="tabular-nums w-7 text-right">{exposure.toFixed(1)}</span>
+            </div>
+          </div>
+
+          {/* Toggles */}
+          <div className="space-y-1">
+            <label className="flex items-center justify-between cursor-pointer">
+              <span className="text-muted-foreground">Bloquear rotación</span>
+              <input type="checkbox" checked={lockRotation} onChange={(e) => patch({ lockRotation: e.target.checked })} className="accent-primary" />
+            </label>
+            <label className={`flex items-center justify-between ${lockRotation ? "opacity-40" : "cursor-pointer"}`}>
+              <span className="text-muted-foreground">Giro automático</span>
+              <input type="checkbox" disabled={lockRotation} checked={autoRotate} onChange={(e) => patch({ autoRotate: e.target.checked })} className="accent-primary" />
+            </label>
+          </div>
         </div>
       )}
     </div>
