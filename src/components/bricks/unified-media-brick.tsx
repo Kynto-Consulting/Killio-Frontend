@@ -143,6 +143,10 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
         alt: alt || "3D model",
         "camera-controls": true,
         "auto-rotate": true,
+        // Default view from the "north" looking south (azimuth 180°) — Blockbench
+        // exports face away from model-viewer's default 0° camera, so without this
+        // the model shows its back.
+        "camera-orbit": "180deg 75deg auto",
         "touch-action": "pan-y",
         "shadow-intensity": "1",
         exposure: "1",
