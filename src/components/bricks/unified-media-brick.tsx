@@ -220,30 +220,37 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
     img.onerror = () => res(null);
     img.src = url;
   });
-  // Composite the model render over its background onto a canvas at the model's
-  // native (dpr-scaled) resolution — toBlob alone was low-res and dropped the bg.
+  // Capture the CURRENT animated frame. model-viewer's WebGL canvas uses
+  // preserveDrawingBuffer=false, so reading the raw canvas yields a stale/blank
+  // (T-pose) buffer — must use el.toBlob() which re-renders the live scene. Then
+  // composite the background behind that transparent render.
   const captureBlob = async (): Promise<Blob | null> => {
     const el = elRef.current;
     if (!el) return null;
     try {
-      const mvCanvas: HTMLCanvasElement | null = el.shadowRoot?.querySelector?.("canvas") || null;
-      if (!mvCanvas) { return await el.toBlob?.({ mimeType: "image/png" }); }
-      const w = mvCanvas.width, h = mvCanvas.height;
+      const modelBlob: Blob | null = await el.toBlob?.({ mimeType: "image/png" });
+      if (!modelBlob) return null;
+      const noBg = !resolvedBackground && (!background || background === "transparent");
+      if (noBg) return modelBlob;
+
+      const modelImg = await loadImg(URL.createObjectURL(modelBlob));
+      if (!modelImg) return modelBlob;
+      const w = modelImg.width, h = modelImg.height;
       const out = document.createElement("canvas");
       out.width = w; out.height = h;
       const ctx = out.getContext("2d");
-      if (!ctx) return await el.toBlob?.({ mimeType: "image/png" });
+      if (!ctx) return modelBlob;
       if (resolvedBackground) {
-        const img = await loadImg(resolvedBackground);
-        if (img && img.width) {
-          const scale = Math.max(w / img.width, h / img.height);
-          const dw = img.width * scale, dh = img.height * scale;
-          ctx.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+        const bg = await loadImg(resolvedBackground);
+        if (bg && bg.width) {
+          const scale = Math.max(w / bg.width, h / bg.height);
+          const dw = bg.width * scale, dh = bg.height * scale;
+          ctx.drawImage(bg, (w - dw) / 2, (h - dh) / 2, dw, dh);
         }
       } else if (background && background !== "transparent") {
         ctx.fillStyle = background; ctx.fillRect(0, 0, w, h);
       }
-      ctx.drawImage(mvCanvas, 0, 0, w, h);
+      ctx.drawImage(modelImg, 0, 0, w, h);
       return await new Promise<Blob | null>((res) => out.toBlob((b) => res(b), "image/png"));
     } catch {
       try { return await el.toBlob?.({ mimeType: "image/png" }); } catch { return null; }
