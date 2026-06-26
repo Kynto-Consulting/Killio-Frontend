@@ -186,6 +186,16 @@ const serwist = new Serwist({
         ],
       }),
     },
+    // 3D HDR environment maps — large + immutable. Cache on first fetch so the
+    // model viewer's lighting works offline (belt-and-suspenders to the public/
+    // precache).
+    {
+      matcher: ({ url }) => url.pathname.startsWith("/hdr/") || /\.hdr$/i.test(url.pathname),
+      handler: new CacheFirst({
+        cacheName: "hdr-cache",
+        plugins: [new ExpirationPlugin({ maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 })],
+      }),
+    },
     // Google Fonts CSS — small, refreshed weekly.
     {
       matcher: ({ url }) => url.origin === "https://fonts.googleapis.com",

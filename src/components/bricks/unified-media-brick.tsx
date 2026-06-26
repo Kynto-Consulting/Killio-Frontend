@@ -106,7 +106,7 @@ const ENV_PRESETS = [
   // /hdr rewrite to dodge CORS. Affect lighting + reflections, not the backdrop.
   { key: "/hdr/aircraft_workshop_01_1k.hdr", label: "Taller" },
   { key: "/hdr/music_hall_01_1k.hdr", label: "Salón" },
-  { key: "/hdr/spruit_sunrise_1k.hdr", label: "Atardecer" },
+  { key: "/hdr/spruit_sunrise_1k_HDR.hdr", label: "Atardecer" },
   { key: "/hdr/whipple_creek_regional_park_04_1k.hdr", label: "Bosque" },
   { key: "/hdr/pillars_1k.hdr", label: "Estudio" },
   { key: "/hdr/lebombo_1k.hdr", label: "Cálido" },
@@ -130,7 +130,9 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
   onUploadBackground?: (file: File) => Promise<string | null>;
 }) {
   const bgInputRef = React.useRef<HTMLInputElement>(null);
+  const colorInputRef = React.useRef<HTMLInputElement>(null);
   const [bgUploading, setBgUploading] = React.useState(false);
+  const [frameMsg, setFrameMsg] = React.useState<string | null>(null);
   const [ready, setReady] = React.useState(
     typeof window !== "undefined" && !!window.customElements?.get?.("model-viewer"),
   );
@@ -192,6 +194,39 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
 
   const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, backgroundImage: cfg?.backgroundImage, ...p });
 
+  const flash = (m: string) => { setFrameMsg(m); setTimeout(() => setFrameMsg(null), 1500); };
+  const captureBlob = async (): Promise<Blob | null> => {
+    try { return await elRef.current?.toBlob?.({ idealAspect: true, mimeType: "image/png" }); } catch { return null; }
+  };
+  const downloadFrame = async () => {
+    const b = await captureBlob(); if (!b) return;
+    const u = URL.createObjectURL(b);
+    const a = document.createElement("a"); a.href = u; a.download = "model-3d.png"; a.click();
+    setTimeout(() => URL.revokeObjectURL(u), 2000);
+  };
+  const copyFrame = async () => {
+    const b = await captureBlob(); if (!b) return;
+    try { await navigator.clipboard.write([new ClipboardItem({ [b.type || "image/png"]: b })]); flash("¡Copiado!"); }
+    catch { flash("No se pudo copiar"); }
+  };
+  const pasteBackground = async () => {
+    if (!onUploadBackground) return;
+    try {
+      const items = await navigator.clipboard.read();
+      for (const it of items) {
+        const type = it.types.find((t) => t.startsWith("image/"));
+        if (!type) continue;
+        const blob = await it.getType(type);
+        const file = new File([blob], `pegado.${type.split("/")[1] || "png"}`, { type });
+        setBgUploading(true);
+        try { const ref = await onUploadBackground(file); if (ref) patch({ backgroundImage: ref }); }
+        finally { setBgUploading(false); }
+        return;
+      }
+      flash("Portapapeles sin imagen");
+    } catch { flash("Sin acceso al portapapeles"); }
+  };
+
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
   }
@@ -233,31 +268,39 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
         <div style={{ position: "absolute", bottom: 8, left: 8, right: 8, fontSize: 11, color: "#f87171", background: "rgba(0,0,0,0.6)", padding: "4px 8px", borderRadius: 6, textAlign: "center" }}>⚠ {err}</div>
       )}
 
-      {/* Quick controls bar */}
-      {anims.length > 0 && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur border border-border/50 px-2 py-1 shadow-sm text-xs">
-          <button type="button" onClick={() => { const next = !playing; setPlaying(next); patch({ autoplay: next }); }} className="px-1.5 hover:text-accent" title={playing ? "Pause" : "Play"}>{playing ? "❚❚" : "►"}</button>
-
-          {anims.length > 1 && (
-            <div className="relative">
-              <button type="button" onClick={() => setAnimMenuOpen((o) => !o)} className="flex items-center gap-1 px-1.5 hover:text-accent max-w-[120px]" title="Animation">
-                <span className="truncate">{animation || anims[0]}</span>
-                <span className="opacity-50 text-[9px]">▾</span>
-              </button>
-              {animMenuOpen && (
-                <div className="absolute bottom-8 left-0 z-30 min-w-[140px] rounded-lg border border-border bg-popover shadow-md overflow-hidden" onMouseLeave={() => setAnimMenuOpen(false)}>
-                  {anims.map((a) => (
-                    <button key={a} type="button" onClick={() => { patch({ animation: a }); setAnimMenuOpen(false); }} className={`block w-full text-left px-3 py-1.5 hover:bg-accent truncate ${a === (animation || anims[0]) ? "text-accent font-medium" : ""}`}>{a}</button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          <button type="button" onClick={() => patch({ loop: !loop })} className={`px-1.5 ${loop ? "text-accent" : "text-muted-foreground/70"}`} title={loop ? "Loop on" : "Loop off"}>⟳</button>
-          <button type="button" onClick={() => { const i = (SPEED_STEPS.indexOf(speed) + 1) % SPEED_STEPS.length; patch({ speed: SPEED_STEPS[i < 0 ? 1 : i] }); }} className="px-1.5 hover:text-accent tabular-nums" title="Speed">{speed}×</button>
-        </div>
+      {frameMsg && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-30 rounded-full bg-background/90 border border-border/50 px-3 py-1 text-xs shadow-sm">{frameMsg}</div>
       )}
+
+      {/* Quick controls bar (frame actions always; animation controls when present) */}
+      <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 rounded-full bg-background/85 backdrop-blur border border-border/50 px-2 py-1 shadow-sm text-xs opacity-0 group-hover/media:opacity-100 transition-opacity">
+        {anims.length > 0 && (
+          <>
+            <button type="button" onClick={() => { const next = !playing; setPlaying(next); patch({ autoplay: next }); }} className="px-1.5 hover:text-accent" title={playing ? "Pause" : "Play"}>{playing ? "❚❚" : "►"}</button>
+            {anims.length > 1 && (
+              <div className="relative">
+                <button type="button" onClick={() => setAnimMenuOpen((o) => !o)} className="flex items-center gap-1 px-1.5 hover:text-accent max-w-[120px]" title="Animation">
+                  <span className="truncate">{animation || anims[0]}</span>
+                  <span className="opacity-50 text-[9px]">▾</span>
+                </button>
+                {animMenuOpen && (
+                  <div className="absolute bottom-8 left-0 z-30 min-w-[140px] rounded-lg border border-border bg-popover shadow-md overflow-hidden" onMouseLeave={() => setAnimMenuOpen(false)}>
+                    {anims.map((a) => (
+                      <button key={a} type="button" onClick={() => { patch({ animation: a }); setAnimMenuOpen(false); }} className={`block w-full text-left px-3 py-1.5 hover:bg-accent truncate ${a === (animation || anims[0]) ? "text-accent font-medium" : ""}`}>{a}</button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+            <button type="button" onClick={() => patch({ loop: !loop })} className={`px-1.5 ${loop ? "text-accent" : "text-muted-foreground/70"}`} title={loop ? "Loop on" : "Loop off"}>⟳</button>
+            <button type="button" onClick={() => { const i = (SPEED_STEPS.indexOf(speed) + 1) % SPEED_STEPS.length; patch({ speed: SPEED_STEPS[i < 0 ? 1 : i] }); }} className="px-1.5 hover:text-accent tabular-nums" title="Speed">{speed}×</button>
+            <span className="w-px h-3.5 bg-border/60" />
+          </>
+        )}
+        {/* Frame actions: copy + download */}
+        <button type="button" onClick={copyFrame} className="px-1.5 hover:text-accent" title="Copiar frame">⧉</button>
+        <button type="button" onClick={downloadFrame} className="px-1.5 hover:text-accent" title="Descargar frame">⤓</button>
+      </div>
 
       {/* Settings gear (only when editable) */}
       {editable && (
@@ -307,8 +350,8 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
             </div>
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground w-12">Brillo</span>
-              <input type="range" min={0.2} max={2} step={0.1} value={exposure} onChange={(e) => patch({ exposure: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
-              <span className="tabular-nums w-7 text-right">{exposure.toFixed(1)}</span>
+              <input type="range" min={0} max={4} step={0.05} value={exposure} onChange={(e) => patch({ exposure: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
+              <span className="tabular-nums w-7 text-right">{exposure.toFixed(2)}</span>
             </div>
           </div>
 
@@ -337,6 +380,19 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
                   style={c === "transparent" ? { backgroundImage: "linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%),linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%)", backgroundSize: "8px 8px", backgroundPosition: "0 0,4px 4px" } : { background: c }}
                 />
               ))}
+              {/* Custom color — rainbow swatch opens a color picker */}
+              {(() => {
+                const isCustom = !resolvedBackground && /^#/.test(background) && !BG_SWATCHES.includes(background);
+                return (
+                  <button type="button" onClick={() => colorInputRef.current?.click()} title="Color personalizado"
+                    className={`relative h-6 w-6 rounded-md border ${isCustom ? "ring-2 ring-primary ring-offset-1 ring-offset-popover" : "border-border"}`}
+                    style={{ background: isCustom ? background : "conic-gradient(red,orange,yellow,lime,cyan,blue,magenta,red)" }}>
+                    <input ref={colorInputRef} type="color" value={/^#/.test(background) ? background : "#3b82f6"}
+                      onChange={(e) => patch({ background: e.target.value, backgroundImage: undefined })}
+                      className="absolute inset-0 opacity-0 cursor-pointer" />
+                  </button>
+                );
+              })()}
             </div>
             {/* Image / GIF uploader (same upload system as media) */}
             {onUploadBackground && (
@@ -357,8 +413,10 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
                 />
                 <button type="button" onClick={() => bgInputRef.current?.click()} disabled={bgUploading}
                   className="flex-1 px-2 py-1.5 rounded-md border border-border hover:bg-accent flex items-center justify-center gap-1.5">
-                  {bgUploading ? "Subiendo…" : (<><ImageIcon className="h-3.5 w-3.5" /> {resolvedBackground ? "Cambiar imagen/GIF" : "Subir imagen/GIF"}</>)}
+                  {bgUploading ? "Subiendo…" : (<><ImageIcon className="h-3.5 w-3.5" /> {resolvedBackground ? "Cambiar" : "Subir"}</>)}
                 </button>
+                <button type="button" onClick={pasteBackground} disabled={bgUploading} title="Pegar imagen del portapapeles"
+                  className="px-2 py-1.5 rounded-md border border-border hover:bg-accent">Pegar</button>
                 {resolvedBackground && (
                   <button type="button" onClick={() => patch({ backgroundImage: undefined })} title="Quitar fondo"
                     className="px-2 py-1.5 rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10">✕</button>
