@@ -195,6 +195,24 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
   const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, backgroundImage: cfg?.backgroundImage, ...p });
 
   const flash = (m: string) => { setFrameMsg(m); setTimeout(() => setFrameMsg(null), 1500); };
+
+  // Copy/paste the whole 3D config between models (persisted in localStorage so it
+  // survives reloads and works across bricks/docs).
+  const CLIP_KEY = "killio_model3d_clip";
+  const [hasClip, setHasClip] = React.useState(false);
+  React.useEffect(() => { try { setHasClip(!!localStorage.getItem(CLIP_KEY)); } catch { /* noop */ } }, [settingsOpen]);
+  const currentCfg = (): Model3DCfg => ({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, backgroundImage: cfg?.backgroundImage });
+  const copyConfig = () => { try { localStorage.setItem(CLIP_KEY, JSON.stringify(currentCfg())); setHasClip(true); flash("Config copiada"); } catch { flash("No se pudo copiar"); } };
+  const pasteConfig = () => {
+    try {
+      const raw = localStorage.getItem(CLIP_KEY);
+      if (!raw) return;
+      const c = JSON.parse(raw) as Model3DCfg;
+      setPlaying(c.autoplay !== false);
+      onCfgChange?.({ ...currentCfg(), ...c });
+      flash("Config pegada");
+    } catch { flash("Config inválida"); }
+  };
   const captureBlob = async (): Promise<Blob | null> => {
     try { return await elRef.current?.toBlob?.({ idealAspect: true, mimeType: "image/png" }); } catch { return null; }
   };
@@ -312,6 +330,12 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
 
       {editable && settingsOpen && (
         <div className="absolute top-11 left-2 z-30 w-60 max-h-[75%] overflow-y-auto rounded-xl border border-border bg-popover p-3 shadow-xl text-xs space-y-3">
+          {/* Copy / paste the whole config across models */}
+          <div className="flex gap-1.5 pb-1 border-b border-border/50">
+            <button type="button" onClick={copyConfig} className="flex-1 px-2 py-1 rounded-md border border-border hover:bg-accent">Copiar config</button>
+            <button type="button" onClick={pasteConfig} disabled={!hasClip} className="flex-1 px-2 py-1 rounded-md border border-border hover:bg-accent disabled:opacity-40">Pegar config</button>
+          </div>
+
           {/* Default animation */}
           {anims.length > 0 && (
             <div>
