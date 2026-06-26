@@ -4,7 +4,9 @@ import React from "react";
 import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, Video, Music, Bookmark } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
-import { isAssetRef, readAssetFile } from "@/lib/local-workspace/assets";
+import { useSession } from "@/components/providers/session-provider";
+import { isAssetRef, readAssetFile, writeAsset, assetFilenameForFile, makeAssetRef } from "@/lib/local-workspace/assets";
+import { uploadFile as apiUploadFile } from "@/lib/api/contracts";
 import { getImageUrl } from "@/lib/image-cache";
 import { WidgetBrick } from "./widget-brick";
 import { isWidgetUrl } from "@/lib/widget-sandbox";
@@ -84,6 +86,7 @@ export type Model3DCfg = {
   autoRotate?: boolean;       // idle spin (default on)
   rotationSpeed?: number;     // deg per second when auto-rotating
   background?: string;        // canvas background ('transparent' or hex)
+  backgroundImage?: string;   // uploaded bg image/gif (asset: or /uploads ref)
 };
 
 const SPEED_STEPS = [0.5, 1, 1.5, 2];
@@ -101,6 +104,7 @@ const ENV_PRESETS = [
   { key: "legacy", label: "Estudio" },
 ];
 const TONE_PRESETS = [
+  { key: "auto", label: "Auto" },
   { key: "neutral", label: "Plano" },
   { key: "aces", label: "Cine" },
   { key: "agx", label: "AgX" },
@@ -108,13 +112,17 @@ const TONE_PRESETS = [
 ];
 const BG_SWATCHES = ["transparent", "#0b0f17", "#111827", "#ffffff", "#f1f5f9"];
 
-function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
+function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onUploadBackground }: {
   src: string;
   alt?: string | null;
   full?: boolean;
   cfg?: Model3DCfg;
   onCfgChange?: (next: Model3DCfg) => void;
+  resolvedBackground?: string;
+  onUploadBackground?: (file: File) => Promise<string | null>;
 }) {
+  const bgInputRef = React.useRef<HTMLInputElement>(null);
+  const [bgUploading, setBgUploading] = React.useState(false);
   const [ready, setReady] = React.useState(
     typeof window !== "undefined" && !!window.customElements?.get?.("model-viewer"),
   );
@@ -174,7 +182,7 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
 
   React.useEffect(() => { apply(elRef.current); }, [apply]);
 
-  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, ...p });
+  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, backgroundImage: cfg?.backgroundImage, ...p });
 
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
@@ -200,13 +208,17 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
     "interaction-prompt": "none",
     crossorigin: "anonymous",
     loading: "eager",
-    style: { width: "100%", height: full ? "70vh" : "420px", background, ["--poster-color" as any]: "transparent" },
+    style: { width: "100%", height: full ? "70vh" : "420px", background: resolvedBackground ? "transparent" : background, ["--poster-color" as any]: "transparent" },
   };
   if (!lockRotation) mvProps["camera-controls"] = true; // locked → no orbit/zoom
   if (disableZoom && !lockRotation) mvProps["disable-zoom"] = true;
 
   return (
-    <div style={{ position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" }}>
+    <div style={{
+      position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto",
+      borderRadius: 12, overflow: "hidden",
+      ...(resolvedBackground ? { backgroundImage: `url("${resolvedBackground}")`, backgroundSize: "cover", backgroundPosition: "center" } : {}),
+    }}>
       {React.createElement("model-viewer", mvProps)}
 
       {err && (
@@ -279,10 +291,10 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
                 <button key={e.key} type="button" onClick={() => patch({ environment: e.key })} className={`px-2 py-1 rounded-md border ${environment === e.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{e.label}</button>
               ))}
             </div>
-            {/* Tone mapping = look/illumination variants */}
-            <div className="grid grid-cols-4 gap-1 mb-2">
+            {/* Tone mapping = look / shader variants */}
+            <div className="flex flex-wrap gap-1 mb-2">
               {TONE_PRESETS.map((tm) => (
-                <button key={tm.key} type="button" onClick={() => patch({ toneMapping: tm.key })} className={`px-1.5 py-1 rounded-md border truncate ${toneMapping === tm.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{tm.label}</button>
+                <button key={tm.key} type="button" onClick={() => patch({ toneMapping: tm.key })} className={`px-2 py-1 rounded-md border ${toneMapping === tm.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{tm.label}</button>
               ))}
             </div>
             <div className="flex items-center gap-2">
@@ -310,14 +322,41 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
           {/* Background */}
           <div>
             <div className="font-medium mb-1.5 text-muted-foreground">Fondo</div>
-            <div className="flex gap-1.5">
+            <div className="flex items-center gap-1.5 mb-2">
               {BG_SWATCHES.map((c) => (
-                <button key={c} type="button" onClick={() => patch({ background: c })} title={c === "transparent" ? "Transparente" : c}
-                  className={`h-6 w-6 rounded-md border ${background === c ? "ring-2 ring-primary ring-offset-1 ring-offset-popover" : "border-border"}`}
+                <button key={c} type="button" onClick={() => patch({ background: c, backgroundImage: undefined })} title={c === "transparent" ? "Transparente" : c}
+                  className={`h-6 w-6 rounded-md border ${!resolvedBackground && background === c ? "ring-2 ring-primary ring-offset-1 ring-offset-popover" : "border-border"}`}
                   style={c === "transparent" ? { backgroundImage: "linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%),linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%)", backgroundSize: "8px 8px", backgroundPosition: "0 0,4px 4px" } : { background: c }}
                 />
               ))}
             </div>
+            {/* Image / GIF uploader (same upload system as media) */}
+            {onUploadBackground && (
+              <div className="flex items-center gap-2">
+                <input
+                  ref={bgInputRef}
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp,image/gif"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const f = e.target.files?.[0];
+                    e.currentTarget.value = "";
+                    if (!f) return;
+                    setBgUploading(true);
+                    try { const ref = await onUploadBackground(f); if (ref) patch({ backgroundImage: ref }); }
+                    finally { setBgUploading(false); }
+                  }}
+                />
+                <button type="button" onClick={() => bgInputRef.current?.click()} disabled={bgUploading}
+                  className="flex-1 px-2 py-1.5 rounded-md border border-border hover:bg-accent flex items-center justify-center gap-1.5">
+                  {bgUploading ? "Subiendo…" : (<><ImageIcon className="h-3.5 w-3.5" /> {resolvedBackground ? "Cambiar imagen/GIF" : "Subir imagen/GIF"}</>)}
+                </button>
+                {resolvedBackground && (
+                  <button type="button" onClick={() => patch({ backgroundImage: undefined })} title="Quitar fondo"
+                    className="px-2 py-1.5 rounded-md border border-destructive/30 text-destructive hover:bg-destructive/10">✕</button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Interaction / motion */}
@@ -497,7 +536,28 @@ export const UnifiedMediaBrick: React.FC<{
   const border = meta.border || "soft";
   const shadow = meta.shadow || "none";
 
-  const assetMap = useResolvedAssetMap(meta.items.map((it) => it.url || ""));
+  const model3dCfg = (content.model3d || {}) as Model3DCfg;
+  const bgRaw = (model3dCfg as any).backgroundImage as string | undefined;
+  const assetMap = useResolvedAssetMap([...meta.items.map((it) => it.url || ""), bgRaw || ""]);
+
+  // Upload a background image/gif via the SAME upload system as media: local
+  // workspace → asset: ref written to disk, cloud → /uploads URL. Returns the
+  // raw ref to persist in content.model3d.backgroundImage.
+  const { getDir } = useLocalWorkspace();
+  const { accessToken } = useSession();
+  const uploadBackground = async (file: File): Promise<string | null> => {
+    const dir = getDir?.();
+    if (dir) {
+      const name = assetFilenameForFile(file, (typeof crypto !== "undefined" && crypto.randomUUID) ? crypto.randomUUID() : `${Date.now()}`);
+      await writeAsset(dir, name, file);
+      return makeAssetRef(name);
+    }
+    if (accessToken) {
+      const up = await apiUploadFile(file, accessToken);
+      return up.url; // /uploads/...
+    }
+    return null;
+  };
 
   const resolveUrl = (url: string | null | undefined) => {
     if (!url) return "";
@@ -589,6 +649,8 @@ export const UnifiedMediaBrick: React.FC<{
                 full={layout === "full"}
                 cfg={content.model3d as Model3DCfg | undefined}
                 onCfgChange={canEdit ? (next) => onUpdate({ ...content, model3d: next }) : undefined}
+                resolvedBackground={bgRaw ? resolveUrl(bgRaw) : undefined}
+                onUploadBackground={canEdit ? uploadBackground : undefined}
               />
             </div>
           ) : isVideo ? (
