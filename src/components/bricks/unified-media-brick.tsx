@@ -73,11 +73,17 @@ export type Model3DCfg = {
   loop?: boolean;
   speed?: number;
   autoplay?: boolean;
-  exposure?: number;        // illumination brightness 0.2–2
-  environment?: string;     // model-viewer env preset ('neutral' | 'legacy')
-  cameraOrbit?: string;     // default camera angle, e.g. "180deg 75deg auto"
-  lockRotation?: boolean;   // disable user orbit/zoom
-  autoRotate?: boolean;     // idle spin (default on)
+  exposure?: number;          // illumination brightness 0.2–2
+  environment?: string;       // model-viewer env preset ('neutral' | 'legacy')
+  toneMapping?: string;       // 'neutral' | 'aces' | 'agx' | 'commerce'
+  shadowIntensity?: number;   // 0–2
+  shadowSoftness?: number;    // 0–1
+  cameraOrbit?: string;       // default camera angle, e.g. "180deg 75deg auto"
+  lockRotation?: boolean;     // disable user orbit/zoom
+  disableZoom?: boolean;      // disable zoom only (keep orbit)
+  autoRotate?: boolean;       // idle spin (default on)
+  rotationSpeed?: number;     // deg per second when auto-rotating
+  background?: string;        // canvas background ('transparent' or hex)
 };
 
 const SPEED_STEPS = [0.5, 1, 1.5, 2];
@@ -88,11 +94,19 @@ const ANGLE_PRESETS: { key: string; label: string; orbit: string }[] = [
   { key: "left", label: "Izq", orbit: "270deg 75deg auto" },
   { key: "right", label: "Der", orbit: "90deg 75deg auto" },
   { key: "top", label: "Arriba", orbit: "180deg 15deg auto" },
+  { key: "iso", label: "Iso", orbit: "135deg 60deg auto" },
 ];
 const ENV_PRESETS = [
   { key: "neutral", label: "Neutral" },
   { key: "legacy", label: "Estudio" },
 ];
+const TONE_PRESETS = [
+  { key: "neutral", label: "Plano" },
+  { key: "aces", label: "Cine" },
+  { key: "agx", label: "AgX" },
+  { key: "commerce", label: "Producto" },
+];
+const BG_SWATCHES = ["transparent", "#0b0f17", "#111827", "#ffffff", "#f1f5f9"];
 
 function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
   src: string;
@@ -118,9 +132,15 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
   const loop = cfg?.loop !== false;
   const exposure = cfg?.exposure ?? 1;
   const environment = cfg?.environment || "neutral";
+  const toneMapping = cfg?.toneMapping || "neutral";
+  const shadowIntensity = cfg?.shadowIntensity ?? 1;
+  const shadowSoftness = cfg?.shadowSoftness ?? 1;
   const cameraOrbit = cfg?.cameraOrbit || DEFAULT_ORBIT;
   const lockRotation = cfg?.lockRotation === true;
+  const disableZoom = cfg?.disableZoom === true;
   const autoRotate = cfg?.autoRotate !== false && !lockRotation;
+  const rotationSpeed = cfg?.rotationSpeed ?? 30;
+  const background = cfg?.background || "transparent";
   const [playing, setPlaying] = React.useState(cfg?.autoplay !== false);
 
   const apply = React.useCallback((el: any) => {
@@ -154,7 +174,7 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
 
   React.useEffect(() => { apply(elRef.current); }, [apply]);
 
-  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, cameraOrbit, lockRotation, autoRotate, ...p });
+  const patch = (p: Model3DCfg) => onCfgChange?.({ animation, loop, speed, autoplay: playing, exposure, environment, toneMapping, shadowIntensity, shadowSoftness, cameraOrbit, lockRotation, disableZoom, autoRotate, rotationSpeed, background, ...p });
 
   if (!src) {
     return <div className="flex items-center justify-center text-xs text-muted-foreground" style={{ height: full ? "70vh" : 420 }}>3D…</div>;
@@ -169,17 +189,21 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
     src,
     alt: alt || "3D model",
     "auto-rotate": autoRotate ? true : undefined,
+    "rotation-per-second": autoRotate ? `${rotationSpeed}deg` : undefined,
     "camera-orbit": cameraOrbit,
     "touch-action": "pan-y",
-    "shadow-intensity": "1",
+    "shadow-intensity": String(shadowIntensity),
+    "shadow-softness": String(shadowSoftness),
     exposure: String(exposure),
+    "tone-mapping": toneMapping,
     "environment-image": environment,
     "interaction-prompt": "none",
     crossorigin: "anonymous",
     loading: "eager",
-    style: { width: "100%", height: full ? "70vh" : "420px", background: "transparent", ["--poster-color" as any]: "transparent" },
+    style: { width: "100%", height: full ? "70vh" : "420px", background, ["--poster-color" as any]: "transparent" },
   };
   if (!lockRotation) mvProps["camera-controls"] = true; // locked → no orbit/zoom
+  if (disableZoom && !lockRotation) mvProps["disable-zoom"] = true;
 
   return (
     <div style={{ position: "relative", width: full ? "100%" : "min(100%, 540px)", margin: "0 auto" }}>
@@ -224,7 +248,7 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
       )}
 
       {editable && settingsOpen && (
-        <div className="absolute top-11 left-2 z-30 w-60 rounded-xl border border-border bg-popover p-3 shadow-xl text-xs space-y-3">
+        <div className="absolute top-11 left-2 z-30 w-60 max-h-[75%] overflow-y-auto rounded-xl border border-border bg-popover p-3 shadow-xl text-xs space-y-3">
           {/* Default animation */}
           {anims.length > 0 && (
             <div>
@@ -255,23 +279,68 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange }: {
                 <button key={e.key} type="button" onClick={() => patch({ environment: e.key })} className={`px-2 py-1 rounded-md border ${environment === e.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{e.label}</button>
               ))}
             </div>
+            {/* Tone mapping = look/illumination variants */}
+            <div className="grid grid-cols-4 gap-1 mb-2">
+              {TONE_PRESETS.map((tm) => (
+                <button key={tm.key} type="button" onClick={() => patch({ toneMapping: tm.key })} className={`px-1.5 py-1 rounded-md border truncate ${toneMapping === tm.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{tm.label}</button>
+              ))}
+            </div>
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">Brillo</span>
+              <span className="text-muted-foreground w-12">Brillo</span>
               <input type="range" min={0.2} max={2} step={0.1} value={exposure} onChange={(e) => patch({ exposure: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
               <span className="tabular-nums w-7 text-right">{exposure.toFixed(1)}</span>
             </div>
           </div>
 
-          {/* Toggles */}
-          <div className="space-y-1">
+          {/* Shadows */}
+          <div>
+            <div className="font-medium mb-1.5 text-muted-foreground">Sombras</div>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-muted-foreground w-12">Fuerza</span>
+              <input type="range" min={0} max={2} step={0.1} value={shadowIntensity} onChange={(e) => patch({ shadowIntensity: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
+              <span className="tabular-nums w-7 text-right">{shadowIntensity.toFixed(1)}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground w-12">Suavidad</span>
+              <input type="range" min={0} max={1} step={0.1} value={shadowSoftness} onChange={(e) => patch({ shadowSoftness: parseFloat(e.target.value) })} className="flex-1 accent-primary" />
+              <span className="tabular-nums w-7 text-right">{shadowSoftness.toFixed(1)}</span>
+            </div>
+          </div>
+
+          {/* Background */}
+          <div>
+            <div className="font-medium mb-1.5 text-muted-foreground">Fondo</div>
+            <div className="flex gap-1.5">
+              {BG_SWATCHES.map((c) => (
+                <button key={c} type="button" onClick={() => patch({ background: c })} title={c === "transparent" ? "Transparente" : c}
+                  className={`h-6 w-6 rounded-md border ${background === c ? "ring-2 ring-primary ring-offset-1 ring-offset-popover" : "border-border"}`}
+                  style={c === "transparent" ? { backgroundImage: "linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%),linear-gradient(45deg,#888 25%,transparent 25%,transparent 75%,#888 75%)", backgroundSize: "8px 8px", backgroundPosition: "0 0,4px 4px" } : { background: c }}
+                />
+              ))}
+            </div>
+          </div>
+
+          {/* Interaction / motion */}
+          <div className="space-y-1.5">
             <label className="flex items-center justify-between cursor-pointer">
               <span className="text-muted-foreground">Bloquear rotación</span>
               <input type="checkbox" checked={lockRotation} onChange={(e) => patch({ lockRotation: e.target.checked })} className="accent-primary" />
             </label>
             <label className={`flex items-center justify-between ${lockRotation ? "opacity-40" : "cursor-pointer"}`}>
+              <span className="text-muted-foreground">Bloquear zoom</span>
+              <input type="checkbox" disabled={lockRotation} checked={disableZoom} onChange={(e) => patch({ disableZoom: e.target.checked })} className="accent-primary" />
+            </label>
+            <label className={`flex items-center justify-between ${lockRotation ? "opacity-40" : "cursor-pointer"}`}>
               <span className="text-muted-foreground">Giro automático</span>
               <input type="checkbox" disabled={lockRotation} checked={autoRotate} onChange={(e) => patch({ autoRotate: e.target.checked })} className="accent-primary" />
             </label>
+            {autoRotate && (
+              <div className="flex items-center gap-2 pt-0.5">
+                <span className="text-muted-foreground w-12">Vel. giro</span>
+                <input type="range" min={5} max={120} step={5} value={rotationSpeed} onChange={(e) => patch({ rotationSpeed: parseInt(e.target.value, 10) })} className="flex-1 accent-primary" />
+                <span className="tabular-nums w-9 text-right">{rotationSpeed}°/s</span>
+              </div>
+            )}
           </div>
         </div>
       )}
