@@ -21,6 +21,13 @@ const nextConfig: NextConfig = {
         source: '/uploads/:path*',
         destination: `${BACKEND_URL}/uploads/:path*`,
       },
+      {
+        // Same-origin proxy for the bundled HDR environment maps used by the 3D
+        // model viewer (model-viewer fetches environment-image with CORS; serving
+        // them from our origin avoids cross-origin failures).
+        source: '/hdr/:file*',
+        destination: 'https://modelviewer.dev/shared-assets/environments/:file*',
+      },
     ];
   },
 };

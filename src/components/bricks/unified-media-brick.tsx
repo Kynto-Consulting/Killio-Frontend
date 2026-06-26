@@ -101,7 +101,15 @@ const ANGLE_PRESETS: { key: string; label: string; orbit: string }[] = [
 ];
 const ENV_PRESETS = [
   { key: "neutral", label: "Neutral" },
-  { key: "legacy", label: "Estudio" },
+  { key: "legacy", label: "Suave" },
+  // Real HDR environment maps (equirectangular), proxied same-origin via the
+  // /hdr rewrite to dodge CORS. Affect lighting + reflections, not the backdrop.
+  { key: "/hdr/aircraft_workshop_01_1k.hdr", label: "Taller" },
+  { key: "/hdr/music_hall_01_1k.hdr", label: "Salón" },
+  { key: "/hdr/spruit_sunrise_1k.hdr", label: "Atardecer" },
+  { key: "/hdr/whipple_creek_regional_park_04_1k.hdr", label: "Bosque" },
+  { key: "/hdr/pillars_1k.hdr", label: "Estudio" },
+  { key: "/hdr/lebombo_1k.hdr", label: "Cálido" },
 ];
 const TONE_PRESETS = [
   { key: "auto", label: "Auto" },
@@ -286,7 +294,7 @@ function ModelViewer({ src, alt, full, cfg, onCfgChange, resolvedBackground, onU
           {/* Illumination */}
           <div>
             <div className="font-medium mb-1.5 text-muted-foreground">Iluminación</div>
-            <div className="flex gap-1 mb-2">
+            <div className="flex flex-wrap gap-1 mb-2">
               {ENV_PRESETS.map((e) => (
                 <button key={e.key} type="button" onClick={() => patch({ environment: e.key })} className={`px-2 py-1 rounded-md border ${environment === e.key ? "border-primary bg-primary/5 text-primary" : "border-border hover:bg-accent"}`}>{e.label}</button>
               ))}
