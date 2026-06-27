@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, Video, Music, Bookmark } from "lucide-react";
+import { AlignLeft, AlignCenter, AlignRight, Maximize, FileText, Settings, Link as LinkIcon, Image as ImageIcon, Video, Music, Bookmark, ArrowUpRight } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useSession } from "@/components/providers/session-provider";
@@ -786,7 +786,8 @@ export const UnifiedMediaBrick: React.FC<{
                 style={{ imageRendering: "pixelated" }}
               />
               <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-background/85 backdrop-blur border border-border/50 px-2 py-0.5 text-[11px] font-medium opacity-0 group-hover/tinti:opacity-100 transition-opacity">
-                <span style={{ fontWeight: 700 }}>tinti</span> ↗
+                <span className="font-bold">tinti</span>
+                <ArrowUpRight className="w-3 h-3" />
               </span>
             </a>
           ) : isWebBookmark ? (
