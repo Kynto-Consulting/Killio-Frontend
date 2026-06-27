@@ -1,7 +1,14 @@
 {
   "refOpenHint": "Ctrl/Cmd + clic para abrir",
-  "clipboard": { "copied": "{{n}} copiado(s)", "pasted": "{{n}} pegado(s)", "cut": "{{n}} cortado(s)" },
-  "history": { "undo": "Deshacer", "redo": "Rehacer" },
+  "clipboard": {
+    "copied": "{{n}} copiado(s)",
+    "pasted": "{{n}} pegado(s)",
+    "cut": "{{n}} cortado(s)"
+  },
+  "history": {
+    "undo": "Deshacer",
+    "redo": "Rehacer"
+  },
   "common": {
     "saveChanges": "Guardar cambios",
     "cancel": "Cancelar"
@@ -224,7 +231,10 @@
     "aiFixSearch": "ai corregir ortografía gramática",
     "aiAskLabel": "Preguntar a la IA",
     "aiAskDesc": "Abre el chat de IA con este bloque como contexto",
-    "aiAskSearch": "ai preguntar chat asistente"
+    "aiAskSearch": "ai preguntar chat asistente",
+    "tintiLabel": "tinti (pixel art)",
+    "tintiDesc": "Embebe un proyecto de tinti pegando su enlace",
+    "tintiSearch": "tinti pixel art arte dibujo sprite"
   },
   "slashPreviews": {
     "text": "Texto simple",
@@ -272,9 +282,9 @@
     "upload": "Subir",
     "attachedDoc": "Documento adjunto",
     "download": "Descargar",
-    "defaultDocTitle": "Archivo sin t\u00edtulo",
-    "subtitlePlaceholder": "A\u00f1adir leyenda",
-    "alignment": "Alineaci\u00f3n",
+    "defaultDocTitle": "Archivo sin título",
+    "subtitlePlaceholder": "Añadir leyenda",
+    "alignment": "Alineación",
     "alignLeft": "Izquierda",
     "alignCenter": "Centro",
     "alignRight": "Derecha",
@@ -287,9 +297,9 @@
     "shadowNone": "Ninguna",
     "shadowMd": "Media",
     "shadowLg": "Pronunciada",
-    "urlPlaceholder": "Pegar aqu\u00ed la URL de la imagen...",
-    "subtitleGeneralPlaceholder": "A\u00f1ade un comentario...",
-    "uploadMore": "Subir o a\u00f1adir m\u00e1s...",
+    "urlPlaceholder": "Pegar aquí la URL de la imagen...",
+    "subtitleGeneralPlaceholder": "Añade un comentario...",
+    "uploadMore": "Subir o añadir más...",
     "acceptControls": "Hecho",
     "unsupportedBlock": "Bloque {{kind}} no soportado.",
     "commentHoverTitle": "Ver comentarios",
@@ -300,10 +310,10 @@
     "bookmarkButton": "Crear marcador",
     "chooseAudio": "Elegir un audio",
     "chooseImage": "Elegir una imagen",
-    "chooseVideo": "Elegir un v\u00eddeo",
+    "chooseVideo": "Elegir un vídeo",
     "chooseFile": "Elegir un archivo",
-    "titleBookmark": "A\u00f1adir miniatura de una web",
-    "titleVideo": "Insertar o subir un v\u00eddeo",
+    "titleBookmark": "Añadir miniatura de una web",
+    "titleVideo": "Insertar o subir un vídeo",
     "titleImage": "Insertar o subir una imagen",
     "titleAudio": "Insertar o subir un audio",
     "titleFile": "Insertar o subir un archivo",
@@ -321,11 +331,11 @@
     "tabs": {
       "defaultTab1": "Tab 1",
       "defaultTabn": "Tab",
-      "placeholder": "Escribe el contenido de la pesta\u00f1a...",
-      "empty": "Pesta\u00f1a vac\u00eda. Haz clic o suelta un bloque dentro."
+      "placeholder": "Escribe el contenido de la pestaña...",
+      "empty": "Pestaña vacía. Haz clic o suelta un bloque dentro."
     },
     "accordion": {
-      "empty": "Acorde\u00f3n vac\u00edo. Haz clic o suelta un bloque dentro."
+      "empty": "Acordeón vacío. Haz clic o suelta un bloque dentro."
     },
     "columns": {
       "placeholder": "Columna",
@@ -571,8 +581,18 @@
       "additionalRows": "+ {{count}} filas adicionales se procesarán"
     },
     "months": {
-      "0": "Enero", "1": "Febrero", "2": "Marzo", "3": "Abril", "4": "Mayo", "5": "Junio",
-      "6": "Julio", "7": "Agosto", "8": "Septiembre", "9": "Octubre", "10": "Noviembre", "11": "Diciembre"
+      "0": "Enero",
+      "1": "Febrero",
+      "2": "Marzo",
+      "3": "Abril",
+      "4": "Mayo",
+      "5": "Junio",
+      "6": "Julio",
+      "7": "Agosto",
+      "8": "Septiembre",
+      "9": "Octubre",
+      "10": "Noviembre",
+      "11": "Diciembre"
     },
     "numberFormat": {
       "title": "Formato de número",

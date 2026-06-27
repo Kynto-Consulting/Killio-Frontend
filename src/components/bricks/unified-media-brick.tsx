@@ -524,6 +524,22 @@ const is3DUrl = (url?: string | null, mime?: string | null, mediaType?: string |
   mediaType === "model3d" ||
   kind === "model3d";
 
+// ── tinti (pixel-art) project embeds ───────────────────────────────────────
+// A public tinti project renders as a live PNG via its export API (no auth), so
+// we embed it as a pixel-perfect image linking back to the tinti viewer.
+const TINTI_HOST = "https://tintiart.vercel.app";
+const tintiProjectId = (url?: string | null): string | null => {
+  if (!url) return null;
+  const s = String(url).trim();
+  if (/^tinti:/i.test(s)) return s.replace(/^tinti:/i, "").trim() || null;
+  const m = s.match(/tintiart\.vercel\.app\/(?:p|project)\/([\w-]+)/i) || s.match(/tintiart\.vercel\.app\/api\/projects\/([\w-]+)/i);
+  if (m) return m[1];
+  try { const u = new URL(s); if (/tintiart\.vercel\.app$/i.test(u.host)) { const id = u.searchParams.get("id") || u.searchParams.get("project"); if (id) return id; } } catch { /* not a url */ }
+  return null;
+};
+const tintiExportUrl = (id: string, scale = 4) => `${TINTI_HOST}/api/projects/${id}/export?format=png&scale=${scale}`;
+const tintiViewUrl = (id: string) => `${TINTI_HOST}/p/${id}`;
+
 export type MediaCarouselItem = {
   url: string;
   title?: string | null;
@@ -634,6 +650,8 @@ export const UnifiedMediaBrick: React.FC<{
   const isAudio = mime.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(activeItem?.url || "") || content.mediaType === "audio" || kind === "audio";
   const isWebBookmark = content.mediaType === "bookmark" || kind === "bookmark" || mime === "text/html";
   const is3D = is3DUrl(activeItem?.url, mime, content.mediaType, kind);
+  const tintiId = content.mediaType === "tinti" ? (tintiProjectId(activeItem?.url) || (activeItem?.url || "").replace(/^tinti:/i, "").trim() || null) : tintiProjectId(activeItem?.url);
+  const isTinti = !!tintiId;
 
   // Derive the persisted mediaType from the first item so editing (e.g. the
   // subtitle) never downgrades a 3D model / audio / bookmark back to "image".
@@ -641,6 +659,7 @@ export const UnifiedMediaBrick: React.FC<{
     const m = (it?.mimeType || "").toLowerCase();
     const u = it?.url || "";
     if (is3DUrl(u, m, content.mediaType, kind)) return "model3d";
+    if (tintiProjectId(u)) return "tinti";
     if (m.startsWith("video/") || /\.(mp4|webm|mov|ogg|m4v)$/i.test(u)) return "video";
     if (m.startsWith("audio/") || /\.(mp3|wav|ogg|aac|flac)$/i.test(u)) return "audio";
     if (m === "text/html" || content.mediaType === "bookmark" || kind === "bookmark") return "bookmark";
@@ -757,7 +776,20 @@ export const UnifiedMediaBrick: React.FC<{
       <div className={getMediaWrapperClassName()}>
         {/* MEDIA RENDER */}
         {activeItem?.url ? (
-          isWebBookmark ? (
+          isTinti && tintiId ? (
+            <a href={tintiViewUrl(tintiId)} target="_blank" rel="noreferrer" className="group/tinti relative block w-auto mx-auto">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={tintiExportUrl(tintiId, 4)}
+                alt={activeItem.title || "tinti"}
+                className={`bg-transparent ${layout === "full" ? "w-full" : "max-h-[70vh] object-contain w-auto mx-auto"}`}
+                style={{ imageRendering: "pixelated" }}
+              />
+              <span className="absolute bottom-2 right-2 flex items-center gap-1 rounded-md bg-background/85 backdrop-blur border border-border/50 px-2 py-0.5 text-[11px] font-medium opacity-0 group-hover/tinti:opacity-100 transition-opacity">
+                <span style={{ fontWeight: 700 }}>tinti</span> ↗
+              </span>
+            </a>
+          ) : isWebBookmark ? (
             <a href={resolveUrl(activeItem.url)} target="_blank" rel="noreferrer" className="block w-full max-w-lg mx-auto bg-card border border-border/50 rounded-lg overflow-hidden hover:border-accent/50 transition-colors shadow-sm">
               <div className="p-4 flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 text-xs text-muted-foreground mb-0.5">
