@@ -317,7 +317,9 @@
     "titleImage": "Insertar o subir una imagen",
     "titleAudio": "Insertar o subir un audio",
     "titleFile": "Insertar o subir un archivo",
-    "titleMedia": "Insertar multimedia"
+    "titleMedia": "Insertar multimedia",
+    "addUrlPlaceholder": "Agregar por URL (imagen, video, GIF, tinti, .glb)…",
+    "addUrlButton": "Agregar"
   },
   "popupDocument": {
     "untitled": "Documento sin título",

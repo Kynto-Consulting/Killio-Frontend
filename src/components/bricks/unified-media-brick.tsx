@@ -624,6 +624,7 @@ export const UnifiedMediaBrick: React.FC<{
   
   const [emptyTab, setEmptyTab] = React.useState<"upload" | "link">(kind === "bookmark" ? "link" : "upload");
   const [linkInput, setLinkInput] = React.useState("");
+  const [addUrl, setAddUrl] = React.useState("");
   const [isFormOpen, setIsFormOpen] = React.useState(false);
   const containerRef = React.useRef<HTMLDivElement>(null);
 
@@ -1034,12 +1035,12 @@ export const UnifiedMediaBrick: React.FC<{
                />
 
                <div className="flex items-center gap-2 mt-2">
-                <label className="inline-flex cursor-pointer items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted/40 shadow-sm">
+                <label className="inline-flex cursor-pointer items-center rounded-md border border-border bg-background px-3 py-1.5 text-xs font-semibold hover:bg-muted/40 shadow-sm shrink-0">
                   {t("brickRenderer.uploadMore")}
                   <input
                     type="file"
                     multiple
-                    accept="image/*,video/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx"
+                    accept="image/*,video/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.glb,.gltf"
                     className="hidden"
                     onChange={(event) => {
                       const files = Array.from(event.target.files || []);
@@ -1051,10 +1052,36 @@ export const UnifiedMediaBrick: React.FC<{
                     }}
                   />
                 </label>
-                 <button onClick={() => setShowSettings(false)} className="ml-auto bg-primary text-primary-foreground text-xs font-semibold px-4 py-1.5 rounded-md hover:bg-primary/90 shadow-sm">
+                 <button onClick={() => setShowSettings(false)} className="ml-auto bg-primary text-primary-foreground text-xs font-semibold px-4 py-1.5 rounded-md hover:bg-primary/90 shadow-sm shrink-0">
                    {t("brickRenderer.acceptControls")}
                  </button>
                </div>
+
+               {/* Add another item by URL (image/video/gif/tinti/3D/bookmark) */}
+               <form
+                 className="flex items-center gap-2 mt-2"
+                 onSubmit={(e) => {
+                   e.preventDefault();
+                   const u = addUrl.trim();
+                   if (!u) return;
+                   updateMeta({ ...meta, items: [...meta.items.filter((it) => it.url), { url: u, title: "", mimeType: undefined, sizeBytes: null }] }, meta.items.filter((it) => it.url).length);
+                   setAddUrl("");
+                 }}
+               >
+                 <LinkIcon className="w-3.5 h-3.5 text-muted-foreground/60 shrink-0" />
+                 <input
+                   type="url"
+                   value={addUrl}
+                   onChange={(e) => setAddUrl(e.target.value)}
+                   placeholder={t("brickRenderer.addUrlPlaceholder") || "Agregar por URL (imagen, video, GIF, tinti, .glb)…"}
+                   className="flex-1 min-w-0 rounded-md border border-input bg-background px-3 py-1.5 text-xs outline-none"
+                 />
+                 {addUrl.trim() && (
+                   <button type="submit" className="px-3 py-1.5 rounded-md bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 shrink-0">
+                     {t("brickRenderer.addUrlButton") || "Agregar"}
+                   </button>
+                 )}
+               </form>
            </div>
 
            {/* Carousel Thumbnails inside settings */}

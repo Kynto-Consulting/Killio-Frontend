@@ -317,7 +317,9 @@
     "titleImage": "Embed or upload image",
     "titleAudio": "Embed or upload audio",
     "titleFile": "Embed or upload file",
-    "titleMedia": "Embed media"
+    "titleMedia": "Embed media",
+    "addUrlPlaceholder": "Add by URL (image, video, GIF, tinti, .glb)…",
+    "addUrlButton": "Add"
   },
   "popupDocument": {
     "untitled": "Untitled document",
