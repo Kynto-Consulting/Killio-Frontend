@@ -1,7 +1,11 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { getTenantConfig } from '@/lib/tenant/server';
+import { buildTenantThemeCss, initialHtmlClass, SYSTEM_THEME_SCRIPT } from '@/lib/tenant/theme';
+import { TenantProvider } from '@/components/providers/tenant-provider';
+import { PoweredByBadge } from '@/components/marketing/powered-by-badge';
 
-export const metadata: Metadata = {
+const baseMetadata: Metadata = {
   title: 'Killio',
   description: 'Restriction-free productivity execution platform.',
   manifest: '/manifest.json',
@@ -15,6 +19,19 @@ export const metadata: Metadata = {
   },
 };
 
+// Public mode keeps the Killio metadata; tenant mode uses the customer's name, tagline and favicon.
+export async function generateMetadata(): Promise<Metadata> {
+  const tenant = await getTenantConfig();
+  if (tenant.mode !== 'tenant') return baseMetadata;
+  return {
+    ...baseMetadata,
+    title: tenant.brand.name,
+    description: tenant.brand.tagline || baseMetadata.description,
+    appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: tenant.brand.shortName },
+    ...(tenant.brand.faviconUrl ? { icons: { icon: tenant.brand.faviconUrl } } : {}),
+  };
+}
+
 import { SessionProvider } from '@/components/providers/session-provider';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
@@ -27,24 +44,35 @@ import { getPlatform } from '@/lib/platform';
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const platform = await getPlatform();
+  const tenant = await getTenantConfig();
+  const themeCss = buildTenantThemeCss(tenant);
 
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className={initialHtmlClass(tenant)} suppressHydrationWarning>
+      <head>
+        {themeCss ? <style id="tenant-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
+        {tenant.mode === 'tenant' && tenant.theme.defaultMode === 'system' ? (
+          <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_SCRIPT }} />
+        ) : null}
+      </head>
       <body className="antialiased">
-        <PlatformProvider platform={platform}>
-          <SessionProvider>
-            <RealtimeProvider>
-              <I18nProvider>
-                <CallProvider>
-                  {children}
-                </CallProvider>
-                <Toaster />
-                <OfflineIndicator />
-                <SwUpdater />
-              </I18nProvider>
-            </RealtimeProvider>
-          </SessionProvider>
-        </PlatformProvider>
+        <TenantProvider value={tenant}>
+          <PlatformProvider platform={platform}>
+            <SessionProvider>
+              <RealtimeProvider>
+                <I18nProvider>
+                  <CallProvider>
+                    {children}
+                  </CallProvider>
+                  <Toaster />
+                  <OfflineIndicator />
+                  <SwUpdater />
+                  <PoweredByBadge />
+                </I18nProvider>
+              </RealtimeProvider>
+            </SessionProvider>
+          </PlatformProvider>
+        </TenantProvider>
       </body>
     </html>
   );

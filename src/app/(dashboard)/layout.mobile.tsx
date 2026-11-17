@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch, Sparkles, MessageSquare, Workflow } from "lucide-react";
@@ -296,8 +297,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
       <aside className="hidden w-64 flex-col border-r border-border bg-card/30 backdrop-blur-sm md:flex">
         <div className="flex h-14 items-center border-b border-border px-4">
           <Link href="/" className="flex items-center space-x-2 transition-opacity hover:opacity-80">
-            <Image src="/killio_white.webp" alt="Killio" width={80} height={24} className="h-6 w-auto" />
-            <span className="font-semibold tracking-tight text-lg">Killio</span>
+            <BrandLogo className="h-6 w-auto" />
+            <span className="font-semibold tracking-tight text-lg"><BrandName /></span>
           </Link>
         </div>
 

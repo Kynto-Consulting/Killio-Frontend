@@ -2758,7 +2758,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     `inline-flex ${mobileMode ? "h-10 w-10" : "h-9 w-9"} items-center justify-center rounded-xl border transition-colors ${
       active
         ? "border-cyan-300/50 bg-cyan-400/20 text-cyan-100"
-        : "border-white/10 bg-slate-900/85 text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-500/10 hover:text-cyan-100"
+        : "border-foreground/10 dark:border-white/10 bg-card/85 dark:bg-slate-900/85 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:bg-cyan-500/10 hover:text-cyan-100"
     }`
   ), [mobileMode]);
 
@@ -3879,7 +3879,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     const isConnected = connectedBrickIds.has(brick.id);
     // Multi-selected bricks get a distinct, high-contrast ring so the group is
     // obvious vs a single selection (white).
-    const ring        = isMultiSel ? " ring-2 ring-sky-400 ring-offset-1 ring-offset-slate-900" : isSel ? " ring-2 ring-white/70" : isConnSrc ? " ring-2 ring-cyan-300" : "";
+    const ring        = isMultiSel ? " ring-2 ring-sky-400 ring-offset-1 ring-offset-slate-900" : isSel ? " ring-2 ring-foreground/70 dark:ring-white/70" : isConnSrc ? " ring-2 ring-cyan-300" : "";
 
     // Magnet port dots rendered inside each brick when conn mode is active
     const brickShapePreset = asRec(brick.content).shapePreset as ShapePreset | undefined;
@@ -3896,8 +3896,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             <div key={port} style={{ position: "absolute", left: mp.x, top: mp.y, transform: "translate(-50%,-50%)" }}
               className={`pointer-events-auto rounded-full border-2 cursor-crosshair transition-all duration-100
                 ${isSnap || isSrc
-                  ? "h-4 w-4 border-white bg-cyan-300 shadow-[0_0_8px_2px_rgba(34,211,238,0.7)]"
-                  : "h-2.5 w-2.5 border-cyan-500 bg-slate-900/80 hover:h-3.5 hover:w-3.5 hover:border-cyan-300 hover:bg-cyan-400/60"}`}
+                  ? "h-4 w-4 border-foreground dark:border-white bg-cyan-300 shadow-[0_0_8px_2px_rgba(34,211,238,0.7)]"
+                  : "h-2.5 w-2.5 border-cyan-500 bg-card/80 dark:bg-slate-900/80 hover:h-3.5 hover:w-3.5 hover:border-cyan-300 hover:bg-cyan-400/60"}`}
               onMouseDown={(e) => { e.stopPropagation(); startConnFromPort(brick.id, port); }}
               onMouseUp={(e) => { e.stopPropagation(); if (connSrcId && connSrcId !== brick.id) finishConnAtPort(brick.id, port); }}
               onMouseEnter={() => { if (connSrcId && connSrcId !== brick.id) setSnapTarget({ brickId: brick.id, port }); }}
@@ -3934,7 +3934,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     // Lock overlay — shown when another user is dragging/editing this brick
     const activeLock = brickLocks.get(brick.id);
     const lockOverlay = activeLock ? (
-      <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center rounded-[inherit] bg-slate-900/50 backdrop-blur-[1px]">
+      <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center rounded-[inherit] bg-card/50 dark:bg-slate-900/50 backdrop-blur-[1px]">
         {activeLock.avatarUrl ? (
           <img src={activeLock.avatarUrl} alt={activeLock.displayName}
             className="h-7 w-7 rounded-full border-2 border-amber-400 shadow-lg" />
@@ -3943,7 +3943,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             {activeLock.displayName.slice(0, 2).toUpperCase()}
           </div>
         )}
-        <span className="ml-1.5 max-w-[100px] truncate rounded bg-slate-900/80 px-1.5 py-0.5 text-[10px] text-amber-200">
+        <span className="ml-1.5 max-w-[100px] truncate rounded bg-card/80 dark:bg-slate-900/80 px-1.5 py-0.5 text-[10px] text-amber-200">
           {activeLock.displayName}
         </span>
       </div>
@@ -3999,7 +3999,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           )}
           {/* Quick-add bar for selected board */}
           {isSel && !collapsed && (
-            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
+            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-card/90 dark:bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
               onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
@@ -4095,7 +4095,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     : <span className="opacity-40">{String(shapeP)}</span>}
                 </span>
               )}
-              <button type="button" className="mb-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-white/10"
+              <button type="button" className="mb-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded transition-colors hover:bg-foreground/10 dark:hover:bg-white/10"
                 style={{ color: shapeStroke }}
                 onClick={toggleCollapse} title={collapsed ? "Expandir" : "Minimizar"}>
                 <ChevronDown className={`h-3.5 w-3.5 transition-transform duration-150 ${collapsed ? "-rotate-90" : ""}`} />
@@ -4118,7 +4118,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               style={{ padding: `${Math.round(brick.size.h * 0.18)}px ${Math.round(brick.size.w * 0.18)}px` }}
               onPointerDown={(e) => e.stopPropagation()}
             >
-              <div className="h-full w-full overflow-auto rounded bg-slate-950/75 px-1 py-0.5">
+              <div className="h-full w-full overflow-auto rounded bg-background/75 dark:bg-slate-950/75 px-1 py-0.5">
                 <UnifiedTextBrick
                   id={`shape-text-${brick.id}`}
                   text={getMd(brick)}
@@ -4142,7 +4142,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {isCont && !collapsed && kids.map((child) => renderBrick(child))}
           {/* Quick-add bar when selected container */}
           {isSel && isCont && !collapsed && (
-            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
+            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-card/90 dark:bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
               onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
@@ -4224,7 +4224,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           {/* Children when this raw draw is a container */}
           {isCont && kids.map((child) => renderBrick(child))}
           {isSel && isCont && (
-            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
+            <div className="absolute -bottom-7 left-0 z-40 flex items-center gap-1 rounded-md border border-cyan-400/30 bg-card/90 dark:bg-slate-900/90 px-1.5 py-0.5 shadow-lg"
               onPointerDown={(e) => e.stopPropagation()}>
               <span className="mr-1 text-[8px] text-cyan-400/60">+ Añadir:</span>
               {BASIC_BRICKS.slice(0, 3).map((entry) => (
@@ -4329,7 +4329,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             ) : targetId ? (
               /* Preview fills full body — double-click on brick opens the iframe overlay */
-              <div className="relative h-full w-full overflow-hidden bg-slate-900/60">
+              <div className="relative h-full w-full overflow-hidden bg-card/60 dark:bg-slate-900/60">
                 {portalRenderMode === "live" && portalHref ? (
                   <iframe
                     src={portalHref}
@@ -4364,7 +4364,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   </div>
                 )}
                 {/* Hover overlay with subtitle info */}
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/80 to-transparent px-2 py-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/80 dark:from-slate-950/80 to-transparent px-2 py-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                   <p className="truncate text-[10px] font-medium text-blue-100">{targetLabel || targetId.slice(0, 24)}</p>
                   <p className="text-[8px] text-blue-400/60">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
                 </div>
@@ -4408,7 +4408,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           onPointerDown={(e) => startDrag(e, brick.id)}
           onDoubleClick={(e) => { e.stopPropagation(); if (toolMode === "select") startEdit(brick.id); }}
         >
-          <div className="flex h-7 items-center gap-1.5 border-b border-white/10 bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
+          <div className="flex h-7 items-center gap-1.5 border-b border-foreground/10 dark:border-white/10 bg-card/45 dark:bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
             <Eye className="h-3 w-3 shrink-0 text-purple-400" />
             <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
             {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
@@ -4436,7 +4436,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             ) : (previewMd || sourceId) ? (
               <div className="pointer-events-none overflow-auto p-2 opacity-95">
                 {mirrorPreviewBrick ? (
-                  <div className="h-full w-full overflow-hidden rounded-md border border-white/10 bg-transparent">
+                  <div className="h-full w-full overflow-hidden rounded-md border border-foreground/10 dark:border-white/10 bg-transparent">
                     <UnifiedBrickRenderer
                       brick={mirrorPreviewBrick}
                       canEdit={false}
@@ -4556,9 +4556,9 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       {/* Local workspace needs a permission re-grant (deep-link/reload loses the
           file-system handle's access). Prompt to reconnect — a user gesture. */}
       {looksLocalFile && localWs.status === "needs-permission" && (
-        <div className="absolute inset-0 z-[55] flex flex-col items-center justify-center gap-4 bg-slate-950/80 backdrop-blur-sm">
+        <div className="absolute inset-0 z-[55] flex flex-col items-center justify-center gap-4 bg-background/80 dark:bg-slate-950/80 backdrop-blur-sm">
           <HardDrive className="h-10 w-10 text-cyan-300/70" />
-          <p className="max-w-sm text-center text-sm text-slate-300">{tMesh("local.reconnectHint")}</p>
+          <p className="max-w-sm text-center text-sm text-muted-foreground dark:text-slate-300">{tMesh("local.reconnectHint")}</p>
           <button type="button" onClick={() => void localWs.reconnect()}
             className="inline-flex items-center gap-2 rounded-lg bg-cyan-500/90 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-cyan-400">
             <HardDrive className="h-4 w-4" /> {tMesh("local.reconnect")}
@@ -4582,7 +4582,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       {isTextToDiagramOpen && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
           onClick={() => { if (!diagramGenerating) setIsTextToDiagramOpen(false); }}>
-          <div className="w-[min(560px,92vw)] rounded-2xl border border-cyan-300/25 bg-slate-950/95 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
+          <div className="w-[min(560px,92vw)] rounded-2xl border border-cyan-300/25 bg-background/95 dark:bg-slate-950/95 p-5 shadow-[0_24px_60px_rgba(0,0,0,0.6)]"
             onClick={(e) => e.stopPropagation()}>
             <div className="mb-3 flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-cyan-300" />
@@ -4590,16 +4590,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
             </div>
             {diagramPreview ? (
               <div className="space-y-3">
-                <p className="text-[11px] leading-relaxed text-slate-400">{tMesh("textToDiagram.previewHint")}</p>
+                <p className="text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">{tMesh("textToDiagram.previewHint")}</p>
                 <div className="relative h-[340px] w-full overflow-hidden rounded-xl border border-cyan-400/20 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)]">
                   <PublicMeshCanvas state={templateToMeshState(diagramPreview)} />
                 </div>
-                <p className="text-center text-[11px] text-slate-400">
+                <p className="text-center text-[11px] text-muted-foreground dark:text-slate-400">
                   {tMesh("textToDiagram.previewCount", { bricks: diagramPreview.bricks.length, conns: diagramPreview.connections.length })}
                 </p>
                 <div className="flex items-center justify-end gap-2">
                   <button type="button" onClick={() => setDiagramPreview(null)}
-                    className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5">
+                    className="rounded-lg border border-foreground/10 dark:border-white/10 px-3 py-1.5 text-xs text-muted-foreground dark:text-slate-300 hover:bg-foreground/5 dark:hover:bg-white/5">
                     {tMesh("textToDiagram.discard")}
                   </button>
                   <button type="button" onClick={confirmInsertPreview}
@@ -4610,16 +4610,16 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               </div>
             ) : (
             <>
-            <div className="mb-3 flex gap-1 rounded-lg border border-white/10 bg-slate-900/60 p-0.5">
+            <div className="mb-3 flex gap-1 rounded-lg border border-foreground/10 dark:border-white/10 bg-card/60 dark:bg-slate-900/60 p-0.5">
               {(["ai", "mermaid"] as const).map((mode) => (
                 <button key={mode} type="button" disabled={diagramGenerating}
                   onClick={() => setDiagramMode(mode)}
-                  className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${diagramMode === mode ? "bg-cyan-500/25 text-cyan-100" : "text-slate-400 hover:text-cyan-100"}`}>
+                  className={`flex-1 rounded-md px-3 py-1.5 text-[11px] font-medium transition-colors ${diagramMode === mode ? "bg-cyan-500/25 text-cyan-100" : "text-muted-foreground dark:text-slate-400 hover:text-cyan-100"}`}>
                   {mode === "ai" ? tMesh("textToDiagram.tabAi") : tMesh("textToDiagram.tabImport")}
                 </button>
               ))}
             </div>
-            <p className="mb-3 text-[11px] leading-relaxed text-slate-400">{diagramMode === "ai" ? tMesh("textToDiagram.hint") : tMesh("textToDiagram.mermaidHint")}</p>
+            <p className="mb-3 text-[11px] leading-relaxed text-muted-foreground dark:text-slate-400">{diagramMode === "ai" ? tMesh("textToDiagram.hint") : tMesh("textToDiagram.mermaidHint")}</p>
             <textarea
               autoFocus
               value={diagramPrompt}
@@ -4629,7 +4629,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               rows={diagramMode === "mermaid" ? 7 : 4}
               disabled={diagramGenerating}
               spellCheck={diagramMode === "ai"}
-              className={`w-full resize-none rounded-xl border border-white/10 bg-slate-900 px-3 py-2 text-sm text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60 ${diagramMode === "mermaid" ? "font-mono text-[12px]" : ""}`}
+              className={`w-full resize-none rounded-xl border border-foreground/10 dark:border-white/10 bg-card dark:bg-slate-900 px-3 py-2 text-sm text-foreground dark:text-slate-100 outline-none focus:border-cyan-500/50 disabled:opacity-60 ${diagramMode === "mermaid" ? "font-mono text-[12px]" : ""}`}
             />
             <div className="mt-4 flex items-center justify-end gap-2">
               {diagramMode === "mermaid" && (
@@ -4642,7 +4642,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               )}
               <button type="button" disabled={diagramGenerating}
                 onClick={() => setIsTextToDiagramOpen(false)}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-slate-300 hover:bg-white/5 disabled:opacity-50">
+                className="rounded-lg border border-foreground/10 dark:border-white/10 px-3 py-1.5 text-xs text-muted-foreground dark:text-slate-300 hover:bg-foreground/5 dark:hover:bg-white/5 disabled:opacity-50">
                 {tMesh("textToDiagram.cancel")}
               </button>
               <button type="button" disabled={diagramGenerating || !diagramPrompt.trim()}
@@ -4863,10 +4863,10 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
       {mobileMode && (
         <div className="pointer-events-none absolute inset-x-0 top-2 z-30 flex justify-center px-3">
-          <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-cyan-300/25 bg-slate-950/72 px-3 py-2 text-[10px] text-slate-100 shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur-md">
+          <div className="pointer-events-auto flex items-center gap-2 rounded-2xl border border-cyan-300/25 bg-background/72 dark:bg-slate-950/72 px-3 py-2 text-[10px] text-foreground dark:text-slate-100 shadow-[0_12px_28px_rgba(0,0,0,0.45)] backdrop-blur-md">
             <span className="font-semibold tracking-wide">Mesh</span>
-            <span className="text-slate-400">rev {revision}</span>
-            <span className="text-slate-400">{Object.keys(state.bricksById).length} bricks</span>
+            <span className="text-muted-foreground dark:text-slate-400">rev {revision}</span>
+            <span className="text-muted-foreground dark:text-slate-400">{Object.keys(state.bricksById).length} bricks</span>
             <button
               type="button"
               onClick={handleSave}
@@ -5205,7 +5205,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             style={{ pointerEvents: "auto", overflow: "visible" }}
                           >
                             {isEditingConnLabel ? (
-                              <div className="rounded border border-cyan-400/50 bg-slate-950/85 p-1 shadow-xl"
+                              <div className="rounded border border-cyan-400/50 bg-background/85 dark:bg-slate-950/85 p-1 shadow-xl"
                                 onMouseDown={(e) => e.stopPropagation()}
                                 onClick={(e) => e.stopPropagation()}>
                                 <UnifiedTextBrick
@@ -5237,7 +5237,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 setSelectedConnId(conn.id);
                                 setEditingConnId(conn.id);
                               }}>
-                                <div className={`max-w-[180px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${isSC ? "text-white" : "text-slate-300"} bg-slate-950/55 border border-white/10 shadow-sm [&_*]:text-inherit`}>
+                                <div className={`max-w-[180px] truncate rounded px-1.5 py-0.5 text-[10px] leading-tight ${isSC ? "text-foreground dark:text-white" : "text-muted-foreground dark:text-slate-300"} bg-background/55 dark:bg-slate-950/55 border border-foreground/10 dark:border-white/10 shadow-sm [&_*]:text-inherit`}>
                                   <RichText content={connLabel} context={MESH_CONTEXT} className="inline" />
                                 </div>
                               </div>
@@ -5296,17 +5296,17 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
           {/* ── Zoom + Grid toolbar (bottom-right) ── */}
           <div className="pointer-events-none absolute bottom-4 right-3 z-30 flex flex-col items-end gap-1.5">
-            <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-cyan-300/20 bg-slate-950/88 px-1.5 py-1 shadow-lg backdrop-blur-md">
+            <div className="pointer-events-auto flex items-center gap-1 rounded-xl border border-cyan-300/20 bg-background/88 dark:bg-slate-950/88 px-1.5 py-1 shadow-lg backdrop-blur-md">
               <button
                 type="button"
                 title="Mostrar/ocultar grilla"
                 onClick={() => setShowGrid((v) => !v)}
-                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] transition-colors ${showGrid ? "bg-cyan-400/20 text-cyan-200" : "text-slate-400 hover:bg-white/5 hover:text-slate-200"}`}
+                className={`flex h-7 w-7 items-center justify-center rounded-lg text-[10px] transition-colors ${showGrid ? "bg-cyan-400/20 text-cyan-200" : "text-muted-foreground dark:text-slate-400 hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground/80 dark:hover:text-slate-200"}`}
               >
                 <Grid3X3 className="h-3.5 w-3.5" />
               </button>
 
-              <div className="mx-0.5 h-4 w-px bg-white/10" />
+              <div className="mx-0.5 h-4 w-px bg-foreground/10 dark:bg-white/10" />
 
               <button
                 type="button"
@@ -5322,7 +5322,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
                   });
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground dark:text-slate-400 transition-colors hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground/80 dark:hover:text-slate-200"
               >
                 <ZoomOut className="h-3.5 w-3.5" />
               </button>
@@ -5341,7 +5341,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
                   });
                 }}
-                className="min-w-[36px] rounded-md px-1.5 py-0.5 text-center text-[9px] font-semibold tabular-nums text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                className="min-w-[36px] rounded-md px-1.5 py-0.5 text-center text-[9px] font-semibold tabular-nums text-muted-foreground dark:text-slate-300 transition-colors hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground dark:hover:text-white"
               >
                 {Math.round(viewport.zoom * 100)}%
               </button>
@@ -5360,7 +5360,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     return { x: cx - wx * nz, y: cy - wy * nz, zoom: nz };
                   });
                 }}
-                className="flex h-7 w-7 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-white/5 hover:text-slate-200"
+                className="flex h-7 w-7 items-center justify-center rounded-lg text-muted-foreground dark:text-slate-400 transition-colors hover:bg-foreground/5 dark:hover:bg-white/5 hover:text-foreground/80 dark:hover:text-slate-200"
               >
                 <ZoomIn className="h-3.5 w-3.5" />
               </button>
@@ -5373,7 +5373,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           >
             <div className="pointer-events-auto flex max-w-full flex-col items-center gap-2">
               {toolbarPanel && (
-                <div className={`max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/20 bg-slate-950 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.7)] ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
+                <div className={`max-h-[60vh] overflow-y-auto rounded-2xl border border-cyan-300/20 bg-background dark:bg-slate-950 p-3 shadow-[0_20px_50px_rgba(0,0,0,0.7)] ${mobileMode ? "w-[min(96vw,640px)]" : "w-[min(92vw,780px)]"}`}>
                   {toolbarPanel === "mode" && (
                     <div>
                       <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Modo</p>
@@ -5393,7 +5393,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                               if (modeKey !== "conn") setConnSrcId(null);
                               setToolbarPanel(null);
                             }}
-                            className={`flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg text-[9px] transition-colors ${toolMode === modeKey ? "bg-cyan-400/20 text-cyan-100" : "bg-slate-900/80 text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-100"}`}
+                            className={`flex h-10 flex-col items-center justify-center gap-0.5 rounded-lg text-[9px] transition-colors ${toolMode === modeKey ? "bg-cyan-400/20 text-cyan-100" : "bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:bg-cyan-500/10 hover:text-cyan-100"}`}
                           >
                             {icon}
                             {label}
@@ -5421,7 +5421,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                               setConnPreset(presetKey);
                               setToolMode("conn");
                             }}
-                            className={`h-12 rounded-lg border flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${connPreset === presetKey ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100" : "border-white/10 bg-slate-900/80 text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+                            className={`h-12 rounded-lg border flex flex-col items-center justify-center gap-0.5 text-[10px] font-medium transition-colors ${connPreset === presetKey ? "border-cyan-300/40 bg-cyan-400/20 text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
                           >
                             <span className="text-base leading-none" style={{ color: connPreset === presetKey ? "#fff" : color }}>{glyph}</span>
                             <span className="text-[9px]">{label}</span>
@@ -5429,7 +5429,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         ))}
                       </div>
                       {connPreset === "bezier" && (
-                        <p className="mt-2 text-[9px] text-slate-400">Selecciona la conexión y activa modo Vec para editar los puntos de control.</p>
+                        <p className="mt-2 text-[9px] text-muted-foreground dark:text-slate-400">Selecciona la conexión y activa modo Vec para editar los puntos de control.</p>
                       )}
                     </div>
                   )}
@@ -5495,7 +5495,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 onClick={() => { addChart(key); setToolbarPanel(null); }}
                                 onDragStart={(e) => onToolDragStart(e, { type: "chart", key })}
                                 className="flex flex-col items-center gap-0.5 rounded-lg p-1 text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground">
-                                <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-white/10 bg-slate-900/60 [&_text]:hidden">
+                                <div className="relative h-[26px] w-[40px] overflow-hidden rounded border border-foreground/10 dark:border-white/10 bg-card/60 dark:bg-slate-900/60 [&_text]:hidden">
                                   <ChartBrickRender chart={defaultChartSpec(key)} w={360} h={300} className="h-full w-full" />
                                 </div>
                                 <span className="max-w-[44px] truncate text-[7px] leading-none">{label}</span>
@@ -5521,25 +5521,25 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                         const c = cur.connectionsById[selectedConnId]; if (!c) return cur;
                         return { ...cur, connectionsById: { ...cur.connectionsById, [selectedConnId]: { ...c, style: { ...asRec(c.style), ...patch } } } };
                       });
-                      const seg = (active: boolean) => `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700"}`;
+                      const seg = (active: boolean) => `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 border border-foreground/10 dark:border-white/10 hover:bg-muted dark:hover:bg-slate-700"}`;
                       return (
                         <div className="space-y-3">
                           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("connStyle.title")}</p>
-                          <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-300">
+                          <div className="grid grid-cols-2 gap-3 text-[10px] text-muted-foreground dark:text-slate-300">
                             <label className="flex flex-col gap-1">
-                              <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.color")}</span>
+                              <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{tMesh("connStyle.color")}</span>
                               <div className="flex items-center gap-1.5">
                                 <input type="color" value={cStroke.startsWith("#") ? cStroke : "#22d3ee"} onChange={(e) => patchConn({ stroke: e.target.value })} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
-                                <input type="text" value={cStroke} onChange={(e) => patchConn({ stroke: e.target.value })} className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                                <input type="text" value={cStroke} onChange={(e) => patchConn({ stroke: e.target.value })} className="h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] font-mono text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50" />
                               </div>
                             </label>
                             <label className="flex flex-col gap-1">
-                              <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.width")}</span>
-                              <input type="number" min={1} max={10} step={0.5} value={cW} onChange={(e) => patchConn({ width: Number(e.target.value) })} className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                              <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{tMesh("connStyle.width")}</span>
+                              <input type="number" min={1} max={10} step={0.5} value={cW} onChange={(e) => patchConn({ width: Number(e.target.value) })} className="h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] font-mono text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50" />
                             </label>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.pattern")}</span>
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{tMesh("connStyle.pattern")}</span>
                             <div className="flex gap-1">
                               {(["solid", "dashed", "dotted"] as const).map((p) => (
                                 <button key={p} onClick={() => patchConn({ pattern: p })} className={seg(cPattern === p)}>{tMesh(`connStyle.${p}`)}</button>
@@ -5547,7 +5547,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             </div>
                           </div>
                           <div className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">{tMesh("connStyle.type")}</span>
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{tMesh("connStyle.type")}</span>
                             <div className="flex gap-1">
                               {(["technical", "curved", "bezier", "handdrawn"] as const).map((ct) => (
                                 <button key={ct} onClick={() => patchConn({ connType: ct })} className={seg(cType === ct)}>{tMesh(`connStyle.${ct}`)}</button>
@@ -5564,7 +5564,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     const sb = selectedId ? state.bricksById[selectedId] : null;
                     const isStyleable = sb && (sb.kind === "board_empty" || sb.kind === "draw" || sb.kind === "frame");
                     if (!isStyleable || !sb) return (
-                      <div className="text-[10px] text-slate-400">{tMesh("connStyle.selectHint")}</div>
+                      <div className="text-[10px] text-muted-foreground dark:text-slate-400">{tMesh("connStyle.selectHint")}</div>
                     );
                     const sbStyle = asRec(asRec(sb.content).style);
                     const curStroke = typeof sbStyle.stroke === "string" ? sbStyle.stroke : (sb.kind === "board_empty" ? "rgba(34,211,238,0.6)" : "#22d3ee");
@@ -5598,7 +5598,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                             <div className="flex items-center justify-between">
                               <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("charts.panelLabel")} · {tMesh(`charts.types.${sbChart.type}` as any)}</p>
                               <select value={sbChart.type} onChange={(e) => setChart(defaultChartSpec(e.target.value as ChartType))}
-                                className="h-6 rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] text-slate-200 outline-none focus:border-cyan-500/50">
+                                className="h-6 rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50">
                                 {CHART_PALETTE.map(({ key, labelKey }) => <option key={key} value={key}>{tMesh(`charts.types.${labelKey}` as any)}</option>)}
                               </select>
                             </div>
@@ -5606,39 +5606,39 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                           </div>
                         )}
                         <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">Estilo</p>
-                        <div className="grid grid-cols-3 gap-3 text-[10px] text-slate-300">
+                        <div className="grid grid-cols-3 gap-3 text-[10px] text-muted-foreground dark:text-slate-300">
                           {show("stroke") && (
                           <label className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Borde</span>
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Borde</span>
                             <div className="flex items-center gap-1.5">
                               <input type="color" value={curStroke.startsWith("#") ? curStroke : "#22d3ee"}
                                 onChange={(e) => patchStyle({ stroke: e.target.value })}
                                 className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
                               <input type="text" value={curStroke}
                                 onChange={(e) => patchStyle({ stroke: e.target.value })}
-                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                                className="h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] font-mono text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50" />
                             </div>
                           </label>
                           )}
                           {show("fill") && (
                           <label className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Fondo</span>
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Fondo</span>
                             <div className="flex items-center gap-1.5">
                               <input type="color" value={curFill.startsWith("#") ? curFill : "#000000"}
                                 onChange={(e) => patchStyle({ fill: e.target.value })}
                                 className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
                               <input type="text" value={curFill}
                                 onChange={(e) => patchStyle({ fill: e.target.value })}
-                                className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                                className="h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] font-mono text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50" />
                             </div>
                           </label>
                           )}
                           {show("strokeWidth") && (
                           <label className="flex flex-col gap-1">
-                            <span className="text-[9px] uppercase tracking-wider text-slate-400">Grosor</span>
+                            <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Grosor</span>
                             <input type="number" min={0.5} max={10} step={0.5} value={curSW}
                               onChange={(e) => patchStyle({ strokeWidth: Number(e.target.value) })}
-                              className="h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[9px] font-mono text-slate-200 outline-none focus:border-cyan-500/50" />
+                              className="h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[9px] font-mono text-foreground/80 dark:text-slate-200 outline-none focus:border-cyan-500/50" />
                           </label>
                           )}
                         </div>
@@ -5647,7 +5647,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                           {[["transparent","Transparente"],["rgba(34,211,238,0.08)","Cyan sutil"],["rgba(99,102,241,0.15)","Violeta"],["rgba(234,179,8,0.15)","Ambar"],["rgba(239,68,68,0.15)","Rojo"],["rgba(34,197,94,0.15)","Verde"],["#1e293b","Azul oscuro"],["#0f172a","Negro"]]
                             .map(([v, n]) => (
                               <button key={v} title={n} onClick={() => patchStyle({ fill: v })}
-                                className="h-5 w-5 rounded border border-white/20 transition-transform hover:scale-110"
+                                className="h-5 w-5 rounded border border-foreground/20 dark:border-white/20 transition-transform hover:scale-110"
                                 style={{ background: v === "transparent" ? "repeating-conic-gradient(#333 0% 25%, #555 0% 50%) 0 0 / 8px 8px" : v }} />
                             ))}
                         </div>
@@ -5667,12 +5667,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                           const curEdges = sbStyle.edges === "sharp" ? "sharp" : "round";
                           const curOpacity = typeof sbStyle.opacity === "number" ? sbStyle.opacity : 1;
                           const segBtn = (active: boolean) =>
-                            `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-slate-800 text-slate-300 border border-white/10 hover:bg-slate-700"}`;
+                            `flex-1 rounded px-2 py-1 text-[9px] font-medium transition-colors ${active ? "bg-cyan-500/30 text-cyan-100 border border-cyan-400/40" : "bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 border border-foreground/10 dark:border-white/10 hover:bg-muted dark:hover:bg-slate-700"}`;
                           return (
                             <>
                               {show("strokeStyle") && (
                               <div className="flex flex-col gap-1">
-                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Trazo</span>
+                                <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Trazo</span>
                                 <div className="flex gap-1">
                                   {(["solid","dashed","dotted"] as const).map((s) => (
                                     <button key={s} onClick={() => patchStyle({ strokeStyle: s })} className={segBtn(curStrokeStyle === s)}>
@@ -5684,7 +5684,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                               )}
                               {show("edges") && (
                               <div className="flex flex-col gap-1">
-                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Esquinas</span>
+                                <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Esquinas</span>
                                 <div className="flex gap-1">
                                   {(["round","sharp"] as const).map((s) => (
                                     <button key={s} onClick={() => patchStyle({ edges: s })} className={segBtn(curEdges === s)}>
@@ -5696,7 +5696,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                               )}
                               {show("opacity") && (
                               <div className="flex flex-col gap-1">
-                                <span className="text-[9px] uppercase tracking-wider text-slate-400">Opacidad · {Math.round(curOpacity * 100)}%</span>
+                                <span className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">Opacidad · {Math.round(curOpacity * 100)}%</span>
                                 <input type="range" min={0} max={100} step={5} value={Math.round(curOpacity * 100)}
                                   onChange={(e) => patchStyle({ opacity: Number(e.target.value) / 100 })}
                                   className="w-full accent-cyan-400" />
@@ -5722,12 +5722,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       {/* Category filter chips */}
                       <div className="flex flex-wrap gap-1">
                         <button type="button" onClick={() => setTplCategory("all")}
-                          className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === "all" ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200"}`}>
+                          className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === "all" ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-foreground/10 dark:border-white/10 text-muted-foreground dark:text-slate-400 hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground/80 dark:hover:text-slate-200"}`}>
                           {tMesh("templates.all")}
                         </button>
                         {TEMPLATE_CATEGORIES.map((cat) => (
                           <button key={cat.id} type="button" onClick={() => setTplCategory(cat.id)}
-                            className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === cat.id ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-white/10 text-slate-400 hover:border-white/20 hover:text-slate-200"}`}>
+                            className={`rounded-full px-2 py-0.5 text-[9px] font-medium transition-colors ${tplCategory === cat.id ? "border border-cyan-400/40 bg-cyan-500/25 text-cyan-100" : "border border-foreground/10 dark:border-white/10 text-muted-foreground dark:text-slate-400 hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground/80 dark:hover:text-slate-200"}`}>
                             {tMesh(`templates.categories.${cat.id}`)}
                           </button>
                         ))}
@@ -5737,8 +5737,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                       <div className="grid grid-cols-2 gap-2 pr-1 sm:grid-cols-3">
                         {TEMPLATE_CATALOG.filter((t) => tplCategory === "all" || t.category === tplCategory).map((t) => (
                           <button key={t.id} type="button" onClick={() => insertUserTemplate(t)}
-                            className="group/tpl flex flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
-                            <div className="relative aspect-[168/104] w-full overflow-hidden border-b border-white/5 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)]">
+                            className="group/tpl flex flex-col overflow-hidden rounded-lg border border-foreground/10 dark:border-white/10 bg-card/70 dark:bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-muted dark:hover:bg-slate-800 hover:shadow-[0_8px_20px_rgba(0,0,0,0.4)]">
+                            <div className="relative aspect-[168/104] w-full overflow-hidden border-b border-foreground/5 dark:border-white/5 bg-[radial-gradient(circle_at_50%_40%,rgba(34,211,238,0.06),transparent_70%)]">
                               <div className="absolute inset-0 flex items-center justify-center">
                                 <MeshTemplateThumb tpl={t} />
                               </div>
@@ -5747,29 +5747,29 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                 {tMesh(`templates.categories.${t.category}`)}
                               </span>
                             </div>
-                            <span className="truncate px-1.5 py-1 text-[9.5px] font-medium text-slate-200 transition-colors group-hover/tpl:text-cyan-50">{t.name}</span>
+                            <span className="truncate px-1.5 py-1 text-[9.5px] font-medium text-foreground/80 dark:text-slate-200 transition-colors group-hover/tpl:text-cyan-50">{t.name}</span>
                           </button>
                         ))}
                       </div>
 
                       {/* My templates */}
                       <div>
-                        <p className="mb-1 text-[9px] uppercase tracking-wider text-slate-400">{tMesh("templates.mine")}</p>
+                        <p className="mb-1 text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{tMesh("templates.mine")}</p>
                         {userTemplates.length === 0 ? (
-                          <p className="text-[10px] text-slate-500">{tMesh("templates.empty")}</p>
+                          <p className="text-[10px] text-muted-foreground dark:text-slate-500">{tMesh("templates.empty")}</p>
                         ) : (
                           <div className="grid grid-cols-2 gap-2 pr-1 sm:grid-cols-3">
                             {userTemplates.map((t) => (
                               <div key={t.id} className="group/u relative">
                                 <button type="button" onClick={() => insertUserTemplate(t)}
-                                  className="flex w-full flex-col overflow-hidden rounded-lg border border-white/10 bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-slate-800">
-                                  <div className="flex aspect-[168/104] w-full items-center justify-center overflow-hidden border-b border-white/5 bg-slate-950/40">
+                                  className="flex w-full flex-col overflow-hidden rounded-lg border border-foreground/10 dark:border-white/10 bg-card/70 dark:bg-slate-900/70 text-left transition-all hover:-translate-y-0.5 hover:border-cyan-300/50 hover:bg-muted dark:hover:bg-slate-800">
+                                  <div className="flex aspect-[168/104] w-full items-center justify-center overflow-hidden border-b border-foreground/5 dark:border-white/5 bg-background/40 dark:bg-slate-950/40">
                                     <MeshTemplateThumb tpl={t} />
                                   </div>
-                                  <span className="truncate px-1.5 py-1 text-[9.5px] text-slate-200">{t.name}</span>
+                                  <span className="truncate px-1.5 py-1 text-[9.5px] text-foreground/80 dark:text-slate-200">{t.name}</span>
                                 </button>
                                 <button type="button" title={tMesh("templates.delete")} onClick={() => deleteUserTemplate(t.id)}
-                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-slate-950/80 text-slate-400 hover:text-rose-300 group-hover/u:flex">
+                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-background/80 dark:bg-slate-950/80 text-muted-foreground dark:text-slate-400 hover:text-rose-300 group-hover/u:flex">
                                   <X className="h-3 w-3" />
                                 </button>
                               </div>
@@ -5784,41 +5784,41 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                     <div className="space-y-2">
                       <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-cyan-200/70">{tMesh("layers.title")}</p>
                       {!selectedId ? (
-                        <p className="text-[10px] text-slate-400">{tMesh("layers.selectHint")}</p>
+                        <p className="text-[10px] text-muted-foreground dark:text-slate-400">{tMesh("layers.selectHint")}</p>
                       ) : (
                         <div className="grid grid-cols-4 gap-1.5">
                           <button type="button" title={tMesh("layers.toBack")} onClick={() => changeLayer("back")}
-                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsDown className="h-4 w-4" /></button>
+                            className="flex h-9 items-center justify-center rounded-lg border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsDown className="h-4 w-4" /></button>
                           <button type="button" title={tMesh("layers.backward")} onClick={() => changeLayer("backward")}
-                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronDown className="h-4 w-4" /></button>
+                            className="flex h-9 items-center justify-center rounded-lg border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronDown className="h-4 w-4" /></button>
                           <button type="button" title={tMesh("layers.forward")} onClick={() => changeLayer("forward")}
-                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronUp className="h-4 w-4" /></button>
+                            className="flex h-9 items-center justify-center rounded-lg border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronUp className="h-4 w-4" /></button>
                           <button type="button" title={tMesh("layers.toFront")} onClick={() => changeLayer("front")}
-                            className="flex h-9 items-center justify-center rounded-lg border border-white/10 bg-slate-800 text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsUp className="h-4 w-4" /></button>
+                            className="flex h-9 items-center justify-center rounded-lg border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/40 hover:text-cyan-100"><ChevronsUp className="h-4 w-4" /></button>
                         </div>
                       )}
                     </div>
                   )}
 
                   {toolbarPanel === "status" && (
-                    <div className="grid grid-cols-2 gap-2 text-[10px] text-slate-300 sm:grid-cols-4">
-                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Bricks: <span className="font-semibold text-cyan-100">{Object.keys(state.bricksById).length}</span></div>
-                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Conns: <span className="font-semibold text-cyan-100">{Object.keys(state.connectionsById).length}</span></div>
-                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Modo: <span className="font-semibold text-cyan-100">{toolMode}</span></div>
-                      <div className="rounded-lg border border-white/10 bg-slate-900/80 p-2">Sel: <span className="font-semibold text-cyan-100">{selectedIds.size || (selectedId ? 1 : 0)}</span></div>
+                    <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-foreground dark:text-slate-300 sm:grid-cols-4">
+                      <div className="rounded-lg border border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 p-2">Bricks: <span className="font-semibold text-cyan-100">{Object.keys(state.bricksById).length}</span></div>
+                      <div className="rounded-lg border border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 p-2">Conns: <span className="font-semibold text-cyan-100">{Object.keys(state.connectionsById).length}</span></div>
+                      <div className="rounded-lg border border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 p-2">Modo: <span className="font-semibold text-cyan-100">{toolMode}</span></div>
+                      <div className="rounded-lg border border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 p-2">Sel: <span className="font-semibold text-cyan-100">{selectedIds.size || (selectedId ? 1 : 0)}</span></div>
                     </div>
                   )}
                 </div>
               )}
 
-              <div className={`flex max-w-full items-center gap-1 border px-2 shadow-[0_18px_36px_rgba(0,0,0,0.5)] backdrop-blur-md ${mobileMode ? "rounded-3xl border-cyan-200/35 bg-slate-950/70 py-2" : "rounded-2xl border-cyan-300/20 bg-slate-950/88 py-1"}`}>
+              <div className={`flex max-w-full items-center gap-1 border px-2 shadow-[0_18px_36px_rgba(0,0,0,0.5)] backdrop-blur-md ${mobileMode ? "rounded-3xl border-cyan-200/35 bg-background/70 dark:bg-slate-950/70 py-2" : "rounded-2xl border-cyan-300/20 bg-background/88 dark:bg-slate-950/88 py-1"}`}>
                 <button type="button" title="Select (S)" aria-label="Select (S)" onClick={() => { setToolMode("select"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "select")}><MousePointer className="h-4 w-4" /></button>
                 <button type="button" title="Pan (H)" aria-label="Pan (H)" onClick={() => { setToolMode("pan"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pan")}><Hand className="h-4 w-4" /></button>
                 <button type="button" title="Pen (P)" aria-label="Pen (P)" onClick={() => { setToolMode("pen"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "pen")}><Pencil className="h-4 w-4" /></button>
                 <button type="button" title="Conectores" aria-label="Conectores" onClick={() => setToolbarPanel((current) => current === "conn" ? null : "conn")} className={dockBtnClass(toolMode === "conn" || toolbarPanel === "conn")}><Link2 className="h-4 w-4" /></button>
                 <button type="button" title="Vector" aria-label="Vector" onClick={() => { setToolMode("vec"); setConnSrcId(null); }} className={dockBtnClass(toolMode === "vec")}><Edit3 className="h-4 w-4" /></button>
 
-                <div className="mx-1 h-6 w-px bg-white/10" />
+                <div className="mx-1 h-6 w-px bg-foreground/10 dark:bg-white/10" />
 
                 {/* The dock already exposes all cursor modes directly above, so the
                     "Modos" popover is only needed on the cramped mobile dock. */}
@@ -5856,7 +5856,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         {toolMode === "vec"  && <span className="text-yellow-400">● Vec edit</span>}
         {toolMode === "conn" && <span className="text-cyan-400">● {connSrcId ? tMesh("footer.connecting") : "Conn"}</span>}
         {toolMode === "pen"  && <span className="text-purple-400">● Pen{recognizing ? " (reconociendo…)" : ""}</span>}
-        {selectedIds.size > 1 && <span className="text-white/50">● {selectedIds.size} sel.</span>}
+        {selectedIds.size > 1 && <span className="text-foreground/50 dark:text-white/50">● {selectedIds.size} sel.</span>}
         {(selectedId || selectedConnId || selectedIds.size > 0) && <span className="ml-auto opacity-40">Del = eliminar</span>}
       </div>
       </>

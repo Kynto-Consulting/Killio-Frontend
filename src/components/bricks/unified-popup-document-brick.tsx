@@ -144,13 +144,13 @@ export function UnifiedPopupDocumentBrick({
           gap: 10,
           padding: "10px 14px",
           borderRadius: 10,
-          border: "1px solid rgba(255,255,255,0.1)",
-          background: "rgba(255,255,255,0.03)",
+          border: "1px solid hsl(var(--ink) / 0.1)",
+          background: "hsl(var(--ink) / 0.03)",
           cursor: "default",
           userSelect: "none",
         }}
       >
-        <FileText style={{ width: 16, height: 16, color: "rgba(255,255,255,0.4)", flexShrink: 0 }} />
+        <FileText style={{ width: 16, height: 16, color: "hsl(var(--ink) / 0.4)", flexShrink: 0 }} />
 
         {isEditingTitle && canEdit ? (
           <input
@@ -163,16 +163,16 @@ export function UnifiedPopupDocumentBrick({
               flex: 1,
               background: "transparent",
               border: "none",
-              borderBottom: "1px solid rgba(255,255,255,0.3)",
+              borderBottom: "1px solid hsl(var(--ink) / 0.3)",
               outline: "none",
               fontSize: 13,
-              color: "rgba(255,255,255,0.88)",
+              color: "hsl(var(--ink) / 0.88)",
               padding: "0 2px",
             }}
           />
         ) : (
           <span
-            style={{ flex: 1, fontSize: 13, color: "rgba(255,255,255,0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+            style={{ flex: 1, fontSize: 13, color: "hsl(var(--ink) / 0.85)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
             onDoubleClick={canEdit ? () => { setTempTitle(content.title ?? ""); setIsEditingTitle(true); } : undefined}
           >
             {title}
@@ -183,7 +183,7 @@ export function UnifiedPopupDocumentBrick({
           <button
             type="button"
             onClick={() => { setTempTitle(content.title ?? ""); setIsEditingTitle(true); }}
-            style={{ padding: 4, background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.3)", lineHeight: 1 }}
+            style={{ padding: 4, background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--ink) / 0.3)", lineHeight: 1 }}
             title="Rename"
           >
             <Pencil style={{ width: 12, height: 12 }} />
@@ -195,7 +195,7 @@ export function UnifiedPopupDocumentBrick({
             href={`/d/${content.inlineDocumentId}`}
             target="_blank"
             rel="noopener noreferrer"
-            style={{ padding: 4, background: "transparent", border: "none", color: "rgba(255,255,255,0.3)", lineHeight: 1 }}
+            style={{ padding: 4, background: "transparent", border: "none", color: "hsl(var(--ink) / 0.3)", lineHeight: 1 }}
             title="Open in new tab"
             onClick={(e) => e.stopPropagation()}
           >
@@ -212,9 +212,9 @@ export function UnifiedPopupDocumentBrick({
             gap: 4,
             padding: "4px 10px",
             borderRadius: 7,
-            border: "1px solid rgba(255,255,255,0.12)",
+            border: "1px solid hsl(var(--ink) / 0.12)",
             background: "transparent",
-            color: "rgba(255,255,255,0.6)",
+            color: "hsl(var(--ink) / 0.6)",
             fontSize: 12,
             cursor: "pointer",
             whiteSpace: "nowrap",
@@ -511,7 +511,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     >
       {/* Backdrop */}
       <div
-        style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(2px)", pointerEvents: "auto" }}
+        style={{ position: "absolute", inset: 0, background: "hsl(var(--shade) / calc(0.5 * var(--shade-k)))", backdropFilter: "blur(2px)", pointerEvents: "auto" }}
         onClick={onClose}
       />
 
@@ -522,8 +522,8 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
           width: isMobile ? "100vw" : `min(${panelWidth}px, 96vw)`,
           height: isMobile ? "min(86vh, 100%)" : "100%",
           background: "#0c0e14",
-          borderLeft: isMobile ? "none" : "1px solid rgba(255,255,255,0.1)",
-          borderTop: isMobile ? "1px solid rgba(255,255,255,0.1)" : "none",
+          borderLeft: isMobile ? "none" : "1px solid hsl(var(--ink) / 0.1)",
+          borderTop: isMobile ? "1px solid hsl(var(--ink) / 0.1)" : "none",
           borderTopLeftRadius: isMobile ? 16 : 0,
           borderTopRightRadius: isMobile ? 16 : 0,
           display: "flex",
@@ -557,30 +557,30 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
             alignItems: "center",
             gap: 8,
             padding: isMobile ? "12px 14px" : "14px 20px",
-            borderBottom: "1px solid rgba(255,255,255,0.08)",
+            borderBottom: "1px solid hsl(var(--ink) / 0.08)",
             flexShrink: 0,
           }}
         >
           <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: 1 }}>
-            <a href="/d" style={{ display: "flex", alignItems: "center", gap: 6, color: "rgba(255,255,255,0.58)", textDecoration: "none", fontSize: 12, padding: "4px 6px", borderRadius: 6 }}>
+            <a href="/d" style={{ display: "flex", alignItems: "center", gap: 6, color: "hsl(var(--ink) / 0.58)", textDecoration: "none", fontSize: 12, padding: "4px 6px", borderRadius: 6 }}>
               <FolderIcon style={{ width: 14, height: 14 }} />
               <span>{t("allDocuments")}</span>
             </a>
 
-            <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>/</span>
+            <span style={{ color: "hsl(var(--ink) / 0.3)", fontSize: 12 }}>/</span>
 
             {parentDocumentTitle && (
               <>
-                <span style={{ color: "rgba(255,255,255,0.65)", fontSize: 12, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <span style={{ color: "hsl(var(--ink) / 0.65)", fontSize: 12, maxWidth: 160, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {parentDocumentTitle}
                 </span>
-                <span style={{ color: "rgba(255,255,255,0.3)", fontSize: 12 }}>/</span>
+                <span style={{ color: "hsl(var(--ink) / 0.3)", fontSize: 12 }}>/</span>
               </>
             )}
 
-            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 8, padding: "4px 8px" }}>
-              <FileText style={{ width: 14, height: 14, color: "rgba(255,255,255,0.55)", flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, background: "hsl(var(--ink) / 0.04)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 8, padding: "4px 8px" }}>
+              <FileText style={{ width: 14, height: 14, color: "hsl(var(--ink) / 0.55)", flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.9)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                 {currentTitle}
               </span>
             </div>
@@ -597,8 +597,8 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
                 gap: 6,
                 padding: "6px 10px",
                 borderRadius: 8,
-                border: "1px solid rgba(255,255,255,0.14)",
-                color: "rgba(255,255,255,0.8)",
+                border: "1px solid hsl(var(--ink) / 0.14)",
+                color: "hsl(var(--ink) / 0.8)",
                 textDecoration: "none",
                 fontSize: 12,
                 fontWeight: 600,
@@ -613,7 +613,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
           <button
             type="button"
             onClick={onClose}
-            style={{ padding: 6, background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.4)", lineHeight: 1, borderRadius: 6 }}
+            style={{ padding: 6, background: "transparent", border: "none", cursor: "pointer", color: "hsl(var(--ink) / 0.4)", lineHeight: 1, borderRadius: 6 }}
           >
             <X style={{ width: 16, height: 16 }} />
           </button>
@@ -623,12 +623,12 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
         <div style={{ flex: 1, overflow: "auto", padding: isMobile ? "10px 8px 120px" : "16px 20px 120px" }}>
           {loading && (
             <div style={{ display: "flex", justifyContent: "center", paddingTop: 40 }}>
-              <Loader2 style={{ width: 20, height: 20, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
+              <Loader2 style={{ width: 20, height: 20, color: "hsl(var(--ink) / 0.3)", animation: "spin 1s linear infinite" }} />
             </div>
           )}
 
           {error && (
-            <div style={{ fontSize: 13, color: "#f87171", textAlign: "center", paddingTop: 40 }}>{error}</div>
+            <div style={{ fontSize: 13, color: "hsl(var(--c-red))", textAlign: "center", paddingTop: 40 }}>{error}</div>
           )}
 
           {/* External source: iframe preview */}
@@ -658,7 +658,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
 
           {/* No linked document yet */}
           {!loading && !error && !inlineDocumentId && !externalSource && !isCreatingInlineDoc && (
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", textAlign: "center", paddingTop: 40 }}>
+            <div style={{ fontSize: 13, color: "hsl(var(--ink) / 0.3)", textAlign: "center", paddingTop: 40 }}>
               {t("popupDocument.noContent", { fallback: "No content linked yet." })}
             </div>
           )}
@@ -804,7 +804,7 @@ function InlineDocumentBody({ doc, canEdit, accessToken, documents, boards, user
   if (!BrickListComponent) {
     if (brickListLoadError) {
       return (
-        <div style={{ fontSize: 13, color: "#f87171", textAlign: "center", paddingTop: 20 }}>
+        <div style={{ fontSize: 13, color: "hsl(var(--c-red))", textAlign: "center", paddingTop: 20 }}>
           {brickListLoadError}
         </div>
       );
@@ -812,7 +812,7 @@ function InlineDocumentBody({ doc, canEdit, accessToken, documents, boards, user
 
     return (
       <div style={{ display: "flex", justifyContent: "center", paddingTop: 20 }}>
-        <Loader2 style={{ width: 16, height: 16, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
+        <Loader2 style={{ width: 16, height: 16, color: "hsl(var(--ink) / 0.3)", animation: "spin 1s linear infinite" }} />
       </div>
     );
   }

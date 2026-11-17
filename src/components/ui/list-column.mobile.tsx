@@ -176,7 +176,7 @@ export function ListColumnMobile({
         {!isGuest && (
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="w-full flex items-center text-left py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors group text-sm font-medium mt-1"
+            className="w-full flex items-center text-left py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground dark:text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors group text-sm font-medium mt-1"
           >
             <Plus className="h-4 w-4 mr-2" />
             {t("list.addCard")}

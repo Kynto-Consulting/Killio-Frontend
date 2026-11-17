@@ -1299,7 +1299,7 @@ export function CommandPalette() {
     "flex items-center gap-3 px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-accent/10 hover:text-foreground text-foreground/80 transition-colors aria-selected:bg-accent/10 aria-selected:text-foreground mt-1";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm p-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm p-4">
       <div className="absolute inset-0 -z-10" onClick={() => setOpen(false)} />
 
       {notices.length > 0 ? (

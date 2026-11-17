@@ -1,6 +1,8 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
+import { useTenant } from "@/components/providers/tenant-provider";
+import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -46,6 +48,11 @@ export function MobileNavSheet({
 }) {
   const pathname = usePathname();
   const tDashboard = useTranslations("dashboard");
+  const tenant = useTenant();
+  const billingEnabled = tenant.billing.enabled;
+  const visibleNavigation = navigation.filter((item) =>
+    item.href === "/integrations" ? isScriptsGroupEnabled(tenant.features) : isPathEnabled(item.href, tenant.features),
+  );
   const tCommon = useTranslations("common");
   const tIntegrations = useTranslations("integrations");
   const isPathActive = (href: string) => pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
@@ -203,7 +210,7 @@ export function MobileNavSheet({
       {isOpen && (
         <Portal>
           <div 
-            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setIsOpen(false)}
           >
             <div 
@@ -232,7 +239,7 @@ export function MobileNavSheet({
 
             {/* Navigation Routes */}
             <div className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
-              {navigation.map((item) => {
+              {visibleNavigation.map((item) => {
                 const isActive = isPathActive(item.href);
                 const isScriptsMenu = item.href === "/integrations";
                 const isMarketplaceMenu = item.href === "/marketplace";
@@ -383,6 +390,7 @@ export function MobileNavSheet({
               </div>
 
               <div className="mt-3 space-y-1">
+                {tenant.permissions.allowTeamCreation && (
                 <button
                   type="button"
                   onClick={() => {
@@ -394,6 +402,8 @@ export function MobileNavSheet({
                   <Plus className="h-4 w-4" />
                   <span>{tDashboard("teamSwitcher.createWorkspace")}</span>
                 </button>
+                )}
+                {billingEnabled && (
                 <Link
                   href="/pricing"
                   onClick={() => setIsOpen(false)}
@@ -402,6 +412,7 @@ export function MobileNavSheet({
                   <Sparkles className="h-4 w-4" />
                   <span>{tDashboard("teamSwitcher.upgrade")}</span>
                 </Link>
+                )}
               </div>
             </div>
 

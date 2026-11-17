@@ -1,10 +1,14 @@
 import { MetadataRoute } from 'next';
+import { getTenantConfig } from '@/lib/tenant/server';
 
-export default function manifest(): MetadataRoute.Manifest {
+export default async function manifest(): Promise<MetadataRoute.Manifest> {
+  const tenant = await getTenantConfig();
+  const isTenant = tenant.mode === 'tenant';
+
   return {
-    name: 'Killio | Restriction-free productivity',
-    short_name: 'Killio',
-    description: 'Restriction-free productivity execution platform.',
+    name: isTenant ? tenant.brand.name : 'Killio | Restriction-free productivity',
+    short_name: isTenant ? tenant.brand.shortName : 'Killio',
+    description: isTenant ? tenant.brand.tagline || tenant.brand.name : 'Restriction-free productivity execution platform.',
     start_url: '/',
     display: 'standalone',
     background_color: '#000000',

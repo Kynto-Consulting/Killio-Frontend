@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle } from "lucide-react";
+import { X, ImagePlus, Trash2, Waves, Trees, Sun, Sparkles, Settings2, Share2, AlertTriangle, Palette } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
 
@@ -37,7 +37,8 @@ const DEFAULT_GRADIENT = "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)";
 const DEFAULT_COLOR = "#0f172a";
 
 const THEME_PRESET_OPTIONS = [
-  { id: "killio-default", i18nKey: "killio-default", accent: "#d8ff72", surface: "#0b0f14", Icon: Sparkles },
+  { id: "killio-default", i18nKey: "killio-default", accent: "hsl(var(--accent-ink))", surface: "#0b0f14", Icon: Sparkles },
+  { id: "killio-light", i18nKey: "killio-light", accent: "#2563eb", surface: "#ffffff", Icon: Palette },
   { id: "trello-ocean", i18nKey: "trello-ocean", accent: "#67e8f9", surface: "#0c2233", Icon: Waves },
   { id: "trello-forest", i18nKey: "trello-forest", accent: "#86efac", surface: "#10251f", Icon: Trees },
   { id: "trello-sunrise", i18nKey: "trello-sunrise", accent: "#fcd34d", surface: "#3b1f10", Icon: Sun },
@@ -85,19 +86,19 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
   if (kind === "image") {
     if (!isImageUrl(value)) return null;
     return {
-      className: "bg-slate-900 bg-cover bg-center",
+      className: "bg-card dark:bg-slate-900 bg-cover bg-center",
       style: { backgroundImage: `url(${value})` },
     };
   }
 
   if (kind === "preset") {
     // preset value is now a hex color
-    return { className: "bg-slate-900", style: { backgroundColor: value || BACKGROUND_PRESETS[0].value } };
+    return { className: "bg-card dark:bg-slate-900", style: { backgroundColor: value || BACKGROUND_PRESETS[0].value } };
   }
 
   if (kind === "color") {
     return {
-      className: "bg-slate-900",
+      className: "bg-card dark:bg-slate-900",
       style: { backgroundColor: value || DEFAULT_COLOR },
     };
   }
@@ -107,7 +108,7 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
   }
 
   return {
-    className: "bg-slate-900",
+    className: "bg-card dark:bg-slate-900",
     style: { background: value || DEFAULT_GRADIENT },
   };
 }
@@ -182,7 +183,7 @@ export function BoardSettingsModalWeb({
   );
   const [themeKind, setThemeKind] = useState<"preset" | "custom">(boardAppearance.themeKind ?? "preset");
   const [themePreset, setThemePreset] = useState<string>(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
-  const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
+  const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "hsl(var(--accent-ink))"));
   const [themeSurface, setThemeSurface] = useState<string>(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
   const [listColors, setListColors] = useState<Record<string, string>>(
     ((boardAppearance.themeCustom as any)?.listColors as Record<string, string>) ?? {},
@@ -227,7 +228,7 @@ export function BoardSettingsModalWeb({
     setGradientBackground(boardAppearance.backgroundGradient ?? DEFAULT_GRADIENT);
     setThemeKind(boardAppearance.themeKind ?? "preset");
     setThemePreset(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
-    setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
+    setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "hsl(var(--accent-ink))"));
     setThemeSurface(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
     setListColors(((boardAppearance.themeCustom as any)?.listColors as Record<string, string>) ?? {});
   }, [isOpen, boardName, boardDescription, boardAppearance]);
@@ -348,11 +349,11 @@ export function BoardSettingsModalWeb({
             <div className="space-y-5">
               <div className="rounded-lg border border-border overflow-hidden">
                 <div
-                  className={`h-24 relative ${isImageUrl(currentBackground) ? "bg-slate-800 bg-cover bg-center" : (currentBackground?.startsWith("bg-") ? currentBackground : "bg-slate-900")}`}
+                  className={`h-24 relative ${isImageUrl(currentBackground) ? "bg-muted dark:bg-slate-800 bg-cover bg-center" : (currentBackground?.startsWith("bg-") ? currentBackground : "bg-card dark:bg-slate-900")}`}
                   style={isImageUrl(currentBackground) ? { backgroundImage: `url(${currentBackground})` } : (!currentBackground?.startsWith("bg-") ? { background: currentBackground } : undefined)}
                 >
                   {coverPreview ? (
-                    <div className={`absolute bottom-2 left-2 right-2 h-8 rounded border border-white/20 ${coverPreview.className}`} style={coverPreview.style} />
+                    <div className={`absolute bottom-2 left-2 right-2 h-8 rounded border border-foreground/20 dark:border-white/20 ${coverPreview.className}`} style={coverPreview.style} />
                   ) : null}
                 </div>
               </div>
@@ -528,7 +529,7 @@ export function BoardSettingsModalWeb({
                       return (
                         <div key={list.id} className="flex items-center gap-3">
                           <span
-                            className="w-3 h-3 rounded-full flex-shrink-0 border border-white/20"
+                            className="w-3 h-3 rounded-full flex-shrink-0 border border-foreground/20 dark:border-white/20"
                             style={{ background: current || "transparent", borderColor: current ? "transparent" : undefined }}
                           />
                           <span className="text-sm text-foreground flex-1 truncate">{list.name}</span>

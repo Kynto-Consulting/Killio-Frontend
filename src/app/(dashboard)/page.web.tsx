@@ -163,7 +163,7 @@ export default function WorkspacesPage() {
       }
 
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${value})` },
       };
     }
@@ -174,7 +174,7 @@ export default function WorkspacesPage() {
 
     if (kind === "color") {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: value },
       };
     }
@@ -184,7 +184,7 @@ export default function WorkspacesPage() {
     }
 
     return {
-      className: "bg-slate-800",
+      className: "bg-muted dark:bg-slate-800",
       style: { background: value },
     };
   };
@@ -197,7 +197,7 @@ export default function WorkspacesPage() {
     // Prioridad 2: Background image
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${board.backgroundImageUrl})` },
       };
     }
@@ -205,7 +205,7 @@ export default function WorkspacesPage() {
     // Prioridad 3: Background color
     if (board.backgroundKind === "color" && board.backgroundValue) {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: board.backgroundValue },
       };
     }
@@ -217,7 +217,7 @@ export default function WorkspacesPage() {
       }
 
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { background: board.backgroundGradient },
       };
     }
@@ -517,7 +517,7 @@ export default function WorkspacesPage() {
       <AiGenerationPanel isOpen={isAiPanelOpen} onClose={() => setIsAiPanelOpen(false)} />
 
       {isCreateDocModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-card w-full max-w-sm rounded-xl border border-border shadow-2xl p-6 space-y-4 animate-in zoom-in-95 duration-200">
             <h2 className="text-lg font-semibold tracking-tight">{t("createDocTitle")}</h2>
             <input

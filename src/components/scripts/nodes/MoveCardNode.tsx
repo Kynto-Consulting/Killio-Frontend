@@ -21,8 +21,8 @@ export const MoveCardNode = memo(({ data, selected }: NodeProps) => {
     >
       <Handle type="target" position={Position.Top} id="input" className="!bg-slate-400" />
       <div className="flex items-center gap-2 rounded-t-md bg-orange-500 px-3 py-2">
-        <ArrowRight className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">
+        <ArrowRight className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">
           {config.archiveOnMove ? t("canvas.nodes.archiveCard") : t("canvas.nodes.moveCard")}
         </span>
       </div>

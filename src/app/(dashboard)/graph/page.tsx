@@ -21,9 +21,9 @@ const NODE_TYPES: Array<{ key: GNodeType; label: string; color: string }> = [
   { key: "meshBrick", label: "Mesh bricks", color: "#94a3b8" },
 ];
 const EDGE_TYPES: Array<{ key: GEdgeType; label: string; color: string }> = [
-  { key: "ref", label: "Reference pills", color: "#f87171" },
-  { key: "portal", label: "Portals", color: "#fbbf24" },
-  { key: "mirror", label: "Mirrors", color: "#22d3ee" },
+  { key: "ref", label: "Reference pills", color: "hsl(var(--c-red))" },
+  { key: "portal", label: "Portals", color: "hsl(var(--c-amber))" },
+  { key: "mirror", label: "Mirrors", color: "hsl(var(--c-cyan))" },
   { key: "connection", label: "Connections", color: "#64748b" },
   { key: "similarity", label: "Similarity (2.0)", color: "#a78bfa" },
 ];

@@ -15,8 +15,8 @@ export const ManualTriggerNode = memo(({ selected }: NodeProps) => {
       }`}
     >
       <div className="flex items-center gap-2 rounded-t-md bg-emerald-600 px-3 py-2">
-        <Play className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{t("canvas.nodes.manualTrigger")}</span>
+        <Play className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{t("canvas.nodes.manualTrigger")}</span>
       </div>
       <div className="p-3 text-xs text-muted-foreground">
         {t("nodes.manual.description")}

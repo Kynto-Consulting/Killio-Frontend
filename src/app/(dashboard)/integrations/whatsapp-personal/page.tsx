@@ -133,7 +133,7 @@ function Inner() {
           <p className="mb-4 text-sm text-muted-foreground">
             {t("integrations.whatsappPersonal.qrInstructions")}
           </p>
-          <div className="flex items-center justify-center rounded-lg bg-white p-4">
+          <div className="flex items-center justify-center rounded-lg bg-foreground dark:bg-white p-4">
             {qr ? (
               <QRCodeSVG value={qr} size={232} includeMargin />
             ) : (

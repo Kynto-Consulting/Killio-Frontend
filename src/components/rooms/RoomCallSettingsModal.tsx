@@ -249,11 +249,11 @@ export function RoomCallSettingsModal({
               <Settings className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white leading-none">{t("call.settings.title")}</h2>
+              <h2 className="text-lg font-bold text-foreground dark:text-white leading-none">{t("call.settings.title")}</h2>
               <p className="text-xs text-zinc-500 mt-1">{t("call.settings.subtitle")}</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-zinc-800 text-zinc-400 hover:text-foreground dark:hover:text-white transition-colors">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -272,7 +272,7 @@ export function RoomCallSettingsModal({
               />
 
               <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between pointer-events-none">
-                <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-white/90 border border-white/10">
+                <div className="bg-black/60 backdrop-blur-md px-3 py-1.5 rounded-full text-xs font-medium text-foreground/90 dark:text-white/90 border border-foreground/10 dark:border-white/10">
                   {t("call.settings.preview")}: {previewFilter.charAt(0).toUpperCase() + previewFilter.slice(1)}
                 </div>
                 {isAudioMuted ? (
@@ -280,7 +280,7 @@ export function RoomCallSettingsModal({
                     <Mic className="w-4 h-4 opacity-50" />
                   </div>
                 ) : (
-                  <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-white/10 overflow-hidden w-8 h-8 flex items-end">
+                  <div className="bg-black/60 backdrop-blur-md p-2 rounded-full border border-foreground/10 dark:border-white/10 overflow-hidden w-8 h-8 flex items-end">
                     <div className="w-full bg-green-500 transition-all duration-75" style={{ height: `${Math.min(100, (audioLevel / 128) * 100)}%` }} />
                   </div>
                 )}
@@ -349,7 +349,7 @@ export function RoomCallSettingsModal({
                       className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-500 to-indigo-700 flex items-center justify-center text-lg shadow-lg group-hover:scale-110 transition-transform"
                       style={{ filter: getFilterStyle(effect.id) }}
                     >
-                      {effect.id === "none" ? <X className="w-4 h-4 text-white/50" /> : effect.icon}
+                      {effect.id === "none" ? <X className="w-4 h-4 text-foreground/50 dark:text-white/50" /> : effect.icon}
                     </div>
                     <span className={`text-[10px] font-bold ${previewFilter === effect.id ? "text-violet-400" : "text-zinc-500"}`}>
                       {effect.name}
@@ -370,7 +370,7 @@ export function RoomCallSettingsModal({
                   className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewRemoval ? "bg-violet-600" : "bg-zinc-700"
                     }`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewRemoval ? "left-[22px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 bg-foreground dark:bg-white rounded-full shadow transition-all duration-200 ${previewRemoval ? "left-[22px]" : "left-0.5"}`} />
                 </button>
               </div>
 
@@ -389,7 +389,7 @@ export function RoomCallSettingsModal({
                         key={color}
                         onClick={() => { setPreviewBgUrl(undefined); setPreviewBgColor(color); }}
                         style={{ backgroundColor: color }}
-                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${previewBgColor === color ? "border-white" : "border-transparent"}`}
+                        className={`w-7 h-7 rounded-full border-2 transition-transform hover:scale-110 ${previewBgColor === color ? "border-foreground dark:border-white" : "border-transparent"}`}
                       />
                     ))}
                   </div>
@@ -420,7 +420,7 @@ export function RoomCallSettingsModal({
                           onClick={(e) => { e.stopPropagation(); removeCustomBg(bg.id); }}
                           className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 rounded-full flex items-center justify-center opacity-0 group-hover/bg:opacity-100 transition-opacity shadow-lg"
                         >
-                          <Trash2 className="w-3 h-3 text-white" />
+                          <Trash2 className="w-3 h-3 text-foreground dark:text-white" />
                         </button>
                       </div>
                     ))}
@@ -449,7 +449,7 @@ export function RoomCallSettingsModal({
                     onClick={() => setPreviewCaptions({ ...previewCaptions, enabled: !previewCaptions.enabled })}
                     className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewCaptions.enabled ? "bg-violet-600" : "bg-zinc-700"}`}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewCaptions.enabled ? "left-[22px]" : "left-0.5"}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-foreground dark:bg-white rounded-full shadow transition-all duration-200 ${previewCaptions.enabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                </div>
 

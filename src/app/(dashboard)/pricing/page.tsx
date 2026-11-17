@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CircleDollarSign, ClipboardCheck, Cpu, Download, Headset, History, LayoutGrid, Loader2, Mail, Mic, Radio, ShieldCheck, Sparkles, UserPlus, Users, Zap } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import {
   BillingCycle,
@@ -23,10 +24,10 @@ import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 const PLAN_ORDER: TeamPlanTier[] = ["free", "pro", "max"];
 
 const PLAN_THEME: Record<TeamPlanTier, string> = {
-  free: "border-white/15 bg-gradient-to-b from-[#0a1220]/90 to-[#04070f]/90",
+  free: "border-foreground/15 dark:border-white/15 bg-gradient-to-b from-[#0a1220]/90 to-[#04070f]/90",
   pro: "relative border-indigo-500/50 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.25),transparent_70%),linear-gradient(180deg,#0a1220,#04070f)] shadow-[0_0_40px_-10px_rgba(99,102,241,0.4)]",
   max: "border-cyan-400/40 bg-[radial-gradient(ellipse_at_top_right,rgba(34,211,238,0.2),transparent_70%),linear-gradient(180deg,#0a1220,#04070f)] shadow-[0_0_30px_-10px_rgba(34,211,238,0.3)]",
-  enterprise: "border-white/15 bg-gradient-to-b from-[#0a1220]/90 to-[#04070f]/90",
+  enterprise: "border-foreground/15 dark:border-white/15 bg-gradient-to-b from-[#0a1220]/90 to-[#04070f]/90",
 };
 
 type NoticeType = "success" | "error" | "info";
@@ -40,6 +41,14 @@ function formatIsoDate(iso: string, locale: "es" | "en"): string {
 }
 
 export default function PricingPage() {
+  const router = useRouter();
+  const billingEnabled = useTenant().billing.enabled;
+  // White-label deployments without billing have no plans to choose from.
+  useEffect(() => {
+    if (!billingEnabled) router.replace("/");
+  }, [billingEnabled, router]);
+  if (!billingEnabled) return null;
+
   return (
     <OfflineRouteFallback view="pricing">
       <PricingPageInner />
@@ -321,15 +330,15 @@ function PricingPageInner() {
         <section className="">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="mt-3 text-3xl font-black tracking-tight text-white sm:text-4xl">{t("hero.title")}</h1>
-              <p className="mt-2 max-w-3xl text-sm text-slate-300">{t("hero.subtitle")}</p>
+              <h1 className="mt-3 text-3xl font-black tracking-tight text-foreground dark:text-white sm:text-4xl">{t("hero.title")}</h1>
+              <p className="mt-2 max-w-3xl text-sm text-muted-foreground dark:text-slate-300">{t("hero.subtitle")}</p>
             </div>
 
             {/* Estado actual del workspace */}
             <div className="flex flex-col items-end gap-2">
-              <div className="rounded-xl border border-white/10 bg-black/30 px-4 py-3 text-right">
-                <p className="text-[11px] uppercase tracking-widest text-slate-400">{t("hero.currentPlan")}</p>
-                <p className="text-2xl font-extrabold text-white">{currentPlanTier.toUpperCase()}</p>
+              <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-4 py-3 text-right">
+                <p className="text-[11px] uppercase tracking-widest text-muted-foreground dark:text-slate-400">{t("hero.currentPlan")}</p>
+                <p className="text-2xl font-extrabold text-foreground dark:text-white">{currentPlanTier.toUpperCase()}</p>
               </div>
               {billing?.subscription?.trialEndsAt && billing.subscription.status === "trialing" ? (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-400/30 bg-amber-400/10 px-3 py-1 text-xs font-semibold text-amber-300">
@@ -350,18 +359,18 @@ function PricingPageInner() {
           </div>
 
           <div className="mt-8 flex justify-center">
-            <div className="inline-flex rounded-xl border border-white/10 bg-black/25 p-1">
+            <div className="inline-flex rounded-xl border border-foreground/10 dark:border-white/10 bg-black/25 p-1">
               <button
                 type="button"
                 onClick={() => setBillingCycle("monthly")}
-                className={`mr-4 ml-4 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === "monthly" ? "bg-white/95 text-black" : "text-slate-300 hover:text-white"}`}
+                className={`mr-4 ml-4 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === "monthly" ? "bg-foreground/95 dark:bg-white/95 text-black" : "text-muted-foreground dark:text-slate-300 hover:text-foreground dark:hover:text-white"}`}
               >
                 {t("cycles.monthly")}
               </button>
               <button
                 type="button"
                 onClick={() => setBillingCycle("yearly")}
-                className={`mr-2 ml-2  inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === "yearly" ? "bg-white/95 text-black" : "text-slate-300 hover:text-white"}`}
+                className={`mr-2 ml-2  inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition ${billingCycle === "yearly" ? "bg-foreground/95 dark:bg-white/95 text-black" : "text-muted-foreground dark:text-slate-300 hover:text-foreground dark:hover:text-white"}`}
               >
                 {t("cycles.yearly")}
                 {selectedAnnualDiscount > 0 ? (
@@ -382,13 +391,13 @@ function PricingPageInner() {
                 value={couponCode}
                 onChange={e => { setCouponCode(e.target.value.toUpperCase()); if (couponApplied) setCouponResults({}); }}
                 disabled={couponApplied}
-                className="w-48 rounded-lg border border-white/15 bg-black/25 px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
+                className="w-48 rounded-lg border border-foreground/15 dark:border-white/15 bg-black/25 px-3 py-2 text-sm text-foreground dark:text-white placeholder:text-muted-foreground dark:placeholder:text-slate-500 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
               />
               <button
                 type="button"
                 onClick={() => applyOrClearCoupon()}
                 disabled={couponLoading || (!couponApplied && !couponCode.trim())}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-white hover:bg-white/10 disabled:opacity-40"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-foreground dark:text-white hover:bg-foreground/10 dark:hover:bg-white/10 disabled:opacity-40"
               >
                 {couponLoading && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
                 {couponApplied ? t("coupon.clear") : t("coupon.apply")}
@@ -481,7 +490,7 @@ function PricingPageInner() {
             })();
 
             return (
-              <article key={plan.tier} className={`group relative flex flex-col overflow-hidden rounded-xl border p-8 text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${PLAN_THEME[plan.tier]}`}>
+              <article key={plan.tier} className={`group relative flex flex-col overflow-hidden rounded-xl border p-8 text-foreground dark:text-white transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl ${PLAN_THEME[plan.tier]}`}>
                 {isPro && (
                   <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-70" />
                 )}
@@ -491,7 +500,7 @@ function PricingPageInner() {
 
                 {/* Badge fija en esquina superior derecha */}
                 {badge ? (
-                  <span className={`absolute right-6 top-6 inline-flex rounded-md border px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isPro ? "border-indigo-400/40 bg-indigo-500/10 text-indigo-300" : isMax ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-300" : "border-white/20 bg-white/10 text-slate-200"}`}>
+                  <span className={`absolute right-6 top-6 inline-flex rounded-md border px-3 py-1 text-[10px] font-bold uppercase tracking-widest ${isPro ? "border-indigo-400/40 bg-indigo-500/10 text-indigo-300" : isMax ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-300" : "border-foreground/20 dark:border-white/20 bg-foreground/10 dark:bg-white/10 text-foreground/80 dark:text-slate-200"}`}>
                     {badge}
                   </span>
                 ) : null}
@@ -499,11 +508,11 @@ function PricingPageInner() {
                 {/* Título + descripción — altura fija para alinear precio */}
                 <div className="min-h-[80px] pr-20">
                   <h2 className="text-2xl font-black tracking-tight">{planTitle}</h2>
-                  <p className="mt-2 text-sm text-slate-400">{planHeadline}</p>
+                  <p className="mt-2 text-sm text-muted-foreground dark:text-slate-400">{planHeadline}</p>
                 </div>
 
                 {/* Precio — altura fija para alinear botón */}
-                <div className="mt-6 border-b border-white/5 pb-6">
+                <div className="mt-6 border-b border-foreground/5 dark:border-white/5 pb-6">
                   <div className="flex items-end gap-2">
                     {(() => {
                       const planCoupon = couponResults[plan.tier];
@@ -513,7 +522,7 @@ function PricingPageInner() {
                             <span className="text-5xl font-black tracking-tighter leading-none text-emerald-300">
                               {formatMoney(Math.max(0, planPrice - planCoupon.discountCents))}
                             </span>
-                            <span className="mb-1 text-xl font-bold text-slate-500 line-through">
+                            <span className="mb-1 text-xl font-bold text-muted-foreground dark:text-slate-500 line-through">
                               {formatMoney(planPrice)}
                             </span>
                           </>
@@ -522,7 +531,7 @@ function PricingPageInner() {
                       return <span className="text-5xl font-black tracking-tighter leading-none">{formatMoney(planPrice)}</span>;
                     })()}
                   </div>
-                  <p className="mt-1.5 text-sm font-medium text-slate-400">
+                  <p className="mt-1.5 text-sm font-medium text-muted-foreground dark:text-slate-400">
                     {billingCycle === "yearly" ? t("common.perUserYear") : t("common.perUserMonth")}
                   </p>
                   <div className="mt-1 h-5">
@@ -540,12 +549,12 @@ function PricingPageInner() {
                   disabled={actionLoadingTier === plan.tier || (isCurrent && billing?.subscription?.billingCycle === billingCycle)}
                   className={`mt-6 flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-bold shadow-sm transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50 ${
                     isDowngrade
-                      ? "border border-white/15 bg-white/5 text-slate-300 hover:bg-white/10 focus-visible:outline-white/30"
+                      ? "border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 text-muted-foreground dark:text-slate-300 hover:bg-foreground/10 dark:hover:bg-white/10 focus-visible:outline-white/30"
                       : isPro
                         ? "bg-indigo-500 text-white hover:bg-indigo-400 focus-visible:outline-indigo-500 shadow-indigo-500/25 hover:shadow-indigo-500/40"
                         : isMax
                           ? "bg-cyan-500 text-slate-900 hover:bg-cyan-400 focus-visible:outline-cyan-500 shadow-cyan-500/25 hover:shadow-cyan-500/40"
-                          : "bg-white text-slate-900 hover:bg-slate-100 focus-visible:outline-white"
+                          : "bg-foreground dark:bg-white text-slate-900 hover:bg-slate-100 focus-visible:outline-white"
                   }`}
                   onClick={() => handlePlanAction(plan.tier)}
                 >
@@ -562,41 +571,41 @@ function PricingPageInner() {
                 ) : null}
 
                 {/* Features */}
-                <div className="mt-8 flex-1 space-y-4 text-sm font-medium text-slate-300">
-                  <p className="text-xs font-bold uppercase tracking-widest text-slate-500">{t("plans.featuresTitle")}</p>
+                <div className="mt-8 flex-1 space-y-4 text-sm font-medium text-muted-foreground dark:text-slate-300">
+                  <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground dark:text-slate-500">{t("plans.featuresTitle")}</p>
                   <ul className="space-y-3.5">
                     <li className="flex items-start gap-3">
-                      <Zap className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                      <Zap className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                       <span>{t("plans.scripts", { value: scriptsValue })}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <CircleDollarSign className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                      <CircleDollarSign className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                       <span>{t("plans.credits", { value: plan.ai.monthlyCreditLimit.toFixed(2) })}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <History className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                      <History className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                       <span>{t("plans.activityHistory", { value: historyValue })}</span>
                     </li>
                     <li className="flex items-start gap-3">
-                      <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                      <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                       <span>{t("plans.tables", { value: tableValue })}</span>
                     </li>
                     {plan.meshBoards.maxBoards !== 0 && (
                       <li className="flex items-start gap-3">
-                        <LayoutGrid className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                        <LayoutGrid className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                         <span>{t("plans.meshBoards", { value: meshBoardsValue })}</span>
                       </li>
                     )}
                     {agentsValue !== null && (
                       <li className="flex items-start gap-3">
-                        <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                        <Sparkles className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                         <span>{t("plans.vaultAgents", { value: agentsValue })}</span>
                       </li>
                     )}
                     {plan.vault?.enabled && (
                       <>
                         <li className="flex items-start gap-3">
-                          <Mic className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                          <Mic className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                           <span>
                             {plan.vault.cloudSttMinutesMonthly > 0
                               ? t("plans.vaultCloudStt", { value: plan.vault.cloudSttMinutesMonthly })
@@ -605,41 +614,41 @@ function PricingPageInner() {
                         </li>
                         {plan.vault.wakeWord && (
                           <li className="flex items-start gap-3">
-                            <Radio className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <Radio className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                             <span>{t("plans.vaultWakeWord")}</span>
                           </li>
                         )}
                         {plan.vault.allowSubUsers ? (
                           <li className="flex items-start gap-3">
-                            <UserPlus className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <UserPlus className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                             <span>{t("plans.vaultSubUsers")}</span>
                           </li>
                         ) : (
                           <li className="flex items-start gap-3">
-                            <Users className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
-                            <span className="text-slate-500">{t("plans.vaultSubUsersNo")}</span>
+                            <Users className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground dark:text-slate-500" />
+                            <span className="text-muted-foreground dark:text-slate-500">{t("plans.vaultSubUsersNo")}</span>
                           </li>
                         )}
                       </>
                     )}
                     {(plan.support.priority || plan.support.custom || plan.support.ssoScim || plan.activity.auditLogs) && (
                       <>
-                        <li className="border-t border-white/5 pt-3" />
+                        <li className="border-t border-foreground/5 dark:border-white/5 pt-3" />
                         {plan.support.priority && (
                           <li className="flex items-start gap-3">
-                            <Headset className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <Headset className={`mt-0.5 h-4 w-4 shrink-0 ${isPro ? "text-indigo-400" : isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                             <span>{t("plans.prioritySupport")}</span>
                           </li>
                         )}
                         {plan.support.ssoScim && (
                           <li className="flex items-start gap-3">
-                            <ShieldCheck className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <ShieldCheck className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                             <span>{t("plans.ssoScim")}</span>
                           </li>
                         )}
                         {plan.activity.auditLogs && (
                           <li className="flex items-start gap-3">
-                            <ClipboardCheck className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-slate-400"}`} />
+                            <ClipboardCheck className={`mt-0.5 h-4 w-4 shrink-0 ${isMax ? "text-cyan-400" : "text-muted-foreground dark:text-slate-400"}`} />
                             <span>{t("plans.auditLogs")}</span>
                           </li>
                         )}
@@ -653,9 +662,9 @@ function PricingPageInner() {
         </section>
 
         {billing?.subscription ? (
-          <section className="rounded-2xl border border-white/10 bg-[#0a1220]/70 p-5 text-white">
+          <section className="rounded-2xl border border-foreground/10 dark:border-white/10 bg-[#0a1220]/70 p-5 text-white">
             <h3 className="text-lg font-extrabold">{t("subscription.title")}</h3>
-            <div className="mt-2 space-y-1 text-sm text-slate-300">
+            <div className="mt-2 space-y-1 text-sm text-muted-foreground dark:text-slate-300">
               <p>{t("subscription.status", { status: t(`status.${billing.subscription.status}`) })}</p>
               <p>{t("subscription.cycle", { cycle: t(`cycles.${billing.subscription.billingCycle}`) })}</p>
               {billing.subscription.currentPeriodEnd ? (
@@ -673,7 +682,7 @@ function PricingPageInner() {
                   type="button"
                   onClick={handleResumeSubscription}
                   disabled={subActionLoading !== null}
-                  className="inline-flex items-center gap-2 rounded-lg border border-white/20 bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/15 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg border border-foreground/20 dark:border-white/20 bg-foreground/10 dark:bg-white/10 px-4 py-2 text-sm font-semibold text-foreground dark:text-white hover:bg-foreground/15 dark:hover:bg-white/15 disabled:opacity-50"
                 >
                   {subActionLoading === "resume" ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                   {t("actions.resumeSubscription")}
@@ -693,46 +702,46 @@ function PricingPageInner() {
           </section>
         ) : null}
 
-        <section className="rounded-2xl border border-white/10 bg-[#0a1220]/70 p-5">
-          <h3 className="text-lg font-extrabold text-white">{t("extraQuota.title")}</h3>
-          <p className="mt-1 text-sm text-slate-300">{t("extraQuota.subtitle")}</p>
+        <section className="rounded-2xl border border-foreground/10 dark:border-white/10 bg-[#0a1220]/70 p-5">
+          <h3 className="text-lg font-extrabold text-foreground dark:text-white">{t("extraQuota.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground dark:text-slate-300">{t("extraQuota.subtitle")}</p>
 
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <a
               href={`mailto:${billingEmail}?subject=${extraQuotaSubject}&body=${extraQuotaBody}`}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-white hover:bg-black/30"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-foreground/15 dark:border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-foreground dark:text-white hover:bg-black/30"
             >
               <Zap className="h-4 w-4" />
               {t("extraQuota.scripts")}
             </a>
             <a
               href={`mailto:${billingEmail}?subject=${extraQuotaSubject}&body=${extraQuotaBody}`}
-              className="inline-flex items-center justify-center gap-2 rounded-lg border border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-white hover:bg-black/30"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-foreground/15 dark:border-white/15 bg-black/20 px-4 py-3 text-sm font-semibold text-foreground dark:text-white hover:bg-black/30"
             >
               <Cpu className="h-4 w-4" />
               {t("extraQuota.credits")}
             </a>
           </div>
           <div className="mt-5 grid gap-3 sm:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400">{t("summary.scriptsMonth")}</p>
-              <p className="mt-1 text-xl font-bold text-white">
+            <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("summary.scriptsMonth")}</p>
+              <p className="mt-1 text-xl font-bold text-foreground dark:text-white">
                 {scriptsUsage ? (scriptsUsage.limit === null ? `${scriptsUsage.executed}` : `${scriptsUsage.executed}/${scriptsUsage.limit}`) : "-"}
               </p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400">{t("summary.aiCreditsMonth")}</p>
-              <p className="mt-1 text-xl font-bold text-white">
+            <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("summary.aiCreditsMonth")}</p>
+              <p className="mt-1 text-xl font-bold text-foreground dark:text-white">
                 {aiUsage ? `${aiUsage.creditsUsed.toFixed(2)} / ${aiUsage.limit.toFixed(2)}` : "-"}
               </p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4">
-              <p className="text-xs uppercase tracking-wider text-slate-400">{t("summary.billingOwner")}</p>
-              <p className="mt-1 truncate text-xl font-bold text-white">{billing?.billingOwnerName || "-"}</p>
+            <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-black/20 p-4">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("summary.billingOwner")}</p>
+              <p className="mt-1 truncate text-xl font-bold text-foreground dark:text-white">{billing?.billingOwnerName || "-"}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-black/20 p-4 sm:col-span-3">
-              <p className="text-xs uppercase tracking-wider text-slate-400">{t("summary.rag")}</p>
-              <p className="mt-1 text-sm font-semibold text-white">
+            <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-black/20 p-4 sm:col-span-3">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground dark:text-slate-400">{t("summary.rag")}</p>
+              <p className="mt-1 text-sm font-semibold text-foreground dark:text-white">
                 {ragStatus
                   ? t("summary.ragLine", {
                       coverage: ragStatus.vectorIndex.coveragePct.toFixed(1),
@@ -741,7 +750,7 @@ function PricingPageInner() {
                     })
                   : "-"}
               </p>
-              <p className="mt-1 text-xs text-slate-400">
+              <p className="mt-1 text-xs text-muted-foreground dark:text-slate-400">
                 {ragStatus
                   ? t("summary.ragLastRun", {
                       status: ragStatus.vectorIndex.lastRunStatus || t("common.na"),
@@ -753,12 +762,12 @@ function PricingPageInner() {
           </div>
         </section>
 
-        <section className="rounded-2xl border border-white/10 bg-[#0a1220]/70 p-5">
-          <h3 className="text-lg font-extrabold text-white">{t("enterprise.title")}</h3>
-          <p className="mt-1 text-sm text-slate-300">{t("enterprise.subtitle")}</p>
+        <section className="rounded-2xl border border-foreground/10 dark:border-white/10 bg-[#0a1220]/70 p-5">
+          <h3 className="text-lg font-extrabold text-foreground dark:text-white">{t("enterprise.title")}</h3>
+          <p className="mt-1 text-sm text-muted-foreground dark:text-slate-300">{t("enterprise.subtitle")}</p>
           <a
             href={`mailto:${billingEmail}?subject=${encodeURIComponent(t("enterprise.emailSubject"))}&body=${encodeURIComponent(t("enterprise.emailBody"))}`}
-            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-sm font-semibold text-white hover:bg-black/30"
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-foreground/15 dark:border-white/15 bg-black/20 px-3 py-2 text-sm font-semibold text-foreground dark:text-white hover:bg-black/30"
           >
             <Mail className="h-4 w-4" />
             {t("enterprise.cta")}

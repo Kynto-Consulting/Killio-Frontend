@@ -452,14 +452,14 @@ export function ChartBrickRender({ chart, w, h, className, styling }: { chart: C
 }
 
 // ─── Editor (structured UI per type — no plain text) ─────────────────────────
-const inp = "h-7 w-full rounded border border-white/10 bg-slate-800 px-1.5 text-[10px] text-slate-100 outline-none focus:border-cyan-500/50";
-const num = "h-7 w-20 rounded border border-white/10 bg-slate-800 px-1.5 text-[10px] text-slate-100 outline-none focus:border-cyan-500/50";
-const btn = "rounded border border-white/10 px-1.5 py-0.5 text-[9px] text-slate-300 transition-colors hover:bg-accent/20 hover:text-foreground";
+const inp = "h-7 w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[10px] text-foreground dark:text-slate-100 outline-none focus:border-cyan-500/50";
+const num = "h-7 w-20 rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 text-[10px] text-foreground dark:text-slate-100 outline-none focus:border-cyan-500/50";
+const btn = "rounded border border-foreground/10 dark:border-white/10 px-1.5 py-0.5 text-[9px] text-muted-foreground dark:text-slate-300 transition-colors hover:bg-accent/20 hover:text-foreground";
 const danger = "rounded p-1 text-rose-400 transition-colors hover:bg-rose-500/10";
 
 function Row({ children }: { children: React.ReactNode }) { return <div className="flex items-center gap-1.5">{children}</div>; }
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="space-y-1.5"><p className="text-[9px] uppercase tracking-wider text-slate-400">{title}</p><div className="space-y-1">{children}</div></div>;
+  return <div className="space-y-1.5"><p className="text-[9px] uppercase tracking-wider text-muted-foreground dark:text-slate-400">{title}</p><div className="space-y-1">{children}</div></div>;
 }
 
 function ItemValueEditor({ items, onChange }: { items: { label: string; value: number; color?: string }[]; onChange: (items: { label: string; value: number; color?: string }[]) => void }) {
@@ -480,7 +480,7 @@ function ItemValueEditor({ items, onChange }: { items: { label: string; value: n
 function PieEditor({ s, on }: { s: PieSpec; on: (s: PieSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <ItemValueEditor items={s.items} onChange={items => on({ ...s, items })} />
   </>;
 }
@@ -489,11 +489,11 @@ function BarLineEditor({ s, on }: { s: BarLineSpec; on: (s: BarLineSpec) => void
   const e = useE();
   const xCsv = s.xLabels.join(", ");
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("xAxis")}</span><input value={xCsv} onChange={ev=>on({...s, xLabels: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} placeholder={e("xAxisPlaceholder")} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("xAxis")}</span><input value={xCsv} onChange={ev=>on({...s, xLabels: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} placeholder={e("xAxisPlaceholder")} className={inp} /></Row>
     <Section title={e("series")}>
       {s.series.map((se, si) => (
-        <div key={si} className="rounded border border-white/10 p-1.5 space-y-1">
+        <div key={si} className="rounded border border-foreground/10 dark:border-white/10 p-1.5 space-y-1">
           <Row>
             <input type="color" value={se.color ?? PALETTE[si % PALETTE.length]} onChange={ev => { const a=[...s.series]; a[si] = { ...se, color: ev.target.value }; on({ ...s, series: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
             <input value={se.label ?? ""} onChange={ev => { const a=[...s.series]; a[si] = { ...se, label: ev.target.value }; on({ ...s, series: a }); }} placeholder={`${e("series")} ${si+1}`} className={inp} />
@@ -504,18 +504,18 @@ function BarLineEditor({ s, on }: { s: BarLineSpec; on: (s: BarLineSpec) => void
       ))}
       <button type="button" onClick={() => on({ ...s, series: [...s.series, { values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addSeries")}</button>
     </Section>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("yMin")}</span><input type="number" value={s.yMin ?? ""} onChange={ev=>on({...s, yMin: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("yMax")}</span><input type="number" value={s.yMax ?? ""} onChange={ev=>on({...s, yMax: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("yMin")}</span><input type="number" value={s.yMin ?? ""} onChange={ev=>on({...s, yMin: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("yMax")}</span><input type="number" value={s.yMax ?? ""} onChange={ev=>on({...s, yMax: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
   </>;
 }
 
 function RadarEditor({ s, on }: { s: RadarSpec; on: (s: RadarSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("axes")}</span><input value={s.axes.join(", ")} onChange={ev=>on({...s, axes: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("axes")}</span><input value={s.axes.join(", ")} onChange={ev=>on({...s, axes: ev.target.value.split(",").map(t=>t.trim()).filter(Boolean)})} className={inp} /></Row>
     <Section title={e("curves")}>
       {s.curves.map((c, ci) => (
-        <div key={ci} className="rounded border border-white/10 p-1.5 space-y-1">
+        <div key={ci} className="rounded border border-foreground/10 dark:border-white/10 p-1.5 space-y-1">
           <Row>
             <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={ev => { const a=[...s.curves]; a[ci] = { ...c, color: ev.target.value }; on({ ...s, curves: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
             <input value={c.label} onChange={ev => { const a=[...s.curves]; a[ci] = { ...c, label: ev.target.value }; on({ ...s, curves: a }); }} className={inp} />
@@ -526,7 +526,7 @@ function RadarEditor({ s, on }: { s: RadarSpec; on: (s: RadarSpec) => void }) {
       ))}
       <button type="button" onClick={() => on({ ...s, curves: [...s.curves, { label: `${e("series")} ${s.curves.length+1}`, values: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addCurve")}</button>
     </Section>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("max")}</span><input type="number" value={s.max ?? ""} onChange={ev=>on({...s, max: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("max")}</span><input type="number" value={s.max ?? ""} onChange={ev=>on({...s, max: ev.target.value===""?undefined:parseFloat(ev.target.value)})} className={inp} /></Row>
   </>;
 }
 
@@ -535,12 +535,12 @@ function QuadrantEditor({ s, on }: { s: QuadrantSpec; on: (s: QuadrantSpec) => v
   const q = s.quads ?? ["","","",""];
   const setQ = (i: number, v: string) => { const a = [...q] as [string,string,string,string]; a[i] = v; on({ ...s, quads: a }); };
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("xLow")}</span><input value={s.xLow ?? ""} onChange={ev=>on({...s, xLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("xHigh")}</span><input value={s.xHigh ?? ""} onChange={ev=>on({...s, xHigh: ev.target.value})} className={inp} /></Row>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("yLow")}</span><input value={s.yLow ?? ""} onChange={ev=>on({...s, yLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-slate-400">{e("yHigh")}</span><input value={s.yHigh ?? ""} onChange={ev=>on({...s, yHigh: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("xLow")}</span><input value={s.xLow ?? ""} onChange={ev=>on({...s, xLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("xHigh")}</span><input value={s.xHigh ?? ""} onChange={ev=>on({...s, xHigh: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("yLow")}</span><input value={s.yLow ?? ""} onChange={ev=>on({...s, yLow: ev.target.value})} className={inp} /><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("yHigh")}</span><input value={s.yHigh ?? ""} onChange={ev=>on({...s, yHigh: ev.target.value})} className={inp} /></Row>
     <Section title={e("quadrants")}>
       {[e("quad1"), e("quad2"), e("quad3"), e("quad4")].map((lbl, i) => (
-        <Row key={i}><span className="w-24 text-[9px] text-slate-400">{lbl}</span><input value={q[i]} onChange={ev=>setQ(i, ev.target.value)} className={inp} /></Row>
+        <Row key={i}><span className="w-24 text-[9px] text-muted-foreground dark:text-slate-400">{lbl}</span><input value={q[i]} onChange={ev=>setQ(i, ev.target.value)} className={inp} /></Row>
       ))}
     </Section>
     <Section title={e("points")}>
@@ -561,16 +561,16 @@ function QuadrantEditor({ s, on }: { s: QuadrantSpec; on: (s: QuadrantSpec) => v
 function KanbanEditor({ s, on }: { s: KanbanSpec; on: (s: KanbanSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <Section title={e("columns")}>
       {s.columns.map((c, ci) => (
-        <div key={ci} className="rounded border border-white/10 p-1.5 space-y-1">
+        <div key={ci} className="rounded border border-foreground/10 dark:border-white/10 p-1.5 space-y-1">
           <Row>
             <input type="color" value={c.color ?? PALETTE[ci % PALETTE.length]} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, color: ev.target.value }; on({ ...s, columns: a }); }} className="h-6 w-6 cursor-pointer rounded border-0 bg-transparent p-0" />
             <input value={c.title} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, title: ev.target.value }; on({ ...s, columns: a }); }} className={inp} />
             <button type="button" onClick={() => on({ ...s, columns: s.columns.filter((_,j)=>j!==ci) })} className={danger}><Trash2 className="h-3 w-3" /></button>
           </Row>
-          <textarea value={c.cards.join("\n")} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, cards: ev.target.value.split("\n").map(t=>t.trim()).filter(Boolean) }; on({ ...s, columns: a }); }} placeholder={e("cardsPlaceholder")} rows={Math.min(6, Math.max(2, c.cards.length+1))} className="w-full rounded border border-white/10 bg-slate-800 px-1.5 py-1 text-[10px] text-slate-100 outline-none focus:border-cyan-500/50" />
+          <textarea value={c.cards.join("\n")} onChange={ev => { const a=[...s.columns]; a[ci] = { ...c, cards: ev.target.value.split("\n").map(t=>t.trim()).filter(Boolean) }; on({ ...s, columns: a }); }} placeholder={e("cardsPlaceholder")} rows={Math.min(6, Math.max(2, c.cards.length+1))} className="w-full rounded border border-foreground/10 dark:border-white/10 bg-muted dark:bg-slate-800 px-1.5 py-1 text-[10px] text-foreground dark:text-slate-100 outline-none focus:border-cyan-500/50" />
         </div>
       ))}
       <button type="button" onClick={() => on({ ...s, columns: [...s.columns, { title: e("newColumn"), cards: [] }] })} className={btn}><Plus className="inline h-3 w-3" /> {e("addColumn")}</button>
@@ -581,10 +581,10 @@ function KanbanEditor({ s, on }: { s: KanbanSpec; on: (s: KanbanSpec) => void })
 function GanttEditor({ s, on }: { s: GanttSpec; on: (s: GanttSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <Section title={e("tasks")}>
       {s.tasks.map((t, i) => (
-        <div key={i} className="rounded border border-white/10 p-1.5 space-y-1">
+        <div key={i} className="rounded border border-foreground/10 dark:border-white/10 p-1.5 space-y-1">
           <Row>
             <input value={t.name} onChange={ev => { const a=[...s.tasks]; a[i] = { ...t, name: ev.target.value }; on({ ...s, tasks: a }); }} placeholder={e("name")} className={inp} />
             <button type="button" onClick={() => on({ ...s, tasks: s.tasks.filter((_,j)=>j!==i) })} className={danger}><Trash2 className="h-3 w-3" /></button>
@@ -609,7 +609,7 @@ function GanttEditor({ s, on }: { s: GanttSpec; on: (s: GanttSpec) => void }) {
 function TreemapEditor({ s, on }: { s: TreemapSpec; on: (s: TreemapSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <ItemValueEditor items={s.items} onChange={items => on({ ...s, items })} />
   </>;
 }
@@ -617,7 +617,7 @@ function TreemapEditor({ s, on }: { s: TreemapSpec; on: (s: TreemapSpec) => void
 function VennEditor({ s, on }: { s: VennSpec; on: (s: VennSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <Section title={e("sets")}>
       {s.sets.map((set, i) => (
         <Row key={i}>
@@ -634,7 +634,7 @@ function VennEditor({ s, on }: { s: VennSpec; on: (s: VennSpec) => void }) {
 function PacketEditor({ s, on }: { s: PacketSpec; on: (s: PacketSpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <Section title={e("fields")}>
       {s.fields.map((f, i) => (
         <Row key={i}>
@@ -653,7 +653,7 @@ function PacketEditor({ s, on }: { s: PacketSpec; on: (s: PacketSpec) => void })
 function WardleyEditor({ s, on }: { s: WardleySpec; on: (s: WardleySpec) => void }) {
   const e = useE();
   return <>
-    <Row><span className="w-12 text-[9px] text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
+    <Row><span className="w-12 text-[9px] text-muted-foreground dark:text-slate-400">{e("title")}</span><input value={s.title ?? ""} onChange={ev=>on({...s, title: ev.target.value})} className={inp} /></Row>
     <Section title={e("components")}>
       {s.components.map((c, i) => (
         <Row key={i}>
@@ -672,7 +672,7 @@ function WardleyEditor({ s, on }: { s: WardleySpec; on: (s: WardleySpec) => void
           <select value={l.from} onChange={ev => { const a=[...s.links]; a[i] = { ...l, from: ev.target.value }; on({ ...s, links: a }); }} className={inp}>
             {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>
-          <span className="text-[10px] text-slate-400">→</span>
+          <span className="text-[10px] text-muted-foreground dark:text-slate-400">→</span>
           <select value={l.to} onChange={ev => { const a=[...s.links]; a[i] = { ...l, to: ev.target.value }; on({ ...s, links: a }); }} className={inp}>
             {s.components.map(c => <option key={c.name} value={c.name}>{c.name}</option>)}
           </select>

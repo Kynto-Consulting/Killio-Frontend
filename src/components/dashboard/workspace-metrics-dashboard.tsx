@@ -101,7 +101,7 @@ function formatPercent(value: number | null, locale: string) {
 }
 
 // ── SVG SPARKLINE ──────────────────────────────────────────────────────────────
-function Sparkline({ data, color = "#d8ff72", width = 120, height = 36 }: {
+function Sparkline({ data, color = "hsl(var(--accent-ink))", width = 120, height = 36 }: {
   data: number[]; color?: string; width?: number; height?: number;
 }) {
   if (data.length < 2) return null;
@@ -119,7 +119,7 @@ function Sparkline({ data, color = "#d8ff72", width = 120, height = 36 }: {
 }
 
 // ── SVG GAUGE RING ─────────────────────────────────────────────────────────────
-function GaugeRing({ pct, size = 110, color = "#d8ff72" }: {
+function GaugeRing({ pct, size = 110, color = "hsl(var(--accent-ink))" }: {
   pct: number; size?: number; color?: string;
 }) {
   const r = size / 2 - 10;
@@ -128,15 +128,15 @@ function GaugeRing({ pct, size = 110, color = "#d8ff72" }: {
   return (
     <div style={{ position: "relative", width: size, height: size, display: "flex", alignItems: "center", justifyContent: "center" }}>
       <svg width={size} height={size} style={{ position: "absolute", top: 0, left: 0, transform: "rotate(-90deg)" }}>
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="9" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="hsl(var(--ink) / 0.06)" strokeWidth="9" />
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth="9"
           strokeDasharray={`${dash} ${circ - dash}`} strokeLinecap="round"
           style={{ filter: `drop-shadow(0 0 8px ${color}66)` }}
         />
       </svg>
       <div style={{ textAlign: "center", zIndex: 1 }}>
-        <div style={{ fontSize: 20, fontWeight: 900, color: "#fff", letterSpacing: "-0.03em" }}>{pct}%</div>
-        <div style={{ fontSize: 9, color: "rgba(255,255,255,0.4)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Score</div>
+        <div style={{ fontSize: 20, fontWeight: 900, color: "hsl(var(--ink))", letterSpacing: "-0.03em" }}>{pct}%</div>
+        <div style={{ fontSize: 9, color: "hsl(var(--ink) / 0.4)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.1em" }}>Score</div>
       </div>
     </div>
   );
@@ -145,11 +145,11 @@ function GaugeRing({ pct, size = 110, color = "#d8ff72" }: {
 // ── RANK BADGE ─────────────────────────────────────────────────────────────────
 function RankBadge({ rank }: { rank: number }) {
   const styles: Record<number, { bg: string; color: string }> = {
-    1: { bg: "rgba(251,191,36,0.15)", color: "#fbbf24" },
+    1: { bg: "rgba(251,191,36,0.15)", color: "hsl(var(--c-amber))" },
     2: { bg: "rgba(148,163,184,0.15)", color: "#94a3b8" },
     3: { bg: "rgba(180,120,80,0.15)", color: "#cd7f32" },
   };
-  const s = styles[rank] ?? { bg: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.42)" };
+  const s = styles[rank] ?? { bg: "hsl(var(--ink) / 0.06)", color: "hsl(var(--ink) / 0.42)" };
   return (
     <div style={{ width: 22, height: 22, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 800, background: s.bg, color: s.color, flexShrink: 0 }}>
       {rank}
@@ -162,8 +162,8 @@ function activityDotColor(action: string): string {
   if (action.includes("completed")) return "#4ade80";
   if (action.includes("assigned")) return "#818cf8";
   if (action.includes("created")) return "#22d3ee";
-  if (action.includes("script")) return "#d8ff72";
-  return "rgba(255,255,255,0.3)";
+  if (action.includes("script")) return "hsl(var(--accent-ink))";
+  return "hsl(var(--ink) / 0.3)";
 }
 
 // ── MAIN COMPONENT ─────────────────────────────────────────────────────────────
@@ -323,11 +323,11 @@ export function WorkspaceMetricsDashboard() {
           value: metrics.windowSummary.completionsCount,
           helper: `${numberFormatter.format(metrics.previousWindowSummary.completionsCount)} ${t("metrics.cards.prevWindow")}`,
           iconBg: "rgba(216,255,114,0.12)",
-          iconColor: "#d8ff72",
+          iconColor: "hsl(var(--accent-ink))",
           Icon: CheckCircle2,
           trend: trendByMetric.get("completions"),
           sparkData: sparkCompletions,
-          sparkColor: "#d8ff72",
+          sparkColor: "hsl(var(--accent-ink))",
         },
         {
           label: t("metrics.cards.intake"),
@@ -358,7 +358,7 @@ export function WorkspaceMetricsDashboard() {
 
   // ── RENDER ───────────────────────────────────────────────────────────────────
   return (
-    <main className="relative min-h-screen overflow-hidden" style={{ background: "#020408", color: "rgba(255,255,255,0.92)" }}>
+    <main className="relative min-h-screen overflow-hidden" style={{ background: "hsl(var(--surface-deep))", color: "hsl(var(--ink) / 0.92)" }}>
       {/* Ambient glow */}
       <div className="pointer-events-none absolute inset-0 -z-10">
         <div className="absolute inset-x-0 top-0 h-96" style={{ background: "radial-gradient(circle at top, rgba(216,255,114,0.12), transparent 58%)" }} />
@@ -370,11 +370,11 @@ export function WorkspaceMetricsDashboard() {
         {/* ── HEADER ── */}
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-[26px] font-black tracking-[-0.03em] text-white">{t("metrics.title")}</h1>
-            <p className="mt-1 text-[13px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.subtitle")}</p>
+            <h1 className="text-[26px] font-black tracking-[-0.03em] text-foreground dark:text-white">{t("metrics.title")}</h1>
+            <p className="mt-1 text-[13px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.subtitle")}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex gap-[3px] rounded-full p-[3px]" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
+            <div className="flex gap-[3px] rounded-full p-[3px]" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
               {WINDOW_OPTIONS.map((opt) => (
                 <button
                   key={opt}
@@ -383,7 +383,7 @@ export function WorkspaceMetricsDashboard() {
                   className="rounded-full px-4 py-1.5 text-xs font-semibold transition-all"
                   style={windowDays === opt
                     ? { background: "#fff", color: "#000" }
-                    : { background: "transparent", color: "rgba(255,255,255,0.42)" }}
+                    : { background: "transparent", color: "hsl(var(--ink) / 0.42)" }}
                 >
                   {t(`metrics.rangeOptions.${opt}`)}
                 </button>
@@ -393,9 +393,9 @@ export function WorkspaceMetricsDashboard() {
         </div>
 
         {/* ── FILTERS ── */}
-        <section className="mt-5 rounded-2xl p-4" style={{ background: "rgba(255,255,255,0.025)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        <section className="mt-5 rounded-2xl p-4" style={{ background: "hsl(var(--ink) / 0.025)", border: "1px solid hsl(var(--ink) / 0.07)" }}>
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.42)" }}>
+            <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em]" style={{ color: "hsl(var(--ink) / 0.42)" }}>
               <SlidersHorizontal className="h-3.5 w-3.5" />
               {t("metrics.filters.title")}
             </span>
@@ -403,21 +403,21 @@ export function WorkspaceMetricsDashboard() {
               type="button"
               onClick={resetFilters}
               className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium transition-colors"
-              style={{ border: "1px solid rgba(255,255,255,0.08)", color: "rgba(255,255,255,0.42)" }}
+              style={{ border: "1px solid hsl(var(--ink) / 0.08)", color: "hsl(var(--ink) / 0.42)" }}
             >
               <X className="h-3 w-3" />
               {t("metrics.filters.reset")}
             </button>
           </div>
           <div className="grid gap-2.5 md:grid-cols-2 xl:grid-cols-4">
-            <div className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)" }}>
-              <Search className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "rgba(255,255,255,0.3)" }} />
+            <div className="flex items-center gap-2 rounded-full px-3 py-1.5" style={{ border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.025)" }}>
+              <Search className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "hsl(var(--ink) / 0.3)" }} />
               <input
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t("metrics.filters.searchPlaceholder")}
                 className="w-full bg-transparent text-xs outline-none"
-                style={{ color: "rgba(255,255,255,0.85)" }}
+                style={{ color: "hsl(var(--ink) / 0.85)" }}
               />
             </div>
             {[
@@ -430,29 +430,29 @@ export function WorkspaceMetricsDashboard() {
                 value={sel.value}
                 onChange={(e) => sel.onChange(e.target.value)}
                 className="rounded-full px-3 py-1.5 text-xs outline-none"
-                style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)", color: "rgba(255,255,255,0.75)" }}
+                style={{ border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.025)", color: "hsl(var(--ink) / 0.75)" }}
               >
                 <option value="all">{sel.label}</option>
                 {sel.options.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
               </select>
             ))}
             <div className="flex gap-2">
-              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="flex-1 rounded-full px-3 py-1.5 text-xs outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)", color: "rgba(255,255,255,0.75)" }} />
-              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="flex-1 rounded-full px-3 py-1.5 text-xs outline-none" style={{ border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.025)", color: "rgba(255,255,255,0.75)" }} />
+              <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="flex-1 rounded-full px-3 py-1.5 text-xs outline-none" style={{ border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.025)", color: "hsl(var(--ink) / 0.75)" }} />
+              <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="flex-1 rounded-full px-3 py-1.5 text-xs outline-none" style={{ border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.025)", color: "hsl(var(--ink) / 0.75)" }} />
             </div>
           </div>
         </section>
 
         {/* ── ERROR ── */}
         {error && (
-          <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm" style={{ color: "#f87171" }}>{error}</div>
+          <div className="mt-5 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-sm" style={{ color: "hsl(var(--c-red))" }}>{error}</div>
         )}
 
         {/* ── LOADING ── */}
         {(isLoading || isRoleLoading) && (
           <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {Array.from({ length: 8 }).map((_, i) => (
-              <div key={i} className="h-28 animate-pulse rounded-2xl" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.06)" }} />
+              <div key={i} className="h-28 animate-pulse rounded-2xl" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.06)" }} />
             ))}
           </div>
         )}
@@ -468,15 +468,15 @@ export function WorkspaceMetricsDashboard() {
                 const trendTone = trend ? getTrendTone(trend.metric, trend.direction) : "flat";
                 const TrendIcon = trendTone === "up" ? ArrowUpRight : trendTone === "down" ? ArrowDownRight : Minus;
                 const trendStyle = trendTone === "up"
-                  ? { color: "#4ade80", background: "rgba(74,222,128,0.1)" }
+                  ? { color: "hsl(var(--c-green))", background: "rgba(74,222,128,0.1)" }
                   : trendTone === "down"
-                    ? { color: "#f87171", background: "rgba(248,113,113,0.1)" }
-                    : { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)" };
+                    ? { color: "hsl(var(--c-red))", background: "rgba(248,113,113,0.1)" }
+                    : { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)" };
                 return (
                   <article
                     key={card.label}
                     className="flex flex-col gap-3 rounded-[14px] p-5 transition-all"
-                    style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex h-9 w-9 items-center justify-center rounded-[10px]" style={{ background: card.iconBg }}>
@@ -490,11 +490,11 @@ export function WorkspaceMetricsDashboard() {
                       )}
                     </div>
                     <div>
-                      <div className="text-[34px] font-black leading-none tracking-[-0.04em] text-white">
+                      <div className="text-[34px] font-black leading-none tracking-[-0.04em] text-foreground dark:text-white">
                         {typeof card.value === "number" ? numberFormatter.format(card.value) : card.value}
                       </div>
-                      <div className="mt-1 text-[12px]" style={{ color: "rgba(255,255,255,0.42)" }}>{card.label}</div>
-                      <div className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.25)" }}>{card.helper}</div>
+                      <div className="mt-1 text-[12px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{card.label}</div>
+                      <div className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.25)" }}>{card.helper}</div>
                     </div>
                     <div>
                       <Sparkline data={card.sparkData} color={card.sparkColor} width={160} height={36} />
@@ -507,11 +507,11 @@ export function WorkspaceMetricsDashboard() {
             {/* DELIVERY FLOW + EXECUTION HEALTH */}
             <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
               {/* Area Chart */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.deliveryFlow")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.sections.deliveryFlowHint")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.deliveryFlow")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.sections.deliveryFlowHint")}</p>
                   </div>
                 </div>
                 <div className="p-5">
@@ -520,8 +520,8 @@ export function WorkspaceMetricsDashboard() {
                       <AreaChart data={filteredActivitySeries} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
                         <defs>
                           <linearGradient id="gComp" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#d8ff72" stopOpacity="0.2" />
-                            <stop offset="100%" stopColor="#d8ff72" stopOpacity="0" />
+                            <stop offset="0%" stopColor="hsl(var(--accent-ink))" stopOpacity="0.2" />
+                            <stop offset="100%" stopColor="hsl(var(--accent-ink))" stopOpacity="0" />
                           </linearGradient>
                           <linearGradient id="gCreate" x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor="#f87171" stopOpacity="0.2" />
@@ -532,14 +532,14 @@ export function WorkspaceMetricsDashboard() {
                             <stop offset="100%" stopColor="#818cf8" stopOpacity="0" />
                           </linearGradient>
                         </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                        <XAxis dataKey="label" stroke="rgba(255,255,255,0.25)" fontSize={10} tickLine={false} axisLine={false} />
-                        <YAxis stroke="rgba(255,255,255,0.25)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
+                        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--ink) / 0.05)" />
+                        <XAxis dataKey="label" stroke="hsl(var(--ink) / 0.25)" fontSize={10} tickLine={false} axisLine={false} />
+                        <YAxis stroke="hsl(var(--ink) / 0.25)" fontSize={10} tickLine={false} axisLine={false} allowDecimals={false} />
                         <RechartsTooltip
-                          contentStyle={{ backgroundColor: "#0d1117", borderColor: "rgba(255,255,255,0.1)", borderRadius: 12, fontSize: 12 }}
-                          labelStyle={{ color: "rgba(255,255,255,0.7)" }}
+                          contentStyle={{ backgroundColor: "#0d1117", borderColor: "hsl(var(--ink) / 0.1)", borderRadius: 12, fontSize: 12 }}
+                          labelStyle={{ color: "hsl(var(--ink) / 0.7)" }}
                         />
-                        <Area type="monotone" dataKey="completionsCount" stroke="#d8ff72" fill="url(#gComp)" strokeWidth={2} />
+                        <Area type="monotone" dataKey="completionsCount" stroke="hsl(var(--accent-ink))" fill="url(#gComp)" strokeWidth={2} />
                         <Area type="monotone" dataKey="createdCardsCount" stroke="#f87171" fill="url(#gCreate)" strokeWidth={2} />
                         <Area type="monotone" dataKey="assignmentsCount" stroke="#818cf8" fill="url(#gAssign)" strokeWidth={2} />
                       </AreaChart>
@@ -547,11 +547,11 @@ export function WorkspaceMetricsDashboard() {
                   </div>
                   <div className="mt-4 flex flex-wrap gap-4">
                     {[
-                      { color: "#d8ff72", label: t("metrics.legend.completed") },
-                      { color: "#f87171", label: t("metrics.legend.created") },
-                      { color: "#818cf8", label: t("metrics.legend.assigned") },
+                      { color: "hsl(var(--accent-ink))", label: t("metrics.legend.completed") },
+                      { color: "hsl(var(--c-red))", label: t("metrics.legend.created") },
+                      { color: "hsl(var(--c-indigo))", label: t("metrics.legend.assigned") },
                     ].map((l) => (
-                      <span key={l.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "rgba(255,255,255,0.45)" }}>
+                      <span key={l.label} className="inline-flex items-center gap-1.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.45)" }}>
                         <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ background: l.color }} />
                         {l.label}
                       </span>
@@ -561,13 +561,13 @@ export function WorkspaceMetricsDashboard() {
               </article>
 
               {/* Execution Health */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.executionHealth")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.sections.executionHealthHint")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.executionHealth")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.sections.executionHealthHint")}</p>
                   </div>
-                  <Gauge className="h-4 w-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <Gauge className="h-4 w-4" style={{ color: "hsl(var(--ink) / 0.3)" }} />
                 </div>
                 <div className="p-5 flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-2.5">
@@ -581,17 +581,17 @@ export function WorkspaceMetricsDashboard() {
                       return (
                         <div key={tile.label} className="rounded-xl p-3.5" style={{ border: `1px solid ${tileStyles.border}`, background: tileStyles.bg }}>
                           <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: tileStyles.label }}>{tile.label}</div>
-                          <div className="mt-1.5 text-[28px] font-black text-white leading-none tracking-[-0.03em]">{numberFormatter.format(tile.value)}</div>
+                          <div className="mt-1.5 text-[28px] font-black text-foreground dark:text-white leading-none tracking-[-0.03em]">{numberFormatter.format(tile.value)}</div>
                         </div>
                       );
                     })}
                   </div>
-                  <div className="flex items-center justify-between gap-4 rounded-xl p-4" style={{ background: "rgba(0,0,0,0.25)" }}>
+                  <div className="flex items-center justify-between gap-4 rounded-xl p-4" style={{ background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))" }}>
                     <div>
-                      <div className="text-[13px] font-bold text-white">{t("metrics.health.workloadBalance")}</div>
-                      <div className="mt-1 text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>{t("metrics.health.workloadBalanceHint")}</div>
+                      <div className="text-[13px] font-bold text-foreground dark:text-white">{t("metrics.health.workloadBalance")}</div>
+                      <div className="mt-1 text-[11px]" style={{ color: "hsl(var(--ink) / 0.4)" }}>{t("metrics.health.workloadBalanceHint")}</div>
                     </div>
-                    <GaugeRing pct={metrics.kpis.workloadBalanceScore} size={100} color="#d8ff72" />
+                    <GaugeRing pct={metrics.kpis.workloadBalanceScore} size={100} color="hsl(var(--accent-ink))" />
                   </div>
                 </div>
               </article>
@@ -600,20 +600,20 @@ export function WorkspaceMetricsDashboard() {
             {/* MEMBER TABLE + BOARD PORTFOLIO */}
             <div className="grid gap-4 xl:grid-cols-[1.3fr_1fr]">
               {/* Member Ranked Table */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.memberDelivery")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.sections.memberDeliveryHint")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.memberDelivery")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.sections.memberDeliveryHint")}</p>
                   </div>
-                  <Users className="h-4 w-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <Users className="h-4 w-4" style={{ color: "hsl(var(--ink) / 0.3)" }} />
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
-                      <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                      <tr style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                         {["#", t("metrics.table.member"), t("metrics.table.role"), t("metrics.table.completedCards"), t("metrics.table.assignments"), t("metrics.table.activity"), t("metrics.table.executionRate")].map((h) => (
-                          <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.25)" }}>{h}</th>
+                          <th key={h} className="px-3.5 py-2.5 text-left text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "hsl(var(--ink) / 0.25)" }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
@@ -622,7 +622,7 @@ export function WorkspaceMetricsDashboard() {
                         const color = memberColor(m.id);
                         const rateColor = (m.executionRate ?? 0) >= 80 ? "#4ade80" : (m.executionRate ?? 0) >= 60 ? "#fbbf24" : "#f87171";
                         return (
-                          <tr key={m.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                          <tr key={m.id} style={{ borderBottom: "1px solid hsl(var(--ink) / 0.04)" }}>
                             <td className="px-3.5 py-3"><RankBadge rank={i + 1} /></td>
                             <td className="px-3.5 py-3">
                               <div className="flex items-center gap-2.5">
@@ -633,29 +633,29 @@ export function WorkspaceMetricsDashboard() {
                                     : m.displayName.slice(0, 1).toUpperCase()}
                                 </div>
                                 <div>
-                                  <div className="text-[13px] font-semibold text-white">{m.displayName}</div>
-                                  <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{m.primaryEmail}</div>
+                                  <div className="text-[13px] font-semibold text-foreground dark:text-white">{m.displayName}</div>
+                                  <div className="text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{m.primaryEmail}</div>
                                 </div>
                               </div>
                             </td>
                             <td className="px-3.5 py-3">
                               <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]"
                                 style={m.role === "admin"
-                                  ? { color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)" }
-                                  : { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
+                                  ? { color: "hsl(var(--c-indigo))", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)" }
+                                  : { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
                                 {m.role}
                               </span>
                             </td>
-                            <td className="px-3.5 py-3 text-[13px] font-semibold text-white">{numberFormatter.format(m.completedCardsCount)}</td>
-                            <td className="px-3.5 py-3 text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>{numberFormatter.format(m.assignmentsCount)}</td>
-                            <td className="px-3.5 py-3 text-[13px]" style={{ color: "rgba(255,255,255,0.6)" }}>{numberFormatter.format(m.activityCount)}</td>
+                            <td className="px-3.5 py-3 text-[13px] font-semibold text-foreground dark:text-white">{numberFormatter.format(m.completedCardsCount)}</td>
+                            <td className="px-3.5 py-3 text-[13px]" style={{ color: "hsl(var(--ink) / 0.6)" }}>{numberFormatter.format(m.assignmentsCount)}</td>
+                            <td className="px-3.5 py-3 text-[13px]" style={{ color: "hsl(var(--ink) / 0.6)" }}>{numberFormatter.format(m.activityCount)}</td>
                             <td className="px-3.5 py-3">
                               {m.executionRate === null ? (
-                                <span style={{ color: "rgba(255,255,255,0.3)" }}>—</span>
+                                <span style={{ color: "hsl(var(--ink) / 0.3)" }}>—</span>
                               ) : (
                                 <>
                                   <div className="text-[13px] font-bold" style={{ color: rateColor }}>{m.executionRate.toFixed(1)}%</div>
-                                  <div className="mt-1 h-1 w-20 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                                  <div className="mt-1 h-1 w-20 rounded-full overflow-hidden" style={{ background: "hsl(var(--ink) / 0.06)" }}>
                                     <div className="h-full rounded-full" style={{ width: `${Math.min(m.executionRate, 100)}%`, background: rateColor }} />
                                   </div>
                                 </>
@@ -665,7 +665,7 @@ export function WorkspaceMetricsDashboard() {
                         );
                       }) : (
                         <tr>
-                          <td colSpan={7} className="px-3.5 py-6 text-sm" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.empty.noMembers")}</td>
+                          <td colSpan={7} className="px-3.5 py-6 text-sm" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.empty.noMembers")}</td>
                         </tr>
                       )}
                     </tbody>
@@ -674,24 +674,24 @@ export function WorkspaceMetricsDashboard() {
               </article>
 
               {/* Board Portfolio */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.boardPortfolio")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.sections.boardPortfolioHint")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.boardPortfolio")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.sections.boardPortfolioHint")}</p>
                   </div>
-                  <SquareKanban className="h-4 w-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <SquareKanban className="h-4 w-4" style={{ color: "hsl(var(--ink) / 0.3)" }} />
                 </div>
-                <div className="p-5 flex flex-col gap-3 max-h-[480px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+                <div className="p-5 flex flex-col gap-3 max-h-[480px] overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--ink) / 0.08) transparent" }}>
                   {boardPortfolio.length > 0 ? boardPortfolio.map((board) => {
                     const healthColor = board.overdueCardsCount === 0 ? "#4ade80" : board.overdueCardsCount <= 2 ? "#fbbf24" : "#f87171";
                     const pct = board.completionRatePct ?? 0;
                     return (
-                      <div key={board.id} className="rounded-xl p-3.5 transition-all" style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                      <div key={board.id} className="rounded-xl p-3.5 transition-all" style={{ background: "hsl(var(--ink) / 0.03)", border: "1px solid hsl(var(--ink) / 0.07)" }}>
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <div className="text-[13px] font-bold text-white">{board.name}</div>
-                            <div className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{board.cardsCount} {t("metrics.table.cards")}</div>
+                            <div className="text-[13px] font-bold text-foreground dark:text-white">{board.name}</div>
+                            <div className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{board.cardsCount} {t("metrics.table.cards")}</div>
                           </div>
                           <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold"
                             style={{ color: healthColor, background: healthColor + "18", border: `1px solid ${healthColor}33` }}>
@@ -702,27 +702,27 @@ export function WorkspaceMetricsDashboard() {
                         </div>
                         <div className="mt-3 grid grid-cols-2 gap-1.5">
                           {[
-                            { label: t("metrics.health.open"), val: board.openCardsCount, color: "rgba(255,255,255,0.8)" },
+                            { label: t("metrics.health.open"), val: board.openCardsCount, color: "hsl(var(--ink) / 0.8)" },
                             { label: t("metrics.health.overdue"), val: board.overdueCardsCount, color: board.overdueCardsCount > 0 ? "#f87171" : "#4ade80" },
-                            { label: t("metrics.health.stale"), val: board.staleCardsCount, color: "rgba(255,255,255,0.5)" },
-                            { label: t("metrics.table.activity"), val: board.activityCount, color: "rgba(255,255,255,0.5)" },
+                            { label: t("metrics.health.stale"), val: board.staleCardsCount, color: "hsl(var(--ink) / 0.5)" },
+                            { label: t("metrics.table.activity"), val: board.activityCount, color: "hsl(var(--ink) / 0.5)" },
                           ].map((s) => (
-                            <div key={s.label} className="rounded-lg p-2" style={{ background: "rgba(0,0,0,0.25)" }}>
-                              <div className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "rgba(255,255,255,0.3)" }}>{s.label}</div>
+                            <div key={s.label} className="rounded-lg p-2" style={{ background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))" }}>
+                              <div className="text-[9px] font-bold uppercase tracking-[0.12em]" style={{ color: "hsl(var(--ink) / 0.3)" }}>{s.label}</div>
                               <div className="mt-1 text-[18px] font-extrabold leading-none tracking-[-0.02em]" style={{ color: s.color }}>{numberFormatter.format(s.val)}</div>
                             </div>
                           ))}
                         </div>
                         <div className="mt-3 flex items-center gap-2">
-                          <div className="flex-1 h-[3px] rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
-                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "#d8ff72" }} />
+                          <div className="flex-1 h-[3px] rounded-full overflow-hidden" style={{ background: "hsl(var(--ink) / 0.06)" }}>
+                            <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "hsl(var(--accent-ink))" }} />
                           </div>
-                          <span className="text-[11px] font-bold flex-shrink-0" style={{ color: "#d8ff72" }}>{board.completionRatePct === null ? "-" : `${board.completionRatePct}%`}</span>
+                          <span className="text-[11px] font-bold flex-shrink-0" style={{ color: "hsl(var(--accent-ink))" }}>{board.completionRatePct === null ? "-" : `${board.completionRatePct}%`}</span>
                         </div>
                       </div>
                     );
                   }) : (
-                    <div className="rounded-2xl p-6 text-sm" style={{ border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.42)" }}>{t("metrics.empty.noBoards")}</div>
+                    <div className="rounded-2xl p-6 text-sm" style={{ border: "1px dashed hsl(var(--ink) / 0.1)", color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.empty.noBoards")}</div>
                   )}
                 </div>
               </article>
@@ -731,15 +731,15 @@ export function WorkspaceMetricsDashboard() {
             {/* ACTIVITY FEED + AUTOMATION */}
             <div className="grid gap-4 xl:grid-cols-[1.6fr_1fr]">
               {/* Activity Feed */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.recentActivity")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{numberFormatter.format(filteredRecentActivity.length)} {t("metrics.events")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.recentActivity")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{numberFormatter.format(filteredRecentActivity.length)} {t("metrics.events")}</p>
                   </div>
-                  <Clock3 className="h-4 w-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <Clock3 className="h-4 w-4" style={{ color: "hsl(var(--ink) / 0.3)" }} />
                 </div>
-                <div className="px-5 py-4 max-h-96 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+                <div className="px-5 py-4 max-h-96 overflow-y-auto" style={{ scrollbarWidth: "thin", scrollbarColor: "hsl(var(--ink) / 0.08) transparent" }}>
                   {filteredRecentActivity.length > 0 ? filteredRecentActivity.map((activity) => {
                     const actor = activity.actorId === "i18n.system"
                       ? t("metrics.system.label")
@@ -748,33 +748,33 @@ export function WorkspaceMetricsDashboard() {
                     const boardName = boardId ? boardNameById.get(boardId) : null;
                     const dotColor = activityDotColor(activity.action);
                     return (
-                      <div key={activity.id} className="flex items-start gap-3 py-3" style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
+                      <div key={activity.id} className="flex items-start gap-3 py-3" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.04)" }}>
                         <div className="mt-1.5 h-2 w-2 flex-shrink-0 rounded-full" style={{ background: dotColor }} />
                         <div className="flex-1 min-w-0">
-                          <div className="text-[12px] font-semibold text-white">{actor}</div>
-                          <div className="mt-0.5 text-[12px]" style={{ color: "rgba(255,255,255,0.42)" }}>
+                          <div className="text-[12px] font-semibold text-foreground dark:text-white">{actor}</div>
+                          <div className="mt-0.5 text-[12px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>
                             {formatAction(activity.action)}{boardName ? ` · ${boardName}` : ""}
                           </div>
                         </div>
-                        <div className="flex-shrink-0 text-[11px]" style={{ color: "rgba(255,255,255,0.25)", marginTop: 2 }}>
+                        <div className="flex-shrink-0 text-[11px]" style={{ color: "hsl(var(--ink) / 0.25)", marginTop: 2 }}>
                           {new Date(activity.createdAt).toLocaleString(locale, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
                         </div>
                       </div>
                     );
                   }) : (
-                    <div className="py-6 text-sm" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.empty.noRecentActivity")}</div>
+                    <div className="py-6 text-sm" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.empty.noRecentActivity")}</div>
                   )}
                 </div>
               </article>
 
               {/* Automation */}
-              <article className="rounded-[14px] overflow-hidden" style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+              <article className="rounded-[14px] overflow-hidden" style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>
+                <div className="flex items-center justify-between px-5 pt-5 pb-4" style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                   <div>
-                    <h2 className="text-[14px] font-bold text-white">{t("metrics.sections.automation")}</h2>
-                    <p className="mt-0.5 text-[11px]" style={{ color: "rgba(255,255,255,0.42)" }}>{t("metrics.summary.automation")}</p>
+                    <h2 className="text-[14px] font-bold text-foreground dark:text-white">{t("metrics.sections.automation")}</h2>
+                    <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ink) / 0.42)" }}>{t("metrics.summary.automation")}</p>
                   </div>
-                  <Zap className="h-4 w-4" style={{ color: "rgba(255,255,255,0.3)" }} />
+                  <Zap className="h-4 w-4" style={{ color: "hsl(var(--ink) / 0.3)" }} />
                 </div>
                 <div className="p-5 flex flex-col gap-4">
                   <div className="grid grid-cols-2 gap-2.5">
@@ -784,9 +784,9 @@ export function WorkspaceMetricsDashboard() {
                       { label: t("metrics.automation.limit"), value: metrics.automation.limit === null ? "∞" : metrics.automation.limit },
                       { label: t("metrics.automation.remaining"), value: metrics.automation.remaining === null ? "∞" : metrics.automation.remaining },
                     ].map((tile) => (
-                      <div key={tile.label} className="rounded-xl p-3.5" style={{ background: "rgba(0,0,0,0.25)" }}>
-                        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.3)" }}>{tile.label}</div>
-                        <div className="mt-1 text-[24px] font-black tracking-[-0.03em] text-white">
+                      <div key={tile.label} className="rounded-xl p-3.5" style={{ background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))" }}>
+                        <div className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "hsl(var(--ink) / 0.3)" }}>{tile.label}</div>
+                        <div className="mt-1 text-[24px] font-black tracking-[-0.03em] text-foreground dark:text-white">
                           {typeof tile.value === "number" ? numberFormatter.format(tile.value) : tile.value}
                         </div>
                       </div>
@@ -796,17 +796,17 @@ export function WorkspaceMetricsDashboard() {
                   {metrics.automation.limit !== null && metrics.automation.limit > 0 && (
                     <div>
                       <div className="mb-2 flex items-center justify-between">
-                        <span className="text-[12px]" style={{ color: "rgba(255,255,255,0.5)" }}>Monthly usage</span>
-                        <span className="text-[12px] font-bold" style={{ color: "#d8ff72" }}>
+                        <span className="text-[12px]" style={{ color: "hsl(var(--ink) / 0.5)" }}>Monthly usage</span>
+                        <span className="text-[12px] font-bold" style={{ color: "hsl(var(--accent-ink))" }}>
                           {Math.round((metrics.automation.monthlyRuns / metrics.automation.limit) * 100)}%
                         </span>
                       </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "rgba(255,255,255,0.06)" }}>
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--ink) / 0.06)" }}>
                         <div
                           className="h-full rounded-full"
                           style={{
                             width: `${Math.min(Math.round((metrics.automation.monthlyRuns / metrics.automation.limit) * 100), 100)}%`,
-                            background: "linear-gradient(90deg, #d8ff72, #a3e635)",
+                            background: "linear-gradient(90deg, hsl(var(--accent-ink)), #a3e635)",
                             boxShadow: "0 0 12px rgba(216,255,114,0.35)",
                           }}
                         />
@@ -816,17 +816,17 @@ export function WorkspaceMetricsDashboard() {
                   {/* Workload risk */}
                   {metrics.workloadInsights.overloadedMembers.length > 0 && (
                     <div>
-                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "rgba(255,255,255,0.3)" }}>
+                      <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: "hsl(var(--ink) / 0.3)" }}>
                         {t("metrics.sections.workloadRisk")}
                       </div>
                       <div className="flex flex-col gap-2">
                         {metrics.workloadInsights.overloadedMembers.slice(0, 3).map((m) => (
                           <div key={m.id} className="flex items-center justify-between rounded-xl px-3 py-2.5" style={{ background: "rgba(248,113,113,0.07)", border: "1px solid rgba(248,113,113,0.2)" }}>
                             <div>
-                              <div className="text-[12px] font-semibold text-white">{m.name}</div>
-                              <div className="text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>{numberFormatter.format(m.assignmentsCount)} {t("metrics.table.assignments")}</div>
+                              <div className="text-[12px] font-semibold text-foreground dark:text-white">{m.name}</div>
+                              <div className="text-[11px]" style={{ color: "hsl(var(--ink) / 0.4)" }}>{numberFormatter.format(m.assignmentsCount)} {t("metrics.table.assignments")}</div>
                             </div>
-                            <AlertTriangle className="h-4 w-4" style={{ color: "#f87171" }} />
+                            <AlertTriangle className="h-4 w-4" style={{ color: "hsl(var(--c-red))" }} />
                           </div>
                         ))}
                       </div>
@@ -841,7 +841,7 @@ export function WorkspaceMetricsDashboard() {
 
         {/* EMPTY STATE */}
         {!isLoading && !isRoleLoading && !metrics && !error && (
-          <div className="mt-5 rounded-2xl p-8 text-sm" style={{ border: "1px dashed rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.42)" }}>
+          <div className="mt-5 rounded-2xl p-8 text-sm" style={{ border: "1px dashed hsl(var(--ink) / 0.1)", color: "hsl(var(--ink) / 0.42)" }}>
             {t("metrics.empty.noData")}
           </div>
         )}

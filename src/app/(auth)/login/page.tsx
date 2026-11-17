@@ -7,6 +7,8 @@ import { ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
+import { requestOtp } from "@/lib/api/contracts";
 
 const API = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -28,6 +30,13 @@ function LoginPageContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [linkSent, setLinkSent] = useState(false);
+
+  // White-label login modes: "password" (default), "otp" (email link only) or both.
+  const tenant = useTenant();
+  const { loginMode, signupEnabled } = tenant.auth;
+  const showPasswordFields = loginMode !== "otp";
+  const allowEmailLink = loginMode !== "password";
 
   const from = searchParams.get("from");
   const fromPath = from ? from.split("?")[0] : null;
@@ -54,6 +63,25 @@ function LoginPageContent() {
     localStorage.setItem("killio_user", JSON.stringify(data.user));
     login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
     router.push(safeFrom);
+  }
+
+  async function handleEmailLink(e?: React.FormEvent) {
+    e?.preventDefault();
+    setError(null);
+    const email = identifier.trim();
+    if (!email.includes("@")) {
+      setError(t("login.emailLinkNeedsEmail"));
+      return;
+    }
+    setIsLoading(true);
+    try {
+      await requestOtp({ email, useMagicLink: true, purpose: "login" });
+      setLinkSent(true);
+    } catch (unknownError) {
+      setError(unknownError instanceof Error && unknownError.message ? unknownError.message : t("login.serverError"));
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   async function handlePasswordSubmit(e: React.FormEvent) {
@@ -122,7 +150,13 @@ function LoginPageContent() {
           </div>
         )}
 
-        <form className="space-y-4" onSubmit={handlePasswordSubmit}>
+        {linkSent ? (
+          <div className="space-y-2 rounded-md border border-border bg-background/50 p-4 text-center text-sm">
+            <p className="font-medium">{t("login.emailLinkSentTitle")}</p>
+            <p className="text-muted-foreground">{t("login.emailLinkSentBody")}</p>
+          </div>
+        ) : (
+        <form className="space-y-4" onSubmit={showPasswordFields ? handlePasswordSubmit : handleEmailLink}>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none" htmlFor="identifier">
               {t("login.identifierLabel")}
@@ -139,6 +173,7 @@ function LoginPageContent() {
             />
           </div>
 
+          {showPasswordFields && (<>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none" htmlFor="password">
               {t("login.passwordLabel")}
@@ -186,6 +221,7 @@ function LoginPageContent() {
             </div>
             <div>{t("login.recover2faHint")}</div>
           </div>
+          </>)}
 
           <button
             type="submit"
@@ -196,19 +232,33 @@ function LoginPageContent() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {t("login.submit")}
+                {showPasswordFields ? t("login.submit") : t("login.emailLinkSubmit")}
                 <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
               </>
             )}
           </button>
-        </form>
 
+          {showPasswordFields && allowEmailLink && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={() => void handleEmailLink()}
+              className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+            >
+              {t("login.emailLinkSubmit")}
+            </button>
+          )}
+        </form>
+        )}
+
+        {signupEnabled && (
         <div className="mt-6 text-center text-sm text-muted-foreground">
           {t("login.noAccount")}{" "}
           <Link href={signupHref} className="font-medium text-accent hover:underline">
             {t("login.goSignup")}
           </Link>
         </div>
+        )}
       </div>
     </AuthPageFrame>
   );

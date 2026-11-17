@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { X, UserPlus, Check, Mail, Shield, Loader2, Copy } from "lucide-react";
 import { createInvite, InviteSummary, TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -122,7 +123,10 @@ export function InviteMemberModal({
     ],
   };
 
-  const allowedRoleOptions = roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest;
+  const tenantPermissions = useTenant().permissions;
+  const allowedRoleOptions = (roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest).filter((option) =>
+    tenantPermissions.allowedInviteRoles.includes(option.value),
+  );
 
   const currentRoleAllowed = allowedRoleOptions.some((option) => option.value === role);
 
@@ -135,7 +139,7 @@ export function InviteMemberModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 

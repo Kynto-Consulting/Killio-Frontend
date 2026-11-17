@@ -251,7 +251,7 @@ export default function RoomTranscriptsPage() {
           <div className="flex items-center gap-3">
             <Link
               href={`/rooms/${roomId}`}
-              className="text-zinc-400 hover:text-white transition-colors"
+              className="text-zinc-400 hover:text-foreground dark:hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
             </Link>
@@ -275,7 +275,7 @@ export default function RoomTranscriptsPage() {
                 <button
                   onClick={handleCopyAll}
                   title={t("transcripts.copyAll")}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-300 hover:border-zinc-500 hover:text-white transition-colors"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-zinc-700 text-xs text-zinc-300 hover:border-zinc-500 hover:text-foreground dark:hover:text-white transition-colors"
                 >
                   {copiedAll ? (
                     <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -317,7 +317,7 @@ export default function RoomTranscriptsPage() {
               title={t("header.copilot")}
               className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${showCopilot
                   ? "bg-violet-600/20 text-violet-400 border border-violet-500/40"
-                  : "border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-white"
+                  : "border border-zinc-700 text-zinc-400 hover:border-zinc-500 hover:text-foreground dark:hover:text-white"
                 }`}
             >
               <Bot className="w-4 h-4" />

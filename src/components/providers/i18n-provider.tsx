@@ -2,6 +2,7 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { DEFAULT_LOCALE, getLocaleMessages, Locale, LocaleMessages, Namespace, NamespaceDictionary, normalizeLocale } from "@/i18n";
 
 const LOCALE_STORAGE_KEY = "killio_locale";
@@ -69,14 +70,17 @@ function interpolate(input: string, params?: TranslateParams): string {
 
 export function I18nProvider({ children }: { children: React.ReactNode }) {
   const { user } = useSession();
-  const [locale, setLocaleState] = useState<Locale>(DEFAULT_LOCALE);
+  // White-label deployments can start in another language until the user picks one.
+  const tenantLocale = useTenant().defaultLocale;
+  const [locale, setLocaleState] = useState<Locale>(tenantLocale ?? DEFAULT_LOCALE);
 
   useEffect(() => {
-    const globalLocale = normalizeLocale(localStorage.getItem(LOCALE_STORAGE_KEY));
+    const storedLocale = localStorage.getItem(LOCALE_STORAGE_KEY);
+    const globalLocale = storedLocale ? normalizeLocale(storedLocale) : (tenantLocale ?? DEFAULT_LOCALE);
     const byUser = readLocaleByUser();
     const userLocale = user?.id ? byUser[user.id] : undefined;
     setLocaleState(userLocale ?? globalLocale);
-  }, [user?.id]);
+  }, [user?.id, tenantLocale]);
 
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -118,15 +122,26 @@ export function useI18n() {
 }
 
 export function useTranslations(namespace: Namespace) {
-  const { messages } = useI18n();
+  const { messages, locale } = useI18n();
+  const tenant = useTenant();
+  const overrides = tenant.mode === "tenant" ? tenant.texts?.[locale] : undefined;
+  // White-label: swap the product name in the translation template, before the
+  // params are interpolated, so user data that contains "Killio" is left alone.
+  const brandName = tenant.mode === "tenant" && tenant.brand.replaceNameInText ? tenant.brand.name : null;
 
   return useCallback((key: string, params?: TranslateParams) => {
+    // Texts the tenant wrote in its config win over the built-in translations (and are used verbatim).
+    const override = overrides?.[`${namespace}.${key}`] ?? overrides?.[key];
+    if (typeof override === "string" && override) return interpolate(override, params);
+
+    const rebrand = (template: string) => (brandName ? template.replace(/Killio/g, () => brandName) : template);
+
     const fromNamespace = getValueByPath(messages[namespace], key);
-    if (fromNamespace) return interpolate(fromNamespace, params);
+    if (fromNamespace) return interpolate(rebrand(fromNamespace), params);
 
     const fromCommon = getValueByPath(messages.common, key);
-    if (fromCommon) return interpolate(fromCommon, params);
+    if (fromCommon) return interpolate(rebrand(fromCommon), params);
 
     return key;
-  }, [messages, namespace]);
+  }, [messages, namespace, brandName, overrides]);
 }

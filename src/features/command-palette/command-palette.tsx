@@ -8,7 +8,7 @@ export function CommandPalette({ actions = ['Create card', 'Move card', 'Ask AI'
       style={{
         width: 'min(420px, 100%)',
         border: '1px solid var(--border)',
-        background: 'rgba(255, 255, 255, 0.03)',
+        background: 'hsl(var(--ink) / 0.03)',
         borderRadius: '18px',
         padding: '10px 14px',
       }}
@@ -21,7 +21,7 @@ export function CommandPalette({ actions = ['Create card', 'Move card', 'Ask AI'
             style={{
               padding: '10px 12px',
               borderRadius: '12px',
-              background: 'rgba(255, 255, 255, 0.04)',
+              background: 'hsl(var(--ink) / 0.04)',
             }}
           >
             {action}

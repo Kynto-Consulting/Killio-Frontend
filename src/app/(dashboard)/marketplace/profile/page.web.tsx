@@ -148,30 +148,30 @@ function parseAssetKey(assetKey: string): { assetType: MarketplaceAssetType; sou
 
 /* ── asset type config ── */
 const ASSET_TYPES: { type: MarketplaceAssetType; label: string; icon: typeof FileText; color: string }[] = [
-  { type: "document", label: "Documents", icon: FileText,  color: "#818cf8" },
+  { type: "document", label: "Documents", icon: FileText,  color: "hsl(var(--c-indigo))" },
   { type: "board",    label: "Kanban",    icon: Layout,    color: "#f472b6" },
-  { type: "mesh",     label: "Meshes",    icon: GitBranch, color: "#22d3ee" },
-  { type: "script",   label: "Scripts",   icon: Zap,       color: "#fbbf24" },
+  { type: "mesh",     label: "Meshes",    icon: GitBranch, color: "hsl(var(--c-cyan))" },
+  { type: "script",   label: "Scripts",   icon: Zap,       color: "hsl(var(--c-amber))" },
 ];
 
 const ASSET_TYPE_MAP: Record<MarketplaceAssetType, { label: string; icon: typeof FileText; color: string }> = {
-  document: { label: "Documents", icon: FileText, color: "#818cf8" },
+  document: { label: "Documents", icon: FileText, color: "hsl(var(--c-indigo))" },
   board: { label: "Kanban", icon: Layout, color: "#f472b6" },
-  mesh: { label: "Meshes", icon: GitBranch, color: "#22d3ee" },
-  script: { label: "Scripts", icon: Zap, color: "#fbbf24" },
+  mesh: { label: "Meshes", icon: GitBranch, color: "hsl(var(--c-cyan))" },
+  script: { label: "Scripts", icon: Zap, color: "hsl(var(--c-amber))" },
 };
 
 /* ── publish mode config ── */
 const PUB_MODES: { mode: MarketplacePublishMode; label: string; sub: string; icon: typeof Lock; color: string }[] = [
   { mode: "private", label: "Private",  sub: "Only you",              icon: Lock,  color: "#94a3b8" },
-  { mode: "link",    label: "Link only", sub: "Shared via link",       icon: Link2, color: "#fbbf24" },
-  { mode: "public",  label: "Public",   sub: "Anyone can install",    icon: Globe, color: "#4ade80" },
+  { mode: "link",    label: "Link only", sub: "Shared via link",       icon: Link2, color: "hsl(var(--c-amber))" },
+  { mode: "public",  label: "Public",   sub: "Anyone can install",    icon: Globe, color: "hsl(var(--c-green))" },
 ];
 
 function modeStyle(mode: MarketplacePublishMode) {
   if (mode === "public") return "border-[#4ade80]/30 bg-[#4ade80]/10 text-[#4ade80]";
   if (mode === "link")   return "border-[#fbbf24]/30 bg-[#fbbf24]/10 text-[#fbbf24]";
-  return "border-white/10 bg-white/5 text-white/50";
+  return "border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 text-foreground/50 dark:text-white/50";
 }
 function modeIcon(mode: MarketplacePublishMode) {
   if (mode === "public") return <Globe className="h-3 w-3" />;
@@ -195,13 +195,13 @@ function LocaleDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-colors hover:border-white/20 focus:border-[#d8ff72]/40 focus:outline-none"
+        className="flex w-full items-center justify-between rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white transition-colors hover:border-foreground/20 dark:hover:border-white/20 focus:border-[hsl(var(--accent-ink))]/40 focus:outline-none"
       >
         <span className="truncate">{getLocaleLabel(value)}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-[#0c1018] shadow-lg">
           {options.map((opt) => (
             <button
               key={opt}
@@ -212,8 +212,8 @@ function LocaleDropdown({
               }}
               className={`w-full px-3 py-2 text-left text-sm transition-colors ${
                 opt === value
-                  ? "bg-[#d8ff72]/15 text-[#d8ff72]"
-                  : "text-white hover:bg-white/5"
+                  ? "bg-[hsl(var(--accent-ink))]/15 text-[hsl(var(--accent-ink))]"
+                  : "text-foreground dark:text-white hover:bg-foreground/5 dark:hover:bg-white/5"
               } first:rounded-t-lg last:rounded-b-lg`}
             >
               {getLocaleLabel(opt)}
@@ -241,13 +241,13 @@ function StatusDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white transition-colors hover:border-white/20 focus:border-[#d8ff72]/40 focus:outline-none"
+        className="flex w-full items-center justify-between rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white transition-colors hover:border-foreground/20 dark:hover:border-white/20 focus:border-[hsl(var(--accent-ink))]/40 focus:outline-none"
       >
         <span className="truncate capitalize">{label}</span>
         <ChevronDown className={`h-4 w-4 shrink-0 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+        <div className="absolute top-full z-50 mt-1 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-[#0c1018] shadow-lg">
           {options.map((opt) => (
             <button
               key={opt.value}
@@ -258,8 +258,8 @@ function StatusDropdown({
               }}
               className={`w-full px-3 py-2 text-left text-sm capitalize transition-colors ${
                 opt.value === value
-                  ? "bg-[#d8ff72]/15 text-[#d8ff72]"
-                  : "text-white hover:bg-white/5"
+                  ? "bg-[hsl(var(--accent-ink))]/15 text-[hsl(var(--accent-ink))]"
+                  : "text-foreground dark:text-white hover:bg-foreground/5 dark:hover:bg-white/5"
               } first:rounded-t-lg last:rounded-b-lg`}
             >
               {opt.label}
@@ -291,14 +291,14 @@ function PublishModeDropdown({
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${modeStyle(value)} hover:border-white/20`}
+        className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-bold transition-colors ${modeStyle(value)} hover:border-foreground/20 dark:hover:border-white/20`}
       >
         <CurrentIcon className="h-3 w-3" />
         <span>{current?.label || "Select"}</span>
         <ChevronDown className={`h-3 w-3 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-white/10 bg-[#0c1018] shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-1 w-40 rounded-xl border border-foreground/10 dark:border-white/10 bg-[#0c1018] shadow-lg">
           {modes.map((m) => {
             const Icon = m.icon;
             return (
@@ -311,8 +311,8 @@ function PublishModeDropdown({
                 }}
                 className={`flex w-full items-center gap-2 px-3 py-2 text-sm transition-colors ${
                   m.mode === value
-                    ? "bg-[#d8ff72]/15 text-[#d8ff72]"
-                    : "text-white hover:bg-white/5"
+                    ? "bg-[hsl(var(--accent-ink))]/15 text-[hsl(var(--accent-ink))]"
+                    : "text-foreground dark:text-white hover:bg-foreground/5 dark:hover:bg-white/5"
                 } first:rounded-t-lg last:rounded-b-lg`}
               >
                 <Icon className="h-3.5 w-3.5" />
@@ -469,10 +469,10 @@ function AssetPicker({
   }, [accessToken, assetsByKey, openType, selectedKeys, selectedSet, teamId]);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-8 text-sm text-white/30"><RefreshCcw className="mr-2 h-4 w-4 animate-spin" />Loading workspace assets…</div>;
+    return <div className="flex items-center justify-center py-8 text-sm text-foreground/30 dark:text-white/30"><RefreshCcw className="mr-2 h-4 w-4 animate-spin" />Loading workspace assets…</div>;
   }
   if (assets.length === 0) {
-    return <div className="flex flex-col items-center py-8 text-center"><Package className="h-8 w-8 text-white/15" /><p className="mt-2 text-sm text-white/30">No assets found in this workspace.</p></div>;
+    return <div className="flex flex-col items-center py-8 text-center"><Package className="h-8 w-8 text-foreground/15 dark:text-white/15" /><p className="mt-2 text-sm text-foreground/30 dark:text-white/30">No assets found in this workspace.</p></div>;
   }
 
   return (
@@ -487,7 +487,7 @@ function AssetPicker({
               key={assetType.type}
               type="button"
               onClick={() => setOpenType(assetType.type)}
-              className="group flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition-all hover:border-white/20 hover:bg-white/[0.06]"
+              className="group flex items-center gap-3 rounded-2xl border border-foreground/10 dark:border-white/10 bg-white/[0.03] p-4 text-left transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:bg-white/[0.06]"
             >
               <div
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border"
@@ -497,17 +497,17 @@ function AssetPicker({
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-bold text-white">{assetType.label}</p>
-                <p className="mt-0.5 text-xs text-white/40">{selectedCount} selected of {totalCount}</p>
+                <p className="mt-0.5 text-xs text-foreground/40 dark:text-white/40">{selectedCount} selected of {totalCount}</p>
               </div>
-              <ChevronRight className="h-4 w-4 text-white/35 transition-transform group-hover:translate-x-0.5" />
+              <ChevronRight className="h-4 w-4 text-foreground/35 dark:text-white/35 transition-transform group-hover:translate-x-0.5" />
             </button>
           );
         })}
       </div>
 
       {selectedKeys.length > 0 ? (
-        <div className="rounded-xl border border-white/8 bg-black/20 p-3">
-          <p className="text-xs font-semibold text-white/45">Selected assets</p>
+        <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
+          <p className="text-xs font-semibold text-foreground/45 dark:text-white/45">Selected assets</p>
           <div className="mt-2 flex flex-wrap gap-2">
             {selectedKeys.slice(0, 12).map((selectedKey) => {
               const selectedAsset = assetsByKey.get(selectedKey);
@@ -517,7 +517,7 @@ function AssetPicker({
                   key={selectedKey}
                   type="button"
                   onClick={() => toggleAsset(selectedKey)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/35 bg-[#d8ff72]/10 px-3 py-1 text-xs font-semibold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/20"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--accent-ink))]/35 bg-[hsl(var(--accent-ink))]/10 px-3 py-1 text-xs font-semibold text-[hsl(var(--accent-ink))] transition-colors hover:bg-[hsl(var(--accent-ink))]/20"
                 >
                   <X className="h-3 w-3" />
                   {selectedAsset.label}
@@ -525,7 +525,7 @@ function AssetPicker({
               );
             })}
             {selectedKeys.length > 12 ? (
-              <span className="inline-flex items-center rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs text-white/45">
+              <span className="inline-flex items-center rounded-full border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 px-3 py-1 text-xs text-foreground/45 dark:text-white/45">
                 +{selectedKeys.length - 12} more
               </span>
             ) : null}
@@ -542,17 +542,17 @@ function AssetPicker({
             }
           }}
         >
-          <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-white/8 px-5 py-4">
+          <div className="flex max-h-[86vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-foreground/8 dark:border-white/8 px-5 py-4">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/30">Choose assets</p>
-                <h3 className="mt-1 text-lg font-extrabold text-white">{ASSET_TYPE_MAP[openType].label}</h3>
-                <p className="mt-1 text-xs text-white/40">Pick items and get smart suggestions from real workspace references.</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-foreground/30 dark:text-white/30">Choose assets</p>
+                <h3 className="mt-1 text-lg font-extrabold text-foreground dark:text-white">{ASSET_TYPE_MAP[openType].label}</h3>
+                <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">Pick items and get smart suggestions from real workspace references.</p>
               </div>
               <button
                 type="button"
                 onClick={() => setOpenType(null)}
-                className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/40 transition-colors hover:border-white/20 hover:text-white"
+                className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2 text-foreground/40 dark:text-white/40 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -561,22 +561,22 @@ function AssetPicker({
             <div className="flex-1 space-y-4 overflow-y-auto px-5 py-4">
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="relative w-full sm:max-w-sm">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-white/30" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-foreground/30 dark:text-white/30" />
                   <input
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
                     placeholder={`Search ${ASSET_TYPE_MAP[openType].label.toLowerCase()}`}
-                    className="w-full rounded-xl border border-white/10 bg-black/30 py-2 pl-8 pr-3 text-sm text-white outline-none transition-colors placeholder:text-white/25 focus:border-[#d8ff72]/40"
+                    className="w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 py-2 pl-8 pr-3 text-sm text-foreground dark:text-white outline-none transition-colors placeholder:text-foreground/25 dark:placeholder:text-white/25 focus:border-[hsl(var(--accent-ink))]/40"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-white/45">
+                  <span className="rounded-full border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-2.5 py-1 text-xs text-foreground/45 dark:text-white/45">
                     {openTypeAssets.length} visible
                   </span>
                   <button
                     type="button"
                     onClick={() => addMany(openTypeAssets.map((asset) => asset.key))}
-                    className="rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-xs font-semibold text-white/60 transition-colors hover:border-white/20 hover:text-white"
+                    className="rounded-lg border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-3 py-1.5 text-xs font-semibold text-foreground/60 dark:text-white/60 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
                   >
                     Add visible
                   </button>
@@ -584,7 +584,7 @@ function AssetPicker({
               </div>
 
               {suggestionsLoading ? (
-                <div className="flex items-center text-xs text-white/45">
+                <div className="flex items-center text-xs text-foreground/45 dark:text-white/45">
                   <RefreshCcw className="mr-2 h-3.5 w-3.5 animate-spin" /> Loading suggestions...
                 </div>
               ) : null}
@@ -596,13 +596,13 @@ function AssetPicker({
               ) : null}
 
               {suggestedAssets.length > 0 ? (
-                <div className="rounded-2xl border border-[#d8ff72]/20 bg-[#d8ff72]/8 p-3">
+                <div className="rounded-2xl border border-[hsl(var(--accent-ink))]/20 bg-[hsl(var(--accent-ink))]/8 p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p className="text-xs font-semibold text-[#d8ff72]">Suggested from your current selection</p>
+                    <p className="text-xs font-semibold text-[hsl(var(--accent-ink))]">Suggested from your current selection</p>
                     <button
                       type="button"
                       onClick={() => addMany(suggestedAssets.map((asset) => asset.key))}
-                      className="rounded-lg border border-[#d8ff72]/40 bg-[#d8ff72]/15 px-2.5 py-1 text-[11px] font-bold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/25"
+                      className="rounded-lg border border-[hsl(var(--accent-ink))]/40 bg-[hsl(var(--accent-ink))]/15 px-2.5 py-1 text-[11px] font-bold text-[hsl(var(--accent-ink))] transition-colors hover:bg-[hsl(var(--accent-ink))]/25"
                     >
                       Add all suggested
                     </button>
@@ -613,7 +613,7 @@ function AssetPicker({
                         key={`suggested-${asset.key}`}
                         type="button"
                         onClick={() => toggleAsset(asset.key)}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/35 bg-[#d8ff72]/10 px-3 py-1 text-xs font-semibold text-[#d8ff72] transition-colors hover:bg-[#d8ff72]/20"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--accent-ink))]/35 bg-[hsl(var(--accent-ink))]/10 px-3 py-1 text-xs font-semibold text-[hsl(var(--accent-ink))] transition-colors hover:bg-[hsl(var(--accent-ink))]/20"
                       >
                         <Plus className="h-3 w-3" />
                         {asset.label}
@@ -624,9 +624,9 @@ function AssetPicker({
               ) : null}
 
               {openTypeAssets.length === 0 ? (
-                <div className="flex flex-col items-center rounded-2xl border border-dashed border-white/10 py-10 text-center">
-                  <Package className="h-8 w-8 text-white/20" />
-                  <p className="mt-2 text-sm text-white/35">No assets found for this filter.</p>
+                <div className="flex flex-col items-center rounded-2xl border border-dashed border-foreground/10 dark:border-white/10 py-10 text-center">
+                  <Package className="h-8 w-8 text-foreground/20 dark:text-white/20" />
+                  <p className="mt-2 text-sm text-foreground/35 dark:text-white/35">No assets found for this filter.</p>
                 </div>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -639,7 +639,7 @@ function AssetPicker({
                         key={asset.key}
                         type="button"
                         onClick={() => toggleAsset(asset.key)}
-                        className={`flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${isSelected ? "border-[#d8ff72]/40 bg-[#d8ff72]/10" : "border-white/8 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.05]"}`}
+                        className={`flex items-start gap-3 rounded-2xl border p-3 text-left transition-all ${isSelected ? "border-[hsl(var(--accent-ink))]/40 bg-[hsl(var(--accent-ink))]/10" : "border-foreground/8 dark:border-white/8 bg-white/[0.03] hover:border-foreground/20 dark:hover:border-white/20 hover:bg-white/[0.05]"}`}
                       >
                         <div
                           className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border"
@@ -649,11 +649,11 @@ function AssetPicker({
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center justify-between gap-2">
-                            <p className={`truncate text-sm font-semibold ${isSelected ? "text-[#d8ff72]" : "text-white"}`}>{asset.label}</p>
-                            {isSelected ? <Check className="h-4 w-4 shrink-0 text-[#d8ff72]" /> : null}
+                            <p className={`truncate text-sm font-semibold ${isSelected ? "text-[hsl(var(--accent-ink))]" : "text-foreground dark:text-white"}`}>{asset.label}</p>
+                            {isSelected ? <Check className="h-4 w-4 shrink-0 text-[hsl(var(--accent-ink))]" /> : null}
                           </div>
-                          <p className="mt-1 text-xs text-white/35">{typeMeta.label}</p>
-                          <p className="mt-1 truncate font-mono text-[11px] text-white/30">{asset.logicalKey}</p>
+                          <p className="mt-1 text-xs text-foreground/35 dark:text-white/35">{typeMeta.label}</p>
+                          <p className="mt-1 truncate font-mono text-[11px] text-foreground/30 dark:text-white/30">{asset.logicalKey}</p>
                         </div>
                       </button>
                     );
@@ -662,12 +662,12 @@ function AssetPicker({
               )}
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/8 px-5 py-3">
-              <span className="text-xs text-white/40">{selectedKeys.length} assets selected</span>
+            <div className="flex items-center justify-between border-t border-foreground/8 dark:border-white/8 px-5 py-3">
+              <span className="text-xs text-foreground/40 dark:text-white/40">{selectedKeys.length} assets selected</span>
               <button
                 type="button"
                 onClick={() => setOpenType(null)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold text-white/65 transition-colors hover:border-white/20 hover:text-white"
+                className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-xs font-semibold text-foreground/65 dark:text-white/65 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
               >
                 Done
               </button>
@@ -854,21 +854,21 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
       <div className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
 
         {/* ── HERO ── */}
-        <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-gradient-to-br from-[#060b12] to-[#020408] p-6 shadow-xl">
-          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[#d8ff72]/5 blur-3xl" />
+        <div className="relative overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-gradient-to-br from-[#060b12] to-[#020408] p-6 shadow-xl">
+          <div className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full bg-[hsl(var(--accent-ink))]/5 blur-3xl" />
           <div className="relative flex flex-wrap items-start justify-between gap-4">
             <div>
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#d8ff72]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[hsl(var(--accent-ink))]">
                 <Sparkles className="h-3 w-3" />
                 {t("eyebrow")}
               </span>
-              <h1 className="mt-2.5 text-2xl font-extrabold tracking-tight text-white">{t("profile.title")}</h1>
-              <p className="mt-1 text-sm text-white/45">{t("profile.subtitle")}</p>
+              <h1 className="mt-2.5 text-2xl font-extrabold tracking-tight text-foreground dark:text-white">{t("profile.title")}</h1>
+              <p className="mt-1 text-sm text-foreground/45 dark:text-white/45">{t("profile.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => { loadPacks().catch(() => undefined); loadAssets().catch(() => undefined); }}
-              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-white/50 transition-all hover:border-white/20 hover:text-white"
+              className="inline-flex shrink-0 items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-4 py-2 text-xs font-semibold text-foreground/50 dark:text-white/50 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${packsLoading ? "animate-spin" : ""}`} />
               {t("actions.refresh")}
@@ -877,28 +877,28 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
         </div>
 
         {/* ── PROFILE CARD ── */}
-        <div className="flex flex-wrap items-center gap-5 rounded-2xl border border-white/8 bg-white/[0.03] p-5">
-          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[#d8ff72]/30 bg-[#d8ff72]/10 text-[22px] font-extrabold text-[#d8ff72]">
+        <div className="flex flex-wrap items-center gap-5 rounded-2xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] p-5">
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border-2 border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 text-[22px] font-extrabold text-[hsl(var(--accent-ink))]">
             {initial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-lg font-extrabold tracking-tight text-white">{displayName}</p>
-            <p className="text-[13px] text-white/40">{user?.email ?? "Publisher"}</p>
+            <p className="text-lg font-extrabold tracking-tight text-foreground dark:text-white">{displayName}</p>
+            <p className="text-[13px] text-foreground/40 dark:text-white/40">{user?.email ?? "Publisher"}</p>
           </div>
           <div className="flex items-center gap-8">
             <div className="text-center">
-              <p className="text-xl font-extrabold text-white">{packs.length}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{t("profile.statPacks")}</p>
+              <p className="text-xl font-extrabold text-foreground dark:text-white">{packs.length}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-foreground/30 dark:text-white/30">{t("profile.statPacks")}</p>
             </div>
             <div className="text-center">
-              <p className="text-xl font-extrabold text-white">{totalInstalls}</p>
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-white/30">{t("profile.statInstalls")}</p>
+              <p className="text-xl font-extrabold text-foreground dark:text-white">{totalInstalls}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-foreground/30 dark:text-white/30">{t("profile.statInstalls")}</p>
             </div>
           </div>
           <button
             type="button"
             onClick={openWizard}
-            className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2.5 text-[13px] font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60]"
+            className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-5 py-2.5 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] shadow-sm transition-all hover:bg-[#c8ef60]"
           >
             <Plus className="h-4 w-4" />
             {t("profile.newPack")}
@@ -917,23 +917,23 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
         <section>
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-[15px] font-bold text-white">{t("profile.myPacksTitle")}</h2>
-              <p className="mt-0.5 text-xs text-white/35">{packsLoading ? t("status.loading") : t("profile.packsPublished", { count: packs.length })}</p>
+              <h2 className="text-[15px] font-bold text-foreground dark:text-white">{t("profile.myPacksTitle")}</h2>
+              <p className="mt-0.5 text-xs text-foreground/35 dark:text-white/35">{packsLoading ? t("status.loading") : t("profile.packsPublished", { count: packs.length })}</p>
             </div>
           </div>
 
           {packsLoading ? (
-            <div className="flex items-center justify-center py-20 text-sm text-white/30">
+            <div className="flex items-center justify-center py-20 text-sm text-foreground/30 dark:text-white/30">
               <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> {t("status.loading")}
             </div>
           ) : packs.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-20 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
-                <Package className="h-7 w-7 text-white/20" />
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-foreground/10 dark:border-white/10 py-20 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-foreground/10 dark:border-white/10 bg-white/[0.03]">
+                <Package className="h-7 w-7 text-foreground/20 dark:text-white/20" />
               </div>
-              <p className="mt-4 text-[14px] font-semibold text-white/40">{t("empty.noTeamPacks")}</p>
-              <p className="mt-1 text-xs text-white/25">{t("profile.createFirst")}</p>
-              <button type="button" onClick={openWizard} className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[#d8ff72] px-4 py-2 text-[13px] font-bold text-[#0a1200]">
+              <p className="mt-4 text-[14px] font-semibold text-foreground/40 dark:text-white/40">{t("empty.noTeamPacks")}</p>
+              <p className="mt-1 text-xs text-foreground/25 dark:text-white/25">{t("profile.createFirst")}</p>
+              <button type="button" onClick={openWizard} className="mt-5 inline-flex items-center gap-1.5 rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))]">
                 <Plus className="h-3.5 w-3.5" /> {t("profile.newPack")}
               </button>
             </div>
@@ -942,17 +942,17 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {packs.map((pack) => {
                 const busy = busyByPack[pack.id];
                 return (
-                  <article key={pack.id} className="flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03] transition-all hover:border-white/12">
+                  <article key={pack.id} className="flex flex-col overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] transition-all hover:border-foreground/12 dark:hover:border-white/12">
                     {/* head */}
                     <div className="flex items-start gap-3 p-5">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-[#d8ff72]">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.05] text-[hsl(var(--accent-ink))]">
                         <Sparkles className="h-4 w-4" />
                       </div>
                       <div className="min-w-0 flex-1">
-                        <h3 className="truncate text-[15px] font-bold text-white">{pack.title}</h3>
-                        <p className="mt-0.5 font-mono text-[11px] text-white/30">{pack.slug}</p>
-                        <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-white/45">
-                          {pack.summary ?? <span className="italic text-white/25">{t("profile.noDescription")}</span>}
+                        <h3 className="truncate text-[15px] font-bold text-foreground dark:text-white">{pack.title}</h3>
+                        <p className="mt-0.5 font-mono text-[11px] text-foreground/30 dark:text-white/30">{pack.slug}</p>
+                        <p className="mt-2 line-clamp-2 text-[13px] leading-relaxed text-foreground/45 dark:text-white/45">
+                          {pack.summary ?? <span className="italic text-foreground/25 dark:text-white/25">{t("profile.noDescription")}</span>}
                         </p>
                       </div>
                       {/* publish mode badge */}
@@ -970,11 +970,11 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     ) : null}
 
                     {/* footer */}
-                    <div className="mt-auto border-t border-white/6 p-4">
+                    <div className="mt-auto border-t border-foreground/6 dark:border-white/6 p-4">
                       <button
                         type="button"
                         onClick={() => setSnapModal({ pack, selectedAssetKeys: [], version: "v1.0", status: "published", locale: sanitizeLocaleCode(pack.defaultLocale || locale), title: pack.title, submitting: false, error: null })}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-white/60 transition-all hover:border-white/20 hover:text-white"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-4 py-2 text-[13px] font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
                       >
                         <Upload className="h-4 w-4" />
                         {t("profile.publishSnapshot")}
@@ -994,25 +994,25 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
       ════════════════════════════════════════════════════ */}
       {wizard ? (
         <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
+          <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">
 
             {/* wizard header */}
-            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-white/8 px-6 py-5">
+            <div className="flex shrink-0 items-center justify-between gap-4 border-b border-foreground/8 dark:border-white/8 px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t("profile.wizard.eyebrow")}</p>
-                <h2 className="mt-0.5 text-[18px] font-extrabold tracking-tight text-white">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 dark:text-white/30">{t("profile.wizard.eyebrow")}</p>
+                <h2 className="mt-0.5 text-[18px] font-extrabold tracking-tight text-foreground dark:text-white">
                   {wizard.step === 1 ? t("profile.wizard.step1") : wizard.step === 2 ? t("profile.wizard.step2") : t("profile.wizard.step3")}
                 </h2>
               </div>
               {/* step pills */}
               <div className="flex items-center gap-2">
                 {([1, 2, 3] as WizardStep[]).map((s) => (
-                  <div key={s} className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold transition-colors ${wizard.step === s ? "bg-[#d8ff72] text-[#0a1200]" : wizard.step > s ? "bg-[#d8ff72]/20 text-[#d8ff72]" : "bg-white/8 text-white/30"}`}>
+                  <div key={s} className={`flex h-7 w-7 items-center justify-center rounded-full text-[12px] font-bold transition-colors ${wizard.step === s ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))]" : wizard.step > s ? "bg-[hsl(var(--accent-ink))]/20 text-[hsl(var(--accent-ink))]" : "bg-foreground/8 dark:bg-white/8 text-foreground/30 dark:text-white/30"}`}>
                     {wizard.step > s ? <Check className="h-3.5 w-3.5" /> : s}
                   </div>
                 ))}
               </div>
-              <button type="button" onClick={() => setWizard(null)} className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/40 hover:text-white">
+              <button type="button" onClick={() => setWizard(null)} className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2 text-foreground/40 dark:text-white/40 hover:text-foreground dark:hover:text-white">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1025,21 +1025,21 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                 <div className="space-y-5">
                   <div className="grid gap-4 sm:grid-cols-2">
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.title")}</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("fields.title")}</label>
                       <input
                         value={wizard.title}
                         onChange={(e) => setWizard((w) => w ? { ...w, title: e.target.value, slug: w.slug || slugify(e.target.value) } : w)}
-                        className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white outline-none transition-colors focus:border-[#d8ff72]/40"
+                        className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-4 py-2.5 text-sm text-foreground dark:text-white outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40"
                         placeholder="Ops Automation Kit"
                       />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.slug")}</label>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("fields.slug")}</label>
                       <div className="relative mt-1.5">
                         <input
                           value={wizard.slug}
                           onChange={(e) => setWizard((w) => w ? { ...w, slug: slugify(e.target.value) } : w)}
-                          className="w-full rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 pr-8 text-sm text-white font-mono outline-none transition-colors focus:border-[#d8ff72]/40"
+                          className="w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-4 py-2.5 pr-8 text-sm text-foreground dark:text-white font-mono outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40"
                           placeholder="ops-automation-kit"
                         />
                         {wizard.slug && <Check className="absolute right-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#4ade80]" />}
@@ -1049,21 +1049,21 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
                   <div>
                     <div className="flex items-baseline justify-between">
-                      <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("fields.summary")} <span className="normal-case font-normal text-white/20">{t("profile.optional")}</span></label>
-                      <span className="text-[10px] text-white/25">{wizard.summary.length} / 120</span>
+                      <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("fields.summary")} <span className="normal-case font-normal text-foreground/20 dark:text-white/20">{t("profile.optional")}</span></label>
+                      <span className="text-[10px] text-foreground/25 dark:text-white/25">{wizard.summary.length} / 120</span>
                     </div>
                     <textarea
                       value={wizard.summary}
                       onChange={(e) => setWizard((w) => w ? { ...w, summary: e.target.value } : w)}
                       rows={3}
                       maxLength={120}
-                      className="mt-1.5 w-full resize-none rounded-xl border border-white/10 bg-black/30 px-4 py-2.5 text-sm text-white placeholder:text-white/25 outline-none transition-colors focus:border-[#d8ff72]/40"
+                      className="mt-1.5 w-full resize-none rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-4 py-2.5 text-sm text-foreground dark:text-white placeholder:text-foreground/25 dark:placeholder:text-white/25 outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40"
                       placeholder="One-line description for discoverability"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.visibility")}</label>
+                    <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.visibility")}</label>
                     <div className="mt-2 grid grid-cols-3 gap-3">
                       {PUB_MODES.map(({ mode, label, sub, icon: Icon, color }) => {
                         const on = wizard.publishMode === mode;
@@ -1072,13 +1072,13 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                             key={mode}
                             type="button"
                             onClick={() => setWizard((w) => w ? { ...w, publishMode: mode } : w)}
-                            className={`flex flex-col items-center gap-2 rounded-xl border py-4 text-center transition-all ${on ? "" : "border-white/8 bg-white/[0.03] hover:border-white/15"}`}
+                            className={`flex flex-col items-center gap-2 rounded-xl border py-4 text-center transition-all ${on ? "" : "border-foreground/8 dark:border-white/8 bg-white/[0.03] hover:border-foreground/15 dark:hover:border-white/15"}`}
                             style={on ? { borderColor: `${color}40`, background: `${color}12` } : undefined}
                           >
                             <Icon className="h-5 w-5" style={{ color: on ? color : "#ffffff50" }} />
                             <div>
                               <p className="text-[13px] font-bold" style={{ color: on ? color : "#ffffff80" }}>{label}</p>
-                              <p className="text-[10px] text-white/30">{sub}</p>
+                              <p className="text-[10px] text-foreground/30 dark:text-white/30">{sub}</p>
                             </div>
                             {on && <Check className="h-3.5 w-3.5" style={{ color }} />}
                           </button>
@@ -1093,9 +1093,9 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {wizard.step === 2 && (
                 <div>
                   <div className="mb-4 flex items-center justify-between">
-                    <p className="text-[13px] text-white/50">{t("profile.selectAssets")}</p>
+                    <p className="text-[13px] text-foreground/50 dark:text-white/50">{t("profile.selectAssets")}</p>
                     {wizard.selectedAssetKeys.length > 0 && (
-                      <span className="rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-2.5 py-0.5 text-[11px] font-bold text-[#d8ff72]">
+                      <span className="rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-2.5 py-0.5 text-[11px] font-bold text-[hsl(var(--accent-ink))]">
                         {wizard.selectedAssetKeys.length} selected
                       </span>
                     )}
@@ -1108,7 +1108,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                     accessToken={accessToken}
                     teamId={activeTeamId}
                   />
-                  <p className="mt-4 text-[12px] text-white/25">{t("profile.addAssetsLater")}</p>
+                  <p className="mt-4 text-[12px] text-foreground/25 dark:text-white/25">{t("profile.addAssetsLater")}</p>
                 </div>
               )}
 
@@ -1116,17 +1116,17 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {wizard.step === 3 && (
                 <div className="space-y-5">
                   {/* review */}
-                  <div className="rounded-xl border border-white/8 bg-white/[0.03] p-4">
-                    <p className="text-[10px] font-bold uppercase tracking-wider text-white/30">{t("profile.packSummary")}</p>
-                    <p className="mt-2 text-[15px] font-bold text-white">{wizard.title}</p>
-                    <p className="mt-0.5 font-mono text-[11px] text-white/30">{wizard.slug}</p>
-                    {wizard.summary && <p className="mt-2 text-[13px] text-white/45">{wizard.summary}</p>}
+                  <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-foreground/30 dark:text-white/30">{t("profile.packSummary")}</p>
+                    <p className="mt-2 text-[15px] font-bold text-foreground dark:text-white">{wizard.title}</p>
+                    <p className="mt-0.5 font-mono text-[11px] text-foreground/30 dark:text-white/30">{wizard.slug}</p>
+                    {wizard.summary && <p className="mt-2 text-[13px] text-foreground/45 dark:text-white/45">{wizard.summary}</p>}
                     <div className="mt-3 flex items-center gap-3">
                       <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-[11px] font-bold ${modeStyle(wizard.publishMode)}`}>
                         {modeIcon(wizard.publishMode)} {wizard.publishMode}
                       </span>
                       {wizard.selectedAssetKeys.length > 0 && (
-                        <span className="text-[12px] text-white/35">{wizard.selectedAssetKeys.length} asset{wizard.selectedAssetKeys.length !== 1 ? "s" : ""} selected</span>
+                        <span className="text-[12px] text-foreground/35 dark:text-white/35">{wizard.selectedAssetKeys.length} asset{wizard.selectedAssetKeys.length !== 1 ? "s" : ""} selected</span>
                       )}
                     </div>
                   </div>
@@ -1134,16 +1134,16 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   {wizard.selectedAssetKeys.length > 0 && (
                     <div className="grid gap-4 sm:grid-cols-4">
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("snapshot.version")}</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("snapshot.version")}</label>
                         <input
                           value={wizard.version}
                           onChange={(e) => setWizard((w) => w ? { ...w, version: e.target.value } : w)}
-                          className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                          className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                           placeholder="v1.0"
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.locale")}</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.locale")}</label>
                         <LocaleDropdown
                           value={wizard.locale}
                           options={localeOptions}
@@ -1151,7 +1151,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.status")}</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.status")}</label>
                         <StatusDropdown
                           value={wizard.snapshotStatus}
                           options={[
@@ -1162,18 +1162,18 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.releaseKey")}</label>
+                        <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.releaseKey")}</label>
                         <input
                           value={buildLocalizedReleaseKey(wizard.version, wizard.locale)}
                           readOnly
-                          className="mt-1.5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-white/55 outline-none"
+                          className="mt-1.5 w-full rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-foreground/55 dark:text-white/55 outline-none"
                         />
                       </div>
                     </div>
                   )}
 
                   {wizard.selectedAssetKeys.length === 0 && (
-                    <div className="rounded-xl border border-white/8 bg-white/[0.02] px-4 py-3 text-[13px] text-white/35">
+                    <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-white/[0.02] px-4 py-3 text-[13px] text-foreground/35 dark:text-white/35">
                       {t("profile.noAssetsSelected")}
                     </div>
                   )}
@@ -1188,11 +1188,11 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
             </div>
 
             {/* wizard footer */}
-            <div className="flex shrink-0 items-center justify-between border-t border-white/8 px-6 py-4">
+            <div className="flex shrink-0 items-center justify-between border-t border-foreground/8 dark:border-white/8 px-6 py-4">
               <button
                 type="button"
                 onClick={() => wizard.step === 1 ? setWizard(null) : setWizard((w) => w ? { ...w, step: (w.step - 1) as WizardStep } : w)}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50 transition-colors hover:border-white/20 hover:text-white"
+                className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-foreground/50 dark:text-white/50 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
               >
                 {wizard.step === 1 ? t("actions.cancel") : t("profile.back")}
               </button>
@@ -1202,7 +1202,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   type="button"
                   disabled={wizard.step === 1 && (!wizard.title.trim() || !wizard.slug.trim())}
                   onClick={() => setWizard((w) => w ? { ...w, step: (w.step + 1) as WizardStep } : w)}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
                 >
                   {t("profile.continue")}
                   <ChevronRight className="h-4 w-4" />
@@ -1212,7 +1212,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   type="button"
                   onClick={handleWizardSubmit}
                   disabled={wizard.submitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
                 >
                   <Plus className="h-4 w-4" />
                   {wizard.submitting ? t("actions.creating") : t("actions.createPack")}
@@ -1228,15 +1228,15 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
       ════════════════════════════════════════════════════ */}
       {snapModal ? (
         <div className="fixed inset-0 z-[180] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
+          <div className="flex max-h-[90vh] w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">
 
-            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-white/8 px-6 py-5">
+            <div className="flex shrink-0 items-start justify-between gap-4 border-b border-foreground/8 dark:border-white/8 px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t("profile.publishSnapshot")}</p>
-                <h2 className="mt-0.5 text-[17px] font-extrabold tracking-tight text-white">{snapModal.pack.title}</h2>
-                <p className="mt-0.5 font-mono text-[11px] text-white/30">{snapModal.pack.slug}</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 dark:text-white/30">{t("profile.publishSnapshot")}</p>
+                <h2 className="mt-0.5 text-[17px] font-extrabold tracking-tight text-foreground dark:text-white">{snapModal.pack.title}</h2>
+                <p className="mt-0.5 font-mono text-[11px] text-foreground/30 dark:text-white/30">{snapModal.pack.slug}</p>
               </div>
-              <button type="button" onClick={() => setSnapModal(null)} className="rounded-xl border border-white/10 bg-white/5 p-2 text-white/40 hover:text-white">
+              <button type="button" onClick={() => setSnapModal(null)} className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2 text-foreground/40 dark:text-white/40 hover:text-foreground dark:hover:text-white">
                 <X className="h-4 w-4" />
               </button>
             </div>
@@ -1245,16 +1245,16 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               {/* version meta */}
               <div className="grid gap-3 sm:grid-cols-4">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("snapshot.version")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("snapshot.version")}</label>
                   <input
                     value={snapModal.version}
                     onChange={(e) => setSnapModal((s) => s ? { ...s, version: e.target.value } : s)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                     placeholder="v1.0"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.locale")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.locale")}</label>
                   <LocaleDropdown
                     value={snapModal.locale}
                     options={localeOptions}
@@ -1262,7 +1262,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.status")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.status")}</label>
                   <StatusDropdown
                     value={snapModal.status}
                     options={[
@@ -1274,31 +1274,31 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.releaseKey")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.releaseKey")}</label>
                   <input
                     value={buildLocalizedReleaseKey(snapModal.version, snapModal.locale)}
                     readOnly
-                    className="mt-1.5 w-full rounded-xl border border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-white/55 outline-none"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 px-3 py-2 font-mono text-xs text-foreground/55 dark:text-white/55 outline-none"
                   />
                 </div>
               </div>
 
               {/* title */}
               <div>
-                <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.snapshotTitle")}</label>
+                <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.snapshotTitle")}</label>
                 <input
                   value={snapModal.title}
                   onChange={(e) => setSnapModal((s) => s ? { ...s, title: e.target.value } : s)}
-                  className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                  className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                 />
               </div>
 
               {/* asset picker */}
               <div>
                 <div className="mb-3 flex items-center justify-between">
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("profile.includeAssets")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("profile.includeAssets")}</label>
                   {snapModal.selectedAssetKeys.length > 0 && (
-                    <span className="rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-2 py-0.5 text-[10px] font-bold text-[#d8ff72]">
+                    <span className="rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-2 py-0.5 text-[10px] font-bold text-[hsl(var(--accent-ink))]">
                       {snapModal.selectedAssetKeys.length} selected
                     </span>
                   )}
@@ -1320,15 +1320,15 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               ) : null}
             </div>
 
-            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-white/8 px-6 py-4">
-              <button type="button" onClick={() => setSnapModal(null)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/50 transition-colors hover:border-white/20 hover:text-white">
+            <div className="flex shrink-0 items-center justify-end gap-3 border-t border-foreground/8 dark:border-white/8 px-6 py-4">
+              <button type="button" onClick={() => setSnapModal(null)} className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-foreground/50 dark:text-white/50 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white">
                 {t("actions.cancel")}
               </button>
               <button
                 type="button"
                 onClick={handleSnapSubmit}
                 disabled={snapModal.submitting || !snapModal.version.trim()}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
+                className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
               >
                 <Upload className="h-4 w-4" />
                 {snapModal.submitting ? t("profile.publishing") : t("profile.publishSnapshot")}

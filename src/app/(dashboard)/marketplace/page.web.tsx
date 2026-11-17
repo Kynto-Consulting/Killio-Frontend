@@ -91,10 +91,10 @@ function serializeValue(p: MarketplacePlaceholder, raw: string): unknown {
 /* ── category data ── */
 type CategoryId = "document" | "mesh" | "board" | "script";
 const CATEGORY_META: { id: CategoryId; icon: React.ElementType; color: string }[] = [
-  { id: "document", icon: FileText,  color: "#818cf8" },
-  { id: "mesh",     icon: GitBranch, color: "#22d3ee" },
+  { id: "document", icon: FileText,  color: "hsl(var(--c-indigo))" },
+  { id: "mesh",     icon: GitBranch, color: "hsl(var(--c-cyan))" },
   { id: "board",    icon: Layout,    color: "#f472b6" },
-  { id: "script",   icon: Zap,       color: "#fbbf24" },
+  { id: "script",   icon: Zap,       color: "hsl(var(--c-amber))" },
 ];
 
 /* ── placeholder field ── */
@@ -109,20 +109,20 @@ function PlaceholderField({
   const label = leafLabel(placeholder);
   const ns = namespaceLabel(placeholder);
   const syntax = typeof placeholder.validation?.placeholderSyntax === "string" ? placeholder.validation.placeholderSyntax : placeholder.placeholderKey;
-  const base = "mt-1.5 w-full rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none transition-colors focus:border-[#d8ff72]/40";
+  const base = "mt-1.5 w-full rounded-lg border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40";
 
   const header = (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-sm font-semibold text-white">{label}</span>
-      <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">{ns}</span>
+      <span className="text-sm font-semibold text-foreground dark:text-white">{label}</span>
+      <span className="rounded-full border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-foreground/40 dark:text-white/40">{ns}</span>
     </div>
   );
 
   if (placeholder.valueType === "boolean") {
     return (
-      <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
         {header}
-        <p className="mt-1 text-xs text-white/40">{placeholder.description || syntax}</p>
+        <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
         <select value={value} onChange={(e) => onChange(e.target.value)} className={base}>
           <option value="">{t("import.useDefault")}</option>
           <option value="true">true</option>
@@ -133,17 +133,17 @@ function PlaceholderField({
   }
   if (placeholder.valueType === "json") {
     return (
-      <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+      <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
         {header}
-        <p className="mt-1 text-xs text-white/40">{placeholder.description || syntax}</p>
+        <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
         <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className={`${base} font-mono text-xs`} placeholder={t("import.jsonPlaceholder")} />
       </div>
     );
   }
   return (
-    <div className="rounded-xl border border-white/8 bg-black/20 p-3">
+    <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-3">
       {header}
-      <p className="mt-1 text-xs text-white/40">{placeholder.description || syntax}</p>
+      <p className="mt-1 text-xs text-foreground/40 dark:text-white/40">{placeholder.description || syntax}</p>
       <input value={value} onChange={(e) => onChange(e.target.value)} className={base} placeholder={placeholder.isRequired ? t("import.requiredPlaceholder") : t("import.optionalPlaceholder")} />
     </div>
   );
@@ -244,14 +244,14 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
       <div className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
 
         {/* ── HERO ── */}
-        <div className="relative overflow-hidden rounded-2xl border border-white/8 bg-gradient-to-br from-[#060b12] to-[#020408] p-8 shadow-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-gradient-to-br from-[#060b12] to-[#020408] p-8 shadow-xl">
           {/* decorative blobs */}
-          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[#d8ff72]/5 blur-3xl" />
+          <div className="pointer-events-none absolute -right-20 -top-20 h-64 w-64 rounded-full bg-[hsl(var(--accent-ink))]/5 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-12 left-1/4 h-40 w-64 rounded-full bg-purple-500/5 blur-3xl" />
           {/* decorative SVG cubes (right side) */}
           <svg className="pointer-events-none absolute right-0 top-0 h-full w-80 opacity-90" viewBox="0 0 340 160" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <ellipse cx="280" cy="20" r="5" fill="#d8ff72" opacity=".5" />
-            <ellipse cx="300" cy="120" r="3.5" fill="#d8ff72" opacity=".35" />
+            <ellipse cx="280" cy="20" r="5" fill="hsl(var(--accent-ink))" opacity=".5" />
+            <ellipse cx="300" cy="120" r="3.5" fill="hsl(var(--accent-ink))" opacity=".35" />
             <ellipse cx="315" cy="65" r="2.5" fill="#a78bfa" opacity=".45" />
             {/* purple cube */}
             <g transform="translate(170,28)">
@@ -262,7 +262,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             </g>
             {/* lime cube */}
             <g transform="translate(245,12) scale(0.62)">
-              <polygon points="40,0 80,22 80,66 40,88 0,66 0,22" fill="#1a3300" stroke="#d8ff72" strokeWidth="1.2" />
+              <polygon points="40,0 80,22 80,66 40,88 0,66 0,22" fill="#1a3300" stroke="hsl(var(--accent-ink))" strokeWidth="1.2" />
               <polygon points="40,0 80,22 40,44 0,22" fill="#3d7a00" opacity=".8" />
               <polygon points="0,22 40,44 40,88 0,66" fill="#2a5500" opacity=".9" />
               <polygon points="80,22 40,44 40,88 80,66" fill="#4a9400" opacity=".85" />
@@ -277,20 +277,20 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           </svg>
 
           <div className="relative max-w-xl">
-            <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d8ff72]/30 bg-[#d8ff72]/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[#d8ff72]">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-3 py-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-[hsl(var(--accent-ink))]">
               <Sparkles className="h-3 w-3" />
               {t("eyebrow")}
             </span>
-            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{t("subtitle")}</h1>
-            <p className="mt-2 text-sm text-white/50">{t("publicPacks.tagline")}</p>
+            <h1 className="mt-3 text-3xl font-extrabold tracking-tight text-foreground dark:text-white sm:text-4xl">{t("subtitle")}</h1>
+            <p className="mt-2 text-sm text-foreground/50 dark:text-white/50">{t("publicPacks.tagline")}</p>
 
             {/* search */}
             <div className="relative mt-5 w-full max-w-sm">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white/30" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/30 dark:text-white/30" />
               <input
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                className="w-full rounded-xl border border-white/10 bg-black/30 py-2.5 pl-9 pr-4 text-sm text-white placeholder:text-white/30 outline-none transition-colors focus:border-[#d8ff72]/40"
+                className="w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 py-2.5 pl-9 pr-4 text-sm text-foreground dark:text-white placeholder:text-foreground/30 dark:placeholder:text-white/30 outline-none transition-colors focus:border-[hsl(var(--accent-ink))]/40"
                 placeholder={t("publicPacks.search")}
               />
             </div>
@@ -300,7 +300,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
         {/* ── CATEGORIES ── */}
         <div className="mt-6">
           <div className="mb-3 flex items-center justify-between">
-            <p className="text-xs font-bold uppercase tracking-widest text-white/30">{t("publicPacks.categories")}</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-foreground/30 dark:text-white/30">{t("publicPacks.categories")}</p>
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {CATEGORY_META.map((cat) => {
@@ -312,7 +312,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   key={cat.id}
                   type="button"
                   onClick={() => setQuery(label)}
-                  className="flex items-center gap-3 rounded-xl border border-white/8 bg-white/[0.03] p-3.5 text-left transition-all hover:border-white/15 hover:bg-white/[0.06]"
+                  className="flex items-center gap-3 rounded-xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] p-3.5 text-left transition-all hover:border-foreground/15 dark:hover:border-white/15 hover:bg-white/[0.06]"
                 >
                   <div
                     className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border"
@@ -342,15 +342,15 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
         <section className="mt-6">
           <div className="mb-4 flex items-center justify-between gap-3">
             <div>
-              <h2 className="text-base font-bold text-white">{t("publicPacks.title")}</h2>
+              <h2 className="text-base font-bold text-foreground dark:text-white">{t("publicPacks.title")}</h2>
               {!loading ? (
-                <p className="mt-0.5 text-xs text-white/40">{t("publicPacks.count", { count: sorted.length })}</p>
+                <p className="mt-0.5 text-xs text-foreground/40 dark:text-white/40">{t("publicPacks.count", { count: sorted.length })}</p>
               ) : null}
             </div>
             <button
               type="button"
               onClick={() => loadPublicPacks().catch(() => undefined)}
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-white/60 transition-all hover:border-white/20 hover:text-white"
+              className="inline-flex items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-3 py-2 text-xs font-semibold text-foreground/60 dark:text-white/60 transition-all hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
               {t("actions.refresh")}
@@ -358,37 +358,37 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           </div>
 
           {loading ? (
-            <div className="flex items-center justify-center py-24 text-sm text-white/30">
+            <div className="flex items-center justify-center py-24 text-sm text-foreground/30 dark:text-white/30">
               <RefreshCcw className="mr-2 h-4 w-4 animate-spin" /> {t("status.loading")}
             </div>
           ) : sorted.length === 0 ? (
-            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-white/10 py-24 text-center">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.03]">
-                <Download className="h-7 w-7 text-white/20" />
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-dashed border-foreground/10 dark:border-white/10 py-24 text-center">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl border border-foreground/10 dark:border-white/10 bg-white/[0.03]">
+                <Download className="h-7 w-7 text-foreground/20 dark:text-white/20" />
               </div>
-              <p className="mt-4 text-sm font-semibold text-white/50">{t("empty.noPublicPacks")}</p>
-              <p className="mt-1 text-xs text-white/25">{t("publicPacks.checkBack")}</p>
+              <p className="mt-4 text-sm font-semibold text-foreground/50 dark:text-white/50">{t("empty.noPublicPacks")}</p>
+              <p className="mt-1 text-xs text-foreground/25 dark:text-white/25">{t("publicPacks.checkBack")}</p>
             </div>
           ) : (
             <div className={`grid gap-4 ${cols}`}>
               {sorted.map((pack) => (
                 <article
                   key={pack.id}
-                  className="group flex flex-col overflow-hidden rounded-2xl border border-white/8 bg-white/[0.03] transition-all hover:border-white/15 hover:bg-white/[0.05]"
+                  className="group flex flex-col overflow-hidden rounded-2xl border border-foreground/8 dark:border-white/8 bg-white/[0.03] transition-all hover:border-foreground/15 dark:hover:border-white/15 hover:bg-white/[0.05]"
                 >
                   <div className="flex-1 p-5">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <h3 className="truncate text-[15px] font-bold text-white transition-colors group-hover:text-[#d8ff72]">
+                        <h3 className="truncate text-[15px] font-bold text-foreground dark:text-white transition-colors group-hover:text-[hsl(var(--accent-ink))]">
                           {pack.title}
                         </h3>
-                        <p className="mt-0.5 font-mono text-[11px] text-white/30">{pack.slug}</p>
+                        <p className="mt-0.5 font-mono text-[11px] text-foreground/30 dark:text-white/30">{pack.slug}</p>
                       </div>
-                      <span className="shrink-0 rounded-full border border-white/10 bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-white/40">
+                      <span className="shrink-0 rounded-full border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-foreground/40 dark:text-white/40">
                         {pack.defaultLocale}
                       </span>
                     </div>
-                    <p className="mt-3 line-clamp-2 text-[13px] leading-relaxed text-white/50">
+                    <p className="mt-3 line-clamp-2 text-[13px] leading-relaxed text-foreground/50 dark:text-white/50">
                       {pack.summary ?? t("empty.noSummary")}
                     </p>
                   </div>
@@ -399,12 +399,12 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                     </div>
                   ) : null}
 
-                  <div className="border-t border-white/6 p-4">
+                  <div className="border-t border-foreground/6 dark:border-white/6 p-4">
                     <button
                       type="button"
                       onClick={() => openImportModal(pack)}
                       disabled={!accessToken}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#d8ff72] px-4 py-2.5 text-[13px] font-bold text-[#0a1200] transition-all hover:bg-[#c8ef60] disabled:cursor-not-allowed disabled:opacity-40"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] transition-all hover:bg-[#c8ef60] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Upload className="h-4 w-4" />
                       {t("actions.configureImport")}
@@ -423,20 +423,20 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           className="fixed inset-0 z-[180] flex items-end justify-center bg-black/70 p-4 backdrop-blur-sm sm:items-center"
           onClick={(e) => { if (e.target === e.currentTarget) setImportModal(null); }}
         >
-          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-white/12 bg-[#0c1018] shadow-2xl">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl border border-foreground/12 dark:border-white/12 bg-[#0c1018] shadow-2xl">
             {/* modal header */}
-            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-white/8 bg-[#0c1018] px-6 py-5">
+            <div className="sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-foreground/8 dark:border-white/8 bg-[#0c1018] px-6 py-5">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-white/30">{t("import.modalEyebrow")}</p>
-                <h3 className="mt-1.5 text-xl font-extrabold tracking-tight text-white">{importModal.pack.title}</h3>
-                <p className="mt-1 text-sm text-white/45">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-foreground/30 dark:text-white/30">{t("import.modalEyebrow")}</p>
+                <h3 className="mt-1.5 text-xl font-extrabold tracking-tight text-foreground dark:text-white">{importModal.pack.title}</h3>
+                <p className="mt-1 text-sm text-foreground/45 dark:text-white/45">
                   {importModal.detail?.selectedLocalization?.summary ?? importModal.pack.summary ?? t("empty.noSummary")}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setImportModal(null)}
-                className="shrink-0 rounded-xl border border-white/10 bg-white/5 p-2 text-white/40 transition-colors hover:border-white/20 hover:text-white"
+                className="shrink-0 rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2 text-foreground/40 dark:text-white/40 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
@@ -446,27 +446,27 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             <div className="px-6 py-5">
               <div className="grid gap-4 sm:grid-cols-3">
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("import.destinationTeam")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("import.destinationTeam")}</label>
                   <input
                     value={importModal.destinationTeamId}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, destinationTeamId: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("import.selector")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("import.selector")}</label>
                   <input
                     value={importModal.selector}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, selector: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold uppercase tracking-wider text-white/35">{t("import.locale")}</label>
+                  <label className="block text-[10px] font-bold uppercase tracking-wider text-foreground/35 dark:text-white/35">{t("import.locale")}</label>
                   <select
                     value={importModal.locale}
                     onChange={(e) => setImportModal((cur) => cur ? { ...cur, locale: e.target.value } : cur)}
-                    className="mt-1.5 w-full rounded-xl border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-[#d8ff72]/40"
+                    className="mt-1.5 w-full rounded-xl border border-foreground/10 dark:border-white/10 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white outline-none focus:border-[hsl(var(--accent-ink))]/40"
                   >
                     {(importModal.detail?.localizations ?? []).map((l) => <option key={l.locale} value={l.locale}>{l.locale}</option>)}
                     {importModal.detail?.localizations?.length ? null : <option value={locale}>{locale}</option>}
@@ -479,13 +479,13 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   type="button"
                   onClick={() => loadImportDetail(importModal.pack, importModal.selector, importModal.locale, importModal.placeholderInputs)}
                   disabled={importModal.loading}
-                  className="inline-flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 transition-colors hover:border-white/20 hover:text-white disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-3 py-2 text-sm text-foreground/70 dark:text-white/70 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white disabled:opacity-40"
                 >
                   <RefreshCcw className={`h-3.5 w-3.5 ${importModal.loading ? "animate-spin" : ""}`} />
                   {t("actions.reloadVersion")}
                 </button>
                 {importModal.detail?.version ? (
-                  <span className="rounded-lg border border-white/8 bg-white/[0.03] px-2.5 py-1.5 text-xs text-white/35">
+                  <span className="rounded-lg border border-foreground/8 dark:border-white/8 bg-white/[0.03] px-2.5 py-1.5 text-xs text-foreground/35 dark:text-white/35">
                     {t("import.loadedVersion", { version: importModal.detail.version.version })}
                   </span>
                 ) : null}
@@ -500,36 +500,36 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
 
               <div className="mt-5 grid gap-4 lg:grid-cols-2">
                 {/* required */}
-                <div className="rounded-xl border border-white/8 bg-black/20 p-4">
+                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-4">
                   <div className="flex items-center gap-2">
                     <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
-                    <p className="text-[13px] font-bold text-white">{t("import.requiredTitle")}</p>
+                    <p className="text-[13px] font-bold text-foreground dark:text-white">{t("import.requiredTitle")}</p>
                   </div>
-                  <p className="mt-1 text-[11px] text-white/35">{t("import.requiredDescription")}</p>
+                  <p className="mt-1 text-[11px] text-foreground/35 dark:text-white/35">{t("import.requiredDescription")}</p>
                   <div className="mt-3 space-y-2">
                     {required.length > 0 ? (
                       required.map((p) => (
                         <PlaceholderField key={p.placeholderKey} placeholder={p} value={importModal.placeholderInputs[p.placeholderKey] ?? ""} onChange={(v) => setImportModal((cur) => cur ? { ...cur, placeholderInputs: { ...cur.placeholderInputs, [p.placeholderKey]: v } } : cur)} t={t} />
                       ))
                     ) : (
-                      <p className="text-sm text-white/30">{t("import.noRequired")}</p>
+                      <p className="text-sm text-foreground/30 dark:text-white/30">{t("import.noRequired")}</p>
                     )}
                   </div>
                 </div>
                 {/* optional */}
-                <div className="rounded-xl border border-white/8 bg-black/20 p-4">
+                <div className="rounded-xl border border-foreground/8 dark:border-white/8 bg-black/20 p-4">
                   <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-white/20" />
-                    <p className="text-[13px] font-bold text-white">{t("import.optionalTitle")}</p>
+                    <span className="h-1.5 w-1.5 rounded-full bg-foreground/20 dark:bg-white/20" />
+                    <p className="text-[13px] font-bold text-foreground dark:text-white">{t("import.optionalTitle")}</p>
                   </div>
-                  <p className="mt-1 text-[11px] text-white/35">{t("import.optionalDescription")}</p>
+                  <p className="mt-1 text-[11px] text-foreground/35 dark:text-white/35">{t("import.optionalDescription")}</p>
                   <div className="mt-3 space-y-2">
                     {optional.length > 0 ? (
                       optional.map((p) => (
                         <PlaceholderField key={p.placeholderKey} placeholder={p} value={importModal.placeholderInputs[p.placeholderKey] ?? ""} onChange={(v) => setImportModal((cur) => cur ? { ...cur, placeholderInputs: { ...cur.placeholderInputs, [p.placeholderKey]: v } } : cur)} t={t} />
                       ))
                     ) : (
-                      <p className="text-sm text-white/30">{t("import.noOptional")}</p>
+                      <p className="text-sm text-foreground/30 dark:text-white/30">{t("import.noOptional")}</p>
                     )}
                   </div>
                 </div>
@@ -537,19 +537,19 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             </div>
 
             {/* modal footer */}
-            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-white/8 bg-[#0c1018] px-6 py-4">
-              <span className="rounded-full border border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-white/35">
+            <div className="sticky bottom-0 flex flex-wrap items-center justify-between gap-3 border-t border-foreground/8 dark:border-white/8 bg-[#0c1018] px-6 py-4">
+              <span className="rounded-full border border-foreground/10 dark:border-white/10 bg-white/[0.04] px-2.5 py-0.5 text-[11px] text-foreground/35 dark:text-white/35">
                 {t("import.placeholderCount", { count: importModal.detail?.placeholders?.length ?? 0 })}
               </span>
               <div className="flex items-center gap-2">
-                <button type="button" onClick={() => setImportModal(null)} className="rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm font-semibold text-white/60 transition-colors hover:border-white/20 hover:text-white">
+                <button type="button" onClick={() => setImportModal(null)} className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-foreground/60 dark:text-white/60 transition-colors hover:border-foreground/20 dark:hover:border-white/20 hover:text-foreground dark:hover:text-white">
                   {t("actions.cancel")}
                 </button>
                 <button
                   type="button"
                   onClick={handleImportSubmit}
                   disabled={importModal.loading || importModal.submitting}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#d8ff72] px-5 py-2 text-sm font-bold text-[#0a1200] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
+                  className="inline-flex items-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-sm transition-all hover:bg-[#c8ef60] disabled:opacity-40"
                 >
                   <Upload className="h-4 w-4" />
                   {importModal.submitting ? t("actions.importing") : t("actions.import")}

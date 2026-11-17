@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { ChevronLeft, FileText, Lock, ScrollText } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { PublicFooter } from "@/components/marketing/public-footer";
@@ -39,8 +40,8 @@ export function LegalDocumentPage({ page }: LegalDocumentPageProps) {
       <header className="sticky top-0 z-30 border-b border-border/60 bg-background/85 backdrop-blur-md">
         <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6">
           <Link href="/" className="flex items-center gap-2 transition-opacity hover:opacity-80">
-            <img src="/killio_white.webp" alt="Killio" className="h-7 w-auto" />
-            <span className="text-lg font-semibold tracking-tight">Killio</span>
+            <BrandLogo className="h-7 w-auto" />
+            <span className="text-lg font-semibold tracking-tight"><BrandName /></span>
           </Link>
 
           <div className="flex items-center gap-2 text-sm">

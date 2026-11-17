@@ -90,7 +90,7 @@ export function UserProfileCard({
           <div className="flex items-center gap-3">
             {userId === "000" ? (
               <div className="w-12 h-12 rounded-full bg-violet-600 flex items-center justify-center ring-2 ring-background shrink-0 shadow-lg">
-                <Bot className="w-7 h-7 text-white" />
+                <Bot className="w-7 h-7 text-foreground dark:text-white" />
               </div>
             ) : avatarUrl ? (
               <img src={avatarUrl} alt={displayName} className="w-12 h-12 rounded-full object-cover ring-2 ring-background" />

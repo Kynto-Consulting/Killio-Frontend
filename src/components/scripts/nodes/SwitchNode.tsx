@@ -21,8 +21,8 @@ export const SwitchNode = memo(({ data, selected }: NodeProps) => {
     >
       <Handle type="target" position={Position.Top} id="input" className="!bg-slate-400" />
       <div className="flex items-center gap-2 rounded-t-md bg-orange-500 px-3 py-2">
-        <GitFork className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{t("canvas.nodes.switch")}</span>
+        <GitFork className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{t("canvas.nodes.switch")}</span>
       </div>
       <div className="p-3 text-xs text-muted-foreground">
         <p className="mb-1 truncate">{t("canvas.fields.field")}: <span className="font-mono text-foreground">{config.field ?? "—"}</span></p>

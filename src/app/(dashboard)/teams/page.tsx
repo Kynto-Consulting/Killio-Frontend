@@ -1,6 +1,7 @@
 "use client";
 
 import { UserPlus, Lock, MoreHorizontal, Shield, Copy, Check } from "lucide-react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -45,15 +46,15 @@ function memberColor(id: string): string {
 
 function roleBadgeStyle(role: string): React.CSSProperties {
   if (role === "owner" || role === "admin") {
-    return { color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)" };
+    return { color: "hsl(var(--c-indigo))", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)" };
   }
   if (role === "guest") {
-    return { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" };
+    return { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" };
   }
   if (role === "viewer") {
     return { color: "rgba(161,161,170,0.85)", background: "rgba(113,113,122,0.15)", border: "1px solid rgba(113,113,122,0.3)" };
   }
-  return { color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" };
+  return { color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" };
 }
 
 // Per-role capability matrix shown in the invite "info" popover. Columns are the
@@ -129,7 +130,8 @@ function TeamsPageInner() {
   const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
 
-  const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole);
+  const tenantPermissions = useTenant().permissions;
+  const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole) && (myRole !== "member" || tenantPermissions.membersCanInvite);
   const canManageMembers = ["owner", "admin"].includes(myRole);
 
   const inviteDisabledReason = activeTeam?.isPersonal
@@ -359,12 +361,12 @@ function TeamsPageInner() {
   };
 
   // ── STYLES ────────────────────────────────────────────────────────────────
-  const surface: React.CSSProperties = { background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14 };
-  const cardHeader: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 12px", borderBottom: "1px solid rgba(255,255,255,0.08)" };
+  const surface: React.CSSProperties = { background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14 };
+  const cardHeader: React.CSSProperties = { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 12px", borderBottom: "1px solid hsl(var(--ink) / 0.08)" };
   const cardBody: React.CSSProperties = { padding: "16px 20px" };
 
   return (
-    <div style={{ background: "#020408", color: "rgba(255,255,255,0.92)", minHeight: "100%" }}>
+    <div style={{ background: "hsl(var(--surface-deep))", color: "hsl(var(--ink) / 0.92)", minHeight: "100%" }}>
       {/* Ambient glow */}
       <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0 }}>
         <div style={{ position: "absolute", inset: 0, background: "radial-gradient(circle at top, rgba(216,255,114,0.08), transparent 55%)" }} />
@@ -375,21 +377,21 @@ function TeamsPageInner() {
         {/* ── HEADER ── */}
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "#fff", display: "flex", alignItems: "center", gap: 10 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "hsl(var(--ink))", display: "flex", alignItems: "center", gap: 10 }}>
               {t("title")}
               {activeTeam?.isPersonal && (
-                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#818cf8", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-indigo))", background: "rgba(129,140,248,0.1)", border: "1px solid rgba(129,140,248,0.2)", display: "inline-flex", alignItems: "center", gap: 4 }}>
                   <Lock style={{ width: 10, height: 10 }} /> {activeTeam.name}
                 </span>
               )}
             </h1>
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>{t("subtitle")}</p>
+            <p style={{ fontSize: 13, color: "hsl(var(--ink) / 0.45)", marginTop: 3 }}>{t("subtitle")}</p>
           </div>
           <button
             disabled={!canInvite}
             onClick={() => canInvite && setIsInviteModalOpen(true)}
             title={activeTeam?.isPersonal ? t("personalWorkspaceInviteTitle") : !canInvite ? t("roleCannotInviteTitle") : ""}
-            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 36, borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: canInvite ? "pointer" : "default", border: "none", background: canInvite ? "#d8ff72" : "rgba(255,255,255,0.06)", color: canInvite ? "#0a1200" : "rgba(255,255,255,0.35)", transition: "all .15s", opacity: canInvite ? 1 : 0.6 }}
+            style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "0 16px", height: 36, borderRadius: 999, fontSize: 13, fontWeight: 600, cursor: canInvite ? "pointer" : "default", border: "none", background: canInvite ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.06)", color: canInvite ? "hsl(var(--accent-ink-fg))" : "hsl(var(--ink) / 0.35)", transition: "all .15s", opacity: canInvite ? 1 : 0.6 }}
           >
             {canInvite ? <UserPlus style={{ width: 14, height: 14 }} /> : <Lock style={{ width: 14, height: 14 }} />}
             {t("invitePeople")}
@@ -405,8 +407,8 @@ function TeamsPageInner() {
             { v: adminCount, l: t("admins") },
           ].map((tile, i) => (
             <div key={i} style={{ ...surface, padding: "18px 20px" }}>
-              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>{tile.v}</div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{tile.l}</div>
+              <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink))", lineHeight: 1 }}>{tile.v}</div>
+              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{tile.l}</div>
             </div>
           ))}
         </div>
@@ -416,8 +418,8 @@ function TeamsPageInner() {
           <div style={surface}>
             <div style={cardHeader}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("inviteWorkspace")}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("inviteWorkspace")}</div>
+                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
                   {t("allowedRoles")} {inviteRoleOptions.join(", ")}
                 </div>
               </div>
@@ -431,7 +433,7 @@ function TeamsPageInner() {
                   onKeyDown={(e) => e.key === "Enter" && sendInlineInvite()}
                   placeholder={t("inviteEmailPlaceholder")}
                   disabled={!canInvite || isInlineInviting}
-                  style={{ flex: 1, minWidth: 200, height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
+                  style={{ flex: 1, minWidth: 200, height: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
                 />
                 {/* Custom (non-vanilla) role selector */}
                 <div style={{ position: "relative" }}>
@@ -439,7 +441,7 @@ function TeamsPageInner() {
                     type="button"
                     onClick={() => setRoleMenuOpen((o) => !o)}
                     disabled={!canInvite || isInlineInviting}
-                    style={{ height: 38, minWidth: 130, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.85)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                    style={{ height: 38, minWidth: 130, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.85)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
                   >
                     <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
                       <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(inlineInviteRole) }} />
@@ -449,7 +451,7 @@ function TeamsPageInner() {
                   </button>
                   {roleMenuOpen && (
                     <div
-                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 230, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 230, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
                       onMouseLeave={() => setRoleMenuOpen(false)}
                     >
                       {inviteRoleOptions.map((role) => (
@@ -457,13 +459,13 @@ function TeamsPageInner() {
                           key={role}
                           type="button"
                           onClick={() => { setInlineInviteRole(role); setRoleMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: role === inlineInviteRole ? "rgba(216,255,114,0.08)" : "transparent", color: "rgba(255,255,255,0.85)", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: role === inlineInviteRole ? "rgba(216,255,114,0.08)" : "transparent", color: "hsl(var(--ink) / 0.85)", cursor: "pointer", display: "flex", flexDirection: "column", gap: 2 }}
                         >
                           <span style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600 }}>
                             <span style={{ width: 8, height: 8, borderRadius: 99, ...roleBadgeStyle(role) }} />
                             {t(`roleName.${role}`)}
                           </span>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", paddingLeft: 15 }}>{t(`roleShort.${role}`)}</span>
+                          <span style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", paddingLeft: 15 }}>{t(`roleShort.${role}`)}</span>
                         </button>
                       ))}
                     </div>
@@ -475,7 +477,7 @@ function TeamsPageInner() {
                   onClick={() => setShowPermTable((s) => !s)}
                   title={t("permTable.title")}
                   aria-label={t("permTable.title")}
-                  style={{ height: 38, width: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: showPermTable ? "rgba(216,255,114,0.12)" : "rgba(0,0,0,0.25)", color: showPermTable ? "#d8ff72" : "rgba(255,255,255,0.6)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+                  style={{ height: 38, width: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: showPermTable ? "rgba(216,255,114,0.12)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: showPermTable ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.6)", fontSize: 15, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >ⓘ</button>
                 {/* Expiry selector */}
                 <div style={{ position: "relative" }}>
@@ -484,14 +486,14 @@ function TeamsPageInner() {
                     onClick={() => setExpiryMenuOpen((o) => !o)}
                     disabled={!canInvite || isInlineInviting}
                     title={t("inviteExpiry.label")}
-                    style={{ height: 38, minWidth: 120, borderRadius: 10, border: inlineExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: inlineExpiry === -1 ? "rgba(248,113,113,0.08)" : "rgba(0,0,0,0.25)", color: inlineExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                    style={{ height: 38, minWidth: 120, borderRadius: 10, border: inlineExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid hsl(var(--ink) / 0.1)", background: inlineExpiry === -1 ? "rgba(248,113,113,0.08)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: inlineExpiry === -1 ? "#f87171" : "hsl(var(--ink) / 0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
                   >
                     <span style={{ fontWeight: 600 }}>{inlineExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: inlineExpiry })}</span>
                     <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
                   </button>
                   {expiryMenuOpen && (
                     <div
-                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      style={{ position: "absolute", top: 44, right: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
                       onMouseLeave={() => setExpiryMenuOpen(false)}
                     >
                       {[3, 7, 14, 31, -1].map((d) => (
@@ -499,7 +501,7 @@ function TeamsPageInner() {
                           key={d}
                           type="button"
                           onClick={() => { setInlineExpiry(d); setExpiryMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === inlineExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "rgba(255,255,255,0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === inlineExpiry ? 700 : 500 }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === inlineExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "hsl(var(--ink) / 0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === inlineExpiry ? 700 : 500 }}
                         >
                           {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
                         </button>
@@ -510,37 +512,37 @@ function TeamsPageInner() {
                 <button
                   onClick={sendInlineInvite}
                   disabled={!canInvite || !inlineInviteEmail.trim() || isInlineInviting}
-                  style={{ height: 34, padding: "0 16px", borderRadius: 10, border: "none", background: "#d8ff72", color: "#0a1200", fontSize: 12, fontWeight: 700, cursor: (!canInvite || !inlineInviteEmail.trim()) ? "default" : "pointer", opacity: (!canInvite || !inlineInviteEmail.trim()) ? 0.5 : 1, transition: "opacity .15s" }}
+                  style={{ height: 34, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 12, fontWeight: 700, cursor: (!canInvite || !inlineInviteEmail.trim()) ? "default" : "pointer", opacity: (!canInvite || !inlineInviteEmail.trim()) ? 0.5 : 1, transition: "opacity .15s" }}
                 >
                   {isInlineInviting ? "..." : t("sendInvite")}
                 </button>
               </div>
               {inlineExpiry === -1 && (
-                <p style={{ marginTop: 10, fontSize: 12, color: "#f87171", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                <p style={{ marginTop: 10, fontSize: 12, color: "hsl(var(--c-red))", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
                   <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
                 </p>
               )}
               {showPermTable && (
-                <div style={{ marginTop: 14, borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.28)", overflow: "hidden" }}>
-                  <div style={{ padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)", fontSize: 12, fontWeight: 700, color: "#fff" }}>{t("permTable.title")}</div>
+                <div style={{ marginTop: 14, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.28 * var(--shade-k)))", overflow: "hidden" }}>
+                  <div style={{ padding: "10px 14px", borderBottom: "1px solid hsl(var(--ink) / 0.07)", fontSize: 12, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("permTable.title")}</div>
                   <div style={{ overflowX: "auto" }}>
                     <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
                       <thead>
                         <tr>
-                          <th style={{ textAlign: "left", padding: "8px 14px", color: "rgba(255,255,255,0.45)", fontWeight: 600 }}>{t("permTable.feature")}</th>
+                          <th style={{ textAlign: "left", padding: "8px 14px", color: "hsl(var(--ink) / 0.45)", fontWeight: 600 }}>{t("permTable.feature")}</th>
                           {PERM_ROLES.map((r) => (
-                            <th key={r} style={{ padding: "8px 10px", color: "rgba(255,255,255,0.7)", fontWeight: 600, textTransform: "capitalize", minWidth: 64 }}>{t(`roleName.${r}`)}</th>
+                            <th key={r} style={{ padding: "8px 10px", color: "hsl(var(--ink) / 0.7)", fontWeight: 600, textTransform: "capitalize", minWidth: 64 }}>{t(`roleName.${r}`)}</th>
                           ))}
                         </tr>
                       </thead>
                       <tbody>
                         {PERM_MATRIX.map((row) => (
-                          <tr key={row.key} style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
-                            <td style={{ padding: "8px 14px", color: "rgba(255,255,255,0.82)", fontWeight: 500 }}>{t(`permTable.rows.${row.key}`)}</td>
+                          <tr key={row.key} style={{ borderTop: "1px solid hsl(var(--ink) / 0.05)" }}>
+                            <td style={{ padding: "8px 14px", color: "hsl(var(--ink) / 0.82)", fontWeight: 500 }}>{t(`permTable.rows.${row.key}`)}</td>
                             {PERM_ROLES.map((r) => {
                               const lvl = row.levels[r];
                               const label = lvl === 2 ? t("permTable.lvl.manage") : lvl === 1 ? t("permTable.lvl.edit") : lvl === 0.5 ? t("permTable.lvl.view") : "—";
-                              const color = lvl === 2 ? "#d8ff72" : lvl === 1 ? "#a3e635" : lvl === 0.5 ? "rgba(161,161,170,0.9)" : "rgba(255,255,255,0.25)";
+                              const color = lvl === 2 ? "hsl(var(--accent-ink))" : lvl === 1 ? "#a3e635" : lvl === 0.5 ? "rgba(161,161,170,0.9)" : "hsl(var(--ink) / 0.25)";
                               return <td key={r} style={{ padding: "8px 10px", textAlign: "center", color, fontWeight: lvl >= 1 ? 600 : 400 }}>{label}</td>;
                             })}
                           </tr>
@@ -548,11 +550,11 @@ function TeamsPageInner() {
                       </tbody>
                     </table>
                   </div>
-                  <div style={{ padding: "8px 14px", fontSize: 11, color: "rgba(255,255,255,0.4)", borderTop: "1px solid rgba(255,255,255,0.07)" }}>{t("permTable.guestNote")}</div>
+                  <div style={{ padding: "8px 14px", fontSize: 11, color: "hsl(var(--ink) / 0.4)", borderTop: "1px solid hsl(var(--ink) / 0.07)" }}>{t("permTable.guestNote")}</div>
                 </div>
               )}
-              {inviteError && <p style={{ marginTop: 8, fontSize: 12, color: "#f87171" }}>{inviteError}</p>}
-              {inviteDisabledReason && <p style={{ marginTop: 8, fontSize: 12, color: "rgba(255,255,255,0.42)" }}>{inviteDisabledReason}</p>}
+              {inviteError && <p style={{ marginTop: 8, fontSize: 12, color: "hsl(var(--c-red))" }}>{inviteError}</p>}
+              {inviteDisabledReason && <p style={{ marginTop: 8, fontSize: 12, color: "hsl(var(--ink) / 0.42)" }}>{inviteDisabledReason}</p>}
             </div>
           </div>
         )}
@@ -562,27 +564,27 @@ function TeamsPageInner() {
           <div style={surface}>
             <div style={cardHeader}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("inviteLink.title")}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{t("inviteLink.subtitle")}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("inviteLink.title")}</div>
+                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>{t("inviteLink.subtitle")}</div>
               </div>
             </div>
             <div style={cardBody}>
               <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.55)" }}>{t("inviteLink.roleAs", { role: t(`roleName.${inlineInviteRole}`) })}</span>
+                <span style={{ fontSize: 12, color: "hsl(var(--ink) / 0.55)" }}>{t("inviteLink.roleAs", { role: t(`roleName.${inlineInviteRole}`) })}</span>
                 {/* Expiry (custom dropdown) */}
                 <div style={{ position: "relative" }}>
                   <button
                     type="button"
                     onClick={() => setLinkExpiryMenuOpen((o) => !o)}
                     title={t("inviteExpiry.label")}
-                    style={{ height: 36, minWidth: 120, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid rgba(255,255,255,0.1)", background: linkExpiry === -1 ? "rgba(248,113,113,0.08)" : "rgba(0,0,0,0.25)", color: linkExpiry === -1 ? "#f87171" : "rgba(255,255,255,0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
+                    style={{ height: 36, minWidth: 120, borderRadius: 10, border: linkExpiry === -1 ? "1px solid rgba(248,113,113,0.45)" : "1px solid hsl(var(--ink) / 0.1)", background: linkExpiry === -1 ? "rgba(248,113,113,0.08)" : "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: linkExpiry === -1 ? "#f87171" : "hsl(var(--ink) / 0.8)", fontSize: 13, padding: "0 12px", outline: "none", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}
                   >
                     <span style={{ fontWeight: 600 }}>{linkExpiry === -1 ? t("inviteExpiry.never") : t("inviteExpiry.days", { n: linkExpiry })}</span>
                     <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
                   </button>
                   {linkExpiryMenuOpen && (
                     <div
-                      style={{ position: "absolute", top: 42, left: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid rgba(255,255,255,0.12)", background: "#10130a", boxShadow: "0 12px 40px rgba(0,0,0,0.55)", overflow: "hidden" }}
+                      style={{ position: "absolute", top: 42, left: 0, zIndex: 60, minWidth: 150, borderRadius: 12, border: "1px solid hsl(var(--ink) / 0.12)", background: "#10130a", boxShadow: "0 12px 40px hsl(var(--shade) / calc(0.55 * var(--shade-k)))", overflow: "hidden" }}
                       onMouseLeave={() => setLinkExpiryMenuOpen(false)}
                     >
                       {[3, 7, 14, 31, -1].map((d) => (
@@ -590,7 +592,7 @@ function TeamsPageInner() {
                           key={d}
                           type="button"
                           onClick={() => { setLinkExpiry(d); setLinkExpiryMenuOpen(false); }}
-                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === linkExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "rgba(255,255,255,0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === linkExpiry ? 700 : 500 }}
+                          style={{ width: "100%", textAlign: "left", padding: "9px 12px", border: "none", background: d === linkExpiry ? "rgba(216,255,114,0.08)" : "transparent", color: d === -1 ? "#f87171" : "hsl(var(--ink) / 0.85)", cursor: "pointer", fontSize: 13, fontWeight: d === linkExpiry ? 700 : 500 }}
                         >
                           {d === -1 ? `⚠ ${t("inviteExpiry.never")}` : t("inviteExpiry.days", { n: d })}
                         </button>
@@ -605,18 +607,18 @@ function TeamsPageInner() {
                   value={linkMaxUses}
                   onChange={(e) => setLinkMaxUses(e.target.value)}
                   placeholder={t("inviteLink.maxUsesPlaceholder")}
-                  style={{ width: 130, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.85)", fontSize: 13, padding: "0 12px", outline: "none" }}
+                  style={{ width: 130, height: 36, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.85)", fontSize: 13, padding: "0 12px", outline: "none" }}
                 />
                 <button
                   onClick={createLink}
                   disabled={isCreatingLink}
-                  style={{ height: 36, padding: "0 16px", borderRadius: 10, border: "none", background: "#d8ff72", color: "#0a1200", fontSize: 12, fontWeight: 700, cursor: isCreatingLink ? "default" : "pointer", opacity: isCreatingLink ? 0.5 : 1 }}
+                  style={{ height: 36, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 12, fontWeight: 700, cursor: isCreatingLink ? "default" : "pointer", opacity: isCreatingLink ? 0.5 : 1 }}
                 >
                   {isCreatingLink ? "..." : t("inviteLink.generate")}
                 </button>
               </div>
               {linkExpiry === -1 && (
-                <p style={{ marginTop: 10, fontSize: 12, color: "#f87171", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
+                <p style={{ marginTop: 10, fontSize: 12, color: "hsl(var(--c-red))", display: "flex", alignItems: "center", gap: 6, lineHeight: 1.4 }}>
                   <span style={{ fontSize: 14 }}>⚠</span> {t("inviteExpiry.neverWarning")}
                 </p>
               )}
@@ -626,20 +628,20 @@ function TeamsPageInner() {
                   {inviteLinks.map((link) => {
                     const url = link.acceptUrl || (typeof window !== "undefined" && link.token ? `${window.location.origin}/accept-invite?token=${encodeURIComponent(link.token)}` : null);
                     return (
-                      <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.22)" }}>
+                      <div key={link.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--shade) / calc(0.22 * var(--shade-k)))" }}>
                         <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 99, ...roleBadgeStyle(link.role), fontWeight: 600, textTransform: "capitalize" }}>{t(`roleName.${link.role}`)}</span>
-                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: url ? "rgba(255,255,255,0.7)" : "rgba(255,255,255,0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: url ? "hsl(var(--ink) / 0.7)" : "hsl(var(--ink) / 0.35)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {url || t("inviteLink.hiddenUrl")}
                         </span>
-                        <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", whiteSpace: "nowrap" }}>
+                        <span style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", whiteSpace: "nowrap" }}>
                           {link.maxUses != null ? `${link.useCount}/${link.maxUses}` : `${link.useCount}`} · {link.expiresAt ? new Date(link.expiresAt).toLocaleDateString() : t("inviteExpiry.never")}
                         </span>
                         {url && (
-                          <button onClick={() => copyLink(link)} style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: copiedLinkId === link.id ? "#d8ff72" : "rgba(255,255,255,0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                          <button onClick={() => copyLink(link)} style={{ height: 30, padding: "0 10px", borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.12)", background: "transparent", color: copiedLinkId === link.id ? "hsl(var(--accent-ink))" : "hsl(var(--ink) / 0.75)", fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
                             {copiedLinkId === link.id ? t("inviteLink.copied") : t("inviteLink.copy")}
                           </button>
                         )}
-                        <button onClick={() => revokeLink(link.id)} title={t("inviteLink.revoke")} style={{ height: 30, width: 30, borderRadius: 8, border: "1px solid rgba(248,113,113,0.2)", background: "transparent", color: "#f87171", fontSize: 14, cursor: "pointer" }}>✕</button>
+                        <button onClick={() => revokeLink(link.id)} title={t("inviteLink.revoke")} style={{ height: 30, width: 30, borderRadius: 8, border: "1px solid rgba(248,113,113,0.2)", background: "transparent", color: "hsl(var(--c-red))", fontSize: 14, cursor: "pointer" }}>✕</button>
                       </div>
                     );
                   })}
@@ -652,12 +654,12 @@ function TeamsPageInner() {
         {/* ── MEMBER CARDS GRID ── */}
         <div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>{t("members")}</span>
-            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{members.length} {t("total")} · {t("sortedByRole")}</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("members")}</span>
+            <span style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>{members.length} {t("total")} · {t("sortedByRole")}</span>
           </div>
 
           {isLoading ? (
-            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "rgba(255,255,255,0.42)" }}>{t("loadingMembers")}</div>
+            <div style={{ padding: 48, textAlign: "center", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("loadingMembers")}</div>
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))", gap: 12 }}>
               {members.map((member) => {
@@ -670,12 +672,12 @@ function TeamsPageInner() {
                 return (
                   <div
                     key={member.membershipId}
-                    style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: 18, position: "relative", transition: "border-color .15s, transform .15s", cursor: "default" }}
+                    style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: 18, position: "relative", transition: "border-color .15s, transform .15s", cursor: "default" }}
                   >
                     {/* Role badge + you badge */}
                     <div style={{ position: "absolute", top: 14, right: 14, display: "flex", gap: 4, alignItems: "center" }}>
                       {isMe && (
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 999, letterSpacing: "0.06em", color: "#d8ff72", background: "rgba(216,255,114,0.1)", border: "1px solid rgba(216,255,114,0.22)" }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 7px", borderRadius: 999, letterSpacing: "0.06em", color: "hsl(var(--accent-ink))", background: "rgba(216,255,114,0.1)", border: "1px solid rgba(216,255,114,0.22)" }}>
                           {t("you")}
                         </span>
                       )}
@@ -699,15 +701,15 @@ function TeamsPageInner() {
                       </div>
                       <div style={{ minWidth: 0, flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 6, overflow: "hidden" }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: "#fff", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {member.alias || member.name}
                           </span>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: isActive ? "#4ade80" : "rgba(255,255,255,0.15)" }} />
+                          <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: isActive ? "#4ade80" : "hsl(var(--ink) / 0.15)" }} />
                         </div>
                         {member.alias && (
-                          <div style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{member.name}</div>
+                          <div style={{ fontSize: 10, color: "hsl(var(--ink) / 0.3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{member.name}</div>
                         )}
-                        <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: member.alias ? 0 : 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: member.alias ? 0 : 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {member.primaryEmail}
                         </div>
                       </div>
@@ -715,13 +717,13 @@ function TeamsPageInner() {
 
                     {/* Mini stat grid */}
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                      <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>{t("statusLabel")}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: isActive ? "#4ade80" : "rgba(255,255,255,0.42)" }}>{isActive ? t("statusActive") : t("statusAway")}</div>
+                      <div style={{ background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", borderRadius: 8, padding: "8px 10px" }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "hsl(var(--ink) / 0.25)" }}>{t("statusLabel")}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: isActive ? "#4ade80" : "hsl(var(--ink) / 0.42)" }}>{isActive ? t("statusActive") : t("statusAway")}</div>
                       </div>
-                      <div style={{ background: "rgba(0,0,0,0.2)", borderRadius: 8, padding: "8px 10px" }}>
-                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "rgba(255,255,255,0.25)" }}>{t("aliasBadge")}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: member.alias ? "rgba(255,255,255,0.75)" : "rgba(255,255,255,0.25)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                      <div style={{ background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", borderRadius: 8, padding: "8px 10px" }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.12em", color: "hsl(var(--ink) / 0.25)" }}>{t("aliasBadge")}</div>
+                        <div style={{ fontSize: 13, fontWeight: 700, marginTop: 3, color: member.alias ? "hsl(var(--ink) / 0.75)" : "hsl(var(--ink) / 0.25)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                           {member.alias || "—"}
                         </div>
                       </div>
@@ -737,7 +739,7 @@ function TeamsPageInner() {
                               setActiveMemberMenu(next);
                               if (!next) { setEditingAliasMemberId(null); setAliasDraft(""); }
                             }}
-                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.45)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--ink) / 0.04)", color: "hsl(var(--ink) / 0.45)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
                           >
                             <MoreHorizontal style={{ width: 14, height: 14 }} />
                           </button>
@@ -745,27 +747,27 @@ function TeamsPageInner() {
                           {activeMemberMenu === member.membershipId && (
                             <>
                               <div className="fixed inset-0 z-40" onClick={() => { setActiveMemberMenu(null); setEditingAliasMemberId(null); setAliasDraft(""); }} />
-                              <div style={{ position: "absolute", right: 0, bottom: 36, width: 220, borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "#0d1117", boxShadow: "0 8px 32px rgba(0,0,0,0.5)", zIndex: 50, padding: "4px 0", fontSize: 13 }}>
+                              <div style={{ position: "absolute", right: 0, bottom: 36, width: 220, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.12)", background: "#0d1117", boxShadow: "0 8px 32px hsl(var(--shade) / calc(0.5 * var(--shade-k)))", zIndex: 50, padding: "4px 0", fontSize: 13 }}>
                                 {canEditAlias && (
                                   <>
-                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>{t("workspaceAlias")}</div>
+                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.3)" }}>{t("workspaceAlias")}</div>
                                     {isAliasEditing ? (
                                       <div style={{ padding: "4px 12px 8px" }}>
                                         <input
                                           value={aliasDraft}
                                           onChange={(e) => setAliasDraft(e.target.value)}
                                           placeholder={t("aliasPlaceholder")}
-                                          style={{ width: "100%", height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#fff", fontSize: 12, padding: "0 10px", outline: "none", marginBottom: 6 }}
+                                          style={{ width: "100%", height: 32, borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.12)", background: "hsl(var(--ink) / 0.05)", color: "hsl(var(--ink))", fontSize: 12, padding: "0 10px", outline: "none", marginBottom: 6 }}
                                         />
                                         <div style={{ display: "flex", gap: 6 }}>
                                           <button
                                             onClick={() => handleUpdateMemberAlias(member.membershipId, aliasDraft.trim() ? aliasDraft : null)}
                                             disabled={isMutatingMember === member.membershipId}
-                                            style={{ borderRadius: 6, background: "#d8ff72", color: "#0a1200", border: "none", padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
+                                            style={{ borderRadius: 6, background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", border: "none", padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}
                                           >{t("saveAlias")}</button>
                                           <button
                                             onClick={() => { setEditingAliasMemberId(null); setAliasDraft(""); }}
-                                            style={{ borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)", background: "transparent", color: "rgba(255,255,255,0.6)", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}
+                                            style={{ borderRadius: 6, border: "1px solid hsl(var(--ink) / 0.1)", background: "transparent", color: "hsl(var(--ink) / 0.6)", padding: "4px 10px", fontSize: 11, cursor: "pointer" }}
                                           >{t("cancelAlias")}</button>
                                         </div>
                                       </div>
@@ -773,33 +775,33 @@ function TeamsPageInner() {
                                       <div style={{ paddingBottom: 4 }}>
                                         <button
                                           onClick={() => { setEditingAliasMemberId(member.membershipId); setAliasDraft(member.alias || ""); }}
-                                          style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "rgba(255,255,255,0.8)", cursor: "pointer", fontSize: 13 }}
+                                          style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "hsl(var(--ink) / 0.8)", cursor: "pointer", fontSize: 13 }}
                                         >{t("editAlias")}</button>
                                         {member.alias && (
                                           <button
                                             onClick={() => handleUpdateMemberAlias(member.membershipId, null)}
                                             disabled={isMutatingMember === member.membershipId}
-                                            style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "rgba(255,255,255,0.45)", cursor: "pointer", fontSize: 13 }}
+                                            style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: "hsl(var(--ink) / 0.45)", cursor: "pointer", fontSize: 13 }}
                                           >{t("clearAlias")}</button>
                                         )}
                                       </div>
                                     )}
-                                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "2px 0" }} />
+                                    <div style={{ borderTop: "1px solid hsl(var(--ink) / 0.07)", margin: "2px 0" }} />
                                   </>
                                 )}
 
                                 {canManageMembers && !isMe && member.role !== "owner" && (
                                   <>
-                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>{t("changeRole")}</div>
+                                    <div style={{ padding: "6px 12px 4px", fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.3)" }}>{t("changeRole")}</div>
                                     {(["admin", "member", "guest"] as const).map((nextRole) => (
                                       <button
                                         key={nextRole}
                                         onClick={() => handleChangeMemberRole(member.membershipId, nextRole)}
                                         disabled={member.role === nextRole || isMutatingMember === member.membershipId}
-                                        style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: member.role === nextRole ? "rgba(255,255,255,0.3)" : "rgba(255,255,255,0.8)", cursor: member.role === nextRole ? "default" : "pointer", fontSize: 13, textTransform: "capitalize" }}
+                                        style={{ width: "100%", textAlign: "left", padding: "7px 12px", background: "transparent", border: "none", color: member.role === nextRole ? "hsl(var(--ink) / 0.3)" : "hsl(var(--ink) / 0.8)", cursor: member.role === nextRole ? "default" : "pointer", fontSize: 13, textTransform: "capitalize" }}
                                       >{nextRole}</button>
                                     ))}
-                                    <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", margin: "2px 0" }} />
+                                    <div style={{ borderTop: "1px solid hsl(var(--ink) / 0.07)", margin: "2px 0" }} />
                                   </>
                                 )}
 
@@ -807,11 +809,11 @@ function TeamsPageInner() {
                                   <button
                                     onClick={() => handleRemoveMember(member.membershipId, isMe)}
                                     disabled={isMutatingMember === member.membershipId}
-                                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "#f87171", cursor: "pointer", fontSize: 13 }}
+                                    style={{ width: "100%", textAlign: "left", padding: "8px 12px", background: "transparent", border: "none", color: "hsl(var(--c-red))", cursor: "pointer", fontSize: 13 }}
                                   >{isMe ? t("leaveTeam") : t("removeMember")}</button>
                                 )}
                                 {!((canManageMembers && !isMe && member.role !== "owner") || (isMe && member.role !== "owner")) && !canEditAlias && (
-                                  <div style={{ padding: "8px 12px", fontSize: 13, color: "rgba(255,255,255,0.3)" }}>{t("noActions")}</div>
+                                  <div style={{ padding: "8px 12px", fontSize: 13, color: "hsl(var(--ink) / 0.3)" }}>{t("noActions")}</div>
                                 )}
                               </div>
                             </>
@@ -831,46 +833,46 @@ function TeamsPageInner() {
           <div style={surface}>
             <div style={cardHeader}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("pendingInvitesTitle")}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("pendingInvitesTitle")}</div>
+                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
                   {isLoadingInvites ? t("loadingInvites") : t("awaitingResponse", { count: pendingInvites.length })}
                 </div>
               </div>
-              <Shield style={{ width: 16, height: 16, color: "rgba(255,255,255,0.3)" }} />
+              <Shield style={{ width: 16, height: 16, color: "hsl(var(--ink) / 0.3)" }} />
             </div>
             <div style={{ overflowX: "auto" }}>
               {isLoadingInvites ? (
-                <div style={{ padding: "20px 20px", fontSize: 13, color: "rgba(255,255,255,0.42)" }}>{t("loadingInvites")}</div>
+                <div style={{ padding: "20px 20px", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("loadingInvites")}</div>
               ) : invites.length === 0 ? (
-                <div style={{ padding: "20px 20px", fontSize: 13, color: "rgba(255,255,255,0.42)" }}>{t("noInvitesYet")}</div>
+                <div style={{ padding: "20px 20px", fontSize: 13, color: "hsl(var(--ink) / 0.42)" }}>{t("noInvitesYet")}</div>
               ) : (
                 <table style={{ width: "100%", borderCollapse: "collapse" }}>
                   <thead>
-                    <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                    <tr style={{ borderBottom: "1px solid hsl(var(--ink) / 0.07)" }}>
                       {(["email", "role", "status", "delivery", "action"] as const).map((h) => (
-                        <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.25)", padding: "10px 20px", textAlign: "left" }}>{t(`tableHeaders.${h}`)}</th>
+                        <th key={h} style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.25)", padding: "10px 20px", textAlign: "left" }}>{t(`tableHeaders.${h}`)}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {invites.map((invite) => (
-                      <tr key={invite.id} style={{ borderBottom: "1px solid rgba(255,255,255,0.04)" }}>
-                        <td style={{ padding: "11px 20px", fontSize: 13, color: "#fff", fontWeight: 500 }}>{invite.email}</td>
+                      <tr key={invite.id} style={{ borderBottom: "1px solid hsl(var(--ink) / 0.04)" }}>
+                        <td style={{ padding: "11px 20px", fontSize: 13, color: "hsl(var(--ink))", fontWeight: 500 }}>{invite.email}</td>
                         <td style={{ padding: "11px 20px" }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.45)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>{invite.role}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.45)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>{invite.role}</span>
                         </td>
                         <td style={{ padding: "11px 20px" }}>
                           <span style={invite.status === "pending"
-                            ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fbbf24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
-                            : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }
+                            ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-amber))", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
+                            : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }
                           }>{invite.status}</span>
                         </td>
                         <td style={{ padding: "11px 20px" }}>
                           <span style={invite.deliveryStatus === "sent"
                             ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#86efac", background: "rgba(134,239,172,0.1)", border: "1px solid rgba(134,239,172,0.22)" }
                             : invite.deliveryStatus === "skipped"
-                              ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#fbbf24", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
-                              : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "#f87171", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }
+                              ? { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-amber))", background: "rgba(251,191,36,0.1)", border: "1px solid rgba(251,191,36,0.2)" }
+                              : { fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em", textTransform: "uppercase", color: "hsl(var(--c-red))", background: "rgba(248,113,113,0.1)", border: "1px solid rgba(248,113,113,0.2)" }
                           }>{invite.deliveryStatus}</span>
                         </td>
                         <td style={{ padding: "11px 20px" }}>
@@ -878,7 +880,7 @@ function TeamsPageInner() {
                             <button
                               onClick={() => handleRevokeInvite(invite.id)}
                               disabled={isMutatingInvite === invite.id}
-                              style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.07)", color: "#f87171", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: isMutatingInvite === invite.id ? 0.5 : 1 }}
+                              style={{ display: "inline-flex", alignItems: "center", gap: 5, height: 28, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.07)", color: "hsl(var(--c-red))", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: isMutatingInvite === invite.id ? 0.5 : 1 }}
                             >
                               {t("revoke")}
                             </button>
@@ -897,14 +899,14 @@ function TeamsPageInner() {
         <div style={surface}>
           <div style={cardHeader}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("currentRole")} <span style={{ textTransform: "capitalize", color: "#d8ff72" }}>{myRole}</span></div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>{t("activePermissions")}</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("currentRole")} <span style={{ textTransform: "capitalize", color: "hsl(var(--accent-ink))" }}>{myRole}</span></div>
+              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>{t("activePermissions")}</div>
             </div>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.14em", textTransform: "uppercase", color: "rgba(255,255,255,0.42)", background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)" }}>{t("roleMatrix")}</span>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.14em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.42)", background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)" }}>{t("roleMatrix")}</span>
           </div>
           <div style={{ ...cardBody, display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8 }}>
             {roleCapabilities[myRole].map((cap) => (
-              <div key={cap} style={{ borderRadius: 8, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(0,0,0,0.2)", padding: "8px 12px", fontSize: 12, color: "rgba(255,255,255,0.7)" }}>{cap}</div>
+              <div key={cap} style={{ borderRadius: 8, border: "1px solid hsl(var(--ink) / 0.07)", background: "hsl(var(--shade) / calc(0.2 * var(--shade-k)))", padding: "8px 12px", fontSize: 12, color: "hsl(var(--ink) / 0.7)" }}>{cap}</div>
             ))}
           </div>
         </div>
@@ -914,8 +916,8 @@ function TeamsPageInner() {
           <div style={surface}>
             <div style={cardHeader}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: "#fff" }}>{t("workspaceSettings")}</div>
-                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 2 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))" }}>{t("workspaceSettings")}</div>
+                <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 2 }}>
                   {myRole === "owner" ? t("deleteWorkspace") + " · " : ""}{t("workspaceName")}
                 </div>
               </div>
@@ -924,7 +926,7 @@ function TeamsPageInner() {
 
               {/* Rename */}
               <div style={{ marginBottom: 24 }}>
-                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.55)", marginBottom: 8 }}>
                   {t("workspaceName")}
                 </label>
                 <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
@@ -935,12 +937,12 @@ function TeamsPageInner() {
                     onKeyDown={(e) => e.key === "Enter" && handleRenameWorkspace()}
                     maxLength={64}
                     placeholder={t("workspaceNamePlaceholder")}
-                    style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.25)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
+                    style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.1)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
                   />
                   <button
                     onClick={handleRenameWorkspace}
                     disabled={isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name}
-                    style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "none", background: "#d8ff72", color: "#0a1200", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name) ? 0.5 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
+                    style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "none", background: "hsl(var(--accent-ink))", color: "hsl(var(--accent-ink-fg))", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isSavingName || !nameDraft.trim() || nameDraft.trim() === activeTeam?.name) ? 0.5 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
                   >
                     {isSavingName ? t("savingWorkspaceName") : t("saveWorkspaceName")}
                   </button>
@@ -950,14 +952,14 @@ function TeamsPageInner() {
               {/* Delete — owner only */}
               {myRole === "owner" && (
                 <div style={{ borderTop: "1px solid rgba(248,113,113,0.15)", paddingTop: 20 }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#f87171", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "hsl(var(--c-red))", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 6 }}>
                     {t("dangerZone")}
                   </div>
-                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", marginBottom: 14, lineHeight: 1.6 }}>
+                  <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)", marginBottom: 14, lineHeight: 1.6 }}>
                     {t("deleteWorkspaceHint")}
                   </p>
-                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>
-                    {t("confirmDeleteWorkspace")} <span style={{ color: "#f87171", fontFamily: "monospace" }}>{activeTeam?.name}</span>
+                  <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.55)", marginBottom: 8 }}>
+                    {t("confirmDeleteWorkspace")} <span style={{ color: "hsl(var(--c-red))", fontFamily: "monospace" }}>{activeTeam?.name}</span>
                   </label>
                   <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                     <input
@@ -965,12 +967,12 @@ function TeamsPageInner() {
                       value={deleteConfirmName}
                       onChange={(e) => setDeleteConfirmName(e.target.value)}
                       placeholder={activeTeam?.name ?? ""}
-                      style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.04)", color: "rgba(255,255,255,0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
+                      style={{ flex: 1, minWidth: 0, height: 38, borderRadius: 10, border: "1px solid rgba(248,113,113,0.25)", background: "rgba(248,113,113,0.04)", color: "hsl(var(--ink) / 0.9)", fontSize: 13, padding: "0 14px", outline: "none" }}
                     />
                     <button
                       onClick={handleDeleteWorkspace}
                       disabled={isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")}
-                      style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.12)", color: "#f87171", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")) ? 0.4 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
+                      style={{ height: 38, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(248,113,113,0.4)", background: "rgba(248,113,113,0.12)", color: "hsl(var(--c-red))", fontSize: 13, fontWeight: 700, cursor: "pointer", opacity: (isDeletingWorkspace || deleteConfirmName.trim() !== (activeTeam?.name ?? "")) ? 0.4 : 1, transition: "opacity .15s", whiteSpace: "nowrap" }}
                     >
                       {isDeletingWorkspace ? "..." : t("confirmDeleteWorkspaceBtn")}
                     </button>
