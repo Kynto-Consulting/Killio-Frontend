@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "next/link";
 import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";

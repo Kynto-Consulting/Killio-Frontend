@@ -3,6 +3,7 @@ import type { PublicTenantConfig } from "./types";
 // The backend already validates these, but the string ends up inside a <style>
 // tag, so it is checked again here: only known-safe shapes are ever emitted.
 const VAR_NAME = /^[a-z][a-z-]*$/;
+const VAR_NAME_FREE = /^[a-z][a-z0-9-]{0,40}$/;
 const HSL_TRIPLET = /^\d{1,3}(\.\d+)? \d{1,3}(\.\d+)?% \d{1,3}(\.\d+)?%$/;
 const RADIUS = /^\d+(\.\d+)?(rem|px)$/;
 const FONT_FAMILY = /^[A-Za-z0-9][A-Za-z0-9 -]{0,39}$/;
@@ -23,6 +24,27 @@ function fontCss(theme: PublicTenantConfig["theme"]): string {
   return `${faces}body,button,input,textarea,select{font-family:${stack};}`;
 }
 
+const FREE_VAR_VALUE = /^[A-Za-z0-9#%.,()/ +*-]{1,80}$/;
+
+function freeDeclarations(vars: Record<string, string> | undefined): string {
+  return Object.entries(vars ?? {})
+    .filter(([name, value]) => VAR_NAME_FREE.test(name) && FREE_VAR_VALUE.test(value) && !/url\(|expression|javascript:/i.test(value))
+    .map(([name, value]) => `--${name}:${value};`)
+    .join("");
+}
+
+/** The stylesheet is injected into a <style> tag, so anything that could escape it or load code is dropped. */
+function safeCustomCss(css: string | undefined): string {
+  if (!css || css.length > 20000) return "";
+  if (css.includes("<") || css.includes("\\")) return "";
+  if (/@import|@charset|@namespace|javascript:|expression\s*\(|behavior\s*:|-moz-binding/i.test(css)) return "";
+  const urlCalls = [...css.matchAll(/url\(/gi)].length;
+  const urls = [...css.matchAll(/url\(\s*(['"]?)([^)'"\s]*)\1\s*\)/gi)];
+  if (urls.length !== urlCalls) return "";
+  if (!urls.every((m) => /^(https:\/\/|\/(?!\/))/.test(m[2]))) return "";
+  return css;
+}
+
 function declarations(vars: Record<string, string>): string {
   return Object.entries(vars)
     .filter(([name, value]) => VAR_NAME.test(name) && HSL_TRIPLET.test(value))
@@ -33,8 +55,8 @@ function declarations(vars: Record<string, string>): string {
 /** CSS that re-paints the app. Empty in public mode, so killio.dev is untouched. */
 export function buildTenantThemeCss(config: PublicTenantConfig): string {
   if (config.mode !== "tenant") return "";
-  const light = declarations(config.theme.light);
-  const dark = declarations(config.theme.dark);
+  const light = declarations(config.theme.light) + freeDeclarations(config.theme.vars?.light);
+  const dark = declarations(config.theme.dark) + freeDeclarations(config.theme.vars?.dark);
   const radius = config.theme.radius && RADIUS.test(config.theme.radius) ? `--radius:${config.theme.radius};` : "";
   const parts: string[] = [];
   if (light || radius) parts.push(`:root{${light}${radius}}`);
@@ -51,6 +73,8 @@ export function buildTenantThemeCss(config: PublicTenantConfig): string {
   }
   const font = fontCss(config.theme);
   if (font) parts.push(font);
+  const custom = safeCustomCss(config.theme.customCss);
+  if (custom) parts.push(custom);
   return parts.join("");
 }
 

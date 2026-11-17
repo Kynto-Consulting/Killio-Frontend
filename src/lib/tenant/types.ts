@@ -30,7 +30,13 @@ export type PublicTenantConfig = {
     /** CSS variable name (without "--") -> "H S% L%". */
     light: Record<string, string>;
     dark: Record<string, string>;
+    /** Any other CSS variable, per colour mode. */
+    vars: { light: Record<string, string>; dark: Record<string, string> };
+    /** Extra stylesheet written by the tenant (validated by the backend and again here). */
+    customCss: string;
   };
+  /** UI text overrides: locale -> "namespace.key" -> text. */
+  texts: Record<string, Record<string, string>>;
   landing: {
     mode: "killio" | "tenant" | "login";
     headline: string;
@@ -64,7 +70,8 @@ export const DEFAULT_TENANT_CONFIG: PublicTenantConfig = {
     supportEmail: null,
     replaceNameInText: false,
   },
-  theme: { defaultMode: "dark", radius: null, fontFamily: null, fonts: [], light: {}, dark: {} },
+  theme: { defaultMode: "dark", radius: null, fontFamily: null, fonts: [], light: {}, dark: {}, vars: { light: {}, dark: {} }, customCss: "" },
+  texts: {},
   landing: {
     mode: "killio",
     headline: "",

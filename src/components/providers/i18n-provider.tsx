@@ -122,13 +122,18 @@ export function useI18n() {
 }
 
 export function useTranslations(namespace: Namespace) {
-  const { messages } = useI18n();
+  const { messages, locale } = useI18n();
   const tenant = useTenant();
+  const overrides = tenant.mode === "tenant" ? tenant.texts?.[locale] : undefined;
   // White-label: swap the product name in the translation template, before the
   // params are interpolated, so user data that contains "Killio" is left alone.
   const brandName = tenant.mode === "tenant" && tenant.brand.replaceNameInText ? tenant.brand.name : null;
 
   return useCallback((key: string, params?: TranslateParams) => {
+    // Texts the tenant wrote in its config win over the built-in translations (and are used verbatim).
+    const override = overrides?.[`${namespace}.${key}`] ?? overrides?.[key];
+    if (typeof override === "string" && override) return interpolate(override, params);
+
     const rebrand = (template: string) => (brandName ? template.replace(/Killio/g, () => brandName) : template);
 
     const fromNamespace = getValueByPath(messages[namespace], key);
@@ -138,5 +143,5 @@ export function useTranslations(namespace: Namespace) {
     if (fromCommon) return interpolate(rebrand(fromCommon), params);
 
     return key;
-  }, [messages, namespace, brandName]);
+  }, [messages, namespace, brandName, overrides]);
 }

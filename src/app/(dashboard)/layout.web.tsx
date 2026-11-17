@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
-import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
+import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { usePathname, useSearchParams } from "next/navigation";

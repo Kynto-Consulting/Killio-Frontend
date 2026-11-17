@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "next/link";
 import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { ChevronLeft, FileText, Lock, ScrollText } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
