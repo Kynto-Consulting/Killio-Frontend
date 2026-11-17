@@ -39,6 +39,10 @@ export function buildTenantThemeCss(config: PublicTenantConfig): string {
   const parts: string[] = [];
   if (light || radius) parts.push(`:root{${light}${radius}}`);
   if (dark) parts.push(`.dark{${dark}}`);
+  // Killio uses `text-accent` for links and highlighted text. In most brand palettes `accent` is a soft
+  // background tint, so as a text colour it can be unreadable. In tenant mode that text follows --link,
+  // falling back to the brand's primary colour.
+  parts.push("html .text-accent{color:hsl(var(--link,var(--primary)));}");
   const font = fontCss(config.theme);
   if (font) parts.push(font);
   return parts.join("");
