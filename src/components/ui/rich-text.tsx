@@ -14,8 +14,8 @@ import { resolveLucide } from "@/lib/lucide-icon-registry";
 // renders bricks, which can include text bricks rendered via RichText).
 const PublicMeshCanvas = dynamic(() => import("@/components/ui/public-mesh-canvas").then((m) => m.PublicMeshCanvas), { ssr: false });
 import { AiSuggestion } from "./ai-suggestion";
-// @ts-ignore
-import "katex/dist/katex.min.css";
+// Registers KaTeX extensions (mhchem \ce{}) on the shared KaTeX instance.
+import "@/lib/latex/katex-config";
 import { BlockMath, InlineMath } from "react-katex";
 
 interface RichTextProps {
