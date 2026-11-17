@@ -25,5 +25,8 @@
   "deleteBoardTitle": "Eliminar tablero",
   "deleteBoardDescription": "Seguro que quieres eliminar el tablero \"{{name}}\"? Esta accion no se puede deshacer.",
   "deleteBoardError": "No se pudo eliminar el tablero",
-  "noActiveWorkspace": "No se encontro un espacio activo. Selecciona o crea uno desde el menu superior."
+  "noActiveWorkspace": "No se encontro un espacio activo. Selecciona o crea uno desde el menu superior.",
+  "importBannerTitle": "Trae todo de Notion o Trello",
+  "importBannerBody": "Importa tus páginas y tableros en un par de minutos y sigue trabajando donde lo dejaste.",
+  "importBannerCta": "Importar ahora"
 }
