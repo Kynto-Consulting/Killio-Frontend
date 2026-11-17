@@ -40,6 +40,7 @@ export default function WorkspacesPage() {
   const [boards, setBoards] = useState<BoardSummary[]>([]);
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
@@ -79,7 +80,7 @@ export default function WorkspacesPage() {
     ]).then(([freshBoards, freshDocs]) => {
       if (!cachedBoards) { apiCache.set(bKey, freshBoards, CACHE_TTL.BOARDS); setBoards(freshBoards); }
       if (!cachedDocs)   { apiCache.set(dKey, freshDocs,   CACHE_TTL.DOCUMENTS); setDocuments(freshDocs); }
-    }).finally(() => setIsLoading(false));
+    }).finally(() => { setIsLoading(false); setHasLoaded(true); });
   }, [accessToken, activeTeamId]);
 
   const handleCreateBoardClick = () => {
@@ -336,6 +337,25 @@ export default function WorkspacesPage() {
           </button>
         </div>
       </div>
+
+      {online && !localMode && hasLoaded && !isLoading && boards.length === 0 && documents.length === 0 && (
+        <div className="mb-8 flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-start gap-3">
+            <ArrowRightLeft className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+            <div>
+              <h2 className="font-semibold">{t("importBannerTitle")}</h2>
+              <p className="mt-1 text-sm text-muted-foreground">{t("importBannerBody")}</p>
+            </div>
+          </div>
+          <Link
+            href="/integrations"
+            className="inline-flex h-9 shrink-0 items-center justify-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90"
+          >
+            {t("importBannerCta")}
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Link>
+        </div>
+      )}
 
       <div className="flex space-x-4 border-b border-border/50 mb-6 px-1">
         <button
