@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { Loader2, Sparkles, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
