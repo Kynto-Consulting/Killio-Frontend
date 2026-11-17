@@ -75,7 +75,7 @@ export const UnifiedAccordionBrick: React.FC<AccordionBrickProps> = ({
               users={users as any}
               submitOnEnter={false}
               className="w-full"
-              inputClassName="border-none bg-transparent p-0 shadow-none min-h-[28px] text-sm font-semibold placeholder:text-muted-foreground/30 leading-none"
+              inputClassName="border-none bg-transparent px-0 py-1.5 shadow-none min-h-[28px] text-sm font-semibold placeholder:text-muted-foreground/30 leading-normal"
             />
           </div>
         )}

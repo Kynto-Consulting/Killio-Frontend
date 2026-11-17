@@ -631,6 +631,11 @@ export default function DocumentPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [document, docId, pasteBricks, brickSelection, t]);
 
+  // Writes to the same parent container (accordion/tabs/columns) are chained, and each one sends the parent's
+  // LATEST content. Two quick adds used to send overlapping copies and the slower request overwrote the other,
+  // leaving the new block outside its container.
+  const parentWriteChain = useRef(new Map<string, Promise<unknown>>());
+
   const runAddBrick = async (kind: string, afterBrickId?: string, parentProps?: { parentId: string, containerId: string }, initialContent?: any) => {
     console.log("Adding brick of kind", kind, "after", afterBrickId, "with parentProps", parentProps);
     if (!accessToken || !document) return;
@@ -823,10 +828,19 @@ export default function DocumentPage() {
       setDocument((prev) => prev ? { ...prev, bricks: currentBricks } : prev);
 
       if (parentProps && latestParentContent) {
+        const parentId = parentProps.parentId;
+        const previous = parentWriteChain.current.get(parentId) ?? Promise.resolve();
+        const write = previous.catch(() => undefined).then(async () => {
+          const freshParent = documentBricksRef.current.find((b) => b.id === parentId);
+          await updateDocumentBrick(docId, parentId, freshParent?.content ?? latestParentContent, accessToken);
+        });
+        parentWriteChain.current.set(parentId, write);
         try {
-          await updateDocumentBrick(docId, parentProps.parentId, latestParentContent, accessToken);
+          await write;
         } catch {
           fetchDoc();
+        } finally {
+          if (parentWriteChain.current.get(parentId) === write) parentWriteChain.current.delete(parentId);
         }
       }
 

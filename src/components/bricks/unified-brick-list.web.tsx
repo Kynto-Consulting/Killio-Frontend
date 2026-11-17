@@ -372,7 +372,11 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
       {canEdit && bricks.length === 0 && emptyPlaceholder && (
         <div 
           className="flex items-center justify-start text-[15px] text-muted-foreground/50 cursor-text min-h-[40px] hover:bg-muted/10 transition-colors rounded-lg w-full"
-          onClick={() => onAddBrick('text')}
+          onClick={(e) => {
+            // A double click fires two clicks: only the first adds a block (two would race on the parent container).
+            if (e.detail > 1) return;
+            onAddBrick('text');
+          }}
         >
           {emptyPlaceholder}
         </div>

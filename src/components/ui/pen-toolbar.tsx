@@ -30,6 +30,7 @@ export function PenToolbar({
   const [activePanel, setActivePanel] = React.useState<"color" | "size" | null>(null);
 
   const COLOR_PRESETS = [
+    "#111827",
     "#ffffff",
     "#22d3ee",
     "#60a5fa",
@@ -39,7 +40,6 @@ export function PenToolbar({
     "#f87171",
     "#f472b6",
     "#c084fc",
-    "#94a3b8",
   ];
 
   const WIDTH_PRESETS = [1, 2, 3, 5, 8, 12];
@@ -59,7 +59,7 @@ export function PenToolbar({
       <div className="relative flex flex-col items-center gap-2">
         {activePanel === "color" && (
           <div className="mb-1 w-[260px] rounded-2xl border border-cyan-300/20 bg-background/92 dark:bg-slate-950/92 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.55)] backdrop-blur-md">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">Color del Pen</div>
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700/70 dark:text-cyan-200/70">Color del Pen</div>
             <div className="grid grid-cols-5 gap-2">
               {COLOR_PRESETS.map((preset) => {
                 const active = preset.toLowerCase() === color.toLowerCase();
@@ -93,7 +93,7 @@ export function PenToolbar({
 
         {activePanel === "size" && (
           <div className="mb-1 w-[280px] rounded-2xl border border-cyan-300/20 bg-background/92 dark:bg-slate-950/92 p-3 shadow-[0_16px_40px_rgba(0,0,0,0.55)] backdrop-blur-md">
-            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-200/70">Ancho del trazo</div>
+            <div className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-700/70 dark:text-cyan-200/70">Ancho del trazo</div>
             <div className="grid grid-cols-6 gap-1.5">
               {WIDTH_PRESETS.map((preset) => {
                 const active = Math.abs(strokeWidth - preset) < 0.01;
@@ -102,7 +102,7 @@ export function PenToolbar({
                     key={preset}
                     type="button"
                     onClick={() => onStrokeWidthChange(preset)}
-                    className={`flex h-9 items-center justify-center rounded-lg border transition-colors ${active ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/75 dark:bg-slate-900/75 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+                    className={`flex h-9 items-center justify-center rounded-lg border transition-colors ${active ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-800 dark:text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/75 dark:bg-slate-900/75 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-800 dark:hover:text-cyan-100"}`}
                     title={`${preset}px`}
                   >
                     <Minus style={{ width: 18, height: 18, strokeWidth: preset <= 2 ? 2 : preset <= 5 ? 3 : 4 }} />
@@ -132,7 +132,7 @@ export function PenToolbar({
             <button
               type="button"
               onClick={() => onModeChange("ink")}
-              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${mode === "ink" ? "bg-cyan-400/20 text-cyan-100" : "text-muted-foreground dark:text-slate-400 hover:text-cyan-100"}`}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${mode === "ink" ? "bg-cyan-400/20 text-cyan-800 dark:text-cyan-100" : "text-muted-foreground dark:text-slate-400 hover:text-cyan-800 dark:hover:text-cyan-100"}`}
               title="Lápiz: dibuja tinta y crea/expande draw boards"
             >
               <PenLine className="h-3.5 w-3.5" /> Lápiz
@@ -141,7 +141,7 @@ export function PenToolbar({
               type="button"
               disabled={smartDisabled}
               onClick={() => { if (!smartDisabled) onModeChange("smart"); }}
-              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${smartDisabled ? "cursor-not-allowed text-slate-600 opacity-50" : mode === "smart" ? "bg-violet-400/20 text-violet-100" : "text-muted-foreground dark:text-slate-400 hover:text-violet-100"}`}
+              className={`inline-flex h-8 items-center gap-1 rounded-lg px-2 text-[10px] font-medium transition-colors ${smartDisabled ? "cursor-not-allowed text-slate-600 opacity-50" : mode === "smart" ? "bg-violet-400/20 text-violet-800 dark:text-violet-100" : "text-muted-foreground dark:text-slate-400 hover:text-violet-800 dark:hover:text-violet-100"}`}
               title={smartDisabled ? (smartDisabledReason || "Necesita conexión a internet") : "Inteligente: reconoce texto y formas (iink)"}
             >
               <Sparkles className="h-3.5 w-3.5" /> Smart
@@ -153,7 +153,7 @@ export function PenToolbar({
           <button
             type="button"
             onClick={() => setActivePanel((prev) => (prev === "color" ? null : "color"))}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${activePanel === "color" ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${activePanel === "color" ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-800 dark:text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-800 dark:hover:text-cyan-100"}`}
             title="Colores"
           >
             <Palette className="h-4 w-4" />
@@ -162,7 +162,7 @@ export function PenToolbar({
           <button
             type="button"
             onClick={() => setActivePanel((prev) => (prev === "size" ? null : "size"))}
-            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${activePanel === "size" ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-100"}`}
+            className={`inline-flex h-9 w-9 items-center justify-center rounded-xl border transition-colors ${activePanel === "size" ? "border-cyan-300/40 bg-cyan-400/15 text-cyan-800 dark:text-cyan-100" : "border-foreground/10 dark:border-white/10 bg-card/80 dark:bg-slate-900/80 text-muted-foreground dark:text-slate-300 hover:border-cyan-300/30 hover:text-cyan-800 dark:hover:text-cyan-100"}`}
             title="Ancho"
           >
             <Circle className="h-4 w-4" style={{ strokeWidth: Math.min(3, Math.max(1, strokeWidth / 3)) }} />
