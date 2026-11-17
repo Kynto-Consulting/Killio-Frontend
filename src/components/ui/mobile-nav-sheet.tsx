@@ -210,7 +210,7 @@ export function MobileNavSheet({
       {isOpen && (
         <Portal>
           <div 
-            className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
+            className="fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm animate-in fade-in duration-200"
             onClick={() => setIsOpen(false)}
           >
             <div 

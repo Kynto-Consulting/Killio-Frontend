@@ -365,7 +365,7 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-xl">
             <h2 className="mb-4 text-base font-semibold text-foreground">{t("table.shared.createTitle")}</h2>
             <form onSubmit={handleCreate} className="space-y-4">
@@ -422,7 +422,7 @@ export function KillioTable({ teamId, accessToken }: KillioTableProps) {
       )}
 
       {showRowEditor && selectedTable && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="w-full max-w-2xl rounded-xl border border-border bg-card p-6 shadow-xl">
             <h2 className="mb-4 text-base font-semibold text-foreground">
               {editingRowId ? t("table.shared.editRowTitle") : t("table.shared.newRowTitle")}
