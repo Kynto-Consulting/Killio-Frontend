@@ -850,7 +850,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 </p>
                 <button
                   onClick={() => router.push("/pricing")}
-                  className="mt-1 w-full bg-foreground dark:bg-white text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm"
+                  className="mt-1 w-full bg-white text-indigo-700 py-1.5 rounded-lg text-xs font-bold hover:bg-indigo-50 transition-colors shadow-sm"
                 >
                   Upgrade Now
                 </button>

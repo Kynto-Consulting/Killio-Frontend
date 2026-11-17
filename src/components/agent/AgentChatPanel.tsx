@@ -70,7 +70,7 @@ const IframeWithPreview = ({ src, title, height, screenshot, t }: { src: string,
     return (
       <iframe
         src={src}
-        className="w-full rounded-lg bg-foreground dark:bg-white animate-in fade-in duration-500"
+        className="w-full rounded-lg bg-white animate-in fade-in duration-500"
         style={{ height }}
         title={title || "Portal Content"}
       />
@@ -460,12 +460,12 @@ export function AgentChatPanel({
   );
 
   return (
-    <div className={`flex flex-col bg-foreground dark:bg-white dark:bg-neutral-900 relative overflow-hidden ${className || 'h-full'}`}>
+    <div className={`flex flex-col bg-white dark:bg-neutral-900 relative overflow-hidden ${className || 'h-full'}`}>
 
 
       {/* ── History overlay ───────────────────────────────────────────────── */}
       {showHistory && (
-        <div className="absolute inset-0 z-20 flex flex-col bg-foreground dark:bg-white dark:bg-neutral-900">
+        <div className="absolute inset-0 z-20 flex flex-col bg-white dark:bg-neutral-900">
           <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 shrink-0">
             <div className="flex items-center gap-2">
               <History className="w-4 h-4 text-violet-500" />
@@ -747,7 +747,7 @@ function UserMessage({
                     <img
                       src={assetSrc}
                       alt={title || "Image"}
-                      className="rounded-lg max-w-full h-auto object-contain bg-foreground dark:bg-white dark:bg-neutral-900 shadow-sm transition-all group-hover/img-asset:scale-[1.01]"
+                      className="rounded-lg max-w-full h-auto object-contain bg-white dark:bg-neutral-900 shadow-sm transition-all group-hover/img-asset:scale-[1.01]"
                       style={{ maxHeight: '300px' }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -789,7 +789,7 @@ function UserMessage({
                     </div>
                   </div>
                 ) : (
-                  <div className="flex items-center gap-3 p-2 bg-foreground/50 dark:bg-white/50 dark:bg-black/20 rounded-lg">
+                  <div className="flex items-center gap-3 p-2 bg-white/50 dark:bg-black/20 rounded-lg">
                     <FileText className="w-5 h-5 text-violet-500" />
                     <span className="text-[11px] font-medium truncate max-w-[120px]">{title || (type === 'document' ? t("agent.asset.document") : t("agent.asset.file"))}</span>
                     <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
@@ -1116,7 +1116,7 @@ export function AssistantMessage({
               };
 
               return (
-                <div key={key} className="my-3 rounded-xl overflow-hidden border border-violet-500/30 dark:border-violet-400/20 bg-foreground dark:bg-white dark:bg-neutral-950 shadow-md animate-in slide-in-from-bottom-2 duration-300">
+                <div key={key} className="my-3 rounded-xl overflow-hidden border border-violet-500/30 dark:border-violet-400/20 bg-white dark:bg-neutral-950 shadow-md animate-in slide-in-from-bottom-2 duration-300">
                   <div className="flex h-8 items-center gap-2 border-b border-violet-500/10 bg-violet-500/5 px-3 select-none">
                     <Database className="h-3.5 w-3.5 shrink-0 text-violet-500" />
                     <span className="text-[10px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
@@ -1143,7 +1143,7 @@ export function AssistantMessage({
                     <img
                       src={assetSrc}
                       alt={title || "Image Asset"}
-                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-foreground dark:bg-white dark:bg-neutral-900"
+                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
                       style={{ maxHeight: height || '400px' }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -1168,7 +1168,7 @@ export function AssistantMessage({
                   </div>
                 )}
                 {(type === "pdf" || type === "document") && assetSrc && (
-                  <div className="flex items-center gap-3 p-3 bg-foreground/50 dark:bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
+                  <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
                     <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
                       <FileText className="w-6 h-6 text-violet-500" />
                     </div>
@@ -1600,7 +1600,7 @@ function ContactChip({ t, name, number }: { t: TFn; name: string; number: string
   };
   const telHref = number ? `tel:${number.replace(/[^\d+]/g, "")}` : undefined;
   return (
-    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-foreground dark:bg-white dark:bg-neutral-800/60 text-xs">
+    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/60 text-xs">
       <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
         <User className="h-3.5 w-3.5" />
       </span>
@@ -1655,7 +1655,7 @@ function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
         return (
           <div
             key={i}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-foreground dark:bg-white dark:bg-neutral-800/60 text-xs"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/60 text-xs"
           >
             <span className={`${meta.color} shrink-0`}>{meta.icon}</span>
             <div className="min-w-0">

@@ -114,7 +114,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
         ref={setNodeRef}
         style={style}
         onClick={() => !isMenuOpen && setIsModalOpen(true)}
-        className={`group relative flex flex-col gap-2 rounded-lg bg-foreground dark:bg-white dark:bg-[#22272b] shadow-[0_1px_1px_#091e4240,0_0_1px_#091e424f] dark:shadow-none dark:ring-[0.5px] dark:ring-white/10 p-3 hover:ring-2 hover:ring-primary/40 ${isArchived ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} transition-colors border-none`}
+        className={`group relative flex flex-col gap-2 rounded-lg bg-white dark:bg-[#22272b] shadow-[0_1px_1px_#091e4240,0_0_1px_#091e424f] dark:shadow-none dark:ring-[0.5px] dark:ring-white/10 p-3 hover:ring-2 hover:ring-primary/40 ${isArchived ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} transition-colors border-none`}
         {...(isArchived ? {} : attributes)}
         {...(isArchived ? {} : listeners)}
       >

@@ -370,7 +370,7 @@ export function RoomCallSettingsModal({
                   className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewRemoval ? "bg-violet-600" : "bg-zinc-700"
                     }`}
                 >
-                  <div className={`absolute top-0.5 w-4 h-4 bg-foreground dark:bg-white rounded-full shadow transition-all duration-200 ${previewRemoval ? "left-[22px]" : "left-0.5"}`} />
+                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewRemoval ? "left-[22px]" : "left-0.5"}`} />
                 </button>
               </div>
 
@@ -449,7 +449,7 @@ export function RoomCallSettingsModal({
                     onClick={() => setPreviewCaptions({ ...previewCaptions, enabled: !previewCaptions.enabled })}
                     className={`w-10 h-5 rounded-full transition-colors relative flex items-center ${previewCaptions.enabled ? "bg-violet-600" : "bg-zinc-700"}`}
                   >
-                    <div className={`absolute top-0.5 w-4 h-4 bg-foreground dark:bg-white rounded-full shadow transition-all duration-200 ${previewCaptions.enabled ? "left-[22px]" : "left-0.5"}`} />
+                    <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200 ${previewCaptions.enabled ? "left-[22px]" : "left-0.5"}`} />
                   </button>
                </div>
 

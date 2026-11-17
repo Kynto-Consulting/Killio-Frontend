@@ -1346,7 +1346,7 @@ function EditPropertyFlyout({
               onClick={() => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, gantt: !column.checkboxStyle?.gantt } })}
               className={cn("h-5 w-9 rounded-full transition-colors relative shrink-0",
                 column.checkboxStyle?.gantt ? "bg-accent" : "bg-muted/60")}>
-              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-foreground dark:bg-white shadow-sm transition-all",
+              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all",
                 column.checkboxStyle?.gantt ? "left-4" : "left-0.5")} />
             </button>
           </div>

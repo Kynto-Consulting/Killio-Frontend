@@ -554,7 +554,7 @@ function PricingPageInner() {
                         ? "bg-indigo-500 text-white hover:bg-indigo-400 focus-visible:outline-indigo-500 shadow-indigo-500/25 hover:shadow-indigo-500/40"
                         : isMax
                           ? "bg-cyan-500 text-slate-900 hover:bg-cyan-400 focus-visible:outline-cyan-500 shadow-cyan-500/25 hover:shadow-cyan-500/40"
-                          : "bg-foreground dark:bg-white text-slate-900 hover:bg-slate-100 focus-visible:outline-white"
+                          : "bg-white text-slate-900 hover:bg-slate-100 focus-visible:outline-white"
                   }`}
                   onClick={() => handlePlanAction(plan.tier)}
                 >

@@ -462,7 +462,7 @@ export function ProfileSettingsModal({ isOpen, onClose }: ProfileSettingsModalPr
                           className="sr-only peer"
                         />
                         <div className="h-5 w-9 rounded-full border border-input bg-muted peer-checked:bg-primary peer-disabled:opacity-50 transition-colors">
-                          <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-foreground dark:bg-white shadow transition-transform ${otpLoginEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
+                          <div className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${otpLoginEnabled ? "translate-x-4" : "translate-x-0.5"}`} />
                         </div>
                       </div>
                       <div>
