@@ -6,21 +6,26 @@ const API = (
   "http://localhost:4000"
 ).replace(/\/$/, "");
 
+// The last configuration that was read successfully. A customer deployment must not flip to
+// Killio's own look because of one slow or failed request.
+let lastGood: PublicTenantConfig | null = null;
+
 /**
  * Reads the tenant configuration from the backend (server side, cached for a
- * minute). If the backend is unreachable the app falls back to the public
- * Killio look instead of failing to render.
+ * minute). If the backend can't be reached it keeps the last good configuration,
+ * and only falls back to the public Killio look when it has never succeeded.
  */
 export async function getTenantConfig(): Promise<PublicTenantConfig> {
+  const fallback = lastGood ?? DEFAULT_TENANT_CONFIG;
   try {
     const res = await fetch(`${API}/tenant/config`, {
       next: { revalidate: 60 },
-      signal: AbortSignal.timeout(4000),
+      signal: AbortSignal.timeout(8000),
     });
-    if (!res.ok) return DEFAULT_TENANT_CONFIG;
+    if (!res.ok) return fallback;
     const data = (await res.json()) as Partial<PublicTenantConfig>;
-    if (!data || (data.mode !== "public" && data.mode !== "tenant")) return DEFAULT_TENANT_CONFIG;
-    return {
+    if (!data || (data.mode !== "public" && data.mode !== "tenant")) return fallback;
+    const merged = {
       ...DEFAULT_TENANT_CONFIG,
       ...data,
       brand: { ...DEFAULT_TENANT_CONFIG.brand, ...data.brand },
@@ -32,7 +37,9 @@ export async function getTenantConfig(): Promise<PublicTenantConfig> {
       features: { ...DEFAULT_TENANT_CONFIG.features, ...data.features },
       permissions: { ...DEFAULT_TENANT_CONFIG.permissions, ...data.permissions },
     } as PublicTenantConfig;
+    lastGood = merged;
+    return merged;
   } catch {
-    return DEFAULT_TENANT_CONFIG;
+    return fallback;
   }
 }
