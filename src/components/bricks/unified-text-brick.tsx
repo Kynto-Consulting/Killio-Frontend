@@ -1,8 +1,10 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
+import { createPortal } from "react-dom";
 import { FileText, LayoutDashboard, CreditCard, ExternalLink, User as UserIcon, Type, Heading1, Heading2, Heading3, Heading4, List, ListOrdered, CheckSquare, ChevronDown, Image as ImageIcon, Table, BarChart2, Link2 as LinkIcon } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+import { EmbeddedDocument, EmbedChainContext } from "./embedded-document";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
@@ -17,9 +19,9 @@ import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover, formatDateToken, type DateTokenFormat } from "./inline-pickers";
-import katex from "katex";
-// @ts-ignore
-import "katex/dist/katex.min.css";
+import { renderMath } from "@/lib/latex/katex-config";
+import { prepareLatex, LATEX_BLOCK_LINE } from "@/lib/latex/latex-text";
+import { useOnlinePackages } from "@/lib/latex/use-online-packages";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 
 interface TextBrickProps {
@@ -216,6 +218,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const [formatToolbarPosition, setFormatToolbarPosition] = useState({ top: 0, left: 0, bottom: 0 });
   const contentRef = useRef<HTMLDivElement>(null);
   const readonlyRef = useRef<HTMLDivElement>(null);
+  // React 19 re-assigns innerHTML on every re-render unless the dangerouslySetInnerHTML OBJECT is the
+  // same one: that wiped every React root mounted inside the display HTML (diagrams, icons, embeds).
+  const readonlyHtmlRef = useRef<{ __html: string }>({ __html: "" });
   // Diagram (mermaid / grarkdown / erDiagram / html-preview) fenced blocks found
   // during the last display render — mounted as real React canvases by an effect.
   const diagramBlocksRef = useRef<Array<{ lang: string; code: string }>>([]);
@@ -236,6 +241,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const dragSelectionRef = useRef<DragSelectionPayload | null>(null);
   const router = useRouter();
   const { locale } = useI18n();
+  // Online LaTeX packages referenced by this text (\usepackage{https://…}); only
+  // their declarative definitions are used, see lib/latex/online-packages.ts.
+  const onlinePackages = useOnlinePackages(text);
+
+  // `\input{doc:ID}` blocks render a placeholder; the live document is portaled into it so it
+  // keeps the app's providers (session, i18n). `embedChain` guards against include cycles.
+  const embedCtx = useContext(EmbedChainContext);
+  const routeParams = useParams() as Record<string, string | string[] | undefined> | null;
+  const routeDocId = routeParams?.docId;
+  const embedChain = React.useMemo(() => {
+    const own = Array.isArray(routeDocId) ? routeDocId[0] : routeDocId;
+    return Array.from(new Set([...embedCtx.chain, ...(own ? [own] : [])]));
+  }, [embedCtx.chain, routeDocId]);
+  const [embedHosts, setEmbedHosts] = useState<Array<{ el: HTMLElement; docId: string }>>([]);
   const tDetail = useTranslations("document-detail");
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
@@ -330,7 +349,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   // same kind, adjacent twins, and browser-injected plain <span>s — which would
   // serialize to broken markdown like [color:x][color:x]…[/color][/color]. This
   // normalizes the tree (in place) so revertToMarkdown emits clean, balanced tags.
-  const PRESERVE_SPAN = "[data-lu-icon],[data-token],[data-math],.mention-pill,.user-mention,.deep-pill";
+  const PRESERVE_SPAN = "[data-lu-icon],[data-token],[data-math],[data-latex-inline],[data-latex-src],.mention-pill,.user-mention,.deep-pill";
   const styleSignature = (el: Element): string | null => {
     const tag = el.tagName.toLowerCase();
     if (tag === "span") {
@@ -437,6 +456,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
         if (tag === "br") {
           markdown += "\n";
+        } else if (el.hasAttribute("data-latex-inline")) {
+          // \ref{…}, \SI{…}, \label{…}: shown as their value, saved as the command itself.
+          markdown += el.getAttribute("data-latex-src") || "";
+          return;
+        } else if (el.hasAttribute("data-latex-src")) {
+          // LaTeX blocks (equations, tabular, lists, theorems…) keep their original
+          // source so numbering/labels and every command survive an edit untouched.
+          if (markdown.length > 0 && !markdown.endsWith("\n")) markdown += "\n";
+          markdown += el.getAttribute("data-latex-src") || "";
+          if (!markdown.endsWith("\n")) markdown += "\n";
+          return;
         } else if (el.hasAttribute("data-md-table") || el.hasAttribute("data-md-quote")) {
           // Tables / blockquotes / callouts carry their source markdown so we
           // can round-trip them losslessly.
@@ -608,6 +638,13 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       if (el.getAttribute("data-token")) { md += el.getAttribute("data-token") || ""; return; }
       if (el.hasAttribute("data-lu-icon")) { md += `[lu:${el.getAttribute("data-lu-icon") || ""}:${el.getAttribute("data-lu-sw") || "2"}]`; return; }
       if (tag === "br") { md += "\n"; return; }
+      if (el.hasAttribute("data-latex-inline")) { md += el.getAttribute("data-latex-src") || ""; return; }
+      if (el.hasAttribute("data-latex-src")) {
+        if (md.length > 0 && !md.endsWith("\n")) md += "\n";
+        md += el.getAttribute("data-latex-src") || "";
+        if (!md.endsWith("\n")) md += "\n";
+        return;
+      }
       if (el.hasAttribute("data-md-table") || el.hasAttribute("data-md-quote")) {
         if (md.length > 0 && !md.endsWith("\n")) md += "\n";
         md += el.getAttribute("data-md-table") || el.getAttribute("data-md-quote") || "";
@@ -744,6 +781,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return `\x00CB${idx}\x00`;
     });
 
+    // LaTeX: environments (equation/align/tabular/lists/theorems…) become atomic
+    // blocks (placeholder lines) and inline commands become the brick's own tokens.
+    // Text without a backslash is returned untouched.
+    const latex = prepareLatex(sanitized, { locale, remote: onlinePackages });
+    sanitized = latex.text;
+
     // Pre-extract math blocks
     const mathBlocks: Array<{ formula: string; isBlock: boolean }> = [];
     sanitized = sanitized.replace(/\$\$([\s\S]*?)\$\$/g, (_, formula) => {
@@ -809,7 +852,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         const mInfo = mathBlocks[parseInt(idxStr)];
         if (!mInfo) return "";
         try {
-          return `<span contenteditable="false" data-math="${escapeHtmlAttr(mInfo.formula)}" class="mx-1 render-math math-inline inline-block whitespace-nowrap">${katex.renderToString(mInfo.formula, { throwOnError: false, displayMode: false })}</span>`;
+          return `<span contenteditable="false" data-math="${escapeHtmlAttr(mInfo.formula)}" class="mx-1 render-math math-inline inline-block whitespace-nowrap">${renderMath(mInfo.formula, { display: false, macros: latex.macros, packages: latex.packages })}</span>`;
         } catch (e) {
           return `<span contenteditable="false" data-math="${escapeHtmlAttr(mInfo.formula)}" class="mx-1 text-red-500">$${escapeHtml(mInfo.formula)}$</span>`;
         }
@@ -970,6 +1013,26 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return result;
     };
 
+    // Inline text inside LaTeX blocks (table cells, list items, captions…): lift
+    // `$math$` into the shared placeholder table, then run the normal inline pass.
+    const latexEnv = {
+      inline: (s: string): string => {
+        const lifted = s
+          .replace(/\$\$([\s\S]*?)\$\$/g, (_, f: string) => { mathBlocks.push({ formula: f.trim(), isBlock: false }); return `\x00MI${mathBlocks.length - 1}\x00`; })
+          .replace(/\$([^\$\n]+?)\$/g, (_, f: string) => { mathBlocks.push({ formula: f.trim(), isBlock: false }); return `\x00MI${mathBlocks.length - 1}\x00`; });
+        // Text coming out of LaTeX blocks is escaped for tags (math was lifted already).
+        // …except the inline atoms the LaTeX parser itself produced (\ref, \SI, \label…)
+        const safe = lifted
+          .split(/(<span data-latex-inline="1"[^>]*>[^<]*<\/span>)/)
+          .map((part, k) => (k % 2 === 1 ? part : part.replace(/</g, "&lt;").replace(/>/g, "&gt;")))
+          .join("");
+        return formatInline(safe);
+      },
+      math: (formula: string, display: boolean): string => renderMath(formula, { display, macros: latex.macros, packages: latex.packages }),
+      escape: escapeHtml,
+      escapeAttr: escapeHtmlAttr,
+    };
+
     const flushList = () => {
       if (listBuffer.length > 0 && listType) {
         html += `<${listType} class="list-inside pl-4 mb-2 ${listType === 'ul' ? 'list-disc' : 'list-decimal'}">`;
@@ -1059,6 +1122,12 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       // Code block placeholder
       const cbMatch = trimmed.match(/^\x00CB(\d+)\x00$/);
       const mbMatch = trimmed.match(/^\x00MB(\d+)\x00$/);
+      const lbMatch = trimmed.match(LATEX_BLOCK_LINE);
+      if (lbMatch) {
+        flushList(); flushTable(); flushQuote();
+        html += latex.renderBlock(parseInt(lbMatch[1], 10), latexEnv);
+        return;
+      }
       if (cbMatch) {
         flushList();
         const { lang, code } = codeBlocks[parseInt(cbMatch[1])];
@@ -1079,7 +1148,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         flushList();
         const mInfo = mathBlocks[parseInt(mbMatch[1])];
         try {
-          const rendered = katex.renderToString(mInfo.formula, { throwOnError: false, displayMode: true });
+          const rendered = renderMath(mInfo.formula, { display: true, macros: latex.macros, packages: latex.packages });
           html += `<div contenteditable="false" class="my-4 render-math math-block w-full overflow-x-auto text-center" data-math-block="true" data-math="${escapeHtmlAttr(mInfo.formula)}">${rendered}</div>`;
         } catch (e) {
           html += `<div contenteditable="false" class="my-4 text-red-500" data-math-block="true" data-math="${escapeHtmlAttr(mInfo.formula)}">$$${escapeHtml(mInfo.formula)}$$</div>`;
@@ -2213,8 +2282,20 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     e.preventDefault();
   };
 
+  const readonlyHtml = readonly ? processPseudoMarkdown(text, true) : "";
+  if (readonlyHtmlRef.current.__html !== readonlyHtml) readonlyHtmlRef.current = { __html: readonlyHtml };
+
+  // Declared after every paint effect on purpose: it must see the HTML they just wrote.
+  useEffect(() => {
+    const host = readonly ? readonlyRef.current : contentRef.current;
+    const els = host ? Array.from(host.querySelectorAll<HTMLElement>("[data-latex-embed] > [data-embed-mount]")) : [];
+    const next = els.map((el) => ({ el, docId: el.parentElement?.getAttribute("data-latex-embed") || "" })).filter((h) => h.docId);
+    setEmbedHosts((prev) => (prev.length === next.length && prev.every((p, i) => p.el === next[i].el && p.docId === next[i].docId) ? prev : next));
+  });
+
   return (
     <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
+      {embedHosts.map((h, i) => createPortal(<EmbeddedDocument docId={h.docId} chain={embedChain} depth={embedCtx.depth} />, h.el, `${h.docId}-${i}`))}
       {readonly ? (
         <div
           ref={readonlyRef}
@@ -2222,7 +2303,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             "w-full p-2 leading-relaxed text-sm rounded-md prose prose-sm dark:prose-invert max-w-none",
             "[&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5"
           )}
-          dangerouslySetInnerHTML={{ __html: processPseudoMarkdown(text, true) }}
+          dangerouslySetInnerHTML={readonlyHtmlRef.current}
         />
       ) : (
         <div

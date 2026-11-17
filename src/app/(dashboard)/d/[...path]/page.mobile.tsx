@@ -18,7 +18,7 @@ import { UnifiedBrickList } from "@/components/bricks/unified-brick-list";
 import { getTopLevelBrickIds, sanitizeChildrenByContainer } from "@/lib/bricks/nesting";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/lib/toast";
-import { useTranslations } from "@/components/providers/i18n-provider";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { cn } from "@/lib/utils";
 import { DocumentShareModal } from "@/components/ui/document-share-modal";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
@@ -29,6 +29,7 @@ const BRICK_PAGE_SIZE = 50;
 
 export default function DocumentMobilePage() {
   const t = useTranslations("document-detail");
+  const { locale } = useI18n();
   const _params = useParams() as { path?: string | string[] };
   const docId = Array.isArray(_params.path) ? _params.path[0] : (_params.path ?? "");
   const { accessToken, user, activeTeamId } = useSession();
@@ -42,7 +43,7 @@ export default function DocumentMobilePage() {
   const [tempTitle, setTempTitle] = useState("");
   const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<"pdf" | "docx">("pdf");
+  const [exportFormat, setExportFormat] = useState<"pdf" | "docx" | "latex">("pdf");
   const [exportStyle, setExportStyle] = useState<"carta" | "harvard">("carta");
   const [exportSize, setExportSize] = useState<"letter" | "A4">("A4");
   const [isExporting, setIsExporting] = useState(false);
@@ -173,14 +174,15 @@ export default function DocumentMobilePage() {
     setIsExporting(true);
     try {
       const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
-      const url = `${API_BASE}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}`;
+      const url = `${API_BASE}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}&lang=${locale}`;
       const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
       if (!res.ok) throw new Error("export failed");
       const blob = await res.blob();
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = window.document.createElement("a");
       a.href = downloadUrl;
-      a.download = `${document.title || "Document"}.${exportFormat}`;
+      const ext = exportFormat === "latex" ? ((res.headers.get("content-type") || "").includes("zip") ? "zip" : "tex") : exportFormat;
+      a.download = `${document.title || "Document"}.${ext}`;
       window.document.body.appendChild(a);
       a.click();
       a.remove();
@@ -387,9 +389,18 @@ export default function DocumentMobilePage() {
                   >
                     Word (DOCX)
                   </button>
+                  <button
+                    onClick={() => setExportFormat("latex")}
+                    className={cn("flex-1 py-2 rounded-lg text-sm font-medium border transition-colors", exportFormat === "latex" ? "bg-accent text-accent-foreground border-accent" : "border-border text-foreground hover:bg-accent/5")}
+                  >
+                    LaTeX
+                  </button>
                 </div>
               </div>
 
+              {exportFormat === "latex" ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">{locale === "es" ? "Descarga el LaTeX tal cual y convierte el resto de formatos de Killio a LaTeX. Con imágenes incrustadas se descarga como .zip." : "Downloads existing LaTeX as-is and converts the rest of Killio formats to LaTeX. With embedded images it downloads as a .zip."}</p>
+              ) : (
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.styleLabel")}</label>
                 <div className="flex gap-2">
@@ -407,6 +418,7 @@ export default function DocumentMobilePage() {
                   </button>
                 </div>
               </div>
+              )}
             </div>
 
             <div className="mt-6 flex justify-end gap-2">

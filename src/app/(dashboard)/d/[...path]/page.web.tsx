@@ -36,7 +36,7 @@ import { Input } from "@/components/ui/input";
 import { DocumentCommentsDrawer } from "@/components/ui/document-comments-drawer";
 import { Sparkles, History, Copy as CopyIcon } from "lucide-react";
 import { toast } from "@/lib/toast";
-import { useTranslations } from "@/components/providers/i18n-provider";
+import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMediaItems } from "@/lib/media-bricks";
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 import { toReferenceUsers } from "@/lib/workspace-members";
@@ -59,6 +59,7 @@ const cloneBricks = (bricks?: DocumentBrick[]): DocumentBrick[] =>
 
 export default function DocumentPage() {
   const t = useTranslations("document-detail");
+  const { locale } = useI18n();
   const tShare = useTranslations("share-local");
   const _params = useParams() as { path?: string | string[] };
   const localWs = useLocalWorkspace();
@@ -87,7 +88,7 @@ export default function DocumentPage() {
   const [isCommentsOpen, setIsCommentsOpen] = useState(false);
   const [aiInitialInput, setAiInitialInput] = useState("");
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx'>('pdf');
+  const [exportFormat, setExportFormat] = useState<'pdf' | 'docx' | 'latex'>('pdf');
   const [exportStyle, setExportStyle] = useState<'carta' | 'harvard'>('carta');
   const [exportSize, setExportSize] = useState<'letter' | 'A4'>('A4');
   const [isExporting, setIsExporting] = useState(false);
@@ -1599,7 +1600,7 @@ export default function DocumentPage() {
     setIsExporting(true);
     try {
       const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
-      const url = `${API_BASE_URL}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}`;
+      const url = `${API_BASE_URL}/documents/${docId}/export?format=${exportFormat}&style=${exportStyle}&paperSize=${exportSize}&lang=${locale}`;
       const res = await fetch(url, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       });
@@ -1609,7 +1610,9 @@ export default function DocumentPage() {
       const downloadUrl = window.URL.createObjectURL(blob);
       const a = window.document.createElement('a');
       a.href = downloadUrl;
-      a.download = `${document.title || 'Document'}.${exportFormat}`;
+      // LaTeX comes back as a single .tex, or as a .zip when the document embeds files
+      const ext = exportFormat === 'latex' ? ((res.headers.get('content-type') || '').includes('zip') ? 'zip' : 'tex') : exportFormat;
+      a.download = `${document.title || 'Document'}.${ext}`;
       window.document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1886,9 +1889,13 @@ export default function DocumentPage() {
                 <div className="flex gap-2">
                   <Button variant={exportFormat === 'pdf' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('pdf')}>PDF</Button>
                   <Button variant={exportFormat === 'docx' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('docx')}>Word (DOCX)</Button>
+                  <Button variant={exportFormat === 'latex' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportFormat('latex')}>LaTeX</Button>
                 </div>
               </div>
 
+              {exportFormat === 'latex' ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">{locale === 'es' ? 'Descarga el LaTeX tal cual y convierte el resto de formatos de Killio a LaTeX. Si el documento tiene imágenes incrustadas, se descarga como .zip (main.tex + figures/).' : 'Downloads existing LaTeX as-is and converts the rest of Killio formats to LaTeX. If the document embeds images it downloads as a .zip (main.tex + figures/).'}</p>
+              ) : (<>
               <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{t("exportModal.styleLabel")}</label>
                 <div className="flex gap-2">
@@ -1904,6 +1911,7 @@ export default function DocumentPage() {
                   <Button variant={exportSize === 'letter' ? 'default' : 'outline'} className="flex-1" onClick={() => setExportSize('letter')}>Carta</Button>
                 </div>
               </div>
+              </>)}
             </div>
 
             <div className="mt-8 flex justify-end gap-2">

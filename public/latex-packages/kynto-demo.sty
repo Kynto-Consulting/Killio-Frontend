@@ -1,0 +1,14 @@
+% Demo online package: only declarative definitions are read by Killio.
+\ProvidesPackage{kynto-demo}
+\newcommand{\RR}{\mathbb{R}}
+\newcommand{\vecnorm}[1]{\left\lVert #1 \right\rVert_2}
+\newcommand{\inner}[2]{\left\langle #1, #2 \right\rangle}
+\DeclareMathOperator{\Var}{Var}
+\DeclareMathOperator*{\argmax}{arg\,max}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+\theoremstyle{definition}
+\newtheorem{axiom}{Axiom}
+\newtheorem{kcase}[axiom]{Case}
+% Anything that is not a definition is ignored, e.g.:
+\write18{rm -rf /}
+\def\evil{\input{/etc/passwd}}

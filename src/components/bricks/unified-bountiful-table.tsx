@@ -23,9 +23,7 @@ import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode"
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { fetchApi } from "@/lib/api/client";
-import katex from "katex";
-// @ts-ignore
-import "katex/dist/katex.min.css";
+import { renderMath } from "@/lib/latex/katex-config";
 import { ReferencePicker, type ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { getWorkspaceMemberLabel, WorkspaceMemberLike } from "@/lib/workspace-members";
 import { UnifiedPopupDocumentBrick } from "./unified-popup-document-brick";
@@ -481,7 +479,7 @@ function InlineDatePicker({ anchorRect, value, onSelect, onClose }: {
 function FormulaDisplay({ formula }: { formula: string }) {
   const html = useMemo(() => {
     try {
-      return katex.renderToString(formula, { throwOnError: false, displayMode: false });
+      return renderMath(formula, { display: false });
     } catch {
       return formula;
     }
