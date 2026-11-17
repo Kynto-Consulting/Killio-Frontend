@@ -2,7 +2,7 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useState, useEffect, useRef } from "react";
-import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX, ChevronRight, ChevronDown } from "lucide-react";
+import { X, UploadCloud, FileAudio, Bot, Sparkles, Send, Loader2, Edit3, CheckSquare, Wrench, Volume2, VolumeX, ChevronRight, ChevronDown, FileSpreadsheet } from "lucide-react";
 import { Select } from "@/components/ui/select";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCardBrick, generateCardsWithAi, generateDocumentsWithAi, generateBoardsWithAi, createBoard, createList, chatWithAiScope, listTeams } from "@/lib/api/contracts";
@@ -22,6 +22,7 @@ import { toast } from "@/lib/toast";
 import { ReferenceTokenInput } from "./reference-token-input";
 import { createScript, saveScriptGraph } from "@/lib/api/scripts";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
+import { TableImportDialog } from "./table-import-dialog";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 //comentario para forzar deploy
@@ -380,6 +381,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [previewAgents, setPreviewAgents] = useState<GeneratedAgentDraft[]>([]);
   const [expandedScriptPreviewIds, setExpandedScriptPreviewIds] = useState<string[]>([]);
   const [showGenerationTypeMenu, setShowGenerationTypeMenu] = useState(false);
+  const [showImportDialog, setShowImportDialog] = useState(false);
   // Default selection is built off the fetched manifest (every tool whose
   // category is NOT in DEFAULT_OFF_CATEGORIES). Empty until manifest loads.
   const [enabledAgentTools, setEnabledAgentTools] = useState<AgentToolId[]>([]);
@@ -1525,6 +1527,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                               ? t("aiPanel.generateScripts")
                               : t("aiPanel.designAgent")}
                     </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowImportDialog(true)}
+                      className="inline-flex h-11 items-center justify-center gap-2 rounded-lg border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-accent/5"
+                      title={t("aiPanel.import.title")}
+                    >
+                      <FileSpreadsheet className="h-4 w-4 text-muted-foreground" />
+                      {t("aiPanel.import.button")}
+                    </button>
                     <div className="flex gap-2">
                       <div className="relative" ref={generationMenuRef}>
                         <button
@@ -2333,6 +2344,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
 
         </div>
       </div>
+
+      {showImportDialog && (
+        <TableImportDialog
+          teamId={activeTeamId ?? null}
+          defaultBoardId={defaultBoardId || undefined}
+          defaultLists={defaultLists.map((l) => ({ id: l.id, name: l.name }))}
+          onClose={() => setShowImportDialog(false)}
+        />
+      )}
 
       {activeCardDetails && (
         <CardDetailModal
