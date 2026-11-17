@@ -20,9 +20,9 @@ export const GithubTriggerNode = memo(({ data, selected }: NodeProps) => {
         selected ? "border-violet-500" : "border-border"
       }`}
     >
-      <div className="flex items-center gap-2 rounded-t-md bg-slate-800 px-3 py-2">
-        <GitBranch className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{t("canvas.nodes.githubCommit")}</span>
+      <div className="flex items-center gap-2 rounded-t-md bg-muted dark:bg-slate-800 px-3 py-2">
+        <GitBranch className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{t("canvas.nodes.githubCommit")}</span>
       </div>
       <div className="space-y-1 p-3 text-xs text-muted-foreground">
         {config.repoFullName ? (

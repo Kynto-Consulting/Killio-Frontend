@@ -30,6 +30,17 @@
     --panel-strong: rgba(248, 250, 252, 0.9);
     --rf-dots-color: rgba(100, 116, 139, 0.35);
     --radius: 0.5rem;
+    /* Tokens for colours written inline in components (style={{ ... }}). Light values; .dark keeps today's exact colours. */
+    --shade: 0 0% 0%; --shade-k: 0.22;
+    --ink: 222 47% 11%;            /* text / lines drawn as white-with-alpha on dark */
+    --surface-deep: 210 40% 97%;   /* page background that was #020408 on dark */
+    --accent-ink: 217 91% 45%;     /* Killio's lime (#d8ff72) used as an accent colour */
+    --accent-ink-fg: 0 0% 100%;    /* text on top of --accent-ink */
+    --c-red: 0 72% 45%;
+    --c-green: 142 71% 30%;
+    --c-amber: 32 95% 37%;
+    --c-indigo: 243 75% 55%;
+    --c-cyan: 193 82% 31%;
   }
 
   .dark {
@@ -62,6 +73,16 @@
     --panel: rgba(16, 16, 16, 0.66);
     --panel-strong: rgba(24, 24, 24, 0.86);
     --rf-dots-color: rgba(148, 163, 184, 0.28);
+    --shade: 0 0% 0%; --shade-k: 1;
+    --ink: 0 0% 100%;
+    --surface-deep: 220 60% 1.96%;
+    --accent-ink: 76.60 100% 72.35%;   /* #d8ff72 */
+    --accent-ink-fg: 86.67 100% 3.53%;     /* #0a1200 */
+    --c-red: 0 90.60% 70.78%;          /* #f87171 */
+    --c-green: 141.89 69.16% 58.04%;          /* #4ade80 */
+    --c-amber: 43.26 96.41% 56.27%;           /* #fbbf24 */
+    --c-indigo: 234.45 89.47% 73.92%;         /* #818cf8 */
+    --c-cyan: 187.94 85.71% 53.33%;           /* #22d3ee */
   }
 }
 

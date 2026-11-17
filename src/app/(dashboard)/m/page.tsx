@@ -17,14 +17,14 @@ import { importToMeshTemplate, templateToMeshState } from "@/lib/mesh-import";
 
 function resolveMeshCardBg(mesh: { backgroundKind?: string | null; backgroundValue?: string | null; backgroundGradient?: string | null; backgroundImageUrl?: string | null }): { className: string; style?: CSSProperties } {
   if (mesh.backgroundKind === "image" && mesh.backgroundImageUrl) {
-    return { className: "bg-slate-900 bg-cover bg-center", style: { backgroundImage: `url(${mesh.backgroundImageUrl})` } };
+    return { className: "bg-card dark:bg-slate-900 bg-cover bg-center", style: { backgroundImage: `url(${mesh.backgroundImageUrl})` } };
   }
   if ((mesh.backgroundKind === "color" || mesh.backgroundKind === "preset") && mesh.backgroundValue) {
-    return { className: "bg-slate-900", style: { backgroundColor: mesh.backgroundValue } };
+    return { className: "bg-card dark:bg-slate-900", style: { backgroundColor: mesh.backgroundValue } };
   }
   if (mesh.backgroundKind === "gradient" && mesh.backgroundGradient) {
     if (mesh.backgroundGradient.startsWith("bg-")) return { className: mesh.backgroundGradient };
-    return { className: "bg-slate-900", style: { background: mesh.backgroundGradient } };
+    return { className: "bg-card dark:bg-slate-900", style: { background: mesh.backgroundGradient } };
   }
   // default: dark black
   return { className: "bg-black" };
@@ -264,7 +264,7 @@ export default function MeshBoardsPage() {
               className="group flex min-h-[160px] flex-col rounded-xl border border-border bg-card shadow-sm transition-all hover:border-accent/40 hover:shadow-md"
             >
               <div className={`flex h-20 w-full items-center border-b border-border/50 px-4 ${cardBg.className}`} style={cardBg.style}>
-                <GitBranch className="h-8 w-8 text-white/30 drop-shadow" />
+                <GitBranch className="h-8 w-8 text-foreground/30 dark:text-white/30 drop-shadow" />
               </div>
               <div className="flex flex-1 flex-col p-4">
                 <h2 className="truncate text-lg font-semibold transition-colors group-hover:text-accent">{mesh.name}</h2>

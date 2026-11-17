@@ -42,6 +42,8 @@ export function buildTenantThemeCss(config: PublicTenantConfig): string {
   // Killio uses `text-accent` for links and highlighted text. In most brand palettes `accent` is a soft
   // background tint, so as a text colour it can be unreadable. In tenant mode that text follows --link,
   // falling back to the brand's primary colour.
+  // Tokens for colours written inline in components (see globals.css) follow the tenant palette.
+  parts.push(":root:root{--ink:var(--foreground);--surface-deep:var(--background);--accent-ink:var(--link,var(--primary));--accent-ink-fg:var(--primary-foreground);}");
   const linkColor = "hsl(var(--link,var(--primary)))";
   parts.push(`html .text-accent,html .hover\\:text-accent:hover,html .group:hover .group-hover\\:text-accent{color:${linkColor};}`);
   for (const alpha of [40, 50, 70, 80, 90]) {

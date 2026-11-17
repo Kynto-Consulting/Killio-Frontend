@@ -275,7 +275,7 @@ export function RichText({
             if (/^html(\[preview\])?$/i.test(lang)) {
               return (
                 <iframe key={i} sandbox="allow-scripts allow-popups" srcDoc={body} title="HTML preview"
-                  className="my-2 w-full rounded-lg border border-border/60 bg-white" style={{ height: 360 }} />
+                  className="my-2 w-full rounded-lg border border-border/60 bg-foreground dark:bg-white" style={{ height: 360 }} />
               );
             }
             // ```mermaid``` / ```grarkdown``` / ```erDiagram``` → real mesh render.

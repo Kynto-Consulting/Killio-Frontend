@@ -125,4 +125,4 @@ export function LegalDocumentPage({ page }: LegalDocumentPageProps) {
       <PublicFooter />
     </div>
   );
-}
+}

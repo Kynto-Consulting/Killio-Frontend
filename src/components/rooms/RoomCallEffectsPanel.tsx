@@ -92,7 +92,7 @@ function EffectTile({
         style={{ filter: option.cssPreview }}
       >
         {option.id === "none" ? (
-          <span className="text-white text-base font-bold opacity-80">A</span>
+          <span className="text-foreground dark:text-white text-base font-bold opacity-80">A</span>
         ) : null}
       </div>
       <span className="text-[10px] font-medium leading-tight text-center">
@@ -124,7 +124,7 @@ export function RoomCallEffectsPanel({
         <span className="text-sm font-semibold text-zinc-100">{t("call.effects.title")}</span>
         <button
           onClick={onClose}
-          className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+          className="w-6 h-6 flex items-center justify-center rounded-lg text-zinc-400 hover:text-foreground dark:hover:text-white hover:bg-zinc-700 transition-colors"
         >
           <X className="w-3.5 h-3.5" />
         </button>

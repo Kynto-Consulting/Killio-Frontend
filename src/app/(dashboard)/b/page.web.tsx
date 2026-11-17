@@ -126,21 +126,21 @@ export default function BoardsPage() {
       }
 
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${value})` },
       };
     }
 
     if (kind === "preset") {
       if (value.startsWith("#") || value.startsWith("rgb")) {
-        return { className: "bg-slate-800", style: { backgroundColor: value } };
+        return { className: "bg-muted dark:bg-slate-800", style: { backgroundColor: value } };
       }
       return { className: value };
     }
 
     if (kind === "color") {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: value },
       };
     }
@@ -150,7 +150,7 @@ export default function BoardsPage() {
     }
 
     return {
-      className: "bg-slate-800",
+      className: "bg-muted dark:bg-slate-800",
       style: { background: value },
     };
   };
@@ -161,14 +161,14 @@ export default function BoardsPage() {
 
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${board.backgroundImageUrl})` },
       };
     }
 
     if (board.backgroundKind === "color" && board.backgroundValue) {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: board.backgroundValue },
       };
     }
@@ -179,7 +179,7 @@ export default function BoardsPage() {
       }
 
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { background: board.backgroundGradient },
       };
     }
@@ -187,7 +187,7 @@ export default function BoardsPage() {
     if (board.backgroundKind === "preset" && board.backgroundValue) {
       // Presets are now stored as hex colors; legacy boards may have Tailwind class names
       if (board.backgroundValue.startsWith("#") || board.backgroundValue.startsWith("rgb")) {
-        return { className: "bg-slate-800", style: { backgroundColor: board.backgroundValue } };
+        return { className: "bg-muted dark:bg-slate-800", style: { backgroundColor: board.backgroundValue } };
       }
       return { className: board.backgroundValue };
     }

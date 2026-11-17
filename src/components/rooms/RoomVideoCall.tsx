@@ -391,10 +391,10 @@ export function RoomVideoCall({
           <div className="flex items-center justify-between px-2 py-1 border-b border-zinc-700">
             <span className="text-[10px] text-zinc-300 font-medium">{t("call.inCall")}</span>
             <div className="flex gap-0.5">
-              <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-white" title="Expand">
+              <button onClick={() => setViewMode("panel")} className="p-0.5 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Expand">
                 <Maximize2 className="w-3 h-3" />
               </button>
-              <button onClick={() => setViewMode("fullscreen")} className="p-0.5 text-zinc-400 hover:text-white" title="Fullscreen">
+              <button onClick={() => setViewMode("fullscreen")} className="p-0.5 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Fullscreen">
                 <Expand className="w-3 h-3" />
               </button>
             </div>
@@ -428,10 +428,10 @@ export function RoomVideoCall({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-white" title="Exit fullscreen">
+              <button onClick={() => setViewMode("panel")} className="p-1.5 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Exit fullscreen">
                 <Shrink className="w-4 h-4" />
               </button>
-              <button onClick={() => setViewMode("mini")} className="p-1.5 text-zinc-400 hover:text-white" title="Minimize">
+              <button onClick={() => setViewMode("mini")} className="p-1.5 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Minimize">
                 <Minimize2 className="w-4 h-4" />
               </button>
             </div>
@@ -469,10 +469,10 @@ export function RoomVideoCall({
             </span>
           </div>
           <div className="flex items-center gap-1">
-            <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-white" title="Fullscreen">
+            <button onClick={() => setViewMode("fullscreen")} className="p-1 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Fullscreen">
               <Expand className="w-3.5 h-3.5" />
             </button>
-            <button onClick={() => setViewMode("mini")} className="p-1 text-zinc-400 hover:text-white" title="Minimize">
+            <button onClick={() => setViewMode("mini")} className="p-1 text-zinc-400 hover:text-foreground dark:hover:text-white" title="Minimize">
               <Minimize2 className="w-3.5 h-3.5" />
             </button>
           </div>

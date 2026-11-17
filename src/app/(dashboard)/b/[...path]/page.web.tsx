@@ -42,6 +42,8 @@ import { ApiError } from "@/lib/api/client";
 import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { useAsyncAction, useConfirm } from "@/hooks/ui";
+import { hslTripletToHex, resolveThemeTokens } from "@/lib/board/board-theme";
+import { useTenant } from "@/components/providers/tenant-provider";
 
 type BoardListState = {
   id: string;
@@ -77,97 +79,6 @@ type ApplyEventResult = {
   nextLists: BoardListState[];
   needsFallback: boolean;
 };
-
-type BoardThemeTokens = {
-  accent: string;
-  accentForeground: string;
-  surface: string;
-  surfaceStrong: string;
-  text: string;
-  border: string;
-  panel: string;
-  panelStrong: string;
-  buttonGhost: string;
-};
-
-const THEME_PRESET_COLORS: Record<string, { accent: string; surface: string }> = {
-  "killio-default": { accent: "#d8ff72", surface: "#0b0f14" },
-  "trello-ocean": { accent: "#67e8f9", surface: "#0c2233" },
-  "trello-forest": { accent: "#86efac", surface: "#10251f" },
-  "trello-sunrise": { accent: "#fcd34d", surface: "#3b1f10" },
-};
-
-function normalizeHexColor(value: unknown, fallback: string): string {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim();
-  if (!/^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(trimmed)) return fallback;
-  if (trimmed.length === 7) return trimmed.toLowerCase();
-  const r = trimmed[1];
-  const g = trimmed[2];
-  const b = trimmed[3];
-  return `#${r}${r}${g}${g}${b}${b}`.toLowerCase();
-}
-
-function hexToRgb(hex: string): { r: number; g: number; b: number } {
-  const normalized = normalizeHexColor(hex, "#000000");
-  return {
-    r: parseInt(normalized.slice(1, 3), 16),
-    g: parseInt(normalized.slice(3, 5), 16),
-    b: parseInt(normalized.slice(5, 7), 16),
-  };
-}
-
-function rgbaFromHex(hex: string, alpha: number): string {
-  const { r, g, b } = hexToRgb(hex);
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-}
-
-function mixHex(base: string, target: string, ratio: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  const a = hexToRgb(base);
-  const b = hexToRgb(target);
-  const r = Math.round(a.r + (b.r - a.r) * clamped);
-  const g = Math.round(a.g + (b.g - a.g) * clamped);
-  const bValue = Math.round(a.b + (b.b - a.b) * clamped);
-  return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${bValue
-    .toString(16)
-    .padStart(2, "0")}`;
-}
-
-function isLightColor(hex: string): boolean {
-  const { r, g, b } = hexToRgb(hex);
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  return luminance > 0.62;
-}
-
-function resolveThemeTokens(appearance: BoardAppearanceState): BoardThemeTokens {
-  const presetKey = appearance.themePreset && THEME_PRESET_COLORS[appearance.themePreset]
-    ? appearance.themePreset
-    : "killio-default";
-
-  const preset = THEME_PRESET_COLORS[presetKey];
-  const custom = appearance.themeKind === "custom" ? appearance.themeCustom : undefined;
-
-  const accent = normalizeHexColor(custom?.accent, preset.accent);
-  const surface = normalizeHexColor(custom?.surface, preset.surface);
-  const text = isLightColor(surface) ? "#111827" : "#f8fafc";
-  const isClassicPreset = appearance.themeKind !== "custom" && presetKey === "killio-default";
-  const border = isClassicPreset
-    ? mixHex(surface, "#ffffff", 0.1)
-    : rgbaFromHex(accent, 0.35);
-
-  return {
-    accent,
-    accentForeground: isLightColor(accent) ? "#0f172a" : "#f8fafc",
-    surface,
-    surfaceStrong: mixHex(surface, "#ffffff", isLightColor(surface) ? 0.12 : 0.04),
-    text,
-    border,
-    panel: rgbaFromHex(surface, isLightColor(surface) ? 0.8 : 0.68),
-    panelStrong: rgbaFromHex(surface, isLightColor(surface) ? 0.9 : 0.84),
-    buttonGhost: rgbaFromHex(accent, 0.14),
-  };
-}
 
 function asString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0 ? value : null;
@@ -752,6 +663,7 @@ function applyRealtimeEventToLists(
 
 
 export default function BoardPage() {
+  const tenant = useTenant();
   const t = useTranslations("board-detail");
   const tShare = useTranslations("share-local");
   const params = useParams() as { path?: string | string[] };
@@ -1637,7 +1549,11 @@ export default function BoardPage() {
   };
 
   const boardBackground = resolveBoardBackground(boardAppearance);
-  const boardTheme = resolveThemeTokens(boardAppearance);
+  // The default board theme adapts to a light background, or to a light app theme (white-label tenants).
+  const boardTheme = resolveThemeTokens(boardAppearance, {
+    appIsLight: tenant.mode === "tenant" && tenant.theme.defaultMode === "light",
+    lightAccent: hslTripletToHex(tenant.theme.light["link"] ?? tenant.theme.light["primary"]),
+  });
   const boardShellStyle = {
     ...(boardBackground.style ?? {}),
     color: boardTheme.text,

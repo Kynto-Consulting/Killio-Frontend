@@ -22,8 +22,8 @@ export const DocumentCreateNode = memo(({ data, selected }: NodeProps) => {
     >
       <Handle type="target" position={Position.Top} id="input" className="!bg-slate-400" />
       <div className="flex items-center gap-2 rounded-t-md bg-emerald-600 px-3 py-2">
-        <FilePlus2 className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{t("canvas.nodes.documentCreate")}</span>
+        <FilePlus2 className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{t("canvas.nodes.documentCreate")}</span>
       </div>
       <div className="space-y-1 p-3 text-xs text-muted-foreground">
         {config.titleTemplate ? (

@@ -1346,7 +1346,7 @@ function EditPropertyFlyout({
               onClick={() => onUpdateColumn({ checkboxStyle: { ...column.checkboxStyle, gantt: !column.checkboxStyle?.gantt } })}
               className={cn("h-5 w-9 rounded-full transition-colors relative shrink-0",
                 column.checkboxStyle?.gantt ? "bg-accent" : "bg-muted/60")}>
-              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all",
+              <span className={cn("absolute top-0.5 h-4 w-4 rounded-full bg-foreground dark:bg-white shadow-sm transition-all",
                 column.checkboxStyle?.gantt ? "left-4" : "left-0.5")} />
             </button>
           </div>
@@ -5019,7 +5019,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                       (headerMenu?.colId === col.id || showAIModalColId === col.id) && "bg-accent/10 border-b-2 border-b-accent text-accent",
                       draggedColIdx === columns.indexOf(col) && "opacity-40 grayscale",
                       dragOverIdx === columns.indexOf(col) && "bg-accent/10 border-l-2 border-l-accent",
-                      isPinned && "sticky z-20 shadow-[2px_0_4px_rgba(0,0,0,0.05)]")}
+                      isPinned && "sticky z-20 shadow-[2px_0_4px_hsl(var(--shade) / calc(0.05 * var(--shade-k)))]")}
                     onClick={(e) => { if (!readonly) setHeaderMenu({ colId: col.id, rect: e.currentTarget.getBoundingClientRect() }); }}
                     style={{ width: col.wrap ? (autoColumnWidths[col.id] || col.width || 180) : (col.width || 180), left: isPinned ? left : undefined }}>
                     <div className="flex items-center gap-1.5 pointer-events-none">
@@ -5048,7 +5048,7 @@ export const UnifiedBountifulTable: React.FC<UnifiedBountifulTableProps> = ({
                       onMouseDown={e => handleCellMouseDown(e, rIdx, cIdx, row.id, col.id)}
                       onMouseEnter={() => handleCellMouseEnter(rIdx, cIdx)}
                       className={cn("px-3 py-1.5 border-r border-border last:border-r-0 relative align-middle bg-card/40 transition-colors",
-                      isPinned && "sticky z-[5] shadow-[2px_0_4px_rgba(0,0,0,0.02)]",
+                      isPinned && "sticky z-[5] shadow-[2px_0_4px_hsl(var(--shade) / calc(0.02 * var(--shade-k)))]",
                       isSelected && "bg-accent/20 ring-1 ring-inset ring-accent")}
                       style={{ left: isPinned ? left : undefined, width: col.wrap ? (autoColumnWidths[col.id] || col.width || 180) : (col.width || 180) }}>
                       <CellRenderer cell={row.cells?.[col.id] ?? null} column={col} row={row} readonly={readonly}

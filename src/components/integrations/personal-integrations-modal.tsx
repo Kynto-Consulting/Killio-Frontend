@@ -43,13 +43,13 @@ export function PersonalIntegrationsModal({
   return createPortal(
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm">
       <div
-        className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-white/10 shadow-2xl"
+        className="flex max-h-[88vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-foreground/10 dark:border-white/10 shadow-2xl"
         style={{ background: "#070a10" }}
       >
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 border-b border-white/10 px-6 py-4">
+        <div className="flex items-start justify-between gap-3 border-b border-foreground/10 dark:border-white/10 px-6 py-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "rgba(216,255,114,0.1)", color: "#d8ff72" }}>
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl" style={{ background: "rgba(216,255,114,0.1)", color: "hsl(var(--accent-ink))" }}>
               <Puzzle className="h-5 w-5" />
             </div>
             <div>
@@ -62,7 +62,7 @@ export function PersonalIntegrationsModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-md p-1.5 text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            className="rounded-md p-1.5 text-foreground/60 dark:text-white/60 transition-colors hover:bg-foreground/10 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white"
             aria-label={t("actions.close")}
           >
             <X className="h-4 w-4" />
@@ -73,14 +73,14 @@ export function PersonalIntegrationsModal({
         <div className="flex-1 overflow-y-auto px-6 py-5">
           {loading || accessToken == null ? (
             <div className="flex h-40 items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-white/40" />
+              <Loader2 className="h-6 w-6 animate-spin text-foreground/40 dark:text-white/40" />
             </div>
           ) : personalTeamId ? (
             <IntegrationCatalogGrid scope="personal" teamId={personalTeamId} accessToken={accessToken} />
           ) : (
             <div className="flex h-40 flex-col items-center justify-center gap-2 text-center">
-              <Puzzle className="h-7 w-7 text-white/30" />
-              <p className="text-sm text-white/60">
+              <Puzzle className="h-7 w-7 text-foreground/30 dark:text-white/30" />
+              <p className="text-sm text-foreground/60 dark:text-white/60">
                 {tp("personalIntegrations.noPersonalTeam", { fallback: "No personal workspace found for your account yet." })}
               </p>
             </div>

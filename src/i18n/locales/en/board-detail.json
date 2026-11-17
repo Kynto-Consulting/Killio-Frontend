@@ -213,6 +213,7 @@
       },
       "themePresets": {
         "killio-default": "Classic",
+        "killio-light": "Light",
         "trello-ocean": "Ocean",
         "trello-forest": "Forest",
         "trello-sunrise": "Sunrise"

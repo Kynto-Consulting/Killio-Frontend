@@ -14,18 +14,18 @@ import { SkeletonBoardCard } from "@/components/ui/skeleton";
 
 function resolveBoardColor(board: BoardSummary): { className: string; style?: CSSProperties } {
   if (board.backgroundKind === "color" && board.backgroundValue) {
-    return { className: "bg-slate-800", style: { backgroundColor: board.backgroundValue } };
+    return { className: "bg-muted dark:bg-slate-800", style: { backgroundColor: board.backgroundValue } };
   }
   if (board.backgroundKind === "gradient" && board.backgroundGradient) {
     if (board.backgroundGradient.startsWith("bg-")) return { className: board.backgroundGradient };
-    return { className: "bg-slate-800", style: { background: board.backgroundGradient } };
+    return { className: "bg-muted dark:bg-slate-800", style: { background: board.backgroundGradient } };
   }
   if (board.backgroundKind === "preset" && board.backgroundValue) return { className: board.backgroundValue };
   if (board.backgroundKind === "image" && board.backgroundImageUrl) {
-    return { className: "bg-slate-800 bg-cover bg-center", style: { backgroundImage: `url(${board.backgroundImageUrl})` } };
+    return { className: "bg-muted dark:bg-slate-800 bg-cover bg-center", style: { backgroundImage: `url(${board.backgroundImageUrl})` } };
   }
   if (board.coverImageUrl) {
-    return { className: "bg-slate-800 bg-cover bg-center", style: { backgroundImage: `url(${board.coverImageUrl})` } };
+    return { className: "bg-muted dark:bg-slate-800 bg-cover bg-center", style: { backgroundImage: `url(${board.coverImageUrl})` } };
   }
   return { className: "bg-gradient-to-tr from-accent/30 to-primary/30" };
 }

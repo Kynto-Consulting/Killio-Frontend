@@ -163,7 +163,7 @@ export default function WorkspacesPage() {
       }
 
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${value})` },
       };
     }
@@ -174,7 +174,7 @@ export default function WorkspacesPage() {
 
     if (kind === "color") {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: value },
       };
     }
@@ -184,7 +184,7 @@ export default function WorkspacesPage() {
     }
 
     return {
-      className: "bg-slate-800",
+      className: "bg-muted dark:bg-slate-800",
       style: { background: value },
     };
   };
@@ -197,7 +197,7 @@ export default function WorkspacesPage() {
     // Prioridad 2: Background image
     if (board.backgroundKind === "image" && board.backgroundImageUrl) {
       return {
-        className: "bg-slate-800 bg-cover bg-center",
+        className: "bg-muted dark:bg-slate-800 bg-cover bg-center",
         style: { backgroundImage: `url(${board.backgroundImageUrl})` },
       };
     }
@@ -205,7 +205,7 @@ export default function WorkspacesPage() {
     // Prioridad 3: Background color
     if (board.backgroundKind === "color" && board.backgroundValue) {
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { backgroundColor: board.backgroundValue },
       };
     }
@@ -217,7 +217,7 @@ export default function WorkspacesPage() {
       }
 
       return {
-        className: "bg-slate-800",
+        className: "bg-muted dark:bg-slate-800",
         style: { background: board.backgroundGradient },
       };
     }

@@ -89,7 +89,7 @@ export default function RoomConsolePage() {
     return (
       <div className="flex h-screen flex-col items-center justify-center bg-black text-zinc-400 font-mono p-6 text-center">
         <ShieldAlert className="w-12 h-12 text-red-500 mb-4" />
-        <h1 className="text-xl font-bold text-white mb-2">Access Denied</h1>
+        <h1 className="text-xl font-bold text-foreground dark:text-white mb-2">Access Denied</h1>
         <p className="max-w-md text-sm mb-6">
           You do not have administrative or write permissions to access the OS console for this room.
         </p>
@@ -111,14 +111,14 @@ export default function RoomConsolePage() {
       onClick={handleTerminalClick}
     >
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 border-b border-white/5 bg-[#0a0a0a]">
+      <header className="flex items-center justify-between px-4 py-2 border-b border-foreground/5 dark:border-white/5 bg-[#0a0a0a]">
         <div className="flex items-center gap-3">
           <div className="flex gap-1.5">
             <div className="w-3 h-3 rounded-full bg-[#ff5f56]" />
             <div className="w-3 h-3 rounded-full bg-[#ffbd2e]" />
             <div className="w-3 h-3 rounded-full bg-[#27c93f]" />
           </div>
-          <div className="h-4 w-px bg-white/10 mx-1" />
+          <div className="h-4 w-px bg-foreground/10 dark:bg-white/10 mx-1" />
           <div className="flex items-center text-[11px] font-bold tracking-tight text-zinc-500 uppercase">
             <TerminalIcon className="w-3 h-3 mr-2" />
             Killio-OS Console — Room {roomId.slice(0, 8)}
@@ -134,7 +134,7 @@ export default function RoomConsolePage() {
           </button>
           <Link 
             href={`/rooms/${roomId}`}
-            className="text-[10px] text-zinc-500 hover:text-white transition-colors"
+            className="text-[10px] text-zinc-500 hover:text-foreground dark:hover:text-white transition-colors"
           >
             EXIT_SESSION
           </Link>
@@ -173,7 +173,7 @@ export default function RoomConsolePage() {
       {/* Input Area */}
       <form 
         onSubmit={handleCommand}
-        className="flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-white/5"
+        className="flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-foreground/5 dark:border-white/5"
       >
         <div className="flex items-center text-indigo-400 font-bold shrink-0">
           <span className="text-emerald-500/70 mr-1">agent@killio</span>

@@ -145,15 +145,15 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
       {/* Public confirmation modal */}
       {pendingInsertFile && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#0f1117] p-6 shadow-2xl">
+          <div className="w-full max-w-sm rounded-2xl border border-foreground/10 dark:border-white/10 bg-[#0f1117] p-6 shadow-2xl">
             <div className="mb-4 flex items-center gap-3">
               <HardDrive className="h-5 w-5 text-blue-400" />
-              <h2 className="text-sm font-semibold text-white">
+              <h2 className="text-sm font-semibold text-foreground dark:text-white">
                 {t("integrations.googleDrive.makePublicTitle")}
               </h2>
             </div>
-            <p className="mb-1 truncate text-xs font-medium text-white/70">{pendingInsertFile.name}</p>
-            <p className="mb-6 text-xs text-white/50">
+            <p className="mb-1 truncate text-xs font-medium text-foreground/70 dark:text-white/70">{pendingInsertFile.name}</p>
+            <p className="mb-6 text-xs text-foreground/50 dark:text-white/50">
               {t("integrations.googleDrive.makePublicDescription")}
             </p>
             <div className="flex gap-3">
@@ -170,7 +170,7 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
                 type="button"
                 onClick={handleInsertPrivately}
                 disabled={makingPublic}
-                className="flex flex-1 items-center justify-center rounded-lg border border-white/15 px-4 py-2 text-xs text-white/70 hover:bg-white/5 disabled:opacity-60"
+                className="flex flex-1 items-center justify-center rounded-lg border border-foreground/15 dark:border-white/15 px-4 py-2 text-xs text-foreground/70 dark:text-white/70 hover:bg-foreground/5 dark:hover:bg-white/5 disabled:opacity-60"
               >
                 {t("integrations.googleDrive.makePublicSkip")}
               </button>
@@ -181,8 +181,8 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
 
       <div
         style={{
-          background: "rgba(255,255,255,0.03)",
-          border: "1px solid rgba(255,255,255,0.08)",
+          background: "hsl(var(--ink) / 0.03)",
+          border: "1px solid hsl(var(--ink) / 0.08)",
           borderRadius: 14,
           padding: "18px 20px",
           display: "flex",
@@ -209,10 +209,10 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
               <HardDrive style={{ width: 18, height: 18, color: "#4285f4" }} />
             </div>
             <div>
-              <div style={{ fontWeight: 600, fontSize: 14, color: "rgba(255,255,255,0.92)", lineHeight: 1.3 }}>
+              <div style={{ fontWeight: 600, fontSize: 14, color: "hsl(var(--ink) / 0.92)", lineHeight: 1.3 }}>
                 {t("integrations.googleDrive.title")}
               </div>
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", lineHeight: 1.4, marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.4)", lineHeight: 1.4, marginTop: 2 }}>
                 {t("integrations.googleDrive.description")}
               </div>
             </div>
@@ -224,7 +224,7 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
 
         {/* Error */}
         {error && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "#f87171", background: "rgba(248,113,113,0.08)", borderRadius: 8, padding: "8px 10px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 12, color: "hsl(var(--c-red))", background: "rgba(248,113,113,0.08)", borderRadius: 8, padding: "8px 10px" }}>
             <AlertCircle style={{ width: 14, height: 14, flexShrink: 0 }} />
             <span>{error}</span>
           </div>
@@ -233,14 +233,14 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
         {/* Loading */}
         {loading && (
           <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
-            <Loader2 style={{ width: 16, height: 16, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />
+            <Loader2 style={{ width: 16, height: 16, color: "hsl(var(--ink) / 0.3)", animation: "spin 1s linear infinite" }} />
           </div>
         )}
 
         {/* Credentials list */}
         {!loading && credentials.length > 0 && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(255,255,255,0.3)" }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "hsl(var(--ink) / 0.3)" }}>
               {t("integrations.googleDrive.activeAccounts")}
             </div>
             {credentials.map((cred) => (
@@ -250,22 +250,22 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.07)",
+                  background: "hsl(var(--ink) / 0.04)",
+                  border: "1px solid hsl(var(--ink) / 0.07)",
                   borderRadius: 10,
                   padding: "10px 12px",
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.88)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "hsl(var(--ink) / 0.88)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {cred.name}
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>{cred.email}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.4)" }}>{cred.email}</div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setBrowsingCredId(browsingCredId === cred.id ? null : cred.id)}
-                  style={{ padding: "4px 10px", fontSize: 11, borderRadius: 7, border: "1px solid rgba(255,255,255,0.12)", background: "transparent", color: "rgba(255,255,255,0.6)", cursor: "pointer" }}
+                  style={{ padding: "4px 10px", fontSize: 11, borderRadius: 7, border: "1px solid hsl(var(--ink) / 0.12)", background: "transparent", color: "hsl(var(--ink) / 0.6)", cursor: "pointer" }}
                 >
                   {browsingCredId === cred.id ? "▲" : t("integrations.googleDrive.searchFiles")}
                 </button>
@@ -285,8 +285,8 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
         {/* File browser (per credential) */}
         {browsingCredId && (
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "6px 10px" }}>
-              <Search style={{ width: 13, height: 13, color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "hsl(var(--ink) / 0.04)", borderRadius: 8, padding: "6px 10px" }}>
+              <Search style={{ width: 13, height: 13, color: "hsl(var(--ink) / 0.3)", flexShrink: 0 }} />
               <input
                 type="text"
                 placeholder={t("integrations.googleDrive.searchFiles")}
@@ -295,13 +295,13 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
                   setSearchQuery(e.target.value);
                   handleSearch(browsingCredId, e.target.value);
                 }}
-                style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 12, color: "rgba(255,255,255,0.8)" }}
+                style={{ flex: 1, background: "transparent", border: "none", outline: "none", fontSize: 12, color: "hsl(var(--ink) / 0.8)" }}
               />
-              {isSearching && <Loader2 style={{ width: 12, height: 12, color: "rgba(255,255,255,0.3)", animation: "spin 1s linear infinite" }} />}
+              {isSearching && <Loader2 style={{ width: 12, height: 12, color: "hsl(var(--ink) / 0.3)", animation: "spin 1s linear infinite" }} />}
             </div>
 
             {searchResults.length === 0 && !isSearching && searchQuery && (
-              <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", textAlign: "center", padding: "8px 0" }}>
+              <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.3)", textAlign: "center", padding: "8px 0" }}>
                 {t("integrations.googleDrive.noFilesFound")}
               </div>
             )}
@@ -313,20 +313,20 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
                   display: "flex",
                   alignItems: "center",
                   gap: 8,
-                  background: "rgba(255,255,255,0.03)",
-                  border: "1px solid rgba(255,255,255,0.06)",
+                  background: "hsl(var(--ink) / 0.03)",
+                  border: "1px solid hsl(var(--ink) / 0.06)",
                   borderRadius: 8,
                   padding: "8px 10px",
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  <div style={{ fontSize: 12, color: "hsl(var(--ink) / 0.85)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                     {file.name}
                   </div>
-                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.35)" }}>{file.mimeType?.split(".").pop()}</div>
+                  <div style={{ fontSize: 10, color: "hsl(var(--ink) / 0.35)" }}>{file.mimeType?.split(".").pop()}</div>
                 </div>
                 {file.webViewLink && (
-                  <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" style={{ padding: 4, color: "rgba(255,255,255,0.35)", lineHeight: 1 }}>
+                  <a href={file.webViewLink} target="_blank" rel="noopener noreferrer" style={{ padding: 4, color: "hsl(var(--ink) / 0.35)", lineHeight: 1 }}>
                     <ExternalLink style={{ width: 12, height: 12 }} />
                   </a>
                 )}
@@ -355,9 +355,9 @@ export function GoogleDriveIntegrationPanel({ teamId, accessToken }: GoogleDrive
               gap: 8,
               borderRadius: 9,
               padding: "9px 16px",
-              background: connected ? "rgba(255,255,255,0.05)" : "rgba(66,133,244,0.85)",
-              border: connected ? "1px solid rgba(255,255,255,0.1)" : "none",
-              color: connected ? "rgba(255,255,255,0.55)" : "#fff",
+              background: connected ? "hsl(var(--ink) / 0.05)" : "rgba(66,133,244,0.85)",
+              border: connected ? "1px solid hsl(var(--ink) / 0.1)" : "none",
+              color: connected ? "hsl(var(--ink) / 0.55)" : "#fff",
               fontWeight: 600,
               fontSize: 13,
               cursor: connecting ? "not-allowed" : "pointer",

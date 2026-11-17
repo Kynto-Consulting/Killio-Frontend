@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
 import Link from "next/link";

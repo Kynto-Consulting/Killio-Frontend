@@ -39,11 +39,11 @@ export function SortableBrickMobile({ id, children, readonly, onDelete, onAddBel
 
       {/* Mobile-friendly action bar mounted at the bottom of the brick instead of a floating left handle */}
       {!readonly && !isCompact && (
-        <div className="flex border-t border-white/5 pt-1.5 mt-1 text-muted-foreground justify-between items-center px-1">
+        <div className="flex border-t border-foreground/5 dark:border-white/5 pt-1.5 mt-1 text-muted-foreground justify-between items-center px-1">
            <div
             {...attributes}
             {...listeners}
-            className="p-2 touch-none cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-white/10 rounded-md transition-colors"
+            className="p-2 touch-none cursor-grab active:cursor-grabbing hover:text-foreground hover:bg-foreground/10 dark:hover:bg-white/10 rounded-md transition-colors"
           >
             <GripVertical className="w-5 h-5 text-neutral-400" />
           </div>
@@ -55,7 +55,7 @@ export function SortableBrickMobile({ id, children, readonly, onDelete, onAddBel
                  e.stopPropagation();
                  onAddBelow?.(e.currentTarget.getBoundingClientRect());
                }}
-               className="p-2 text-neutral-400 hover:text-foreground bg-white/5 rounded-md cursor-pointer"
+               className="p-2 text-neutral-400 hover:text-foreground bg-foreground/5 dark:bg-white/5 rounded-md cursor-pointer"
              >
                <Plus className="w-5 h-5" />
              </button>
@@ -66,7 +66,7 @@ export function SortableBrickMobile({ id, children, readonly, onDelete, onAddBel
                   e.stopPropagation();
                   onDelete();
                 }}
-                className="p-2 text-neutral-400 hover:text-red-500 bg-white/5 rounded-md cursor-pointer"
+                className="p-2 text-neutral-400 hover:text-red-500 bg-foreground/5 dark:bg-white/5 rounded-md cursor-pointer"
               >
                 <Trash2 className="w-5 h-5" />
               </button>

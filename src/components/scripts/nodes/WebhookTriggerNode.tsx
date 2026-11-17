@@ -40,7 +40,7 @@ export const WebhookTriggerNode = memo(({ data, selected }: NodeProps) => {
       break;
     case "killio.board.updated":
       Icon = SlidersHorizontal;
-      bgClass = "bg-slate-700";
+      bgClass = "bg-muted dark:bg-slate-700";
       borderClass = selected ? "border-slate-500" : "border-border";
       title = t("canvas.nodes.boardUpdatedTrigger");
       handleClass = "!bg-slate-500";
@@ -59,8 +59,8 @@ export const WebhookTriggerNode = memo(({ data, selected }: NodeProps) => {
       className={`min-w-[180px] rounded-lg border-2 bg-card shadow-sm ${borderClass}`}
     >
       <div className={`flex items-center gap-2 rounded-t-md px-3 py-2 ${bgClass}`}>
-        <Icon className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{title}</span>
+        <Icon className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{title}</span>
       </div>
       <div className="p-3 text-xs text-muted-foreground">
         {t("nodes.webhook.description")}

@@ -112,7 +112,7 @@ export function ModelSelector({
 
       {open && !locked && (
         <div
-          className={`absolute z-50 ${isFull ? "left-0 right-0 mt-1" : "right-0 bottom-full mb-1 w-64"} rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg p-1 max-h-72 overflow-y-auto`}
+          className={`absolute z-50 ${isFull ? "left-0 right-0 mt-1" : "right-0 bottom-full mb-1 w-64"} rounded-xl border border-neutral-200 dark:border-neutral-700 bg-foreground dark:bg-white dark:bg-neutral-900 shadow-lg p-1 max-h-72 overflow-y-auto`}
         >
           {models.map((m) => {
             const isSelected = m.id === selectedId;

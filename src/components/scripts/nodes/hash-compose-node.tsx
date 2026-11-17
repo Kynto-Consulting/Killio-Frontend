@@ -18,8 +18,8 @@ export const HashComposeNode = memo(({ data, selected }: NodeProps) => {
     <div className={`min-w-[220px] rounded-lg border-2 bg-card shadow-sm ${selected ? "border-purple-500" : "border-border"}`}>
       <Handle type="target" position={Position.Top} id="input" className="!bg-slate-400" />
       <div className="flex items-center gap-2 rounded-t-md bg-purple-700 px-3 py-2">
-        <Hash className="h-4 w-4 text-white" />
-        <span className="text-xs font-semibold text-white">{t("canvas.nodes.hashCompose")}</span>
+        <Hash className="h-4 w-4 text-foreground dark:text-white" />
+        <span className="text-xs font-semibold text-foreground dark:text-white">{t("canvas.nodes.hashCompose")}</span>
       </div>
       <div className="space-y-1 p-3 text-xs text-muted-foreground">
         <p className="truncate">{t("canvas.fields.sourcePaths")}: <span className="font-mono text-foreground">{(config.sourcePaths ?? []).join(", ") || "(none)"}</span></p>

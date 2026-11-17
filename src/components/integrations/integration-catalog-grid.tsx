@@ -56,7 +56,7 @@ function SectionHeader({ label }: { label: string }) {
         fontWeight: 700,
         letterSpacing: "0.14em",
         textTransform: "uppercase",
-        color: "rgba(255,255,255,0.22)",
+        color: "hsl(var(--ink) / 0.22)",
         marginBottom: 12,
       }}
     >
@@ -88,8 +88,8 @@ function ComingSoonCard({
   return (
     <div
       style={{
-        background: "rgba(255,255,255,0.035)",
-        border: "1px solid rgba(255,255,255,0.08)",
+        background: "hsl(var(--ink) / 0.035)",
+        border: "1px solid hsl(var(--ink) / 0.08)",
         borderRadius: 14,
         padding: 20,
         opacity: 0.65,
@@ -107,15 +107,15 @@ function ComingSoonCard({
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              background: "rgba(255,255,255,0.06)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "hsl(var(--ink) / 0.06)",
+              border: "1px solid hsl(var(--ink) / 0.08)",
               flexShrink: 0,
               color: integ.color,
             }}
           >
             <Icon className="h-4 w-4" />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{name}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--ink))" }}>{name}</span>
         </div>
         <span
           style={{
@@ -125,15 +125,15 @@ function ComingSoonCard({
             borderRadius: 999,
             letterSpacing: "0.06em",
             textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)",
-            background: "rgba(255,255,255,0.035)",
-            border: "1px solid rgba(255,255,255,0.08)",
+            color: "hsl(var(--ink) / 0.45)",
+            background: "hsl(var(--ink) / 0.035)",
+            border: "1px solid hsl(var(--ink) / 0.08)",
           }}
         >
           {badge}
         </span>
       </div>
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>
+      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>
         {description}
       </p>
       <button
@@ -149,9 +149,9 @@ function ComingSoonCard({
           fontSize: 12,
           fontWeight: 600,
           cursor: "not-allowed",
-          border: "1px solid rgba(255,255,255,0.08)",
-          background: "rgba(255,255,255,0.035)",
-          color: "rgba(255,255,255,0.4)",
+          border: "1px solid hsl(var(--ink) / 0.08)",
+          background: "hsl(var(--ink) / 0.035)",
+          color: "hsl(var(--ink) / 0.4)",
           alignSelf: "flex-start",
         }}
       >
@@ -212,7 +212,7 @@ export function IntegrationCatalogGrid({
   if (!loaded) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: 48 }}>
-        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "rgba(255,255,255,0.4)" }} />
+        <Loader2 className="h-6 w-6 animate-spin" style={{ color: "hsl(var(--ink) / 0.4)" }} />
       </div>
     );
   }

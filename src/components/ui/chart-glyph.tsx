@@ -88,7 +88,7 @@ export function MeshGlyph({ mesh, className, emptyHint }: { mesh: GeneratedMesh;
 
   if (!mesh.nodes.length) {
     return (
-      <div className={`flex h-full w-full items-center justify-center rounded-md border border-dashed border-white/15 bg-slate-900/40 p-2 text-center text-[10px] text-slate-400 ${className ?? ""}`}>
+      <div className={`flex h-full w-full items-center justify-center rounded-md border border-dashed border-foreground/15 dark:border-white/15 bg-card/40 dark:bg-slate-900/40 p-2 text-center text-[10px] text-muted-foreground dark:text-slate-400 ${className ?? ""}`}>
         {emptyHint ?? "Sin contenido para renderizar"}
       </div>
     );

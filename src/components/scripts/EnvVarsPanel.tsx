@@ -132,9 +132,9 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
             <div>
               <div className="flex items-center gap-2 mb-1">
                 <KeyRound className="h-5 w-5 text-indigo-400" />
-                <h2 className="text-lg font-bold text-white">{t("envVars.title")}</h2>
+                <h2 className="text-lg font-bold text-foreground dark:text-white">{t("envVars.title")}</h2>
               </div>
-              <p className="text-sm text-slate-400">{t("envVars.subtitle")}</p>
+              <p className="text-sm text-muted-foreground dark:text-slate-400">{t("envVars.subtitle")}</p>
             </div>
             <button
               type="button"
@@ -162,34 +162,34 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
 
       {/* Inline form */}
       {showForm && (
-        <div className="rounded-xl border border-white/10 bg-white/5 p-5 flex flex-col gap-4">
+        <div className="rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-5 flex flex-col gap-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("envVars.keyLabel")}</label>
+              <label className="text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">{t("envVars.keyLabel")}</label>
               <input
                 type="text"
                 value={form.key}
                 onChange={e => setForm(f => ({ ...f, key: e.target.value.toUpperCase().replace(/[^A-Z0-9_]/g, "") }))}
                 disabled={!!editingId}
                 placeholder="MY_SECRET_KEY"
-                className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
+                className="rounded-lg border border-foreground/15 dark:border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400 disabled:opacity-50"
               />
-              <span className="text-[10px] text-slate-500">{t("envVars.keyHint")}</span>
+              <span className="text-[10px] text-muted-foreground dark:text-slate-500">{t("envVars.keyHint")}</span>
             </div>
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("envVars.valueLabel")}</label>
+              <label className="text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">{t("envVars.valueLabel")}</label>
               <div className="relative">
                 <input
                   type={showValue ? "text" : "password"}
                   value={form.value}
                   onChange={e => setForm(f => ({ ...f, value: e.target.value }))}
                   placeholder={editingId ? "Leave blank to keep current" : ""}
-                  className="w-full rounded-lg border border-white/15 bg-black/30 px-3 py-2 pr-9 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400"
+                  className="w-full rounded-lg border border-foreground/15 dark:border-white/15 bg-black/30 px-3 py-2 pr-9 text-sm text-foreground dark:text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400"
                 />
                 <button
                   type="button"
                   onClick={() => setShowValue(v => !v)}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground dark:text-slate-400 hover:text-foreground dark:hover:text-white"
                 >
                   {showValue ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -197,16 +197,16 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider">{t("envVars.descriptionLabel")}</label>
+            <label className="text-xs font-semibold text-muted-foreground dark:text-slate-400 uppercase tracking-wider">{t("envVars.descriptionLabel")}</label>
             <input
               type="text"
               value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-              className="rounded-lg border border-white/15 bg-black/30 px-3 py-2 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400"
+              className="rounded-lg border border-foreground/15 dark:border-white/15 bg-black/30 px-3 py-2 text-sm text-foreground dark:text-white placeholder:text-slate-600 focus:outline-none focus:border-indigo-400"
             />
           </div>
           <div className="flex items-center gap-3 flex-wrap justify-between">
-            <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer select-none">
+            <label className="flex items-center gap-2 text-sm text-muted-foreground dark:text-slate-300 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={form.isSecret}
@@ -216,7 +216,7 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
               {t("envVars.secretLabel")}
             </label>
             <div className="flex gap-2">
-              <button type="button" onClick={cancelForm} className="rounded-lg border border-white/15 bg-white/5 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-white/10 transition">
+              <button type="button" onClick={cancelForm} className="rounded-lg border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 px-4 py-2 text-sm font-semibold text-muted-foreground dark:text-slate-300 hover:bg-foreground/10 dark:hover:bg-white/10 transition">
                 {t("envVars.cancel")}
               </button>
               <button
@@ -235,20 +235,20 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
 
       {/* List */}
       {loading ? (
-        <div className="flex items-center gap-2 text-sm text-slate-400">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground dark:text-slate-400">
           <Loader2 className="h-4 w-4 animate-spin" />
           Loading…
         </div>
       ) : vars.length === 0 && !showForm ? (
-        <p className="text-sm text-slate-500 italic">{t("envVars.empty")}</p>
+        <p className="text-sm text-muted-foreground dark:text-slate-500 italic">{t("envVars.empty")}</p>
       ) : (
         <div className="flex flex-col gap-2">
           {vars.map(v => (
-            <div key={v.id} className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3">
+            <div key={v.id} className="flex items-center gap-3 rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-4 py-3">
               <KeyRound className="h-4 w-4 shrink-0 text-indigo-400" />
               <div className="flex-1 min-w-0">
-                <p className="font-mono text-sm font-semibold text-white truncate">{v.key}</p>
-                {v.description && <p className="text-xs text-slate-400 truncate">{v.description}</p>}
+                <p className="font-mono text-sm font-semibold text-foreground dark:text-white truncate">{v.key}</p>
+                {v.description && <p className="text-xs text-muted-foreground dark:text-slate-400 truncate">{v.description}</p>}
               </div>
               <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${v.hasValue ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
                 {v.hasValue ? t("envVars.hasValue") : t("envVars.noValue")}
@@ -257,7 +257,7 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
                 <button
                   type="button"
                   onClick={() => openEdit(v)}
-                  className="rounded-md p-1.5 text-slate-400 hover:bg-white/10 hover:text-white transition"
+                  className="rounded-md p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-foreground/10 dark:hover:bg-white/10 hover:text-foreground dark:hover:text-white transition"
                   title={t("envVars.edit")}
                 >
                   <Pencil className="h-3.5 w-3.5" />
@@ -266,7 +266,7 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
                   type="button"
                   onClick={() => handleDelete(v)}
                   disabled={deletingId === v.id}
-                  className="rounded-md p-1.5 text-slate-400 hover:bg-red-500/15 hover:text-red-400 transition disabled:opacity-40"
+                  className="rounded-md p-1.5 text-muted-foreground dark:text-slate-400 hover:bg-red-500/15 hover:text-red-400 transition disabled:opacity-40"
                   title={t("envVars.delete")}
                 >
                   {deletingId === v.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Trash2 className="h-3.5 w-3.5" />}

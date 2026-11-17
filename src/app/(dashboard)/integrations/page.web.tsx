@@ -110,8 +110,8 @@ function ComingSoonIntegrationCard({
 }) {
   return (
     <div style={{
-      background: "rgba(255,255,255,0.035)",
-      border: "1px solid rgba(255,255,255,0.08)",
+      background: "hsl(var(--ink) / 0.035)",
+      border: "1px solid hsl(var(--ink) / 0.08)",
       borderRadius: 14,
       padding: 20,
       opacity: 0.65,
@@ -123,20 +123,20 @@ function ComingSoonIntegrationCard({
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{
             width: 40, height: 40, borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center",
-            background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.08)", flexShrink: 0,
-            color: "rgba(255,255,255,0.45)",
+            background: "hsl(var(--ink) / 0.06)", border: "1px solid hsl(var(--ink) / 0.08)", flexShrink: 0,
+            color: "hsl(var(--ink) / 0.45)",
           }}>
             <Icon className="h-4 w-4" />
           </div>
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{title}</span>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "hsl(var(--ink))" }}>{title}</span>
         </div>
         <span style={{
           fontSize: 10, fontWeight: 700, padding: "3px 9px", borderRadius: 999, letterSpacing: "0.06em",
-          textTransform: "uppercase", color: "rgba(255,255,255,0.45)",
-          background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)",
+          textTransform: "uppercase", color: "hsl(var(--ink) / 0.45)",
+          background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)",
         }}>{badge}</span>
       </div>
-      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>{description}</p>
+      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)", lineHeight: 1.55, marginBottom: 14, flex: 1 }}>{description}</p>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
         {actionLabel ? (
           <button
@@ -145,8 +145,8 @@ function ComingSoonIntegrationCard({
             disabled={actionDisabled || !onAction}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8,
-              fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.035)", color: "rgba(255,255,255,0.6)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid hsl(var(--ink) / 0.08)",
+              background: "hsl(var(--ink) / 0.035)", color: "hsl(var(--ink) / 0.6)",
             }}
           >
             <Clock3 className="h-3.5 w-3.5" />
@@ -158,8 +158,8 @@ function ComingSoonIntegrationCard({
             disabled
             style={{
               display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8,
-              fontSize: 12, fontWeight: 600, cursor: "not-allowed", border: "1px solid rgba(255,255,255,0.08)",
-              background: "rgba(255,255,255,0.035)", color: "rgba(255,255,255,0.4)", opacity: 0.6,
+              fontSize: 12, fontWeight: 600, cursor: "not-allowed", border: "1px solid hsl(var(--ink) / 0.08)",
+              background: "hsl(var(--ink) / 0.035)", color: "hsl(var(--ink) / 0.4)", opacity: 0.6,
             }}
           >
             <Clock3 className="h-3.5 w-3.5" />
@@ -905,14 +905,14 @@ export function IntegrationsPageView({
         <div className={`flex min-h-0 flex-1 ${tab === "scripts" ? "overflow-y-auto lg:overflow-hidden" : "overflow-hidden"}`}>
         {/* ── Integraciones ────────────────────────────────────────────────── */}
         {tab === "integrations" && (
-          <div className="flex-1 overflow-y-auto" style={{ background: "#020408" }}>
+          <div className="flex-1 overflow-y-auto" style={{ background: "hsl(var(--surface-deep))" }}>
             <div style={{ padding: "28px 32px", maxWidth: 1160, display: "flex", flexDirection: "column", gap: 24 }}>
 
               {/* Header */}
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
                 <div>
-                  <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "#fff" }}>{t("title")}</div>
-                  <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginTop: 3 }}>
+                  <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-0.03em", color: "hsl(var(--ink))" }}>{t("title")}</div>
+                  <div style={{ fontSize: 13, color: "hsl(var(--ink) / 0.45)", marginTop: 3 }}>
                     {t("tabs.integrations")} · {t("stats.syncSubtitle")}
                   </div>
                 </div>
@@ -920,19 +920,19 @@ export function IntegrationsPageView({
 
               {/* Stat row */}
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
-                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "#fff", lineHeight: 1 }}>{availableCount}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.available")}</div>
+                <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink))", lineHeight: 1 }}>{availableCount}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.available")}</div>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "rgba(255,255,255,0.42)", lineHeight: 1 }}>{comingSoonCount}</div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
+                <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: "hsl(var(--ink) / 0.42)", lineHeight: 1 }}>{comingSoonCount}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.comingSoon")}</div>
                 </div>
-                <div style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 14, padding: "18px 20px" }}>
-                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "rgba(255,255,255,0.3)" : "#fff", lineHeight: 1 }}>
+                <div style={{ background: "hsl(var(--ink) / 0.035)", border: "1px solid hsl(var(--ink) / 0.08)", borderRadius: 14, padding: "18px 20px" }}>
+                  <div style={{ fontSize: 30, fontWeight: 900, letterSpacing: "-0.03em", color: usageLoading ? "hsl(var(--ink) / 0.3)" : "#fff", lineHeight: 1 }}>
                     {usageLoading ? "—" : usage ? (usage.limit === null ? String(usage.executed) : `${usage.executed}/${usage.limit}`) : "—"}
                   </div>
-                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginTop: 4 }}>{t("stats.scriptRuns")}</div>
+                  <div style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)", marginTop: 4 }}>{t("stats.scriptRuns")}</div>
                 </div>
               </div>
 
@@ -960,23 +960,23 @@ export function IntegrationsPageView({
 
         {/* ── Scripts ──────────────────────────────────────────────────────── */}
         {tab === "scripts" && (
-          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" style={{ background: "#020408", padding: mobileScriptsOptimized ? "8px" : "12px 16px" }}>
+          <div className="flex min-h-0 w-full flex-1 flex-col overflow-hidden" style={{ background: "hsl(var(--surface-deep))", padding: mobileScriptsOptimized ? "8px" : "12px 16px" }}>
             {mobileScriptsOptimized ? (
               <div className="flex min-h-0 flex-1 flex-col gap-2">
-                <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
+                <div className="flex items-center gap-2 rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-2">
                   <button
                     type="button"
                     onClick={() => setShowMobileScriptList((prev) => !prev)}
-                    className="inline-flex h-9 items-center justify-center rounded-lg border border-white/15 bg-white/5 px-3 text-xs font-semibold text-white/90"
+                    className="inline-flex h-9 items-center justify-center rounded-lg border border-foreground/15 dark:border-white/15 bg-foreground/5 dark:bg-white/5 px-3 text-xs font-semibold text-foreground/90 dark:text-white/90"
                   >
                     {showMobileScriptList ? t("actions.close") : t("tabs.scripts")}
                   </button>
-                  <div className="ml-auto flex items-center gap-1 rounded-lg border border-white/10 bg-black/30 p-1">
+                  <div className="ml-auto flex items-center gap-1 rounded-lg border border-foreground/10 dark:border-white/10 bg-black/30 p-1">
                     <button
                       type="button"
                       onClick={() => setScriptSubView("canvas")}
                       disabled={!selectedScript}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "canvas" ? "bg-white/15 text-white" : "text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "canvas" ? "bg-foreground/15 dark:bg-white/15 text-foreground dark:text-white" : "text-foreground/60 dark:text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
                     >
                       {t("scripts.graphTab")}
                     </button>
@@ -984,7 +984,7 @@ export function IntegrationsPageView({
                       type="button"
                       onClick={() => setScriptSubView("runs")}
                       disabled={!selectedScript}
-                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "runs" ? "bg-white/15 text-white" : "text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
+                      className={`rounded-md px-3 py-1.5 text-xs font-semibold transition ${scriptSubView === "runs" ? "bg-foreground/15 dark:bg-white/15 text-foreground dark:text-white" : "text-foreground/60 dark:text-white/60"} ${!selectedScript ? "cursor-not-allowed opacity-50" : ""}`}
                     >
                       {t("scripts.runsTab")}
                     </button>
@@ -992,7 +992,7 @@ export function IntegrationsPageView({
                 </div>
 
                 {showMobileScriptList && (
-                  <div className="max-h-[42vh] min-h-[220px] overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-1">
+                  <div className="max-h-[42vh] min-h-[220px] overflow-y-auto rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 p-1">
                     <ScriptList
                       scripts={scripts}
                       selectedId={selectedScript?.id ?? null}
@@ -1010,13 +1010,13 @@ export function IntegrationsPageView({
                   </div>
                 )}
 
-                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-white/5">
-                  <div className="flex items-center gap-2 border-b border-white/10 px-3 py-2">
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5">
+                  <div className="flex items-center gap-2 border-b border-foreground/10 dark:border-white/10 px-3 py-2">
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-white">
+                      <p className="truncate text-sm font-semibold text-foreground dark:text-white">
                         {selectedScript?.name ?? t("tabs.scripts")}
                       </p>
-                      <p className="truncate text-[11px] text-white/60">
+                      <p className="truncate text-[11px] text-foreground/60 dark:text-white/60">
                         {selectedScript?.description || t("scripts.selectToEditHelp")}
                       </p>
                     </div>
@@ -1069,13 +1069,13 @@ export function IntegrationsPageView({
                     )
                   ) : (
                     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "#d8ff72" }}>
+                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "hsl(var(--accent-ink))" }}>
                         <Zap className="h-8 w-8" />
                       </div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--ink))" }}>
                         {t("scripts.selectToEdit")}
                       </p>
-                      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+                      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>
                         {t("scripts.selectToEditHelp")}
                       </p>
                     </div>
@@ -1100,16 +1100,16 @@ export function IntegrationsPageView({
                   />
                 </div>
 
-                <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0" style={{ borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.035)" }}>
-                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, borderBottom: "1px solid rgba(255,255,255,0.08)", padding: "10px 16px" }}>
+                <div className="flex min-h-[360px] min-w-0 flex-1 flex-col overflow-hidden lg:min-h-0" style={{ borderRadius: 14, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--ink) / 0.035)" }}>
+                  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8, borderBottom: "1px solid hsl(var(--ink) / 0.08)", padding: "10px 16px" }}>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "#fff" }}>
+                      <p className="truncate" style={{ fontSize: 13, fontWeight: 700, color: "hsl(var(--ink))" }}>
                         {selectedScript?.name ?? t("tabs.scripts")}
                       </p>
                       {selectedScript ? (
-                        <p className="truncate" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{selectedScript.description || t("scripts.selectToEditHelp")}</p>
+                        <p className="truncate" style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)" }}>{selectedScript.description || t("scripts.selectToEditHelp")}</p>
                       ) : (
-                        <p className="truncate" style={{ fontSize: 11, color: "rgba(255,255,255,0.45)" }}>{t("scripts.selectToEditHelp")}</p>
+                        <p className="truncate" style={{ fontSize: 11, color: "hsl(var(--ink) / 0.45)" }}>{t("scripts.selectToEditHelp")}</p>
                       )}
                     </div>
 
@@ -1121,22 +1121,22 @@ export function IntegrationsPageView({
                             await handleDelete(selectedScript);
                           }
                         }}
-                        style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.07)", color: "#f87171" }}
+                        style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 30, padding: "0 12px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: "pointer", border: "1px solid rgba(248,113,113,0.2)", background: "rgba(248,113,113,0.07)", color: "hsl(var(--c-red))" }}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t("scripts.delete")}
                       </button>
                     )}
 
-                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, padding: "4px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(0,0,0,0.25)" }}>
+                    <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 2, padding: "4px", borderRadius: 10, border: "1px solid hsl(var(--ink) / 0.08)", background: "hsl(var(--shade) / calc(0.25 * var(--shade-k)))" }}>
                       <button
                         type="button"
                         onClick={() => setScriptSubView("canvas")}
                         disabled={!selectedScript}
                         style={{
                           padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
-                          transition: "all .15s", color: scriptSubView === "canvas" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)",
-                          background: scriptSubView === "canvas" ? "rgba(255,255,255,0.06)" : "transparent",
+                          transition: "all .15s", color: scriptSubView === "canvas" ? "hsl(var(--ink) / 0.92)" : "hsl(var(--ink) / 0.45)",
+                          background: scriptSubView === "canvas" ? "hsl(var(--ink) / 0.06)" : "transparent",
                           opacity: !selectedScript ? 0.5 : 1, border: "none",
                         }}
                       >
@@ -1148,8 +1148,8 @@ export function IntegrationsPageView({
                         disabled={!selectedScript}
                         style={{
                           padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: selectedScript ? "pointer" : "not-allowed",
-                          transition: "all .15s", color: scriptSubView === "runs" ? "rgba(255,255,255,0.92)" : "rgba(255,255,255,0.45)",
-                          background: scriptSubView === "runs" ? "rgba(255,255,255,0.06)" : "transparent",
+                          transition: "all .15s", color: scriptSubView === "runs" ? "hsl(var(--ink) / 0.92)" : "hsl(var(--ink) / 0.45)",
+                          background: scriptSubView === "runs" ? "hsl(var(--ink) / 0.06)" : "transparent",
                           opacity: !selectedScript ? 0.5 : 1, border: "none",
                         }}
                       >
@@ -1193,13 +1193,13 @@ export function IntegrationsPageView({
                     </>
                   ) : (
                     <div className="flex flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
-                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "#d8ff72" }}>
+                      <div style={{ borderRadius: "50%", background: "rgba(216,255,114,0.08)", padding: 20, color: "hsl(var(--accent-ink))" }}>
                         <Zap className="h-8 w-8" />
                       </div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>
+                      <p style={{ fontSize: 14, fontWeight: 600, color: "hsl(var(--ink))" }}>
                         {t("scripts.selectToEdit")}
                       </p>
-                      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>
+                      <p style={{ fontSize: 12, color: "hsl(var(--ink) / 0.45)" }}>
                         {t("scripts.selectToEditHelp")}
                       </p>
                     </div>
@@ -1222,7 +1222,7 @@ export function IntegrationsPageView({
 
         {/* ── Env Vars ─────────────────────────────────────────────────────── */}
         {tab === "env" && (
-          <div className="flex-1 overflow-y-auto" style={{ background: "#020408" }}>
+          <div className="flex-1 overflow-y-auto" style={{ background: "hsl(var(--surface-deep))" }}>
             <EnvVarsPanel teamId={activeTeamId} accessToken={accessToken} />
           </div>
         )}

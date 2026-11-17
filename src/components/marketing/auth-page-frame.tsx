@@ -66,4 +66,4 @@ export function AuthPageFrame({ mode, children }: AuthPageFrameProps) {
       <PublicFooter className="z-10" />
     </div>
   );
-}
+}

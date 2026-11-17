@@ -23,7 +23,7 @@ const BACKGROUND_PRESETS = [
   "bg-gradient-to-tr from-orange-400 to-red-500",
   "bg-gradient-to-tr from-emerald-400 to-teal-500",
   "bg-gradient-to-tr from-pink-500 to-rose-500",
-  "bg-gradient-to-tr from-slate-700 to-slate-900",
+  "bg-gradient-to-tr from-muted dark:from-slate-700 to-card dark:to-slate-900",
   "bg-gradient-to-tr from-indigo-500 to-cyan-400",
 ];
 
@@ -31,7 +31,7 @@ const DEFAULT_GRADIENT = "linear-gradient(135deg,#3b82f6 0%,#8b5cf6 100%)";
 const DEFAULT_COLOR = "#0f172a";
 
 const THEME_PRESET_OPTIONS = [
-  { id: "killio-default", i18nKey: "classic", accent: "#d8ff72", surface: "#0b0f14", Icon: Sparkles },
+  { id: "killio-default", i18nKey: "classic", accent: "hsl(var(--accent-ink))", surface: "#0b0f14", Icon: Sparkles },
   { id: "trello-ocean", i18nKey: "ocean", accent: "#67e8f9", surface: "#0c2233", Icon: Waves },
   { id: "trello-forest", i18nKey: "forest", accent: "#86efac", surface: "#10251f", Icon: Trees },
   { id: "trello-sunrise", i18nKey: "sunrise", accent: "#fcd34d", surface: "#3b1f10", Icon: Sun },
@@ -79,7 +79,7 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
   if (kind === "image") {
     if (!isImageUrl(value)) return null;
     return {
-      className: "bg-slate-900 bg-cover bg-center",
+      className: "bg-card dark:bg-slate-900 bg-cover bg-center",
       style: { backgroundImage: `url(${value})` },
     };
   }
@@ -90,7 +90,7 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
 
   if (kind === "color") {
     return {
-      className: "bg-slate-900",
+      className: "bg-card dark:bg-slate-900",
       style: { backgroundColor: value || DEFAULT_COLOR },
     };
   }
@@ -100,7 +100,7 @@ function resolveCoverPreview(kind: CoverKind, value: string): { className: strin
   }
 
   return {
-    className: "bg-slate-900",
+    className: "bg-card dark:bg-slate-900",
     style: { background: value || DEFAULT_GRADIENT },
   };
 }
@@ -158,7 +158,7 @@ export function BoardSettingsModalMobile({
   );
   const [themeKind, setThemeKind] = useState<"preset" | "custom">(boardAppearance.themeKind ?? "preset");
   const [themePreset, setThemePreset] = useState<string>(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
-  const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
+  const [themeAccent, setThemeAccent] = useState<string>(String((boardAppearance.themeCustom as any)?.accent ?? "hsl(var(--accent-ink))"));
   const [themeSurface, setThemeSurface] = useState<string>(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
   const saveGeneralAction = useAsyncAction(async (payload: { name: string; description: string | null }) => {
     await onSaveGeneral(payload);
@@ -200,7 +200,7 @@ export function BoardSettingsModalMobile({
     setGradientBackground(boardAppearance.backgroundGradient ?? DEFAULT_GRADIENT);
     setThemeKind(boardAppearance.themeKind ?? "preset");
     setThemePreset(boardAppearance.themePreset ?? THEME_PRESET_OPTIONS[0].id);
-    setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "#d8ff72"));
+    setThemeAccent(String((boardAppearance.themeCustom as any)?.accent ?? "hsl(var(--accent-ink))"));
     setThemeSurface(String((boardAppearance.themeCustom as any)?.surface ?? "#0b0f14"));
   }, [isOpen, boardName, boardDescription, boardAppearance]);
 
@@ -319,11 +319,11 @@ export function BoardSettingsModalMobile({
             <div className="space-y-5">
               <div className="rounded-lg border border-border overflow-hidden">
                 <div
-                  className={`h-24 relative ${isImageUrl(currentBackground) ? "bg-slate-800 bg-cover bg-center" : (currentBackground?.startsWith("bg-") ? currentBackground : "bg-slate-900")}`}
+                  className={`h-24 relative ${isImageUrl(currentBackground) ? "bg-muted dark:bg-slate-800 bg-cover bg-center" : (currentBackground?.startsWith("bg-") ? currentBackground : "bg-card dark:bg-slate-900")}`}
                   style={isImageUrl(currentBackground) ? { backgroundImage: `url(${currentBackground})` } : (!currentBackground?.startsWith("bg-") ? { background: currentBackground } : undefined)}
                 >
                   {coverPreview ? (
-                    <div className={`absolute bottom-2 left-2 right-2 h-8 rounded border border-white/20 ${coverPreview.className}`} style={coverPreview.style} />
+                    <div className={`absolute bottom-2 left-2 right-2 h-8 rounded border border-foreground/20 dark:border-white/20 ${coverPreview.className}`} style={coverPreview.style} />
                   ) : null}
                 </div>
               </div>

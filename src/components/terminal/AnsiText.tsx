@@ -8,7 +8,7 @@ const ANSI_COLORS: Record<string, string> = {
   '34': 'text-blue-500',
   '35': 'text-purple-500',
   '36': 'text-cyan-500',
-  '37': 'text-white',
+  '37': 'text-foreground dark:text-white',
   '90': 'text-zinc-500',
   '1': 'font-bold',
 };

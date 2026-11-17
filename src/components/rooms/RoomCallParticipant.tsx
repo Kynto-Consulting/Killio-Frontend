@@ -221,7 +221,7 @@ export function RoomCallParticipant({
       {/* Name bar */}
       <div className="absolute bottom-0 left-0 right-0 px-2 py-1 bg-gradient-to-t from-black/70 to-transparent flex items-center gap-1">
         {isScreenSharing && <Monitor className="w-3 h-3 text-accent shrink-0" />}
-        <span className="text-xs text-white truncate flex-1">
+        <span className="text-xs text-foreground dark:text-white truncate flex-1">
           {displayName}
           {isLocal && <span className="opacity-60"> ({t("call.you")})</span>}
         </span>
