@@ -14,7 +14,13 @@ function AcceptInvitePageContent() {
   const { accessToken, setActiveTeamId } = useSession();
   const t = useTranslations("accept-invite");
 
-  const token = searchParams.get("token") ?? "";
+  const tokenParam = searchParams.get("token") ?? "";
+  const inviteIdParam = searchParams.get("invite") ?? "";
+  // `token` comes from the email/share link; `invite` from the in-app notification.
+  const token = tokenParam || inviteIdParam;
+  const targetQuery = tokenParam
+    ? `token=${encodeURIComponent(tokenParam)}`
+    : `invite=${encodeURIComponent(inviteIdParam)}`;
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
   const [message, setMessage] = useState<string>("");
   const [teamName, setTeamName] = useState<string>("");
@@ -22,14 +28,14 @@ function AcceptInvitePageContent() {
   const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const loginHref = useMemo(() => {
-    const encodedTarget = `/accept-invite?token=${encodeURIComponent(token)}`;
+    const encodedTarget = `/accept-invite?${targetQuery}`;
     return `/login?from=${encodeURIComponent(encodedTarget)}`;
-  }, [token]);
+  }, [targetQuery]);
 
   const signupHref = useMemo(() => {
-    const encodedTarget = `/accept-invite?token=${encodeURIComponent(token)}`;
+    const encodedTarget = `/accept-invite?${targetQuery}`;
     return `/signup?from=${encodeURIComponent(encodedTarget)}`;
-  }, [token]);
+  }, [targetQuery]);
 
   useEffect(() => {
     if (!token) {
@@ -53,7 +59,7 @@ function AcceptInvitePageContent() {
     setStatus("loading");
     setMessage("");
 
-    acceptTeamInvite(token, accessToken)
+    acceptTeamInvite(tokenParam ? { token: tokenParam } : { inviteId: inviteIdParam }, accessToken)
       .then((result) => {
         if (cancelled) return;
         setActiveTeamId(result.teamId);
@@ -81,7 +87,7 @@ function AcceptInvitePageContent() {
         clearTimeout(redirectTimerRef.current);
       }
     };
-  }, [token, accessToken, router, setActiveTeamId, t]);
+  }, [token, tokenParam, inviteIdParam, accessToken, router, setActiveTeamId, t]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">

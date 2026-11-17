@@ -1599,11 +1599,15 @@ export async function revokeInviteLink(teamId: string, inviteId: string, accessT
   });
 }
 
-export async function acceptTeamInvite(token: string, accessToken: string): Promise<AcceptInviteResult> {
+/** Accept with the emailed/shared token, or with the invite id taken from an in-app notification. */
+export async function acceptTeamInvite(
+  key: { token: string } | { inviteId: string },
+  accessToken: string,
+): Promise<AcceptInviteResult> {
   return request<AcceptInviteResult>(`/teams/invites/accept`, {
     method: 'POST',
     headers: authHeaders(accessToken),
-    body: JSON.stringify({ token }),
+    body: JSON.stringify(key),
   });
 }
 
