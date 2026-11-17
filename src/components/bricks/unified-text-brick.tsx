@@ -1090,7 +1090,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
         case "tip": case "success": case "check": return { border: "border-emerald-500/60", bg: "bg-emerald-500/5", text: "text-emerald-400" };
         case "warning": case "caution": case "attention": return { border: "border-amber-500/60", bg: "bg-amber-500/5", text: "text-amber-400" };
         case "danger": case "error": case "bug": case "fail": case "failure": return { border: "border-rose-500/60", bg: "bg-rose-500/5", text: "text-rose-400" };
-        case "important": case "question": case "help": return { border: "border-violet-500/60", bg: "bg-violet-500/5", text: "text-violet-300" };
+        case "important": case "question": case "help": return { border: "border-violet-500/60", bg: "bg-violet-500/5", text: "text-violet-600 dark:text-violet-300" };
         case "quote": case "cite": return { border: "border-border/60", bg: "bg-muted/10", text: "text-muted-foreground" };
         default: return { border: "border-sky-500/60", bg: "bg-sky-500/5", text: "text-sky-400" }; // note/info/abstract/...
       }

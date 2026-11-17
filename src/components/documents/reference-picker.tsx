@@ -1353,7 +1353,7 @@ export function ReferencePicker({
                     <span className="text-sm font-medium truncate">{sel.label}</span>
                     <span className="text-[10px] uppercase tracking-wider opacity-60 font-mono">{sel.value}</span>
                     {sel.isCustom && (
-                      <span className="text-[10px] tracking-wider text-emerald-300 truncate">Selector personalizado valido</span>
+                      <span className="text-[10px] tracking-wider text-emerald-600 dark:text-emerald-300 truncate">Selector personalizado valido</span>
                     )}
                   </div>
                 </button>

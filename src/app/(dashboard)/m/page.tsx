@@ -233,7 +233,7 @@ export default function MeshBoardsPage() {
               placeholder={t("mesh.importPlaceholder")}
               className="w-full resize-none rounded-md border border-input bg-background px-3 py-2 font-mono text-[12px] outline-none focus:border-cyan-500/50 disabled:opacity-60" />
             <div className="mt-4 flex items-center justify-end gap-2">
-              <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-100 hover:bg-cyan-500/20">
+              <label className="mr-auto inline-flex cursor-pointer items-center gap-1.5 rounded-md border border-cyan-400/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-800 dark:text-cyan-100 hover:bg-cyan-500/20">
                 <Upload className="h-3.5 w-3.5" /> {t("mesh.importFile")}
                 <input type="file" accept=".excalidraw,.json,.md,.mmd,.png,application/json,image/png" className="hidden"
                   onChange={(e) => { const f = e.target.files?.[0]; if (f) void onImportFile(f); e.currentTarget.value = ""; }} />

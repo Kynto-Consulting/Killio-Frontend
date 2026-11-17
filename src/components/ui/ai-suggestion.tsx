@@ -161,7 +161,7 @@ export function AiSuggestion({
         </div>
       </div>
       {applyStatusMessage && (
-        <div className={`px-3 py-1.5 text-[10px] font-semibold border-b ${applyStatus === "success" ? "text-emerald-300 bg-emerald-500/10 border-emerald-500/20" : "text-rose-400 bg-rose-500/10 border-rose-500/20"}`}>
+        <div className={`px-3 py-1.5 text-[10px] font-semibold border-b ${applyStatus === "success" ? "text-emerald-600 dark:text-emerald-300 bg-emerald-500/10 border-emerald-500/20" : "text-rose-400 bg-rose-500/10 border-rose-500/20"}`}>
           {applyStatusMessage}
         </div>
       )}

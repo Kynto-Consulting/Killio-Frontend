@@ -40,6 +40,8 @@
     "conflictResolved": "Revision conflict — state updated from server.",
     "deleted": "Deleted.",
     "deletedCount": "{{count}} deleted.",
+    "deleteAction": "Delete",
+    "deleteActionCount": "Delete {{count}}",
     "downloaded": "Mesh downloaded.",
     "connCreated": "Connection created.",
     "connByStroke": "Connection by stroke.",

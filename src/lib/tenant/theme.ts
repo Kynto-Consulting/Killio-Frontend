@@ -45,6 +45,21 @@ function safeCustomCss(css: string | undefined): string {
   return css;
 }
 
+/**
+ * Font files to preload. Without it the browser only finds the font after it has parsed the CSS and met the
+ * first text that uses it, so the page paints in the fallback font first and then jumps (a visible
+ * "micro-shift"). At most three files, regular weights first.
+ */
+export function tenantFontPreloads(config: PublicTenantConfig): Array<{ href: string; type: string }> {
+  if (config.mode !== "tenant" || !config.theme.fontFamily || !FONT_FAMILY.test(config.theme.fontFamily)) return [];
+  const TYPE: Record<string, string> = { woff2: "font/woff2", woff: "font/woff", ttf: "font/ttf", otf: "font/otf" };
+  return config.theme.fonts
+    .filter((f) => Number.isInteger(f.weight) && f.weight >= 100 && f.weight <= 900 && FONT_URL.test(f.url))
+    .sort((a, b) => Math.abs(a.weight - 500) - Math.abs(b.weight - 500))
+    .slice(0, 3)
+    .map((f) => ({ href: f.url, type: TYPE[f.url.split("?")[0].split(".").pop()!.toLowerCase()] }));
+}
+
 function declarations(vars: Record<string, string>): string {
   return Object.entries(vars)
     .filter(([name, value]) => VAR_NAME.test(name) && HSL_TRIPLET.test(value))

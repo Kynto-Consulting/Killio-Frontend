@@ -1309,10 +1309,10 @@ export function CommandPalette() {
               key={notice.id}
               className={`rounded-lg border px-4 py-3 text-sm shadow-lg backdrop-blur-sm ${
                 notice.variant === "success"
-                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-200"
+                  ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-700 dark:text-emerald-200"
                   : notice.variant === "error"
-                  ? "bg-red-500/10 border-red-500/30 text-red-200"
-                  : "bg-sky-500/10 border-sky-500/30 text-sky-200"
+                  ? "bg-red-500/10 border-red-500/30 text-red-700 dark:text-red-200"
+                  : "bg-sky-500/10 border-sky-500/30 text-sky-700 dark:text-sky-200"
               }`}
             >
               {notice.text}
@@ -1370,7 +1370,7 @@ export function CommandPalette() {
               {null}
               <span>{t.hint.enterRun}</span>
               {txActive ? (
-                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-300">
+                <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-2 py-0.5 text-emerald-600 dark:text-emerald-300">
                   TX activa: {txQueue.length}
                 </span>
               ) : null}

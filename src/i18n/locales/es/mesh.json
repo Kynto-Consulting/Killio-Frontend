@@ -40,6 +40,8 @@
     "conflictResolved": "Conflicto de revisión — estado actualizado desde el servidor.",
     "deleted": "Eliminado.",
     "deletedCount": "{{count}} eliminado(s).",
+    "deleteAction": "Eliminar",
+    "deleteActionCount": "Eliminar {{count}}",
     "downloaded": "Mesh descargada.",
     "connCreated": "Conexión creada.",
     "connByStroke": "Conexión por trazo.",

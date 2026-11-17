@@ -1028,7 +1028,7 @@ export function IntegrationsPageView({
                             await handleDelete(selectedScript);
                           }
                         }}
-                        className="inline-flex h-8 items-center gap-1 rounded-md border border-red-300/30 bg-red-400/10 px-2 text-[11px] font-semibold text-red-300"
+                        className="inline-flex h-8 items-center gap-1 rounded-md border border-red-300/30 bg-red-400/10 px-2 text-[11px] font-semibold text-red-600 dark:text-red-300"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                         {t("scripts.delete")}

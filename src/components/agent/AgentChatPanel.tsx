@@ -93,7 +93,7 @@ const IframeWithPreview = ({ src, title, height, screenshot, t }: { src: string,
       <div className="relative z-10 w-16 h-16 rounded-full bg-blue-500/20 backdrop-blur-sm flex items-center justify-center text-blue-400 group-hover/iframe:scale-110 transition-transform">
         <Play className="w-8 h-8 ml-1" />
       </div>
-      <div className="relative z-10 mt-4 text-xs font-bold text-blue-300 uppercase tracking-widest drop-shadow-md">{t("agent.asset.activateLive")}</div>
+      <div className="relative z-10 mt-4 text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-widest drop-shadow-md">{t("agent.asset.activateLive")}</div>
       <div className="relative z-10 mt-1 text-[10px] text-blue-500/60 font-mono truncate max-w-[80%]">
         {src.startsWith('/') ? window.location.hostname : (src.startsWith('http') ? new URL(src).hostname : src)}
       </div>
@@ -1033,10 +1033,10 @@ export function AssistantMessage({
                 <div key={key} className="my-3 rounded-xl overflow-hidden border-2 border-blue-500/20 dark:border-blue-400/20 bg-card/95 dark:bg-slate-900/95 shadow-lg animate-in zoom-in-95 duration-200">
                   <div className="flex h-8 items-center gap-2 border-b border-blue-500/10 bg-blue-950/40 px-3 select-none">
                     <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-300">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
                       {type === 'iframe' ? 'Live Content' : type}
                     </span>
-                    {title && <span className="ml-1 truncate text-[10px] text-blue-200/60">— {title}</span>}
+                    {title && <span className="ml-1 truncate text-[10px] text-blue-700/60 dark:text-blue-200/60">— {title}</span>}
                           <div className="ml-auto flex items-center gap-1">
                       <a
                         href={type === 'document' ? `/d/${src}` : (type === 'kanban' || type === 'mesh' ? `/b/${src}` : src)}

@@ -29,3 +29,21 @@ test("unsafe overrides are dropped even if the backend let them through", () => 
   const css = buildTenantThemeCss(tenant({ vars: { light: { "Bad Name": "1", ok: "url(https://x.test)" }, dark: {} } }));
   assert.ok(!css.includes("Bad Name") && !css.includes("--ok"));
 });
+
+test("tenant fonts are preloaded (closest to regular first, at most three, only safe URLs)", async () => {
+  const { tenantFontPreloads } = await import("./theme.ts");
+  const fonts = [
+    { weight: 300, url: "/tenant/A-Light.ttf" },
+    { weight: 400, url: "/tenant/A-Regular.woff2" },
+    { weight: 700, url: "https://cdn.acme.com/A-Bold.woff2" },
+    { weight: 900, url: "/tenant/A-Black.woff2" },
+    { weight: 500, url: "javascript:alert(1)" },
+  ];
+  const out = tenantFontPreloads(tenant({ fontFamily: "Acme Sans", fonts }));
+  assert.equal(out.length, 3);
+  assert.equal(out[0].href, "/tenant/A-Regular.woff2");
+  assert.equal(out[0].type, "font/woff2");
+  assert.ok(out.every((f) => !f.href.startsWith("javascript")));
+  assert.deepEqual(tenantFontPreloads({ ...tenant({ fontFamily: "Acme Sans", fonts }), mode: "public" }), []);
+  assert.deepEqual(tenantFontPreloads(tenant({ fonts })), [], "no family, no preload");
+});

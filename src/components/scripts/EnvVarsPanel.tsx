@@ -121,8 +121,8 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
         <div className="rounded-xl border border-red-400/30 bg-red-400/10 p-6 flex items-start gap-4">
           <Lock className="h-5 w-5 shrink-0 text-red-400 mt-0.5" />
           <div>
-            <h3 className="font-semibold text-red-300 mb-1">{t("envVars.accessDeniedTitle")}</h3>
-            <p className="text-sm text-red-200">{t("envVars.accessDeniedMessage")}</p>
+            <h3 className="font-semibold text-red-600 dark:text-red-300 mb-1">{t("envVars.accessDeniedTitle")}</h3>
+            <p className="text-sm text-red-700 dark:text-red-200">{t("envVars.accessDeniedMessage")}</p>
           </div>
         </div>
       ) : (
@@ -139,7 +139,7 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
             <button
               type="button"
               onClick={openCreate}
-              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-300 hover:bg-indigo-500/20 transition"
+              className="flex shrink-0 items-center gap-1.5 rounded-lg border border-indigo-500/40 bg-indigo-500/10 px-3 py-2 text-sm font-semibold text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/20 transition"
             >
               <Plus className="h-4 w-4" />
               {t("envVars.add")}
@@ -148,13 +148,13 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
 
       {/* Feedback */}
       {successMsg && (
-        <div className="flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-300">
+        <div className="flex items-center gap-2 rounded-lg border border-emerald-400/30 bg-emerald-400/10 px-4 py-2 text-sm text-emerald-600 dark:text-emerald-300">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           {successMsg}
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-300">
+        <div className="flex items-center gap-2 rounded-lg border border-red-400/30 bg-red-400/10 px-4 py-2 text-sm text-red-600 dark:text-red-300">
           <XCircle className="h-4 w-4 shrink-0" />
           {error}
         </div>
@@ -250,7 +250,7 @@ export function EnvVarsPanel({ teamId, accessToken }: Props) {
                 <p className="font-mono text-sm font-semibold text-foreground dark:text-white truncate">{v.key}</p>
                 {v.description && <p className="text-xs text-muted-foreground dark:text-slate-400 truncate">{v.description}</p>}
               </div>
-              <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${v.hasValue ? "bg-emerald-500/15 text-emerald-300" : "bg-red-500/15 text-red-300"}`}>
+              <span className={`shrink-0 rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${v.hasValue ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300" : "bg-red-500/15 text-red-600 dark:text-red-300"}`}>
                 {v.hasValue ? t("envVars.hasValue") : t("envVars.noValue")}
               </span>
               <div className="flex items-center gap-1 shrink-0">

@@ -644,7 +644,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
               <div className="mb-3 mx-1 flex items-start gap-2 rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2.5">
                 <AlertTriangle className="h-3.5 w-3.5 text-red-400 shrink-0 mt-0.5" />
                 <div className="min-w-0">
-                  <p className="text-[11px] font-bold text-red-300">{tDashboard("teamSwitcher.archivedBannerTitle")}</p>
+                  <p className="text-[11px] font-bold text-red-600 dark:text-red-300">{tDashboard("teamSwitcher.archivedBannerTitle")}</p>
                   <p className="text-[10px] text-red-400/80 leading-snug mt-0.5">{tDashboard("teamSwitcher.archivedBannerBody")}</p>
                 </div>
               </div>
@@ -842,7 +842,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
               </button>
               <div className="flex flex-col gap-2">
                 <div className="flex items-center gap-2 text-foreground dark:text-white font-bold text-xs uppercase tracking-wider">
-                  <Sparkles className="h-3.5 w-3.5 text-amber-300" />
+                  <Sparkles className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300" />
                   PRO
                 </div>
                 <p className="text-[11px] text-foreground/90 dark:text-white/90 leading-snug">
@@ -948,7 +948,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                 onClick={() => setIsTeamSwitcherOpen(!isTeamSwitcherOpen)}
                 className="flex items-center space-x-2 rounded-md hover:bg-accent/10 px-3 py-1.5 transition-colors border border-transparent hover:border-border"
               >
-                <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${localMode ? "bg-cyan-500/20 text-cyan-300" : isActiveTeamArchived ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"}`}>
+                <div className={`h-5 w-5 rounded flex items-center justify-center text-[10px] font-bold ${localMode ? "bg-cyan-500/20 text-cyan-600 dark:text-cyan-300" : isActiveTeamArchived ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"}`}>
                   {localMode
                     ? <HardDrive className="h-3 w-3" />
                     : isActiveTeamArchived
@@ -1006,10 +1006,10 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                               className="flex-1 text-left px-2 py-2 text-sm flex items-center justify-between min-w-0"
                             >
                               <div className="flex items-center truncate gap-2">
-                                <HardDrive className="h-3.5 w-3.5 shrink-0 text-cyan-300" />
+                                <HardDrive className="h-3.5 w-3.5 shrink-0 text-cyan-600 dark:text-cyan-300" />
                                 <span className="truncate pr-2">{lw.name}</span>
                               </div>
-                              {isActive && <Check className="h-4 w-4 text-cyan-300 shrink-0" />}
+                              {isActive && <Check className="h-4 w-4 text-cyan-600 dark:text-cyan-300 shrink-0" />}
                             </button>
                             {isActive && (
                               <button
@@ -1028,7 +1028,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                                 void localWs.removeLocalWorkspace(lw.id);
                                 if (isActive) localWs.exitLocal();
                               }}
-                              className="mr-1 hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-rose-500/15 hover:text-rose-300 transition-colors group-hover:flex"
+                              className="mr-1 hidden shrink-0 rounded-md p-1.5 text-muted-foreground hover:bg-rose-500/15 hover:text-rose-600 dark:hover:text-rose-300 transition-colors group-hover:flex"
                             >
                               <Trash2 className="h-4 w-4" />
                             </button>
@@ -1049,7 +1049,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                   )}
                   {localWs.supported && (
                     <button onClick={() => { setIsTeamSwitcherOpen(false); void localWs.createLocalWorkspace(); }}
-                      className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-cyan-300">
+                      className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-cyan-600 dark:text-cyan-300">
                       <HardDrive className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createLocal")}
                     </button>
                   )}

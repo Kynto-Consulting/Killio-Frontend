@@ -590,7 +590,7 @@ function AssetPicker({
               ) : null}
 
               {suggestionsError ? (
-                <div className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                <div className="rounded-xl border border-red-400/25 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-200">
                   {suggestionsError}
                 </div>
               ) : null}
@@ -907,7 +907,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
 
         {/* ── ERROR ── */}
         {error ? (
-          <div className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
           </div>
@@ -1181,7 +1181,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               )}
 
               {wizard.error ? (
-                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {wizard.error}
                 </div>
               ) : null}
@@ -1314,7 +1314,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
               </div>
 
               {snapModal.error ? (
-                <div className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                <div className="flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /> {snapModal.error}
                 </div>
               ) : null}

@@ -332,7 +332,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
 
         {/* ── ERROR ── */}
         {error ? (
-          <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+          <div className="mt-5 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
           </div>
@@ -492,7 +492,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
               </div>
 
               {importModal.error ? (
-                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+                <div className="mt-4 flex items-start gap-2 rounded-xl border border-red-400/25 bg-red-500/10 px-4 py-3 text-sm text-red-600 dark:text-red-300">
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   {importModal.error}
                 </div>

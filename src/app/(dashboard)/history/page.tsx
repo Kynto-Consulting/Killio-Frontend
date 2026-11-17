@@ -59,7 +59,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: Tag,
       badge: t("badges.tagAdded"),
-      badgeClass: "bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30",
+      badgeClass: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-300 border-fuchsia-500/30",
     };
   }
 
@@ -67,7 +67,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: Tag,
       badge: t("badges.tagRemoved"),
-      badgeClass: "bg-rose-500/15 text-rose-300 border-rose-500/30",
+      badgeClass: "bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30",
     };
   }
 
@@ -75,7 +75,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: MessageSquare,
       badge: t("badges.comment"),
-      badgeClass: "bg-amber-500/15 text-amber-300 border-amber-500/30",
+      badgeClass: "bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30",
     };
   }
 
@@ -83,7 +83,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: Edit2,
       badge: t("badges.updated"),
-      badgeClass: "bg-blue-500/15 text-blue-300 border-blue-500/30",
+      badgeClass: "bg-blue-500/15 text-blue-600 dark:text-blue-300 border-blue-500/30",
     };
   }
 
@@ -91,7 +91,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: Sparkles,
       badge: t("badges.created"),
-      badgeClass: "bg-emerald-500/15 text-emerald-300 border-emerald-500/30",
+      badgeClass: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-300 border-emerald-500/30",
     };
   }
 
@@ -99,7 +99,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: Trash2,
       badge: t("badges.removed"),
-      badgeClass: "bg-red-500/15 text-red-300 border-red-500/30",
+      badgeClass: "bg-red-500/15 text-red-600 dark:text-red-300 border-red-500/30",
     };
   }
 
@@ -107,7 +107,7 @@ function getActionTheme(action: string, t: TFunc) {
     return {
       icon: RefreshCcw,
       badge: t("badges.changed"),
-      badgeClass: "bg-cyan-500/15 text-cyan-300 border-cyan-500/30",
+      badgeClass: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-300 border-cyan-500/30",
     };
   }
 

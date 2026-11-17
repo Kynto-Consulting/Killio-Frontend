@@ -295,11 +295,11 @@ function RemovedBrickContent({ kind, content }: { kind: string; content: any }) 
   return (
     <div className="border border-rose-500/20 bg-rose-500/5 p-2 rounded">
       <div className="text-[8px] font-bold text-rose-500 uppercase tracking-widest mb-1 font-mono">REMOVED {kind}</div>
-      {kind === 'text' && <div className="text-[10px] font-mono text-rose-300/80 line-through">{textValue}</div>}
+      {kind === 'text' && <div className="text-[10px] font-mono text-rose-600/80 dark:text-rose-300/80 line-through">{textValue}</div>}
       {kind === 'checklist' && (
         <div className="space-y-1">
           {items.map((item: any, i: number) => (
-            <div key={i} className="flex items-center gap-2 text-[10px] text-rose-300/80 line-through">
+            <div key={i} className="flex items-center gap-2 text-[10px] text-rose-600/80 dark:text-rose-300/80 line-through">
               <X className="w-2.5 h-2.5" />
               <span>{item.label}</span>
             </div>

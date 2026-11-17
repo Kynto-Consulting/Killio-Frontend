@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { getTenantConfig } from '@/lib/tenant/server';
-import { buildTenantThemeCss, initialHtmlClass, SYSTEM_THEME_SCRIPT } from '@/lib/tenant/theme';
+import { buildTenantThemeCss, initialHtmlClass, SYSTEM_THEME_SCRIPT, tenantFontPreloads } from '@/lib/tenant/theme';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { PoweredByBadge } from '@/components/marketing/powered-by-badge';
 
@@ -50,6 +50,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={initialHtmlClass(tenant)} suppressHydrationWarning>
       <head>
+        {tenantFontPreloads(tenant).map((font) => (
+          <link key={font.href} rel="preload" as="font" type={font.type} href={font.href} crossOrigin="anonymous" />
+        ))}
         {themeCss ? <style id="tenant-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
         {tenant.mode === 'tenant' && tenant.theme.defaultMode === 'system' ? (
           <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_SCRIPT }} />

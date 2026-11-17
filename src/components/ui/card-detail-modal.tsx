@@ -1676,9 +1676,9 @@ export function CardDetailModal({
     switch (action) {
       case 'card.created': return { badge: 'Creada', badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', message: `Creo la card ${payload.title ? `"${payload.title}"` : `"${cardTitle}"`}`, detail: 'Se creo una nueva tarjeta', dotClass: 'border-emerald-400' };
       case 'card.updated': return { badge: 'Actualizada', badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30', message: `Actualizo la card "${cardTitle}"`, detail: formatActivityChanges(payload.changes), dotClass: 'border-blue-400' };
-      case 'card.tag_added': { const tagName = resolveTagNameById(payload.tagId as string); return { badge: 'Tag agregado', badgeClass: 'bg-fuchsia-500/15 text-fuchsia-300 border-fuchsia-500/30', message: `Agrego el tag "${tagName}"`, detail: `En la card "${cardTitle}"`, dotClass: 'border-fuchsia-400' }; }
-      case 'card.tag_removed': { const tagName = resolveTagNameById(payload.tagId as string); return { badge: 'Tag removido', badgeClass: 'bg-rose-500/15 text-rose-300 border-rose-500/30', message: `Removio el tag "${tagName}"`, detail: `En la card "${cardTitle}"`, dotClass: 'border-rose-400' }; }
-      case 'card.commented': return { badge: 'Comentario', badgeClass: 'bg-amber-500/15 text-amber-300 border-amber-500/30', message: `Comento en "${cardTitle}"`, detail: payload.text || 'Nuevo comentario', dotClass: 'border-amber-400' };
+      case 'card.tag_added': { const tagName = resolveTagNameById(payload.tagId as string); return { badge: 'Tag agregado', badgeClass: 'bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-300 border-fuchsia-500/30', message: `Agrego el tag "${tagName}"`, detail: `En la card "${cardTitle}"`, dotClass: 'border-fuchsia-400' }; }
+      case 'card.tag_removed': { const tagName = resolveTagNameById(payload.tagId as string); return { badge: 'Tag removido', badgeClass: 'bg-rose-500/15 text-rose-600 dark:text-rose-300 border-rose-500/30', message: `Removio el tag "${tagName}"`, detail: `En la card "${cardTitle}"`, dotClass: 'border-rose-400' }; }
+      case 'card.commented': return { badge: 'Comentario', badgeClass: 'bg-amber-500/15 text-amber-700 dark:text-amber-300 border-amber-500/30', message: `Comento en "${cardTitle}"`, detail: payload.text || 'Nuevo comentario', dotClass: 'border-amber-400' };
       default: return { badge: 'Actividad', badgeClass: 'bg-muted text-muted-foreground border-border', message: String(log.action || 'Evento'), detail: '', dotClass: 'border-primary' };
     }
   };
@@ -1776,7 +1776,7 @@ export function CardDetailModal({
               </span>
             ) : null}
             {card?.id && isTimerActive && timerRemainingLabel ? (
-              <span className="hidden rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-300 md:inline-flex">
+              <span className="hidden rounded-full border border-sky-500/30 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-600 dark:text-sky-300 md:inline-flex">
                 {timerRemainingLabel}
               </span>
             ) : null}

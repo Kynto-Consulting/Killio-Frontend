@@ -470,7 +470,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     const s = output.trim();
     if (!s) return null;
     return (
-      <p className={`font-mono text-[10px] leading-relaxed break-all ${isError ? "text-red-300" : "text-neutral-600 dark:text-neutral-300"}`}>
+      <p className={`font-mono text-[10px] leading-relaxed break-all ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-600 dark:text-neutral-300"}`}>
         {s.length > 400 ? s.slice(0, 400) + "…" : s}
       </p>
     );
@@ -487,7 +487,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     // Error payload
     if (obj.error || obj.message && isError) {
       return (
-        <p className="font-mono text-[10px] text-red-300 break-all leading-relaxed">
+        <p className="font-mono text-[10px] text-red-600 dark:text-red-300 break-all leading-relaxed">
           {formatScalar(obj.error ?? obj.message)}
         </p>
       );
@@ -524,7 +524,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     }
     if (shownEntries.length === 0) {
       return (
-        <pre className={`mt-1 whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+        <pre className={`mt-1 whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
           {JSON.stringify(obj, null, 2)}
         </pre>
       );
@@ -538,14 +538,14 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
             </span>
             {typeof v === "object" && v !== null && !Array.isArray(v) ? (
               renderObjectPreview(v as Record<string, unknown>) ?? (
-                <pre className={`whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+                <pre className={`whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
                   {JSON.stringify(v, null, 2)}
                 </pre>
               )
             ) : Array.isArray(v) ? (
               renderArrayPreview(v)
             ) : (
-              <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+              <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
                 {formatScalar(v, 120)}
               </span>
             )}

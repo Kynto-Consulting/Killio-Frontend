@@ -2661,6 +2661,12 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
       const tag = active?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (active?.isContentEditable) return;
+      // While a brick is being edited its keys belong to the editor: a stray "p" must not switch to the pen
+      // and Backspace must not delete the brick when focus has not landed in the editable area yet.
+      if (editingBrickId) {
+        if (e.key === "Escape") setEditingBrickId(null);
+        return;
+      }
       if (e.ctrlKey || e.metaKey) {
         const k = e.key.toLowerCase();
         if (k === "z" && !e.shiftKey) { e.preventDefault(); void history.undo(); return; }
@@ -2684,6 +2690,24 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
     document.addEventListener("keydown", h);
     return () => document.removeEventListener("keydown", h);
   }, [selectedId, selectedIds, selectedConnId, editingBrickId, history]);
+
+  // A text brick left empty when its editing ends is removed (no ghost boxes with the editor placeholder),
+  // unless something depends on it (connectors or children).
+  const prevEditingRef = useRef<string | null>(null);
+  useEffect(() => {
+    const prev = prevEditingRef.current;
+    prevEditingRef.current = editingBrickId;
+    if (!prev || prev === editingBrickId) return;
+    setState((cur) => {
+      const b = cur.bricksById[prev];
+      if (!b || b.kind !== "text" || getMd(b).trim() !== "") return cur;
+      const hasChildren = Object.values(cur.bricksById).some((x) => x.parentId === prev);
+      const connected = Object.values(cur.connectionsById).some((c) => c.cons[0] === prev || c.cons[1] === prev);
+      if (hasChildren || connected) return cur;
+      return deleteBrick(cur, prev);
+    });
+    setSelectedId((id) => (id === prev ? null : id));
+  }, [editingBrickId]);
 
   // ── Clipboard: copy selected bricks / paste bricks as canvas meta-bricks ────
   const pasteBricksToMesh = useCallback((bricks: ClipboardBrick[], at?: { x: number; y: number }) => {
@@ -3951,11 +3975,11 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
           <img src={activeLock.avatarUrl} alt={activeLock.displayName}
             className="h-7 w-7 rounded-full border-2 border-amber-400 shadow-lg" />
         ) : (
-          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-900/80 text-[10px] font-bold text-amber-200">
+          <div className="flex h-7 w-7 items-center justify-center rounded-full border-2 border-amber-400 bg-amber-900/80 text-[10px] font-bold text-amber-700 dark:text-amber-200">
             {activeLock.displayName.slice(0, 2).toUpperCase()}
           </div>
         )}
-        <span className="ml-1.5 max-w-[100px] truncate rounded bg-card/80 dark:bg-slate-900/80 px-1.5 py-0.5 text-[10px] text-amber-200">
+        <span className="ml-1.5 max-w-[100px] truncate rounded bg-card/80 dark:bg-slate-900/80 px-1.5 py-0.5 text-[10px] text-amber-700 dark:text-amber-200">
           {activeLock.displayName}
         </span>
       </div>
@@ -4291,14 +4315,14 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         >
           <div className="flex h-7 items-center gap-1.5 border-b border-blue-500/20 bg-blue-950/50 px-2.5 select-none">
             <ExternalLink className="h-3 w-3 shrink-0 text-blue-400" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-blue-300">Portal</span>
-            {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-200/70">{targetLabel}</span>}
+            <span className="text-[9px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">Portal</span>
+            {targetLabel && <span className="ml-1 truncate text-[9px] text-blue-700/70 dark:text-blue-200/70">{targetLabel}</span>}
             {portalHref && !isEditing && (
               <div className="pointer-events-auto ml-auto flex items-center gap-0.5">
-                <button type="button" className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => { e.stopPropagation(); setPortalPreview({ url: portalHref, title: targetLabel || targetId }); }} title="Ver en pantalla completa">
+                <button type="button" className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-700 dark:hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => { e.stopPropagation(); setPortalPreview({ url: portalHref, title: targetLabel || targetId }); }} title="Ver en pantalla completa">
                   <Maximize2 className="h-2.5 w-2.5" />
                 </button>
-                <a href={portalHref} className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => e.stopPropagation()} title="Abrir en nueva pestaña" target="_blank" rel="noopener noreferrer">
+                <a href={portalHref} className="flex items-center gap-0.5 rounded px-1.5 py-0.5 text-[9px] text-blue-400/60 hover:text-blue-700 dark:hover:text-blue-200 hover:bg-blue-500/20 transition-colors" onClick={(e) => e.stopPropagation()} title="Abrir en nueva pestaña" target="_blank" rel="noopener noreferrer">
                   <ExternalLink className="h-2.5 w-2.5" />
                 </a>
               </div>
@@ -4377,7 +4401,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 )}
                 {/* Hover overlay with subtitle info */}
                 <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-background/80 dark:from-slate-950/80 to-transparent px-2 py-1.5 opacity-0 transition-opacity duration-150 group-hover:opacity-100">
-                  <p className="truncate text-[10px] font-medium text-blue-100">{targetLabel || targetId.slice(0, 24)}</p>
+                  <p className="truncate text-[10px] font-medium text-blue-800 dark:text-blue-100">{targetLabel || targetId.slice(0, 24)}</p>
                   <p className="text-[8px] text-blue-400/60">{previewSubtitle || (targetType === "mesh" ? "Mesh Board" : targetType === "board" ? "Kanban Board" : "Documento")}</p>
                 </div>
               </div>
@@ -4422,7 +4446,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
         >
           <div className="flex h-7 items-center gap-1.5 border-b border-foreground/10 dark:border-white/10 bg-card/45 dark:bg-slate-900/45 px-2.5 backdrop-blur-md select-none">
             <Eye className="h-3 w-3 shrink-0 text-purple-400" />
-            <span className="text-[9px] font-bold uppercase tracking-widest text-purple-300">Mirror</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-purple-600 dark:text-purple-300">Mirror</span>
             {sourceLabel && <span className="ml-auto truncate text-[9px] text-purple-400/50">{sourceLabel}</span>}
             <span className="ml-1 text-[7px] text-purple-400/30">read-only</span>
           </div>
@@ -4462,7 +4486,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                   </div>
                 ) : (
                   <>
-                    <p className="truncate text-[9px] uppercase tracking-wide text-purple-300/60">{sourceKind || "source"}{sourcePath ? ` · ${sourcePath}` : ""}</p>
+                    <p className="truncate text-[9px] uppercase tracking-wide text-purple-600/60 dark:text-purple-300/60">{sourceKind || "source"}{sourcePath ? ` · ${sourcePath}` : ""}</p>
                     <p className="text-[10px] text-muted-foreground/60">Fuente: {sourceLabel || sourceId.slice(0, 30)}</p>
                   </>
                 )}
@@ -4709,7 +4733,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
               (asRec(selB.content).manualStrokes as unknown[]).length > 0;
             return hasStrokes ? (
               <button type="button" onClick={() => clearDrawStrokes(selectedId)}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-950/30 px-2.5 text-xs text-orange-300 hover:bg-orange-900/40">
+                className="inline-flex h-8 items-center gap-1.5 rounded-md border border-orange-500/40 bg-orange-950/30 px-2.5 text-xs text-orange-700 dark:text-orange-300 hover:bg-orange-900/40">
                 <Trash2 className="h-3.5 w-3.5" /> Clear strokes
               </button>
             ) : null;
@@ -4723,8 +4747,8 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                 if (selectedId) { setState((c) => deleteBrick(c, selectedId)); setSelectedId(null); toast(tMesh("feedback.deleted"), "success"); }
                 if (selectedConnId) { setState((c) => deleteConn(c, selectedConnId)); setSelectedConnId(null); }
               }
-            }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/40 bg-red-950/30 px-2.5 text-xs text-red-300 hover:bg-red-900/40">
-              <Trash2 className="h-3.5 w-3.5" /> {selectedIds.size > 1 ? tMesh("feedback.deletedCount", { count: selectedIds.size }) : tMesh("feedback.deleted")}
+            }} className="inline-flex h-8 items-center gap-1.5 rounded-md border border-red-500/40 bg-red-500/10 dark:bg-red-950/30 px-2.5 text-xs font-medium text-red-700 dark:text-red-300 hover:bg-red-500/20 dark:hover:bg-red-900/40">
+              <Trash2 className="h-3.5 w-3.5" /> {selectedIds.size > 1 ? tMesh("feedback.deleteActionCount", { count: selectedIds.size }) : tMesh("feedback.deleteAction")}
             </button>
           )}
 
@@ -5006,7 +5030,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
 
           {/* Pen status */}
           {toolMode === "pen" && (
-            <div className="mx-2 mt-auto rounded-lg bg-purple-500/20 p-2 text-center text-[8px] text-purple-200">
+            <div className="mx-2 mt-auto rounded-lg bg-purple-500/20 p-2 text-center text-[8px] text-purple-700 dark:text-purple-200">
               {recognizing ? <Loader2 className="mx-auto h-3 w-3 animate-spin" /> : <Pencil className="mx-auto h-3 w-3" />}
               <p className="mt-1">{penStrokes.length > 0 ? `${penStrokes.length} trazos` : "Dibuja en el canvas"}</p>
             </div>
@@ -5781,7 +5805,7 @@ export default function MeshBoardPage({ mobileMode = false }: MeshBoardPageProps
                                   <span className="truncate px-1.5 py-1 text-[9.5px] text-foreground/80 dark:text-slate-200">{t.name}</span>
                                 </button>
                                 <button type="button" title={tMesh("templates.delete")} onClick={() => deleteUserTemplate(t.id)}
-                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-background/80 dark:bg-slate-950/80 text-muted-foreground dark:text-slate-400 hover:text-rose-300 group-hover/u:flex">
+                                  className="absolute right-1 top-1 hidden h-5 w-5 items-center justify-center rounded bg-background/80 dark:bg-slate-950/80 text-muted-foreground dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-300 group-hover/u:flex">
                                   <X className="h-3 w-3" />
                                 </button>
                               </div>
