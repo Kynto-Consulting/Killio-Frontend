@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { ArrowRight, Bot, CheckCircle2, Download, ShieldCheck, Smartphone, Sparkles, Workflow } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -32,8 +33,8 @@ export default function LandingPageMobile() {
       <header className="sticky top-0 z-30 border-b border-border/70 bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 w-full items-center justify-between px-4">
           <Link href="/" className="flex items-center gap-2">
-            <img src="/killio_white.webp" alt="Killio" className="h-6 w-auto" />
-            <span className="text-base font-semibold tracking-tight">Killio</span>
+            <BrandLogo className="h-6 w-auto" />
+            <span className="text-base font-semibold tracking-tight"><BrandName /></span>
           </Link>
 
           <div className="flex items-center gap-2">

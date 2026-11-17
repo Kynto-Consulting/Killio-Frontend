@@ -7,6 +7,7 @@ import { ArrowRight, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { register } from "@/lib/api/contracts";
 
 function SignupPageContent() {
@@ -15,6 +16,12 @@ function SignupPageContent() {
   const { login, user, accessToken, isLoading: isSessionLoading } = useSession();
   const t = useTranslations("auth");
   const tCommon = useTranslations("common");
+  const tenant = useTenant();
+  const signupEnabled = tenant.auth.signupEnabled;
+  // White-label deployments can close public sign-up: send visitors to sign-in.
+  useEffect(() => {
+    if (!signupEnabled) router.replace("/login");
+  }, [signupEnabled, router]);
   const [form, setForm] = useState({
     displayName: "",
     username: "",
@@ -96,6 +103,8 @@ function SignupPageContent() {
       : form.password.length < 12
       ? "medium"
       : "strong";
+
+  if (!signupEnabled) return null;
 
   return (
     <AuthPageFrame mode="signup">

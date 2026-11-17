@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { Loader2, Sparkles, CreditCard } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { getTeamAiUsage, type TeamAiUsage } from "@/lib/api/contracts";
@@ -16,6 +17,7 @@ export function NavbarAiCredits({ teamId, accessToken }: NavbarAiCreditsProps) {
   const router = useRouter();
   const t = useTranslations("common");
   const tPricing = useTranslations("pricing");
+  const billingEnabled = useTenant().billing.enabled;
   const [aiUsage, setAiUsage] = useState<TeamAiUsage | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -69,6 +71,7 @@ export function NavbarAiCredits({ teamId, accessToken }: NavbarAiCreditsProps) {
             <span className="font-medium">{t("agent.credits.used", { used: aiUsage.creditsUsed.toFixed(2), limit: aiUsage.limit.toFixed(2) })}</span>
           </span>
           <span className="hidden xl:inline truncate">Credits</span>
+          {billingEnabled && (
           <button
             type="button"
             onClick={() => router.push("/pricing")}
@@ -77,6 +80,7 @@ export function NavbarAiCredits({ teamId, accessToken }: NavbarAiCreditsProps) {
             <CreditCard className="h-3.5 w-3.5" />
             {tPricing("actions.upgrade")}
           </button>
+          )}
         </>
       ) : (
         <span>-</span>

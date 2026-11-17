@@ -1,6 +1,7 @@
 "use client";
 
 import { UserPlus, Lock, MoreHorizontal, Shield, Copy, Check } from "lucide-react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { useSession } from "@/components/providers/session-provider";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -129,7 +130,8 @@ function TeamsPageInner() {
   const myMembership = useMemo(() => members.find((member) => member.id === user?.id), [members, user?.id]);
   const myRole = (myMembership?.role ?? "guest") as TeamRole;
 
-  const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole);
+  const tenantPermissions = useTenant().permissions;
+  const canInvite = !!accessToken && !!activeTeamId && !activeTeam?.isPersonal && ["owner", "admin", "member"].includes(myRole) && (myRole !== "member" || tenantPermissions.membersCanInvite);
   const canManageMembers = ["owner", "admin"].includes(myRole);
 
   const inviteDisabledReason = activeTeam?.isPersonal

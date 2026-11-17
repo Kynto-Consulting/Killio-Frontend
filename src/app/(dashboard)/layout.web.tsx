@@ -1,6 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
+import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { usePathname, useSearchParams } from "next/navigation";
 import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, Sparkles, ChevronRight, GitBranch, MessageSquare, Lock, AlertTriangle, Workflow } from "lucide-react";
 import { CommandPalette } from "@/components/ui/command-palette";
@@ -53,6 +56,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();
   const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
   const tDashboard = useTranslations("dashboard");
+  const tenant = useTenant();
+  const billingEnabled = tenant.billing.enabled;
   const tShare = useTranslations("share-local");
   const tCommon = useTranslations("common");
   const tRooms = useTranslations("rooms");
@@ -94,6 +99,9 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const LOCAL_ALLOWED = new Set(["/", "/b", "/m", "/d", "/graph"]);
   const navigationItems = navigation.filter(item => {
     if (localMode) return LOCAL_ALLOWED.has(item.href);
+    // The Scripts group lives under /integrations: it stays while either of its modules is on.
+    if (item.href === "/integrations" && !isScriptsGroupEnabled(tenant.features)) return false;
+    if (item.href !== "/integrations" && !isPathEnabled(item.href, tenant.features)) return false;
     if (item.href === "/metrics" || item.href === "/integrations") return canAccessScripts;
     return true;
   });
@@ -221,7 +229,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const activeTeam = teams.find(t => t.id === activeTeamId);
   const currentPlan = activeTeam?.planTier || 'free';
   const isActiveTeamArchived = !!activeTeam?.isArchived;
-  const showUpgradeBanner = currentPlan === 'free' && !dismissedBanners.includes('upgrade_to_pro') && !isSidebarCollapsed && !isActiveTeamArchived;
+  const showUpgradeBanner = billingEnabled && currentPlan === 'free' && !dismissedBanners.includes('upgrade_to_pro') && !isSidebarCollapsed && !isActiveTeamArchived;
 
   useEffect(() => {
     if (isPathActive("/b")) {
@@ -605,8 +613,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
       <aside className={`hidden flex-col border-r border-border bg-card/30 backdrop-blur-sm md:flex transition-all duration-300 ease-in-out ${isSidebarCollapsed ? "w-16" : "w-64"}`}>
         <div className={`flex h-14 items-center border-b border-border px-4 ${isSidebarCollapsed ? "justify-center" : "justify-between"}`}>
           <Link href="/" className="flex items-center space-x-2 transition-opacity hover:opacity-80">
-            <img src="/killio_white.webp" alt="Killio" className="h-6 w-auto" />
-            {!isSidebarCollapsed && <span className="font-semibold tracking-tight text-lg">Killio</span>}
+            <BrandLogo className="h-6 w-auto" />
+            {!isSidebarCollapsed && <span className="font-semibold tracking-tight text-lg"><BrandName /></span>}
           </Link>
           {!isSidebarCollapsed && (
             <button
@@ -783,7 +791,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                     {/* Real sub-route links (no longer portaled from the page). */}
                     {isScriptsOpen && !isSidebarCollapsed && (
                       <div className="ml-5 mt-1 space-y-1 border-l border-border/70 pl-3">
-                        {scriptsSubRoutes.map((sub) => (
+                        {scriptsSubRoutes.filter((sub) => isPathEnabled(sub.href, tenant.features)).map((sub) => (
                           <Link
                             key={sub.href}
                             href={sub.href}
@@ -1031,18 +1039,21 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                     </>
                   )}
                   <div className="h-px bg-border/50 my-1"></div>
+                  {tenant.permissions.allowTeamCreation && (
                   <button onClick={() => {
                     setIsTeamSwitcherOpen(false);
                     setIsCreateWorkspaceModalOpen(true);
                   }} className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-accent">
                     <Plus className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createWorkspace")}
                   </button>
+                  )}
                   {localWs.supported && (
                     <button onClick={() => { setIsTeamSwitcherOpen(false); void localWs.createLocalWorkspace(); }}
                       className="w-full text-left px-2 py-2 text-sm hover:bg-accent/10 rounded-md transition-colors flex items-center text-cyan-300">
                       <HardDrive className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.createLocal")}
                     </button>
                   )}
+                  {billingEnabled && (
                   <Link
                     href="/pricing"
                     onClick={() => setIsTeamSwitcherOpen(false)}
@@ -1050,6 +1061,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                   >
                     <Sparkles className="h-4 w-4 mr-2" /> {tDashboard("teamSwitcher.upgrade")}
                   </Link>
+                  )}
                 </div>
               )}
             </div>

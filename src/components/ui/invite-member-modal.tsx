@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { X, UserPlus, Check, Mail, Shield, Loader2, Copy } from "lucide-react";
 import { createInvite, InviteSummary, TeamRole } from "@/lib/api/contracts";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -122,7 +123,10 @@ export function InviteMemberModal({
     ],
   };
 
-  const allowedRoleOptions = roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest;
+  const tenantPermissions = useTenant().permissions;
+  const allowedRoleOptions = (roleOptionsByInviter[inviterRole] ?? roleOptionsByInviter.guest).filter((option) =>
+    tenantPermissions.allowedInviteRoles.includes(option.value),
+  );
 
   const currentRoleAllowed = allowedRoleOptions.some((option) => option.value === role);
 

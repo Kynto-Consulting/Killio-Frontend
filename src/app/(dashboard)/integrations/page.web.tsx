@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/components/providers/session-provider";
@@ -185,6 +186,7 @@ export function IntegrationsPageView({
   const router = useRouter();
   const { locale } = useI18n();
   const t = useTranslations("integrations");
+  const billingEnabled = useTenant().billing.enabled;
   const { user, accessToken, activeTeamId } = useSession();
   const { role, isAdmin, isLoading: isRoleLoading } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
 
@@ -851,6 +853,7 @@ export function IntegrationsPageView({
           </span>
           <span className="hidden xl:inline truncate">{t("usage.title", { plan: usage.planTier })}</span>
           {usageResetDate && <span className="hidden 2xl:inline">{t("usage.reset", { date: usageResetDate })}</span>}
+          {billingEnabled && (
           <button
             type="button"
             onClick={() => router.push("/pricing")}
@@ -859,6 +862,7 @@ export function IntegrationsPageView({
             <CreditCard className="h-3.5 w-3.5" />
             {t("usage.upgrade")}
           </button>
+          )}
         </>
       ) : (
         <span>{t("usage.error")}</span>

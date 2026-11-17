@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { CircleDollarSign, ClipboardCheck, Cpu, Download, Headset, History, LayoutGrid, Loader2, Mail, Mic, Radio, ShieldCheck, Sparkles, UserPlus, Users, Zap } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import {
   BillingCycle,
@@ -40,6 +41,14 @@ function formatIsoDate(iso: string, locale: "es" | "en"): string {
 }
 
 export default function PricingPage() {
+  const router = useRouter();
+  const billingEnabled = useTenant().billing.enabled;
+  // White-label deployments without billing have no plans to choose from.
+  useEffect(() => {
+    if (!billingEnabled) router.replace("/");
+  }, [billingEnabled, router]);
+  if (!billingEnabled) return null;
+
   return (
     <OfflineRouteFallback view="pricing">
       <PricingPageInner />
