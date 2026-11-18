@@ -5,13 +5,14 @@ import { FileSpreadsheet, Loader2, Sparkles, UploadCloud, X } from "lucide-react
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { createBoard, createCardsBatch, createList, createTag, getTagsByScope, listTeamMembers, type BrickMutationInput } from "@/lib/api/contracts";
 import { createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { applyImport, type ImportApi, type ImportReport } from "@/lib/import/apply-import";
 import { analyzeTableFile, type ImportAnalysis, type ImportEntity, type ImportPlan, type ImportSheet, type MemberLike } from "@/lib/import/table-import";
 
-type Role = "detail" | "ignore" | "title" | "description" | "list" | "checklist" | "assignee" | "dueDate" | "priority" | "tags" | "email";
-const ROLES: Role[] = ["detail", "ignore", "title", "description", "list", "checklist", "assignee", "dueDate", "priority", "tags", "email"];
+type Role = "detail" | "ignore" | "title" | "description" | "list" | "checklist" | "check" | "assignee" | "dueDate" | "priority" | "tags" | "email";
+const ROLES: Role[] = ["detail", "ignore", "title", "description", "list", "checklist", "check", "assignee", "dueDate", "priority", "tags", "email"];
 const SINGLE: Role[] = ["title", "list", "checklist", "assignee", "dueDate", "priority", "tags", "email"];
 const ENTITIES: ImportEntity[] = ["cards", "boards", "documents", "people", "skip"];
 const ACCEPT = ".csv,.tsv,.txt,.xlsx,.xlsm,.xls,.ods";
@@ -20,6 +21,7 @@ function rolesFromPlan(plan: ImportPlan, width: number): Role[] {
   const roles: Role[] = Array.from({ length: width }, () => "detail");
   plan.ignore.forEach((i) => { roles[i] = "ignore"; });
   plan.description.forEach((i) => { roles[i] = "description"; });
+  (plan.checks ?? []).forEach((i) => { roles[i] = "check"; });
   for (const key of SINGLE) {
     const index = plan[key as keyof ImportPlan] as number | null;
     if (index !== null && index !== undefined) roles[index] = key;
@@ -34,7 +36,7 @@ function planFromRoles(entity: ImportEntity, roles: Role[], source: ImportPlan["
     entity, source,
     title: first("title"), list: first("list"), checklist: first("checklist"), assignee: first("assignee"),
     dueDate: first("dueDate"), priority: first("priority"), tags: first("tags"), email: first("email"),
-    description: all("description"), ignore: all("ignore"),
+    description: all("description"), checks: all("check"), ignore: all("ignore"),
   };
 }
 
@@ -51,6 +53,7 @@ interface Props {
 export function TableImportDialog({ teamId, defaultBoardId, defaultLists = [], onClose, onDone }: Props) {
   const t = useTranslations("common") as (key: string, params?: Record<string, string | number>) => string;
   const { accessToken } = useSession();
+  const tenant = useTenant();
   const inputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState<"pick" | "analyzing" | "review" | "applying" | "done">("pick");
   const [error, setError] = useState<string | null>(null);
@@ -116,6 +119,7 @@ export function TableImportDialog({ teamId, defaultBoardId, defaultLists = [], o
         {
           members,
           existingTags: tags,
+          ticketBaseUrl: tenant.integrations?.ticketBaseUrl ?? null,
           defaultBoard: defaultBoardId ? { id: defaultBoardId, lists: defaultLists } : undefined,
         },
         api,
@@ -134,7 +138,7 @@ export function TableImportDialog({ teamId, defaultBoardId, defaultLists = [], o
   const enabledCount = sheets.filter((s) => s.enabled && s.entity !== "skip").length;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && step !== "applying") onClose(); }}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4" onMouseDown={(e) => { if (e.target === e.currentTarget && step !== "applying") onClose(); }}>
       <div className="flex max-h-[88vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-card text-foreground shadow-2xl" role="dialog" aria-modal="true" aria-label={t("aiPanel.import.title")}>
         <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4">
           <div>

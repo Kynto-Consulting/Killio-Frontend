@@ -11,7 +11,7 @@ const members = [
 
 const headers = ["ID", "Tarea", "Descripción", "Estado", "Responsable", "Vence", "Prioridad", "Etiquetas", "Subtareas", "Cliente"];
 const plan: ImportPlan = {
-  entity: "boards", title: 1, description: [2], list: 3, checklist: 8, ignore: [0], assignee: 4, dueDate: 5, priority: 6, tags: 7, email: null, source: "ai",
+  entity: "boards", title: 1, description: [2], list: 3, checklist: 8, ignore: [0], assignee: 4, dueDate: 5, priority: 6, tags: 7, email: null, checks: [], source: "ai",
 };
 const sheet: ImportSheet = {
   name: "Tareas", headers, totalRows: 4, truncated: false, columns: [], plan,
@@ -47,7 +47,7 @@ test("rows become cards: description, details, checklist, assignees, dates and t
   assert.equal(first.listName, "Todo");
   assert.deepEqual(first.assigneeIds, ["u-ana", "u-luis"]);
   assert.equal(first.dueAt, "2025-03-01T00:00:00.000Z");
-  assert.deepEqual(first.tagNames, ["web", "diseño", "Alta"]);
+  assert.deepEqual(first.tagNames, ["Web", "Diseño", "Alta"], "tags are unified and tidied");
   assert.equal(first.blocks[0].markdown, "Primera versión");
   assert.match(first.blocks[1].markdown!, /\*\*Cliente:\*\* ACME/, "columns with no role are kept as details");
   assert.ok(!first.blocks[1].markdown!.includes("ID"), "ignored columns are left out");
@@ -73,9 +73,9 @@ test("a board sheet creates the board, its lists in file order, tags once and th
   const report = await applyImport([{ sheet, plan, enabled: true }], { members, existingTags: [{ id: "t-web", name: "Web" }] }, api);
   assert.deepEqual(calls.boards, ["Tareas"]);
   assert.deepEqual(calls.lists.map((l) => l[1]), ["Todo", "Doing", "Imported"], "blank statuses go to a catch-all list");
-  assert.deepEqual(calls.tags.map((t) => t.name).sort(), ["Alta", "Media", "baja", "diseño"], "'web'/'Web' reuses the existing tag");
+  assert.deepEqual(calls.tags.map((t) => t.name).sort(), ["Alta", "Baja", "Diseño", "Media"], "'web'/'Web' reuses the existing tag");
   assert.equal(calls.tags.find((t) => t.name === "Alta").tagKind, "priority");
-  assert.equal(calls.tags.find((t) => t.name === "diseño").tagKind, "custom");
+  assert.equal(calls.tags.find((t) => t.name === "Diseño").tagKind, "custom");
   assert.equal(calls.batches.flat().length, 3);
   assert.equal(report.cards, 3);
   assert.equal(report.boards, 1);
@@ -118,4 +118,26 @@ test("a data sheet becomes a document with table blocks, and people are only rep
   assert.deepEqual(report.peopleInTeam, ["Ana <ana@acme.com>"]);
   assert.deepEqual(report.peopleMissing, ["Zoe <zoe@x.com>"]);
   assert.equal(calls.boards.length, 0, "disabled sheets are not touched");
+});
+
+import { linkify } from "./table-import.ts";
+
+test("links: URLs become clickable; ticket keys do too, but only when the deployment knows where its tickets live", () => {
+  const base = "https://acme.atlassian.net/browse/";
+  assert.equal(linkify("ver https://acme.com/doc.", null), "ver [https://acme.com/doc](https://acme.com/doc).");
+  assert.equal(linkify("TRP-261 · TRP-258", null), "TRP-261 · TRP-258", "no base URL: keys stay text");
+  assert.equal(linkify("TRP-261 · TRP-258", base), "[TRP-261](https://acme.atlassian.net/browse/TRP-261) · [TRP-258](https://acme.atlassian.net/browse/TRP-258)");
+  assert.equal(linkify("[TRP-261](https://x.test/a)", base), "[TRP-261](https://x.test/a)", "an existing markdown link is left alone");
+  assert.equal(linkify("https://acme.atlassian.net/browse/TRP-9", base), "[https://acme.atlassian.net/browse/TRP-9](https://acme.atlassian.net/browse/TRP-9)", "a key inside a URL is not wrapped twice");
+  assert.equal(linkify("mejora de UTF-8 y SHA-256", base), "mejora de UTF-8 y SHA-256", "encodings and standards are not tickets");
+  assert.equal(linkify("", base), "");
+});
+
+test("card details carry the links when a base URL is given", () => {
+  const headers = ["Req", "Requerimiento Jira"];
+  const plan: ImportPlan = { entity: "cards", title: 0, description: [], list: null, checklist: null, ignore: [], assignee: null, dueDate: null, priority: null, tags: null, email: null, checks: [], source: "ai" };
+  const sheet: ImportSheet = { name: "S", headers, totalRows: 1, truncated: false, columns: [], plan, rows: [["Algo", "TRP-261 · TRP-258"]] };
+  const withBase = buildCardDrafts(sheet, plan, [], { ticketBaseUrl: "https://acme.atlassian.net/browse/" }).cards[0].blocks[0].markdown!;
+  assert.match(withBase, /\[TRP-261\]\(https:\/\/acme\.atlassian\.net\/browse\/TRP-261\)/);
+  assert.equal(buildCardDrafts(sheet, plan, []).cards[0].blocks[0].markdown, "**Requerimiento Jira:** TRP-261 · TRP-258");
 });

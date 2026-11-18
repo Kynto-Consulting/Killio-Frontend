@@ -9,6 +9,7 @@ import {
   type ImportSheet,
   type MemberLike,
 } from "./table-import.ts";
+import { cleanText, cleanTitle } from "./normalize.ts";
 
 /** The slice of the app's API the importer needs (injected so it can be tested and kept free of UI code). */
 export interface ImportApi {
@@ -27,6 +28,8 @@ export interface ImportContext {
   defaultBoard?: { id: string; lists: Array<{ id: string; name: string }> };
   members: MemberLike[];
   existingTags: Array<{ id: string; name: string }>;
+  /** Where ticket keys in the file point to (tenant setting `integrations.ticketBaseUrl`). */
+  ticketBaseUrl?: string | null;
 }
 
 export interface SheetSelection {
@@ -70,7 +73,7 @@ export async function applyImport(
   // 1) Everything is derived from rows first, so tags can be created once and nothing is half-built if parsing fails.
   const drafts = new Map<SheetSelection, ReturnType<typeof buildCardDrafts>>();
   for (const sel of active) {
-    if (sel.plan.entity === "cards" || sel.plan.entity === "boards") drafts.set(sel, buildCardDrafts(sel.sheet, sel.plan, ctx.members));
+    if (sel.plan.entity === "cards" || sel.plan.entity === "boards") drafts.set(sel, buildCardDrafts(sel.sheet, sel.plan, ctx.members, { ticketBaseUrl: ctx.ticketBaseUrl }));
   }
   const total = [...drafts.values()].reduce((n, d) => n + d.cards.length, 0) + active.length;
   let done = 0;
@@ -122,14 +125,17 @@ export async function applyImport(
     }
 
     if (plan.entity === "documents") {
-      const doc = await api.createDocument({ title: sheet.name });
+      const doc = await api.createDocument({ title: cleanTitle(sheet.name) || sheet.name });
+      const cleanCell = (v: string) => cleanText(v).replace(/\n+/g, " ");
+      const headers = sheet.headers.map(cleanCell);
+      const rowsClean = sheet.rows.map((r) => r.map(cleanCell));
       // Big tables are split into several table blocks (each repeats the header) to keep every block light.
       const per = LIMITS.tableRowsPerBrick;
       const chunks: string[][][] = [];
-      for (let i = 0; i < sheet.rows.length; i += per) chunks.push(sheet.rows.slice(i, i + per));
+      for (let i = 0; i < rowsClean.length; i += per) chunks.push(rowsClean.slice(i, i + per));
       if (chunks.length === 0) chunks.push([]);
       for (let pos = 0; pos < chunks.length; pos++) {
-        await api.createDocumentBrick(doc.id, { kind: "table", position: pos, content: { rows: [sheet.headers, ...chunks[pos]] } });
+        await api.createDocumentBrick(doc.id, { kind: "table", position: pos, content: { rows: [headers, ...chunks[pos]] } });
       }
       report.documents++;
       step(sheet.name);

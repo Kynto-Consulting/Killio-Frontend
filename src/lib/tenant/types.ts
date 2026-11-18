@@ -37,6 +37,8 @@ export type PublicTenantConfig = {
   };
   /** UI text overrides: locale -> "namespace.key" -> text. */
   texts: Record<string, Record<string, string>>;
+  /** Base URL that ticket keys (TRP-261) in imported files link to. */
+  integrations: { ticketBaseUrl: string | null };
   landing: {
     mode: "killio" | "tenant" | "login";
     headline: string;
@@ -72,6 +74,7 @@ export const DEFAULT_TENANT_CONFIG: PublicTenantConfig = {
   },
   theme: { defaultMode: "dark", radius: null, fontFamily: null, fonts: [], light: {}, dark: {}, vars: { light: {}, dark: {} }, customCss: "" },
   texts: {},
+  integrations: { ticketBaseUrl: null },
   landing: {
     mode: "killio",
     headline: "",

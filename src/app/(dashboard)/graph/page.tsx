@@ -104,7 +104,7 @@ export default function GraphPage() {
   }, [data.nodes, showMedia, localMode, localWs]);
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-[#0a0a0b]">
+    <div className="relative h-full w-full overflow-hidden bg-background dark:bg-[#0a0a0b]">
       {/* Canvas */}
       {loading ? (
         <div className="flex h-full flex-col items-center justify-center gap-3 text-muted-foreground">

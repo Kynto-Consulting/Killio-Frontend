@@ -31,6 +31,7 @@ function merge(data: Partial<PublicTenantConfig>): PublicTenantConfig {
     billing: { ...DEFAULT_TENANT_CONFIG.billing, ...data.billing },
     poweredBy: { ...DEFAULT_TENANT_CONFIG.poweredBy, ...data.poweredBy },
     features: { ...DEFAULT_TENANT_CONFIG.features, ...data.features },
+    integrations: { ...DEFAULT_TENANT_CONFIG.integrations, ...data.integrations },
     permissions: { ...DEFAULT_TENANT_CONFIG.permissions, ...data.permissions },
   } as PublicTenantConfig;
 }

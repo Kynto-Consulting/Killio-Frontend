@@ -92,7 +92,18 @@ export function GraphCanvas({
     const ro = new ResizeObserver(resize);
     ro.observe(canvas);
 
+    // The canvas is painted by hand, so it reads the app theme itself: dark ink on a light page, the original palette on dark.
+    const palette = () => {
+      const light = !document.documentElement.classList.contains("dark");
+      return {
+        light,
+        label: light ? "#1e293b" : "#cbd5e1",
+        media: light ? "#d97706" : "#fde68a",
+        armed: light ? "#0891b2" : "#22d3ee",
+      };
+    };
     const step = () => {
+      const theme = palette();
       if (!running) return;
       const pos = posRef.current;
       const nodes = data.nodes;
@@ -171,7 +182,8 @@ export function GraphCanvas({
         ctx.beginPath();
         ctx.moveTo(a.x, a.y); ctx.quadraticCurveTo(cx, cy, b.x, b.y);
         ctx.strokeStyle = st.color;
-        ctx.globalAlpha = active ? st.alpha : 0.06;
+        // Faint links need more weight on a white page to read as much as they do on black.
+        ctx.globalAlpha = active ? Math.min(1, st.alpha * (theme.light ? 1.5 : 1)) : theme.light ? 0.1 : 0.06;
         ctx.lineWidth = (e.type === "ref" || e.type === "portal" ? 1.4 : 1) / view.scale;
         ctx.stroke();
       }
@@ -203,18 +215,19 @@ export function GraphCanvas({
         }
         if (showMedia && n.hasMedia) {
           ctx.beginPath(); ctx.arc(p.x, p.y, r + 2.5 / view.scale, 0, Math.PI * 2);
-          ctx.strokeStyle = "#fde68a"; ctx.lineWidth = 1.5 / view.scale; ctx.stroke();
+          ctx.strokeStyle = theme.media; ctx.lineWidth = 1.5 / view.scale; ctx.stroke();
         }
         // Ctrl/Cmd held + hovered → redirect affordance (dashed cyan ring + ↗).
         if (armedRef.current && hover === n.id) {
           ctx.beginPath(); ctx.arc(p.x, p.y, r + 5 / view.scale, 0, Math.PI * 2);
-          ctx.strokeStyle = "#22d3ee"; ctx.setLineDash([4 / view.scale, 3 / view.scale]); ctx.lineWidth = 2 / view.scale; ctx.stroke(); ctx.setLineDash([]);
-          ctx.fillStyle = "#22d3ee"; ctx.font = `bold ${Math.max(10, 12 / view.scale)}px ui-sans-serif, system-ui`;
+          ctx.strokeStyle = theme.armed; ctx.setLineDash([4 / view.scale, 3 / view.scale]); ctx.lineWidth = 2 / view.scale; ctx.stroke(); ctx.setLineDash([]);
+          ctx.fillStyle = theme.armed; ctx.font = `bold ${Math.max(10, 12 / view.scale)}px ui-sans-serif, system-ui`;
           ctx.fillText("↗", p.x - r - 12 / view.scale, p.y + 4 / view.scale);
         }
         if (showLabels && (view.scale > 0.55 || hover === n.id) && !dim) {
           ctx.globalAlpha = hover === n.id ? 1 : 0.7;
-          ctx.fillStyle = "#cbd5e1";
+          ctx.fillStyle = theme.label;
+          ctx.globalAlpha = hover === n.id ? 1 : theme.light ? 0.85 : 0.7;
           ctx.font = `${Math.max(9, 11 / view.scale)}px ui-sans-serif, system-ui`;
           ctx.fillText(n.label.slice(0, 40), p.x + r + 3, p.y + 3);
         }
