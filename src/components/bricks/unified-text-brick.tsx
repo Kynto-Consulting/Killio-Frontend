@@ -17,6 +17,8 @@ import { resolveLucide, LUCIDE_REGISTRY } from "@/lib/lucide-icon-registry";
 import { type SlashCommand, getSlashCommands } from "./slash-commands";
 import { InlineFormatToolbar } from "./inline-format-toolbar";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
+import { useSession as useSessionForGroups } from "@/components/providers/session-provider";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 import { getExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { DatePickerPopover, EmojiPickerPopover, MathPickerPopover, formatDateToken, type DateTokenFormat } from "./inline-pickers";
 import { renderMath } from "@/lib/latex/katex-config";
@@ -256,6 +258,9 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   }, [embedCtx.chain, routeDocId]);
   const [embedHosts, setEmbedHosts] = useState<Array<{ el: HTMLElement; docId: string }>>([]);
   const tDetail = useTranslations("document-detail");
+  const tGroups = useTranslations("groups");
+  const { activeTeamId: groupsTeamId } = useSessionForGroups();
+  const { groups: teamGroups } = useTeamGroups(groupsTeamId);
   const tBoardDetail = useTranslations("board-detail");
   const slashCommands = React.useMemo(() => getSlashCommands(tDetail as any), [tDetail]);
 
@@ -739,6 +744,14 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
 
     if (part.type === 'mention') {
       const { mentionType: type, id: uid, name } = part;
+      if (type === 'group') {
+        const gtoken = `@[group:${uid}:${name}]`;
+        const gc = typeof part.color === 'string' && /^#[0-9a-fA-F]{6}$/.test(part.color) ? part.color : null;
+        const gtitle = tGroups("tooltip", { count: part.memberCount ?? 0 });
+        const gstyle = gc ? `background:${gc}26;border-color:${gc}66;` : "";
+        const gcls = gc ? "text-foreground" : "bg-primary/10 text-primary border-primary/20";
+        return `<span contenteditable="false" title="${tokenEscapeAttr(gtitle)}" data-token="${tokenEscapeAttr(gtoken)}" style="${gstyle}" class="mention-pill inline-flex items-center gap-1.5 border rounded px-1.5 py-0.5 font-medium ${gcls}" data-type="group" data-id="${uid}">@${escapeHtml(String(name))}</span>`;
+      }
       if (type === 'user') {
         const token = `@[user:${uid}:${name}]`;
         return `<span contenteditable="false" title="${tokenEscapeAttr(tDetail("refOpenHint"))}" data-token="${tokenEscapeAttr(token)}" class="user-mention inline-flex items-center gap-1.5 bg-primary/10 text-primary border border-primary/20 rounded pl-1.5 pr-2 py-0.5 font-medium transition-colors hover:bg-primary/20" data-type="${type}" data-id="${uid}">${userIcon} @${name}</span>`;
@@ -761,7 +774,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const processMarkdownWithPills = (rawText: string): string => {
     // In edit mode: keep code blocks as raw markdown text so they are editable.
     // Only pills/references are rendered as interactive spans.
-    const richParts = ReferenceResolver.renderRich(rawText || "", { documents, boards, activeBricks, users });
+    const richParts = ReferenceResolver.renderRich(rawText || "", { documents, boards, activeBricks, users, groups: teamGroups });
     return richParts
       .map((part) => (typeof part === 'string' ? escapeHtml(part).replace(/\n/g, '<br>') : renderReferencePart(part)))
       .join('');
@@ -800,7 +813,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return `\x00MI${idx}\x00`;
     });
 
-    const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users });
+    const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users, groups: teamGroups });
     const withLinks = richParts.map((part) => (typeof part === 'string' ? part : renderReferencePart(part))).join("");
 
     const lines = withLinks.split('\n');

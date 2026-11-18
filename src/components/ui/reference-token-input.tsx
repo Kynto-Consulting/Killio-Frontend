@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Portal } from "./portal";
 import { ReferencePicker, ReferencePickerSelection } from "@/components/documents/reference-picker";
 import { useSession } from "@/components/providers/session-provider";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 import { DocumentBrick, getDocument } from "@/lib/api/documents";
 import { getMesh, MeshBrick } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
@@ -15,9 +16,11 @@ type PickerCard = { id: string; title: string };
 
 type MentionPart = {
   type: "mention";
-  mentionType: "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
+  mentionType: "doc" | "board" | "mesh" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript";
   id: string;
   name: string;
+  color?: string | null;
+  memberCount?: number;
 };
 
 type DeepPart = {
@@ -88,7 +91,9 @@ export function ReferenceTokenInput({
   onKeyDown,
 }: ReferenceTokenInputProps) {
   const t = useTranslations("common");
-  const { accessToken } = useSession();
+  const { accessToken, activeTeamId } = useSession();
+  const { groups: teamGroups } = useTeamGroups(activeTeamId);
+  const tGroups = useTranslations("groups");
   const editorRef = useRef<HTMLDivElement | null>(null);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerRange, setPickerRange] = useState<{ trigger: number; cursor: number } | null>(null);
@@ -96,8 +101,8 @@ export function ReferenceTokenInput({
   const [meshBricksById, setMeshBricksById] = useState<Record<string, MeshBrick[]>>({});
 
   const resolverContext = useMemo(
-    () => ({ documents, boards, folders, users, activeBricks, documentBricksById, meshBricksById } as any),
-    [documents, boards, folders, users, activeBricks, documentBricksById, meshBricksById]
+    () => ({ documents, boards, folders, users, groups: teamGroups, activeBricks, documentBricksById, meshBricksById } as any),
+    [documents, boards, folders, users, teamGroups, activeBricks, documentBricksById, meshBricksById]
   );
 
   const getRichParts = useCallback(
@@ -117,6 +122,13 @@ export function ReferenceTokenInput({
           if (part.type === "mention") {
             const token = `@[${part.mentionType}:${part.id}:${part.name}]`;
             const isUser = part.mentionType === "user";
+            if (part.mentionType === "group") {
+              const c = part.color && /^#[0-9a-fA-F]{6}$/.test(part.color) ? part.color : null;
+              const title = part.memberCount !== undefined ? tGroups("tooltip", { count: part.memberCount }) : "";
+              const style = c ? `background:${c}26;border-color:${c}66;` : "";
+              const gcls = c ? "text-foreground" : "border-primary/25 bg-primary/10 text-primary";
+              return `\u200B<span contenteditable=\"false\" data-token=\"${tokenEscapeAttr(token)}\" title=\"${tokenEscapeAttr(title)}\" style=\"${style}\" class=\"inline-flex items-center gap-1 rounded border px-1.5 py-0.5 text-[11px] font-medium ${gcls}\">@${escapeHtml(part.name)}</span>\u200B`;
+            }
             const cls = isUser
               ? "border-primary/25 bg-primary/10 text-primary"
               : "border-accent/25 bg-accent/10 text-accent";

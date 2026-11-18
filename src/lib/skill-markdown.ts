@@ -276,7 +276,7 @@ cat deploy.sh | killio console run-script --room-id <id> --team-id <id>
 
 ## Referencias Semanticas en IA (\`@\`, \`#\`, \`$\`)
 
-- \`@[tipo:id:nombre]\`: menciona entidades (\`doc\`, \`board\`, \`card\`, \`user\`, \`room\`).
+- \`@[tipo:id:nombre]\`: menciona entidades (\`doc\`, \`board\`, \`card\`, \`user\`, \`group\`, \`room\`).
 - \`#[cardId:brickId:selector[:arg]]\`: referencia contenido de bricks en cards.
 - \`$[docId:brickId:selector[:arg]]\`: referencia contenido de documentos.
 - \`@[transcript:roomId:callId]\`: referencia transcripcion de llamada en room.

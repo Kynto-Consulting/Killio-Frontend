@@ -252,7 +252,7 @@ export function getFullBrickSchemaContext(): string {
   context += "- Style: [color:#hex]...[/color], [bg:#hex]...[/bg], [size:14px]...[/size]\n";
   context += "- LaTeX: $E=mc^2$ (inline) or $$formula$$ (block); chemistry $\\ce{H2O}$\n";
   context += "- LaTeX source in text bricks: \\begin{equation|align|gather} (auto-numbered, \\label/\\eqref), \\begin{tabular} (\\hline, \\multicolumn, \\multirow), itemize/enumerate/description, \\section (numbered), theorem/lemma/proof, figure/table + \\caption, \\textbf{} \\textit{} \\textcolor{c}{} \\href{u}{}, \\newcommand for math macros. Keep it verbatim.\n";
-  context += "- Mentions: @[user:id:Name], @[doc:id:Title], @[board:id:Title], @[card:id:Title]\n";
+  context += "- Mentions: @[user:id:Name], @[group:id:Name], @[doc:id:Title], @[board:id:Title], @[card:id:Title]\n";
   context += "- Deep Links: $[path] (gets value), #[path] (creates interactive pill)\n";
   context += "  Path Syntax: [entityType:scopeId:]brickId:selector[:args]\n";
   context += "  Selectors: text, title, cell (arg: A1), row (arg: 1), col (arg: A), range (arg: A1:B2), json, kind\n";

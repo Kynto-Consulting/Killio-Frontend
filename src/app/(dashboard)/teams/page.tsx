@@ -30,6 +30,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ConfirmDeleteModal } from "@/components/ui/confirm-delete-modal";
+import { TeamGroupsSection } from "@/components/teams/team-groups-section";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 import { useRealtime } from "@/components/providers/realtime-provider";
@@ -893,6 +894,11 @@ function TeamsPageInner() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── GROUPS ── */}
+        {activeTeamId && !activeTeam?.isPersonal && !isLoading && (
+          <TeamGroupsSection teamId={activeTeamId} members={members} canManage={canManageMembers} />
         )}
 
         {/* ── ROLE CAPABILITIES ── */}

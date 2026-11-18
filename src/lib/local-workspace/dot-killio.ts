@@ -123,7 +123,7 @@ Any other \`lang\` stays a normal syntax-highlighted code block. Unparseable dia
 
 ### Reference pills — \`@[<kind>:<id>:<label>]\`
 Inline **@-mention** tokens that render as clickable pills. Keep them intact byte-for-byte; never rewrite the id.
-- \`@[doc:<id>:<Title>]\` document · \`@[board:<id>:<Name>]\` board · \`@[mesh:<id>:<Name>]\` mesh · \`@[card:<id>:<Title>]\` card · \`@[user:<id>:<Name>]\` person.
+- \`@[doc:<id>:<Title>]\` document · \`@[board:<id>:<Name>]\` board · \`@[mesh:<id>:<Name>]\` mesh · \`@[card:<id>:<Title>]\` card · \`@[user:<id>:<Name>]\` person · \`@[group:<id>:<Name>]\` user group (a named set of team members).
 - **In a LOCAL workspace the \`<id>\` is the entity's relative file path** (e.g. \`@[doc:notes/plan.kd:Plan]\`), not a uuid — that is how offline refs resolve to \`/d|/b|/m/<path>\`. \`<label>\` is display-only.
 
 ### Deep data tokens — pull LIVE values from another brick

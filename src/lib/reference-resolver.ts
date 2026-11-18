@@ -20,6 +20,8 @@ export interface ResolverContext {
   cardBricksById?: Record<string, ResolverBrick[]>;
   meshBricksById?: Record<string, ResolverBrick[]>;
   users?: WorkspaceMemberLike[];
+  /** Team user groups, for `@[group:id:Name]` pills (colour + member count). */
+  groups?: Array<{ id: string; name: string; color?: string | null; memberCount?: number }>;
 }
 
 export class ReferenceResolver {
@@ -462,6 +464,11 @@ export class ReferenceResolver {
       }
     }
 
+    if (type === 'group') {
+      const group = context.groups?.find(g => g.id === id);
+      return { label: group ? group.name : (extra[0] || 'Group') };
+    }
+
     if (type === 'user' && context.users) {
       const user = context.users.find(u => u.id === id);
       return { label: user ? user.name! : (extra[0] || 'Unknown User') };
@@ -499,7 +506,7 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|folder|room|thread|transcript|event):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|group|folder|room|thread|transcript|event):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
       // Extension reference: @[ext:provider:kind:externalId:label] → app pill.
@@ -508,12 +515,12 @@ export class ReferenceResolver {
         const [, provider, extKind, externalId, label] = extMatch;
         return { type: 'ext', provider, extKind, id: externalId, name: String(label || provider), key: i };
       }
-      const match = part.match(/@\[(doc|board|mesh|card|user|folder|room|thread|transcript|event):([^:\]]+)(?::([^\]]+))?\]/);
+      const match = part.match(/@\[(doc|board|mesh|card|user|group|folder|room|thread|transcript|event):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {
         const [_m, type, id, nameRaw] = match;
-        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript" | "event";
+        const parsedMentionType = type as "doc" | "board" | "mesh" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript" | "event";
         const isMeshBoard = parsedMentionType === "board" && context.boards.find((b) => b.id === id)?.boardType === "mesh";
-        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "folder" | "room" | "thread" | "transcript" | "event";
+        const mentionType = (isMeshBoard ? "mesh" : parsedMentionType) as "doc" | "board" | "mesh" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript" | "event";
         const fallbackName =
           mentionType === "doc"
             ? context.documents.find((d) => d.id === id)?.title
@@ -525,7 +532,9 @@ export class ReferenceResolver {
                 ? context.folders?.find((f) => f.id === id)?.name
               : mentionType === "user"
                 ? context.users?.find((u) => u.id === id)?.name
-                : undefined;
+                : mentionType === "group"
+                  ? context.groups?.find((g) => g.id === id)?.name
+                  : undefined;
         // For transcript tokens the nameRaw contains "callId:label" — strip the callId prefix
         const resolvedNameRaw = (() => {
           if (mentionType === "transcript" && nameRaw) {
@@ -536,6 +545,10 @@ export class ReferenceResolver {
         })();
         const resolvedName = mentionType === "user" ? (fallbackName || resolvedNameRaw) : (resolvedNameRaw || fallbackName);
         const name = String(resolvedName || "Referencia");
+        if (mentionType === "group") {
+          const group = context.groups?.find((g) => g.id === id);
+          return { type: 'mention', mentionType, id, name, key: i, color: group?.color ?? null, memberCount: group?.memberCount };
+        }
         return { type: 'mention', mentionType, id, name, key: i };
       }
 

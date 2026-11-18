@@ -1,1 +1,56 @@
-{}
+{
+  "title": "Grupos",
+  "subtitle": "Conjuntos de personas con nombre, como \"TI\" o \"Diseño\". Menciónalos con @, asígnalos a listas, comparte con ellos o úsalos en consultas.",
+  "newGroup": "Nuevo grupo",
+  "editGroup": "Editar grupo",
+  "edit": "Editar",
+  "delete": "Eliminar",
+  "inGroup": "Tú",
+  "members": "{{count}} miembros",
+  "membersOne": "1 miembro",
+  "membersNone": "Sin miembros",
+  "tooltip": "Grupo · {{count}} miembros",
+  "loading": "Cargando grupos...",
+  "emptyTitle": "Aún no hay grupos",
+  "emptyBody": "Un grupo es un conjunto de miembros del equipo con nombre. Menciónalo con @ para avisar a todos, asígnalo a listas, comparte con él o fíltralo en consultas.",
+  "emptyReadOnly": "Los administradores y propietarios pueden crear grupos para este equipo.",
+  "form": {
+    "name": "Nombre",
+    "namePlaceholder": "p. ej. TI",
+    "nameHelp": "De 1 a 40 caracteres. No puede contener < > [ ].",
+    "nameInvalid": "El nombre debe tener de 1 a 40 caracteres y no puede contener < > [ ].",
+    "color": "Color",
+    "noColor": "Sin color",
+    "description": "Descripción",
+    "descriptionPlaceholder": "¿Para qué sirve este grupo?",
+    "members": "Miembros",
+    "search": "Buscar personas",
+    "selectAll": "Seleccionar todos",
+    "selectNone": "Quitar todos",
+    "selected": "{{count}} seleccionados",
+    "noMatches": "Nadie coincide con la búsqueda.",
+    "cancel": "Cancelar",
+    "save": "Guardar",
+    "create": "Crear grupo",
+    "saving": "Guardando..."
+  },
+  "toast": {
+    "created": "Grupo creado",
+    "updated": "Grupo actualizado",
+    "deleted": "Grupo eliminado",
+    "error": "No se pudo guardar el grupo"
+  },
+  "deleteTitle": "Eliminar grupo",
+  "deleteDescription": "Se eliminará el grupo. Sus menciones quedarán como texto plano. Grupo:",
+  "mention": {
+    "subtitle": "{{count}} miembros"
+  },
+  "assign": {
+    "button": "Asignar grupo",
+    "title": "Asignar un grupo",
+    "confirm": "¿Asignar a {{count}} personas de {{name}}?",
+    "nobody": "Todos los de {{name}} ya están asignados.",
+    "done": "{{count}} personas asignadas",
+    "error": "No se pudo asignar el grupo"
+  }
+}

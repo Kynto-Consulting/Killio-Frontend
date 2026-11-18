@@ -67,6 +67,9 @@ function getUserTintStyles(seed: string): { bg: string; border: string; text: st
 }
 
 import { Edit2 } from "lucide-react";
+import { useTeamGroups } from "@/hooks/use-team-groups";
+import { membersToAssign } from "@/lib/groups/assign";
+import { toast as groupToast } from "@/lib/toast";
 
 function normalizeDueDateInputValue(value?: string | null): string {
   if (!value) return "";
@@ -220,6 +223,33 @@ export function CardDetailModal({
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
   const [boardMembers, setBoardMembers] = useState<any[]>([]);
+  const { groups: assignableGroups } = useTeamGroups(activeTeamId);
+  const tGroups = useTranslations("groups");
+  const handleAssignGroup = useCallback(async (group: { id: string; name: string; memberUserIds: string[] }) => {
+    if (!card?.id || !accessToken) return;
+    const ids = membersToAssign(group, localAssignees.map((a) => a.id));
+    if (ids.length === 0) {
+      groupToast(tGroups("assign.nobody", { name: group.name }), "info");
+      return;
+    }
+    if (!window.confirm(tGroups("assign.confirm", { count: ids.length, name: group.name }))) return;
+    const results = await Promise.allSettled(ids.map((id) => addCardAssignee(card.id, id, accessToken)));
+    const okIds = ids.filter((_, i) => results[i].status === "fulfilled");
+    if (okIds.length > 0) {
+      setLocalAssignees((current) => {
+        const known = new Set(current.map((a) => a.id));
+        const added = okIds.filter((id) => !known.has(id)).map((id) => {
+          const m = boardMembers.find((bm) => bm.id === id || bm.userId === id);
+          return normalizeAssignee(m ? { ...m, id } : { id });
+        });
+        return [...current, ...added];
+      });
+      groupToast(tGroups("assign.done", { count: okIds.length }), "success");
+    }
+    if (okIds.length < ids.length) groupToast(tGroups("assign.error"), "error");
+    setIsAssigneeDropdownOpen(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card?.id, accessToken, localAssignees, boardMembers, normalizeAssignee, tGroups]);
   const [isCreating, setIsCreating] = useState(false);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
@@ -1983,6 +2013,26 @@ export function CardDetailModal({
                             })
                           )}
                         </div>
+                        {assignableGroups.length > 0 && (
+                          <div className="border-t border-border/50 pt-2 px-2">
+                            <p className="text-[10px] uppercase font-bold tracking-wider text-muted-foreground pb-1">{tGroups('assign.title')}</p>
+                            <div className="flex flex-wrap gap-1">
+                              {assignableGroups.map((group) => (
+                                <button
+                                  key={group.id}
+                                  type="button"
+                                  title={tGroups('assign.button')}
+                                  onClick={() => void handleAssignGroup(group)}
+                                  className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-foreground hover:bg-muted/50"
+                                >
+                                  <Users className="h-3 w-3" />
+                                  {group.name}
+                                  <span className="text-muted-foreground">{group.memberCount}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     )}
                     {isTimerDropdownOpen && card?.id ? (

@@ -14,6 +14,7 @@ import {
   ScrollText,
   Radio,
   Puzzle,
+  Users,
 } from "lucide-react";
 import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
@@ -22,6 +23,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { getIntegration, buildExtensionToken, INTEGRATION_CATALOG, IntegrationUI } from "@/lib/integrations/integration-catalog";
+import { useTeamGroups } from "@/hooks/use-team-groups";
+import { groupMentionToken } from "@/lib/api/groups";
 import { searchIntegrationRefs, IntegrationRefEntity } from "@/lib/api/integrations";
 
 /** provider → ref kinds the backend can live-search (others ref the app/kind directly). */
@@ -34,7 +37,7 @@ const SEARCHABLE_KINDS: Record<string, Set<string>> = {
 };
 const isSearchable = (provider: string, kind: string) => !!SEARCHABLE_KINDS[provider]?.has(kind);
 
-type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "folder" | "room" | "thread" | "transcript";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript";
 type AllowedMentionType = MentionType | "document";
 
 type ActiveBrick = {
@@ -243,6 +246,8 @@ export function ReferencePicker({
   onLoadDocumentsInFolder,
 }: ReferencePickerProps) {
   const { accessToken, activeTeamId } = useSession();
+  const { groups: teamGroups } = useTeamGroups(activeTeamId);
+  const tg = useTranslations("groups");
   const [query, setQuery] = useState("");
   const t = useTranslations("common");
   const [mode, setMode] = useState<PickerMode>("root");
@@ -363,6 +368,14 @@ export function ReferencePicker({
         avatarUrl: u.avatarUrl!,
         search: `user ${u.alias || u.name} ${u.id}`.toLowerCase(),
       })),
+      ...teamGroups.map((g) => ({
+        token: groupMentionToken(g),
+        label: g.name,
+        category: "mention" as const,
+        mentionType: "group" as const,
+        subtitle: tg("mention.subtitle", { count: g.memberCount }),
+        search: `group grupo ${g.name} ${g.slug} ${g.id}`.toLowerCase(),
+      })),
         ...(cards || []).map((c) => ({
           token: `@[card:${c.id}:${c.title}]`,
           label: c.title,
@@ -450,7 +463,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t]);
+  }, [boards, meshBoards, documents, users, teamGroups, tg, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -1025,6 +1038,7 @@ export function ReferencePicker({
                   {item.category === "mention" && item.mentionType === "folder" && <Folder className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "user" &&
                     (item.avatarUrl ? <img src={item.avatarUrl} className="h-4 w-4 rounded-full" alt="avatar" /> : <User className="h-4 w-4 opacity-70" />)}
+                  {item.category === "mention" && item.mentionType === "group" && <Users className="h-4 w-4 opacity-70" />}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label === "Llamada en curso" && <Radio className="h-4 w-4 text-red-500 animate-pulse" />}
                   {item.category === "mention" && item.mentionType === "transcript" && item.label !== "Llamada en curso" && <ScrollText className="h-4 w-4 opacity-70" />}
                   {item.category === "extension" && (() => {
@@ -1034,7 +1048,7 @@ export function ReferencePicker({
                   })()}
                   <div className="flex flex-col min-w-0">
                     <span className="text-sm font-medium truncate">{item.label}</span>
-                    <span className="text-[10px] uppercase tracking-wider opacity-50">{item.category === "extension" ? "extensión" : (item.mentionType || item.category)}</span>
+                    <span className="text-[10px] uppercase tracking-wider opacity-50">{item.category === "extension" ? "extensión" : (item.mentionType === "group" && item.subtitle ? `${item.mentionType} · ${item.subtitle}` : (item.mentionType || item.category))}</span>
                   </div>
                 </button>
               ))}

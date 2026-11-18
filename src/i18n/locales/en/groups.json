@@ -1,1 +1,56 @@
-{}
+{
+  "title": "Groups",
+  "subtitle": "Named sets of people, like \"TI\" or \"Design\". Mention them with @, assign them to lists, share with them or use them in queries.",
+  "newGroup": "New group",
+  "editGroup": "Edit group",
+  "edit": "Edit",
+  "delete": "Delete",
+  "inGroup": "You",
+  "members": "{{count}} members",
+  "membersOne": "1 member",
+  "membersNone": "No members",
+  "tooltip": "Group · {{count}} members",
+  "loading": "Loading groups...",
+  "emptyTitle": "No groups yet",
+  "emptyBody": "A group is a named set of team members. Mention it with @ to notify everyone, assign it to lists, share with it or filter by it in queries.",
+  "emptyReadOnly": "Admins and owners can create groups for this team.",
+  "form": {
+    "name": "Name",
+    "namePlaceholder": "e.g. TI",
+    "nameHelp": "1-40 characters. Cannot contain < > [ ].",
+    "nameInvalid": "The name must be 1-40 characters and cannot contain < > [ ].",
+    "color": "Colour",
+    "noColor": "No colour",
+    "description": "Description",
+    "descriptionPlaceholder": "What is this group for?",
+    "members": "Members",
+    "search": "Search people",
+    "selectAll": "Select all",
+    "selectNone": "Select none",
+    "selected": "{{count}} selected",
+    "noMatches": "No one matches your search.",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create group",
+    "saving": "Saving..."
+  },
+  "toast": {
+    "created": "Group created",
+    "updated": "Group updated",
+    "deleted": "Group deleted",
+    "error": "Could not save the group"
+  },
+  "deleteTitle": "Delete group",
+  "deleteDescription": "The group will be removed. Mentions of it will stay as plain text. Group:",
+  "mention": {
+    "subtitle": "{{count}} members"
+  },
+  "assign": {
+    "button": "Assign group",
+    "title": "Assign a group",
+    "confirm": "Assign {{count}} people from {{name}}?",
+    "nobody": "Everyone in {{name}} is already assigned.",
+    "done": "{{count}} people assigned",
+    "error": "Could not assign the group"
+  }
+}

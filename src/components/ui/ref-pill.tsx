@@ -2,13 +2,14 @@
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { FileText, LayoutDashboard, User, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2, Puzzle, Calendar } from "lucide-react";
+import { FileText, LayoutDashboard, User, Users, Hash, Database, ExternalLink, MessageSquare, GitBranch, Loader2, Puzzle, Calendar } from "lucide-react";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
 import { getIntegration } from "@/lib/integrations/integration-catalog";
 import { useRouter } from "next/navigation";
 import { getCardContext, listTeamMembers } from "@/lib/api/contracts";
 import { findOrCreateDm } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 import { Portal } from "./portal";
 import {
   normalizeWorkspaceMember,
@@ -17,7 +18,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'event' | 'ext';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'group' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'event' | 'ext';
   id: string;
   name: string;
   label?: string;
@@ -110,6 +111,10 @@ export function RefPill({
   const [isLoadingUser, setIsLoadingUser] = useState(false);
   const [isOpeningDm, setIsOpeningDm] = useState(false);
   const effectiveTeamId = teamId ?? activeTeamId;
+  const tGroups = useTranslations("groups");
+  const { groups: teamGroups } = useTeamGroups(type === "group" ? effectiveTeamId : null);
+  const group = type === "group" ? teamGroups.find((g) => g.id === id) : undefined;
+  const groupColor = group?.color && /^#[0-9a-fA-F]{6}$/.test(group.color) ? group.color : null;
 
   const normalizedWorkspaceUsers = useMemo(
     () => workspaceUsers.map((member) => normalizeWorkspaceMember(member)),
@@ -281,6 +286,7 @@ export function RefPill({
     mesh: "bg-indigo-500/10 border-indigo-500/20 text-indigo-600 hover:bg-indigo-500/20",
     card: "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 hover:bg-emerald-500/20",
     user: "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20",
+    group: "bg-primary/10 border-primary/20 text-primary hover:bg-primary/20",
     deep: "bg-amber-500/10 border-amber-500/20 text-amber-600 hover:bg-amber-500/20",
     mention: "bg-accent/10 border-accent/20 text-accent hover:bg-accent/20",
     room: "bg-teal-500/10 border-teal-500/20 text-teal-600 hover:bg-teal-500/20",
@@ -295,6 +301,7 @@ export function RefPill({
     mesh: LayoutDashboard,
     card: Hash,
     user: User,
+    group: Users,
     deep: Database,
     mention: Hash,
     room: MessageSquare,
@@ -328,16 +335,18 @@ export function RefPill({
   ].filter((row): row is { label: string; value: string } => Boolean(row));
   const displayText = type === "user"
     ? (label || userForMenu.alias || userForMenu.name || name)
-    : (label || name);
+    : type === "group"
+      ? `@${group?.name || label || name}`
+      : (label || name);
   return (
     <>
       <button
         ref={triggerRef}
         type="button" // Siempre es buena práctica definir el tipo
         onClick={handleClick}
-        className={`inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm align-middle relative -top-px ${type === 'ext' ? 'border-current/25 bg-current/10 hover:bg-current/20' : (colors[type] || colors.deep)}`}
-        style={type === 'ext' && extIntegration ? { color: extIntegration.color } : undefined}
-        title={type === 'ext' ? `${extIntegration?.name ?? provider} · ${extKind ?? ''}` : undefined}
+        className={`inline-flex items-center gap-1.5 px-2 py-0.5 mx-1 rounded-md border text-[10px] font-bold tracking-tight transition-all active:scale-95 group shadow-sm align-middle relative -top-px ${type === 'ext' ? 'border-current/25 bg-current/10 hover:bg-current/20' : (type === 'group' && groupColor ? 'text-foreground' : (colors[type] || colors.deep))}`}
+        style={type === 'ext' && extIntegration ? { color: extIntegration.color } : (type === 'group' && groupColor ? { background: `${groupColor}26`, borderColor: `${groupColor}66` } : undefined)}
+        title={type === 'ext' ? `${extIntegration?.name ?? provider} · ${extKind ?? ''}` : (type === 'group' ? tGroups('tooltip', { count: group?.memberCount ?? 0 }) : undefined)}
       >
         <Icon className="h-3 w-3 transition-transform group-hover:scale-110" />
         <span>{displayText}</span>
