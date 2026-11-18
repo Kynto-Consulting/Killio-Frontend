@@ -2,19 +2,29 @@
 
 import { useState, type CSSProperties } from "react";
 import { useDroppable } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { Plus, MoreHorizontal, Archive, Trash2 } from "lucide-react";
+import { Plus, MoreHorizontal, Archive, Trash2, Filter, Layers, ArrowUpDown } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { archiveList, deleteList } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
+import { ListCardsView, ListViewIndicators } from "@/components/boards/list-cards-view";
+import { ListViewModal, type ListViewTab } from "@/components/boards/list-view-modal";
+import type { ListViewConfig } from "@/lib/boards/categories";
+import type { SortRule, TagGroup } from "@/lib/boards/sorting";
+import type { KqlContext } from "@/lib/query/kql";
 
 interface ListData {
   id: string;
   title: string;
+  /** The cards shown (after the board filter, the list filter and the sort). */
   cards: any[];
+  /** Every card of the list, when a filter hides some. */
+  allCards?: any[];
+  totalCount?: number;
+  systemKey?: string | null;
+  assignedGroupId?: string | null;
 }
 
 export function ListColumnMobile({
@@ -29,6 +39,15 @@ export function ListColumnMobile({
   canComment = true,
   teamDocs = [],
   teamBoards = [],
+  accentColor,
+  viewConfig,
+  onViewConfigChange,
+  kqlContext,
+  tagGroups,
+  effectiveSort,
+  sortFromBoard = false,
+  onResetBoardSort,
+  filterError,
 }: {
   list: ListData;
   boardName?: string;
@@ -41,13 +60,32 @@ export function ListColumnMobile({
   canComment?: boolean;
   teamDocs?: any[];
   teamBoards?: any[];
+  accentColor?: string;
+  /** Per-list view settings (filter, categories, sort). */
+  viewConfig?: ListViewConfig;
+  onViewConfigChange?: (config: ListViewConfig) => void;
+  kqlContext?: KqlContext;
+  tagGroups?: TagGroup[];
+  /** The sort in effect on this list (its own or the board's). Empty = manual order. */
+  effectiveSort?: SortRule[];
+  sortFromBoard?: boolean;
+  onResetBoardSort?: () => void;
+  filterError?: string | null;
 }) {
   const t = useTranslations("board-detail");
+  const tf = useTranslations("board-filters");
   const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [viewTab, setViewTab] = useState<ListViewTab | null>(null);
   const { accessToken } = useSession();
   const isGuest = !canEdit;
+  const config = viewConfig ?? {};
+  const ctx = kqlContext ?? {};
+  const groupsForSort = tagGroups ?? [];
+  const sort = effectiveSort ?? [];
+  const isSorted = sort.length > 0;
+  const total = list.totalCount ?? list.cards.length;
 
   const handleArchive = async () => {
     setIsMenuOpen(false);
@@ -76,105 +114,150 @@ export function ListColumnMobile({
       boxShadow: "0 0 0 2px var(--board-ghost, rgba(56,189,248,0.16))",
     }
     : {
-      
+
     };
+
+  const dropHint = (
+    <div
+      className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
+      style={{
+        borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
+        backgroundColor: "var(--board-ghost, rgba(56,189,248,0.16))",
+        boxShadow: "0 0 0 4px var(--board-ghost, rgba(56,189,248,0.12))",
+      }}
+    >
+      <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
+    </div>
+  );
+  const hintCard = isDropTarget && dropHintIndex != null && dropHintIndex < list.cards.length ? list.cards[dropHintIndex] : null;
+  const hintBeforeCardId = hintCard && draggingCardId !== hintCard.id ? hintCard.id : null;
+  const hintAtEnd = !!isDropTarget && dropHintIndex === list.cards.length;
+
+  const menuItem = "w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground";
+  const openTab = (tab: ListViewTab) => { setIsMenuOpen(false); setViewTab(tab); };
+  const resetSort = () => {
+    if (config.sort && config.sort.length) onViewConfigChange?.({ ...config, sort: undefined });
+    else onResetBoardSort?.();
+  };
 
   return (
     <>
     <div
       ref={setNodeRef}
-      className="w-full shrink-0 flex flex-col rounded-xl border backdrop-blur-sm max-h-full transition-all"
+      className="w-full shrink-0 flex flex-col rounded-xl border border-border bg-card text-foreground backdrop-blur-sm max-h-full transition-all"
       style={containerStyle}
     >
-      <div 
-        className="px-3 py-2 flex items-center justify-between group"
+      <div
+        className="px-3 py-2 flex items-center justify-between group rounded-t-xl"
+        style={accentColor ? { borderTop: `3px solid ${accentColor}` } : undefined}
       >
-        <h3 className="font-semibold text-sm pl-1">{list.title}</h3>
-        <div className="flex items-center space-x-1 relative">
-          <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full mr-1">
-            {list.cards.length}
-          </span>
-          {!isGuest && (
-            <button 
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </button>
+        <div className="flex items-center gap-2">
+          {accentColor && (
+            <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: accentColor }} />
           )}
+          <h3 className="font-semibold text-sm">{list.title}</h3>
+        </div>
+        <div className="flex items-center space-x-1 relative">
+          <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full mr-1" title={total !== list.cards.length ? tf("bar.count", { shown: list.cards.length, total }) : undefined}>
+            {total !== list.cards.length ? `${list.cards.length}/${total}` : list.cards.length}
+          </span>
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground opacity-100 transition-opacity"
+            aria-label={tf("listMenu.open")}
+          >
+            <MoreHorizontal className="h-4 w-4" />
+          </button>
 
           {isMenuOpen && (
-            <div className="absolute right-0 top-8 w-48 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
-              <button 
-                onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} 
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
-                <Plus className="w-3.5 h-3.5" />
-                {t("list.addCardMenu")}
+            <div className="absolute right-0 top-8 w-52 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
+              {!isGuest && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }}
+                    className={menuItem}>
+                    <Plus className="w-3.5 h-3.5" />
+                    {t("list.addCardMenu")}
+                  </button>
+                  <div className="my-1 border-t border-border" />
+                </>
+              )}
+              <button onClick={(e) => { e.stopPropagation(); openTab("filter"); }} className={menuItem}>
+                <Filter className="w-3.5 h-3.5" />
+                {tf("listMenu.filter")}
               </button>
-              <div className="my-1 border-t border-border" />
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleArchive(); }} 
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-muted-foreground hover:text-foreground">
-                <Archive className="w-3.5 h-3.5" />
-                {t("list.archiveList")}
+              <button onClick={(e) => { e.stopPropagation(); openTab("sort"); }} className={menuItem}>
+                <ArrowUpDown className="w-3.5 h-3.5" />
+                {tf("listMenu.sort")}
               </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); handleDelete(); }} 
-                className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
-                <Trash2 className="w-3.5 h-3.5" />
-                {t("list.deleteList") ?? "Delete List"}
+              <button onClick={(e) => { e.stopPropagation(); openTab("categories"); }} className={menuItem}>
+                <Layers className="w-3.5 h-3.5" />
+                {tf("listMenu.categories")}
               </button>
+              {!isGuest && (
+                <>
+                  <div className="my-1 border-t border-border" />
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleArchive(); }}
+                    className={menuItem}>
+                    <Archive className="w-3.5 h-3.5" />
+                    {t("list.archiveList")}
+                  </button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); handleDelete(); }}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 hover:bg-muted text-red-500 hover:bg-red-500/10">
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {t("list.deleteList") ?? "Delete List"}
+                  </button>
+                </>
+              )}
             </div>
           )}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-2">
-        <SortableContext items={list.cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-          {list.cards.map((card, index) => (
-            <div key={card.id} className="flex flex-col gap-2">
-              {isDropTarget && dropHintIndex === index && draggingCardId !== card.id ? (
-                <div
-                  className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
-                  style={{
-                    borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
-                    backgroundColor: "var(--board-ghost, rgba(56,189,248,0.16))",
-                    boxShadow: "0 0 0 4px var(--board-ghost, rgba(56,189,248,0.12))",
-                  }}
-                >
-                  <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
-                </div>
-              ) : null}
-          <KanbanCard 
-            card={card} 
-            listId={list.id} 
-            listName={list.title} 
-            boardName={boardName || ""} 
-            boardId={boardId} 
-            canEdit={canEdit} 
-            canComment={canComment} 
-            teamDocs={teamDocs}
-            teamBoards={teamBoards}
-          />
-            </div>
-          ))}
-        </SortableContext>
+      <ListViewIndicators
+        config={config}
+        boardSortActive={isSorted && !(config.sort && config.sort.length)}
+        effectiveSort={sort}
+        tagGroups={groupsForSort}
+        filterError={filterError}
+        onResetSort={isSorted ? resetSort : undefined}
+        onOpenTab={setViewTab}
+      />
 
-        {isDropTarget && dropHintIndex === list.cards.length ? (
-          <div
-            className="h-20 rounded-lg border-2 border-dashed flex items-center justify-center"
-            style={{
-              borderColor: "var(--board-accent, rgba(56,189,248,0.9))",
-              backgroundColor: "var(--board-ghost, rgba(56,189,248,0.16))",
-              boxShadow: "0 0 0 4px var(--board-ghost, rgba(56,189,248,0.12))",
-            }}
-          >
-            <span className="text-[11px] font-semibold tracking-wide uppercase" style={{ color: "var(--board-accent, #38bdf8)" }}>{t("drag.dropHere")}</span>
-          </div>
+      <div className="flex-1 overflow-y-auto px-2 pb-2 flex flex-col gap-2">
+        <ListCardsView
+          cards={list.cards}
+          list={{ id: list.id, title: list.title, systemKey: list.systemKey, assignedGroupId: list.assignedGroupId }}
+          boardName={boardName}
+          config={config}
+          ctx={ctx}
+          hint={dropHint}
+          hintBeforeCardId={hintBeforeCardId}
+          hintAtEnd={hintAtEnd}
+          renderCard={(card) => (
+            <KanbanCard
+              card={card}
+              listId={list.id}
+              listName={list.title}
+              boardName={boardName || ""}
+              boardId={boardId}
+              teamId={teamId}
+              canEdit={canEdit}
+              canComment={canComment}
+              teamDocs={teamDocs}
+              teamBoards={teamBoards}
+            />
+          )}
+        />
+
+        {list.cards.length === 0 && total > 0 ? (
+          <p className="px-2 py-3 text-center text-xs text-muted-foreground">{tf("listView.allHidden", { count: total })}</p>
         ) : null}
-        
+
         {!isGuest && (
-          <button 
+          <button
             onClick={() => setIsModalOpen(true)}
             className="w-full flex items-center text-left py-2 px-3 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-muted-foreground dark:text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors group text-sm font-medium mt-1"
           >
@@ -195,6 +278,19 @@ export function ListColumnMobile({
       teamId={teamId}
       teamDocs={teamDocs}
       teamBoards={teamBoards}
+    />
+
+    <ListViewModal
+      open={viewTab !== null}
+      onClose={() => setViewTab(null)}
+      initialTab={viewTab ?? "filter"}
+      list={{ id: list.id, title: list.title, systemKey: list.systemKey, assignedGroupId: list.assignedGroupId }}
+      boardName={boardName}
+      cards={list.allCards ?? list.cards}
+      config={config}
+      onSave={(next) => onViewConfigChange?.(next)}
+      ctx={ctx}
+      tagGroups={groupsForSort}
     />
     </>
   );

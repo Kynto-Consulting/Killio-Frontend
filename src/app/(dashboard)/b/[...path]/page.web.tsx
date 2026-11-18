@@ -8,6 +8,13 @@ import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, S
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
+import { BoardFilterBar } from "@/components/boards/board-filter-bar";
+import { TagGroupsModal } from "@/components/boards/tag-groups-modal";
+import { useBoardView } from "@/components/boards/use-board-view";
+import { applyBoardFilters } from "@/lib/boards/apply-filters";
+import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
+import { effectiveSortRules, normalizeSortRules, sortCards } from "@/lib/boards/sorting";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 import { ShareModal } from "@/components/ui/share-modal";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { MessageSquare } from "lucide-react";
@@ -17,7 +24,7 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, createCard as apiCreateCard, deleteCard as apiDeleteCard, deleteList as apiDeleteList, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary } from "@/lib/api/contracts";
+import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, createCard as apiCreateCard, deleteCard as apiDeleteCard, deleteList as apiDeleteList, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary, getBoardMembers as apiGetBoardMembers, type BoardMemberSummary } from "@/lib/api/contracts";
 import { useOpHistory } from "@/lib/history/use-op-history";
 import { computeBoardBatch, makeBoardApplier } from "@/lib/history/board-ops";
 import type { OpScope } from "@/lib/history/types";
@@ -790,6 +797,10 @@ export default function BoardPage() {
   }, [accessToken, boardTeamId, localMode, localWs.files, localWs.folders]);
 
   const lastOverIdRef = useRef<string | null>(null);
+  // What is on screen (filtered + sorted) and which lists are sorted: drag hints are drawn against the visible cards,
+  // while the stored position always refers to the full, manual order.
+  const visibleListsRef = useRef<Array<{ id: string; cards: any[] }>>([]);
+  const sortedListIdsRef = useRef<Set<string>>(new Set());
   const dragStateRef = useRef<{ activeId: string; sourceListId: string | null; targetListId: string | null; targetIndex: number | null } | null>(null);
 
   const deleteBoardAction = useAsyncAction(
@@ -863,7 +874,10 @@ export default function BoardPage() {
   const [ganttWeekBase] = useState(() => startOfWeek(new Date()));
   const [expandedGanttLists, setExpandedGanttLists] = useState<Set<string>>(new Set());
 
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const bv = useBoardView(boardId);
+  const tFilters = useTranslations("board-filters");
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
+  const [isTagGroupsOpen, setIsTagGroupsOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
   const [showArchivedLists, setShowArchivedLists] = useState(false);
@@ -927,7 +941,7 @@ export default function BoardPage() {
       themeCustom: board.themeCustom,
     });
     setBoardTeamId(board.teamId ?? null);
-    setLists(board.lists.map(list => ({ id: list.id, title: list.name, cards: list.cards })));
+    setLists(board.lists.map(list => ({ id: list.id, title: list.name, cards: list.cards, systemKey: (list as any).systemKey ?? (list as any).system_key ?? null, assignedGroupId: (list as any).assignedGroupId ?? (list as any).assigned_group_id ?? null })));
   }, []);
 
   const loadBoard = useCallback(() => {
@@ -1240,11 +1254,21 @@ export default function BoardPage() {
     const overContainer = lists.find((l) => l.id === overContainerId);
     if (!overContainer) return;
 
-    const insertIndex = overId === overContainerId
+    // A sorted list ignores the drop position (the view orders its cards): the card lands at the end of the manual order.
+    const overIsSorted = sortedListIdsRef.current.has(overContainerId);
+    const insertIndex = overIsSorted || overId === overContainerId
       ? overContainer.cards.length
       : (() => {
         const idx = overContainer.cards.findIndex((c: any) => c.id === overId);
         return idx >= 0 ? idx : overContainer.cards.length;
+      })();
+    // Where the drop hint is drawn: an index into the cards currently visible in that list.
+    const visibleOver = visibleListsRef.current.find((l) => l.id === overContainerId);
+    const visualIndex = !visibleOver || overIsSorted || overId === overContainerId
+      ? (visibleOver ? visibleOver.cards.length : insertIndex)
+      : (() => {
+        const idx = visibleOver.cards.findIndex((c: any) => c.id === overId);
+        return idx >= 0 ? idx : visibleOver.cards.length;
       })();
 
     dragStateRef.current = {
@@ -1257,7 +1281,7 @@ export default function BoardPage() {
     setDragVisual((prev) => ({
       ...prev,
       targetListId: overContainerId,
-      targetIndex: insertIndex,
+      targetIndex: visualIndex,
     }));
   }
 
@@ -1304,6 +1328,15 @@ export default function BoardPage() {
     const targetIndexFromMeta = dragMeta?.targetIndex ?? null;
 
     if (!sourceListId || !targetListId) {
+      lastOverIdRef.current = null;
+      dragStateRef.current = null;
+      setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
+      return;
+    }
+
+    if (sourceListId === targetListId && sortedListIdsRef.current.has(targetListId)) {
+      // The list is shown sorted: reordering by hand would have no visible effect. Say so instead of failing silently.
+      toast(tFilters("sort.reorderBlocked"), "info");
       lastOverIdRef.current = null;
       dragStateRef.current = null;
       setDragVisual({ activeId: null, activeTitle: null, targetListId: null, targetIndex: null });
@@ -1389,14 +1422,45 @@ export default function BoardPage() {
     lists.flatMap(l => l.cards.flatMap((c: any) => (c.tags || []).map((t: any) => JSON.stringify({ id: t.id, name: t.name, slug: t.slug, color: t.color, tag_kind: t.tag_kind }))))
   )).map(str => JSON.parse(str as string)).filter(Boolean);
 
-  const filteredLists = lists.map(list => ({
-    ...list,
-    cards: list.cards.filter((card: any) => {
-      if (selectedTags.length === 0) return true;
-      const cardTagNames = (card.tags || []).map((t: any) => t.name);
-      return selectedTags.some(selectedTag => cardTagNames.includes(selectedTag));
-    })
-  }));
+  // ── Filters, sorting and categories (views only: `lists` is never changed) ──
+  const [boardMembers, setBoardMembers] = useState<BoardMemberSummary[]>([]);
+  useEffect(() => {
+    if (localMode || !accessToken || !boardId) { setBoardMembers([]); return; }
+    let alive = true;
+    apiGetBoardMembers(boardId, accessToken).then((m) => { if (alive) setBoardMembers(m); }).catch(() => { /* `me` still works without the member list */ });
+    return () => { alive = false; };
+  }, [boardId, accessToken, localMode]);
+  const { groups: teamGroups } = useTeamGroups(localMode ? null : boardTeamId);
+  const kqlCtx = useMemo(
+    () => buildKqlContext({
+      me: user?.id,
+      meInfo: user ? { id: user.id, name: (user as any).name ?? (user as any).displayName ?? null, email: (user as any).email ?? null } : null,
+      members: boardMembers,
+      groups: teamGroups,
+    }),
+    [user, boardMembers, teamGroups],
+  );
+  const filterResult = useMemo(
+    () => applyBoardFilters(lists, { expression: bv.expression, listFilters: bv.listFilters, boardName, ctx: kqlCtx }),
+    [lists, bv.expression, bv.listFilters, boardName, kqlCtx],
+  );
+  const filteredLists = filterResult.lists;
+  const listSortRules = useMemo(() => {
+    const out: Record<string, ReturnType<typeof effectiveSortRules>> = {};
+    for (const l of lists) out[l.id] = effectiveSortRules(bv.listConfigs[l.id]?.sort, bv.boardSort);
+    return out;
+  }, [lists, bv.listConfigs, bv.boardSort]);
+  const viewLists = useMemo(
+    () => filteredLists.map((l) => {
+      const rules = listSortRules[l.id] ?? [];
+      if (!rules.length) return l;
+      return { ...l, cards: sortCards(l.cards, rules, { users: kqlCtx.users, tagGroups: bv.tagGroups }, (c: any) => toKqlCard(c, l, boardName, { priorityAsTag: true })) };
+    }),
+    [filteredLists, listSortRules, kqlCtx, bv.tagGroups, boardName],
+  );
+  visibleListsRef.current = viewLists;
+  sortedListIdsRef.current = new Set(Object.entries(listSortRules).filter(([, r]) => r.length > 0).map(([id]) => id));
+  const boardFilterActive = bv.expression.trim().length > 0;
 
   const ganttSections = useMemo<Array<{ listId: string; listName: string; cards: GanttCardRow[] }>>(() => {
     return filteredLists
@@ -1716,62 +1780,17 @@ export default function BoardPage() {
                   </button>
 
                   <button
-                    onClick={() => setIsFilterMenuOpen((current) => !current)}
-                    className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${isFilterMenuOpen || selectedTags.length > 0 ? "text-accent" : "text-foreground"}`}
+                    onClick={() => { setIsFilterBarOpen((open) => !open); setIsBoardMenuOpen(false); }}
+                    className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${isFilterBarOpen || boardFilterActive || bv.boardSort.length > 0 ? "text-accent" : "text-foreground"}`}
                   >
                     <Filter className="h-4 w-4 mr-2" />
                     <span>{t("header.filters")}</span>
-                    {selectedTags.length > 0 ? (
+                    {boardFilterActive || normalizeSortRules(bv.boardSort).length > 0 ? (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
-                        {selectedTags.length}
+                        {(boardFilterActive ? 1 : 0) + (normalizeSortRules(bv.boardSort).length > 0 ? 1 : 0)}
                       </span>
                     ) : null}
                   </button>
-
-                  {isFilterMenuOpen && (
-                    <div className="rounded-lg border border-border/70 overflow-hidden">
-                      <div className="p-3 border-b border-border bg-muted/20">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                            <Filter className="h-4 w-4 text-muted-foreground" />
-                            {t("header.filterByTags")}
-                          </div>
-                          {selectedTags.length > 0 ? (
-                            <button
-                              onClick={() => setSelectedTags([])}
-                              className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
-                            >
-                              {t("header.clearFilters")}
-                            </button>
-                          ) : null}
-                        </div>
-                      </div>
-                      <div className="p-3 max-h-60 overflow-y-auto space-y-1">
-                        {allAvailableTags.length === 0 ? (
-                          <div className="p-2 text-xs text-muted-foreground text-center">{t("header.noTags")}</div>
-                        ) : (
-                          allAvailableTags.map((tag: any) => {
-                            const isSelected = selectedTags.includes(tag.name);
-                            return (
-                              <label key={tag.name} className="flex items-center space-x-2 p-2 hover:bg-accent/5 rounded cursor-pointer">
-                                <input
-                                  type="checkbox"
-                                  className="rounded border-border text-accent focus:ring-accent"
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    setSelectedTags((prev) =>
-                                      isSelected ? prev.filter((currentTag) => currentTag !== tag.name) : [...prev, tag.name]
-                                    );
-                                  }}
-                                />
-                                <TagBadge tag={tag} />
-                              </label>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  )}
 
                   <button
                     onClick={() => {
@@ -1838,6 +1857,27 @@ export default function BoardPage() {
         </div>
       </header>
 
+      {isFilterBarOpen || boardFilterActive || bv.boardSort.length > 0 ? (
+        <BoardFilterBar
+          expression={bv.expression}
+          onExpressionChange={bv.setExpression}
+          error={filterResult.error}
+          total={filterResult.total}
+          shown={filterResult.shown}
+          tags={allAvailableTags}
+          groups={teamGroups.map((g) => ({ id: g.id, name: g.name }))}
+          savedViews={bv.savedViews}
+          onSaveView={bv.saveView}
+          onRenameView={bv.renameView}
+          onDeleteView={bv.deleteView}
+          boardSort={bv.boardSort}
+          onBoardSortChange={bv.setBoardSort}
+          tagGroups={bv.tagGroups}
+          onOpenTagGroups={() => setIsTagGroupsOpen(true)}
+        />
+      ) : null}
+      <TagGroupsModal open={isTagGroupsOpen} onClose={() => setIsTagGroupsOpen(false)} groups={bv.tagGroups} onChange={bv.setTagGroups} availableTags={allAvailableTags} />
+
       {boardView === "kanban" ? (
       <>
       {/* Kanban Canvas */}
@@ -1854,10 +1894,17 @@ export default function BoardPage() {
               dragStateRef.current = null;
             }}
           >
-            {filteredLists.map((list) => (
+            {viewLists.map((list) => (
               <ListColumn
                 key={list.id}
                 list={list}
+                viewConfig={bv.listConfigs[list.id]}
+                onViewConfigChange={(cfg) => bv.setListConfig(list.id, cfg)}
+                kqlContext={kqlCtx}
+                tagGroups={bv.tagGroups}
+                effectiveSort={listSortRules[list.id]}
+                onResetBoardSort={() => bv.setBoardSort([])}
+                filterError={filterResult.listErrors[list.id]?.message ?? null}
                 boardId={boardId}
                 teamId={boardTeamId ?? undefined}
                 boardName={boardName}

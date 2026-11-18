@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Check, X, Archive, ArchiveRestore, MoveRight, ChevronDown } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Plus, Check, X, Archive, ArchiveRestore, MoveRight, ChevronDown, Filter } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { getBoard, getArchivedLists, archiveList, updateCard, ArchivedListSummary } from "@/lib/api/contracts";
 import { toast } from "@/lib/toast";
@@ -14,6 +14,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
+import { BoardFilterBar } from "@/components/boards/board-filter-bar";
+import { TagGroupsModal } from "@/components/boards/tag-groups-modal";
+import { useBoardView } from "@/components/boards/use-board-view";
+import { applyBoardFilters } from "@/lib/boards/apply-filters";
+import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
+import { effectiveSortRules, sortCards } from "@/lib/boards/sorting";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 
 type CardRow = {
   id: string;
@@ -52,8 +59,12 @@ const LONG_PRESS_MS = 450;
 export default function BoardMobilePage() {
   const _bp = useParams() as { path?: string | string[] };
   const boardId = (Array.isArray(_bp.path) ? _bp.path[0] : _bp.path) as string;
-  const { accessToken } = useSession();
+  const { accessToken, user } = useSession();
   const t = useTranslations("board-detail");
+  const tFilters = useTranslations("board-filters");
+  const bv = useBoardView(boardId);
+  const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
+  const [isTagGroupsOpen, setIsTagGroupsOpen] = useState(false);
 
   const [boardName, setBoardName] = useState("");
   const [boardTeamId, setBoardTeamId] = useState<string | null>(null);
@@ -163,7 +174,25 @@ export default function BoardMobilePage() {
     }
   }, [accessToken, lists, boardId, t, loadBoard]);
 
-  const activeList = lists[activeListIndex] ?? null;
+  // Filters and sorting are a view over `lists` (same pipeline as the web board).
+  const { groups: teamGroups } = useTeamGroups(boardTeamId);
+  const kqlCtx = useMemo(
+    () => buildKqlContext({ me: user?.id, meInfo: user ? { id: user.id, name: (user as any).name ?? (user as any).displayName ?? null, email: (user as any).email ?? null } : null, groups: teamGroups }),
+    [user, teamGroups],
+  );
+  const filterResult = useMemo(
+    () => applyBoardFilters(lists, { expression: bv.expression, listFilters: bv.listFilters, boardName, ctx: kqlCtx }),
+    [lists, bv.expression, bv.listFilters, boardName, kqlCtx],
+  );
+  const viewLists = useMemo(
+    () => filterResult.lists.map((l) => {
+      const rules = effectiveSortRules(bv.listConfigs[l.id]?.sort, bv.boardSort);
+      return rules.length ? { ...l, cards: sortCards(l.cards, rules, { users: kqlCtx.users, tagGroups: bv.tagGroups }, (c: any) => toKqlCard(c, l, boardName, { priorityAsTag: true })) } : l;
+    }),
+    [filterResult.lists, bv.listConfigs, bv.boardSort, bv.tagGroups, kqlCtx, boardName],
+  );
+  const boardFilterActive = bv.expression.trim().length > 0;
+  const activeList = viewLists[activeListIndex] ?? null;
   const visibleCards = (activeList?.cards ?? []).filter(c => !c.archivedAt);
 
   const handleAddCard = async () => {
@@ -258,6 +287,13 @@ export default function BoardMobilePage() {
           {boardName || <Skeleton className="h-4 w-32 inline-block" />}
         </h1>
         <button
+          onClick={() => setIsFilterBarOpen((o) => !o)}
+          className={`p-1.5 rounded-lg transition-colors ${isFilterBarOpen || boardFilterActive ? "text-accent bg-accent/10" : "text-muted-foreground hover:text-foreground hover:bg-accent/10"}`}
+          aria-label={tFilters("bar.label")}
+        >
+          <Filter className="h-4 w-4" />
+        </button>
+        <button
           onClick={handleToggleArchivedLists}
           className={`p-1.5 rounded-lg transition-colors ${showArchivedLists ? "text-accent bg-accent/10" : "text-muted-foreground hover:text-foreground hover:bg-accent/10"}`}
           title={showArchivedLists ? t("list.hideArchived") : t("list.viewArchived")}
@@ -265,6 +301,34 @@ export default function BoardMobilePage() {
           <Archive className="h-4 w-4" />
         </button>
       </header>
+
+      {isFilterBarOpen || boardFilterActive || bv.boardSort.length > 0 ? (
+        <BoardFilterBar
+          compact
+          expression={bv.expression}
+          onExpressionChange={bv.setExpression}
+          error={filterResult.error}
+          total={filterResult.total}
+          shown={filterResult.shown}
+          tags={Array.from(new Map(lists.flatMap((l) => l.cards.flatMap((c) => c.tags ?? [])).map((tg) => [tg.name, { name: tg.name, color: tg.color ?? null }])).values())}
+          groups={teamGroups.map((g) => ({ id: g.id, name: g.name }))}
+          savedViews={bv.savedViews}
+          onSaveView={bv.saveView}
+          onRenameView={bv.renameView}
+          onDeleteView={bv.deleteView}
+          boardSort={bv.boardSort}
+          onBoardSortChange={bv.setBoardSort}
+          tagGroups={bv.tagGroups}
+          onOpenTagGroups={() => setIsTagGroupsOpen(true)}
+        />
+      ) : null}
+      <TagGroupsModal
+        open={isTagGroupsOpen}
+        onClose={() => setIsTagGroupsOpen(false)}
+        groups={bv.tagGroups}
+        onChange={bv.setTagGroups}
+        availableTags={Array.from(new Map(lists.flatMap((l) => l.cards.flatMap((c) => c.tags ?? [])).map((tg) => [tg.name, { name: tg.name, color: tg.color ?? null }])).values())}
+      />
 
       {isLoading && lists.length === 0 ? (
         <div className="flex-1 flex flex-col px-4 py-4 space-y-3">
@@ -283,7 +347,7 @@ export default function BoardMobilePage() {
             <button onClick={prevList} disabled={activeListIndex === 0} className="shrink-0 p-1 rounded disabled:opacity-30 text-muted-foreground hover:text-foreground">
               <ChevronLeft className="h-4 w-4" />
             </button>
-            {lists.map((list, i) => (
+            {viewLists.map((list, i) => (
               <button
                 key={list.id}
                 onClick={() => { setActiveListIndex(i); setSwipedCardId(null); }}
