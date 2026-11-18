@@ -20,6 +20,10 @@
     "cardOverdueTitle": "Tarjeta vencida: {{cardTitle}}",
     "cardOverdueMessage": "La tarjeta en {{boardName}} / {{listName}} ha pasado su fecha límite.",
     "systemTitle": "Aviso del sistema",
-    "systemMessage": "{{text}}"
+    "systemMessage": "{{text}}",
+    "listGroupCardCreatedTitle": "Nueva tarjeta para {{groupName}}",
+    "listGroupCardCreatedMessage": "Se creó \"{{cardTitle}}\" en {{listName}} ({{boardName}}), asignada a {{groupName}}.",
+    "listGroupCardMovedTitle": "Tarjeta movida a la lista de {{groupName}}",
+    "listGroupCardMovedMessage": "Se movió \"{{cardTitle}}\" a {{listName}} ({{boardName}}), asignada a {{groupName}}."
   }
 }

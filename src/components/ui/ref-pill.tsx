@@ -11,6 +11,8 @@ import { findOrCreateDm } from "@/lib/api/rooms";
 import { useSession } from "@/components/providers/session-provider";
 import { useTeamGroups } from "@/hooks/use-team-groups";
 import { Portal } from "./portal";
+import { KqlPill } from "./kql-pill";
+import { parseKqlPillToken } from "@/lib/kql-pill/token";
 import {
   normalizeWorkspaceMember,
   type WorkspaceMember,
@@ -18,7 +20,7 @@ import {
 } from "@/lib/workspace-members";
 
 interface RefPillProps {
-  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'group' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'event' | 'ext';
+  type: 'doc' | 'board' | 'mesh' | 'card' | 'user' | 'group' | 'deep' | 'mention' | 'room' | 'thread' | 'transcript' | 'event' | 'ext' | 'kql';
   id: string;
   name: string;
   label?: string;
@@ -88,7 +90,7 @@ function findMemberByReferenceId(referenceId: string, members: WorkspaceMember[]
   return null;
 }
 
-export function RefPill({
+function RefPillBase({
   type,
   id,
   name,
@@ -423,4 +425,17 @@ export function RefPill({
       )}
     </>
   );
+}
+
+/**
+ * `type="kql"`: `id` is `<mode>.<encoded script>` and `name` the label (the parts of `@[kql:id:name]`),
+ * rendered as a live query result. Every other type is the classic reference pill.
+ */
+export function RefPill(props: RefPillProps) {
+  if (props.type === "kql") {
+    const spec = parseKqlPillToken(`@[kql:${props.id}:${props.name}]`);
+    if (!spec) return <span>{props.name}</span>;
+    return <KqlPill script={spec.script} mode={spec.mode} label={spec.label} />;
+  }
+  return <RefPillBase {...props} />;
 }

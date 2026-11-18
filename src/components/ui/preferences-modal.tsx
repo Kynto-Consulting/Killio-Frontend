@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { X, Settings, Loader2, Moon, Globe, FlaskConical, Puzzle, ChevronRight } from "lucide-react";
+import { X, Settings, Loader2, Globe, FlaskConical, Puzzle, ChevronRight } from "lucide-react";
 import { Locale } from "@/i18n";
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
@@ -18,7 +18,6 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
   const { locale, setLocale } = useI18n();
   const t       = useTranslations("preferences");
   const tCommon = useTranslations("common");
-  const [theme, setTheme]       = useState("dark");
   const [language, setLanguage] = useState<Locale>(locale);
   const [experimentalEditor, setExperimentalEditor] = useExperimentalEditorMode();
   const [showPersonalIntegrations, setShowPersonalIntegrations] = useState(false);
@@ -66,37 +65,6 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-
-            {/* Theme */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium leading-none flex items-center">
-                <Moon className="w-4 h-4 mr-2 text-muted-foreground" />
-                {t("themeLabel")}
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {(["light", "dark", "system"] as const).map((themeOption) => (
-                  <div
-                    key={themeOption}
-                    onClick={() => setTheme(themeOption)}
-                    className={`flex items-center justify-center px-3 py-2 border rounded-md cursor-pointer transition-colors text-sm font-medium ${
-                      theme === themeOption
-                        ? "border-primary bg-primary/10 text-primary"
-                        : "border-border hover:bg-accent/10 text-muted-foreground"
-                    }`}
-                  >
-                    <span className="capitalize">
-                      {themeOption === "light"
-                        ? t("themes.light")
-                        : themeOption === "dark"
-                          ? t("themes.dark")
-                          : t("themes.system")}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="h-px w-full bg-border/50" />
 
             {/* Language */}
             <div className="space-y-3">

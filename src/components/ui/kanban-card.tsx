@@ -4,9 +4,11 @@ import { useEffect, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal } from "lucide-react";
+import { AlignLeft, CheckSquare, MessageSquare, Paperclip, MoreHorizontal, ExternalLink, UserCheck, UserMinus, CalendarClock, Link2, Copy, Archive, Trash2 } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
-import { CardView, TextBrick, MediaBrick, deleteCard } from "@/lib/api/contracts";
+import { CardView, TextBrick, MediaBrick, deleteCard, updateCard, createCard, addCardAssignee, removeCardAssignee } from "@/lib/api/contracts";
+import { toast } from "@/lib/toast";
+import { stripText } from "@/lib/query/kql";
 import { useSession } from "../providers/session-provider";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -20,7 +22,27 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const [menuRect, setMenuRect] = useState<DOMRect | null>(null);
-  const { accessToken } = useSession();
+  const { accessToken, user } = useSession();
+  const myId = (user as { id?: string } | null)?.id ?? null;
+  const isAssignedToMe = !!myId && (card.assignees ?? []).some((a: any) => (a?.id ?? a?.userId) === myId);
+  // Quick actions of the card menu: they change the card without opening it.
+  const runQuick = async (job: () => Promise<unknown>, okMessage?: string) => {
+    setIsMenuOpen(false);
+    try {
+      await job();
+      window.dispatchEvent(new Event("board:refresh"));
+      if (okMessage) toast(okMessage, "success");
+    } catch (err) {
+      console.error("Card quick action failed", err);
+      const detail = err instanceof Error && err.message && !/^HTTP \d+/.test(err.message) ? err.message : "";
+      toast(detail ? `${t("card.actionError")}: ${detail}` : t("card.actionError"), "error");
+    }
+  };
+  const setDueInDays = (days: number | null) => {
+    if (!accessToken) return;
+    const due = days === null ? null : (() => { const d = new Date(); d.setHours(12, 0, 0, 0); d.setDate(d.getDate() + days); return d.toISOString(); })();
+    void runQuick(() => updateCard(card.id, { due_at: due }, accessToken));
+  };
   const { ask: askDeleteCard, ConfirmDialog: DeleteCardConfirmDialog } = useConfirm();
   const deleteCardAction = useAsyncAction(
     async () => {
@@ -85,11 +107,11 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
 
   const firstTextBrick = textBlocks.find(b => b.displayStyle === 'paragraph' && b.markdown && b.markdown.trim().length > 0);
 
-  // 1. Clean the markdown first by replacing @[x:y:z] with just z
-  const cleanedMarkdown = firstTextBrick?.markdown?.replace(/@\[[^:]+:[^:]+:([^\]]+)\]/g, '$1');
-
-  // 2. Then create your snippet from the cleaned text
-  const descriptionSnippet = cleanedMarkdown?.trim().split('\n')[0].substring(0, 90);
+  // The description is parsed before it is shown: markdown, HTML, mentions and Killio's [color:]/[size:]/[bg:]/[t:] tokens
+  // become plain text, so the card never shows raw syntax such as **bold**.
+  const descriptionSnippet = firstTextBrick?.markdown
+    ? stripText(firstTextBrick.markdown.replace(/\[\/?(?:color|size|bg|t)(?::[^\]]*)?\]/gi, '')).slice(0, 140)
+    : undefined;
 
   const hasDescription = !!descriptionSnippet;
 
@@ -114,7 +136,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
         ref={setNodeRef}
         style={style}
         onClick={() => !isMenuOpen && setIsModalOpen(true)}
-        className={`group relative flex flex-col gap-2 rounded-lg bg-white dark:bg-[#22272b] shadow-[0_1px_1px_#091e4240,0_0_1px_#091e424f] dark:shadow-none dark:ring-[0.5px] dark:ring-white/10 p-3 hover:ring-2 hover:ring-primary/40 ${isArchived ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} transition-colors border-none`}
+        className={`group relative flex flex-col gap-2 min-w-0 max-w-full overflow-hidden rounded-lg bg-white dark:bg-[#22272b] shadow-[0_1px_1px_#091e4240,0_0_1px_#091e424f] dark:shadow-none dark:ring-[0.5px] dark:ring-white/10 p-3 hover:ring-2 hover:ring-primary/40 ${isArchived ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'} transition-colors border-none`}
         {...(isArchived ? {} : attributes)}
         {...(isArchived ? {} : listeners)}
       >
@@ -139,14 +161,56 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
             <>
               <div className="fixed inset-0 z-[99]" onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); }} />
               <div 
-                className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-[100] text-sm w-40"
+                className="fixed bg-popover border border-border rounded-md shadow-lg py-1 z-[100] text-sm w-56"
                 style={{
                   top: menuRect.bottom + 4,
-                  left: menuRect.right - 160,
+                  left: menuRect.right - 224,
                 }}
               >
-                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editCard")}</button>
-                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground">{t("card.editTags")}</button>
+                <button onClick={(e) => { e.stopPropagation(); setIsMenuOpen(false); setIsModalOpen(true); }} className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"><ExternalLink className="h-3.5 w-3.5 text-muted-foreground" />{t("card.open")}</button>
+                {accessToken && myId ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void runQuick(() => (isAssignedToMe ? removeCardAssignee(card.id, myId, accessToken) : addCardAssignee(card.id, myId, accessToken))); }}
+                    className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                  >
+                    {isAssignedToMe ? <UserMinus className="h-3.5 w-3.5 text-muted-foreground" /> : <UserCheck className="h-3.5 w-3.5 text-muted-foreground" />}
+                    {isAssignedToMe ? t("card.unassignMe") : t("card.assignMe")}
+                  </button>
+                ) : null}
+                {accessToken ? (
+                  <div className="px-3 py-1.5" onClick={(e) => e.stopPropagation()}>
+                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground"><CalendarClock className="h-3 w-3" />{t("card.due")}</div>
+                    <div className="flex flex-wrap gap-1">
+                      {([[0, "card.dueToday"], [1, "card.dueTomorrow"], [7, "card.dueWeek"], [null, "card.dueClear"]] as const).map(([days, key]) => (
+                        <button key={key} onClick={() => setDueInDays(days)} className="rounded-full border border-border px-2 py-0.5 text-[11px] text-foreground hover:bg-accent hover:text-accent-foreground">{t(key)}</button>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+                <div className="my-1 border-t border-border" />
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setIsMenuOpen(false);
+                    const params = new URLSearchParams(searchParams.toString());
+                    params.set("card", card.id);
+                    const url = `${window.location.origin}${pathname}?${params.toString()}`;
+                    void navigator.clipboard?.writeText(url).then(() => toast(t("card.linkCopied"), "success"), () => toast(t("card.actionError"), "error"));
+                  }}
+                  className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                ><Link2 className="h-3.5 w-3.5 text-muted-foreground" />{t("card.copyLink")}</button>
+                {accessToken && listId ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void runQuick(() => createCard({ listId, title: `${card.title} ${t("card.copySuffix")}`, tags: (card.tags ?? []).map((tag) => tag.id) }, accessToken), t("card.duplicated")); }}
+                    className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                  ><Copy className="h-3.5 w-3.5 text-muted-foreground" />{t("card.duplicate")}</button>
+                ) : null}
+                {accessToken && !isArchived ? (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); void runQuick(() => updateCard(card.id, { status: "archived", archived_at: new Date().toISOString(), start_at: null, due_at: null }, accessToken), t("card.archived")); }}
+                    className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent hover:text-accent-foreground"
+                  ><Archive className="h-3.5 w-3.5 text-muted-foreground" />{t("card.archive")}</button>
+                ) : null}
                 <div className="my-1 border-t border-border" />
                 <button
                   disabled={deleteCardAction.isPending}
@@ -160,8 +224,9 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
                     });
                     if (ok) deleteCardAction.run(undefined);
                   }}
-                  className="w-full text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full flex items-center gap-2 text-left px-3 py-1.5 hover:bg-accent text-destructive hover:text-destructive disabled:opacity-50 disabled:cursor-not-allowed"
                 >
+                  <Trash2 className="h-3.5 w-3.5" />
                   {deleteCardAction.isPending ? '...' : t("card.delete")}
                 </button>
               </div>
@@ -170,12 +235,12 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
           )}
         </div>
 
-        <p className={`text-sm font-medium leading-tight transition-colors ${isArchived ? 'text-foreground/65' : 'text-foreground/90 group-hover:text-accent'}`}>
+        <p title={card.title} className={`text-sm font-medium leading-tight line-clamp-2 break-words [overflow-wrap:anywhere] pr-6 transition-colors ${isArchived ? 'text-[color:var(--board-text,hsl(var(--foreground)))] opacity-65' : 'text-[color:var(--board-text,hsl(var(--foreground)))] group-hover:text-accent'}`}>
           {card.title}
         </p>
 
         {!isArchived && hasDescription && (
-          <p className="text-[11px] leading-relaxed text-muted-foreground line-clamp-2 -mt-1.5 px-0.5">
+          <p className="text-[11px] leading-relaxed text-[color:var(--board-text,hsl(var(--muted-foreground)))] opacity-70 line-clamp-2 break-words [overflow-wrap:anywhere] -mt-1.5 px-0.5">
             {descriptionSnippet}
             {firstTextBrick!.markdown.trim().length > 90 ? '...' : ''}
           </p>
@@ -200,7 +265,7 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
         )}
 
         {!isArchived ? (
-          <div className="flex items-center justify-between text-muted-foreground mt-1">
+          <div className="flex items-center justify-between text-[color:var(--board-text,hsl(var(--muted-foreground)))] mt-1">
             <div className="flex items-center space-x-3">
               {hasDescription && (
                 <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>

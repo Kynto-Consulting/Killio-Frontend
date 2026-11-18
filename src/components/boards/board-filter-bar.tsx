@@ -10,6 +10,7 @@ import { describeSort, normalizeSortRules, type SortRule, type TagGroup } from "
 import type { SavedView } from "@/lib/boards/view-storage";
 import { SortRulesEditor, sortKeyLabel } from "./sort-rules-editor";
 import type { AvailableTag } from "./tag-groups-modal";
+import { ViewSyncBadge } from "./view-sync-badge";
 
 /** Examples shown as chips. They are KQL, not translated (the language keywords work in Spanish as well). */
 const EXAMPLES = [
@@ -26,7 +27,7 @@ const chipBase = "h-7 px-2.5 inline-flex items-center gap-1 rounded-full border 
 const chipOff = "border-border bg-card text-muted-foreground hover:bg-muted hover:text-foreground";
 const chipOn = "border-accent/40 bg-accent/10 text-accent";
 
-function Popover({ label, active, icon, children, align = "left" }: { label: string; active?: boolean; icon?: ReactNode; children: ReactNode; align?: "left" | "right" }) {
+function Popover({ label, active, icon, children, align = "left", width = "w-72", badge }: { label: string; active?: boolean; icon?: ReactNode; children: ReactNode; align?: "left" | "right"; width?: string; badge?: number }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -42,10 +43,11 @@ function Popover({ label, active, icon, children, align = "left" }: { label: str
       <button type="button" onClick={() => setOpen((o) => !o)} className={`${chipBase} ${active || open ? chipOn : chipOff}`} aria-expanded={open}>
         {icon}
         {label}
+        {badge ? <span className="ml-0.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-foreground px-1 text-[10px] font-semibold text-background">{badge}</span> : null}
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open ? (
-        <div className={`absolute top-full z-30 mt-1 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 text-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>{children}</div>
+        <div className={`absolute top-full z-[60] mt-1 ${width} max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-background p-3 text-foreground shadow-xl ${align === "right" ? "right-0" : "left-0"}`}>{children}</div>
       ) : null}
     </div>
   );
@@ -84,7 +86,6 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
   const quick = useMemo(() => parseQuickFromExpression(expression), [expression]);
   const isCustom = quick === null;
   const active = expression.trim().length > 0;
-  const [showExamples, setShowExamples] = useState(false);
 
   /** Merge a change into the quick state, or append it when the text is custom KQL. */
   const apply = (patch: Partial<QuickFilters>) => {
@@ -114,12 +115,16 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
   }, [quick]);
 
   const caret = error && expression.length <= 160 ? `${" ".repeat(Math.min(error.position, expression.length))}^` : null;
+  const activeCount =
+    (q.mine ? 1 : 0) + (q.unassigned ? 1 : 0) + (q.overdue ? 1 : 0) + (q.dueThisWeek ? 1 : 0) + (q.status ? 1 : 0) + (q.group ? 1 : 0) +
+    (q.tags?.length ? 1 : 0) + (q.dateFrom || q.dateTo ? 1 : 0) + (q.text ? 1 : 0) + (isCustom && active ? 1 : 0);
+  const section = "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground";
 
   return (
-    <div className="border-b border-border bg-card/60 px-3 py-2 sm:px-6 space-y-2" data-testid="board-filter-bar">
-      <div className={`flex gap-2 ${props.compact ? "flex-col" : "items-center"}`}>
-        <div className="relative flex-1 min-w-0">
-          <Filter className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+    <div className="border-b border-border bg-card/60 px-3 py-1.5 sm:px-6" data-testid="board-filter-bar">
+      <div className={`flex items-center gap-1.5 ${props.compact ? "flex-wrap" : ""}`}>
+        <div className={`relative min-w-0 ${props.compact ? "w-full" : "w-52 focus-within:w-80 transition-[width] duration-150"}`}>
+          <Filter className="pointer-events-none absolute left-2 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
             value={expression}
             onChange={(e) => onExpressionChange(e.target.value)}
@@ -128,127 +133,102 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
             placeholder={t("bar.placeholder")}
             aria-label={t("bar.label")}
             aria-invalid={!!error}
-            className={`w-full rounded-md border bg-background pl-8 pr-8 font-mono text-sm text-foreground placeholder:text-muted-foreground ${props.compact ? "h-10" : "h-8"} ${error ? "border-red-500" : "border-border"}`}
+            title={t("bar.label")}
+            className={`w-full rounded-md border bg-background pl-7 pr-7 text-xs text-foreground placeholder:text-muted-foreground ${isCustom && active ? "font-mono" : ""} ${props.compact ? "h-10" : "h-7"} ${error ? "border-red-500" : "border-border"}`}
           />
           {active ? (
-            <button type="button" onClick={() => onExpressionChange("")} className="absolute right-1.5 top-1/2 h-6 w-6 -translate-y-1/2 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("bar.clear")} title={t("bar.clear")}>
-              <X className="h-4 w-4" />
+            <button type="button" onClick={() => onExpressionChange("")} className="absolute right-1 top-1/2 h-5 w-5 -translate-y-1/2 inline-flex items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("bar.clear")} title={t("bar.clear")}>
+              <X className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>
-        <div className="flex items-center gap-2 shrink-0">
-          {active || shown !== total ? (
-            <span className={`text-xs tabular-nums ${error ? "text-muted-foreground" : "text-foreground font-medium"}`} aria-live="polite">
-              {t("bar.count", { shown, total })}
-            </span>
-          ) : (
-            <span className="text-xs tabular-nums text-muted-foreground">{t("bar.total", { total })}</span>
-          )}
-          {active ? (
-            <button type="button" onClick={() => onExpressionChange("")} className="h-7 px-2 rounded-md text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground">
-              {t("bar.clearFilters")}
-            </button>
-          ) : null}
-        </div>
-      </div>
 
-      {error ? (
-        <div role="alert" className="rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1.5 text-xs text-red-700 dark:text-red-300">
-          <div>
-            {t("bar.invalid", { message: error.message, position: error.position + 1 })} <span className="text-muted-foreground">{t("bar.invalidKept")}</span>
-          </div>
-          {caret ? (
-            <pre className="mt-1 overflow-x-auto font-mono text-[11px] leading-tight text-foreground">{expression}{"\n"}<span className="text-red-600 dark:text-red-400">{caret}</span></pre>
-          ) : null}
-        </div>
-      ) : null}
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        {chip(t("quick.mine"), !!q.mine, { mine: true, unassigned: false }, { mine: false })}
-        {chip(t("quick.unassigned"), !!q.unassigned, { unassigned: true, mine: false }, { unassigned: false })}
-        {chip(t("quick.overdue"), !!q.overdue, { overdue: true }, { overdue: false })}
-        {chip(t("quick.dueThisWeek"), !!q.dueThisWeek, { dueThisWeek: true }, { dueThisWeek: false })}
-        {chip(t("quick.open"), q.status === "open", { status: "open" }, { status: null })}
-        {chip(t("quick.done"), q.status === "done", { status: "done" }, { status: null })}
-
-        <Popover label={q.group ? t("quick.groupNamed", { name: q.group.name }) : t("quick.group")} active={!!q.group}>
-          <div className="space-y-1 max-h-60 overflow-y-auto">
-            {groups.length === 0 ? <p className="text-xs text-muted-foreground">{t("quick.noGroups")}</p> : null}
-            {q.group ? (
-              <button type="button" className="w-full rounded px-2 py-1.5 text-left text-xs text-muted-foreground hover:bg-muted" onClick={() => apply({ group: null })}>{t("quick.anyGroup")}</button>
-            ) : null}
-            {groups.map((g) => (
-              <button key={g.id} type="button" onClick={() => apply({ group: { id: g.id, name: g.name } })} className={`flex w-full items-center justify-between rounded px-2 py-1.5 text-left text-sm hover:bg-muted ${q.group?.id === g.id ? "text-accent" : "text-foreground"}`}>
-                <span className="truncate">{g.name}</span>
-                {q.group?.id === g.id ? <Check className="h-3.5 w-3.5" /> : null}
-              </button>
-            ))}
-          </div>
-        </Popover>
-
-        <Popover label={q.tags?.length ? t("quick.tagsCount", { count: q.tags.length }) : t("quick.tags")} active={!!q.tags?.length}>
-          <div className="space-y-0.5 max-h-60 overflow-y-auto">
-            {tags.length === 0 ? <p className="text-xs text-muted-foreground">{t("quick.noTags")}</p> : null}
-            {tags.map((tag) => {
-              const on = !!q.tags?.some((x) => x === tag.name);
-              return (
-                <label key={tag.name} className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm text-foreground hover:bg-muted">
-                  <input
-                    type="checkbox"
-                    className="rounded border-border"
-                    checked={on}
-                    onChange={() => apply({ tags: on ? (q.tags ?? []).filter((x) => x !== tag.name) : [...(q.tags ?? []), tag.name] })}
-                  />
-                  <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-border" style={{ background: tag.color ?? "transparent" }} />
-                  <span className="truncate">{tag.name}</span>
-                </label>
-              );
-            })}
-          </div>
-          {q.tags?.length ? <button type="button" className="mt-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => apply({ tags: [] })}>{t("quick.clearTags")}</button> : null}
-        </Popover>
-
-        <Popover label={q.dateFrom || q.dateTo ? t("quick.dateActive") : t("quick.dates")} active={!!(q.dateFrom || q.dateTo)}>
-          <div className="space-y-2 text-xs">
-            <select className={inputCls} value={dateDraft.field} onChange={(e) => setDateDraft({ ...dateDraft, field: e.target.value as "due" | "created" })} aria-label={t("quick.dateField")}>
-              <option value="due">{t("quick.dueDate")}</option>
-              <option value="created">{t("quick.createdDate")}</option>
-            </select>
-            <label className="flex items-center gap-2 text-muted-foreground">
-              <span className="w-10">{t("quick.from")}</span>
-              <input type="date" className={inputCls} value={dateDraft.from} onChange={(e) => setDateDraft({ ...dateDraft, from: e.target.value })} />
-            </label>
-            <label className="flex items-center gap-2 text-muted-foreground">
-              <span className="w-10">{t("quick.to")}</span>
-              <input type="date" className={inputCls} value={dateDraft.to} onChange={(e) => setDateDraft({ ...dateDraft, to: e.target.value })} />
-            </label>
-            <div className="flex gap-2">
-              <button type="button" className="h-7 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90" onClick={() => apply({ dateField: dateDraft.field, dateFrom: dateDraft.from || null, dateTo: dateDraft.to || null })}>{t("quick.apply")}</button>
-              <button type="button" className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => apply({ dateFrom: null, dateTo: null })}>{t("quick.clearDates")}</button>
+        <Popover label={t("bar.filters")} active={activeCount > 0} badge={activeCount} icon={<Filter className="h-3 w-3" />} width="w-[22rem]">
+          <div className="space-y-3 max-h-[70vh] overflow-y-auto pr-0.5">
+            <div className="space-y-1.5">
+              <p className={section}>{t("bar.quickSection")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {chip(t("quick.mine"), !!q.mine, { mine: true, unassigned: false }, { mine: false })}
+                {chip(t("quick.unassigned"), !!q.unassigned, { unassigned: true, mine: false }, { unassigned: false })}
+                {chip(t("quick.overdue"), !!q.overdue, { overdue: true }, { overdue: false })}
+                {chip(t("quick.dueThisWeek"), !!q.dueThisWeek, { dueThisWeek: true }, { dueThisWeek: false })}
+                {chip(t("quick.open"), q.status === "open", { status: "open" }, { status: null })}
+                {chip(t("quick.done"), q.status === "done", { status: "done" }, { status: null })}
+              </div>
             </div>
+
+            <div className="space-y-1.5">
+              <p className={section}>{t("quick.group")}</p>
+              {groups.length === 0 ? <p className="text-xs text-muted-foreground">{t("quick.noGroups")}</p> : (
+                <div className="flex flex-wrap gap-1.5">
+                  {groups.map((g) => chip(g.name, q.group?.id === g.id, { group: { id: g.id, name: g.name } }, { group: null }))}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <p className={section}>{t("quick.tags")}</p>
+              {tags.length === 0 ? <p className="text-xs text-muted-foreground">{t("quick.noTags")}</p> : (
+                <div className="flex flex-wrap gap-1.5">
+                  {tags.map((tag) => {
+                    const on = !!q.tags?.some((x) => x === tag.name);
+                    return (
+                      <button key={tag.name} type="button" aria-pressed={on} onClick={() => apply({ tags: on ? (q.tags ?? []).filter((x) => x !== tag.name) : [...(q.tags ?? []), tag.name] })} className={`${chipBase} ${on ? chipOn : chipOff}`}>
+                        <span className="h-2 w-2 shrink-0 rounded-full border border-border" style={{ background: tag.color ?? "transparent" }} />
+                        {tag.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-1.5 text-xs">
+              <p className={section}>{t("quick.dates")}</p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <select className={`${inputCls} col-span-2`} value={dateDraft.field} onChange={(e) => setDateDraft({ ...dateDraft, field: e.target.value as "due" | "created" })} aria-label={t("quick.dateField")}>
+                  <option value="due">{t("quick.dueDate")}</option>
+                  <option value="created">{t("quick.createdDate")}</option>
+                </select>
+                <input type="date" aria-label={t("quick.from")} className={`${inputCls} min-w-0`} value={dateDraft.from} onChange={(e) => setDateDraft({ ...dateDraft, from: e.target.value })} />
+                <input type="date" aria-label={t("quick.to")} className={`${inputCls} min-w-0`} value={dateDraft.to} onChange={(e) => setDateDraft({ ...dateDraft, to: e.target.value })} />
+              </div>
+              <div className="flex gap-2">
+                <button type="button" className="h-7 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90" onClick={() => apply({ dateField: dateDraft.field, dateFrom: dateDraft.from || null, dateTo: dateDraft.to || null })}>{t("quick.apply")}</button>
+                {q.dateFrom || q.dateTo ? <button type="button" className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => apply({ dateFrom: null, dateTo: null })}>{t("quick.clearDates")}</button> : null}
+              </div>
+            </div>
+
+            <form className="space-y-1.5" onSubmit={(e) => { e.preventDefault(); apply({ text: textDraft.text, regex: textDraft.regex }); }}>
+              <p className={section}>{t("quick.text")}</p>
+              <div className="flex gap-1.5">
+                <input className={`${inputCls} ${textDraft.regex ? "font-mono" : ""}`} value={textDraft.text} onChange={(e) => setTextDraft({ ...textDraft, text: e.target.value })} placeholder={textDraft.regex ? t("quick.regexPlaceholder") : t("quick.textPlaceholder")} />
+                <button type="submit" className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90">{t("quick.apply")}</button>
+              </div>
+              <label className="flex items-center gap-2 text-xs text-foreground">
+                <input type="checkbox" className="rounded border-border" checked={textDraft.regex} onChange={(e) => setTextDraft({ ...textDraft, regex: e.target.checked })} />
+                {t("quick.regex")}
+              </label>
+            </form>
+
+            <details>
+              <summary className="cursor-pointer text-xs font-medium text-accent">{t("bar.examples")}</summary>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {EXAMPLES.map((ex) => (
+                  <button key={ex} type="button" onClick={() => onExpressionChange(ex)} className="h-6 rounded-md border border-border bg-background px-2 font-mono text-[11px] text-foreground hover:bg-muted">{ex}</button>
+                ))}
+              </div>
+              {isCustom && active ? <p className="mt-1.5 text-[11px] text-muted-foreground">{t("bar.customHint")}</p> : null}
+            </details>
+
+            {active ? <button type="button" onClick={() => onExpressionChange("")} className="text-xs font-medium text-muted-foreground hover:text-foreground">{t("bar.clearFilters")}</button> : null}
           </div>
         </Popover>
 
-        <Popover label={q.text ? t("quick.textActive") : t("quick.text")} active={!!q.text}>
-          <form className="space-y-2" onSubmit={(e) => { e.preventDefault(); apply({ text: textDraft.text, regex: textDraft.regex }); }}>
-            <input className={`${inputCls} ${textDraft.regex ? "font-mono" : ""}`} value={textDraft.text} onChange={(e) => setTextDraft({ ...textDraft, text: e.target.value })} placeholder={textDraft.regex ? t("quick.regexPlaceholder") : t("quick.textPlaceholder")} />
-            <label className="flex items-center gap-2 text-xs text-foreground">
-              <input type="checkbox" className="rounded border-border" checked={textDraft.regex} onChange={(e) => setTextDraft({ ...textDraft, regex: e.target.checked })} />
-              {t("quick.regex")}
-            </label>
-            <div className="flex gap-2">
-              <button type="submit" className="h-7 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90">{t("quick.apply")}</button>
-              <button type="button" className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => apply({ text: "" })}>{t("quick.clearText")}</button>
-            </div>
-          </form>
-        </Popover>
-
-        <span className="mx-1 hidden h-5 w-px bg-border sm:inline-block" />
-
-        <Popover label={sortRules.length ? t("sort.active") : t("sort.title")} active={sortRules.length > 0} icon={<ArrowUpDown className="h-3 w-3" />} align="right">
+        <Popover label={t("sort.title")} active={sortRules.length > 0} icon={<ArrowUpDown className="h-3 w-3" />} align="right">
           <p className="mb-2 text-xs font-semibold text-foreground">{t("sort.boardTitle")}</p>
           <SortRulesEditor rules={boardSort} onChange={props.onBoardSortChange} tagGroups={tagGroups} t={t} />
-          {sortRules.length ? <p className="mt-2 text-[11px] text-muted-foreground">{t("sort.dragNote")}</p> : null}
+          {sortRules.length ? <p className="mt-2 text-[11px] text-muted-foreground">{t("sort.boardActive", { sort: describeSort(sortRules, (k) => sortKeyLabel(t, k, tagGroups)) })} · {t("sort.dragNote")}</p> : null}
           <button type="button" onClick={props.onOpenTagGroups} className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-accent hover:underline">
             <Layers className="h-3.5 w-3.5" />
             {t("tagGroups.open")}
@@ -286,24 +266,22 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
           </div>
         </Popover>
 
-        <button type="button" onClick={() => setShowExamples((s) => !s)} className={`${chipBase} ${showExamples ? chipOn : chipOff}`} aria-expanded={showExamples}>
-          {t("bar.examples")}
-        </button>
+        <div className="ml-auto flex items-center gap-2 shrink-0">
+          <ViewSyncBadge />
+          <span className={`text-xs tabular-nums ${active && !error ? "text-foreground font-medium" : "text-muted-foreground"}`} aria-live="polite">
+            {active || shown !== total ? t("bar.count", { shown, total }) : t("bar.total", { total })}
+          </span>
+        </div>
       </div>
 
-      {sortRules.length ? (
-        <p className="text-[11px] text-muted-foreground">{t("sort.boardActive", { sort: describeSort(sortRules, (k) => sortKeyLabel(t, k, tagGroups)) })}</p>
-      ) : null}
-
-      {isCustom && active ? <p className="text-[11px] text-muted-foreground">{t("bar.customHint")}</p> : null}
-
-      {showExamples ? (
-        <div className="flex flex-wrap gap-1.5">
-          {EXAMPLES.map((ex) => (
-            <button key={ex} type="button" onClick={() => onExpressionChange(ex)} className="h-6 rounded-md border border-border bg-background px-2 font-mono text-[11px] text-foreground hover:bg-muted">
-              {ex}
-            </button>
-          ))}
+      {error ? (
+        <div role="alert" className="mt-1.5 rounded-md border border-red-500/40 bg-red-500/10 px-2 py-1 text-xs text-red-700 dark:text-red-300">
+          <div>
+            {t("bar.invalid", { message: error.message, position: error.position + 1 })} <span className="text-muted-foreground">{t("bar.invalidKept")}</span>
+          </div>
+          {caret ? (
+            <pre className="mt-1 overflow-x-auto font-mono text-[11px] leading-tight text-foreground">{expression}{"\n"}<span className="text-red-600 dark:text-red-400">{caret}</span></pre>
+          ) : null}
         </div>
       ) : null}
     </div>

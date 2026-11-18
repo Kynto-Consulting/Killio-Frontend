@@ -1,7 +1,7 @@
 {
   "bar": {
     "label": "Filter cards with KQL",
-    "placeholder": "Filter with KQL, e.g. assignee = me and overdue",
+    "placeholder": "Search or filter (KQL)...",
     "clear": "Clear filter",
     "clearFilters": "Clear filters",
     "count": "{{shown}} of {{total}} cards",
@@ -9,7 +9,9 @@
     "invalid": "{{message}} (position {{position}})",
     "invalidKept": "Showing all cards until the expression is valid.",
     "examples": "Examples",
-    "customHint": "Custom expression: quick filters add their condition with \"and\"."
+    "customHint": "Custom expression: quick filters add their condition with \"and\".",
+    "filters": "Filters",
+    "quickSection": "Quick filters"
   },
   "quick": {
     "mine": "Mine",
@@ -100,13 +102,17 @@
     "addExisting": "Add an existing tag...",
     "noMoreTags": "No more tags to add",
     "addByName": "Or type a tag name",
-    "addTag": "Add tag"
+    "addTag": "Add tag",
+    "scopeTeam": "These groups belong to the whole team: every board, the server queries (rank()) and the AI use them.",
+    "scopeLocal": "Local workspace: these groups only exist on this device."
   },
   "listMenu": {
     "open": "List menu",
     "filter": "Filter this list...",
     "sort": "Sort this list...",
-    "categories": "Categories..."
+    "categories": "Categories...",
+    "collapse": "Minimise list",
+    "expand": "Expand list"
   },
   "listView": {
     "title": "View of \"{{name}}\"",
@@ -148,5 +154,11 @@
     "remove": "Remove",
     "moveUp": "Move up",
     "moveDown": "Move down"
+  },
+  "sync": {
+    "saving": "Saving...",
+    "error": "Not saved: retrying. Your changes are kept on this device.",
+    "retry": "Retry now",
+    "readonly": "View only: your changes stay on this device and are not shared."
   }
 }

@@ -1,7 +1,7 @@
 {
   "bar": {
     "label": "Filtrar tarjetas con KQL",
-    "placeholder": "Filtra con KQL, p. ej. assignee = me and overdue",
+    "placeholder": "Buscar o filtrar (KQL)...",
     "clear": "Quitar filtro",
     "clearFilters": "Quitar filtros",
     "count": "{{shown}} de {{total}} tarjetas",
@@ -9,7 +9,9 @@
     "invalid": "{{message}} (posición {{position}})",
     "invalidKept": "Se muestran todas las tarjetas hasta que la expresión sea válida.",
     "examples": "Ejemplos",
-    "customHint": "Expresión personalizada: los filtros rápidos añaden su condición con \"and\"."
+    "customHint": "Expresión personalizada: los filtros rápidos añaden su condición con \"and\".",
+    "filters": "Filtros",
+    "quickSection": "Filtros rapidos"
   },
   "quick": {
     "mine": "Mías",
@@ -100,13 +102,17 @@
     "addExisting": "Añadir una etiqueta existente...",
     "noMoreTags": "No quedan etiquetas por añadir",
     "addByName": "O escribe un nombre",
-    "addTag": "Añadir etiqueta"
+    "addTag": "Añadir etiqueta",
+    "scopeTeam": "Estos grupos son del equipo completo: los usan todos los tableros, las consultas del servidor (rank()) y la IA.",
+    "scopeLocal": "Espacio local: estos grupos solo existen en este dispositivo."
   },
   "listMenu": {
     "open": "Menú de la lista",
     "filter": "Filtrar esta lista...",
     "sort": "Ordenar esta lista...",
-    "categories": "Categorías..."
+    "categories": "Categorías...",
+    "collapse": "Minimizar lista",
+    "expand": "Expandir lista"
   },
   "listView": {
     "title": "Vista de \"{{name}}\"",
@@ -148,5 +154,11 @@
     "remove": "Quitar",
     "moveUp": "Subir",
     "moveDown": "Bajar"
+  },
+  "sync": {
+    "saving": "Guardando...",
+    "error": "Sin guardar: reintentando. Tus cambios se conservan en este dispositivo.",
+    "retry": "Reintentar ahora",
+    "readonly": "Solo lectura: tus cambios quedan en este dispositivo y no se comparten."
   }
 }

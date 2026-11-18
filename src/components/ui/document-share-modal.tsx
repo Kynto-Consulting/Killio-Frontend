@@ -14,6 +14,8 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useAsyncAction } from "@/hooks/ui";
+import { GroupAccessSection } from "@/components/sharing/group-access-section";
+import { useSession } from "@/components/providers/session-provider";
 
 interface DocumentShareModalProps {
   isOpen: boolean;
@@ -23,6 +25,10 @@ interface DocumentShareModalProps {
   teamName?: string;
   initialVisibility?: "private" | "team" | "public_link";
   accessToken: string;
+  /** Workspace of the document (falls back to the active one). */
+  teamId?: string | null;
+  /** The caller's role on the document: owner/admin manage group access. */
+  role?: string | null;
 }
 
 export function DocumentShareModal({
@@ -33,7 +39,10 @@ export function DocumentShareModal({
   teamName = "Workspace Team",
   initialVisibility = "team",
   accessToken,
+  teamId,
+  role,
 }: DocumentShareModalProps) {
+  const { activeTeamId } = useSession();
   const t = useTranslations("document-detail");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [members, setMembers] = useState<DocumentMemberSummary[]>([]);
@@ -177,6 +186,14 @@ export function DocumentShareModal({
               </button>
             </div>
           </div>
+
+          <GroupAccessSection
+            scope="document"
+            id={documentId}
+            teamId={teamId ?? activeTeamId}
+            canManage={role === "owner" || role === "admin"}
+            callerRole={role === "owner" || role === "admin" ? role : null}
+          />
 
           <div className="space-y-3">
             <label className="text-sm font-medium text-foreground">{t("shareModal.generalAccess")}</label>

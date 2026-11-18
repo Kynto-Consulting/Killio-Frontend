@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, type CSSProperties } from "react";
+import { useTeamGroups } from "@/hooks/use-team-groups";
 import { useDroppable } from "@dnd-kit/core";
-import { Plus, MoreHorizontal, Archive, Trash2, Filter, Layers, ArrowUpDown } from "lucide-react";
+import { Plus, MoreHorizontal, Archive, Trash2, Filter, Layers, ArrowUpDown, Users, Check } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { KanbanCard } from "./kanban-card";
 import { CardDetailModal } from "./card-detail-modal";
@@ -48,6 +49,7 @@ export function ListColumnMobile({
   sortFromBoard = false,
   onResetBoardSort,
   filterError,
+  onAssignGroup,
 }: {
   list: ListData;
   boardName?: string;
@@ -71,9 +73,21 @@ export function ListColumnMobile({
   sortFromBoard?: boolean;
   onResetBoardSort?: () => void;
   filterError?: string | null;
+  /** Assigns a group to the list (null clears it). The page updates its state and calls the API. */
+  onAssignGroup?: (listId: string, groupId: string | null) => void | Promise<void>;
 }) {
   const t = useTranslations("board-detail");
   const tf = useTranslations("board-filters");
+  const tg = useTranslations("groups");
+  const { groups: teamGroups } = useTeamGroups(teamId);
+  const [isGroupPickerOpen, setIsGroupPickerOpen] = useState(false);
+  const assignedGroup = list.assignedGroupId ? teamGroups.find((g) => g.id === list.assignedGroupId) ?? null : null;
+  const canAssignGroup = !!onAssignGroup && !!teamId && canEdit;
+  const assignGroup = (groupId: string | null) => {
+    setIsGroupPickerOpen(false);
+    setIsMenuOpen(false);
+    if (groupId !== (list.assignedGroupId ?? null)) void onAssignGroup?.(list.id, groupId);
+  };
   const { setNodeRef } = useDroppable({ id: list.id });
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -156,13 +170,22 @@ export function ListColumnMobile({
             <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: accentColor }} />
           )}
           <h3 className="font-semibold text-sm">{list.title}</h3>
+          {assignedGroup && (
+            <span
+              className="inline-flex items-center gap-1 max-w-[96px] rounded-full border border-border bg-background/60 px-1.5 py-0.5 text-[10px] font-medium text-foreground"
+              title={tg("listGroup.badgeTooltip", { name: assignedGroup.name, count: assignedGroup.memberCount })}
+            >
+              <span className="h-1.5 w-1.5 rounded-full shrink-0 bg-muted-foreground/60" style={assignedGroup.color ? { backgroundColor: assignedGroup.color } : undefined} />
+              <span className="truncate">@{assignedGroup.slug}</span>
+            </span>
+          )}
         </div>
         <div className="flex items-center space-x-1 relative">
           <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full mr-1" title={total !== list.cards.length ? tf("bar.count", { shown: list.cards.length, total }) : undefined}>
             {total !== list.cards.length ? `${list.cards.length}/${total}` : list.cards.length}
           </span>
           <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            onClick={() => { setIsGroupPickerOpen(false); setIsMenuOpen(!isMenuOpen); }}
             className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground opacity-100 transition-opacity"
             aria-label={tf("listMenu.open")}
           >
@@ -194,6 +217,28 @@ export function ListColumnMobile({
                 <Layers className="w-3.5 h-3.5" />
                 {tf("listMenu.categories")}
               </button>
+              {canAssignGroup && (
+                <>
+                  <button onClick={(e) => { e.stopPropagation(); setIsGroupPickerOpen((v) => !v); }} className={menuItem}>
+                    <Users className="w-3.5 h-3.5" />
+                    {assignedGroup ? tg("listGroup.menuAssigned", { name: assignedGroup.name }) : tg("listGroup.menu")}
+                  </button>
+                  {isGroupPickerOpen && (
+                    <div className="mx-1 mb-1 max-h-48 overflow-y-auto rounded-md border border-border bg-muted/40 py-1" role="listbox" aria-label={tg("listGroup.title")}>
+                      <button onClick={(e) => { e.stopPropagation(); assignGroup(null); }} className={menuItem} role="option" aria-selected={!list.assignedGroupId}>
+                        <span className="w-3.5 h-3.5 flex items-center justify-center">{!list.assignedGroupId && <Check className="w-3.5 h-3.5" />}</span>
+                        {tg("listGroup.none")}
+                      </button>
+                      {teamGroups.map((g) => (
+                        <button key={g.id} onClick={(e) => { e.stopPropagation(); assignGroup(g.id); }} className={menuItem} role="option" aria-selected={list.assignedGroupId === g.id}>
+                          <span className="w-3.5 h-3.5 flex items-center justify-center">{list.assignedGroupId === g.id && <Check className="w-3.5 h-3.5" />}</span>
+                          <span className="truncate">{g.name} <span className="opacity-70">@{g.slug}</span></span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
               {!isGuest && (
                 <>
                   <div className="my-1 border-t border-border" />

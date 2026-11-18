@@ -20,6 +20,10 @@
     "cardOverdueTitle": "Overdue card: {{cardTitle}}",
     "cardOverdueMessage": "Your card in {{boardName}} ({{listName}}) is overdue.",
     "systemTitle": "System alert",
-    "systemMessage": "{{text}}"
+    "systemMessage": "{{text}}",
+    "listGroupCardCreatedTitle": "New card for {{groupName}}",
+    "listGroupCardCreatedMessage": "\"{{cardTitle}}\" was created in {{listName}} ({{boardName}}), assigned to {{groupName}}.",
+    "listGroupCardMovedTitle": "Card moved to {{groupName}}'s list",
+    "listGroupCardMovedMessage": "\"{{cardTitle}}\" was moved to {{listName}} ({{boardName}}), assigned to {{groupName}}."
   }
 }

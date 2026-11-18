@@ -18,6 +18,8 @@ export function inlineMdToHtml(s: string): string {
   h = h.replace(/\[link:([^\]]+)\]([\s\S]*?)\[\/link\]/g, (_m, url, inner) => `<a href="${escHtml(String(url).trim())}">${inner}</a>`);
   // Reference pills (@[type:id:name]) → bold label (drop the token on export).
   h = h.replace(/@\[(?:doc|document|board|mesh|card|user|group|folder):[^:\]]+(?::([^\]]+))?\]/g, (_m, name) => `<strong>${name || "ref"}</strong>`);
+  // KQL result pills (@[kql:mode.script:label]) → bold label (the live result cannot travel with a paste).
+  h = h.replace(/@\[kql:[^:\]]+(?::([^\]]+))?\]/g, (_m, name) => `<strong>${name || "query"}</strong>`);
   // Standard markdown inlines.
   h = h.replace(/!\[([^\]]*)\]\(([^)\s]+)[^)]*\)/g, (_m, alt, url) => `<img src="${url}" alt="${alt}" />`);
   h = h.replace(/\[([^\]]+)\]\(([^)\s]+)[^)]*\)/g, (_m, txt, url) => `<a href="${url}">${txt}</a>`);

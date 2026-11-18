@@ -1,5 +1,6 @@
 "use client";
 
+import { KqlScopeProvider } from "@/lib/kql-pill/scope";
 import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FolderIconDisplay } from "@/components/folders/FolderIconPicker";
@@ -1740,6 +1741,7 @@ export default function DocumentPage() {
   const docBreadcrumbs = getBreadcrumbs();
 
   return (
+    <KqlScopeProvider teamId={document.teamId}>
     <div className="flex flex-col h-full bg-background relative overflow-hidden">
       {/* Header */}
       <header className="flex h-14 items-center justify-between border-b border-border bg-card/50 px-4 backdrop-blur-md z-40 shrink-0 shadow-sm sticky top-0">
@@ -1946,6 +1948,8 @@ export default function DocumentPage() {
         documentName={document.title}
         initialVisibility={document.visibility}
         accessToken={accessToken!}
+        teamId={document.teamId}
+        role={document.role}
       />
 
       {/* Editor Content Area */}
@@ -2060,6 +2064,7 @@ export default function DocumentPage() {
         )}
       />
     </div>
+    </KqlScopeProvider>
   );
 
 

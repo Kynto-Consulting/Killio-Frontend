@@ -28,6 +28,10 @@ export type BoardThemeTokens = {
   panel: string;
   panelStrong: string;
   buttonGhost: string;
+  /** Background of a list column. */
+  list: string;
+  /** Which variant of the theme is in use. */
+  mode: "light" | "dark";
 };
 
 export type BoardThemeContext = {
@@ -39,13 +43,23 @@ export type BoardThemeContext = {
 
 export const DEFAULT_LIGHT_ACCENT = "#2563eb";
 
-export const THEME_PRESET_COLORS: Record<string, { accent: string; surface: string }> = {
-  "killio-default": { accent: "#d8ff72", surface: "#0b0f14" },
-  "killio-light": { accent: DEFAULT_LIGHT_ACCENT, surface: "#ffffff" },
-  "trello-ocean": { accent: "#67e8f9", surface: "#0c2233" },
-  "trello-forest": { accent: "#86efac", surface: "#10251f" },
-  "trello-sunrise": { accent: "#fcd34d", surface: "#3b1f10" },
+type PresetColors = { accent: string; surface: string };
+
+/**
+ * Every preset has a dark and a light version. The version follows the app theme (or a light board background);
+ * the "killio" presets take the tenant's accent in the light version, the others keep a hand-picked accent that
+ * reads on their pale surface.
+ */
+export const THEME_PRESETS: Record<string, { dark: PresetColors; light: PresetColors }> = {
+  "killio-default": { dark: { accent: "#d8ff72", surface: "#0b0f14" }, light: { accent: DEFAULT_LIGHT_ACCENT, surface: "#ffffff" } },
+  "killio-light": { dark: { accent: "#d8ff72", surface: "#0b0f14" }, light: { accent: DEFAULT_LIGHT_ACCENT, surface: "#ffffff" } },
+  "trello-ocean": { dark: { accent: "#67e8f9", surface: "#0c2233" }, light: { accent: "#0e7490", surface: "#ecfeff" } },
+  "trello-forest": { dark: { accent: "#86efac", surface: "#10251f" }, light: { accent: "#15803d", surface: "#f0fdf4" } },
+  "trello-sunrise": { dark: { accent: "#fcd34d", surface: "#3b1f10" }, light: { accent: "#b45309", surface: "#fffbeb" } },
 };
+
+/** The dark version of each preset (kept for code that only knows one palette). */
+export const THEME_PRESET_COLORS: Record<string, PresetColors> = Object.fromEntries(Object.entries(THEME_PRESETS).map(([key, v]) => [key, v.dark]));
 
 export function normalizeHexColor(value: unknown, fallback: string): string {
   if (typeof value !== "string") return fallback;
@@ -140,21 +154,21 @@ export function backgroundTone(appearance: BoardAppearanceLike): "light" | "dark
 }
 
 export function resolveThemeTokens(appearance: BoardAppearanceLike, context: BoardThemeContext = {}): BoardThemeTokens {
-  const presetKey = appearance.themePreset && THEME_PRESET_COLORS[appearance.themePreset] ? appearance.themePreset : "killio-default";
+  const presetKey = appearance.themePreset && THEME_PRESETS[appearance.themePreset] ? appearance.themePreset : "killio-default";
   const isCustom = appearance.themeKind === "custom";
   const custom = isCustom ? appearance.themeCustom : undefined;
   const lightAccent = normalizeHexColor(context.lightAccent, DEFAULT_LIGHT_ACCENT);
 
-  // The default preset adapts to its surroundings; a preset or custom colours the user picked are kept as chosen.
-  const tone = backgroundTone(appearance);
-  const adaptToLight = !isCustom && presetKey === "killio-default" && (tone === "light" || (tone === "app" && Boolean(context.appIsLight)));
-  const preset = adaptToLight ? { accent: lightAccent, surface: "#ffffff" } : THEME_PRESET_COLORS[presetKey];
-  const usesLightPreset = presetKey === "killio-light";
+  // Light when the app is light or the board background is white-ish; otherwise dark.
+  const wantLight = backgroundTone(appearance) === "light" || Boolean(context.appIsLight);
+  const variant = THEME_PRESETS[presetKey][wantLight ? "light" : "dark"];
+  const usesTenantAccent = presetKey === "killio-default" || presetKey === "killio-light";
+  const preset = wantLight && usesTenantAccent ? { accent: lightAccent, surface: variant.surface } : variant;
 
-  const accent = normalizeHexColor(custom?.accent, usesLightPreset && !adaptToLight ? lightAccent : preset.accent);
+  const accent = normalizeHexColor(custom?.accent, preset.accent);
   const surface = normalizeHexColor(custom?.surface, preset.surface);
   const light = isLightColor(surface);
-  const isClassicPreset = !isCustom && (presetKey === "killio-default" || usesLightPreset);
+  const isClassicPreset = !isCustom && usesTenantAccent;
 
   return {
     accent,
@@ -162,9 +176,11 @@ export function resolveThemeTokens(appearance: BoardAppearanceLike, context: Boa
     surface,
     surfaceStrong: light ? mixHex(surface, "#000000", 0.04) : mixHex(surface, "#ffffff", 0.04),
     text: light ? "#111827" : "#f8fafc",
-    border: isClassicPreset ? (light ? mixHex(surface, "#000000", 0.14) : mixHex(surface, "#ffffff", 0.1)) : rgbaFromHex(accent, 0.35),
+    border: isClassicPreset ? (light ? mixHex(surface, "#000000", 0.14) : mixHex(surface, "#ffffff", 0.1)) : rgbaFromHex(accent, light ? 0.3 : 0.35),
     panel: rgbaFromHex(surface, light ? 0.85 : 0.68),
     panelStrong: rgbaFromHex(surface, light ? 0.94 : 0.84),
     buttonGhost: rgbaFromHex(accent, light ? 0.12 : 0.14),
+    list: light ? mixHex(surface, "#000000", 0.055) : mixHex(surface, "#ffffff", 0.05),
+    mode: light ? "light" : "dark",
   };
 }

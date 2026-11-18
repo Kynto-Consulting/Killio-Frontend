@@ -228,6 +228,8 @@ export const BRICK_TYPE_DEFINITIONS: Record<string, BrickTypeInfo> = {
       { name: "type", type: "string", description: "Tipo de gráfico (bar, line, pie, area)" },
       { name: "data", type: "any", description: "Datos del gráfico" },
       { name: "title", type: "string", description: "Título del gráfico" },
+      { name: "tableSource", type: "{ brickId, xAxisColumn, dataColumns }", description: "Opcional: graficar una tabla del documento" },
+      { name: "source", type: "{ kind: 'kql', script: string, output?: number }", description: "Opcional: datos desde una consulta KQL (ej. 'cards where done in last 30d group by assignee count'). La primera dimensión es el eje X y cada métrica una serie; output = índice de la salida `show` (por defecto 0). Tiene prioridad sobre data/tableSource" },
     ],
   },
   tabs: {

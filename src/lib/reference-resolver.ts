@@ -3,6 +3,7 @@ import { BoardSummary } from "@/lib/api/contracts";
 import { Folder } from "@/lib/api/folders";
 import { sheetEngine } from "@/lib/sheetEngine";
 import { WorkspaceMemberLike } from "./workspace-members";
+import { parseKqlPillToken } from "./kql-pill/token";
 
 type ResolverBrick = {
   id: string;
@@ -22,6 +23,11 @@ export interface ResolverContext {
   users?: WorkspaceMemberLike[];
   /** Team user groups, for `@[group:id:Name]` pills (colour + member count). */
   groups?: Array<{ id: string; name: string; color?: string | null; memberCount?: number }>;
+  /**
+   * Opt in to `{ type: 'kql' }` parts for `@[kql:mode.script:label]` tokens (rendered with KqlPill).
+   * Callers that do not know that part type leave this unset and keep seeing the raw token text.
+   */
+  renderKql?: boolean;
 }
 
 export class ReferenceResolver {
@@ -506,7 +512,7 @@ export class ReferenceResolver {
    */
   static renderRich(text: string, _context: ResolverContext): (string | any)[] {
     const context = _context;
-    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|group|folder|room|thread|transcript|event):[^\]]+\]|[$#]\[[^\]]+\])/g);
+    const parts = text.split(/(@\[ext:[^\]]+\]|@\[(?:doc|board|mesh|card|user|group|folder|room|thread|transcript|event|kql):[^\]]+\]|[$#]\[[^\]]+\])/g);
 
     const resolvedParts = parts.map((part, i) => {
       // Extension reference: @[ext:provider:kind:externalId:label] → app pill.
@@ -514,6 +520,11 @@ export class ReferenceResolver {
       if (extMatch) {
         const [, provider, extKind, externalId, label] = extMatch;
         return { type: 'ext', provider, extKind, id: externalId, name: String(label || provider), key: i };
+      }
+      if (part.startsWith("@[kql:")) {
+        const spec = context.renderKql ? parseKqlPillToken(part) : null;
+        if (spec) return { type: 'kql', script: spec.script, mode: spec.mode, label: spec.label, token: part, key: i };
+        return part;
       }
       const match = part.match(/@\[(doc|board|mesh|card|user|group|folder|room|thread|transcript|event):([^:\]]+)(?::([^\]]+))?\]/);
       if (match) {

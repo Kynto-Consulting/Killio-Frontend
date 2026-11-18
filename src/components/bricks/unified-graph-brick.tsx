@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
@@ -19,10 +19,16 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { BarChart2, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon, Settings2 } from "lucide-react";
+import { BarChart2, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon, Settings2, Play, Loader2 } from "lucide-react";
 import { sheetEngine } from "@/lib/sheetEngine";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useSession } from "@/components/providers/session-provider";
+import { useKqlScopeTeamId } from "@/lib/kql-pill/scope";
+import { runKqlQuery } from "@/lib/api/groups";
+import { KQL_SYNTAX_GUIDE, parseKqlScript, toChartData, type KqlOutput, type KqlTable } from "@/lib/query/kql";
+import { tablesFromBricks } from "@/lib/query/tables";
+import { clearKqlServerCache, runLocalOrServer, type KqlRunVia } from "@/lib/query/run-local-or-server";
 
 type GraphType = "line" | "bar" | "pie" | "area";
 
@@ -32,11 +38,19 @@ type TableSourceConfig = {
   dataColumns: number[];
 };
 
+type KqlSourceConfig = {
+  kind: "kql";
+  script: string;
+  /** Which `show` output of the script feeds the chart (default 0). */
+  output?: number;
+};
+
 type GraphConfig = {
   type: GraphType;
   title?: string;
   data?: Array<Record<string, any>>;
   tableSource?: TableSourceConfig;
+  source?: KqlSourceConfig;
 };
 
 interface GraphBrickProps {
@@ -47,7 +61,7 @@ interface GraphBrickProps {
   activeBricks?: Array<any>;
 }
 
-const COLORS = ["#0f172a", "#2563eb", "#0d9488", "#f97316", "#dc2626", "#7c3aed"];
+const COLORS = ["hsl(var(--primary))", "#2563eb", "#0d9488", "#f97316", "#dc2626", "#7c3aed"];
 
 const DEFAULT_MANUAL_DATA = [
   { name: "A", value: 10 },
@@ -55,18 +69,130 @@ const DEFAULT_MANUAL_DATA = [
   { name: "C", value: 15 },
 ];
 
-export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpdate, readonly, activeBricks = [] }) => {
+const NO_BRICKS: Array<any> = [];
+const KQL_DEBOUNCE_MS = 400;
+const PREVIEW_ROWS = 8;
+
+/** Examples listed at the end of KQL_SYNTAX_GUIDE, without their trailing "-- comment". */
+const KQL_EXAMPLES: string[] = (() => {
+  const idx = KQL_SYNTAX_GUIDE.indexOf("\nExamples:\n");
+  if (idx < 0) return [];
+  return KQL_SYNTAX_GUIDE.slice(idx + "\nExamples:\n".length)
+    .split("\n")
+    .map((line) => line.trim().replace(/\s+--.*$/, "").trim())
+    .filter((line) => line.length > 0)
+    .slice(0, 6);
+})();
+
+type KqlErrorInfo = { message: string; position?: number };
+
+function kqlErrorInfo(error: unknown): KqlErrorInfo {
+  const err = error as { message?: string; position?: unknown; details?: { position?: unknown } } | null;
+  const raw = typeof err?.position === "number" ? err.position : err?.details?.position;
+  return {
+    message: String(err?.message || error || "Error"),
+    position: typeof raw === "number" ? raw : undefined,
+  };
+}
+
+/** 1-based line / column plus the source line, for a caret under the error. */
+function locate(script: string, position: number) {
+  const pos = Math.max(0, Math.min(position, script.length));
+  const before = script.slice(0, pos);
+  const line = before.split("\n").length;
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const lineEnd = script.indexOf("\n", pos);
+  return { line, col: pos - lineStart + 1, text: script.slice(lineStart, lineEnd < 0 ? undefined : lineEnd) };
+}
+
+type KqlRunState = {
+  forScript: string;
+  status: "idle" | "loading" | "ok" | "error";
+  outputs: KqlOutput[];
+  via: KqlRunVia | null;
+  error: KqlErrorInfo | null;
+};
+
+const IDLE_RUN: KqlRunState = { forScript: "", status: "idle", outputs: [], via: null, error: null };
+
+/** Runs `script` (debounced, cached by runLocalOrServer) while `enabled`; never throws. */
+function useKqlRun(script: string, enabled: boolean, tables: KqlTable[], teamId: string | null, accessToken: string | null, nonce: number): KqlRunState {
+  const [state, setState] = useState<KqlRunState>(IDLE_RUN);
+  const tokenRef = useRef(accessToken);
+  tokenRef.current = accessToken;
+
+  useEffect(() => {
+    if (!enabled) {
+      setState(IDLE_RUN);
+      return;
+    }
+    let cancelled = false;
+    setState((prev) => (prev.forScript === script && (prev.status === "ok" || prev.status === "loading") ? prev : { ...prev, forScript: script, status: "loading", error: null }));
+    const timer = setTimeout(async () => {
+      try {
+        const out = await runLocalOrServer(
+          { script, tables, teamId },
+          {
+            runServer: async (s) => {
+              const token = tokenRef.current;
+              if (!token || !teamId) throw new Error("Sign in and select a team to run this query.");
+              const res = await runKqlQuery(teamId, s, token);
+              return res.outputs as unknown as KqlOutput[];
+            },
+          },
+        );
+        if (!cancelled) setState({ forScript: script, status: "ok", outputs: out.outputs, via: out.via, error: null });
+      } catch (error) {
+        if (!cancelled) setState({ forScript: script, status: "error", outputs: [], via: null, error: kqlErrorInfo(error) });
+      }
+    }, nonce > 0 ? 0 : KQL_DEBOUNCE_MS);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+    // `nonce` forces a fresh run (the Run button).
+  }, [script, enabled, tables, teamId, nonce]);
+
+  return state;
+}
+
+export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpdate, readonly, activeBricks = NO_BRICKS }) => {
   const t = useTranslations("document-detail");
   const safeConfig: GraphConfig = {
     type: config?.type || "line",
     title: config?.title || t("graph.defaultTitle"),
     data: Array.isArray(config?.data) && config?.data.length > 0 ? config?.data : DEFAULT_MANUAL_DATA,
     tableSource: config?.tableSource,
+    source: config?.source?.kind === "kql" ? config.source : undefined,
   };
 
   const [isConfiguring, setIsConfiguring] = useState<boolean>(!readonly && !safeConfig.tableSource && !config);
   const [manualJson, setManualJson] = useState<string>(JSON.stringify(safeConfig.data, null, 2));
   const [jsonError, setJsonError] = useState<string>("");
+  const tk = useTranslations("kql");
+  const { accessToken, activeTeamId: sessionTeamId } = useSession();
+  // The document's own team wins over the team active in the sidebar.
+  const activeTeamId = useKqlScopeTeamId() ?? sessionTeamId;
+  const [kqlPending, setKqlPending] = useState(false);
+  const [kqlDraft, setKqlDraft] = useState<string>(config?.source?.script ?? "");
+  const [kqlOutput, setKqlOutput] = useState<number>(config?.source?.output ?? 0);
+  const [runNonce, setRunNonce] = useState(0);
+  const isKql = !!safeConfig.source || kqlPending;
+  const editingKql = !readonly && isConfiguring && isKql;
+  const kqlScript = editingKql ? kqlDraft : safeConfig.source?.script ?? "";
+  const kqlOutputIndex = editingKql ? kqlOutput : safeConfig.source?.output ?? 0;
+  const kqlTables = useMemo(() => tablesFromBricks(activeBricks as any[]), [activeBricks]);
+  const kqlSyntax = useMemo<KqlErrorInfo | null>(() => {
+    if (!kqlScript.trim()) return null;
+    try {
+      parseKqlScript(kqlScript);
+      return null;
+    } catch (error) {
+      return kqlErrorInfo(error);
+    }
+  }, [kqlScript]);
+  const kqlRun = useKqlRun(kqlScript, isKql && !!kqlScript.trim() && !(editingKql && kqlSyntax), kqlTables, activeTeamId, accessToken, runNonce);
+  const kqlSelected = kqlRun.outputs[Math.min(Math.max(kqlOutputIndex, 0), Math.max(kqlRun.outputs.length - 1, 0))];
 
   const resolveTableRows = (brick: any): string[][] => {
     const directRows = Array.isArray(brick?.rows) ? brick.rows : null;
@@ -105,6 +231,9 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
   const tableHeaders = selectedTable?.rows?.[0] || [];
 
   const chartData = useMemo(() => {
+    if (isKql) {
+      return kqlSelected && kqlRun.status === "ok" ? toChartData(kqlSelected.result) : [];
+    }
     if (selectedTable && safeConfig.tableSource) {
       const rows = selectedTable.rows;
       if (!rows || rows.length < 2 || rows[0].length === 0) return [];
@@ -135,7 +264,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
     }
 
     return Array.isArray(safeConfig.data) ? safeConfig.data : [];
-  }, [id, selectedTable, safeConfig.data, safeConfig.tableSource]);
+  }, [id, isKql, kqlSelected, kqlRun.status, selectedTable, safeConfig.data, safeConfig.tableSource]);
 
   const dataKeys = useMemo(() => {
     if (chartData.length === 0) return ["value"];
@@ -155,7 +284,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
         return;
       }
       setJsonError("");
-      updateConfig({ data: parsed, tableSource: undefined });
+      updateConfig({ data: parsed, tableSource: undefined, source: undefined });
       setIsConfiguring(false);
     } catch {
       setJsonError(t("graph.invalidJson"));
@@ -174,6 +303,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
     const dataColumns = safeConfig.tableSource?.dataColumns?.filter((idx) => idx !== xAxisColumn) || fallbackSeries;
 
     updateConfig({
+      source: undefined,
       tableSource: {
         brickId: selected.id,
         xAxisColumn,
@@ -181,6 +311,41 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
       },
     });
     setIsConfiguring(false);
+  };
+
+  const applyKql = () => {
+    if (!kqlDraft.trim() || kqlSyntax) return;
+    setKqlPending(false);
+    updateConfig({ source: { kind: "kql", script: kqlDraft.trim(), output: kqlOutput }, tableSource: undefined });
+    setIsConfiguring(false);
+  };
+
+  const pickKqlOutput = (index: number) => {
+    setKqlOutput(index);
+    if (safeConfig.source && !editingKql) updateConfig({ source: { ...safeConfig.source, output: index } });
+  };
+
+  const pickExample = (example: string) => {
+    setKqlDraft(example);
+    setKqlOutput(0);
+  };
+
+  /** Loading / error / empty states of a KQL source, or null when the chart can be drawn. */
+  const renderKqlState = (): React.ReactNode => {
+    const note = (text: string, tone: "muted" | "error" = "muted") => (
+      <div className={cn("h-full w-full flex items-center justify-center px-4 text-center text-xs", tone === "error" ? "text-destructive" : "text-muted-foreground")}>
+        {text}
+      </div>
+    );
+    if (!kqlScript.trim()) return note(tk("graph.emptyScript"));
+    if (editingKql && kqlSyntax) return note(tk("graph.syntaxError") + ": " + kqlSyntax.message, "error");
+    if (kqlRun.status === "error" && kqlRun.error) return note(tk("graph.failed", { message: kqlRun.error.message }), "error");
+    if (kqlRun.status !== "ok" || kqlRun.forScript !== kqlScript) {
+      return <div role="status" aria-label={tk("graph.loadingChart")} className="h-full w-full animate-pulse rounded-md bg-muted" />;
+    }
+    if (!kqlSelected || kqlSelected.result.rows.length === 0) return note(tk("graph.empty"));
+    if (!kqlSelected.result.columns.some((c) => c.kind === "metric")) return note(tk("graph.noMetric"));
+    return null;
   };
 
   const renderChart = () => {
@@ -258,7 +423,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
           <div>
             <p className="text-sm font-semibold text-foreground">{safeConfig.title || t("graph.defaultTitle")}</p>
             <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
-              {safeConfig.tableSource ? "Fuente: tabla" : "Fuente: manual"}
+              {isKql ? tk("graph.sourceLabelKql") : safeConfig.tableSource ? "Fuente: tabla" : "Fuente: manual"}
             </p>
           </div>
         </div>
@@ -298,17 +463,19 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
           </div>
 
           <div className="flex flex-wrap gap-2 pt-1">
-            <Button variant={!safeConfig.tableSource ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => updateConfig({ tableSource: undefined })}>
+            <Button variant={!safeConfig.tableSource && !isKql ? "default" : "outline"} size="sm" className="h-8 text-xs" onClick={() => { setKqlPending(false); updateConfig({ tableSource: undefined, source: undefined }); }}>
               Datos manuales
             </Button>
             <Button
-              variant={safeConfig.tableSource ? "default" : "outline"}
+              variant={safeConfig.tableSource && !isKql ? "default" : "outline"}
               size="sm"
               className="h-8 text-xs"
               onClick={() => {
                 if (!availableTables.length) return;
                 const target = safeConfig.tableSource?.brickId || availableTables[0].id;
+                setKqlPending(false);
                 updateConfig({
+                  source: undefined,
                   tableSource: {
                     brickId: target,
                     xAxisColumn: 0,
@@ -320,9 +487,141 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
             >
               Datos desde tabla
             </Button>
+            <Button
+              variant={isKql ? "default" : "outline"}
+              size="sm"
+              className="h-8 text-xs"
+              onClick={() => {
+                setKqlDraft(safeConfig.source?.script ?? kqlDraft);
+                setKqlPending(true);
+              }}
+            >
+              {tk("graph.sourceKql")}
+            </Button>
           </div>
 
-          {safeConfig.tableSource ? (
+          {isKql ? (
+            <div className="rounded-md border border-border p-2 space-y-2">
+              <label htmlFor={`kql-${id}`} className="block text-xs font-semibold text-muted-foreground">{tk("graph.scriptLabel")}</label>
+              <textarea
+                id={`kql-${id}`}
+                spellCheck={false}
+                className="min-h-[96px] w-full rounded-md border border-input bg-card px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-accent"
+                value={kqlDraft}
+                onChange={(e) => setKqlDraft(e.target.value)}
+                placeholder={tk("graph.scriptPlaceholder")}
+              />
+              {kqlSyntax ? (
+                <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive space-y-1">
+                  <p className="font-semibold">{tk("graph.syntaxError")}: {kqlSyntax.message}</p>
+                  {kqlSyntax.position !== undefined && (() => {
+                    const at = locate(kqlDraft, kqlSyntax.position);
+                    return (
+                      <>
+                        <p className="text-[10px] opacity-80">{tk("graph.errorAt", { line: at.line, col: at.col })}</p>
+                        <pre className="overflow-x-auto font-mono text-[11px] leading-snug">{at.text + "\n" + " ".repeat(Math.max(0, at.col - 1)) + "^"}</pre>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                kqlDraft.trim() && <p className="text-[11px] text-emerald-700 dark:text-emerald-300">{tk("graph.valid")}</p>
+              )}
+
+              {KQL_EXAMPLES.length > 0 && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground">{tk("graph.examples")}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {KQL_EXAMPLES.map((example) => (
+                      <button
+                        key={example}
+                        type="button"
+                        title={example}
+                        onClick={() => pickExample(example)}
+                        className="max-w-full truncate rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[10px] text-foreground transition-colors hover:bg-accent/10"
+                      >
+                        {example}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 gap-1.5 text-xs"
+                  disabled={!kqlDraft.trim() || !!kqlSyntax || kqlRun.status === "loading"}
+                  onClick={() => {
+                    clearKqlServerCache();
+                    setRunNonce((n) => n + 1);
+                  }}
+                >
+                  {kqlRun.status === "loading" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                  {kqlRun.status === "loading" ? tk("graph.running") : tk("graph.run")}
+                </Button>
+                {kqlRun.outputs.length > 1 && (
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    {tk("graph.output")}
+                    <select
+                      className="rounded-md border border-input bg-card px-2 py-1 text-xs text-foreground outline-none focus:ring-1 focus:ring-accent"
+                      value={Math.min(kqlOutput, kqlRun.outputs.length - 1)}
+                      onChange={(e) => pickKqlOutput(Number(e.target.value))}
+                    >
+                      {kqlRun.outputs.map((output, idx) => (
+                        <option key={idx} value={idx}>{output.title || tk("graph.outputN", { n: idx + 1 })}</option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                {kqlRun.via && kqlRun.status === "ok" && (
+                  <span className="text-[10px] text-muted-foreground">{kqlRun.via === "local" ? tk("graph.viaLocal") : tk("graph.viaServer")}</span>
+                )}
+                <div className="ml-auto">
+                  <Button size="sm" className="h-8 text-xs" disabled={!kqlDraft.trim() || !!kqlSyntax} onClick={applyKql}>{tk("graph.apply")}</Button>
+                </div>
+              </div>
+
+              {kqlRun.status === "error" && kqlRun.error && !kqlSyntax && (
+                <p role="alert" className="text-xs text-destructive">{tk("graph.failed", { message: kqlRun.error.message })}</p>
+              )}
+              {kqlRun.status === "ok" && kqlSelected && (
+                <div className="space-y-1">
+                  <p className="text-[11px] font-semibold text-muted-foreground">
+                    {tk("graph.preview")} · {tk("graph.rowsCount", { count: kqlSelected.result.rows.length })}
+                  </p>
+                  {kqlSelected.result.rows.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">{tk("graph.empty")}</p>
+                  ) : (
+                    <div className="max-h-40 overflow-auto rounded-md border border-border">
+                      <table className="w-full text-left text-[11px] text-foreground">
+                        <thead className="bg-muted text-muted-foreground">
+                          <tr>
+                            {kqlSelected.result.columns.map((col) => (
+                              <th key={col.key} className="px-2 py-1 font-semibold">{col.label}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {kqlSelected.result.rows.slice(0, PREVIEW_ROWS).map((row, ri) => (
+                            <tr key={ri} className="border-t border-border">
+                              {row.cells.map((cell, ci) => (
+                                <td key={ci} className="px-2 py-1">{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  {kqlSelected.result.rows.length > PREVIEW_ROWS && (
+                    <p className="text-[10px] text-muted-foreground">{tk("graph.previewTruncated", { count: PREVIEW_ROWS })}</p>
+                  )}
+                </div>
+              )}
+            </div>
+          ) : safeConfig.tableSource ? (
             <div className="rounded-md border border-border p-2 space-y-2">
               {availableTables.length === 0 ? (
                 <p className="text-xs text-muted-foreground">No hay bricks de tabla en este contexto.</p>
@@ -429,9 +728,11 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
       )}
 
       <div className="h-72 w-full rounded-lg border border-border/50 bg-background/50 p-2">
-        <ResponsiveContainer width="100%" height="100%">
-          {renderChart()}
-        </ResponsiveContainer>
+        {(isKql ? renderKqlState() : null) ?? (
+          <ResponsiveContainer width="100%" height="100%">
+            {renderChart()}
+          </ResponsiveContainer>
+        )}
       </div>
     </div>
   );

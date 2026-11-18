@@ -15,6 +15,7 @@ import {
   Radio,
   Puzzle,
   Users,
+  Database,
 } from "lucide-react";
 import { BoardSummary, getMesh } from "@/lib/api/contracts";
 import { DocumentSummary, getDocument } from "@/lib/api/documents";
@@ -26,6 +27,9 @@ import { getIntegration, buildExtensionToken, INTEGRATION_CATALOG, IntegrationUI
 import { useTeamGroups } from "@/hooks/use-team-groups";
 import { groupMentionToken } from "@/lib/api/groups";
 import { searchIntegrationRefs, IntegrationRefEntity } from "@/lib/api/integrations";
+import { KqlPillDialog } from "@/components/ui/kql-pill-dialog";
+import { buildKqlPillToken } from "@/lib/kql-pill/token";
+import type { KqlTable } from "@/lib/query/kql";
 
 /** provider → ref kinds the backend can live-search (others ref the app/kind directly). */
 const SEARCHABLE_KINDS: Record<string, Set<string>> = {
@@ -37,8 +41,8 @@ const SEARCHABLE_KINDS: Record<string, Set<string>> = {
 };
 const isSearchable = (provider: string, kind: string) => !!SEARCHABLE_KINDS[provider]?.has(kind);
 
-type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript";
-type AllowedMentionType = MentionType | "document";
+type MentionType = "board" | "mesh" | "doc" | "card" | "user" | "group" | "folder" | "room" | "thread" | "transcript" | "kql";
+type AllowedMentionType = MentionType | "document" | "kql";
 
 type ActiveBrick = {
   id: string;
@@ -85,6 +89,8 @@ interface ReferencePickerProps {
   localScopeId?: string;
   docScopeId?: string;
   allowedTypes?: AllowedMentionType[];
+  /** Tables of the open document: lets the KQL pill preview run locally. */
+  kqlTables?: KqlTable[];
   onLoadDocumentsInFolder?: (folderId: string) => Promise<DocumentSummary[]>;
 }
 
@@ -243,6 +249,7 @@ export function ReferencePicker({
   activeBricks = [],
   localScopeId = "local",
   allowedTypes,
+  kqlTables,
   onLoadDocumentsInFolder,
 }: ReferencePickerProps) {
   const { accessToken, activeTeamId } = useSession();
@@ -250,6 +257,10 @@ export function ReferencePicker({
   const tg = useTranslations("groups");
   const [query, setQuery] = useState("");
   const t = useTranslations("common");
+  const tk = useTranslations("kql");
+  const [kqlOpen, setKqlOpen] = useState(false);
+  const kqlOpenRef = useRef(false);
+  kqlOpenRef.current = kqlOpen;
   const [mode, setMode] = useState<PickerMode>("root");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [selectedDoc, setSelectedDoc] = useState<DocumentSummary | null>(null);
@@ -316,6 +327,7 @@ export function ReferencePicker({
 
   useEffect(() => {
     const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (kqlOpenRef.current) return; // the KQL dialog owns the keyboard
       if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
@@ -453,8 +465,11 @@ export function ReferencePicker({
       { key: "integrations", label: t("referencePicker.integrations"), subtitle: t("referencePicker.integrationsSubtitle") },
     ];
 
+    const kqlEntry = { key: "kql", label: tk("pill.queryResult"), subtitle: tk("pill.queryResultHint") };
     if (normalizedAllowedTypes && normalizedAllowedTypes.length > 0) {
-      extra = []; // Hide extra complex pickers if restricted to just simple mentions
+      extra = (normalizedAllowedTypes as string[]).includes("kql") ? [kqlEntry] : []; // Hide extra complex pickers if restricted to just simple mentions
+    } else {
+      extra = [...extra, kqlEntry];
     }
 
     extra = extra.filter((it) => {
@@ -463,7 +478,7 @@ export function ReferencePicker({
     });
 
     return { filteredMentions, extra };
-  }, [boards, meshBoards, documents, users, teamGroups, tg, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t]);
+  }, [boards, meshBoards, documents, users, teamGroups, tg, cards, folders, rooms, transcripts, activeCallId, extensions, query, normalizedAllowedTypes, t, tk]);
 
   const currentSelectors = useMemo(() => {
     if (!selectedBrick) return [] as SelectorOption[];
@@ -842,6 +857,7 @@ export function ReferencePicker({
       if (item.key === "documents") openDocuments();
       if (item.key === "meshes") openMeshes();
       if (item.key === "integrations") openIntegrations();
+      if (item.key === "kql") setKqlOpen(true);
       return;
     }
 
@@ -973,6 +989,7 @@ export function ReferencePicker({
             : "Elige el selector segun tipo";
 
   return (
+    <>
     <div 
       className="fixed inset-0 z-[100] flex items-start justify-center pt-20 bg-background/20 backdrop-blur-[2px]"
       onClick={(e) => {
@@ -1068,13 +1085,14 @@ export function ReferencePicker({
                       else if (item.key === "documents") openDocuments();
                       else if (item.key === "meshes") openMeshes();
                       else if (item.key === "integrations") openIntegrations();
+                      else if (item.key === "kql") setKqlOpen(true);
                     }}
                     onMouseEnter={() => setSelectedIndex(idx)}
                     className={`w-full text-left flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors ${
                       idx === selectedIndex ? "bg-accent text-accent-foreground" : "hover:bg-accent/10"
                     }`}
                   >
-                    {item.key === "integrations" ? <Puzzle className="h-4 w-4 opacity-70" /> : <FileText className="h-4 w-4 opacity-70" />}
+                    {item.key === "integrations" ? <Puzzle className="h-4 w-4 opacity-70" /> : item.key === "kql" ? <Database className="h-4 w-4 opacity-70" /> : <FileText className="h-4 w-4 opacity-70" />}
                     <div className="flex flex-col min-w-0 flex-1">
                       <span className="text-sm font-medium truncate">{item.label} &gt;</span>
                       <span className="text-[10px] uppercase tracking-wider opacity-50 truncate">{item.subtitle}</span>
@@ -1395,5 +1413,20 @@ export function ReferencePicker({
         </div>
       </div>
     </div>
+    <KqlPillDialog
+      open={kqlOpen}
+      tables={kqlTables}
+      onClose={() => setKqlOpen(false)}
+      onSubmit={(spec) => {
+        setKqlOpen(false);
+        closeAndSelect({
+          token: buildKqlPillToken(spec.script, spec.mode, spec.label),
+          label: spec.label,
+          category: "mention",
+          mentionType: "kql",
+        });
+      }}
+    />
+    </>
   );
 }

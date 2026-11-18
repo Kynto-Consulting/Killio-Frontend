@@ -18,8 +18,9 @@ test("today's default (dark background, default preset) is unchanged", () => {
   assert.equal(t.accent, "#d8ff72");
   assert.equal(t.surface, "#0b0f14");
   assert.equal(t.text, "#f8fafc");
-  const dark = resolveThemeTokens({ backgroundKind: "preset", backgroundValue: "#0a0a0a" }, { appIsLight: true });
-  assert.equal(dark.text, "#f8fafc", "a dark board stays dark even inside a light app");
+  const light = resolveThemeTokens({ backgroundKind: "preset", backgroundValue: "#0a0a0a" }, { appIsLight: true });
+  assert.equal(light.text, "#111827", "the theme follows the app: a dark background in a light app uses the light version");
+  assert.equal(resolveThemeTokens({ backgroundKind: "preset", backgroundValue: "#0a0a0a" }, { appIsLight: false }).text, "#f8fafc");
 });
 
 test("a white background turns the default theme light: dark text and a readable accent", () => {
@@ -46,13 +47,26 @@ test("the tenant's primary colour is used as the light accent", () => {
   assert.equal(hslTripletToHex("nonsense"), "#2563eb");
 });
 
+test("every preset has a readable light and dark version", () => {
+  for (const key of ["killio-default", "killio-light", "trello-ocean", "trello-forest", "trello-sunrise"]) {
+    for (const appIsLight of [false, true]) {
+      const t = resolveThemeTokens({ themePreset: key }, { appIsLight });
+      assert.equal(t.mode, appIsLight ? "light" : "dark", `${key} follows the app theme`);
+      assert.ok(contrast(t.text, t.surface) >= 7, `${key} ${t.mode}: text is readable on the surface`);
+      assert.ok(contrast(t.accent, t.surface) >= 4.5, `${key} ${t.mode}: accent ${t.accent} is readable on ${t.surface}`);
+      assert.notEqual(t.list, t.surface, `${key} ${t.mode}: lists are distinguishable from the surface`);
+    }
+  }
+});
+
 test("presets and custom colours chosen by the user are kept as chosen", () => {
-  const ocean = resolveThemeTokens({ themePreset: "trello-ocean", backgroundKind: "preset", backgroundValue: "#ffffff" });
+  const ocean = resolveThemeTokens({ themePreset: "trello-ocean" });
   assert.equal(ocean.surface, "#0c2233");
+  assert.equal(resolveThemeTokens({ themePreset: "trello-ocean" }, { appIsLight: true }).surface, "#ecfeff");
   const custom = resolveThemeTokens({ themeKind: "custom", themeCustom: { surface: "#101010", accent: "#ff00ff" }, backgroundKind: "preset", backgroundValue: "#ffffff" });
   assert.equal(custom.surface, "#101010");
   assert.equal(custom.accent, "#ff00ff");
-  const explicitLight = resolveThemeTokens({ themePreset: "killio-light" });
+  const explicitLight = resolveThemeTokens({ themePreset: "killio-light" }, { appIsLight: true });
   assert.equal(explicitLight.surface, "#ffffff");
   assert.equal(explicitLight.text, "#111827");
 });

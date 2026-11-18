@@ -105,6 +105,92 @@ export function ListCardsView({
   );
 }
 
+/**
+ * Funnel button of a list header. A dot shows that something is active (filter, categories, sort); hovering opens a small
+ * summary card (like the column filter of the tables) and clicking opens the list view dialog.
+ */
+export function ListViewTrigger({
+  config,
+  boardSortActive,
+  effectiveSort,
+  tagGroups,
+  filterError,
+  onResetSort,
+  onOpenTab,
+}: {
+  config: ListViewConfig;
+  boardSortActive: boolean;
+  effectiveSort: SortRule[];
+  tagGroups: TagGroup[];
+  filterError?: string | null;
+  onResetSort?: () => void;
+  onOpenTab: (tab: "filter" | "sort" | "categories") => void;
+}) {
+  const t = useTranslations("board-filters");
+  const [tip, setTip] = useState(false);
+  const hasFilter = !!config.filter?.trim();
+  const catCount = config.categories?.length ?? 0;
+  const active = hasFilter || catCount > 0 || effectiveSort.length > 0;
+  const row = "flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left hover:bg-muted";
+  return (
+    <div className="relative" onMouseEnter={() => active && setTip(true)} onMouseLeave={() => setTip(false)}>
+      <button
+        type="button"
+        onClick={() => { setTip(false); onOpenTab("filter"); }}
+        aria-label={t("listMenu.filter")}
+        title={active ? undefined : t("listMenu.filter")}
+        className={`relative h-6 w-6 rounded flex items-center justify-center transition-colors ${active ? (filterError ? "text-red-600 dark:text-red-400 bg-red-500/10" : "text-accent bg-accent/10") : "text-muted-foreground hidden group-hover:flex focus:flex hover:bg-accent/10"}`}
+      >
+        <Filter className="h-3.5 w-3.5" />
+        {active ? <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-accent ring-2 ring-[#f1f2f4] dark:ring-[#101204]" /> : null}
+      </button>
+      {tip && active ? (
+        <div className="absolute right-0 top-7 z-[60] w-64 rounded-lg border border-border bg-background p-1 text-xs text-foreground shadow-2xl animate-in fade-in zoom-in-95 duration-150">
+          <div className="flex items-center gap-2 border-b border-border/40 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+            <Filter className="h-3 w-3" />
+            {t("listMenu.filter")}
+          </div>
+          {hasFilter ? (
+            <button type="button" className={row} onClick={() => { setTip(false); onOpenTab("filter"); }}>
+              <Filter className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">
+                <span className={`block ${filterError ? "text-red-600 dark:text-red-400" : "text-foreground"}`}>{filterError ? t("listView.filterInvalid") : t("listView.filterActive")}</span>
+                <span className="block truncate font-mono text-[10px] text-muted-foreground">{config.filter}</span>
+              </span>
+            </button>
+          ) : null}
+          {catCount ? (
+            <button type="button" className={row} onClick={() => { setTip(false); onOpenTab("categories"); }}>
+              <Layers className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+              <span className="min-w-0">
+                <span className="block">{t("categories.badge", { count: catCount })}</span>
+                <span className="block truncate text-[10px] text-muted-foreground">{config.categories?.map((c) => c.name).join(" · ")}</span>
+              </span>
+            </button>
+          ) : null}
+          {effectiveSort.length ? (
+            <div className={row}>
+              <button type="button" className="flex min-w-0 flex-1 items-start gap-2 text-left" onClick={() => { setTip(false); onOpenTab("sort"); }}>
+                <ArrowUpDown className="mt-0.5 h-3 w-3 shrink-0 text-muted-foreground" />
+                <span className="min-w-0">
+                  <span className="block truncate">{describeSort(effectiveSort, (k) => sortKeyLabel(t, k, tagGroups))}</span>
+                  {boardSortActive ? <span className="block text-[10px] text-muted-foreground">{t("sort.fromBoard")}</span> : null}
+                </span>
+              </button>
+              {onResetSort ? (
+                <button type="button" onClick={onResetSort} className="inline-flex shrink-0 items-center gap-0.5 text-[10px] text-accent hover:underline" aria-label={t("sort.resetManual")}>
+                  <RotateCcw className="h-3 w-3" />
+                  {t("sort.resetShort")}
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 /** Small row under the list title: what is active on this list (filter, categories, sort) and a way back to manual order. */
 export function ListViewIndicators({
   config,

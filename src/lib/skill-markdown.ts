@@ -280,6 +280,7 @@ cat deploy.sh | killio console run-script --room-id <id> --team-id <id>
 - \`#[cardId:brickId:selector[:arg]]\`: referencia contenido de bricks en cards.
 - \`$[docId:brickId:selector[:arg]]\`: referencia contenido de documentos.
 - \`@[transcript:roomId:callId]\`: referencia transcripcion de llamada en room.
+- \`@[kql:<modo>.<script codificado>:<etiqueta>]\`: pastilla con el RESULTADO EN VIVO de una consulta KQL (no apunta a un lugar). \`modo\` = \`value\` | \`list\` | \`table\` | \`count\`; el script va con \`encodeURIComponent\` (sin \`:\` ni \`]\`), max 2000 caracteres; etiqueta max 60 sin \`]\`. Ej: \`@[kql:count.cards%20where%20overdue%20count:Vencidas]\`.
 
 Selectores comunes:
 

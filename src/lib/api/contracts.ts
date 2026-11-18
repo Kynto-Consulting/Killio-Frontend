@@ -499,6 +499,8 @@ export type ListView = {
   id: string;
   name: string;
   cards: CardView[];
+  systemKey?: string | null;
+  assignedGroupId?: string | null;
 };
 
 export type BoardView = {
@@ -1013,7 +1015,7 @@ export async function createList(
 export async function updateList(
   boardId: string,
   listId: string,
-  payload: { name: string },
+  payload: { name?: string; assignedGroupId?: string | null },
   accessToken?: string
 ): Promise<{ success: boolean }> {
   return request<{ success: boolean }>(`/boards/${boardId}/lists/${listId}`, {
@@ -1021,6 +1023,16 @@ export async function updateList(
     headers: accessToken ? authHeaders(accessToken) : undefined,
     body: JSON.stringify(payload),
   });
+}
+
+/** Assigns a group to a list (null clears it). */
+export function updateListGroup(
+  boardId: string,
+  listId: string,
+  groupId: string | null,
+  accessToken?: string
+): Promise<{ success: boolean }> {
+  return updateList(boardId, listId, { assignedGroupId: groupId }, accessToken);
 }
 
 export type ArchivedListSummary = {

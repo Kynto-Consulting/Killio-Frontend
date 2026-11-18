@@ -65,7 +65,9 @@ export const BRICK_SCHEMAS: Record<string, BrickSchema> = {
       title: "string (Optional)",
       type: "line | bar | pie | area | scatter",
       data: "Array<Record<string, any>> (e.g. [{ name: 'Jan', value: 100 }])",
-      config: "{ xKey: string, yKeys: string[], colors?: string[] }"
+      config: "{ xKey: string, yKeys: string[], colors?: string[] }",
+      tableSource: "{ brickId: string, xAxisColumn: number, dataColumns: number[] } (Optional: plot a table brick of the document)",
+      source: "{ kind: 'kql', script: string, output?: number } (Optional: data from a KQL query, e.g. 'cards where done in last 30d group by assignee count'; first dimension = X axis, each metric = a series; output = index of the `show` output, default 0. Takes precedence over data/tableSource)"
     }
   },
   checklist: {

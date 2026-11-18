@@ -9,6 +9,9 @@ import { ReferencePicker, ReferencePickerSelection } from "@/components/document
 import { DocumentSummary, DocumentBrick } from "@/lib/api/documents";
 import { BoardSummary } from "@/lib/api/contracts";
 import { ReferenceResolver } from "@/lib/reference-resolver";
+import { KqlPill } from "../ui/kql-pill";
+import { parseKqlPillToken, replaceNthTokenOccurrence, type KqlPillMode } from "@/lib/kql-pill/token";
+import { tablesFromBricks } from "@/lib/query/tables";
 import { cn } from "@/lib/utils";
 import { Portal } from "../ui/portal";
 import { RichText, DiagramBlock } from "../ui/rich-text";
@@ -236,7 +239,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const isBrickEmpty = (el: HTMLElement | null) => {
     if (!el) return true;
     if ((el.textContent || "").trim().length > 0) return false;
-    return !el.querySelector("[data-lu-icon],[data-diagram-idx],img,svg,canvas,[data-math],[data-math-block],pre");
+    return !el.querySelector("[data-lu-icon],[data-kql-host],[data-diagram-idx],img,svg,canvas,[data-math],[data-math-block],pre");
   };
   const savedRangeRef = useRef<Range | null>(null);
   const pasteInFlightRef = useRef(false);
@@ -252,11 +255,17 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const embedCtx = useContext(EmbedChainContext);
   const routeParams = useParams() as Record<string, string | string[] | undefined> | null;
   const routeDocId = routeParams?.docId;
+  const kqlTables = React.useMemo(() => {
+    if (!text || !text.includes("@[kql:")) return undefined;
+    try { return tablesFromBricks(activeBricks as any[]); } catch { return undefined; }
+  }, [text, activeBricks]);
   const embedChain = React.useMemo(() => {
     const own = Array.isArray(routeDocId) ? routeDocId[0] : routeDocId;
     return Array.from(new Set([...embedCtx.chain, ...(own ? [own] : [])]));
   }, [embedCtx.chain, routeDocId]);
   const [embedHosts, setEmbedHosts] = useState<Array<{ el: HTMLElement; docId: string }>>([]);
+  // `@[kql:...]` pills: placeholders in the painted HTML that get a live KqlPill portaled in.
+  const [kqlHosts, setKqlHosts] = useState<Array<{ el: HTMLElement; token: string; nth: number; script: string; mode: KqlPillMode; label: string }>>([]);
   const tDetail = useTranslations("document-detail");
   const tGroups = useTranslations("groups");
   const { activeTeamId: groupsTeamId } = useSessionForGroups();
@@ -763,6 +772,11 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return `<span contenteditable="false" title="${tokenEscapeAttr(tDetail("refOpenHint"))}" data-token="${tokenEscapeAttr(token)}" class="mention-pill inline-flex items-center gap-1.5 bg-accent/10 text-accent border border-accent/20 rounded px-1.5 py-0.5 font-medium transition-colors hover:bg-accent/20" data-type="${type}" data-id="${uid}">${icon} ${name}</span>`;
     }
 
+    if (part.type === 'kql') {
+      const ktoken = String(part.token || '');
+      return `<span contenteditable="false" data-token="${tokenEscapeAttr(ktoken)}" data-kql-host class="kql-pill-host inline-block align-baseline"><span data-kql-mount></span></span>`;
+    }
+
     if (part.type === 'deep') {
       const token = `${part.prefix}[${part.inner}]`;
       return `<span contenteditable="false" data-token="${tokenEscapeAttr(token)}" class="deep-pill inline-flex items-center gap-1.5 bg-amber-500/10 text-amber-600 border border-amber-500/20 rounded px-1.5 py-0.5 font-medium cursor-pointer transition-colors hover:bg-amber-500/20" data-prefix="${part.prefix}" data-inner="${part.inner}"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-calculator"><rect width="16" height="20" x="4" y="2" rx="2"/><line x1="8" x2="16" y1="6" y2="6"/><line x1="16" x2="16" y1="14" y2="18"/><path d="M16 10h.01"/><path d="M12 10h.01"/><path d="M8 10h.01"/><path d="M12 14h.01"/><path d="M8 14h.01"/><path d="M12 18h.01"/><path d="M8 18h.01"/></svg> ${part.label}</span>`;
@@ -774,7 +788,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
   const processMarkdownWithPills = (rawText: string): string => {
     // In edit mode: keep code blocks as raw markdown text so they are editable.
     // Only pills/references are rendered as interactive spans.
-    const richParts = ReferenceResolver.renderRich(rawText || "", { documents, boards, activeBricks, users, groups: teamGroups });
+    const richParts = ReferenceResolver.renderRich(rawText || "", { documents, boards, activeBricks, users, groups: teamGroups, renderKql: true });
     return richParts
       .map((part) => (typeof part === 'string' ? escapeHtml(part).replace(/\n/g, '<br>') : renderReferencePart(part)))
       .join('');
@@ -813,7 +827,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
       return `\x00MI${idx}\x00`;
     });
 
-    const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users, groups: teamGroups });
+    const richParts = ReferenceResolver.renderRich(sanitized, { documents, boards, activeBricks, users, groups: teamGroups, renderKql: true });
     const withLinks = richParts.map((part) => (typeof part === 'string' ? part : renderReferencePart(part))).join("");
 
     const lines = withLinks.split('\n');
@@ -2306,9 +2320,42 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
     setEmbedHosts((prev) => (prev.length === next.length && prev.every((p, i) => p.el === next[i].el && p.docId === next[i].docId) ? prev : next));
   });
 
+  useEffect(() => {
+    const host = readonly ? readonlyRef.current : contentRef.current;
+    const els = host ? Array.from(host.querySelectorAll<HTMLElement>("[data-kql-host]")) : [];
+    const seen = new Map<string, number>();
+    const next: typeof kqlHosts = [];
+    for (const el of els) {
+      const token = el.getAttribute("data-token") || "";
+      const mount = el.querySelector<HTMLElement>("[data-kql-mount]");
+      const spec = token ? parseKqlPillToken(token) : null;
+      if (!mount || !spec) continue;
+      const nth = seen.get(token) ?? 0;
+      seen.set(token, nth + 1);
+      next.push({ el: mount, token, nth, script: spec.script, mode: spec.mode, label: spec.label });
+    }
+    setKqlHosts((prev) => (prev.length === next.length && prev.every((p, i) => p.el === next[i].el && p.token === next[i].token) ? prev : next));
+  });
+
   return (
     <div className="w-full relative group cursor-text" onMouseDown={handleMouseDown}>
       {embedHosts.map((h, i) => createPortal(<EmbeddedDocument docId={h.docId} chain={embedChain} depth={embedCtx.depth} />, h.el, `${h.docId}-${i}`))}
+      {kqlHosts.map((h, i) => createPortal(
+        <KqlPill
+          script={h.script}
+          mode={h.mode}
+          label={h.label}
+          tables={kqlTables}
+          editable={!readonly}
+          onChangeToken={(next) => {
+            const source = readonly ? text : revertToMarkdown(contentRef.current?.innerHTML || "");
+            const updated = replaceNthTokenOccurrence(source, h.token, h.nth, next);
+            if (updated !== source) commitInlineEdit(updated, { forceRepaint: true });
+          }}
+        />,
+        h.el,
+        `${i}-${h.token}`,
+      ))}
       {readonly ? (
         <div
           ref={readonlyRef}
@@ -2356,6 +2403,7 @@ export const UnifiedTextBrick: React.FC<TextBrickProps> = ({
             folders={folders}
             users={users}
             activeBricks={activeBricks as any[]}
+            kqlTables={tablesFromBricks((activeBricks || []) as any[])}
  onClose={() => { setIsPickerOpen(false); setPickerFilter(undefined); }} allowedTypes={pickerFilter as any}
             onSelect={(item: ReferencePickerSelection) => {
               const markdown = revertToMarkdown(contentRef.current?.innerHTML || "");

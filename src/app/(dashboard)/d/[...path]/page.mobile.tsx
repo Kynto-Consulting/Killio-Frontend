@@ -449,6 +449,8 @@ export default function DocumentMobilePage() {
           documentId={docId}
           documentName={document.title}
           accessToken={accessToken ?? ""}
+          teamId={document.teamId}
+          role={document.role}
         />
       )}
     </div>

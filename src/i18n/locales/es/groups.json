@@ -52,5 +52,43 @@
     "nobody": "Todos los de {{name}} ya están asignados.",
     "done": "{{count}} personas asignadas",
     "error": "No se pudo asignar el grupo"
+  },
+  "listGroup": {
+    "menu": "Asignar a un grupo...",
+    "menuAssigned": "Grupo: {{name}}",
+    "title": "Asignar un grupo a esta lista",
+    "none": "Ninguno",
+    "badgeTooltip": "{{name}} · {{count}} miembros",
+    "assigned": "Grupo asignado",
+    "cleared": "Grupo quitado de la lista",
+    "error": "No se pudo actualizar el grupo de la lista"
+  },
+  "sharing": {
+    "title": "Grupos con acceso",
+    "hint": "Todas las personas de un grupo reciben el rol indicado en este {{scope}}.",
+    "scopeBoard": "tablero",
+    "scopeDocument": "documento",
+    "empty": "Ningún grupo tiene acceso todavía.",
+    "loading": "Cargando grupos...",
+    "addGroup": "Añadir grupo",
+    "pickGroup": "Elige un grupo",
+    "noneToAdd": "Todos los grupos del equipo ya tienen acceso.",
+    "add": "Añadir",
+    "remove": "Quitar",
+    "removeLabel": "Quitar {{name}}",
+    "members": "{{count}} miembros",
+    "role": "Rol",
+    "roles": {
+      "owner": "Propietario",
+      "admin": "Administrador",
+      "member": "Editor",
+      "viewer": "Lector",
+      "guest": "Invitado"
+    },
+    "added": "{{name}} ya tiene acceso",
+    "updated": "Rol actualizado",
+    "removed": "{{name}} ya no tiene acceso",
+    "loadError": "No se pudieron cargar los grupos con acceso",
+    "error": "No se pudo actualizar el acceso del grupo"
   }
 }

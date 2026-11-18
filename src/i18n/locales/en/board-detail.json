@@ -1,5 +1,8 @@
 {
-  "clipboard": { "copied": "{{n}} copied", "pasted": "{{n}} pasted" },
+  "clipboard": {
+    "copied": "{{n}} copied",
+    "pasted": "{{n}} pasted"
+  },
   "loadingBoard": "Loading...",
   "loadBoardError": "Error loading board",
   "deleteBoardError": "Failed to delete board",
@@ -80,7 +83,22 @@
     "archived": "Archived",
     "commentPermissionError": "You don't have permission to comment on this card.",
     "commentPlaceholder": "Write a comment or mention with @...",
-    "commentNoPermission": "You don't have permission to comment"
+    "commentNoPermission": "You don't have permission to comment",
+    "open": "Open card",
+    "assignMe": "Assign to me",
+    "unassignMe": "Remove me",
+    "due": "Due date",
+    "dueToday": "Today",
+    "dueTomorrow": "Tomorrow",
+    "dueWeek": "In a week",
+    "dueClear": "Clear",
+    "copyLink": "Copy link",
+    "linkCopied": "Link copied",
+    "duplicate": "Duplicate",
+    "copySuffix": "(copy)",
+    "duplicated": "Card duplicated",
+    "archive": "Archive",
+    "actionError": "The card could not be updated"
   },
   "cardModal": {
     "archiveCard": "Archive card",

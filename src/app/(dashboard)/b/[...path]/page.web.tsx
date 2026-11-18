@@ -8,9 +8,9 @@ import { Plus, MoreHorizontal, Filter, Share, Maximize2, Trash2, Bot, History, S
 import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor, useSensor, useSensors, DragEndEvent, DragOverEvent, DragStartEvent } from "@dnd-kit/core";
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
-import { BoardFilterBar } from "@/components/boards/board-filter-bar";
 import { TagGroupsModal } from "@/components/boards/tag-groups-modal";
 import { useBoardView } from "@/components/boards/use-board-view";
+import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { applyBoardFilters } from "@/lib/boards/apply-filters";
 import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
 import { effectiveSortRules, normalizeSortRules, sortCards } from "@/lib/boards/sorting";
@@ -24,7 +24,7 @@ import { TagBadge } from "@/components/ui/tag-badge";
 import { getClientLocale, translateNativeTagName } from "@/lib/native-tags";
 import { useSession } from "@/components/providers/session-provider";
 import { useParams, useRouter } from "next/navigation";
-import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, createCard as apiCreateCard, deleteCard as apiDeleteCard, deleteList as apiDeleteList, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary, getBoardMembers as apiGetBoardMembers, type BoardMemberSummary } from "@/lib/api/contracts";
+import { getBoard as apiGetBoard, createList as apiCreateList, deleteBoard as apiDeleteBoard, updateCard as apiUpdateCard, createCard as apiCreateCard, deleteCard as apiDeleteCard, deleteList as apiDeleteList, listTeamBoards, BoardSummary, updateBoardAppearance as apiUpdateBoardAppearance, updateBoardDetails as apiUpdateBoardDetails, uploadFile, getArchivedLists as apiGetArchivedLists, archiveList as apiArchiveList, ArchivedListSummary, getBoardMembers as apiGetBoardMembers, type BoardMemberSummary, updateListGroup as apiUpdateListGroup } from "@/lib/api/contracts";
 import { useOpHistory } from "@/lib/history/use-op-history";
 import { computeBoardBatch, makeBoardApplier } from "@/lib/history/board-ops";
 import type { OpScope } from "@/lib/history/types";
@@ -673,6 +673,7 @@ export default function BoardPage() {
   const tenant = useTenant();
   const t = useTranslations("board-detail");
   const tShare = useTranslations("share-local");
+  const tGroups = useTranslations("groups");
   const params = useParams() as { path?: string | string[] };
   const router = useRouter();
   const localWs = useLocalWorkspace();
@@ -751,6 +752,18 @@ export default function BoardPage() {
   }, [localMode, localFile, localWs, router, user?.id]);
 
   const [lists, setLists] = useState<any[]>([]);
+  const handleAssignListGroup = async (listId: string, groupId: string | null) => {
+    if (!accessToken || localMode) return;
+    const previous = lists.find((l) => l.id === listId)?.assignedGroupId ?? null;
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, assignedGroupId: groupId } : l)));
+    try {
+      await apiUpdateListGroup(boardId, listId, groupId, accessToken);
+      toast(tGroups(groupId ? "listGroup.assigned" : "listGroup.cleared"), "success");
+    } catch (err) {
+      setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, assignedGroupId: previous } : l)));
+      toast((err as Error)?.message || tGroups("listGroup.error"), "error");
+    }
+  };
   const [boardName, setBoardName] = useState(t("loadingBoard"));
   const [boardDescription, setBoardDescription] = useState<string | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -877,6 +890,17 @@ export default function BoardPage() {
   const bv = useBoardView(boardId);
   const tFilters = useTranslations("board-filters");
   const [isFilterBarOpen, setIsFilterBarOpen] = useState(false);
+  const panRef = useDragScroll<HTMLElement>();
+  // The board theme follows the app's real theme (the `dark` class on <html>), not only the tenant default.
+  const [appIsLight, setAppIsLight] = useState(false);
+  useEffect(() => {
+    const root = document.documentElement;
+    const sync = () => setAppIsLight(!root.classList.contains("dark"));
+    sync();
+    const observer = new MutationObserver(sync);
+    observer.observe(root, { attributes: true, attributeFilter: ["class"] });
+    return () => observer.disconnect();
+  }, []);
   const [isTagGroupsOpen, setIsTagGroupsOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
@@ -1441,7 +1465,7 @@ export default function BoardPage() {
     [user, boardMembers, teamGroups],
   );
   const filterResult = useMemo(
-    () => applyBoardFilters(lists, { expression: bv.expression, listFilters: bv.listFilters, boardName, ctx: kqlCtx }),
+    () => applyBoardFilters(lists, { expression: "", listFilters: bv.listFilters, boardName, ctx: kqlCtx }),
     [lists, bv.expression, bv.listFilters, boardName, kqlCtx],
   );
   const filteredLists = filterResult.lists;
@@ -1460,7 +1484,7 @@ export default function BoardPage() {
   );
   visibleListsRef.current = viewLists;
   sortedListIdsRef.current = new Set(Object.entries(listSortRules).filter(([, r]) => r.length > 0).map(([id]) => id));
-  const boardFilterActive = bv.expression.trim().length > 0;
+  const boardFilterActive = false;
 
   const ganttSections = useMemo<Array<{ listId: string; listName: string; cards: GanttCardRow[] }>>(() => {
     return filteredLists
@@ -1615,7 +1639,7 @@ export default function BoardPage() {
   const boardBackground = resolveBoardBackground(boardAppearance);
   // The default board theme adapts to a light background, or to a light app theme (white-label tenants).
   const boardTheme = resolveThemeTokens(boardAppearance, {
-    appIsLight: tenant.mode === "tenant" && tenant.theme.defaultMode === "light",
+    appIsLight,
     lightAccent: hslTripletToHex(tenant.theme.light["link"] ?? tenant.theme.light["primary"]),
   });
   const boardShellStyle = {
@@ -1629,6 +1653,7 @@ export default function BoardPage() {
     "--board-border": boardTheme.border,
     "--board-panel": boardTheme.panel,
     "--board-panel-strong": boardTheme.panelStrong,
+    "--board-list": boardTheme.list,
     "--board-ghost": boardTheme.buttonGhost,
   } as CSSProperties;
 
@@ -1780,11 +1805,11 @@ export default function BoardPage() {
                   </button>
 
                   <button
-                    onClick={() => { setIsFilterBarOpen((open) => !open); setIsBoardMenuOpen(false); }}
-                    className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${isFilterBarOpen || boardFilterActive || bv.boardSort.length > 0 ? "text-accent" : "text-foreground"}`}
+                    onClick={() => { setIsTagGroupsOpen(true); setIsBoardMenuOpen(false); }}
+                    className={`w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 ${bv.tagGroups.length > 0 ? "text-accent" : "text-foreground"}`}
                   >
                     <Filter className="h-4 w-4 mr-2" />
-                    <span>{t("header.filters")}</span>
+                    <span>{tFilters("tagGroups.open")}</span>
                     {boardFilterActive || normalizeSortRules(bv.boardSort).length > 0 ? (
                       <span className="ml-2 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-accent/15 px-1 text-[10px] font-semibold">
                         {(boardFilterActive ? 1 : 0) + (normalizeSortRules(bv.boardSort).length > 0 ? 1 : 0)}
@@ -1857,31 +1882,12 @@ export default function BoardPage() {
         </div>
       </header>
 
-      {isFilterBarOpen || boardFilterActive || bv.boardSort.length > 0 ? (
-        <BoardFilterBar
-          expression={bv.expression}
-          onExpressionChange={bv.setExpression}
-          error={filterResult.error}
-          total={filterResult.total}
-          shown={filterResult.shown}
-          tags={allAvailableTags}
-          groups={teamGroups.map((g) => ({ id: g.id, name: g.name }))}
-          savedViews={bv.savedViews}
-          onSaveView={bv.saveView}
-          onRenameView={bv.renameView}
-          onDeleteView={bv.deleteView}
-          boardSort={bv.boardSort}
-          onBoardSortChange={bv.setBoardSort}
-          tagGroups={bv.tagGroups}
-          onOpenTagGroups={() => setIsTagGroupsOpen(true)}
-        />
-      ) : null}
       <TagGroupsModal open={isTagGroupsOpen} onClose={() => setIsTagGroupsOpen(false)} groups={bv.tagGroups} onChange={bv.setTagGroups} availableTags={allAvailableTags} />
 
       {boardView === "kanban" ? (
       <>
       {/* Kanban Canvas */}
-      <main className="flex-1 overflow-x-auto overflow-y-hidden">
+      <main ref={panRef} className="flex-1 overflow-x-auto overflow-y-hidden cursor-grab">
         <div className="h-full p-6 inline-flex items-start space-x-4">
           <DndContext
             sensors={sensors}
@@ -1905,6 +1911,7 @@ export default function BoardPage() {
                 effectiveSort={listSortRules[list.id]}
                 onResetBoardSort={() => bv.setBoardSort([])}
                 filterError={filterResult.listErrors[list.id]?.message ?? null}
+                onAssignGroup={handleAssignListGroup}
                 boardId={boardId}
                 teamId={boardTeamId ?? undefined}
                 boardName={boardName}
@@ -2306,6 +2313,8 @@ export default function BoardPage() {
         boardName={boardName}
         initialVisibility={boardVisibility}
         accessToken={accessToken!}
+        teamId={boardTeamId}
+        canManageGroups={permissions.canManageBoard}
       />
 
       <PublishLocalModal

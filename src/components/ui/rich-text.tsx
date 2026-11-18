@@ -7,6 +7,7 @@ import { generatedMeshToTemplate, templateToMeshState } from "@/lib/mesh-import"
 import { parseMermaidToChartSpec } from "@/lib/mermaid-to-chart";
 import { ChartBrickRender } from "@/components/ui/chart-brick";
 import { RefPill } from "./ref-pill";
+import { KqlPill } from "./kql-pill";
 import { TagBadge } from "./tag-badge";
 import { resolveLucide } from "@/lib/lucide-icon-registry";
 
@@ -332,7 +333,7 @@ export function RichText({
         // processed normally so inline styles/refs still work inside a heading.
         const hm = line.match(/^(#{1,6})\s+(.*)$/);
         const level = (hm && !noHeading) ? hm[1].length : 0;
-        const parts = ReferenceResolver.renderRich(hm ? hm[2] : line, context);
+        const parts = ReferenceResolver.renderRich(hm ? hm[2] : line, { ...context, renderKql: true });
         const lineNodes = parts.map((part, partIdx) => {
               if (typeof part === "string") {
                 return <Fragment key={partIdx}>{renderInlineMarkdown(part, availableTags, noSize)}</Fragment>;
@@ -342,6 +343,10 @@ export function RichText({
                 return (
                   <RefPill key={partIdx} type="ext" id={part.id} name={part.name} provider={part.provider} extKind={part.extKind} />
                 );
+              }
+
+              if (part.type === "kql") {
+                return <KqlPill key={partIdx} script={part.script} mode={part.mode} label={part.label} />;
               }
 
               if (part.type === "mention") {

@@ -37,6 +37,7 @@ interface ListColumnProps {
   sortFromBoard?: boolean;
   onResetBoardSort?: () => void;
   filterError?: string | null;
+  onAssignGroup?: (listId: string, groupId: string | null) => void | Promise<void>;
 }
 
 const WebVariant = dynamic(() => import("./list-column.web").then((m) => m.ListColumnWeb));

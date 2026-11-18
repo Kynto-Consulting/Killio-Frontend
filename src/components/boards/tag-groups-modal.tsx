@@ -6,6 +6,8 @@ import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { moveItem, type TagGroup } from "@/lib/boards/sorting";
 import { ModalShell } from "./modal-shell";
+import { useViewSyncState } from "./use-board-view";
+import { ViewSyncBadge } from "./view-sync-badge";
 
 export interface AvailableTag {
   name: string;
@@ -23,6 +25,7 @@ const iconBtn = "h-7 w-7 inline-flex items-center justify-center rounded-md text
  */
 export function TagGroupsModal({ open, onClose, groups, onChange, availableTags }: { open: boolean; onClose: () => void; groups: TagGroup[]; onChange: (groups: TagGroup[]) => void; availableTags: AvailableTag[] }) {
   const t = useTranslations("board-filters");
+  const sync = useViewSyncState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -44,7 +47,10 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
 
   return (
     <ModalShell open={open} onClose={onClose} title={t("tagGroups.title")} wide>
-      <p className="mb-3 text-xs text-muted-foreground">{t("tagGroups.intro")}</p>
+      <p className="mb-2 text-xs text-muted-foreground">{t("tagGroups.intro")}</p>
+      <p className="mb-3 text-xs font-medium text-foreground">
+        {sync.tagGroupsScope === "team" ? t("tagGroups.scopeTeam") : t("tagGroups.scopeLocal")} <ViewSyncBadge className="ml-1" />
+      </p>
       <div className="grid gap-4 sm:grid-cols-[14rem_1fr]">
         <div className="space-y-2">
           <div className="space-y-1">
@@ -66,14 +72,14 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
             onSubmit={(e) => {
               e.preventDefault();
               const name = newName.trim();
-              if (!name) return;
+              if (!name || groups.some((g) => g.name.trim().toLowerCase() === name.toLowerCase())) return;
               const id = newId();
               onChange([...groups, { id, name, tags: [] }]);
               setSelectedId(id);
               setNewName("");
             }}
           >
-            <input className={inputCls} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("tagGroups.newPlaceholder")} maxLength={80} />
+            <input className={inputCls} value={newName} onChange={(e) => setNewName(e.target.value)} placeholder={t("tagGroups.newPlaceholder")} maxLength={40} />
             <button type="submit" className="h-8 px-2 inline-flex items-center rounded-md border border-border text-foreground hover:bg-muted" aria-label={t("tagGroups.create")}>
               <Plus className="h-4 w-4" />
             </button>
@@ -86,7 +92,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
           ) : (
             <div className="space-y-3">
               <div className="flex items-center gap-2">
-                <input className={inputCls} value={selected.name} maxLength={80} onChange={(e) => update(selected.id, { name: e.target.value })} aria-label={t("tagGroups.name")} />
+                <input className={inputCls} value={selected.name} maxLength={40} onChange={(e) => update(selected.id, { name: e.target.value })} aria-label={t("tagGroups.name")} />
                 <button
                   type="button"
                   onClick={() => {
@@ -141,7 +147,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
                     setNewTag("");
                   }}
                 >
-                  <input className={`${inputCls} sm:w-40`} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={t("tagGroups.addByName")} maxLength={80} />
+                  <input className={`${inputCls} sm:w-40`} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={t("tagGroups.addByName")} maxLength={60} />
                   <button type="submit" className="h-8 px-2 inline-flex items-center rounded-md border border-border text-foreground hover:bg-muted" aria-label={t("tagGroups.addTag")}>
                     <Plus className="h-4 w-4" />
                   </button>

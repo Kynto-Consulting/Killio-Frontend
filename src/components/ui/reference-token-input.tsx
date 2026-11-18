@@ -30,7 +30,15 @@ type DeepPart = {
   label: string;
 };
 
-type RichPart = string | MentionPart | DeepPart;
+type KqlPart = {
+  type: "kql";
+  token: string;
+  label: string;
+  script: string;
+  mode: string;
+};
+
+type RichPart = string | MentionPart | DeepPart | KqlPart;
 
 interface ReferenceTokenInputProps {
   value: string;
@@ -101,7 +109,7 @@ export function ReferenceTokenInput({
   const [meshBricksById, setMeshBricksById] = useState<Record<string, MeshBrick[]>>({});
 
   const resolverContext = useMemo(
-    () => ({ documents, boards, folders, users, groups: teamGroups, activeBricks, documentBricksById, meshBricksById } as any),
+    () => ({ documents, boards, folders, users, groups: teamGroups, activeBricks, documentBricksById, meshBricksById, renderKql: true } as any),
     [documents, boards, folders, users, teamGroups, activeBricks, documentBricksById, meshBricksById]
   );
 
@@ -117,6 +125,11 @@ export function ReferenceTokenInput({
         .map((part) => {
           if (typeof part === "string") {
             return escapeHtml(part).replace(/\n/g, "<br>");
+          }
+
+          if (part.type === "kql") {
+            // Composer chip: the live result is rendered where the message is shown, not while typing.
+            return `\u200B<span contenteditable=\"false\" data-token=\"${tokenEscapeAttr(part.token)}\" title=\"${tokenEscapeAttr(part.script)}\" class=\"inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-900 dark:text-sky-100\">${escapeHtml(part.label)}</span>\u200B`;
           }
 
           if (part.type === "mention") {

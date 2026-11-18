@@ -52,5 +52,43 @@
     "nobody": "Everyone in {{name}} is already assigned.",
     "done": "{{count}} people assigned",
     "error": "Could not assign the group"
+  },
+  "listGroup": {
+    "menu": "Assign to a group...",
+    "menuAssigned": "Group: {{name}}",
+    "title": "Assign a group to this list",
+    "none": "None",
+    "badgeTooltip": "{{name}} · {{count}} members",
+    "assigned": "Group assigned",
+    "cleared": "Group removed from the list",
+    "error": "Could not update the list group"
+  },
+  "sharing": {
+    "title": "Groups with access",
+    "hint": "Everyone in a group gets the role below on this {{scope}}.",
+    "scopeBoard": "board",
+    "scopeDocument": "document",
+    "empty": "No group has access yet.",
+    "loading": "Loading groups...",
+    "addGroup": "Add group",
+    "pickGroup": "Choose a group",
+    "noneToAdd": "Every group of the team already has access.",
+    "add": "Add",
+    "remove": "Remove",
+    "removeLabel": "Remove {{name}}",
+    "members": "{{count}} members",
+    "role": "Role",
+    "roles": {
+      "owner": "Owner",
+      "admin": "Admin",
+      "member": "Editor",
+      "viewer": "Viewer",
+      "guest": "Guest"
+    },
+    "added": "{{name}} now has access",
+    "updated": "Role updated",
+    "removed": "{{name}} no longer has access",
+    "loadError": "Could not load the groups with access",
+    "error": "Could not update group access"
   }
 }

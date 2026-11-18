@@ -124,6 +124,7 @@ Any other \`lang\` stays a normal syntax-highlighted code block. Unparseable dia
 ### Reference pills — \`@[<kind>:<id>:<label>]\`
 Inline **@-mention** tokens that render as clickable pills. Keep them intact byte-for-byte; never rewrite the id.
 - \`@[doc:<id>:<Title>]\` document · \`@[board:<id>:<Name>]\` board · \`@[mesh:<id>:<Name>]\` mesh · \`@[card:<id>:<Title>]\` card · \`@[user:<id>:<Name>]\` person · \`@[group:<id>:<Name>]\` user group (a named set of team members).
+- \`@[kql:<mode>.<encodeURIComponent(script)>:<label>]\` **live query result** pill (renders the KQL result inline, not a place). \`mode\` = \`value\` | \`list\` | \`table\` | \`count\`; the script is URL-encoded so it holds no \`:\` or \`]\` (max 2000 chars, label max 60 chars without \`]\`). Needs a connected workspace to evaluate; offline it shows the label. Example: \`@[kql:count.cards%20where%20overdue%20count:Overdue]\`.
 - **In a LOCAL workspace the \`<id>\` is the entity's relative file path** (e.g. \`@[doc:notes/plan.kd:Plan]\`), not a uuid — that is how offline refs resolve to \`/d|/b|/m/<path>\`. \`<label>\` is display-only.
 
 ### Deep data tokens — pull LIVE values from another brick

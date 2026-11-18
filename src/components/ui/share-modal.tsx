@@ -7,6 +7,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useAsyncAction } from "@/hooks/ui";
+import { GroupAccessSection } from "@/components/sharing/group-access-section";
 
 interface ShareModalProps {
   isOpen: boolean;
@@ -16,9 +17,13 @@ interface ShareModalProps {
   teamName?: string;
   initialVisibility?: "private" | "team" | "public_link";
   accessToken: string;
+  /** Workspace of the board (falls back to the active one). */
+  teamId?: string | null;
+  /** Whether the user can manage the board's group access. */
+  canManageGroups?: boolean;
 }
 
-export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Workspace Team", initialVisibility = "team", accessToken }: ShareModalProps) {
+export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Workspace Team", initialVisibility = "team", accessToken, teamId, canManageGroups = false }: ShareModalProps) {
   const t = useTranslations("board-detail");
   const [visibility, setVisibility] = useState<"private" | "team" | "public_link">(initialVisibility);
   const [members, setMembers] = useState<BoardMemberSummary[]>([]);
@@ -267,6 +272,8 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
               </div>
             )}
           </div>
+
+          <GroupAccessSection scope="board" id={boardId} teamId={teamId ?? activeTeamId} canManage={canManageGroups} />
 
           {/* General Access */}
           <div className="space-y-3">
