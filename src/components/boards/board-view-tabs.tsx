@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { Fragment, useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, ChartGantt, FolderKanban, LayoutDashboard, List, Plus, SquareKanban } from "lucide-react";
+import { CalendarDays, ChartGantt, FolderKanban, LayoutDashboard, List, MoreHorizontal, Plus, SquareKanban } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, isBuiltinTab, MAX_TAB_NAME, tabDisplayName, type BoardTab, type BoardTabType } from "@/lib/boards/board-tabs";
@@ -103,9 +103,10 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
             />
           );
         }
+        const manageable = canManage && !isBuiltinTab(tab);
         return (
+          <Fragment key={tab.id}>
           <button
-            key={tab.id}
             type="button"
             role="tab"
             aria-selected={active}
@@ -124,6 +125,23 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
             <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
             <span className="max-w-[10rem] truncate">{tabDisplayName(tab, labels)}</span>
           </button>
+          {manageable && active ? (
+            <button
+              type="button"
+              aria-label={t("viewTabs.menuLabel")}
+              title={t("viewTabs.menuLabel")}
+              aria-haspopup="menu"
+              onClick={(e) => {
+                const r = e.currentTarget.getBoundingClientRect();
+                setAddOpen(false);
+                setMenu({ tab, x: Math.max(8, Math.min(r.left, window.innerWidth - 184)), y: r.bottom + 6 });
+              }}
+              className="-ml-1.5 mr-1 inline-flex h-6 w-6 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-primary"
+            >
+              <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
+            </button>
+          ) : null}
+          </Fragment>
         );
       })}
 
