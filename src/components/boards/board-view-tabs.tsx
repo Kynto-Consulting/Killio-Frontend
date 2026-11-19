@@ -191,8 +191,8 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
         </div>
       ) : null}
 
-      {menu ? (
-        <div ref={menuRef} role="menu" className="fixed z-50 w-44 rounded-lg border border-border bg-card p-1 shadow-lg" style={{ left: menu.x, top: menu.y }}>
+      {menu && typeof document !== "undefined" ? createPortal(
+        <div ref={menuRef} role="menu" className="fixed z-[200] w-44 rounded-lg border border-border bg-card p-1 shadow-lg" style={{ left: menu.x, top: menu.y }}>
           <button type="button" role="menuitem" onClick={() => startRename(menu.tab)} className="flex w-full items-center rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none hover:bg-muted focus-visible:bg-muted">
             {t("viewTabs.rename")}
           </button>
@@ -208,7 +208,8 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
           >
             {t("viewTabs.delete")}
           </button>
-        </div>
+        </div>,
+        document.body,
       ) : null}
     </div>
   );
