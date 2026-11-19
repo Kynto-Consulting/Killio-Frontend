@@ -149,5 +149,6 @@ export function normalizeSessionUser(input: unknown): SessionUser | null {
     timezone: asCleanString(raw.timezone),
     locale: asCleanString(raw.locale),
     defaultModel: asCleanString(raw.defaultModel),
+    mustChangePassword: raw.mustChangePassword === true,
   };
 }

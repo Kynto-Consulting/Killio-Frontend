@@ -9,6 +9,9 @@ import { isAssetRef, readAssetFile, writeAsset, assetFilenameForFile, makeAssetR
 import { uploadFile as apiUploadFile } from "@/lib/api/contracts";
 import { getImageUrl } from "@/lib/image-cache";
 import { WidgetBrick } from "./widget-brick";
+import { Eye } from "lucide-react";
+import { FileTypeIcon, FileViewerDialog } from "@/components/files/file-viewer-dialog";
+import { canPreview, describeFile, FILE_ACCEPT, humanSize } from "@/lib/files/file-types";
 import { isWidgetUrl } from "@/lib/widget-sandbox";
 
 // Resolve any `asset:<name>` refs in the given urls to displayable URLs via the
@@ -621,7 +624,8 @@ export const UnifiedMediaBrick: React.FC<{
   const [subtitleDraft, setSubtitleDraft] = React.useState(meta.subtitle || "");
   React.useEffect(() => { setSubtitleDraft(meta.subtitle || ""); }, [meta.subtitle]);
   const [showSettings, setShowSettings] = React.useState(false);
-  
+  const [viewing, setViewing] = React.useState(false);
+
   const [emptyTab, setEmptyTab] = React.useState<"upload" | "link">(kind === "bookmark" ? "link" : "upload");
   const [linkInput, setLinkInput] = React.useState("");
   const [addUrl, setAddUrl] = React.useState("");
@@ -827,18 +831,32 @@ export const UnifiedMediaBrick: React.FC<{
           ) : isImage ? (
             <img src={resolveUrl(activeItem.url)} alt={activeItem.title || content.title || "Media"} className={`bg-transparent ${layout === "full" ? "w-full object-cover max-h-[70vh]" : "max-h-[70vh] object-contain w-auto mx-auto"}`} />
           ) : (
-            <div className="flex items-center justify-between p-4 bg-muted/10 border border-border/50 rounded-md min-w-[300px] gap-4">
-              <div className="flex items-center gap-3">
-                <FileText className="w-8 h-8 text-accent shrink-0" />
-                <div className="flex flex-col overflow-hidden">
-                  <span className="text-sm font-semibold truncate max-w-[200px]">{activeItem.title || t("brickRenderer.defaultDocTitle")}</span>
-                  {activeItem.sizeBytes && <span className="text-xs text-muted-foreground">{(activeItem.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>}
+            (() => {
+              const fileUrl = resolveUrl(activeItem.url);
+              const fileInfo = describeFile({ name: activeItem.title, url: activeItem.url, mime: activeItem.mimeType });
+              return (
+                <div className="flex items-center justify-between p-4 bg-muted/10 border border-border/50 rounded-md min-w-[300px] gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <FileTypeIcon category={fileInfo.category} className="w-8 h-8 text-accent shrink-0" />
+                    <div className="flex flex-col overflow-hidden">
+                      <span className="text-sm font-semibold truncate max-w-[200px]">{activeItem.title || fileInfo.name || t("brickRenderer.defaultDocTitle")}</span>
+                      <span className="text-xs text-muted-foreground">{[fileInfo.known ? fileInfo.label : "", humanSize(activeItem.sizeBytes)].filter(Boolean).join(" · ")}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {canPreview(fileInfo) ? (
+                      <button type="button" onClick={() => setViewing(true)} title={t("fileViewer.view")} aria-label={t("fileViewer.view")} className="flex items-center justify-center bg-primary/10 hover:bg-primary/20 text-primary w-8 h-8 rounded transition-colors">
+                        <Eye className="w-4 h-4" />
+                      </button>
+                    ) : null}
+                    <a href={fileUrl} download={fileInfo.name || undefined} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
+                      {t("brickRenderer.download")}
+                    </a>
+                  </div>
+                  <FileViewerDialog file={viewing ? { url: fileUrl, name: activeItem.title || fileInfo.name, mimeType: activeItem.mimeType, sizeBytes: activeItem.sizeBytes } : null} onClose={() => setViewing(false)} />
                 </div>
-              </div>
-              <a href={resolveUrl(activeItem.url)} target="_blank" rel="noreferrer" className="flex items-center gap-2 bg-primary/10 hover:bg-primary/20 text-primary px-3 py-1.5 rounded text-xs font-medium transition-colors">
-                {t("brickRenderer.download")}
-              </a>
-            </div>
+              );
+            })()
           )
         ) : (
           <div className="w-full relative group/empty mt-1 mb-1 max-w-[800px]">
@@ -854,7 +872,7 @@ export const UnifiedMediaBrick: React.FC<{
                     <input
                       type="file"
                       multiple
-                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : "image/*,video/*,audio/*,.svg,.pdf,.txt,.csv,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.glb,.gltf,model/gltf-binary,.html,.htm,.js,.mjs,.ts,.tsx,.jsx"}
+                      accept={kind === "image" ? "image/*" : kind === "video" ? "video/*" : kind === "audio" ? "audio/*" : FILE_ACCEPT}
                       className="hidden"
                       onChange={(event) => {
                         const files = Array.from(event.target.files || []);

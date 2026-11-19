@@ -1,9 +1,10 @@
 ﻿"use client";
+import { useDockedDrawer } from "@/hooks/use-docked-drawer";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActionTheme } from "@/hooks/use-action-theme";
 import { useEffect, useState } from "react";
 
-import { X, Send, Bot, MessageSquare, History, Info, ExternalLink, Loader2 } from "lucide-react";
+import { X, Send, Sparkles, Bot, MessageSquare, History, Info, ExternalLink, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { RichText } from "./rich-text";
 import { ActivityLogModal } from "./activity-log-modal";
@@ -69,7 +70,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
     entityType === 'board' || entityType === 'mesh' || entityType === 'document'
   ) ? entityType as LinkedEntityType : null;
 
-  const { roomId: autoLinkedRoomId } = useLinkedRoom(
+  const { roomId: autoLinkedRoomId, ensureRoom } = useLinkedRoom(
     activeTeamId,
     linkedEntityType,
     boardId,
@@ -78,7 +79,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
   );
   const effectiveRoomId = linkedRoomIdProp ?? autoLinkedRoomId;
 
-  const roomChat = useRoomChat(effectiveRoomId, accessToken, sessionUser);
+  const roomChat = useRoomChat(effectiveRoomId, accessToken, sessionUser, linkedRoomIdProp ? undefined : ensureRoom);
   const [roomInput, setRoomInput] = useState("");
 
   const router = useRouter();
@@ -122,12 +123,14 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
     };
   }, [isResizingDrawer]);
 
+  const { place } = useDockedDrawer(isOpen, drawerWidth);
+
   if (!isOpen) return null;
 
 
-  return (
+  return place(
     <div
-      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 shadow-2xl flex flex-col z-[50] transform transition-transform animate-in slide-in-from-right duration-300"
+      className="absolute top-0 right-0 bottom-0 min-w-[20rem] max-w-[90vw] bg-card border-l border-border/60 rounded-l-2xl shadow-xl flex flex-col overflow-hidden z-[50] transform transition-transform animate-in slide-in-from-right duration-300"
       style={{ width: drawerWidth }}
     >
       <div
@@ -142,33 +145,33 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
       </div>
 
       {/* Header with Tabs */}
-      <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
-        <div className="flex items-center justify-between p-4 pb-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</h3>
+      <div className="flex flex-col border-b border-border/40 bg-card shrink-0">
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground min-w-0 truncate"><Sparkles className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</span></h3>
           <div className="flex items-center gap-1">
             {!localMode && (
               <button
                 onClick={() => router.push(effectiveRoomId ? `/rooms/${effectiveRoomId}` : "/rooms")}
                 title={t("chatDrawer.openInRooms")}
-                className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground hover:text-accent transition-colors"
+                className="rounded-lg p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               >
                 <ExternalLink className="h-4 w-4" />
               </button>
             )}
-            <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
+            <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
               <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        <div className="flex px-2 pb-0.5 gap-1">
+        <div className="mx-4 mb-3 flex gap-1 rounded-lg bg-muted/50 p-1">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === tab.id
-                  ? 'border-accent text-accent bg-accent/5'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30'
+              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all ${activeTab === tab.id
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -179,7 +182,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
 
       </div>
 
-      <div className={`flex-1 min-h-0 ${activeTab !== 'copilot' ? "overflow-y-auto p-4 space-y-4" : "overflow-hidden flex flex-col"}`}>
+      <div className={`flex-1 min-h-0 ${activeTab !== 'copilot' ? "overflow-y-auto overflow-x-hidden p-4 space-y-3" : "overflow-hidden flex flex-col"}`}>
         {activeTab === 'copilot' && activeTeamId && (
           <AgentChatPanel
             teamId={activeTeamId}
@@ -195,8 +198,8 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
               <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
             </div>
           ) : roomChat.messages.length === 0 ? (
-            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60">
-              <MessageSquare className="h-8 w-8 mb-2" />
+            <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-70 text-center">
+              <MessageSquare className="h-8 w-8 mb-2 text-primary/50" strokeWidth={1.5} />
               <p>{tRooms("chat.noMessages")}</p>
             </div>
           ) : (
@@ -216,10 +219,10 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         )}
 
         {activeTab === 'activity' && (
-          <div className="space-y-6 pr-1 overflow-x-hidden">
+          <div className="space-y-4 pr-1 overflow-x-hidden">
             {groupedActivities.length === 0 && (
-              <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60 font-medium">
-                <History className="h-8 w-8 mb-2" />
+              <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-70 text-center">
+                <History className="h-8 w-8 mb-2 text-primary/50" strokeWidth={1.5} />
                 <p>{t("chatDrawer.noActivity")}</p>
               </div>
             )}
@@ -233,13 +236,13 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
               const resolverContext = getResolverContext(teamDocs, [], teamMembers);
 
               return (
-                <div key={a.id} className="relative pl-6 pb-2 border-l border-border/40 last:border-0 group">
-                  <div className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full bg-border ring-2 ring-background group-hover:bg-accent transition-colors" />
-                  <div className="flex flex-col gap-1.5">
+                <div key={a.id} className="relative pl-5 pb-1 border-l border-border/30 last:border-0 group min-w-0">
+                  <div className="absolute left-[-3px] top-2 h-1.5 w-1.5 rounded-full bg-muted-foreground/40 group-hover:bg-primary transition-colors" />
+                  <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Icon className="h-3 w-3 text-muted-foreground/60" />
                       <div className="flex items-center gap-1 group/badge relative">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shadow-sm ${theme.badgeClass}`}>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-medium uppercase tracking-wide border ${theme.badgeClass}`}>
                           {theme.badge}
                           {group.length > 1 && ` x${group.length}`}
                         </span>
@@ -274,25 +277,25 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
                           </button>
                         )}
                       </div>
-                      <time className="text-[9px] text-muted-foreground font-medium ml-auto">
+                      <time className="text-[10px] text-muted-foreground/70 ml-auto">
                         {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </time>
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs text-foreground/80 leading-relaxed flex items-center gap-1.5 flex-wrap">
-                        <span className="inline-flex items-center gap-1 rounded border border-primary/25 bg-primary/10 text-primary px-1.5 py-0.5 text-[11px] font-medium">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
+                      <p className="text-xs text-foreground/80 leading-relaxed flex items-center gap-1.5 flex-wrap break-words [overflow-wrap:anywhere]">
+                        <span className="inline-flex items-center gap-1 text-foreground text-xs font-medium">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
                         <span className="text-muted-foreground/80">{prettifyAction(a.action)}</span>
                       </p>
 
                       {changedFields && (
-                        <p className="text-[10px] bg-muted/30 px-2 py-1 rounded border border-border/30 text-muted-foreground italic">
+                        <p className="text-[10px] bg-muted/40 px-2.5 py-1 rounded-lg text-muted-foreground break-words [overflow-wrap:anywhere]">
                           {t("chatDrawer.fields")} {changedFields}
                         </p>
                       )}
 
                       {(a.payload as any)?.text && (
-                        <div className="text-[10px] text-muted-foreground px-2 border-l-2 border-border/50 bg-background/30 py-0.5">
+                        <div className="text-[10px] text-muted-foreground px-2 border-l-2 border-border/40 py-0.5 break-words [overflow-wrap:anywhere]">
                           <RichText content={(a.payload as any).text} context={resolverContext} availableTags={allAvailableTags} />
                         </div>
                       )}
@@ -307,7 +310,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
       </div>
 
       {activeTab === 'chat' && (
-        <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
+        <div className="px-4 pb-4 pt-3 border-t border-border/40 bg-card shrink-0">
           {roomChat.typingUsers.length > 0 && (
             <p className="text-[10px] text-muted-foreground/70 mb-1 px-1">
               {roomChat.typingUsers.map(u => u.displayName).join(", ")} {tRooms("chat.typing_one").replace("{name}", "")}
@@ -328,7 +331,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
                 setRoomInput("");
               }}
               className="w-full"
-              inputClassName="pr-10 shadow-sm"
+              inputClassName="pr-11 rounded-xl border-border/60 bg-background placeholder:text-muted-foreground/60"
             />
             <button
               type="button"
@@ -338,7 +341,7 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
                 setRoomInput("");
               }}
               disabled={!roomInput.trim() || roomChat.isSending}
-              className="absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm bg-accent text-accent-foreground"
+              className="absolute right-2 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Send className="h-3.5 w-3.5" />
             </button>
@@ -362,6 +365,6 @@ export function BoardChatDrawerWeb({ isOpen, onClose, boardId, initialTab = 'cha
         />
       )}
     </div>
-  );
+  ) as React.ReactElement;
 }
 

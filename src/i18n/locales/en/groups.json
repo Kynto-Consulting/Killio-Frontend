@@ -89,6 +89,7 @@
     "updated": "Role updated",
     "removed": "{{name}} no longer has access",
     "loadError": "Could not load the groups with access",
-    "error": "Could not update group access"
+    "error": "Could not update group access",
+    "noTeamGroups": "This team has no groups yet. Create one from the Teams screen."
   }
 }

@@ -62,6 +62,14 @@
     "scriptTooLong": "The query is too long (max {{max}} characters).",
     "labelTooLong": "The label is too long (max {{max}} characters).",
     "labelBracket": "The label cannot contain \"]\".",
-    "badUnicode": "The query contains invalid characters."
+    "badUnicode": "The query contains invalid characters.",
+    "scope": "Scope: {{label}}",
+    "scopeTeam": "whole team",
+    "scopeCount": "{{matched}} of {{cards}} in scope",
+    "scopeHint": "Where this query reads from. Narrow it with: cards in board \"Name\" list \"Name\"."
+  },
+  "input": {
+    "accept": "Tab or Enter to accept · Esc to close",
+    "fix": "Use {{value}}"
   }
 }

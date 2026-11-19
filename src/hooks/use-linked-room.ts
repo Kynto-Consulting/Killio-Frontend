@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { findRoomByEntity, createRoom, type Room, type LinkedEntityType } from "@/lib/api/rooms";
 
 const entitySlug: Record<LinkedEntityType, string> = {
@@ -15,9 +15,10 @@ export function useLinkedRoom(
   entityId: string | null | undefined,
   accessToken: string | null | undefined,
   autoCreate = true
-): { room: Room | null; roomId: string | null; isLoading: boolean } {
+): { room: Room | null; roomId: string | null; isLoading: boolean; ensureRoom: () => Promise<string | null> } {
   const [room, setRoom] = useState<Room | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const pending = useRef<Promise<string | null> | null>(null);
 
   useEffect(() => {
     if (!teamId || !entityType || !entityId || !accessToken) return;
@@ -27,21 +28,8 @@ export function useLinkedRoom(
     findRoomByEntity(teamId, entityType, entityId, accessToken)
       .then(async (found) => {
         if (cancelled) return;
-        if (found) {
-          setRoom(found);
-        } else if (autoCreate) {
-          const created = await createRoom(
-            teamId,
-            {
-              name: `${entitySlug[entityType]}-${entityId.slice(-6)}`,
-              type: "thread",
-              linkedEntityType: entityType,
-              linkedEntityId: entityId,
-            },
-            accessToken
-          );
-          if (!cancelled) setRoom(created);
-        }
+        // Lookup only: the room is created on the first message (ensureRoom), never because a panel opened.
+        setRoom(found ?? null);
       })
       .catch(console.error)
       .finally(() => {
@@ -53,5 +41,35 @@ export function useLinkedRoom(
     };
   }, [teamId, entityType, entityId, accessToken, autoCreate]);
 
-  return { room, roomId: room?.id ?? null, isLoading };
+  /** Creates the thread room on demand (first message). Concurrent calls share one request. */
+  const ensureRoom = useCallback(async (): Promise<string | null> => {
+    if (room) return room.id;
+    if (!autoCreate || !teamId || !entityType || !entityId || !accessToken) return null;
+    if (!pending.current) {
+      pending.current = createRoom(
+        teamId,
+        {
+          name: `${entitySlug[entityType]}-${entityId.slice(-6)}`,
+          type: "thread",
+          linkedEntityType: entityType,
+          linkedEntityId: entityId,
+        },
+        accessToken
+      )
+        .then((created) => {
+          setRoom(created);
+          return created.id;
+        })
+        .catch((error) => {
+          console.error(error);
+          return null;
+        })
+        .finally(() => {
+          pending.current = null;
+        });
+    }
+    return pending.current;
+  }, [room, autoCreate, teamId, entityType, entityId, accessToken]);
+
+  return { room, roomId: room?.id ?? null, isLoading, ensureRoom };
 }

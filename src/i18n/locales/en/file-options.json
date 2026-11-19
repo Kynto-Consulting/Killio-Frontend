@@ -1,0 +1,133 @@
+{
+  "title": "File read options",
+  "subtitle": "Choose how {{name}} is read before KQL queries it.",
+  "close": "Close",
+  "loading": "Loading options...",
+  "loadError": "The read options could not be loaded: {{message}}",
+  "retry": "Retry",
+  "readOnly": "You cannot edit this file. Your choices apply to this session only.",
+  "origin": {
+    "label": "File origin",
+    "auto": "Detect automatically",
+    "utf-8": "Unicode (UTF-8)",
+    "utf-16le": "Unicode (UTF-16 LE)",
+    "utf-16be": "Unicode (UTF-16 BE)",
+    "windows-1252": "Western European (Windows-1252)",
+    "iso-8859-1": "Western European (ISO 8859-1)",
+    "iso-8859-15": "Western European (ISO 8859-15)"
+  },
+  "delimiter": {
+    "label": "Delimiter",
+    "auto": "Detect automatically",
+    "comma": "Comma",
+    "semicolon": "Semicolon",
+    "tab": "Tab",
+    "pipe": "Pipe",
+    "space": "Space",
+    "colon": "Colon",
+    "custom": "Custom...",
+    "customLabel": "Custom delimiter (up to 3 characters)",
+    "customPlaceholder": "e.g. ||"
+  },
+  "detection": {
+    "label": "Data type detection",
+    "first-200": "Based on first 200 rows",
+    "first-1000": "Based on first 1000 rows",
+    "all": "Based on entire dataset",
+    "none": "Do not detect data types"
+  },
+  "sheet": {
+    "label": "Sheet",
+    "first": "First sheet"
+  },
+  "skipRows": "Skip rows",
+  "header": "First row is header",
+  "skipBlank": "Skip blank lines",
+  "comment": {
+    "label": "Comment prefix",
+    "placeholder": "e.g. #"
+  },
+  "trim": "Trim spaces",
+  "quote": {
+    "label": "Quote character",
+    "double": "Double quote (\")",
+    "single": "Single quote (')",
+    "none": "No quoting"
+  },
+  "locale": {
+    "title": "Locale",
+    "decimal": "Decimal separator",
+    "decimalDot": "Dot (1234.56)",
+    "decimalComma": "Comma (1234,56)",
+    "thousands": "Thousands separator",
+    "thousandsNone": "None",
+    "thousandsComma": "Comma",
+    "thousandsDot": "Dot",
+    "thousandsSpace": "Space",
+    "thousandsApostrophe": "Apostrophe",
+    "dateOrder": "Date order",
+    "dateAuto": "Detect automatically",
+    "dateYmd": "Year-Month-Day",
+    "dateDmy": "Day-Month-Year",
+    "dateMdy": "Month-Day-Year",
+    "dateCustom": "Custom pattern...",
+    "datePattern": "Date pattern",
+    "datePatternPlaceholder": "e.g. dd/MM/yyyy",
+    "listSeparator": "List separator",
+    "listSeparatorPlaceholder": "e.g. ;",
+    "nullTokens": "Values read as empty",
+    "nullTokensHint": "Type a value and press Enter",
+    "nullTokenAdd": "Add",
+    "nullTokenRemove": "Remove {{token}}",
+    "emptyString": "(empty text)"
+  },
+  "types": {
+    "text": "Text",
+    "integer": "Whole number",
+    "decimal": "Decimal number",
+    "boolean": "True/false",
+    "date": "Date",
+    "datetime": "Date and time",
+    "list": "List"
+  },
+  "column": {
+    "type": "Type of column {{name}}",
+    "rename": "Rename column {{name}}",
+    "autoType": "Detected: {{type}}",
+    "overridden": "Type set manually",
+    "useDetected": "Use detected type",
+    "quality": "Column quality",
+    "valid": "Valid",
+    "errors": "Error",
+    "empty": "Empty",
+    "distinct": "{{n}} distinct values",
+    "tooltip": "Valid {{valid}} ({{validPct}}%), error {{errors}} ({{errorsPct}}%), empty {{empty}} ({{emptyPct}}%). {{distinct}} distinct."
+  },
+  "tabs": {
+    "label": "Preview mode",
+    "preview": "Data",
+    "raw": "Raw"
+  },
+  "preview": {
+    "loading": "Updating preview...",
+    "error": "The preview could not be updated: {{message}}",
+    "empty": "No rows to show with these options.",
+    "summary": "{{rows}} rows read{{more}} - encoding {{encoding}}, delimiter {{delimiter}}",
+    "moreRows": " (more in the file)",
+    "rowNumber": "Row number",
+    "cellError": "This value is not valid for the column type",
+    "nullCell": "empty"
+  },
+  "delimiterName": {
+    "tab": "tab",
+    "space": "space",
+    "none": "none"
+  },
+  "warnings": "Warnings",
+  "reset": "Reset changes",
+  "cancel": "Cancel",
+  "load": "Load",
+  "useSession": "Use for this session",
+  "saving": "Saving...",
+  "saveError": "The options could not be saved: {{message}}"
+}

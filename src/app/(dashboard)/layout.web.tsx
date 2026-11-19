@@ -1,7 +1,9 @@
 "use client";
 
-import Link from "next/link";
-import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
+import { QueryFlowDialog } from "@/components/query-flow";
+import { PoweredByBadge } from "@/components/marketing/powered-by-badge";
+import Link from "next/link";
+import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { usePathname, useSearchParams } from "next/navigation";
@@ -858,6 +860,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
+          {!isSidebarCollapsed && <PoweredByBadge inline />}
+
           <button
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
             className={`flex w-full items-center justify-between rounded-lg hover:bg-accent/10 p-2 transition-colors cursor-pointer group focus:outline-none focus:ring-1 focus:ring-accent ${isSidebarCollapsed ? "justify-center" : ""}`}
@@ -1090,9 +1094,18 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
         <PushPermissionBanner accessToken={accessToken} />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto bg-background/50">
-          {children}
-        </main>
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <main className="flex-1 overflow-y-auto bg-background/50" style={{ paddingRight: "var(--right-drawer-width, 0px)" }}>
+            {children}
+          </main>
+          {/* Full-area workspaces (e.g. the visual query editor) open here: inside the content area, so the top bar and the sidebar stay usable. */}
+          <div id="app-workspace-slot" className="pointer-events-none absolute inset-y-0 left-0 z-[44] [&>*]:pointer-events-auto" style={{ right: "var(--right-drawer-width, 0px)" }} />
+          {/* Right-hand drawers (chat, comments, activity, assistant) dock here and the page content makes room. */}
+          <div id="right-drawer-slot" className="pointer-events-none absolute inset-y-0 right-0 z-[45] [&>*]:pointer-events-auto" style={{ width: "var(--right-drawer-width, 0px)" }} />
+        </div>
+
+        {/* One host for the visual query editor: its session survives route changes and re-mounts of the block that opened it. */}
+        <QueryFlowDialog />
 
         <CardTimerWidget 
           teamBoards={boards} 

@@ -71,14 +71,14 @@ function NestedThinking({ t, content }: { t: TFn; content: string }) {
     <div>
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 py-0.5 px-1 -mx-1 text-[12px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 rounded transition-colors"
+        className="flex items-center gap-1.5 py-0.5 px-1 -mx-1 text-[12px] text-muted-foreground hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-muted/60 rounded transition-colors"
       >
-        <Brain className="w-3 h-3 shrink-0 text-violet-400" />
+        <Brain className="w-3 h-3 shrink-0 text-primary/80" />
         <span className="font-medium">{t("agent.preThinkSections.thinking") || "Thinking"}</span>
         <ChevronDown className={`w-3 h-3 shrink-0 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="ml-5 mt-0.5 text-[12px] leading-relaxed text-neutral-500 dark:text-neutral-400 whitespace-pre-wrap break-words">
+        <div className="ml-5 mt-0.5 text-[12px] leading-relaxed text-muted-foreground whitespace-pre-wrap break-words">
           {text}
         </div>
       )}
@@ -98,7 +98,7 @@ export function SubAgentActivity({ t, activity, reason }: { t: TFn; activity: st
   return (
     <div className="ml-6 mt-1 mb-1 flex flex-col gap-1 border-l-2 border-violet-200 dark:border-violet-900/50 pl-3">
       {reason && (
-        <div className="flex items-center gap-1.5 text-[11px] font-medium text-violet-600 dark:text-violet-400">
+        <div className="flex items-center gap-1.5 text-[11px] font-medium text-primary">
           <Bot className="w-3 h-3 shrink-0" />
           <span className="truncate">{reason}</span>
         </div>

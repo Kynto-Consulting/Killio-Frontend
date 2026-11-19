@@ -1,5 +1,7 @@
 "use client";
 
+import { KqlInput } from "@/components/ui/kql-input";
+import { buildKqlSchema } from "@/lib/query/kql-complete";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 
@@ -60,7 +62,11 @@ export function ListViewModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Tags present on the cards of this list, offered for a custom tag order.
+  const tagNames = useMemo(() => [...new Set(cards.flatMap((c: any) => (c?.tags ?? []).map((tag: any) => (typeof tag === "string" ? tag : tag?.name)).filter(Boolean) as string[]))].sort((a, b) => a.localeCompare(b)), [cards]);
   const kql = useMemo<KqlCard[]>(() => cards.map((c) => toKqlCard(c, list, boardName, { priorityAsTag: true })), [cards, list, boardName]);
+  // What the KQL boxes can complete: the tags, lists, people... of this list.
+  const schema = useMemo(() => buildKqlSchema({ mode: "filter", cards: kql, ctx }), [kql, ctx]);
   const filterIssue = useMemo(() => validateExpression(draft.filter ?? ""), [draft.filter]);
   const filtered = useMemo(() => {
     if (!draft.filter?.trim() || filterIssue) return kql;
@@ -101,7 +107,7 @@ export function ListViewModal({
               onSave({ ...draft, categories: cats.length ? cats : undefined });
               onClose();
             }}
-            className="h-8 rounded-md bg-accent px-4 text-sm font-medium text-white hover:opacity-90 disabled:opacity-40"
+            className="h-8 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40"
           >
             {t("common.save")}
           </button>
@@ -117,12 +123,13 @@ export function ListViewModal({
       {tab === "filter" ? (
         <div className="space-y-2">
           <p className="text-xs text-muted-foreground">{t("listView.filterIntro")}</p>
-          <input
-            className={`${inputCls} font-mono ${filterIssue ? "border-red-500" : ""}`}
+          <KqlInput
             value={draft.filter ?? ""}
-            onChange={(e) => setDraft((d) => ({ ...d, filter: e.target.value }))}
+            onChange={(filter) => setDraft((d) => ({ ...d, filter }))}
+            schema={schema}
+            error={filterIssue}
             placeholder={t("listView.filterPlaceholder")}
-            spellCheck={false}
+            ariaLabel={t("bar.label")}
           />
           {filterIssue ? (
             <p role="alert" className="text-xs text-red-700 dark:text-red-300">{t("bar.invalid", { message: filterIssue.message, position: filterIssue.position + 1 })}</p>
@@ -135,7 +142,7 @@ export function ListViewModal({
       {tab === "sort" ? (
         <div className="space-y-3">
           <p className="text-xs text-muted-foreground">{t("listView.sortIntro")}</p>
-          <SortRulesEditor rules={draft.sort ?? []} onChange={(sort) => setDraft((d) => ({ ...d, sort }))} tagGroups={tagGroups} t={t} />
+          <SortRulesEditor rules={draft.sort ?? []} onChange={(sort) => setDraft((d) => ({ ...d, sort }))} tagGroups={tagGroups} tagNames={tagNames} t={t} />
           <p className="text-[11px] text-muted-foreground">{t("sort.dragNote")}</p>
         </div>
       ) : null}
@@ -157,7 +164,7 @@ export function ListViewModal({
                     <button type="button" className={iconBtn} disabled={i === categories.length - 1} onClick={() => setCats(moveItem(categories, i, i + 1))} aria-label={t("common.moveDown")}><ChevronDown className="h-4 w-4" /></button>
                     <button type="button" className={`${iconBtn} text-red-600 dark:text-red-400`} onClick={() => setCats(categories.filter((c) => c.id !== cat.id))} aria-label={t("common.remove")}><Trash2 className="h-4 w-4" /></button>
                   </div>
-                  <input className={`${inputCls} font-mono ${err ? "border-red-500" : ""}`} value={cat.expr} onChange={(e) => setCat(cat.id, { expr: e.target.value })} placeholder={t("categories.exprPlaceholder")} spellCheck={false} aria-label={t("categories.condition")} />
+                  <KqlInput value={cat.expr} onChange={(expr) => setCat(cat.id, { expr })} schema={schema} placeholder={t("categories.exprPlaceholder")} ariaLabel={t("categories.condition")} className={err ? "border-red-500" : ""} />
                   {err ? <p role="alert" className="text-xs text-red-700 dark:text-red-300">{err}</p> : null}
                   <div className="flex items-center gap-1">
                     {SWATCHES.map((c) => (

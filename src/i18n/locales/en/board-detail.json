@@ -37,16 +37,19 @@
   },
   "gantt": {
     "title": "Gantt View",
-    "thisWeek": "This week",
+    "thisWeek": "Today",
     "dayView": "Day",
     "weekView": "Week",
     "monthView": "Month",
     "lists": "Lists",
     "emptyTitle": "No cards in this period",
-    "emptyDescription": "Cards with a start or due date that overlap this range will appear here.",
+    "emptyDescription": "Cards with a start or due date that fall in this range show up as bars.",
     "cardsInList": "{{count}} cards",
     "start": "Start",
-    "due": "Due"
+    "due": "Due",
+    "today": "Today",
+    "task": "Task",
+    "noDates": "No dates"
   },
   "list": {
     "addCard": "Add a card",

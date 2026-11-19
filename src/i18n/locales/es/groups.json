@@ -89,6 +89,7 @@
     "updated": "Rol actualizado",
     "removed": "{{name}} ya no tiene acceso",
     "loadError": "No se pudieron cargar los grupos con acceso",
-    "error": "No se pudo actualizar el acceso del grupo"
+    "error": "No se pudo actualizar el acceso del grupo",
+    "noTeamGroups": "Este equipo aún no tiene grupos. Crea uno desde la pantalla de Equipos."
   }
 }

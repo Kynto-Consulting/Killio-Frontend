@@ -82,8 +82,14 @@
       "priority": "Priority",
       "assignee": "Assignee",
       "points": "Points",
-      "comments": "Comments"
-    }
+      "comments": "Comments",
+      "tags": "Tags",
+      "tagCount": "Number of tags"
+    },
+    "customOrder": "Custom order",
+    "customOrderHint": "Cards are ordered by the first tag they have in this list. Cards with none of them go last.",
+    "addTag": "Add a tag...",
+    "noMoreTags": "Every tag of this list is already in the order."
   },
   "tagGroups": {
     "title": "Tag groups",

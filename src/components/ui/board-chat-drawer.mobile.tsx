@@ -74,22 +74,22 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[90] animate-in fade-in duration-200"
         onClick={onClose}
       />
-      <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-card rounded-t-3xl border-t border-border/60 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] flex flex-col z-[100] transform transition-transform animate-in slide-in-from-bottom duration-300">
+      <div className="fixed bottom-0 left-0 right-0 h-[85vh] bg-card rounded-t-3xl border-t border-border/60 shadow-xl flex flex-col overflow-hidden z-[100] transform transition-transform animate-in slide-in-from-bottom duration-300">
         {/* Mobile Handle */}
         <div className="flex justify-center p-2 shrink-0 touch-none">
           <div className="w-12 h-1.5 bg-muted rounded-full opacity-60" />
         </div>
 
       {/* Header with Tabs */}
-      <div className="flex flex-col border-b border-border/50 bg-background/50 backdrop-blur shrink-0">
-        <div className="flex items-center justify-between p-4 pb-2">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</h3>
-          <button onClick={onClose} className="rounded-md p-1 hover:bg-accent/10 text-muted-foreground transition-colors">
+      <div className="flex flex-col border-b border-border/40 bg-card shrink-0">
+        <div className="flex items-center justify-between px-4 pt-2 pb-3">
+          <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground min-w-0"><Sparkles className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">{activeTab === 'activity' ? t("chatDrawer.headerActivity") : t("chatDrawer.headerCollaboration")}</span></h3>
+          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors">
             <X className="h-4 w-4" />
           </button>
         </div>
 
-        <div className="flex px-2 pb-0.5 gap-1">
+        <div className="mx-4 mb-3 flex gap-1 rounded-lg bg-muted/50 p-1">
           {[
             { id: 'copilot', label: 'Copilot', icon: Bot },
             { id: 'chat', label: 'Chat', icon: MessageSquare },
@@ -98,9 +98,9 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 text-[10px] font-bold uppercase tracking-wider transition-all border-b-2 ${activeTab === tab.id
-                  ? 'border-accent text-accent bg-accent/5'
-                  : 'border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/30'
+              className={`flex-1 min-w-0 flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all ${activeTab === tab.id
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
                 }`}
             >
               <tab.icon className="h-3.5 w-3.5" />
@@ -110,7 +110,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         </div>
       </div>
 
-      <div className={`space-y-4 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto min-h-0 p-4 " : "p-b-2"}`}>
+      <div className={`space-y-3 flex-1 chat-drawer ${activeTab != 'copilot' ? "overflow-y-auto overflow-x-hidden min-h-0 p-4 " : "p-b-2"}`}>
         {activeTab === 'copilot' && activeTeamId && (
           <AgentChatPanel
             teamId={activeTeamId}
@@ -128,7 +128,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
           if (msg.role === "system") {
             return (
               <div key={msg.id} className="flex justify-center">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-muted-foreground px-2 py-1 bg-muted/50 rounded-full">
+                <span className="text-[10px] text-muted-foreground px-2.5 py-1 bg-muted/50 rounded-full">
                   {msg.content}
                 </span>
               </div>
@@ -139,9 +139,9 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
             const isAi = !msg.avatarUrl && !msg.email && !msg.avatar;
             return (
               <div key={msg.id} className="flex gap-3">
-                <div className="h-8 w-8 shrink-0 rounded border flex items-center justify-center shadow-sm bg-muted/50 border-border/50 text-muted-foreground overflow-hidden">
+                <div className="h-6 w-6 shrink-0 rounded-full flex items-center justify-center bg-muted text-muted-foreground overflow-hidden">
                   {isAi ? (
-                    <MessageSquare className="h-4 w-4" />
+                    <MessageSquare className="h-3 w-3" />
                   ) : (
                     (msg.avatarUrl || msg.email) ? (
                       <img src={getUserAvatarUrl(msg.avatarUrl, msg.email, 32)} alt="Avatar" className="h-full w-full object-cover" />
@@ -150,7 +150,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                     )
                   )}
                 </div>
-                <div className="bg-muted/50 rounded-xl rounded-tl-none border border-border/50 p-3 text-sm text-foreground/90 leading-relaxed shadow-sm min-w-0 flex-1 whitespace-pre-wrap break-words">
+                <div className="bg-muted/60 rounded-2xl rounded-bl-md px-4 py-2.5 text-sm text-foreground leading-relaxed min-w-0 max-w-[85%] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
                   <RichText
                     content={msg.content}
                     context={getResolverContext(teamDocs, [], teamMembers)}
@@ -166,7 +166,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
           return (
             <div key={msg.id} className="flex gap-3 flex-row-reverse">
               <div
-                className="h-8 w-8 shrink-0 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center text-primary font-bold text-[10px] shadow-sm overflow-hidden"
+                className="h-6 w-6 shrink-0 rounded-full bg-primary/10 flex items-center justify-center text-primary font-medium text-[10px] overflow-hidden"
                 style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: userTint.text }}
               >
                 {(user?.avatarUrl || msg.avatarUrl || msg.email) ? (
@@ -174,8 +174,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 ) : ( msg.avatar || (user?.displayName?.[0] || 'U') )}
               </div>
               <div
-                className="bg-primary text-primary-foreground rounded-xl rounded-tr-none p-3 text-sm leading-relaxed shadow-sm border border-primary/20 whitespace-pre-wrap break-words"
-                style={{ backgroundColor: userTint.bg, borderColor: userTint.border, color: "inherit" }}
+                className="bg-primary text-primary-foreground rounded-2xl rounded-br-md px-4 py-2.5 text-sm leading-relaxed max-w-[85%] min-w-0 whitespace-pre-wrap break-words [overflow-wrap:anywhere]"
               >
                 <RichText
                   content={msg.content}
@@ -188,10 +187,10 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
         })}
 
         {activeTab === 'activity' && (
-          <div className="space-y-6 pr-1 overflow-x-hidden">
+          <div className="space-y-4 pr-1 overflow-x-hidden">
             {groupedActivities.length === 0 && (
-              <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-60 font-medium">
-                <History className="h-8 w-8 mb-2" />
+              <div className="h-40 flex flex-col items-center justify-center text-muted-foreground text-xs space-y-2 opacity-70 text-center">
+                <History className="h-8 w-8 mb-2 text-primary/50" strokeWidth={1.5} />
                 <p>{t("chatDrawer.noActivity")}</p>
               </div>
             )}
@@ -205,13 +204,13 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
               const resolverContext = getResolverContext(teamDocs, [], teamMembers);
 
               return (
-                <div key={a.id} className="relative pl-6 pb-2 border-l border-border/40 last:border-0 group">
-                  <div className="absolute left-[-5px] top-1.5 h-2.5 w-2.5 rounded-full bg-border ring-2 ring-background group-hover:bg-accent transition-colors" />
-                  <div className="flex flex-col gap-1.5">
+                <div key={a.id} className="relative pl-5 pb-1 border-l border-border/30 last:border-0 group min-w-0">
+                  <div className="absolute left-[-3px] top-2 h-1.5 w-1.5 rounded-full bg-muted-foreground/40 group-hover:bg-primary transition-colors" />
+                  <div className="flex flex-col gap-1">
                     <div className="flex items-center gap-2">
                       <Icon className="h-3 w-3 text-muted-foreground/60" />
                       <div className="flex items-center gap-1 group/badge relative">
-                        <span className={`px-1.5 py-0.5 rounded text-[9px] font-black uppercase tracking-wider border shadow-sm ${theme.badgeClass}`}>
+                        <span className={`px-1.5 py-0.5 rounded-md text-[9px] font-medium uppercase tracking-wide border ${theme.badgeClass}`}>
                           {theme.badge}
                           {group.length > 1 && ` x${group.length}`}
                         </span>
@@ -246,25 +245,25 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                           </button>
                         )}
                       </div>
-                      <time className="text-[9px] text-muted-foreground font-medium ml-auto">
+                      <time className="text-[10px] text-muted-foreground/70 ml-auto">
                         {new Date(a.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </time>
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs text-foreground/80 leading-relaxed">
-                        <span className="font-bold text-foreground">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
+                      <p className="text-xs text-foreground/80 leading-relaxed break-words [overflow-wrap:anywhere]">
+                        <span className="font-medium text-foreground">{getWorkspaceMemberLabel(member, t("chatDrawer.someone"))}</span>
                         <span className="text-muted-foreground/80"> {prettifyAction(a.action)}</span>
                       </p>
 
                       {changedFields && (
-                        <p className="text-[10px] bg-muted/30 px-2 py-1 rounded border border-border/30 text-muted-foreground italic">
+                        <p className="text-[10px] bg-muted/40 px-2.5 py-1 rounded-lg text-muted-foreground break-words [overflow-wrap:anywhere]">
                           {t("chatDrawer.fields")} {changedFields}
                         </p>
                       )}
 
                       {(a.payload as any)?.text && (
-                        <div className="text-[10px] text-muted-foreground px-2 border-l-2 border-border/50 bg-background/30 py-0.5">
+                        <div className="text-[10px] text-muted-foreground px-2 border-l-2 border-border/40 py-0.5 break-words [overflow-wrap:anywhere]">
                           <RichText content={(a.payload as any).text} context={resolverContext} availableTags={allAvailableTags} />
                         </div>
                       )}
@@ -279,7 +278,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
       </div>
 
       {activeTab === 'chat' && (
-        <div className="p-4 border-t border-border/50 bg-background/30 shrink-0">
+        <div className="px-4 pb-4 pt-3 border-t border-border/40 bg-card shrink-0">
           <form className="relative flex items-center" onSubmit={(e) => e.preventDefault()}>
             <ReferenceTokenInput
               value={inputVal}
@@ -293,7 +292,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 void sendMessage();
               }}
               className="w-full"
-              inputClassName="pr-10 shadow-sm"
+              inputClassName="pr-11 rounded-xl border-border/60 bg-background placeholder:text-muted-foreground/60"
             />
             <button
               type="button"
@@ -301,7 +300,7 @@ export function BoardChatDrawerMobile({ isOpen, onClose, boardId, initialTab = '
                 void sendMessage();
               }}
               disabled={!inputVal.trim() || isLoading || isSendingMessage}
-              className="absolute right-1.5 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors shadow-sm bg-accent text-accent-foreground"
+              className="absolute right-2 p-1.5 rounded-full disabled:opacity-50 disabled:bg-muted disabled:text-muted-foreground transition-colors bg-primary text-primary-foreground hover:bg-primary/90"
             >
               <Send className="h-3.5 w-3.5" />
             </button>

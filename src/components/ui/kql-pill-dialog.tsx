@@ -1,9 +1,12 @@
 "use client";
 
+import { KqlInput } from "@/components/ui/kql-input";
+import { buildKqlSchema } from "@/lib/query/kql-complete";
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { AlertTriangle, X } from "lucide-react";
+import { AlertTriangle, Workflow, X } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { Portal } from "./portal";
+import { QueryFlowDialog } from "@/components/query-flow";
 import { KQL_SYNTAX_GUIDE, type KqlTable } from "@/lib/query/kql";
 import { kqlGuideExamples, KQL_PILL_STARTERS } from "@/lib/kql-pill/examples";
 import { formatKqlResult } from "@/lib/kql-pill/format";
@@ -75,6 +78,10 @@ function Preview({ script, mode, tables, enabled }: { script: string; mode: KqlP
 
 export function KqlPillDialog({ open, initial, tables, onClose, onSubmit }: KqlPillDialogProps) {
   const t = useTranslations("kql");
+  const tf = useTranslations("query-flow");
+  const [visualOpen, setVisualOpen] = useState(false);
+  // The editor opens inside the content area; this dialog stays mounted (keeps its draft) but hidden meanwhile.
+  const [editorShown, setEditorShown] = useState(false);
   const [script, setScript] = useState(initial?.script ?? "");
   const [mode, setMode] = useState<KqlPillMode>(initial?.mode ?? "value");
   const [label, setLabel] = useState(initial?.label ?? "");
@@ -93,6 +100,7 @@ export function KqlPillDialog({ open, initial, tables, onClose, onSubmit }: KqlP
   }, [open]);
 
   const examples = useMemo(() => kqlGuideExamples(KQL_SYNTAX_GUIDE, 6), []);
+  const pillSchema = useMemo(() => buildKqlSchema({ mode: "script", tables: (tables ?? []).map((tb) => ({ title: tb.title, columns: tb.columns })) }), [tables]);
   const syntaxError = useMemo(() => (script.trim() ? checkKqlPillSyntax(script) : null), [script]);
   const effectiveLabel = labelTouched ? label : defaultKqlPillLabel(script);
   const invalid = validateKqlPill(script, mode, effectiveLabel);
@@ -115,7 +123,7 @@ export function KqlPillDialog({ open, initial, tables, onClose, onSubmit }: KqlP
   return (
     <Portal>
       <div
-        className="fixed inset-0 z-[200] flex items-center justify-center p-3"
+        className={`fixed inset-0 z-[200] flex items-center justify-center p-3 ${editorShown ? "hidden" : ""}`}
         onMouseDown={(e) => e.stopPropagation()}
         onClick={(e) => e.stopPropagation()}
         onKeyDown={(e) => {
@@ -133,19 +141,27 @@ export function KqlPillDialog({ open, initial, tables, onClose, onSubmit }: KqlP
             </button>
           </div>
 
-          <label className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
-            {t("pill.script")}
-            <textarea
-              ref={areaRef}
-              value={script}
-              onChange={(e) => setScript(e.target.value)}
+          <div className="flex flex-col gap-1 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center justify-between gap-2">
+              <span>{t("pill.script")}</span>
+              <button type="button" onClick={() => setVisualOpen(true)} className="inline-flex h-7 items-center gap-1 rounded-md border border-border bg-background px-2 text-[11px] font-medium text-foreground hover:bg-muted">
+                <Workflow className="h-3.5 w-3.5" aria-hidden />
+                {tf("graph.visualEditor")}
+              </button>
+            </div>
+            <KqlInput
+              multiline
               rows={4}
-              spellCheck={false}
-              maxLength={KQL_PILL_MAX_SCRIPT + 200}
+              autoFocus
+              ariaLabel={t("pill.script")}
+              value={script}
+              onChange={(next) => setScript(next.slice(0, KQL_PILL_MAX_SCRIPT + 200))}
+              schema={pillSchema}
+              error={syntaxError ? { message: syntaxError.message, position: syntaxError.position ?? 0 } : null}
               placeholder={t("pill.scriptPlaceholder")}
-              className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              className="text-xs"
             />
-          </label>
+          </div>
           {syntaxError ? (
             <div className="-mt-1 flex items-start gap-1.5 text-xs text-red-700 dark:text-red-300">
               <AlertTriangle className="mt-0.5 h-3 w-3 shrink-0" aria-hidden />
@@ -216,6 +232,14 @@ export function KqlPillDialog({ open, initial, tables, onClose, onSubmit }: KqlP
           </div>
         </div>
       </div>
+      <QueryFlowDialog
+        open={visualOpen}
+        initialScript={script}
+        tables={tables ?? []}
+        onApply={({ script: compiled }) => { setScript(compiled.slice(0, KQL_PILL_MAX_SCRIPT + 200)); setVisualOpen(false); }}
+        onClose={() => setVisualOpen(false)}
+        onOpenChange={setEditorShown}
+      />
     </Portal>
   );
 }

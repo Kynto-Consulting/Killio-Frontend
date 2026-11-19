@@ -696,5 +696,18 @@
     "applyAll": "Apply all changes",
     "applyOne": "Apply improvement",
     "daysAgo": "{{n}} days ago"
-  }
+  },
+  "fileViewer": {
+    "view": "Preview",
+    "close": "Close",
+    "openNew": "Open in a new tab",
+    "loading": "Loading file...",
+    "failed": "The file could not be read. You can still download it.",
+    "tooLarge": "This file is too large to preview. Download it instead.",
+    "noPreview": "No preview for this type of file. Download it to open it.",
+    "truncated": "Only the beginning of the file is shown.",
+    "slide": "Slide {{n}}",
+    "rowsShown": "{{n}} row(s) shown"
+  },
+  "loadMore": "Load more"
 }

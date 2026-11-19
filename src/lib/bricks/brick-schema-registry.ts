@@ -67,7 +67,7 @@ export const BRICK_SCHEMAS: Record<string, BrickSchema> = {
       data: "Array<Record<string, any>> (e.g. [{ name: 'Jan', value: 100 }])",
       config: "{ xKey: string, yKeys: string[], colors?: string[] }",
       tableSource: "{ brickId: string, xAxisColumn: number, dataColumns: number[] } (Optional: plot a table brick of the document)",
-      source: "{ kind: 'kql', script: string, output?: number } (Optional: data from a KQL query, e.g. 'cards where done in last 30d group by assignee count'; first dimension = X axis, each metric = a series; output = index of the `show` output, default 0. Takes precedence over data/tableSource)"
+      source: "{ kind: 'kql', script: string, output?: number, flow?: object } (`flow` is optional UI state of the visual editor - nodes, edges, positions; the script is what runs, ignore `flow` when writing. Optional: data from a KQL query, e.g. 'cards where done in last 30d group by assignee count'; first dimension = X axis, each metric = a series; output = index of the `show` output, default 0. Takes precedence over data/tableSource)"
     }
   },
   checklist: {

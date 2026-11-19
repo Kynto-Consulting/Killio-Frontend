@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useAsyncAction } from "@/hooks/ui";
 import { Check, ChevronDown, ChevronUp, Clock3, Expand, Loader2, Square } from "lucide-react";
 
@@ -41,6 +42,7 @@ export function CardTimerWidget({
   const t = useTranslations("board-detail");
   const { locale } = useI18n();
   const { accessToken } = useSession();
+  const inRooms = Boolean(usePathname()?.startsWith("/rooms/"));
   const [timers, setTimers] = useState<ActiveCardTimer[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [now, setNow] = useState(() => Date.now());
@@ -189,17 +191,18 @@ export function CardTimerWidget({
   return (
     <>
       <div
-        className="pointer-events-auto fixed right-6 z-40 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-border/80 bg-background/95 shadow-2xl backdrop-blur-xl"
-        style={{ bottom: 24 + toastOffset }}
+        className="pointer-events-auto fixed z-40 w-[min(380px,calc(100vw-2rem))] rounded-2xl border border-border/60 bg-card shadow-xl"
+        // Rooms have a message box along the bottom edge: the widget floats above it instead of covering the send button.
+        style={{ bottom: (inRooms ? 96 : 24) + toastOffset, right: "calc(1.5rem + var(--right-drawer-width, 0px))" }}
       >
         {isMinimized ? (
           <div className="flex items-center gap-3 px-4 py-3">
-            <div className="rounded-lg border border-border/80 bg-muted/40 p-1.5 text-muted-foreground">
+            <div className="rounded-lg bg-primary/10 p-1.5 text-primary">
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Clock3 className="h-4 w-4" />}
             </div>
             <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{activeTimer?.title}</p>
             {countdownDisplay !== null ? (
-              <span className={`shrink-0 text-sm font-semibold tabular-nums ${remainingMs !== null && remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
+              <span className={`shrink-0 text-sm font-semibold tabular-nums ${remainingMs !== null && remainingMs >= 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
                 {countdownDisplay}
               </span>
             ) : null}
@@ -214,7 +217,7 @@ export function CardTimerWidget({
         ) : (
           <div className="p-4">
             <div className="flex items-start gap-4">
-              <div className="mt-0.5 rounded-xl border border-border/80 bg-muted/40 p-2 text-muted-foreground">
+              <div className="mt-0.5 rounded-xl bg-primary/10 p-2 text-primary">
                 {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Clock3 className="h-5 w-5" />}
               </div>
               <div className="min-w-0 flex-1">
@@ -229,7 +232,7 @@ export function CardTimerWidget({
                 ) : null}
                 {dueAtLabel ? <p className="mt-2 text-[11px] text-muted-foreground">{t("cardModal.widget.dueAt", { value: dueAtLabel })}</p> : null}
                 {remainingMs !== null ? (
-                  <p className={`mt-3 text-3xl font-semibold tabular-nums ${remainingMs >= 0 ? "text-foreground" : "text-red-400"}`}>
+                  <p className={`mt-2 text-2xl font-semibold tabular-nums ${remainingMs >= 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
                     {remainingMs >= 0 ? formatCountdown(remainingMs) : `-${formatCountdown(Math.abs(remainingMs))}`}
                   </p>
                 ) : null}
@@ -248,7 +251,7 @@ export function CardTimerWidget({
                 type="button"
                 onClick={() => void cancelAction.run()}
                 disabled={!activeTimer || cancelAction.isPending || finishAction.isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/70 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl border border-border/60 px-4 py-2.5 text-sm font-semibold text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground disabled:opacity-50"
               >
                 {cancelAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 {t("cardModal.widget.cancelTimer")}
@@ -257,7 +260,7 @@ export function CardTimerWidget({
                 type="button"
                 onClick={() => void finishAction.run()}
                 disabled={!activeTimer || cancelAction.isPending || finishAction.isPending}
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-emerald-400 disabled:opacity-50"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50"
               >
                 {finishAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                 {t("cardModal.widget.finishTask")}
@@ -266,7 +269,7 @@ export function CardTimerWidget({
                 type="button"
                 onClick={() => void openDetailAction.run()}
                 disabled={!activeTimer || openDetailAction.isPending || cancelAction.isPending || finishAction.isPending}
-                className="inline-flex items-center justify-center rounded-xl border border-border/70 px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/10 disabled:opacity-50"
+                className="inline-flex items-center justify-center rounded-xl border border-border/60 px-3 py-2.5 text-sm font-semibold text-foreground transition-colors hover:bg-accent/10 disabled:opacity-50"
               >
                 {openDetailAction.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Expand className="h-4 w-4" />}
               </button>
@@ -281,10 +284,10 @@ export function CardTimerWidget({
                       key={item.cardId}
                       type="button"
                       onClick={() => setActiveTimerId(item.cardId)}
-                      className="flex w-full items-center justify-between rounded-xl border border-border/60 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-accent/10"
+                      className="flex w-full items-center justify-between rounded-xl bg-muted/50 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted"
                     >
                       <span className="truncate font-medium text-foreground">{item.title}</span>
-                      <span className={`ml-3 shrink-0 font-semibold tabular-nums ${ms >= 0 ? "text-foreground" : "text-red-400"}`}>
+                      <span className={`ml-3 shrink-0 font-semibold tabular-nums ${ms >= 0 ? "text-foreground" : "text-red-600 dark:text-red-400"}`}>
                         {ms >= 0 ? formatCountdown(ms) : `-${formatCountdown(Math.abs(ms))}`}
                       </span>
                     </button>

@@ -1,0 +1,133 @@
+{
+  "title": "Opciones de lectura del archivo",
+  "subtitle": "Elige como se lee {{name}} antes de consultarlo con KQL.",
+  "close": "Cerrar",
+  "loading": "Cargando opciones...",
+  "loadError": "No se pudieron cargar las opciones de lectura: {{message}}",
+  "retry": "Reintentar",
+  "readOnly": "No puedes editar este archivo. Tus cambios solo valen para esta sesion.",
+  "origin": {
+    "label": "Origen del archivo",
+    "auto": "Detectar automaticamente",
+    "utf-8": "Unicode (UTF-8)",
+    "utf-16le": "Unicode (UTF-16 LE)",
+    "utf-16be": "Unicode (UTF-16 BE)",
+    "windows-1252": "Europa occidental (Windows-1252)",
+    "iso-8859-1": "Europa occidental (ISO 8859-1)",
+    "iso-8859-15": "Europa occidental (ISO 8859-15)"
+  },
+  "delimiter": {
+    "label": "Delimitador",
+    "auto": "Detectar automaticamente",
+    "comma": "Coma",
+    "semicolon": "Punto y coma",
+    "tab": "Tabulacion",
+    "pipe": "Barra vertical",
+    "space": "Espacio",
+    "colon": "Dos puntos",
+    "custom": "Personalizado...",
+    "customLabel": "Delimitador personalizado (hasta 3 caracteres)",
+    "customPlaceholder": "p. ej. ||"
+  },
+  "detection": {
+    "label": "Deteccion de tipos de datos",
+    "first-200": "Segun las primeras 200 filas",
+    "first-1000": "Segun las primeras 1000 filas",
+    "all": "Segun todo el conjunto de datos",
+    "none": "No detectar tipos de datos"
+  },
+  "sheet": {
+    "label": "Hoja",
+    "first": "Primera hoja"
+  },
+  "skipRows": "Omitir filas",
+  "header": "La primera fila es el encabezado",
+  "skipBlank": "Omitir lineas en blanco",
+  "comment": {
+    "label": "Prefijo de comentario",
+    "placeholder": "p. ej. #"
+  },
+  "trim": "Recortar espacios",
+  "quote": {
+    "label": "Caracter de comillas",
+    "double": "Comillas dobles (\")",
+    "single": "Comillas simples (')",
+    "none": "Sin comillas"
+  },
+  "locale": {
+    "title": "Configuracion regional",
+    "decimal": "Separador decimal",
+    "decimalDot": "Punto (1234.56)",
+    "decimalComma": "Coma (1234,56)",
+    "thousands": "Separador de miles",
+    "thousandsNone": "Ninguno",
+    "thousandsComma": "Coma",
+    "thousandsDot": "Punto",
+    "thousandsSpace": "Espacio",
+    "thousandsApostrophe": "Apostrofe",
+    "dateOrder": "Orden de fecha",
+    "dateAuto": "Detectar automaticamente",
+    "dateYmd": "Anio-Mes-Dia",
+    "dateDmy": "Dia-Mes-Anio",
+    "dateMdy": "Mes-Dia-Anio",
+    "dateCustom": "Patron personalizado...",
+    "datePattern": "Patron de fecha",
+    "datePatternPlaceholder": "p. ej. dd/MM/yyyy",
+    "listSeparator": "Separador de listas",
+    "listSeparatorPlaceholder": "p. ej. ;",
+    "nullTokens": "Valores leidos como vacios",
+    "nullTokensHint": "Escribe un valor y pulsa Enter",
+    "nullTokenAdd": "Agregar",
+    "nullTokenRemove": "Quitar {{token}}",
+    "emptyString": "(texto vacio)"
+  },
+  "types": {
+    "text": "Texto",
+    "integer": "Numero entero",
+    "decimal": "Numero decimal",
+    "boolean": "Verdadero/falso",
+    "date": "Fecha",
+    "datetime": "Fecha y hora",
+    "list": "Lista"
+  },
+  "column": {
+    "type": "Tipo de la columna {{name}}",
+    "rename": "Renombrar la columna {{name}}",
+    "autoType": "Detectado: {{type}}",
+    "overridden": "Tipo definido manualmente",
+    "useDetected": "Usar el tipo detectado",
+    "quality": "Calidad de la columna",
+    "valid": "Validos",
+    "errors": "Error",
+    "empty": "Vacios",
+    "distinct": "{{n}} valores distintos",
+    "tooltip": "Validos {{valid}} ({{validPct}}%), error {{errors}} ({{errorsPct}}%), vacios {{empty}} ({{emptyPct}}%). {{distinct}} distintos."
+  },
+  "tabs": {
+    "label": "Modo de vista previa",
+    "preview": "Datos",
+    "raw": "Sin procesar"
+  },
+  "preview": {
+    "loading": "Actualizando vista previa...",
+    "error": "No se pudo actualizar la vista previa: {{message}}",
+    "empty": "No hay filas que mostrar con estas opciones.",
+    "summary": "{{rows}} filas leidas{{more}} - codificacion {{encoding}}, delimitador {{delimiter}}",
+    "moreRows": " (hay mas en el archivo)",
+    "rowNumber": "Numero de fila",
+    "cellError": "Este valor no es valido para el tipo de la columna",
+    "nullCell": "vacio"
+  },
+  "delimiterName": {
+    "tab": "tabulacion",
+    "space": "espacio",
+    "none": "ninguno"
+  },
+  "warnings": "Advertencias",
+  "reset": "Descartar cambios",
+  "cancel": "Cancelar",
+  "load": "Cargar",
+  "useSession": "Usar en esta sesion",
+  "saving": "Guardando...",
+  "saveError": "No se pudieron guardar las opciones: {{message}}"
+}

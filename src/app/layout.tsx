@@ -33,6 +33,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 import { SessionProvider } from '@/components/providers/session-provider';
+import { PasswordChangeGuard } from '@/components/auth/password-change-guard';
 import { I18nProvider } from '@/components/providers/i18n-provider';
 import { Toaster } from '@/components/ui/toaster';
 import { OfflineIndicator } from '@/components/ui/offline-indicator';
@@ -64,6 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <SessionProvider>
               <RealtimeProvider>
                 <I18nProvider>
+                  <PasswordChangeGuard />
                   <CallProvider>
                     {children}
                   </CallProvider>

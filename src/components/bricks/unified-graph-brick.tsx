@@ -1,5 +1,7 @@
 "use client";
 
+import { KqlInput } from "@/components/ui/kql-input";
+import { buildKqlSchema } from "@/lib/query/kql-complete";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -19,7 +21,8 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { BarChart2, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon, Settings2, Play, Loader2 } from "lucide-react";
+import { BarChart2, LineChart as LineChartIcon, PieChart as PieChartIcon, AreaChart as AreaChartIcon, Settings2, Play, Loader2, Workflow } from "lucide-react";
+import { QueryFlowDialog } from "@/components/query-flow";
 import { sheetEngine } from "@/lib/sheetEngine";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -43,6 +46,8 @@ type KqlSourceConfig = {
   script: string;
   /** Which `show` output of the script feeds the chart (default 0). */
   output?: number;
+  /** Optional UI state of the visual editor (nodes, edges, positions) plus the `script` it compiled to. The script is what runs; anything else ignores `flow`. */
+  flow?: { script?: string } & Record<string, unknown>;
 };
 
 type GraphConfig = {
@@ -170,6 +175,7 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
   const [manualJson, setManualJson] = useState<string>(JSON.stringify(safeConfig.data, null, 2));
   const [jsonError, setJsonError] = useState<string>("");
   const tk = useTranslations("kql");
+  const tkf = useTranslations("query-flow");
   const { accessToken, activeTeamId: sessionTeamId } = useSession();
   // The document's own team wins over the team active in the sidebar.
   const activeTeamId = useKqlScopeTeamId() ?? sessionTeamId;
@@ -177,11 +183,13 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
   const [kqlDraft, setKqlDraft] = useState<string>(config?.source?.script ?? "");
   const [kqlOutput, setKqlOutput] = useState<number>(config?.source?.output ?? 0);
   const [runNonce, setRunNonce] = useState(0);
+  const [visualOpen, setVisualOpen] = useState(false);
   const isKql = !!safeConfig.source || kqlPending;
   const editingKql = !readonly && isConfiguring && isKql;
   const kqlScript = editingKql ? kqlDraft : safeConfig.source?.script ?? "";
   const kqlOutputIndex = editingKql ? kqlOutput : safeConfig.source?.output ?? 0;
   const kqlTables = useMemo(() => tablesFromBricks(activeBricks as any[]), [activeBricks]);
+  const kqlSchema = useMemo(() => buildKqlSchema({ mode: "script", tables: kqlTables }), [kqlTables]);
   const kqlSyntax = useMemo<KqlErrorInfo | null>(() => {
     if (!kqlScript.trim()) return null;
     try {
@@ -316,7 +324,17 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
   const applyKql = () => {
     if (!kqlDraft.trim() || kqlSyntax) return;
     setKqlPending(false);
-    updateConfig({ source: { kind: "kql", script: kqlDraft.trim(), output: kqlOutput }, tableSource: undefined });
+    // the saved diagram only stays when the script is still the one it compiled to
+    const flow = safeConfig.source?.flow && safeConfig.source.flow.script === kqlDraft.trim() ? safeConfig.source.flow : undefined;
+    updateConfig({ source: { kind: "kql", script: kqlDraft.trim(), output: kqlOutput, ...(flow ? { flow } : {}) }, tableSource: undefined });
+    setIsConfiguring(false);
+  };
+
+  const applyVisual = ({ script, flow }: { script: string; flow: object }, options?: { keepOpen?: boolean }) => {
+    if (!options?.keepOpen) setVisualOpen(false);
+    setKqlDraft(script);
+    setKqlPending(false);
+    updateConfig({ source: { kind: "kql", script, output: kqlOutput, flow: { ...(flow as Record<string, unknown>), script } }, tableSource: undefined });
     setIsConfiguring(false);
   };
 
@@ -502,14 +520,23 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
 
           {isKql ? (
             <div className="rounded-md border border-border p-2 space-y-2">
-              <label htmlFor={`kql-${id}`} className="block text-xs font-semibold text-muted-foreground">{tk("graph.scriptLabel")}</label>
-              <textarea
-                id={`kql-${id}`}
-                spellCheck={false}
-                className="min-h-[96px] w-full rounded-md border border-input bg-card px-2 py-1.5 font-mono text-xs text-foreground outline-none focus:ring-1 focus:ring-accent"
+              <div className="flex items-center justify-between gap-2">
+                <label htmlFor={`kql-${id}`} className="block text-xs font-semibold text-muted-foreground">{tk("graph.scriptLabel")}</label>
+                <Button type="button" variant="outline" size="sm" className="h-7 gap-1 px-2 text-[11px]" onClick={() => setVisualOpen(true)}>
+                  <Workflow className="h-3.5 w-3.5" />
+                  {tkf("graph.visualEditor")}
+                </Button>
+              </div>
+              <KqlInput
+                multiline
+                rows={4}
+                ariaLabel={tk("graph.scriptLabel")}
                 value={kqlDraft}
-                onChange={(e) => setKqlDraft(e.target.value)}
+                onChange={setKqlDraft}
+                schema={kqlSchema}
+                error={kqlSyntax ? { message: kqlSyntax.message, position: kqlSyntax.position ?? 0 } : null}
                 placeholder={tk("graph.scriptPlaceholder")}
+                className="text-xs"
               />
               {kqlSyntax ? (
                 <div role="alert" className="rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive space-y-1">
@@ -734,6 +761,16 @@ export const UnifiedGraphBrick: React.FC<GraphBrickProps> = ({ id, config, onUpd
           </ResponsiveContainer>
         )}
       </div>
+      {/* always mounted: the editor lives in the session store, so this component re-rendering or re-mounting never closes it */}
+      <QueryFlowDialog
+        ownerId={`graph-brick:${id}`}
+        open={visualOpen && !readonly}
+        initialScript={kqlDraft}
+        initialFlow={safeConfig.source?.flow && safeConfig.source.flow.script === kqlDraft.trim() ? safeConfig.source.flow : undefined}
+        tables={kqlTables}
+        onApply={applyVisual}
+        onClose={() => setVisualOpen(false)}
+      />
     </div>
   );
 };

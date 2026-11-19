@@ -77,6 +77,7 @@ export interface KqlRunResult {
   rows: Array<{ keys: string[]; labels: string[]; values: number[] }>;
   matched: number;
   total: number;
+  scope?: { source: string; label: string; cards: number; qualifiers: Array<{ kind: string; name: string; id?: string }> };
 }
 export interface KqlRunOutput {
   title: string | null;

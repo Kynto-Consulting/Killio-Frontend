@@ -98,10 +98,10 @@ export function ModelSelector({
         className={
           isFull
             ? "flex w-full items-center justify-between gap-2 rounded-lg border border-input bg-background px-3 h-9 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-            : "flex items-center gap-1 rounded-lg border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 px-2 h-7 text-[11px] font-medium text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            : "flex items-center gap-1 rounded-lg border border-border/60 bg-muted/50 px-2 h-7 text-[11px] font-medium text-muted-foreground hover:bg-neutral-100 dark:hover:bg-neutral-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         }
       >
-        {locked ? <Lock className={isFull ? "h-3.5 w-3.5 shrink-0" : "h-3 w-3 shrink-0"} /> : <Sparkles className={isFull ? "h-3.5 w-3.5 shrink-0 text-violet-500" : "h-3 w-3 shrink-0 text-violet-500"} />}
+        {locked ? <Lock className={isFull ? "h-3.5 w-3.5 shrink-0" : "h-3 w-3 shrink-0"} /> : <Sparkles className={isFull ? "h-3.5 w-3.5 shrink-0 text-primary" : "h-3 w-3 shrink-0 text-primary"} />}
         <span className="truncate">{triggerLabel}</span>
         <ChevronDown className={isFull ? "h-4 w-4 shrink-0 text-muted-foreground" : "h-3 w-3 shrink-0 text-neutral-400"} />
       </button>
@@ -112,7 +112,7 @@ export function ModelSelector({
 
       {open && !locked && (
         <div
-          className={`absolute z-50 ${isFull ? "left-0 right-0 mt-1" : "right-0 bottom-full mb-1 w-64"} rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 shadow-lg p-1 max-h-72 overflow-y-auto`}
+          className={`absolute z-50 ${isFull ? "left-0 right-0 mt-1" : "right-0 bottom-full mb-1 w-64"} rounded-xl border border-border/60 bg-white dark:bg-neutral-900 shadow-lg p-1 max-h-72 overflow-y-auto`}
         >
           {models.map((m) => {
             const isSelected = m.id === selectedId;
@@ -124,14 +124,14 @@ export function ModelSelector({
                 disabled={!m.allowed}
                 className={`w-full text-left rounded-lg px-2.5 py-2 transition-colors ${
                   m.allowed
-                    ? "hover:bg-neutral-100 dark:hover:bg-neutral-800 cursor-pointer"
+                    ? "hover:bg-muted/60 cursor-pointer"
                     : "opacity-70 cursor-not-allowed"
                 } ${isSelected ? "bg-violet-50 dark:bg-violet-900/20" : ""}`}
               >
                 <div className="flex items-center gap-1.5">
                   {!m.allowed && <Lock className="h-3 w-3 shrink-0 text-amber-500" />}
-                  <span className="text-xs font-semibold text-neutral-800 dark:text-neutral-200 truncate">{m.label}</span>
-                  {isSelected && m.allowed && <Check className="h-3 w-3 ml-auto shrink-0 text-violet-500" />}
+                  <span className="text-xs font-semibold text-foreground truncate">{m.label}</span>
+                  {isSelected && m.allowed && <Check className="h-3 w-3 ml-auto shrink-0 text-primary" />}
                 </div>
                 {m.description && (
                   <p className="text-[10px] text-neutral-400 mt-0.5 leading-snug">{m.description}</p>
@@ -140,7 +140,7 @@ export function ModelSelector({
                   <Link
                     href={UPGRADE_HREF}
                     onClick={(e) => e.stopPropagation()}
-                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-violet-600 dark:text-violet-400 hover:underline"
+                    className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-primary hover:underline"
                   >
                     <Sparkles className="h-2.5 w-2.5" />
                     {t("agent.model.upgrade")}

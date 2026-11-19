@@ -19,7 +19,7 @@ const selectCls = "h-8 min-w-0 flex-1 rounded-md border border-border bg-backgro
 const iconBtn = "h-7 w-7 inline-flex items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent";
 
 /** Ordered multi-level sort rules. An empty list means manual (drag) order. */
-export function SortRulesEditor({ rules, onChange, tagGroups, t }: { rules: SortRule[]; onChange: (rules: SortRule[]) => void; tagGroups: TagGroup[]; t: T }) {
+export function SortRulesEditor({ rules, onChange, tagGroups, tagNames = [], t }: { rules: SortRule[]; onChange: (rules: SortRule[]) => void; tagGroups: TagGroup[]; /** Tags that can go in a custom order. */ tagNames?: string[]; t: T }) {
   const keys = [...SORT_KEYS.filter((k) => k !== "manual"), ...tagGroups.map((g) => tagGroupKey(g.id))];
   const set = (i: number, patch: Partial<SortRule>) => onChange(rules.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
@@ -27,7 +27,8 @@ export function SortRulesEditor({ rules, onChange, tagGroups, t }: { rules: Sort
     <div className="space-y-2">
       {rules.length === 0 ? <p className="text-xs text-muted-foreground">{t("sort.manualHint")}</p> : null}
       {rules.map((rule, i) => (
-        <div key={i} className="flex items-center gap-1">
+        <div key={i} className="space-y-1.5">
+        <div className="flex items-center gap-1">
           <span className="w-5 text-center text-[10px] font-semibold text-muted-foreground">{i + 1}</span>
           <select value={rule.key} onChange={(e) => set(i, { key: e.target.value })} className={selectCls} aria-label={t("sort.field")}>
             {keys.map((k) => (
@@ -49,6 +50,53 @@ export function SortRulesEditor({ rules, onChange, tagGroups, t }: { rules: Sort
           <button type="button" className={iconBtn} onClick={() => onChange(rules.filter((_, idx) => idx !== i))} aria-label={t("common.remove")}>
             <X className="h-4 w-4" />
           </button>
+        </div>
+        {rule.key === "tags" ? (
+          <div className="ml-6 space-y-1.5 rounded-lg border border-border/60 bg-muted/30 p-2">
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-foreground">
+              <input
+                type="checkbox"
+                className="rounded border-border"
+                checked={Array.isArray(rule.order)}
+                onChange={(e) => set(i, { order: e.target.checked ? [] : undefined })}
+              />
+              {t("sort.customOrder")}
+            </label>
+            {Array.isArray(rule.order) ? (
+              <>
+                <p className="text-[11px] text-muted-foreground">{t("sort.customOrderHint")}</p>
+                <ol className="space-y-1">
+                  {rule.order.map((name, pos) => (
+                    <li key={name} className="flex items-center gap-1 rounded-md bg-background px-2 py-1 text-xs text-foreground">
+                      <span className="w-4 text-center text-[10px] tabular-nums text-muted-foreground">{pos + 1}</span>
+                      <span className="min-w-0 flex-1 truncate">{name}</span>
+                      <button type="button" className={iconBtn} disabled={pos === 0} onClick={() => set(i, { order: moveItem(rule.order!, pos, pos - 1) })} aria-label={t("common.moveUp")}><ChevronUp className="h-3.5 w-3.5" /></button>
+                      <button type="button" className={iconBtn} disabled={pos === rule.order!.length - 1} onClick={() => set(i, { order: moveItem(rule.order!, pos, pos + 1) })} aria-label={t("common.moveDown")}><ChevronDown className="h-3.5 w-3.5" /></button>
+                      <button type="button" className={iconBtn} onClick={() => set(i, { order: rule.order!.filter((_, idx) => idx !== pos) })} aria-label={t("common.remove")}><X className="h-3.5 w-3.5" /></button>
+                    </li>
+                  ))}
+                </ol>
+                {(() => {
+                  const taken = new Set(rule.order.map((n) => n.toLowerCase()));
+                  const free = tagNames.filter((n) => !taken.has(n.toLowerCase()));
+                  return free.length > 0 ? (
+                    <select
+                      className={selectCls}
+                      value=""
+                      onChange={(e) => e.target.value && set(i, { order: [...rule.order!, e.target.value] })}
+                      aria-label={t("sort.addTag")}
+                    >
+                      <option value="">{t("sort.addTag")}</option>
+                      {free.map((n) => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  ) : (
+                    <p className="text-[11px] text-muted-foreground">{t("sort.noMoreTags")}</p>
+                  );
+                })()}
+              </>
+            ) : null}
+          </div>
+        ) : null}
         </div>
       ))}
       <div className="flex items-center gap-2 pt-1">

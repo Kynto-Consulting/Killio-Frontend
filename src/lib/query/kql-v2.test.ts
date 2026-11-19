@@ -183,7 +183,7 @@ test('sources a script needs are reported so only that data is loaded', () => {
 
 test('unknown fields, columns, tables, names and functions explain what exists', () => {
   const fails = (q: string, re: RegExp) => assert.throws(() => run(q), (e: unknown) => e instanceof KqlError && re.test(e.message), q);
-  fails('rows of Ventas where Monton > 3', /Unknown column "Monton"\. Available: Cliente, Estado/);
+  fails('rows of Ventas where Monton > 3', /Unknown column "Monton"\. Did you mean "Monto"\? Available: Cliente, Estado/);
   fails('rows of Ventas group by Cliente sum(Nope)', /Unknown column "Nope"/);
   fails('rows of "Nope" count', /No table "Nope" found\. Tables: "Ventas"/);
   fails('cards where nope = 3', /Unknown field "nope"/);

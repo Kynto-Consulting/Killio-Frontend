@@ -82,8 +82,14 @@
       "priority": "Prioridad",
       "assignee": "Responsable",
       "points": "Puntos",
-      "comments": "Comentarios"
-    }
+      "comments": "Comentarios",
+      "tags": "Etiquetas",
+      "tagCount": "N.º de etiquetas"
+    },
+    "customOrder": "Orden personalizado",
+    "customOrderHint": "Las tarjetas se ordenan por la primera etiqueta que tengan de esta lista. Las que no tienen ninguna van al final.",
+    "addTag": "Agregar etiqueta...",
+    "noMoreTags": "Todas las etiquetas de esta lista ya están en el orden."
   },
   "tagGroups": {
     "title": "Grupos de etiquetas",

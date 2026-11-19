@@ -8,6 +8,7 @@ import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { verifyOtp } from "@/lib/api/contracts";
+import { postLoginDestination } from "@/lib/auth/password-change";
 
 function VerifyOtpContent() {
   const t = useTranslations("auth");
@@ -52,7 +53,7 @@ function VerifyOtpContent() {
           localStorage.setItem("killio_user", JSON.stringify(result.user));
           login(result.user, result.accessToken, result.refreshToken, result.expiresInSeconds);
           setStatus("success");
-          router.replace(safeFrom);
+          router.replace(postLoginDestination(result.user, safeFrom));
           return;
         }
 

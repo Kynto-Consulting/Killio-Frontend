@@ -60,6 +60,19 @@ export function checkKqlPillSyntax(script: string): KqlPillErrorInfo | null {
   }
 }
 
+/** Retries a request the server refused with 429 (many pills open at once): 1.5 s, 3 s, 6 s, then gives up. */
+async function runWithBackoff<T>(job: () => Promise<T>): Promise<T> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await job();
+    } catch (e) {
+      const status = (e as { status?: number } | null)?.status;
+      if (status !== 429 || attempt >= 3) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 1500 * 2 ** attempt + Math.random() * 400));
+    }
+  }
+}
+
 export async function runKqlPill(args: KqlPillRunArgs): Promise<KqlPillRunOutcome> {
   const { script, teamId, accessToken, tables = [], force } = args;
   parseKqlScript(script); // throws KqlError before any network call
@@ -80,7 +93,7 @@ export async function runKqlPill(args: KqlPillRunArgs): Promise<KqlPillRunOutcom
         { script, tables: [], teamId },
         {
           cache: new Map(), // caching is the scheduler's job
-          runServer: async (s) => (await runKqlQuery(teamId, s, accessToken)).outputs as unknown as KqlOutput[],
+          runServer: async (s) => (await runWithBackoff(() => runKqlQuery(teamId, s, accessToken))).outputs as unknown as KqlOutput[],
         },
       );
       const result = pickPillOutput(r.outputs);

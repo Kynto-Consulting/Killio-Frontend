@@ -20,6 +20,7 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 import { updateDocumentTitle as apiUpdateDocumentTitle } from "@/lib/api/documents";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useOnline } from "@/hooks/use-online";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 import { readWorkspaceFileWithMeta, writeWorkspaceFile } from "@/lib/local-workspace/fs-access";
 import { encodeKillioFile, decodeKillioFile, KILLIO_EXT } from "@/lib/killio-file";
 import { docToKd, kdToDocDraft } from "@/lib/local-workspace/adapters";
@@ -276,21 +277,12 @@ export default function DocumentPage() {
 
   // Reveal the next page when the sentinel scrolls into view. Falls back to the
   // "Cargar más" button (rendered below) when IntersectionObserver is absent.
-  useEffect(() => {
-    if (!hasMoreBricks) return;
-    const el = loadMoreSentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((e) => e.isIntersecting)) {
-          setVisibleCount((c) => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length));
-        }
-      },
-      { rootMargin: "600px 0px" },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [hasMoreBricks, topLevelBricks.length]);
+  useLoadMoreSentinel(
+    loadMoreSentinelRef,
+    hasMoreBricks,
+    () => setVisibleCount((c) => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length)),
+    `${visibleCount}:${topLevelBricks.length}`,
+  );
 
   // Local autosave: serialize the whole doc → .kd file (debounced).
   const localDirtyRef = useRef(false);
@@ -1808,7 +1800,7 @@ export default function DocumentPage() {
           </div>
 
           {/* Copilot: hidden in local mode unless online (uses personal plan) */}
-          {(!localMode || online) && (
+          {!isCommentsOpen && (!localMode || online) && (
             <Button
               variant="ghost"
               size="sm"
@@ -1824,7 +1816,7 @@ export default function DocumentPage() {
           )}
 
           {/* Comments are room-backed — unavailable in local mode */}
-          {!localMode && (
+          {!isCommentsOpen && !localMode && (
             <Button
               variant="ghost"
               size="sm"
@@ -1840,7 +1832,7 @@ export default function DocumentPage() {
           )}
 
           {/* Activity stays available offline (reads the local .h sidecar) */}
-          {localMode && (
+          {!isCommentsOpen && localMode && (
             <Button
               variant="ghost"
               size="sm"

@@ -427,9 +427,9 @@ export function RoomMessageItem({
           )}
 
           <div
-            className={`relative rounded-xl px-3 py-2 text-sm leading-relaxed border shadow-sm ${isOwn
-              ? "bg-accent/15 text-foreground border-accent/20 rounded-tr-sm"
-              : "bg-muted/50 text-foreground border-border/50 rounded-tl-sm"
+            className={`relative rounded-2xl px-3.5 py-2 text-sm leading-relaxed ${isOwn
+              ? "bg-primary text-primary-foreground rounded-br-md [&_a]:text-primary-foreground [&_a]:underline"
+              : "bg-muted/60 text-foreground rounded-bl-md"
               }`}
           >
             {/* Quoted Message (Reply) */}

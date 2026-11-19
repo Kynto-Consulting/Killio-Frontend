@@ -696,5 +696,18 @@
     "applyAll": "Aplicar todos los cambios",
     "applyOne": "Aplicar mejora",
     "daysAgo": "Hace {{n}} días"
-  }
+  },
+  "fileViewer": {
+    "view": "Ver",
+    "close": "Cerrar",
+    "openNew": "Abrir en otra pestaña",
+    "loading": "Cargando archivo...",
+    "failed": "No se pudo leer el archivo. Aún puedes descargarlo.",
+    "tooLarge": "El archivo es muy grande para previsualizarlo. Descárgalo.",
+    "noPreview": "No hay vista previa para este tipo de archivo. Descárgalo para abrirlo.",
+    "truncated": "Solo se muestra el inicio del archivo.",
+    "slide": "Diapositiva {{n}}",
+    "rowsShown": "{{n}} fila(s) mostradas"
+  },
+  "loadMore": "Cargar más"
 }

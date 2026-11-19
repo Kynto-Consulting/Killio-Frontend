@@ -9,6 +9,8 @@ export interface KqlPillResult {
   shape?: "scalar" | "list" | "table";
   matched: number;
   total?: number;
+  /** Where the query read from ("whole team", "Board / List", a source or a table title) and how many records that scope holds. */
+  scope?: { source: string; label: string; cards: number; qualifiers: Array<{ kind: string; name: string; id?: string }> };
 }
 
 export const KQL_PILL_MAX_ROWS = 20;

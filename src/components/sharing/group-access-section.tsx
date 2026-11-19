@@ -126,7 +126,7 @@ export function GroupAccessSection({ scope, id, teamId, canManage, callerRole = 
           {t("sharing.loading")}
         </p>
       ) : entries.length === 0 ? (
-        <p className="text-xs text-muted-foreground">{t("sharing.empty")}</p>
+        <p className="text-xs text-muted-foreground">{t(teamGroups.length === 0 ? "sharing.noTeamGroups" : "sharing.empty")}</p>
       ) : (
         <ul className="space-y-2 max-h-48 overflow-y-auto pr-1">
           {entries.map((entry) => {
@@ -187,7 +187,7 @@ export function GroupAccessSection({ scope, id, teamId, canManage, callerRole = 
       {canManage && (
         <div className="space-y-1">
           {candidates.length === 0 ? (
-            <p className="text-xs text-muted-foreground">{t("sharing.noneToAdd")}</p>
+            teamGroups.length === 0 ? null : <p className="text-xs text-muted-foreground">{t("sharing.noneToAdd")}</p>
           ) : (
             <div className="flex items-center gap-2">
               <select

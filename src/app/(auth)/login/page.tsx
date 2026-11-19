@@ -8,7 +8,8 @@ import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
-import { requestOtp } from "@/lib/api/contracts";
+import { requestOtp, verifyOtp } from "@/lib/api/contracts";
+import { postLoginDestination } from "@/lib/auth/password-change";
 
 const API = (
   process.env.NEXT_PUBLIC_API_BASE_URL ??
@@ -16,12 +17,14 @@ const API = (
   "http://localhost:4000"
 ).replace(/\/$/, "");
 
+const inputClass =
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors";
+
 function LoginPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { login, user, accessToken, isLoading: isSessionLoading } = useSession();
   const t = useTranslations("auth");
-  const tCommon = useTranslations("common");
 
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -30,13 +33,17 @@ function LoginPageContent() {
 
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [linkSent, setLinkSent] = useState(false);
 
-  // White-label login modes: "password" (default), "otp" (email link only) or both.
+  // White-label login modes: "password" (default), "otp" (emailed code only) or both.
   const tenant = useTenant();
   const { loginMode, signupEnabled } = tenant.auth;
-  const showPasswordFields = loginMode !== "otp";
-  const allowEmailLink = loginMode !== "password";
+  const allowPassword = loginMode !== "otp";
+  const allowCode = loginMode === "otp" || loginMode === "password_or_otp";
+  const [preferredMethod, setPreferredMethod] = useState<"password" | "code">(loginMode === "otp" ? "code" : "password");
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
+  // Stay inside what the tenant allows even if the config changes after first render.
+  const method: "password" | "code" = !allowCode ? "password" : !allowPassword ? "code" : preferredMethod;
 
   const from = searchParams.get("from");
   const fromPath = from ? from.split("?")[0] : null;
@@ -54,7 +61,7 @@ function LoginPageContent() {
 
   useEffect(() => {
     if (!isSessionLoading && user && accessToken) {
-      router.replace(safeFrom);
+      router.replace(postLoginDestination(user, safeFrom));
     }
   }, [isSessionLoading, user, accessToken, router, safeFrom]);
 
@@ -62,23 +69,60 @@ function LoginPageContent() {
     // Refresh token is set as HttpOnly cookie by the backend — only store user info
     localStorage.setItem("killio_user", JSON.stringify(data.user));
     login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
-    router.push(safeFrom);
+    // Accounts with a temporary password go straight to the "choose your password" step.
+    router.push(postLoginDestination(data.user, safeFrom));
   }
 
-  async function handleEmailLink(e?: React.FormEvent) {
+  function switchMethod(next: "password" | "code") {
+    setPreferredMethod(next);
+    setError(null);
+    setCodeSent(false);
+    setCode("");
+  }
+
+  async function handleRequestCode(e?: React.FormEvent) {
     e?.preventDefault();
     setError(null);
-    const email = identifier.trim();
+    const email = identifier.trim().toLowerCase();
     if (!email.includes("@")) {
-      setError(t("login.emailLinkNeedsEmail"));
+      setError(t("login.emailCodeNeedsEmail"));
       return;
     }
     setIsLoading(true);
     try {
-      await requestOtp({ email, useMagicLink: true, purpose: "login" });
-      setLinkSent(true);
+      await requestOtp({ email, purpose: "login" });
+      setCodeSent(true);
+      setCode("");
     } catch (unknownError) {
       setError(unknownError instanceof Error && unknownError.message ? unknownError.message : t("login.serverError"));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function handleVerifyCode(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    const normalizedCode = code.replace(/\s+/g, "");
+    if (!normalizedCode) {
+      setError(t("login.codeRequired"));
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const result = await verifyOtp({
+        email: identifier.trim().toLowerCase(),
+        code: normalizedCode,
+        purpose: "login",
+        rememberMe,
+      });
+      if ("accessToken" in result) {
+        persistLogin(result);
+      } else {
+        setError(t("login.codeInvalid"));
+      }
+    } catch (unknownError) {
+      setError(unknownError instanceof Error && unknownError.message ? unknownError.message : t("login.codeInvalid"));
     } finally {
       setIsLoading(false);
     }
@@ -109,7 +153,7 @@ function LoginPageContent() {
       }
 
       const data = await res.json();
-      
+
       // Check if 2FA is required
       if (data.otp_required) {
         // Store session info temporarily for OTP verification
@@ -131,6 +175,11 @@ function LoginPageContent() {
     }
   }
 
+  const onSubmit =
+    method === "password" ? handlePasswordSubmit : codeSent ? handleVerifyCode : handleRequestCode;
+  const submitLabel =
+    method === "password" ? t("login.submit") : codeSent ? t("login.codeSubmit") : t("login.emailCodeSubmit");
+
   return (
     <AuthPageFrame mode="login">
       <div className="w-full rounded-[28px] border border-border bg-card/65 p-8 shadow-[0_30px_90px_rgba(0,0,0,0.28)] backdrop-blur-sm">
@@ -144,36 +193,54 @@ function LoginPageContent() {
         </div>
 
         {error && (
-          <div className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+          <div role="alert" className="mb-4 flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
             <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
             {error}
           </div>
         )}
 
-        {linkSent ? (
-          <div className="space-y-2 rounded-md border border-border bg-background/50 p-4 text-center text-sm">
-            <p className="font-medium">{t("login.emailLinkSentTitle")}</p>
-            <p className="text-muted-foreground">{t("login.emailLinkSentBody")}</p>
-          </div>
-        ) : (
-        <form className="space-y-4" onSubmit={showPasswordFields ? handlePasswordSubmit : handleEmailLink}>
+        <form className="space-y-4" onSubmit={onSubmit}>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none" htmlFor="identifier">
               {t("login.identifierLabel")}
             </label>
             <input
               id="identifier"
-              type="text"
+              type={method === "code" ? "email" : "text"}
               placeholder={t("login.identifierPlaceholder")}
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
+              readOnly={method === "code" && codeSent}
               autoComplete="username"
-              className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+              className={inputClass}
             />
           </div>
 
-          {showPasswordFields && (<>
+          {method === "code" && codeSent && (
+            <div className="space-y-2">
+              <p role="status" className="rounded-md border border-border bg-background/50 p-3 text-sm text-muted-foreground">
+                {t("login.codeSentBody")}
+              </p>
+              <label className="text-sm font-medium leading-none" htmlFor="login-code">
+                {t("login.codeLabel")}
+              </label>
+              <input
+                id="login-code"
+                type="text"
+                inputMode="numeric"
+                placeholder={t("login.codePlaceholder")}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+                autoFocus
+                autoComplete="one-time-code"
+                className={`${inputClass} tracking-widest`}
+              />
+            </div>
+          )}
+
+          {method === "password" && (<>
           <div className="space-y-2">
             <label className="text-sm font-medium leading-none" htmlFor="password">
               {t("login.passwordLabel")}
@@ -186,7 +253,7 @@ function LoginPageContent() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 autoComplete="current-password"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 pr-11 text-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+                className={`${inputClass} pr-11`}
               />
               <button
                 type="button"
@@ -198,6 +265,7 @@ function LoginPageContent() {
               </button>
             </div>
           </div>
+          </>)}
 
           <div className="flex items-center space-x-2">
             <input
@@ -205,13 +273,14 @@ function LoginPageContent() {
               type="checkbox"
               checked={rememberMe}
               onChange={(e) => setRememberMe(e.target.checked)}
-              className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-white"
+              className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-primary"
             />
             <label htmlFor="rememberMe" className="text-sm select-none cursor-pointer">
               {t("login.rememberMe")}
             </label>
           </div>
 
+          {method === "password" && (
           <div className="rounded-lg border border-border/70 bg-background/50 p-3 text-xs text-muted-foreground space-y-1.5">
             <div>
               {t("login.recoverHint")}{" "}
@@ -221,7 +290,7 @@ function LoginPageContent() {
             </div>
             <div>{t("login.recover2faHint")}</div>
           </div>
-          </>)}
+          )}
 
           <button
             type="submit"
@@ -232,24 +301,44 @@ function LoginPageContent() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {showPasswordFields ? t("login.submit") : t("login.emailLinkSubmit")}
+                {submitLabel}
                 <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
               </>
             )}
           </button>
 
-          {showPasswordFields && allowEmailLink && (
+          {method === "code" && codeSent && (
+            <div className="flex items-center justify-between gap-3 text-xs">
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => void handleRequestCode()}
+                className="font-medium text-accent hover:underline disabled:opacity-60"
+              >
+                {t("login.codeResend")}
+              </button>
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={() => { setCodeSent(false); setCode(""); setError(null); }}
+                className="font-medium text-muted-foreground hover:text-foreground hover:underline disabled:opacity-60"
+              >
+                {t("login.codeChangeEmail")}
+              </button>
+            </div>
+          )}
+
+          {allowPassword && allowCode && (
             <button
               type="button"
               disabled={isLoading}
-              onClick={() => void handleEmailLink()}
+              onClick={() => switchMethod(method === "password" ? "code" : "password")}
               className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
             >
-              {t("login.emailLinkSubmit")}
+              {method === "password" ? t("login.useCodeInstead") : t("login.usePasswordInstead")}
             </button>
           )}
         </form>
-        )}
 
         {signupEnabled && (
         <div className="mt-6 text-center text-sm text-muted-foreground">

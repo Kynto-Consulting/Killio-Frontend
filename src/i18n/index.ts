@@ -54,6 +54,10 @@ import enBoardFilters from "@/i18n/locales/en/board-filters.json";
 import esBoardFilters from "@/i18n/locales/es/board-filters.json";
 import enKql from "@/i18n/locales/en/kql.json";
 import esKql from "@/i18n/locales/es/kql.json";
+import enFileOptions from "@/i18n/locales/en/file-options.json";
+import esFileOptions from "@/i18n/locales/es/file-options.json";
+import enQueryFlow from "@/i18n/locales/en/query-flow.json";
+import esQueryFlow from "@/i18n/locales/es/query-flow.json";
 
 export const SUPPORTED_LOCALES = ["en", "es"] as const;
 
@@ -67,6 +71,7 @@ export const NAMESPACES = [
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
   "share-local", "vault", "groups", "board-filters", "kql",
+  "file-options", "query-flow",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -107,6 +112,8 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     groups: enGroups,
     "board-filters": enBoardFilters,
     kql: enKql,
+    "file-options": enFileOptions,
+    "query-flow": enQueryFlow,
   },
   es: {
     common: esCommon,
@@ -137,6 +144,8 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     groups: esGroups,
     "board-filters": esBoardFilters,
     kql: esKql,
+    "file-options": esFileOptions,
+    "query-flow": esQueryFlow,
   },
 };
 

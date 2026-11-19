@@ -8,7 +8,8 @@ import { AuthPageFrame } from "@/components/marketing/auth-page-frame";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
-import { register } from "@/lib/api/contracts";
+import { register, registerWithOtp, requestOtp } from "@/lib/api/contracts";
+import { postLoginDestination } from "@/lib/auth/password-change";
 
 function SignupPageContent() {
   const router = useRouter();
@@ -18,6 +19,10 @@ function SignupPageContent() {
   const tCommon = useTranslations("common");
   const tenant = useTenant();
   const signupEnabled = tenant.auth.signupEnabled;
+  // When the tenant requires an emailed code, the plain register endpoint is never called.
+  const requiresOtp = tenant.auth.signupRequiresOtp === true;
+  const [codeSent, setCodeSent] = useState(false);
+  const [code, setCode] = useState("");
   // White-label deployments can close public sign-up: send visitors to sign-in.
   useEffect(() => {
     if (!signupEnabled) router.replace("/login");
@@ -41,11 +46,12 @@ function SignupPageContent() {
 
   useEffect(() => {
     if (!isSessionLoading && user && accessToken) {
-      router.replace("/");
+      router.replace(postLoginDestination(user, "/"));
     }
   }, [isSessionLoading, user, accessToken, router]);
 
   const update = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    !codeSent &&
     setForm((prev) => ({
       ...prev,
       [field]: e.target.type === "checkbox" ? e.target.checked : e.target.value,
@@ -75,20 +81,56 @@ function SignupPageContent() {
       const normalizedUsername = form.username.trim().toLowerCase();
       const normalizedEmail = form.email.trim().toLowerCase();
 
-      const data = await register({
+      const payload = {
         name: normalizedDisplayName,
         username: normalizedUsername,
         email: normalizedEmail,
         password: form.password,
         acceptedTerms: form.acceptedTerms,
         allowCommunications: form.allowCommunications,
-      });
+      };
+
+      if (requiresOtp && !codeSent) {
+        // Step 1: email a verification code; the account is created in step 2.
+        await requestOtp({ email: normalizedEmail, purpose: "register" });
+        setCodeSent(true);
+        setCode("");
+        setNotice(t("signup.codeSentNotice"));
+        return;
+      }
+
+      let data;
+      if (requiresOtp) {
+        const normalizedCode = code.replace(/\s+/g, "");
+        if (!normalizedCode) {
+          setError(t("signup.codeRequired"));
+          return;
+        }
+        data = await registerWithOtp({ ...payload, code: normalizedCode });
+      } else {
+        data = await register(payload);
+      }
       // Refresh token is set as HttpOnly cookie by the backend — only store user info
       localStorage.setItem("killio_user", JSON.stringify(data.user));
       login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
-      router.push(safeFrom);
+      router.push(postLoginDestination(data.user, safeFrom));
     } catch (unknownError: unknown) {
       const message = unknownError instanceof Error ? unknownError.message : t("signup.serverError");
+      setError(message || t("signup.serverError"));
+    } finally {
+      setIsLoading(false);
+    }
+  }
+
+  async function resendCode() {
+    setError(null);
+    setNotice(null);
+    setIsLoading(true);
+    try {
+      await requestOtp({ email: form.email.trim().toLowerCase(), purpose: "register" });
+      setNotice(t("signup.codeSentNotice"));
+    } catch (unknownError: unknown) {
+      const message = unknownError instanceof Error ? unknownError.message : "";
       setError(message || t("signup.serverError"));
     } finally {
       setIsLoading(false);
@@ -124,7 +166,7 @@ function SignupPageContent() {
         )}
 
         {notice && (
-          <div className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-400">
+          <div role="status" className="mb-4 rounded-md border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-700 dark:text-emerald-400">
             {notice}
           </div>
         )}
@@ -237,7 +279,7 @@ function SignupPageContent() {
                 checked={form.acceptedTerms}
                 onChange={update("acceptedTerms")}
                 required
-                className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-white"
+                className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-primary"
               />
               <span className="leading-6">
                 {t("signup.acceptTermsPrefix")} {" "}
@@ -261,7 +303,7 @@ function SignupPageContent() {
                 type="checkbox"
                 checked={form.allowCommunications}
                 onChange={update("allowCommunications")}
-                className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-white"
+                className="mt-0.5 h-4 w-4 rounded border border-input bg-background accent-primary"
               />
               <span className="leading-6">
                 <span className="block text-foreground">{t("signup.communicationsOptIn")}</span>
@@ -269,6 +311,42 @@ function SignupPageContent() {
               </span>
             </label>
           </div>
+
+          {requiresOtp && codeSent && (
+            <div className="space-y-2 rounded-xl border border-border/70 bg-background/60 p-4">
+              <label className="text-sm font-medium" htmlFor="signup-code">{t("signup.codeLabel")}</label>
+              <input
+                id="signup-code"
+                type="text"
+                inputMode="numeric"
+                placeholder={t("signup.codePlaceholder")}
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                required
+                autoFocus
+                autoComplete="one-time-code"
+                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm tracking-widest placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring transition-colors"
+              />
+              <div className="flex items-center justify-between gap-3 pt-1 text-xs">
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => void resendCode()}
+                  className="font-medium text-accent hover:underline disabled:opacity-60"
+                >
+                  {t("signup.codeResend")}
+                </button>
+                <button
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => { setCodeSent(false); setCode(""); setNotice(null); setError(null); }}
+                  className="font-medium text-muted-foreground hover:text-foreground hover:underline disabled:opacity-60"
+                >
+                  {t("signup.codeEditDetails")}
+                </button>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"
@@ -279,7 +357,7 @@ function SignupPageContent() {
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <>
-                {t("signup.submit")}
+                {requiresOtp ? (codeSent ? t("signup.submitWithCode") : t("signup.sendCode")) : t("signup.submit")}
                 <ArrowRight className="ml-2 h-4 w-4 opacity-70 group-hover:translate-x-1 transition-all" />
               </>
             )}

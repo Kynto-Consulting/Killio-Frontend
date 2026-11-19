@@ -38,7 +38,9 @@ function statusPriority(s?: MessageStatus): number {
 export function useRoomChat(
   roomId: string | null | undefined,
   accessToken: string | null | undefined,
-  currentUser?: CurrentUser | null
+  currentUser?: CurrentUser | null,
+  /** Creates the room on demand when there is none yet (lazy thread rooms: the first message creates it). */
+  ensureRoom?: () => Promise<string | null>
 ) {
   const [messages, setMessages] = useState<RoomMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -233,12 +235,14 @@ export function useRoomChat(
 
   const sendMessage = useCallback(
     async (content: string, metadata?: any) => {
-      if (!roomId || !accessToken || !content.trim()) return;
+      if (!accessToken || !content.trim()) return;
+      const targetRoomId = roomId ?? (ensureRoom ? await ensureRoom() : null);
+      if (!targetRoomId) return;
       setIsSending(true);
       const tempId = `temp-${Date.now()}`;
       const optimistic: RoomMessage = {
         id: tempId,
-        roomId,
+        roomId: targetRoomId,
         userId: currentUser?.id ?? "",
         content,
         type: "text",
@@ -253,24 +257,30 @@ export function useRoomChat(
       };
       setMessages((prev) => [...prev, optimistic]);
       try {
-        const real = await sendRoomMessage(roomId, content, accessToken, metadata);
-        setMessages((prev) => prev.map((m) => {
-          if (m.id !== tempId) return m;
-          return {
-            ...real,
-            status: "sent",
-            user: real.user
-              ? { ...real.user, avatarUrl: real.user.avatarUrl ?? m.user?.avatarUrl }
-              : m.user,
-          };
-        }));
+        const real = await sendRoomMessage(targetRoomId, content, accessToken, metadata);
+        setMessages((prev) => {
+          // A first message may create the room: the reload that follows can drop the optimistic row.
+          if (!prev.some((m) => m.id === tempId)) {
+            return prev.some((m) => m.id === real.id) ? prev : [...prev, { ...real, status: "sent" }];
+          }
+          return prev.map((m) => {
+            if (m.id !== tempId) return m;
+            return {
+              ...real,
+              status: "sent",
+              user: real.user
+                ? { ...real.user, avatarUrl: real.user.avatarUrl ?? m.user?.avatarUrl }
+                : m.user,
+            };
+          });
+        });
       } catch {
         setMessages((prev) => prev.map((m) => (m.id === tempId ? { ...m, status: "failed" } : m)));
       } finally {
         setIsSending(false);
       }
     },
-    [roomId, accessToken, currentUser]
+    [roomId, accessToken, currentUser, ensureRoom]
   );
 
   const loadMore = useCallback(async () => {

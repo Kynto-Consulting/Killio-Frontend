@@ -166,7 +166,7 @@ function getEntityConfig(t: TFn): Record<AgentEntityScope, EntityMeta> {
     team: {
       label: t("agent.entity.team"),
       icon: <Users className="w-3 h-3" />,
-      color: "text-violet-600 dark:text-violet-400",
+      color: "text-primary",
       bg: "bg-violet-50 dark:bg-violet-900/20",
       capabilities: caps("team"),
     },
@@ -204,7 +204,7 @@ function getToolMeta(t: TFn, tool: string): { icon: React.ReactNode; color: stri
   if (s.includes("update_document") || s.includes("update_doc"))
     return { icon: <FileText className="w-3.5 h-3.5" />, color: "text-amber-400", label: t("agent.tools.documentUpdated") };
   if (s.includes("create_brick") || s.includes("add_brick"))
-    return { icon: <Layout className="w-3.5 h-3.5" />, color: "text-violet-500", label: t("agent.tools.blockCreated") };
+    return { icon: <Layout className="w-3.5 h-3.5" />, color: "text-primary", label: t("agent.tools.blockCreated") };
   if (s.includes("create_board"))
     return { icon: <LayoutDashboard className="w-3.5 h-3.5" />, color: "text-blue-500", label: t("agent.tools.boardCreated") };
   if (s.includes("run_script") || s.includes("execute"))
@@ -212,10 +212,10 @@ function getToolMeta(t: TFn, tool: string): { icon: React.ReactNode; color: stri
   if (s.includes("search") || s.includes("find"))
     return { icon: <Search className="w-3.5 h-3.5" />, color: "text-blue-400", label: t("agent.tools.searching") };
   if (s.includes("list") || s.includes("get_"))
-    return { icon: <List className="w-3.5 h-3.5" />, color: "text-neutral-400", label: t("agent.tools.querying") };
+    return { icon: <List className="w-3.5 h-3.5" />, color: "text-muted-foreground", label: t("agent.tools.querying") };
   if (s.includes("mesh") || s.includes("brick"))
-    return { icon: <Grid3X3 className="w-3.5 h-3.5" />, color: "text-violet-400", label: t("agent.tools.canvas") };
-  return { icon: <Zap className="w-3.5 h-3.5" />, color: "text-violet-400", label: formatToolName(tool) };
+    return { icon: <Grid3X3 className="w-3.5 h-3.5" />, color: "text-primary", label: t("agent.tools.canvas") };
+  return { icon: <Zap className="w-3.5 h-3.5" />, color: "text-primary", label: formatToolName(tool) };
 }
 
 // ─── Follow-up suggestions ────────────────────────────────────────────────────
@@ -460,22 +460,22 @@ export function AgentChatPanel({
   );
 
   return (
-    <div className={`flex flex-col bg-white dark:bg-neutral-900 relative overflow-hidden ${className || 'h-full'}`}>
+    <div className={`flex flex-col min-w-0 bg-card text-foreground relative overflow-hidden ${className || 'h-full'}`}>
 
 
       {/* ── History overlay ───────────────────────────────────────────────── */}
       {showHistory && (
-        <div className="absolute inset-0 z-20 flex flex-col bg-white dark:bg-neutral-900">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-neutral-200 dark:border-neutral-700 shrink-0">
+        <div className="absolute inset-0 z-20 flex flex-col bg-card">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border/60 shrink-0">
             <div className="flex items-center gap-2">
-              <History className="w-4 h-4 text-violet-500" />
-              <span className="text-sm font-semibold text-neutral-800 dark:text-neutral-200">
+              <History className="w-4 h-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">
                 {t("agent.header.historyLabel")}
               </span>
             </div>
             <button
               onClick={() => setShowHistory(false)}
-              className="p-1.5 rounded hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-400 transition-colors"
+              className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground transition-colors"
               title={t("actions.close")}
             >
               <X className="w-4 h-4" />
@@ -484,11 +484,11 @@ export function AgentChatPanel({
           <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
             {historyLoading && (
               <div className="flex items-center justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-violet-400" />
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             )}
             {!historyLoading && conversations.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-10 text-neutral-400 text-xs">
+              <div className="flex flex-col items-center justify-center py-10 text-muted-foreground text-xs">
                 <MessageSquare className="w-8 h-8 mb-2 opacity-30" />
                 <p>{t("agent.history.noConversations")}</p>
               </div>
@@ -502,14 +502,14 @@ export function AgentChatPanel({
                     setShowHistory(false);
                   }}
                   className={`w-full text-left px-3 py-2.5 rounded-xl border transition-colors text-sm ${conv.id === conversationId
-                    ? "border-violet-300 dark:border-violet-600 bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300"
-                    : "border-neutral-200 dark:border-neutral-700 hover:bg-neutral-50 dark:hover:bg-neutral-800 text-neutral-700 dark:text-neutral-300"
+                    ? "border-primary/40 bg-primary/10 text-foreground"
+                    : "border-border/60 hover:bg-muted/60 text-foreground/80"
                     }`}
                 >
                   <p className="font-medium truncate">
                     {conv.title ?? t("agent.history.untitled")}
                   </p>
-                  <p className="text-[10px] text-neutral-400 mt-0.5">
+                  <p className="text-[10px] text-muted-foreground mt-0.5">
                     <Clock className="w-2.5 h-2.5 inline mr-0.5" />
                     {new Date(conv.updatedAt).toLocaleDateString(undefined, {
                       day: "numeric",
@@ -521,13 +521,13 @@ export function AgentChatPanel({
                 </button>
               ))}
           </div>
-          <div className="p-3 border-t border-neutral-200 dark:border-neutral-700">
+          <div className="p-3 border-t border-border/60">
             <button
               onClick={() => {
                 clearConversation();
                 setShowHistory(false);
               }}
-              className="w-full h-9 rounded-lg bg-violet-600 text-white text-sm font-medium hover:bg-violet-700 transition-colors flex items-center justify-center gap-1.5"
+              className="w-full h-9 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-1.5"
             >
               <Sparkles className="w-3.5 h-3.5" />
               {t("agent.header.newConversation")}
@@ -537,7 +537,7 @@ export function AgentChatPanel({
       )}
 
       {/* ── Message list ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 min-h-0">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 space-y-5 min-h-0">
         {messages.length === 0 && (
           <EmptyState
             t={t}
@@ -594,7 +594,7 @@ export function AgentChatPanel({
               <button
                 key={tip}
                 onClick={() => sendMessage(tip)}
-                className="text-xs px-2.5 py-1 rounded-full border border-violet-200 dark:border-violet-700 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                className="text-xs px-2.5 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
               >
                 {tip}
               </button>
@@ -606,18 +606,18 @@ export function AgentChatPanel({
       </div>
 
       {/* ── Input area ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-neutral-200 dark:border-neutral-700 px-3 py-3">
+      <div className="shrink-0 border-t border-border/40 px-4 pb-4 pt-3">
         {attachments.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-3 px-1 animate-in slide-in-from-bottom-2 duration-300">
             {attachments.map((att, idx) => (
               <div key={idx} className="relative group/att">
                 {att.type === 'img' ? (
-                  <div className="w-14 h-14 rounded-xl border border-neutral-200 dark:border-neutral-700 overflow-hidden bg-neutral-50 dark:bg-neutral-800">
+                  <div className="w-14 h-14 rounded-xl border border-border/60 overflow-hidden bg-muted/50">
                     <img src={resolveAssetUrl(att.url)} alt="preview" className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  <div className="h-14 px-3 flex items-center gap-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-[10px] font-medium text-neutral-500">
-                    <FileText className="w-3.5 h-3.5 text-violet-500" />
+                  <div className="h-14 px-3 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/50 text-[10px] font-medium text-muted-foreground">
+                    <FileText className="w-3.5 h-3.5 text-primary" />
                     <span className="max-w-[70px] truncate">{att.name}</span>
                   </div>
                 )}
@@ -630,15 +630,15 @@ export function AgentChatPanel({
               </div>
             ))}
             {isUploading && (
-              <div className="w-14 h-14 rounded-xl border border-dashed border-neutral-200 dark:border-neutral-700 flex items-center justify-center bg-neutral-50/50">
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-violet-400" />
+              <div className="w-14 h-14 rounded-xl border border-dashed border-border/60 flex items-center justify-center bg-muted/30">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
               </div>
             )}
           </div>
         )}
 
         {/* Model selector — rides along on the next message as `model`. */}
-        <div className="flex items-center justify-end mb-2">
+        <div className="flex items-center justify-end mb-1.5 opacity-70 hover:opacity-100 focus-within:opacity-100 transition-opacity">
           <ModelSelector
             teamId={teamId}
             conversationId={conversationId}
@@ -661,12 +661,12 @@ export function AgentChatPanel({
               type="button"
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading || isLoading}
-              className="p-2 rounded-xl hover:bg-violet-400/10 text-violet-500/60 hover:text-violet-500 transition-all"
+              className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
               title={t("agent.attach")}
             >
               <div className="relative">
                 <FileText className="w-4 h-4" />
-                <div className="absolute -top-1 -right-1 bg-violet-500 text-white rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-bold">+</div>
+                <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-bold">+</div>
               </div>
             </button>
           </div>
@@ -682,12 +682,12 @@ export function AgentChatPanel({
             onSubmit={() => handleAgentSend()}
             disabled={isLoading}
             className="flex-1"
-            inputClassName="text-sm bg-neutral-50 dark:bg-neutral-800 border-neutral-200 dark:border-neutral-700 rounded-xl focus:ring-2 focus:ring-violet-500/50 min-h-[38px]"
+            inputClassName="text-sm bg-background border-border/60 rounded-xl placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-primary/30 min-h-[38px]"
           />
           {isLoading ? (
             <button
               onClick={cancel}
-              className="shrink-0 p-2.5 rounded-xl bg-red-100 dark:bg-red-900/30 text-red-500 hover:bg-red-200 transition-colors"
+              className="shrink-0 p-2.5 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
               title={t("actions.cancel")}
             >
               <X className="w-4 h-4" />
@@ -696,13 +696,13 @@ export function AgentChatPanel({
             <button
               onClick={() => handleAgentSend()}
               disabled={(!inputValue.trim() && attachments.length === 0) || !aiUsage || aiUsage.remaining <= 0}
-              className="shrink-0 p-2.5 rounded-xl bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              className="shrink-0 p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
             >
               <Send className="w-4 h-4" />
             </button>
           )}
         </div>
-        <p className="mt-1 text-[10px] text-neutral-400 text-center">{t("agent.input.hint")}</p>
+        <p className="mt-1.5 text-[10px] text-muted-foreground/70 text-center">{t("agent.input.hint")}</p>
         {aiUsage && aiUsage.remaining <= 0 && (
           <p className="mt-1 text-[10px] text-red-500 font-medium text-center">{t("agent.errors.noCredits")}</p>
         )}
@@ -733,7 +733,7 @@ function UserMessage({
 
   return (
     <div className="flex justify-end gap-2 group">
-      <div className="max-w-[85%] flex flex-col items-end gap-1.5 min-w-0">
+      <div className="max-w-[88%] flex flex-col items-end gap-1.5 min-w-0">
         {markupBlocks.map((block, index) => {
           const key = `user-${block.tag}-${index}`;
 
@@ -741,13 +741,13 @@ function UserMessage({
             const { type, src, title } = block.attributes || {};
             const assetSrc = resolveAssetUrl(src || "");
             return (
-              <div key={key} className="relative group/img-asset rounded-xl border border-border/50 bg-neutral-100 dark:bg-neutral-800 p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
+              <div key={key} className="relative group/img-asset rounded-xl border border-border/50 bg-muted p-2 overflow-hidden max-w-full animate-in zoom-in-95 duration-200">
                 {type === "img" ? (
                   <div className="relative overflow-hidden rounded-lg">
                     <img
                       src={assetSrc}
                       alt={title || "Image"}
-                      className="rounded-lg max-w-full h-auto object-contain bg-white dark:bg-neutral-900 shadow-sm transition-all group-hover/img-asset:scale-[1.01]"
+                      className="rounded-lg max-w-full h-auto object-contain bg-card shadow-sm transition-all group-hover/img-asset:scale-[1.01]"
                       style={{ maxHeight: '300px' }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -790,9 +790,9 @@ function UserMessage({
                   </div>
                 ) : (
                   <div className="flex items-center gap-3 p-2 bg-white/50 dark:bg-black/20 rounded-lg">
-                    <FileText className="w-5 h-5 text-violet-500" />
+                    <FileText className="w-5 h-5 text-primary" />
                     <span className="text-[11px] font-medium truncate max-w-[120px]">{title || (type === 'document' ? t("agent.asset.document") : t("agent.asset.file"))}</span>
-                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
+                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-1.5 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-primary">
                       <ExternalLink className="w-3.5 h-3.5" />
                     </a>
                   </div>
@@ -803,12 +803,12 @@ function UserMessage({
 
           // Text block (user bubble)
           return (
-            <div key={key} className="relative px-3.5 py-2.5 rounded-2xl rounded-br-sm bg-violet-600 text-white text-sm shadow-sm leading-relaxed">
+            <div key={key} className="relative px-4 py-2.5 rounded-2xl rounded-br-md bg-primary text-primary-foreground text-sm leading-relaxed break-words [overflow-wrap:anywhere]">
               <p className="whitespace-pre-wrap">{block.content}</p>
               {index === 0 && (
                 <button
                   onClick={onCopy}
-                  className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-all"
+                  className="absolute -left-7 top-1/2 -translate-y-1/2 p-1 rounded opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground transition-all"
                   title={copyLabel}
                 >
                   {copied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
@@ -910,12 +910,12 @@ export function AssistantMessage({
   return (
     <div className="flex justify-start gap-2 group">
       <div className="shrink-0 flex items-start mt-0.5">
-        <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-          <Bot className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+          <Bot className="w-3.5 h-3.5 text-primary" />
         </div>
       </div>
 
-      <div className="max-w-[85%] flex flex-col gap-1.5 min-w-0">
+      <div className="max-w-[92%] flex flex-col gap-1.5 min-w-0">
         {(() => {
           // Pre-compute occurrence counters so same-named tools get the correct done event
           const toolOccurrenceCounter = new Map<string, number>();
@@ -1116,10 +1116,10 @@ export function AssistantMessage({
               };
 
               return (
-                <div key={key} className="my-3 rounded-xl overflow-hidden border border-violet-500/30 dark:border-violet-400/20 bg-white dark:bg-neutral-950 shadow-md animate-in slide-in-from-bottom-2 duration-300">
+                <div key={key} className="my-3 rounded-xl overflow-hidden border border-violet-500/30 dark:border-violet-400/20 bg-card shadow-sm animate-in slide-in-from-bottom-2 duration-300">
                   <div className="flex h-8 items-center gap-2 border-b border-violet-500/10 bg-violet-500/5 px-3 select-none">
-                    <Database className="h-3.5 w-3.5 shrink-0 text-violet-500" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-violet-600 dark:text-violet-400">
+                    <Database className="h-3.5 w-3.5 shrink-0 text-primary" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
                       Asset Brick · {previewBrick.kind}
                     </span>
                     {title && <span className="ml-1 truncate text-[10px] text-muted-foreground">— {title}</span>}
@@ -1143,7 +1143,7 @@ export function AssistantMessage({
                     <img
                       src={assetSrc}
                       alt={title || "Image Asset"}
-                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-white dark:bg-neutral-900"
+                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-card"
                       style={{ maxHeight: height || '400px' }}
                     />
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -1169,20 +1169,20 @@ export function AssistantMessage({
                 )}
                 {(type === "pdf" || type === "document") && assetSrc && (
                   <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
-                    <div className="w-10 h-10 rounded-lg bg-violet-100 dark:bg-violet-900/20 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-violet-500" />
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                      <FileText className="w-6 h-6 text-primary" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-[11px] font-bold truncate text-foreground">{title || (type === 'pdf' ? "PDF Document" : "Documento")}</div>
                       <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Adjunto</div>
                     </div>
-                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500">
+                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-primary">
                       <ExternalLink className="w-4 h-4" />
                     </a>
                     <button
                       type="button"
                       onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment', accessToken!); }}
-                      className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-violet-500"
+                      className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-primary"
                       title={t("agent.asset.download")}
                     >
                       <Download className="w-4 h-4" />
@@ -1205,7 +1205,7 @@ export function AssistantMessage({
             return (
               <div
                 key={key}
-                className="text-sm leading-relaxed text-neutral-800 dark:text-neutral-200 prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded"
+                className="text-sm leading-relaxed prose prose-sm dark:prose-invert max-w-none break-words [overflow-wrap:anywhere] text-foreground prose-p:my-1.5 prose-p:leading-relaxed prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-li:marker:text-muted-foreground prose-pre:bg-background/70 prose-pre:text-foreground prose-pre:border prose-pre:border-border/50 prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:rounded prose-code:break-words"
               >
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{seg}</ReactMarkdown>
               </div>
@@ -1240,8 +1240,8 @@ export function AssistantMessage({
             );
 
             return (
-              <div key={key} className="mb-2 rounded-xl border border-violet-100 dark:border-violet-900/30 bg-violet-50/30 dark:bg-violet-900/10 p-3 shadow-sm">
-                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-violet-500 uppercase tracking-wider">
+              <div key={key} className="mb-2 rounded-xl border border-border/60 bg-muted/30 p-3">
+                <div className="flex items-center gap-2 mb-2 text-[10px] font-bold text-primary uppercase tracking-wider">
                   <ListChecks className="w-3 h-3" />
                   <span>{t("agent.tools.executionPlan")}</span>
                 </div>
@@ -1257,16 +1257,16 @@ export function AssistantMessage({
                               <Check className="w-2.5 h-2.5 text-emerald-600 dark:text-emerald-400" />
                             </div>
                           ) : isActive ? (
-                            <div className="w-4 h-4 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-                              <Loader2 className="w-2.5 h-2.5 text-violet-600 dark:text-violet-400 animate-spin" />
+                            <div className="w-4 h-4 rounded-full bg-primary/10 flex items-center justify-center">
+                              <Loader2 className="w-2.5 h-2.5 text-primary animate-spin" />
                             </div>
                           ) : (
-                            <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center border border-neutral-200 dark:border-neutral-700">
-                              <span className="text-[8px] font-bold text-neutral-400">{step.id}</span>
+                            <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center border border-border/60">
+                              <span className="text-[8px] font-bold text-muted-foreground">{step.id}</span>
                             </div>
                           )}
                         </div>
-                        <div className={`flex-1 text-[12px] leading-snug ${isDone ? "text-neutral-400 line-through decoration-neutral-300 dark:decoration-neutral-700" : "text-neutral-700 dark:text-neutral-300"}`}>
+                        <div className={`flex-1 text-[12px] leading-snug ${isDone ? "text-muted-foreground line-through decoration-border" : "text-foreground/80"}`}>
                           <RichText
                             content={step.content}
                             context={resolverContext ?? { documents: [], boards: [], folders: [], users: [] }}
@@ -1287,13 +1287,13 @@ export function AssistantMessage({
               assumptions: { icon: <HelpCircle className="w-3 h-3" />, label: t("agent.preThinkSections.assumptions"), color: "text-sky-600 dark:text-sky-400", bg: "bg-sky-50 dark:bg-sky-900/20" },
               risks: { icon: <ShieldCheck className="w-3 h-3" />, label: t("agent.preThinkSections.risks"), color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-900/20" },
               strategy: { icon: <Lightbulb className="w-3 h-3" />, label: t("agent.preThinkSections.strategy"), color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-900/20" },
-              raw: { icon: <Brain className="w-3 h-3" />, label: t("agent.preThinkSections.thinking"), color: "text-neutral-500", bg: "bg-neutral-50 dark:bg-neutral-800/50" },
+              raw: { icon: <Brain className="w-3 h-3" />, label: t("agent.preThinkSections.thinking"), color: "text-muted-foreground", bg: "bg-muted/40" },
             };
             return (
-              <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 overflow-hidden shadow-sm">
+              <div key={key} className="mb-1 rounded-xl border border-border/60 bg-muted/40 overflow-hidden">
                 <button
                   onClick={() => toggleMarkup(key)}
-                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold text-neutral-400 hover:text-violet-500 transition-colors uppercase tracking-wider"
+                  className="w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
                 >
                   <div className="flex items-center gap-1.5">
                     <Brain className="w-3.5 h-3.5" />
@@ -1311,7 +1311,7 @@ export function AssistantMessage({
                             {meta.icon}
                             <span>{meta.label}</span>
                           </div>
-                          <p className="text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300 whitespace-pre-wrap">{sec.content}</p>
+                          <p className="text-[11px] leading-relaxed text-muted-foreground whitespace-pre-wrap">{sec.content}</p>
                         </div>
                       );
                     })}
@@ -1328,7 +1328,7 @@ export function AssistantMessage({
               <div key={key} className="mb-2 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-900 overflow-hidden font-mono text-[11px] shadow-sm">
                 {file && (
                   <div className="bg-neutral-800/50 border-b border-neutral-800 px-3 py-1.5 flex items-center gap-2 text-neutral-400 font-sans font-semibold text-[10px] uppercase tracking-wider">
-                    <FileCode className="w-3.5 h-3.5 text-violet-400" />
+                    <FileCode className="w-3.5 h-3.5 text-primary" />
                     <span>{file}</span>
                   </div>
                 )}
@@ -1354,21 +1354,21 @@ export function AssistantMessage({
           }
 
           return (
-            <div key={key} className="mb-1 rounded-xl border border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-900/40 p-2 overflow-hidden shadow-sm">
+            <div key={key} className="mb-1 rounded-xl border border-border/60 bg-muted/40 p-2 overflow-hidden">
               <button
                 onClick={() => toggleMarkup(key)}
-                className="w-full flex items-center justify-between text-[10px] font-bold text-neutral-400 hover:text-violet-500 transition-colors uppercase tracking-wider"
+                className="w-full flex items-center justify-between text-[10px] font-bold text-muted-foreground hover:text-primary transition-colors uppercase tracking-wider"
               >
                 <div className="flex items-center gap-1.5">
-                  <div className="w-4 h-4 rounded-full bg-neutral-100 dark:bg-neutral-800 flex items-center justify-center">
+                  <div className="w-4 h-4 rounded-full bg-muted flex items-center justify-center">
                     {isExpanded ? <ChevronUp className="w-2.5 h-2.5" /> : <ChevronDown className="w-2.5 h-2.5" />}
                   </div>
                   <span>{getAiMarkupLabel(block.tag)}</span>
                 </div>
               </button>
               {isExpanded && (
-                <div className="mt-1 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/70 px-3 py-2">
-                  <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-neutral-600 dark:text-neutral-300 font-mono">
+                <div className="mt-1 rounded-xl border border-border/60 bg-muted/40 px-3 py-2">
+                  <pre className="whitespace-pre-wrap text-[11px] leading-relaxed text-muted-foreground font-mono">
                     {block.content}
                   </pre>
                 </div>
@@ -1381,7 +1381,7 @@ export function AssistantMessage({
         {!hasInlineToolChips && doneEvents.length > 0 && (
           <button
             onClick={onToggleTools}
-            className="flex items-center gap-1.5 text-[11px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors self-start"
+            className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors self-start"
           >
             <div className="flex items-center gap-0.5">
               {doneEvents.slice(0, 3).map((e, i) => {
@@ -1392,7 +1392,7 @@ export function AssistantMessage({
                   </span>
                 );
               })}
-              {count > 3 && <span className="text-[10px] text-neutral-400">+{count - 3}</span>}
+              {count > 3 && <span className="text-[10px] text-muted-foreground">+{count - 3}</span>}
             </div>
             <span>{actionsLabel}</span>
             {toolsExpanded ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -1400,7 +1400,7 @@ export function AssistantMessage({
         )}
 
         {!hasInlineToolChips && toolsExpanded && doneEvents.length > 0 && (
-          <div className="bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-200 dark:border-neutral-700 rounded-xl px-3 py-2 space-y-1.5">
+          <div className="bg-muted/40 border border-border/60 rounded-xl px-3 py-2 space-y-1.5">
             {doneEvents.map((e, i) => {
               const meta = getToolMeta(t, e.tool);
               const inputPreview = formatToolInput(e.input);
@@ -1412,22 +1412,22 @@ export function AssistantMessage({
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                   )}
                   <span className={`${meta.color} shrink-0`}>{meta.icon}</span>
-                  <span className="text-neutral-700 dark:text-neutral-300 font-mono">
+                  <span className="text-foreground/80 font-mono">
                     {formatToolName(e.tool)}
                   </span>
                   {inputPreview && (
-                    <span className="text-neutral-400 truncate min-w-0">
+                    <span className="text-muted-foreground truncate min-w-0">
                       {inputPreview}
                     </span>
                   )}
                   {e.durationMs !== undefined && (
-                    <span className="text-neutral-400 ml-1.5 shrink-0">{e.durationMs}ms</span>
+                    <span className="text-muted-foreground ml-1.5 shrink-0">{e.durationMs}ms</span>
                   )}
 
                   <div className="group/info relative ml-auto shrink-0">
-                    <Info className="w-2.5 h-2.5 text-neutral-400 hover:text-violet-500 cursor-help transition-colors" />
+                    <Info className="w-2.5 h-2.5 text-muted-foreground hover:text-primary cursor-help transition-colors" />
                     <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
-                      <div className="text-[9px] font-mono text-violet-400 mb-1 flex items-center justify-between">
+                      <div className="text-[9px] font-mono text-primary mb-1 flex items-center justify-between">
                         <span className="flex items-center gap-1">
                           <Wrench className="w-2 h-2" />
                           TOOL CALL RAW
@@ -1459,9 +1459,9 @@ export function AssistantMessage({
         )}
 
         {!hasInlineToolChips ? (
-          <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800 text-neutral-800 dark:text-neutral-200 text-sm leading-relaxed">
+          <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted/60 text-foreground text-sm leading-relaxed break-words [overflow-wrap:anywhere] min-w-0">
             {visibleText ? (
-              <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-headings:my-2 prose-pre:bg-neutral-200 dark:prose-pre:bg-neutral-700 prose-code:text-violet-600 dark:prose-code:text-violet-400 prose-code:bg-violet-50 dark:prose-code:bg-violet-900/20 prose-code:px-1 prose-code:rounded">
+              <div className="prose prose-sm dark:prose-invert max-w-none break-words [overflow-wrap:anywhere] text-foreground prose-p:my-1.5 prose-p:leading-relaxed prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-li:marker:text-muted-foreground prose-pre:bg-background/70 prose-pre:text-foreground prose-pre:border prose-pre:border-border/50 prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:rounded prose-code:break-words">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{visibleText}</ReactMarkdown>
               </div>
             ) : message.isStreaming && !hasPartialToolCall ? (
@@ -1531,22 +1531,22 @@ function ThinkingBubble({ t, events }: { t: TFn; events: ToolEvent[] }) {
   return (
     <div className="flex justify-start gap-2">
       <div className="shrink-0">
-        <div className="w-6 h-6 rounded-full bg-violet-100 dark:bg-violet-900/40 flex items-center justify-center">
-          <Bot className="w-3.5 h-3.5 text-violet-600 dark:text-violet-400" />
+        <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center">
+          <Bot className="w-3.5 h-3.5 text-primary" />
         </div>
       </div>
-      <div className="px-3.5 py-2.5 rounded-2xl rounded-bl-sm bg-neutral-100 dark:bg-neutral-800">
+      <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted/60">
         {meta ? (
-          <div className="flex items-center gap-2 text-xs text-violet-500 dark:text-violet-400">
+          <div className="flex items-center gap-2 text-xs text-primary">
             <span className={meta.color}>{meta.icon}</span>
             <span className="font-mono">{formatToolName(running!.tool)}</span>
             <Loader2 className="w-3 h-3 animate-spin" />
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce [animation-delay:0ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce [animation-delay:150ms]" />
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce [animation-delay:300ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:0ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:150ms]" />
+            <span className="w-1.5 h-1.5 rounded-full bg-primary/60 animate-bounce [animation-delay:300ms]" />
           </div>
         )}
       </div>
@@ -1575,7 +1575,7 @@ function ActionButton({
       title={title}
       className={`p-1 rounded transition-colors ${active
         ? activeClass
-        : "text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300"
+        : "text-muted-foreground hover:text-foreground"
         }`}
     >
       {children}
@@ -1600,18 +1600,18 @@ function ContactChip({ t, name, number }: { t: TFn; name: string; number: string
   };
   const telHref = number ? `tel:${number.replace(/[^\d+]/g, "")}` : undefined;
   return (
-    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/60 text-xs">
-      <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400">
+    <div className="my-0.5 flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border/60 bg-card text-xs">
+      <span className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-primary">
         <User className="h-3.5 w-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        {name && <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate">{name}</p>}
+        {name && <p className="font-medium text-foreground truncate">{name}</p>}
         {number && (
           <button
             type="button"
             onClick={handleCopy}
             title={copied ? t("agent.contact.copied") : t("agent.contact.copyNumber")}
-            className="inline-flex items-center gap-1 text-neutral-500 dark:text-neutral-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+            className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
           >
             <span className="truncate">{number}</span>
             {copied ? <Check className="h-3 w-3 shrink-0 text-emerald-500" /> : <Copy className="h-3 w-3 shrink-0 opacity-60" />}
@@ -1655,12 +1655,12 @@ function ToolResultCards({ t, results }: { t: TFn; results: ToolResult[] }) {
         return (
           <div
             key={i}
-            className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 bg-white dark:bg-neutral-800/60 text-xs"
+            className="flex items-center gap-2.5 px-3 py-2 rounded-xl border border-border/60 bg-card text-xs"
           >
             <span className={`${meta.color} shrink-0`}>{meta.icon}</span>
             <div className="min-w-0">
-              <p className="font-medium text-neutral-800 dark:text-neutral-200 truncate">{title}</p>
-              {subtitle && <p className="text-neutral-400 truncate">{subtitle}</p>}
+              <p className="font-medium text-foreground truncate">{title}</p>
+              {subtitle && <p className="text-muted-foreground truncate">{subtitle}</p>}
             </div>
             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 ml-auto shrink-0" />
           </div>
@@ -1773,15 +1773,15 @@ function EmptyState({
 }) {
   return (
     <div className="flex flex-col items-center gap-5 py-6 px-2">
-      <div className="w-12 h-12 rounded-2xl bg-violet-50 dark:bg-violet-900/20 flex items-center justify-center">
-        <Bot className="w-6 h-6 text-violet-500" />
+      <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
+        <Bot className="w-6 h-6 text-primary" />
       </div>
 
       <div className="text-center">
-        <p className="text-sm font-semibold text-neutral-700 dark:text-neutral-200">
+        <p className="text-sm font-semibold text-foreground">
           {t("agent.emptyState.title")}
         </p>
-        <p className="text-xs text-neutral-400 mt-1">
+        <p className="text-xs text-muted-foreground mt-1">
           {entityCfg
             ? t("agent.emptyState.fullAccess", { entity: entityCfg.label.toLowerCase() })
             : t("agent.emptyState.teamAccess")}
@@ -1806,7 +1806,7 @@ function EmptyState({
         {suggestions.map((tip) => (
           <button
             key={tip}
-            className="text-left text-xs px-3 py-2 rounded-xl border border-neutral-200 dark:border-neutral-700 text-neutral-600 dark:text-neutral-400 hover:bg-neutral-50 dark:hover:bg-neutral-800 hover:border-violet-300 dark:hover:border-violet-600 transition-colors"
+            className="text-left text-xs px-3 py-2 rounded-xl border border-border/60 text-muted-foreground hover:bg-muted/60 hover:border-primary/40 transition-colors"
             onClick={() => onSuggestionClick?.(tip)}
           >
             {tip}

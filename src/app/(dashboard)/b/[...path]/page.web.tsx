@@ -11,6 +11,7 @@ import { ListColumn } from "@/components/ui/list-column";
 import { TagGroupsModal } from "@/components/boards/tag-groups-modal";
 import { useBoardView } from "@/components/boards/use-board-view";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
+import { GanttView } from "@/components/boards/gantt-view";
 import { applyBoardFilters } from "@/lib/boards/apply-filters";
 import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
 import { effectiveSortRules, normalizeSortRules, sortCards } from "@/lib/boards/sorting";
@@ -70,17 +71,6 @@ type BoardAppearanceState = {
 };
 
 type BoardViewMode = "kanban" | "gantt";
-
-type GanttCardRow = {
-  card: any;
-  listId: string;
-  listName: string;
-  startAt: string;
-  dueAt: string;
-  leftPct: number;
-  widthPct: number;
-  isOverdue: boolean;
-};
 
 type ApplyEventResult = {
   nextLists: BoardListState[];
@@ -881,11 +871,7 @@ export default function BoardPage() {
     backgroundValue: "#000000",
   });
   const [boardView, setBoardView] = useState<BoardViewMode>("kanban");
-  const [ganttViewMode, setGanttViewMode] = useState<"day" | "week" | "month">("week");
-  const [ganttWeekOffset, setGanttWeekOffset] = useState(0);
   const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
-  const [ganttWeekBase] = useState(() => startOfWeek(new Date()));
-  const [expandedGanttLists, setExpandedGanttLists] = useState<Set<string>>(new Set());
 
   const bv = useBoardView(boardId);
   const tFilters = useTranslations("board-filters");
@@ -925,28 +911,6 @@ export default function BoardPage() {
       setArchivedListsLoading(false);
     }
   }, [showArchivedLists, accessToken, boardId, t]);
-
-  // Calculate days count based on view mode
-  const ganttDaysCount = ganttViewMode === "day" ? 1 : ganttViewMode === "week" ? 7 : 30;
-  const ganttOffsetMultiplier = ganttViewMode === "day" ? 1 : ganttViewMode === "week" ? 7 : 30;
-
-  const ganttWeekStart = useMemo(() => addDays(ganttWeekBase, ganttWeekOffset * ganttOffsetMultiplier), [ganttWeekBase, ganttWeekOffset, ganttOffsetMultiplier]);
-  const ganttWeekEnd = useMemo(() => {
-    const end = addDays(ganttWeekStart, ganttDaysCount - 1);
-    end.setHours(23, 59, 59, 999);
-    return end;
-  }, [ganttWeekStart, ganttDaysCount]);
-  const ganttWeekEndExclusive = useMemo(() => addDays(ganttWeekStart, ganttDaysCount).getTime(), [ganttWeekStart, ganttDaysCount]);
-  const ganttWeekStartMs = ganttWeekStart.getTime();
-  const ganttWeekDurationMs = ganttWeekEndExclusive - ganttWeekStartMs;
-  const ganttWeekDays = useMemo(() => Array.from({ length: ganttDaysCount }, (_, index) => addDays(ganttWeekStart, index)), [ganttWeekStart, ganttDaysCount]);
-  const ganttWeekLabel = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(locale, { month: "short", day: "numeric" });
-    if (ganttViewMode === "day") {
-      return formatter.format(ganttWeekStart);
-    }
-    return `${formatter.format(ganttWeekStart)} - ${formatter.format(ganttWeekEnd)}`;
-  }, [ganttWeekEnd, ganttWeekStart, locale, ganttViewMode]);
 
   const realtimeReloadTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1486,119 +1450,6 @@ export default function BoardPage() {
   sortedListIdsRef.current = new Set(Object.entries(listSortRules).filter(([, r]) => r.length > 0).map(([id]) => id));
   const boardFilterActive = false;
 
-  const ganttSections = useMemo<Array<{ listId: string; listName: string; cards: GanttCardRow[] }>>(() => {
-    return filteredLists
-      .map((list: { id: string; title: string; cards: any[] }) => {
-        const cards: GanttCardRow[] = (list.cards || [])
-          .map((card: any): GanttCardRow | null => {
-            const startAt = typeof card?.startAt === "string" ? card.startAt : null;
-            const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
-            const startMs = parseDateTimeValue(startAt || dueAt);
-            const dueMs = parseDateTimeValue(dueAt || startAt);
-
-            if (startMs === null || dueMs === null) {
-              return null;
-            }
-
-            const windowStart = Math.min(startMs, dueMs);
-            const windowEnd = Math.max(startMs, dueMs);
-            if (windowEnd < ganttWeekStartMs || windowStart > ganttWeekEndExclusive) {
-              return null;
-            }
-
-            const clippedStart = Math.max(windowStart, ganttWeekStartMs);
-            const clippedEnd = Math.min(windowEnd, ganttWeekEndExclusive);
-            const leftPct = ((clippedStart - ganttWeekStartMs) / ganttWeekDurationMs) * 100;
-            const widthPct = Math.max(3.5, ((clippedEnd - clippedStart) / ganttWeekDurationMs) * 100);
-
-            return {
-              card,
-              listId: list.id,
-              listName: list.title,
-              startAt: startAt || dueAt || "",
-              dueAt: dueAt || startAt || "",
-              leftPct,
-              widthPct,
-              isOverdue: Boolean(dueMs < Date.now()),
-            };
-          })
-          .filter((row): row is GanttCardRow => Boolean(row))
-          .sort((left, right) => {
-            if (left.leftPct !== right.leftPct) return left.leftPct - right.leftPct;
-            return left.widthPct - right.widthPct;
-          });
-
-        return {
-          listId: list.id,
-          listName: list.title,
-          cards,
-        };
-      })
-      .filter((section) => section.cards.length > 0);
-  }, [filteredLists, ganttWeekDurationMs, ganttWeekEndExclusive, ganttWeekStartMs]);
-
-  const ganttWeekDayLabels = useMemo(() => {
-    if (ganttViewMode === "day") {
-      // Day view: show full day format
-      return ganttWeekDays.map((date) => ({
-        key: formatDateKey(date),
-        label: new Intl.DateTimeFormat(locale, { weekday: "long" }).format(date),
-        dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "long", year: "numeric" }).format(date),
-      }));
-    } else if (ganttViewMode === "month") {
-      // Month view: show week numbers
-      return ganttWeekDays.map((date, index) => ({
-        key: formatDateKey(date),
-        label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date),
-        dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date),
-      }));
-    }
-    // Week view (default): short weekday + date
-    return ganttWeekDays.map((date) => ({
-      key: formatDateKey(date),
-      label: new Intl.DateTimeFormat(locale, { weekday: "short" }).format(date),
-      dateLabel: new Intl.DateTimeFormat(locale, { day: "numeric", month: "short" }).format(date),
-    }));
-  }, [ganttWeekDays, locale, ganttViewMode]);
-
-  const formatGanttDateTime = useCallback((value: string) => {
-    return new Intl.DateTimeFormat(locale, {
-      weekday: "short",
-      day: "numeric",
-      month: "short",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(value));
-  }, [locale]);
-
-  const getCardBarColor = useCallback((card: any): string => {
-    // If card has a background color, use it
-    if (card.backgroundColor && typeof card.backgroundColor === "string") {
-      return card.backgroundColor;
-    }
-
-    // If completed, blue
-    if (card.completedAt || card.status === "done") {
-      return "#3b82f6"; // blue
-    }
-
-    // If overdue, red
-    if (card.dueAt) {
-      const dueMs = parseDateTimeValue(card.dueAt);
-      if (dueMs && dueMs < Date.now()) {
-        return "#ef4444"; // red
-      }
-    }
-
-    // If active and not completed, orange
-    if (card.status === "active") {
-      return "#f97316"; // orange
-    }
-
-    // Default blue
-    return "#3b82f6";
-  }, []);
-
   const resolveBoardBackground = (appearance: BoardAppearanceState): { className: string; style?: CSSProperties } => {
     if (appearance.backgroundKind === "image" && appearance.backgroundImageUrl) {
       return {
@@ -1727,7 +1578,7 @@ export default function BoardPage() {
           </div>
 
           {/* Copilot: hidden in local mode unless online (uses personal plan) */}
-          {(!localMode || online) && (
+          {!isChatOpen && (!localMode || online) && (
             <button
               onClick={() => { setSidebarTab('copilot'); setIsChatOpen(true); }}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'copilot' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
@@ -1738,7 +1589,7 @@ export default function BoardPage() {
           )}
 
           {/* Team chat is room-backed — unavailable in local mode */}
-          {!localMode && (
+          {!isChatOpen && !localMode && (
             <button
               onClick={() => { setSidebarTab('chat'); setIsChatOpen(true); }}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'chat' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
@@ -1749,7 +1600,7 @@ export default function BoardPage() {
           )}
 
           {/* Activity stays available offline (local sidecar) */}
-          {localMode && (
+          {!isChatOpen && localMode && (
             <button
               onClick={() => { setSidebarTab('activity'); setIsChatOpen(true); }}
               className={`h-8 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors border shadow-sm ${isChatOpen && sidebarTab === 'activity' ? "bg-accent/10 border-accent/20 text-accent" : "bg-card border-border hover:bg-accent/10 hover:border-accent hover:text-accent text-muted-foreground"}`}
@@ -2026,265 +1877,12 @@ export default function BoardPage() {
       )}
       </>
       ) : (
-      <main className="flex-1 overflow-hidden">
-        <div className="flex h-full flex-col overflow-y-auto px-6 py-5">
-          <div className="mb-5 flex items-center justify-between gap-4 rounded-2xl border border-border/60 bg-card/80 px-4 py-3 shadow-sm backdrop-blur-sm">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.28em] text-muted-foreground">{t("gantt.title")}</p>
-              <div className="mt-1 flex items-center gap-2">
-                <ChartGantt className="h-4 w-4 text-accent" />
-                <h2 className="text-lg font-semibold text-foreground">{ganttWeekLabel}</h2>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {/* View mode selector */}
-              <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGanttViewMode("day");
-                    setGanttWeekOffset(0);
-                  }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    ganttViewMode === "day"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("gantt.dayView")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGanttViewMode("week");
-                    setGanttWeekOffset(0);
-                  }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    ganttViewMode === "week"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("gantt.weekView")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setGanttViewMode("month");
-                    setGanttWeekOffset(0);
-                  }}
-                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    ganttViewMode === "month"
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {t("gantt.monthView")}
-                </button>
-              </div>
-
-              {/* Navigation buttons */}
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setGanttWeekOffset((current) => current - 1)}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
-                >
-                  <ChevronLeft className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGanttWeekOffset(0)}
-                  className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-primary/90 px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary"
-                >
-                  <CalendarDays className="h-4 w-4" />
-                  {t("gantt.thisWeek")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setGanttWeekOffset((current) => current + 1)}
-                  className="inline-flex h-9 items-center justify-center rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:border-accent hover:text-accent"
-                >
-                  <ChevronRight className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="mb-4 overflow-x-auto pb-2">
-            <div style={{ minWidth: `${Math.max(1040, ganttDaysCount * 140)}px` }}>
-              <div 
-                className="overflow-hidden rounded-xl border border-border/60 bg-card/70 text-xs font-semibold uppercase tracking-[0.18em] text-muted-foreground shadow-sm"
-                style={{ display: "grid", gridTemplateColumns: `repeat(${ganttDaysCount}, 1fr)` }}
-              >
-                {ganttWeekDayLabels.map((day, index) => (
-                  <div key={day.key} className={`px-3 py-3 ${index > 0 ? "border-l border-border/60" : ""}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span>{day.label}</span>
-                      <span className="text-[10px] tracking-normal text-muted-foreground/80">{day.dateLabel}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-4 overflow-x-auto pb-4">
-            <div className="min-w-[1200px]">
-              {ganttSections.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-border/60 bg-card/60 px-6 py-16 text-center shadow-sm">
-                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 text-accent">
-                    <ChartGantt className="h-6 w-6" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-foreground">{t("gantt.emptyTitle")}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">{t("gantt.emptyDescription")}</p>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-border/60 bg-card/60 shadow-sm overflow-hidden">
-                  {/* Table Header */}
-                  <div className="flex border-b border-border/60 bg-muted/30">
-                    {/* List column header */}
-                    <div className="w-48 shrink-0 px-4 py-3 border-r border-border/60">
-                      <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t("gantt.lists")}</p>
-                    </div>
-                    {/* Day headers */}
-                    <div className="flex flex-1">
-                      {ganttWeekDayLabels.map((day, index) => (
-                        <div key={day.key} className={`flex-1 px-3 py-3 text-center ${index > 0 ? "border-l border-border/60" : ""}`}>
-                          <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{day.label}</div>
-                          <div className="text-[10px] text-muted-foreground/70 mt-1">{day.dateLabel}</div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Table Rows (one row per list) */}
-                  {filteredLists.map((list) => {
-                    const isExpanded = expandedGanttLists.has(list.id);
-                    const toggleExpand = () => {
-                      setExpandedGanttLists((prev) => {
-                        const next = new Set(prev);
-                        if (next.has(list.id)) {
-                          next.delete(list.id);
-                        } else {
-                          next.add(list.id);
-                        }
-                        return next;
-                      });
-                    };
-
-                    return (
-                    <div key={list.id} className="flex border-b border-border/40 last:border-b-0 hover:bg-accent/5 transition-colors">
-                      {/* List name with expandable toggle */}
-                      <div className="w-48 shrink-0 px-4 py-4 border-r border-border/60 flex flex-col gap-2 bg-background/40">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-foreground">{list.title}</h4>
-                            <p className="text-xs text-muted-foreground mt-0.5">
-                              {t("gantt.cardsInList", { count: (list.cards || []).length })}
-                            </p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={toggleExpand}
-                            className="mt-0.5 p-1 rounded hover:bg-muted/50 transition-colors"
-                            title={isExpanded ? "Collapse cards" : "Expand cards"}
-                          >
-                            <ChevronRight className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-90" : ""}`} />
-                          </button>
-                        </div>
-                        {isExpanded && (list.cards || []).length > 0 && (
-                          <div className="space-y-1 pt-2 border-t border-border/40">
-                            {(list.cards || []).map((card: any) => (
-                              <div
-                                key={card.id}
-                                className="text-[11px] text-muted-foreground truncate px-2 py-1 rounded bg-muted/20 hover:bg-muted/40 transition-colors cursor-pointer"
-                                onClick={() => setSelectedGanttCard({ card, listId: list.id, listName: list.title })}
-                                title={card.title}
-                              >
-                                {card.title}
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Day cells with cards */}
-                      <div className="flex flex-1">
-                        {ganttWeekDayLabels.map((dayLabel, dayIndex) => {
-                          const dayDate = ganttWeekDays[dayIndex];
-                          const dayStartMs = dayDate.getTime();
-                          const dayEndMs = addDays(dayDate, 1).getTime();
-
-                          // Filter cards that fall within this day
-                          const cardsInDay = (list.cards || []).filter((card: any) => {
-                            const startAt = typeof card?.startAt === "string" ? card.startAt : null;
-                            const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
-                            const startMs = parseDateTimeValue(startAt || dueAt);
-                            const dueMs = parseDateTimeValue(dueAt || startAt);
-
-                            if (startMs === null || dueMs === null) return false;
-
-                            const windowStart = Math.min(startMs, dueMs);
-                            const windowEnd = Math.max(startMs, dueMs);
-                            return windowEnd > dayStartMs && windowStart < dayEndMs;
-                          });
-
-                          return (
-                            <div
-                              key={`${list.id}-${dayLabel.key}`}
-                              className={`flex-1 relative px-2 py-3 ${dayIndex > 0 ? "border-l border-border/60" : ""} min-h-[100px]`}
-                            >
-                              {cardsInDay.map((card: any) => {
-                                const startAt = typeof card?.startAt === "string" ? card.startAt : null;
-                                const dueAt = typeof card?.dueAt === "string" ? card.dueAt : null;
-                                const startMs = parseDateTimeValue(startAt || dueAt);
-                                const dueMs = parseDateTimeValue(dueAt || startAt);
-
-                                const windowStart = Math.min(startMs!, dueMs!);
-                                const windowEnd = Math.max(startMs!, dueMs!);
-
-                                // Clip to this day
-                                const clippedStart = Math.max(windowStart, dayStartMs);
-                                const clippedEnd = Math.min(windowEnd, dayEndMs);
-
-                                // Calculate position and width within the 24-hour day
-                                const dayDurationMs = dayEndMs - dayStartMs;
-                                const leftPct = ((clippedStart - dayStartMs) / dayDurationMs) * 100;
-                                const widthPct = Math.max(5, ((clippedEnd - clippedStart) / dayDurationMs) * 100);
-
-                                const barColor = getCardBarColor(card);
-
-                                return (
-                                  <button
-                                    key={card.id}
-                                    type="button"
-                                    onClick={() => setSelectedGanttCard({ card, listId: list.id, listName: list.title })}
-                                    className="absolute top-1 rounded-md px-2 py-1 text-[10px] font-medium text-white shadow-sm hover:shadow-md transition-all overflow-hidden text-ellipsis whitespace-nowrap"
-                                    style={{
-                                      left: `${leftPct}%`,
-                                      width: `${widthPct}%`,
-                                      backgroundColor: barColor,
-                                      opacity: 0.85,
-                                    }}
-                                    title={card.title}
-                                  >
-                                    {card.title}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+      <main className="flex-1 overflow-hidden bg-background">
+        <GanttView
+          lists={filteredLists}
+          locale={locale}
+          onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+        />
       </main>
       )}
 

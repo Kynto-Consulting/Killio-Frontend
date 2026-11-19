@@ -37,16 +37,19 @@
   },
   "gantt": {
     "title": "Vista Gantt",
-    "thisWeek": "Esta semana",
+    "thisWeek": "Hoy",
     "dayView": "Día",
     "weekView": "Semana",
     "monthView": "Mes",
     "lists": "Listas",
     "emptyTitle": "Sin tarjetas en este período",
-    "emptyDescription": "Aparecerán aquí las cards con fecha de inicio o vencimiento que caigan dentro de este rango.",
+    "emptyDescription": "Las tarjetas con fecha de inicio o de vencimiento dentro de este rango aparecen como barras.",
     "cardsInList": "{{count}} cards",
     "start": "Inicio",
-    "due": "Vence"
+    "due": "Vence",
+    "today": "Hoy",
+    "task": "Tarea",
+    "noDates": "Sin fechas"
   },
   "list": {
     "addCard": "Agregar tarjeta",

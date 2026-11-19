@@ -307,10 +307,10 @@ function InputKV({ input }: { input: Record<string, unknown> }) {
     <div className="flex flex-col gap-0.5">
       {entries.map(([key, val]) => (
         <div key={key} className="flex gap-2 min-w-0">
-          <span className="text-neutral-400 dark:text-neutral-500 shrink-0 min-w-[80px] text-right font-sans text-[10px] leading-[1.6] capitalize">
+          <span className="text-muted-foreground shrink-0 min-w-[80px] text-right font-sans text-[10px] leading-[1.6] capitalize">
             {humanizeKey(key)}
           </span>
-          <span className="text-neutral-700 dark:text-neutral-200 break-all font-mono text-[10px] leading-[1.6]">
+          <span className="text-foreground break-all font-mono text-[10px] leading-[1.6]">
             {Array.isArray(val)
               ? (val as unknown[]).map(v => formatScalar(v)).join(", ") || "—"
               : typeof val === "object" && val !== null
@@ -332,13 +332,13 @@ function FileDiffOutput({ path, operation, diff }: { path?: string; operation?: 
   const addedCount   = diff.filter(l => l.type === 'added').length;
 
   return (
-    <div className="rounded-md overflow-hidden border border-neutral-200 dark:border-neutral-700 text-[10px] font-mono">
+    <div className="rounded-md overflow-hidden border border-border/60 text-[10px] font-mono">
       {/* Header bar */}
-      <div className="flex items-center justify-between gap-2 bg-neutral-100 dark:bg-neutral-800/80 px-2 py-1 font-sans">
-        <span className="text-neutral-500 dark:text-neutral-400 truncate">{path ?? "file"}</span>
+      <div className="flex items-center justify-between gap-2 bg-muted/60 px-2 py-1 font-sans">
+        <span className="text-muted-foreground truncate">{path ?? "file"}</span>
         <div className="flex items-center gap-1.5 shrink-0">
           {operation && (
-            <span className="text-[9px] font-bold uppercase tracking-widest text-neutral-400 dark:text-neutral-500">
+            <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
               {operation.replace(/_/g, " ")}
             </span>
           )}
@@ -358,7 +358,7 @@ function FileDiffOutput({ path, operation, diff }: { path?: string; operation?: 
             className={`flex gap-1 px-2 py-[1px] whitespace-pre-wrap break-all leading-[1.5] ${
               line.type === 'removed' ? 'bg-red-500/10 text-red-400' :
               line.type === 'added'   ? 'bg-emerald-500/10 text-emerald-400' :
-                                        'text-neutral-400 dark:text-neutral-500'
+                                        'text-muted-foreground'
             }`}
           >
             <span className="shrink-0 w-3 select-none opacity-70">
@@ -431,19 +431,19 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     return (
       <div className="flex flex-col gap-1">
         {showCount && (
-          <div className="text-[10px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 font-semibold">
+          <div className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">
             {arr.length} item{arr.length !== 1 ? "s" : ""}
           </div>
         )}
         {previewItems.length > 0 && (
           <div className="flex flex-col gap-1 rounded-md border border-black/5 dark:border-white/5 bg-black/5 dark:bg-white/5 px-2 py-1">
             {previewItems.map((item, index) => (
-              <div key={index} className="font-mono text-[10px] leading-relaxed break-words text-neutral-700 dark:text-neutral-200">
+              <div key={index} className="font-mono text-[10px] leading-relaxed break-words text-foreground">
                 {index + 1}. {item}
               </div>
             ))}
             {arr.length > 3 && (
-              <div className="font-mono text-[10px] text-neutral-500 dark:text-neutral-400">
+              <div className="font-mono text-[10px] text-muted-foreground">
                 …
               </div>
             )}
@@ -470,7 +470,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     const s = output.trim();
     if (!s) return null;
     return (
-      <p className={`font-mono text-[10px] leading-relaxed break-all ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-600 dark:text-neutral-300"}`}>
+      <p className={`font-mono text-[10px] leading-relaxed break-all ${isError ? "text-red-600 dark:text-red-300" : "text-muted-foreground"}`}>
         {s.length > 400 ? s.slice(0, 400) + "…" : s}
       </p>
     );
@@ -524,7 +524,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
     }
     if (shownEntries.length === 0) {
       return (
-        <pre className={`mt-1 whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+        <pre className={`mt-1 whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-foreground"}`}>
           {JSON.stringify(obj, null, 2)}
         </pre>
       );
@@ -533,19 +533,19 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
       <div className="flex flex-col gap-0.5">
         {shownEntries.map(([k, v]) => (
           <div key={k} className="flex flex-col gap-1 min-w-0">
-            <span className="text-neutral-400 dark:text-neutral-500 shrink-0 min-w-[64px] text-right font-sans text-[10px] leading-[1.6] capitalize">
+            <span className="text-muted-foreground shrink-0 min-w-[64px] text-right font-sans text-[10px] leading-[1.6] capitalize">
               {humanizeKey(k)}
             </span>
             {typeof v === "object" && v !== null && !Array.isArray(v) ? (
               renderObjectPreview(v as Record<string, unknown>) ?? (
-                <pre className={`whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+                <pre className={`whitespace-pre-wrap break-words rounded-lg bg-black/5 dark:bg-white/5 px-2 py-1 text-[10px] font-mono ${isError ? "text-red-600 dark:text-red-300" : "text-foreground"}`}>
                   {JSON.stringify(v, null, 2)}
                 </pre>
               )
             ) : Array.isArray(v) ? (
               renderArrayPreview(v)
             ) : (
-              <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-600 dark:text-red-300" : "text-neutral-700 dark:text-neutral-200"}`}>
+              <span className={`break-all font-mono text-[10px] leading-[1.6] ${isError ? "text-red-600 dark:text-red-300" : "text-foreground"}`}>
                 {formatScalar(v, 120)}
               </span>
             )}
@@ -556,7 +556,7 @@ function OutputSummary({ output, isError }: { output: unknown; isError: boolean 
   }
 
   return (
-    <p className="font-mono text-[10px] text-neutral-600 dark:text-neutral-300 leading-relaxed">
+    <p className="font-mono text-[10px] text-muted-foreground leading-relaxed">
       {formatScalar(output)}
     </p>
   );
@@ -740,15 +740,15 @@ export function ToolCallChip({
   ) : isDone ? (
     <CheckCircle2 className="w-3 h-3 text-emerald-500/80 shrink-0" />
   ) : (
-    <Loader2 className="w-3 h-3 text-violet-400 shrink-0 animate-spin" />
+    <Loader2 className="w-3 h-3 text-primary/80 shrink-0 animate-spin" />
   );
 
   const toolIcon = (
     <span className={`shrink-0 ${
       needsApproval ? "text-amber-400" :
       isError       ? "text-red-400"   :
-      isDone        ? "text-neutral-400 dark:text-neutral-500" :
-                      "text-violet-400"
+      isDone        ? "text-muted-foreground" :
+                      "text-primary/80"
     }`}>
       {getToolIcon(toolName)}
     </span>
@@ -763,14 +763,14 @@ export function ToolCallChip({
         className={`
           flex items-center gap-1.5 w-full text-left py-0.5 rounded
           text-[12px] transition-colors group/chip
-          ${canExpand ? "cursor-pointer hover:bg-neutral-100 dark:hover:bg-neutral-800/60 px-1 -mx-1" : "cursor-default"}
+          ${canExpand ? "cursor-pointer hover:bg-muted/60 px-1 -mx-1" : "cursor-default"}
           ${needsApproval
             ? "text-amber-600 dark:text-amber-400"
             : isError
             ? "text-red-500 dark:text-red-400"
             : isDone
-            ? "text-neutral-500 dark:text-neutral-400"
-            : "text-violet-500 dark:text-violet-400"
+            ? "text-muted-foreground"
+            : "text-primary"
           }
         `}
       >
@@ -805,7 +805,7 @@ export function ToolCallChip({
           </button>
           <button
             onClick={onReject}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-neutral-300 dark:border-neutral-600 text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-700 text-[11px] font-semibold transition-colors"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md border border-neutral-300 dark:border-neutral-600 text-muted-foreground hover:bg-neutral-100 dark:hover:bg-neutral-700 text-[11px] font-semibold transition-colors"
           >
             <X className="w-2.5 h-2.5" />
             {t("agent.approval.reject")}
@@ -815,18 +815,18 @@ export function ToolCallChip({
 
       {/* ── Expanded details ──────────────────────────────────────────────── */}
       {expanded && (
-        <div className="ml-6 mt-1 mb-1 rounded-lg overflow-hidden border border-neutral-200 dark:border-neutral-700/60">
+        <div className="ml-6 mt-1 mb-1 rounded-lg overflow-hidden border border-border/60">
           {input && Object.keys(input).filter(k => !SKIP_KEYS.has(k)).length > 0 && (
-            <div className="bg-neutral-50 dark:bg-neutral-800/80 px-3 py-2 border-b border-neutral-200 dark:border-neutral-700/60">
-              <div className="text-[9px] uppercase tracking-widest text-neutral-400 dark:text-neutral-500 mb-1.5 font-sans font-semibold flex items-center gap-1">
+            <div className="bg-muted/40 px-3 py-2 border-b border-border/60">
+              <div className="text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5 font-sans font-semibold flex items-center gap-1">
                 <Wrench className="w-2.5 h-2.5" /> Input
               </div>
               <InputKV input={input} />
             </div>
           )}
           {output !== undefined && output !== null && (
-            <div className={`px-3 py-2 ${isError ? "bg-red-950/20" : "bg-neutral-50 dark:bg-neutral-800/60"}`}>
-              <div className={`text-[9px] uppercase tracking-widest mb-1.5 font-sans font-semibold flex items-center gap-1 ${isError ? "text-red-400" : "text-neutral-400 dark:text-neutral-500"}`}>
+            <div className={`px-3 py-2 ${isError ? "bg-red-950/20" : "bg-muted/40"}`}>
+              <div className={`text-[9px] uppercase tracking-widest mb-1.5 font-sans font-semibold flex items-center gap-1 ${isError ? "text-red-400" : "text-muted-foreground"}`}>
                 <Terminal className="w-2.5 h-2.5" /> Output
               </div>
               <OutputSummary output={output} isError={isError} />
@@ -846,7 +846,7 @@ export function ToolCallChip({
  */
 export function BuildingToolCallChip({ t }: { t: TFn }) {
   return (
-    <div className="flex items-center gap-1.5 py-0.5 text-[12px] text-violet-500 dark:text-violet-400">
+    <div className="flex items-center gap-1.5 py-0.5 text-[12px] text-primary">
       <Loader2 className="w-3 h-3 shrink-0 animate-spin" />
       <Wrench className="w-3 h-3 shrink-0 opacity-70" />
       <span className="font-medium italic opacity-80">
@@ -873,12 +873,12 @@ export function BatchToolChip({ t, count, children, defaultOpen = false }: Batch
     <div>
       <button
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-1.5 py-0.5 px-1 -mx-1 w-full text-left text-[12px] text-neutral-500 dark:text-neutral-400 hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-neutral-100 dark:hover:bg-neutral-800/60 rounded transition-colors group/batch"
+        className="flex items-center gap-1.5 py-0.5 px-1 -mx-1 w-full text-left text-[12px] text-muted-foreground hover:text-neutral-700 dark:hover:text-neutral-200 hover:bg-muted/60 rounded transition-colors group/batch"
       >
-        <Zap className="w-3 h-3 text-violet-400 shrink-0" />
+        <Zap className="w-3 h-3 text-primary/80 shrink-0" />
         <span className="flex-1 font-medium">
           {t("agent.tools.batchExecution")}
-          <span className="ml-1.5 text-[10px] text-neutral-400 dark:text-neutral-500 font-normal">
+          <span className="ml-1.5 text-[10px] text-muted-foreground font-normal">
             · {count} {t("agent.tools.actions")}
           </span>
         </span>
@@ -888,7 +888,7 @@ export function BatchToolChip({ t, count, children, defaultOpen = false }: Batch
       </button>
 
       {open && (
-        <div className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-neutral-200 dark:border-neutral-700/50 pl-2.5">
+        <div className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-border/50 pl-2.5">
           {children}
         </div>
       )}

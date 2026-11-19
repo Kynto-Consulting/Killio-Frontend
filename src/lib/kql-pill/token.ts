@@ -52,11 +52,19 @@ export function validateKqlPill(script: string, mode: string, label: string): Kq
   return null;
 }
 
+/**
+ * `encodeURIComponent` leaves `* _ ~ ! ' ( )` as they are, and Markdown reads a pair of `*` or `_` in a paragraph as
+ * emphasis (`select *` ... `select *` turned the script into `select <i>...</i>`). They are percent-encoded too; decoding is unchanged.
+ */
+export function encodeKqlScript(script: string): string {
+  return encodeURIComponent(script).replace(/[*_~!'()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
+}
+
 export function buildKqlPillToken(script: string, mode: KqlPillMode, label: string): string {
   const err = validateKqlPill(script, mode, label);
   if (err) throw new Error(`Invalid KQL pill: ${err}`);
   const l = normalizeKqlPillLabel(label);
-  return `@[kql:${mode}.${encodeURIComponent(script)}${l ? `:${l}` : ""}]`;
+  return `@[kql:${mode}.${encodeKqlScript(script)}${l ? `:${l}` : ""}]`;
 }
 
 const TOKEN_RE = /^@\[kql:([^:\]]+)(?::([^\]]*))?\]$/;

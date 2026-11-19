@@ -182,7 +182,7 @@ test('errors are readable and carry a position', () => {
   fails('cards where nope = 3', /Unknown field "nope"/);
   fails('', /empty/);
   fails('from nobody group by list', /Unknown name "nobody"/);
-  fails('let x = cards group by list\nfrom x', /plain selection/);
+  assert.doesNotThrow(() => run('let x = cards group by list\nfrom x count'), 'a let can hold a grouped result');
   fails('cards where title < "a"', /does not work on text/);
   fails('cards where points > "abc"', /not a number/);
   fails('cards where due = soon', /expected a date/);
@@ -197,7 +197,7 @@ test('safety: oversized input, nested repetitions in a regex, too many statement
   assert.throws(() => run('cards where title ~ /(a+)+$/'), /nested repetitions/);
   assert.throws(() => run('cards where title ~ /(.*)*x/'), /nested repetitions/);
   assert.throws(() => run('cards where title ~ /(abc/'), /Invalid regular expression/);
-  assert.throws(() => run('cards where title ~ "' + 'x'.repeat(250) + '"'), /too long/);
+  assert.throws(() => run('cards where title ~ "' + 'x'.repeat(1001) + '"'), /too long/);
   assert.throws(() => run(Array.from({ length: 40 }, () => 'cards count').join('\n')), /at most/);
   assert.equal(count('cards where title contains "process.exit(1)"'), 0, 'text is only ever compared, never executed');
   assert.equal(count('cards where title ~ /^bug/'), 2);

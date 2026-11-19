@@ -6,7 +6,8 @@ import { PublicFooter } from "@/components/marketing/public-footer";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useTenant } from "@/components/providers/tenant-provider";
 
-type AuthMode = "login" | "signup";
+/** "account" = signed-in user inside the auth shell (no login/signup switch in the header). */
+type AuthMode = "login" | "signup" | "account";
 
 type AuthPageFrameProps = {
   mode: AuthMode;
@@ -44,7 +45,7 @@ export function AuthPageFrame({ mode, children }: AuthPageFrameProps) {
             <span className="text-lg font-semibold tracking-tight"><BrandName /></span>
           </Link>
 
-          {(mode !== "login" || signupEnabled) && (
+          {mode !== "account" && (mode !== "login" || signupEnabled) && (
             <Link
               href={mode === "login" ? "/signup" : "/login"}
               className="inline-flex h-9 items-center rounded-full border border-border/70 px-4 text-sm text-muted-foreground transition-colors hover:text-foreground"

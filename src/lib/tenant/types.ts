@@ -51,7 +51,7 @@ export type PublicTenantConfig = {
     footerText: string;
     legalLinks: Array<{ label: string; url: string }>;
   };
-  auth: { loginMode: "password" | "otp" | "password_or_otp"; signupEnabled: boolean; restricted: boolean };
+  auth: { loginMode: "password" | "otp" | "password_or_otp"; signupEnabled: boolean; restricted: boolean; signupRequiresOtp: boolean };
   billing: { enabled: boolean; plan: "free" | "pro" | "max" | "enterprise" | null };
 };
 
@@ -87,6 +87,6 @@ export const DEFAULT_TENANT_CONFIG: PublicTenantConfig = {
     footerText: "",
     legalLinks: [],
   },
-  auth: { loginMode: "password", signupEnabled: true, restricted: false },
+  auth: { loginMode: "password", signupEnabled: true, restricted: false, signupRequiresOtp: false },
   billing: { enabled: true, plan: null },
 };

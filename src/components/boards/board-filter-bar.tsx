@@ -194,7 +194,7 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
                 <input type="date" aria-label={t("quick.to")} className={`${inputCls} min-w-0`} value={dateDraft.to} onChange={(e) => setDateDraft({ ...dateDraft, to: e.target.value })} />
               </div>
               <div className="flex gap-2">
-                <button type="button" className="h-7 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90" onClick={() => apply({ dateField: dateDraft.field, dateFrom: dateDraft.from || null, dateTo: dateDraft.to || null })}>{t("quick.apply")}</button>
+                <button type="button" className="h-7 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90" onClick={() => apply({ dateField: dateDraft.field, dateFrom: dateDraft.from || null, dateTo: dateDraft.to || null })}>{t("quick.apply")}</button>
                 {q.dateFrom || q.dateTo ? <button type="button" className="h-7 rounded-md px-2 text-xs text-muted-foreground hover:text-foreground" onClick={() => apply({ dateFrom: null, dateTo: null })}>{t("quick.clearDates")}</button> : null}
               </div>
             </div>
@@ -203,7 +203,7 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
               <p className={section}>{t("quick.text")}</p>
               <div className="flex gap-1.5">
                 <input className={`${inputCls} ${textDraft.regex ? "font-mono" : ""}`} value={textDraft.text} onChange={(e) => setTextDraft({ ...textDraft, text: e.target.value })} placeholder={textDraft.regex ? t("quick.regexPlaceholder") : t("quick.textPlaceholder")} />
-                <button type="submit" className="h-8 rounded-md bg-accent px-3 text-xs font-medium text-white hover:opacity-90">{t("quick.apply")}</button>
+                <button type="submit" className="h-8 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:opacity-90">{t("quick.apply")}</button>
               </div>
               <label className="flex items-center gap-2 text-xs text-foreground">
                 <input type="checkbox" className="rounded border-border" checked={textDraft.regex} onChange={(e) => setTextDraft({ ...textDraft, regex: e.target.checked })} />
@@ -261,7 +261,7 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
             </ul>
             <form className="flex gap-1 border-t border-border pt-2" onSubmit={(e) => { e.preventDefault(); if (!viewName.trim()) return; props.onSaveView(viewName, expression); setViewName(""); }}>
               <input className={inputCls} value={viewName} onChange={(e) => setViewName(e.target.value)} placeholder={t("views.namePlaceholder")} maxLength={120} />
-              <button type="submit" disabled={!viewName.trim()} className="h-8 rounded-md bg-accent px-2 text-xs font-medium text-white hover:opacity-90 disabled:opacity-40">{t("views.saveCurrent")}</button>
+              <button type="submit" disabled={!viewName.trim()} className="h-8 rounded-md bg-primary px-2 text-xs font-medium text-primary-foreground hover:opacity-90 disabled:opacity-40">{t("views.saveCurrent")}</button>
             </form>
           </div>
         </Popover>

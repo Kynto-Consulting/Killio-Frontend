@@ -1,12 +1,16 @@
+import { PASSWORD_CHANGE_REQUIRED_CODE, PASSWORD_CHANGE_REQUIRED_EVENT, isPasswordChangeRequiredError } from '@/lib/auth/password-change';
+
 export const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:4000').replace(/\/$/, '');
 export const getApiBaseUrl = () => API_BASE_URL;
 
 export class ApiError extends Error {
   status: number;
-  constructor(message: string, status: number) {
+  code?: string;
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
   }
 }
 
@@ -46,10 +50,15 @@ export async function fetchApi<T>(
 
   if (!res.ok) {
     let message = `Request failed with status ${res.status}`;
+    let code: string | undefined;
     try {
       const contentType = res.headers.get('content-type') || '';
       if (contentType.includes('application/json')) {
         const errorData = await res.json();
+        if (isPasswordChangeRequiredError(res.status, errorData)) {
+          code = PASSWORD_CHANGE_REQUIRED_CODE;
+          if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(PASSWORD_CHANGE_REQUIRED_EVENT));
+        }
         message = Array.isArray(errorData.message)
           ? errorData.message.join(', ')
           : errorData.message || message;
@@ -67,7 +76,7 @@ export async function fetchApi<T>(
         window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       }
     }
-    throw new ApiError(message, res.status);
+    throw new ApiError(message, res.status, code);
   }
 
   if (res.status === 204) return undefined as any;

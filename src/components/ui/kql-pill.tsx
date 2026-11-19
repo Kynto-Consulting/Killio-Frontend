@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useAnchoredPopover } from "@/hooks/use-anchored-popover";
 import { AlertTriangle, Check, Copy, Database, Pencil, RefreshCw } from "lucide-react";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { Portal } from "./portal";
@@ -61,19 +62,12 @@ export function KqlPill({ script, mode, label, tables, editable, onChangeToken, 
   const [copied, setCopied] = useState(false);
   const triggerRef = useRef<HTMLElement | null>(null);
   const popRef = useRef<HTMLDivElement | null>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const pos = useAnchoredPopover(open, triggerRef, popRef);
 
   const outcome = state.status === "ok" ? state.outcome : null;
   const formatted = useMemo(() => (outcome ? formatKqlResult(outcome.result, mode) : null), [outcome, mode]);
   const popFormatted = useMemo(() => (outcome ? formatKqlResult(outcome.result, "table", 100) : null), [outcome]);
   const canEdit = Boolean(editable && onChangeToken);
-
-  useLayoutEffect(() => {
-    if (!open || !triggerRef.current) return;
-    const r = triggerRef.current.getBoundingClientRect();
-    const width = Math.min(520, window.innerWidth - 16);
-    setPos({ top: Math.min(r.bottom + 6, window.innerHeight - 80), left: Math.max(8, Math.min(r.left, window.innerWidth - width - 8)) });
-  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,7 +149,7 @@ export function KqlPill({ script, mode, label, tables, editable, onChangeToken, 
         title={title}
         onClick={(e) => { e.stopPropagation(); setOpen((v) => !v); }}
         onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen((v) => !v); } }}
-        className={`group mx-0.5 cursor-pointer rounded-md border px-1.5 py-0.5 text-[0.95em] ${isBlock ? "inline-block align-top" : "inline-flex items-center gap-1 align-baseline"} ${state.status === "error" ? ERR_CHIP : CHIP}`}
+        className={`group relative mx-0.5 cursor-pointer rounded-md border px-1.5 py-0.5 text-[0.95em] leading-snug ${isBlock ? "inline-block align-top" : "inline-flex items-center gap-1 align-baseline"} ${state.status === "error" ? ERR_CHIP : CHIP}`}
       >
         {body}
         <button
@@ -164,7 +158,7 @@ export function KqlPill({ script, mode, label, tables, editable, onChangeToken, 
           aria-label={t("pill.refresh")}
           onMouseDown={(e) => e.stopPropagation()}
           onClick={(e) => { e.stopPropagation(); refresh(); }}
-          className={`ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded opacity-0 transition-opacity hover:bg-black/10 group-hover:opacity-100 dark:hover:bg-white/10 ${refreshing ? "opacity-100" : ""}`}
+          className={`absolute -right-1.5 -top-1.5 inline-flex h-4 w-4 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 ${refreshing ? "opacity-100" : ""}`}
         >
           <RefreshCw className={`h-2.5 w-2.5 ${refreshing ? "animate-spin" : ""}`} />
         </button>
@@ -177,14 +171,22 @@ export function KqlPill({ script, mode, label, tables, editable, onChangeToken, 
             role="dialog"
             onMouseDown={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
-            className="fixed z-[180] w-[min(520px,calc(100vw-16px))] rounded-xl border border-border bg-card p-3 text-foreground shadow-2xl"
-            style={{ top: pos.top, left: pos.left }}
+            className="fixed z-[180] w-[min(520px,calc(100vw-16px))] overflow-y-auto rounded-xl border border-border bg-card p-3 text-foreground shadow-2xl"
+            style={{ top: pos.top, left: pos.left, maxHeight: pos.maxHeight }}
           >
             <div className="mb-2 flex items-center gap-2">
               <Database className="h-3.5 w-3.5 text-sky-700 dark:text-sky-300" aria-hidden />
               <div className="min-w-0 flex-1 truncate text-sm font-semibold">{label || t("pill.queryResult")}</div>
               {outcome ? <span className="text-[10px] text-muted-foreground">{t("pill.matched", { matched: outcome.result.matched })}</span> : null}
             </div>
+            {outcome?.result.scope ? (
+              <div className="mb-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground" title={t("pill.scopeHint")}>
+                <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-medium text-foreground">
+                  {t("pill.scope", { label: outcome.result.scope.label === "whole team" ? t("pill.scopeTeam") : outcome.result.scope.label })}
+                </span>
+                <span>{t("pill.scopeCount", { cards: outcome.result.scope.cards, matched: outcome.result.matched })}</span>
+              </div>
+            ) : null}
 
             {state.status === "error" ? (
               <div className={`mb-2 rounded-md border px-2 py-1.5 text-xs ${ERR_CHIP}`}>

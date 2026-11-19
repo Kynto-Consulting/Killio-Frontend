@@ -25,6 +25,9 @@ export interface BoardCardLike {
   /** Untyped on the wire: string ids, `{ id }`, `{ userId }` or `{ user_id }`. */
   assignees?: unknown[] | null;
   commentsCount?: number | null;
+  boardId?: string | null;
+  /** Bricks of the card (checklists, media...), when the board payload carries them. */
+  blocks?: unknown[] | null;
 }
 
 export interface BoardListLike {
@@ -44,6 +47,30 @@ export function assigneeId(value: unknown): string | null {
     if (typeof id === 'string' && id) return id;
   }
   return null;
+}
+
+const MEDIA_KINDS = new Set(['media', 'image', 'file', 'video', 'audio']);
+
+/** checklist_total / checklist_done / attachments of a card from its bricks (same rules as the backend query: top-level items). */
+export function brickCounts(blocks: unknown[] | null | undefined): { total: number; done: number; attachments: number } {
+  let total = 0;
+  let done = 0;
+  let attachments = 0;
+  for (const raw of blocks ?? []) {
+    if (!raw || typeof raw !== 'object') continue;
+    const b = raw as Record<string, any>;
+    const kind = b.kind ?? b.block_type ?? b.blockType;
+    if (MEDIA_KINDS.has(kind)) attachments++;
+    const content = b.content && typeof b.content === 'object' ? b.content : b;
+    for (const list of [content.tasks, content.items]) {
+      if (!Array.isArray(list)) continue;
+      for (const it of list) {
+        total++;
+        if (it && typeof it === 'object' && (it as any).checked === true) done++;
+      }
+    }
+  }
+  return { total, done, attachments };
 }
 
 export function isDoneList(list: Pick<BoardListLike, 'title' | 'systemKey'>): boolean {
@@ -82,6 +109,25 @@ export function toKqlCard(card: BoardCardLike, list: BoardListLike, boardName?: 
     completed: card.completedAt ?? (done ? updated : null),
     priority: priorityTag ? priorityTag.name : null,
     comments: card.commentsCount ?? 0,
+    fields: cardFields(card, list),
+  };
+}
+
+/** Extra lower_snake fields, the same names as the backend card records (team / created_by / parent_id are only known there). */
+export function cardFields(card: BoardCardLike, list: BoardListLike): Record<string, string | number | boolean | null> {
+  const { total, done, attachments } = brickCounts(card.blocks);
+  const start = card.startAt ? new Date(card.startAt).getTime() : NaN;
+  const end = card.dueAt ? new Date(card.dueAt).getTime() : NaN;
+  return {
+    board_id: card.boardId ?? null,
+    list_id: list.id,
+    archived_at: card.archivedAt ?? null,
+    description_length: (card.summary ?? '').length,
+    checklist_total: total,
+    checklist_done: done,
+    checklist_progress: total ? Math.round((done / total) * 100) : null,
+    attachments,
+    timer_minutes: Number.isFinite(start) && Number.isFinite(end) && end >= start ? Math.round((end - start) / 60_000) : null,
   };
 }
 

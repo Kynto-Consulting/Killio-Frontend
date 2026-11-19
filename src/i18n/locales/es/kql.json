@@ -62,6 +62,14 @@
     "scriptTooLong": "La consulta es demasiado larga (máx. {{max}} caracteres).",
     "labelTooLong": "La etiqueta es demasiado larga (máx. {{max}} caracteres).",
     "labelBracket": "La etiqueta no puede contener \"]\".",
-    "badUnicode": "La consulta contiene caracteres no válidos."
+    "badUnicode": "La consulta contiene caracteres no válidos.",
+    "scope": "Alcance: {{label}}",
+    "scopeTeam": "todo el equipo",
+    "scopeCount": "{{matched}} de {{cards}} en el alcance",
+    "scopeHint": "De dónde lee esta consulta. Acótala con: cards in board \"Nombre\" list \"Nombre\"."
+  },
+  "input": {
+    "accept": "Tab o Enter para aceptar · Esc para cerrar",
+    "fix": "Usar {{value}}"
   }
 }

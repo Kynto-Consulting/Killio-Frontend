@@ -18,9 +18,11 @@ export type SortDir = 'asc' | 'desc';
 export interface SortRule {
   key: string;
   dir: SortDir;
+  /** Only for the `tags` key: the tags in the order the user wants them (first = first). Cards with none of them go last. */
+  order?: string[];
 }
 
-export const SORT_KEYS = ['manual', 'title', 'due', 'start', 'created', 'updated', 'completed', 'priority', 'assignee', 'points', 'comments'] as const;
+export const SORT_KEYS = ['manual', 'title', 'due', 'start', 'created', 'updated', 'completed', 'priority', 'assignee', 'tags', 'tagCount', 'points', 'comments'] as const;
 export const TAG_GROUP_KEY_PREFIX = 'tagGroup:';
 
 export const tagGroupKey = (groupId: string) => `${TAG_GROUP_KEY_PREFIX}${groupId}`;
@@ -38,7 +40,10 @@ export function normalizeSortRules(rules: SortRule[] | undefined | null): SortRu
   for (const r of rules ?? []) {
     if (!r || typeof r.key !== 'string' || r.key === 'manual' || seen.has(r.key)) continue;
     seen.add(r.key);
-    out.push({ key: r.key, dir: r.dir === 'desc' ? 'desc' : 'asc' });
+    const order = r.key === 'tags' && Array.isArray(r.order)
+      ? [...new Set(r.order.filter((x): x is string => typeof x === 'string').map((x) => x.trim()).filter(Boolean))].slice(0, 100)
+      : undefined;
+    out.push({ key: r.key, dir: r.dir === 'desc' ? 'desc' : 'asc', ...(order ? { order } : {}) });
   }
   return out;
 }
@@ -79,7 +84,8 @@ function userLabel(id: string, users: KqlUser[] | undefined): string {
   return norm(u?.name || u?.alias || u?.email || id);
 }
 
-function valueFor(card: KqlCard, key: string, ctx: SortContext): Value {
+function valueFor(card: KqlCard, rule: SortRule, ctx: SortContext): Value {
+  const key = rule.key;
   switch (key) {
     case 'title': return card.title ? norm(card.title) : null;
     case 'due': return time(card.due);
@@ -98,6 +104,18 @@ function valueFor(card: KqlCard, key: string, ctx: SortContext): Value {
       const names = (card.assignees ?? []).map((id) => userLabel(id, ctx.users)).sort();
       return names.length ? names[0] : null;
     }
+    case 'tags': {
+      if (rule.order && rule.order.length > 0) {
+        // custom order: the best (lowest) position among the card's tags; none of the listed tags = last
+        const wanted = new Set((card.tags ?? []).map(norm));
+        const position = rule.order.findIndex((name) => wanted.has(norm(name)));
+        return position < 0 ? null : position;
+      }
+      // by the card's tag names (alphabetical, first tag first); cards without tags go last
+      const names = (card.tags ?? []).map(norm).filter(Boolean).sort();
+      return names.length ? names.join(' ') : null;
+    }
+    case 'tagCount': return (card.tags ?? []).length;
     default: {
       const gid = parseTagGroupKey(key);
       if (gid === null) return null;
@@ -120,7 +138,7 @@ export function sortCards<T = KqlCard>(items: T[], rules: SortRule[], ctx: SortC
   if (!active.length || items.length < 2) return items;
   const rows = items.map((item, index) => {
     const card = toKql(item);
-    return { item, index, values: active.map((r) => valueFor(card, r.key, ctx)) };
+    return { item, index, values: active.map((r) => valueFor(card, r, ctx)) };
   });
   rows.sort((x, y) => {
     for (let i = 0; i < active.length; i++) {

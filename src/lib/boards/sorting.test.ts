@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import { categoriesFromTagGroup, describeSort, effectiveSortRules, moveItem, normalizeSortRules, sanitizeTagGroups, sortCards, tagGroupKey, tagGroupRank } from './sorting.ts';
 import type { TagGroup } from './sorting.ts';
+import { sanitizeSortRules } from './view-storage.ts';
 import { splitIntoCategories } from './categories.ts';
 import { createBoardPrefsStore, createListViewConfigStore } from './view-storage.ts';
 import type { KqlCard } from '../query/kql.ts';
@@ -127,4 +128,43 @@ test('storage: list sort and board prefs round-trip', () => {
   assert.deepEqual(prefs.get('other'), {});
   prefs.set('b', {});
   assert.deepEqual(Object.keys(data), []);
+});
+
+test('sorts by tag names and by number of tags', () => {
+  const cards: Array<{ id: string; title: string; tags: string[] }> = [
+    { id: 'a', title: 'A', tags: ['urgente', 'bug'] },
+    { id: 'b', title: 'B', tags: [] },
+    { id: 'c', title: 'C', tags: ['alta'] },
+    { id: 'd', title: 'D', tags: ['Bug'] },
+  ];
+  const ids = (rules: Array<{ key: string; dir: 'asc' | 'desc' }>) => sortCards(cards, rules, {}, (c) => c as never).map((c) => c.id).join('');
+  // alphabetical by tag names, cards without tags last (also when descending)
+  assert.equal(ids([{ key: 'tags', dir: 'asc' }]), 'cdab');
+  assert.equal(ids([{ key: 'tags', dir: 'desc' }]), 'adcb');
+  assert.equal(ids([{ key: 'tagCount', dir: 'desc' }]), 'acdb');
+  assert.equal(ids([{ key: 'tagCount', dir: 'asc' }]), 'bcda');
+});
+
+test('a custom tag order ranks cards by their best listed tag and keeps the rest last', () => {
+  const cards: Array<{ id: string; title: string; tags: string[] }> = [
+    { id: 'a', title: 'A', tags: ['baja'] },
+    { id: 'b', title: 'B', tags: ['otra'] },
+    { id: 'c', title: 'C', tags: ['urgente', 'baja'] },
+    { id: 'd', title: 'D', tags: ['Media'] },
+  ];
+  const run = (order: string[], dir: 'asc' | 'desc' = 'asc') => sortCards(cards, [{ key: 'tags', dir, order }], {}, (c) => c as never).map((c) => c.id).join('');
+  assert.equal(run(['urgente', 'media', 'baja']), 'cdab', 'urgent first, then medium, then low; unlisted last');
+  assert.equal(run(['baja', 'media', 'urgente']), 'acdb');
+  assert.equal(run(['urgente', 'media', 'baja'], 'desc'), 'adcb', 'descending reverses the order but unlisted stay last');
+  // an empty order falls back to alphabetical
+  assert.equal(run([]), sortCards(cards, [{ key: 'tags', dir: 'asc' }], {}, (c) => c as never).map((c) => c.id).join(''));
+  // normalisation keeps and cleans the order
+  assert.deepEqual(normalizeSortRules([{ key: 'tags', dir: 'asc', order: [' urgente ', 'urgente', '', 'baja'] }]), [{ key: 'tags', dir: 'asc', order: ['urgente', 'baja'] }]);
+  assert.deepEqual(normalizeSortRules([{ key: 'title', dir: 'asc', order: ['x'] }]), [{ key: 'title', dir: 'asc' }]);
+});
+
+test('sanitising stored sort rules keeps the custom tag order (so it survives saving and reloading)', () => {
+  const stored = [{ key: 'tags', dir: 'asc', order: ['urgente', 'alta'] }, { key: 'title', dir: 'desc', order: ['x'] }];
+  assert.deepEqual(sanitizeSortRules(stored), [{ key: 'tags', dir: 'asc', order: ['urgente', 'alta'] }, { key: 'title', dir: 'desc' }]);
+  assert.deepEqual(sanitizeSortRules(JSON.parse(JSON.stringify(stored))), sanitizeSortRules(stored));
 });

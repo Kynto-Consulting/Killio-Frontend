@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { useSession } from "@/components/providers/session-provider";
 import { useDocumentRealtime } from "@/hooks/useDocumentRealtime";
+import { useLoadMoreSentinel } from "@/hooks/use-load-more-sentinel";
 import {
   getDocument, updateDocumentTitle, DocumentView, DocumentBrick,
   createDocumentBrick, updateDocumentBrick, deleteDocumentBrick,
@@ -66,17 +67,12 @@ export default function DocumentMobilePage() {
   const visibleBricks = useMemo(() => topLevelBricks.slice(0, visibleCount), [topLevelBricks, visibleCount]);
   const hasMoreBricks = visibleCount < topLevelBricks.length;
 
-  useEffect(() => {
-    if (!hasMoreBricks) return;
-    const el = loadMoreSentinelRef.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    const obs = new IntersectionObserver(
-      entries => { if (entries.some(e => e.isIntersecting)) setVisibleCount(c => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length)); },
-      { rootMargin: "600px 0px" },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [hasMoreBricks, topLevelBricks.length]);
+  useLoadMoreSentinel(
+    loadMoreSentinelRef,
+    hasMoreBricks,
+    () => setVisibleCount(c => Math.min(c + BRICK_PAGE_SIZE, topLevelBricks.length)),
+    `${visibleCount}:${topLevelBricks.length}`,
+  );
 
   const sanitize = useCallback((bricks: DocumentBrick[]): DocumentBrick[] => {
     const deduped = Array.from(new Map(bricks.map(b => [b.id, b])).values());

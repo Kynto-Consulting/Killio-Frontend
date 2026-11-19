@@ -1,4 +1,5 @@
 import { emitBoardMutation } from "@/lib/board/board-mutation-bus";
+import { PASSWORD_CHANGE_REQUIRED_CODE, PASSWORD_CHANGE_REQUIRED_EVENT, isPasswordChangeRequiredError } from "@/lib/auth/password-change";
 
 export type BackendHealth = {
   status: string;
@@ -546,6 +547,8 @@ export type AuthResponse = {
     bio?: string | null;
     timezone?: string | null;
     locale?: string | null;
+    /** True while the account still has a temporary password: the API is locked until it is changed. */
+    mustChangePassword?: boolean;
   };
   session: {
     id: string;
@@ -716,11 +719,19 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:
 
 export class ApiError extends Error {
   status: number;
+  code?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, code?: string) {
     super(message);
     this.name = 'ApiError';
     this.status = status;
+    this.code = code;
+  }
+}
+
+function notifyPasswordChangeRequired() {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(PASSWORD_CHANGE_REQUIRED_EVENT));
   }
 }
 
@@ -748,8 +759,16 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   if (!response.ok) {
+    let code: string | undefined;
+    if (response.status === 403) {
+      const body: unknown = await response.clone().json().catch(() => null);
+      if (isPasswordChangeRequiredError(response.status, body)) {
+        code = PASSWORD_CHANGE_REQUIRED_CODE;
+        notifyPasswordChangeRequired();
+      }
+    }
     const message = await readErrorMessage(response);
-    throw new ApiError(message, response.status);
+    throw new ApiError(message, response.status, code);
   }
 
   if (response.status === 204) {
@@ -860,6 +879,21 @@ export async function refresh(_refreshToken?: string, rememberMe?: boolean): Pro
   return request<AuthResponse>('/auth/refresh', {
     method: 'POST',
     body: JSON.stringify({ rememberMe }),
+  });
+}
+
+/**
+ * Sets a new password. Allowed while the account is flagged (temporary
+ * password, no currentPassword needed). Returns fresh tokens like login.
+ */
+export async function changePassword(
+  accessToken: string,
+  payload: { currentPassword?: string; newPassword: string },
+): Promise<AuthResponse> {
+  return request<AuthResponse>('/auth/change-password', {
+    method: 'POST',
+    headers: authHeaders(accessToken),
+    body: JSON.stringify(payload),
   });
 }
 

@@ -82,7 +82,8 @@ export function sanitizeSortRules(raw: unknown): SortRule[] {
   for (const r of raw) {
     const o = r as Record<string, unknown> | null;
     const key = str(o?.key, 80);
-    if (key) rules.push({ key, dir: o?.dir === 'desc' ? 'desc' : 'asc' });
+    // `order` (the custom tag order of a `tags` rule) is kept; normalizeSortRules cleans it
+    if (key) rules.push({ key, dir: o?.dir === 'desc' ? 'desc' : 'asc', ...(Array.isArray(o?.order) ? { order: o.order as string[] } : {}) });
   }
   return normalizeSortRules(rules).slice(0, 6);
 }
