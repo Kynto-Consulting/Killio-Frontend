@@ -14,7 +14,7 @@ import { AssistantMessage } from "@/components/agent/AgentChatPanel";
 import type { AgentMessage, ToolEvent } from "@/hooks/use-agent-chat";
 import { FileText as FileTextIcon, Layout as LayoutIcon, Network as NetworkIcon, Workflow as WorkflowIcon, Folder as FolderIcon, Check as CheckIcon, X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
-import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
 import { listTeamMembers } from "@/lib/api/contracts";
 import { Plus, Layout, FileText, CheckCircle2 } from "lucide-react";
@@ -421,7 +421,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     if (isOpen && accessToken && activeTeamId) {
       Promise.all([
         listTeamBoards(activeTeamId, accessToken),
-        listDocuments(activeTeamId, accessToken),
+        listAllDocuments(activeTeamId, accessToken),
         listTeamMembers(activeTeamId, accessToken)
       ]).then(([boards, docs, members]) => {
         setBoards(boards);

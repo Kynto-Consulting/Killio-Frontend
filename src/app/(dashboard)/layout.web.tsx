@@ -34,7 +34,7 @@ import { resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readWorkspaceSync, writeWorkspaceSync, hashWorkspaceFiles } from "@/lib/local-workspace/workspace-sync";
 import { readAssetFile } from "@/lib/local-workspace/assets";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole, getBoard } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { useRouter } from "next/navigation";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -308,7 +308,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     // Fetch both in parallel (no waterfall)
     Promise.all([
       listTeamBoards(activeTeamId, accessToken),
-      listDocuments(activeTeamId, accessToken),
+      listAllDocuments(activeTeamId, accessToken),
     ]).then(([freshBoards, freshDocs]) => {
       apiCache.set(bKey, freshBoards, CACHE_TTL.BOARDS);
       apiCache.set(dKey, freshDocs,   CACHE_TTL.DOCUMENTS);

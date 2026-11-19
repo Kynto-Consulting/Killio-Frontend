@@ -9,7 +9,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { PublicFooter } from "@/components/marketing/public-footer";
 import { useSession } from "@/components/providers/session-provider";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 
@@ -34,7 +34,7 @@ export default function WorkspacesPage() {
     setIsLoading(true);
     Promise.all([
       listTeamBoards(activeTeamId, accessToken).catch(e => { console.error(e); return [] as BoardSummary[]; }),
-      listDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; })
+      listAllDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; })
     ]).then(([fetchedBoards, fetchedDocs]) => {
       setBoards(fetchedBoards);
       setDocuments(fetchedDocs);

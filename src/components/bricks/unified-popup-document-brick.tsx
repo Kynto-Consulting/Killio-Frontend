@@ -7,7 +7,7 @@ import {
   createDocument,
   getDocument,
   getDocumentBricks,
-  listDocuments,
+  listAllDocuments,
   updateDocumentTitle,
   createDocumentBrick,
   updateDocumentBrick,
@@ -406,7 +406,7 @@ function PopupDocumentPanel({ content, canEdit, teamId, accessToken, onClose, on
     let cancelled = false;
 
     Promise.all([
-      listDocuments(teamId, accessToken).catch(() => [] as DocumentSummary[]),
+      listAllDocuments(teamId, accessToken).catch(() => [] as DocumentSummary[]),
       listTeamBoards(teamId, accessToken).catch(() => [] as BoardSummary[]),
       listTeamMembers(teamId, accessToken).catch(() => [] as TeamMemberSummary[]),
     ]).then(([docs, boards, members]) => {

@@ -13,6 +13,15 @@
   "board": "Board",
   "document": "Document",
   "recentlyViewed": "Recently viewed",
+  "pins": {
+    "title": "Pinned",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "board": "Board",
+    "mesh": "Mesh",
+    "document": "Document",
+    "folder": "Folder"
+  },
   "teamBoard": "Team Board",
   "updated": "Updated",
   "noRecentActivity": "No recent activity found.",

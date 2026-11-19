@@ -79,6 +79,11 @@ export async function listDocuments(teamId: string, accessToken: string, folderI
   return fetchApi(url, { accessToken });
 }
 
+/** Every document of the team, whatever its folder (the plain list only returns the root ones). */
+export async function listAllDocuments(teamId: string, accessToken: string): Promise<DocumentSummary[]> {
+  return fetchApi(`/documents?teamId=${teamId}&all=1`, { accessToken });
+}
+
 export async function listAllTeamDocuments(teamId: string, accessToken: string): Promise<DocumentSummary[]> {
   try {
     // Get root documents first (excluding popups)

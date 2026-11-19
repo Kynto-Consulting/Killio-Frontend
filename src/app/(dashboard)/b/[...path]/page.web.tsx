@@ -16,6 +16,7 @@ import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { GanttView } from "@/components/boards/gantt-view";
 import { BoardListView } from "@/components/boards/board-list-view";
 import { BoardCalendarView } from "@/components/boards/board-calendar-view";
+import { PinButton } from "@/components/ui/pin-button";
 import { BoardViewTabs } from "@/components/boards/board-view-tabs";
 import { useBoardTabs } from "@/components/boards/use-board-tabs";
 import { isBuiltinTab, tabDisplayName, uniqueTabName, type BoardTabType } from "@/lib/boards/board-tabs";
@@ -47,7 +48,7 @@ import { localPickerContext } from "@/lib/local-workspace/local-references";
 import { PublishLocalModal } from "@/components/ui/publish-local-modal";
 import { publishLocalBoard, resolvePublishTeamId } from "@/lib/local-workspace/publish-local";
 import { readAssetFile } from "@/lib/local-workspace/assets";
-import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary } from "@/lib/api/documents";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { toast } from "@/lib/toast";
 import { usePermissions } from "@/hooks/usePermissions";
@@ -801,7 +802,7 @@ export default function BoardPage() {
 
     // Refresh in background only if cache was cold
     if (!cachedBoards) listTeamBoards(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.boards(boardTeamId), d, CACHE_TTL.BOARDS); setTeamBoards(d); }).catch(console.error);
-    if (!cachedDocs)   listDocuments(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.documents(boardTeamId), d, CACHE_TTL.DOCUMENTS); setTeamDocs(d); }).catch(console.error);
+    if (!cachedDocs)   listAllDocuments(boardTeamId, accessToken).then((d) => { apiCache.set(cacheKey.documents(boardTeamId), d, CACHE_TTL.DOCUMENTS); setTeamDocs(d); }).catch(console.error);
   }, [accessToken, boardTeamId, localMode, localWs.files, localWs.folders]);
 
   const lastOverIdRef = useRef<string | null>(null);
@@ -1570,6 +1571,7 @@ export default function BoardPage() {
             <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
             {t("header.live")}
           </button>
+          {!localMode ? <PinButton teamId={boardTeamId} kind="board" id={boardId} stopClick={false} alwaysVisible /> : null}
           <BoardViewTabs
             tabs={boardTabs.tabs}
             activeId={boardTabs.active.id}

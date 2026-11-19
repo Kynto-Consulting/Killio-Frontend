@@ -23,7 +23,7 @@ import {
   deleteCardBrick,
   type BrickMutationInput,
 } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import { buildBricksContextText } from "@/lib/brick-context";
@@ -429,7 +429,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     if (isOpen && boardId && accessToken && activeTeamId) {
       Promise.all([
         getBoard(boardId, accessToken),
-        listDocuments(activeTeamId, accessToken),
+        listAllDocuments(activeTeamId, accessToken),
         listTeamMembers(activeTeamId, accessToken)
       ]).then(([board, docs, members]) => {
         const tags = Array.from(new Set(
@@ -593,7 +593,7 @@ export function useBoardChatDrawer(boardId?: string, initialTab: 'copilot' | 'ch
     try {
       const [boardData, allDocs, teamActivity] = await Promise.all([
         getBoard(boardId, accessToken),
-        listDocuments(activeTeamId, accessToken),
+        listAllDocuments(activeTeamId, accessToken),
         listTeamActivity(activeTeamId, accessToken),
       ]);
 

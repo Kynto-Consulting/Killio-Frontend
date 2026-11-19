@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow } from "lucide-react";
+import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Pin, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { useSession } from "@/components/providers/session-provider";
+import { PinButton } from "@/components/ui/pin-button";
+import { usePins } from "@/hooks/use-pins";
+import { boardPinKind, resolvePins } from "@/lib/pins/resolve";
 import { listTeamBoards, BoardSummary, createBoard, deleteBoard, uploadFile } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary, createDocument } from "@/lib/api/documents";
 import { toast } from "@/lib/toast";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
@@ -44,6 +47,8 @@ export default function WorkspacesPage() {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
+  const { pins } = usePins(localMode ? null : activeTeamId);
+  const pinnedEntries = useMemo(() => resolvePins(pins, { boards, documents }), [pins, boards, documents]);
   const [isCreateDocModalOpen, setIsCreateDocModalOpen] = useState(false);
   const [newDocTitle, setNewDocTitle] = useState("");
   const [isSubmittingDoc, setIsSubmittingDoc] = useState(false);
@@ -76,7 +81,7 @@ export default function WorkspacesPage() {
 
     Promise.all([
       cachedBoards ? Promise.resolve(cachedBoards) : listTeamBoards(activeTeamId, accessToken).catch(e => { console.error(e); return [] as BoardSummary[]; }),
-      cachedDocs   ? Promise.resolve(cachedDocs)   : listDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; }),
+      cachedDocs   ? Promise.resolve(cachedDocs)   : listAllDocuments(activeTeamId, accessToken).catch(e => { console.error(e); return [] as DocumentSummary[]; }),
     ]).then(([freshBoards, freshDocs]) => {
       if (!cachedBoards) { apiCache.set(bKey, freshBoards, CACHE_TTL.BOARDS); setBoards(freshBoards); }
       if (!cachedDocs)   { apiCache.set(dKey, freshDocs,   CACHE_TTL.DOCUMENTS); setDocuments(freshDocs); }
@@ -412,6 +417,8 @@ export default function WorkspacesPage() {
               <div className="p-5 flex flex-col flex-1">
                 <div className="flex items-start justify-between">
                   <h3 className="text-xl font-semibold mb-2 group-hover:text-accent transition-colors">{board.name}</h3>
+                  <div className="flex items-center">
+                  <PinButton teamId={activeTeamId} kind={boardPinKind(board)} id={board.id} />
                   <button
                     onClick={(e) => {
                       e.preventDefault();
@@ -423,6 +430,7 @@ export default function WorkspacesPage() {
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
+                  </div>
                 </div>
 
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
@@ -461,6 +469,7 @@ export default function WorkspacesPage() {
                     <FileText className="mr-3 h-6 w-6 text-accent" />
                     <h3 className="text-xl font-semibold group-hover:text-accent transition-colors">{doc.title}</h3>
                   </div>
+                  <PinButton teamId={activeTeamId} kind="document" id={doc.id} />
                 </div>
 
                 <div className="mt-auto pt-4 border-t border-border/50 flex items-center justify-between text-sm text-muted-foreground">
@@ -474,6 +483,31 @@ export default function WorkspacesPage() {
             </Link>
           ))}
         </div>
+      )}
+
+      {!localMode && pinnedEntries.length > 0 && (
+      <div className="mt-12" data-testid="pinned-section">
+        <h2 className="text-xl font-semibold mb-6 flex items-center">
+          <Pin className="mr-2 h-5 w-5 text-muted-foreground" />
+          {t("pins.title")}
+        </h2>
+        <div className="rounded-lg border border-border bg-card overflow-hidden">
+          <div className="divide-y divide-border/50">
+            {pinnedEntries.map((item) => (
+              <Link href={item.href} key={`${item.kind}:${item.id}`} className="group flex items-center px-4 py-3 hover:bg-accent/5 transition-colors">
+                <div className={`h-8 w-8 rounded flex items-center justify-center mr-4 transition-colors ${item.kind === 'document' ? 'bg-accent/20 group-hover:bg-accent/30' : 'bg-primary/20 group-hover:bg-primary/30'}`}>
+                  {item.kind === 'document' ? <FileText className="h-4 w-4 text-foreground/70" /> : <Layout className="h-4 w-4 text-foreground/70" />}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <span className="block truncate text-sm font-medium">{item.title}</span>
+                  <div className="text-xs text-muted-foreground mt-0.5">{t(`pins.${item.kind}`)}{item.updatedAt ? <> <span className="mx-1">•</span> {t("updated")} {new Date(item.updatedAt).toLocaleDateString()}</> : null}</div>
+                </div>
+                <PinButton teamId={activeTeamId} kind={item.kind} id={item.id} />
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
       )}
 
       {!localMode && (

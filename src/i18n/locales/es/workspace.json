@@ -13,6 +13,15 @@
   "board": "Tablero",
   "document": "Documento",
   "recentlyViewed": "Vistos recientemente",
+  "pins": {
+    "title": "Fijados",
+    "pin": "Fijar",
+    "unpin": "Desfijar",
+    "board": "Tablero",
+    "mesh": "Mesh",
+    "document": "Documento",
+    "folder": "Carpeta"
+  },
   "teamBoard": "Tablero de equipo",
   "updated": "Actualizado",
   "noRecentActivity": "No se encontro actividad reciente.",

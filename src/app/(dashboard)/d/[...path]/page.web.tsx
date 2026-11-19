@@ -43,6 +43,7 @@ import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMedi
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, resolveNestedBricks, sanitizeChildrenByContainer, setContainerChildIds } from "@/lib/bricks/nesting";
 import { toReferenceUsers } from "@/lib/workspace-members";
 import { DocumentShareModal } from "@/components/ui/document-share-modal";
+import { PinButton } from "@/components/ui/pin-button";
 import { useOpHistory } from "@/lib/history/use-op-history";
 import { computeDocBatch, makeDocApplier } from "@/lib/history/doc-ops";
 import type { OpScope } from "@/lib/history/types";
@@ -1859,6 +1860,8 @@ export default function DocumentPage() {
             <Download className="h-3.5 w-3.5" />
             {t("header.download")}
           </Button>
+
+          {!localMode && document?.id ? <PinButton teamId={activeTeamId} kind="document" id={document.id} stopClick={false} alwaysVisible className="h-8 w-8" /> : null}
 
           {!localMode && canManageDocument && (
             <Button variant="ghost" size="sm" onClick={() => setIsShareModalOpen(true)} className="h-8 gap-2 text-xs font-semibold">

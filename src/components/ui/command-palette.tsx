@@ -780,8 +780,8 @@ export function CommandPalette() {
         }
         setIsRunningAction(true);
         try {
-          const { listDocuments } = await import("@/lib/api/documents");
-          const docs = await listDocuments(activeTeamId!, accessToken!);
+          const { listAllDocuments } = await import("@/lib/api/documents");
+          const docs = await listAllDocuments(activeTeamId!, accessToken!);
           const doc = resolveBySelector(selector, docs, (d) => d.title);
           if (!doc) {
             toast(t.fallback.documentNotFound, "error");

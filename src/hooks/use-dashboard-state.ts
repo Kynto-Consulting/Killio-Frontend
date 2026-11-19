@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
-import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary } from "@/lib/api/documents";
 
 export function useDashboardState() {
   const tDashboard = useTranslations("dashboard");
@@ -67,7 +67,7 @@ export function useDashboardState() {
       .finally(() => setIsFetchingBoards(false));
 
     setIsFetchingDocs(true);
-    listDocuments(activeTeamId, accessToken)
+    listAllDocuments(activeTeamId, accessToken)
       .then((fetchedDocs) => {
         setRecentDocuments(fetchedDocs);
       })

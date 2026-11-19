@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, CheckCircle2, UserPlus, Loader2, Globe, Lock, Trash2, ChevronDown } from "lucide-react";
 import { updateBoardVisibility, getBoardMembers, addBoardMember, removeBoardMember, BoardMemberSummary, listTeamMembers, TeamMemberSummary } from "@/lib/api/contracts";
-import { listDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/documents";
+import { listAllDocuments, addDocumentMember, DocumentSummary } from "@/lib/api/documents";
 import { useSession } from "@/components/providers/session-provider";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import { toast } from "@/lib/toast";
@@ -82,7 +82,7 @@ export function ShareModal({ isOpen, onClose, boardId, boardName, teamName = "Wo
     if (isOpen && boardId) {
       loadMembers();
       if (activeTeamId) {
-        listDocuments(activeTeamId, accessToken)
+        listAllDocuments(activeTeamId, accessToken)
           .then(setDocuments)
           .catch(console.error);
         listTeamMembers(activeTeamId, accessToken)

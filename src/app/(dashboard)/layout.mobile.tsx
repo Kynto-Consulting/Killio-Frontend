@@ -20,7 +20,7 @@ import { useActiveTeamRole } from "@/hooks/use-active-team-role";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
-import { listDocuments, DocumentSummary } from "@/lib/api/documents";
+import { listAllDocuments, DocumentSummary } from "@/lib/api/documents";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 
 export function LayoutMobile({ children }: { children: React.ReactNode }) {
@@ -128,7 +128,7 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
       .finally(() => setIsFetchingBoards(false));
 
     setIsFetchingDocs(true);
-    listDocuments(activeTeamId, accessToken)
+    listAllDocuments(activeTeamId, accessToken)
       .then((fetchedDocs) => {
         setRecentDocuments(fetchedDocs);
       })
