@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test, { afterEach, mock } from "node:test";
 
-import { TENANT_FRESH_MS, getTenantConfig, resetTenantCacheForTests } from "./server.ts";
+import { TENANT_FRESH_MS, getTenantConfig, resetTenantCacheForTests, setFirstLoadWaitForTests } from "./server.ts";
 
 const body = (name: string) => JSON.stringify({ mode: "tenant", brand: { name } });
 const ok = (name: string) => Promise.resolve(new Response(body(name), { status: 200 }));
@@ -45,9 +45,43 @@ test("a slow or failing backend never delays or changes a page that already has 
   assert.equal((await getTenantConfig()).mode, "tenant");
 });
 
-test("with nothing cached and the backend down it falls back to the public look", async () => {
+test("with nothing cached and the backend down it falls back to the public look, marked degraded", async () => {
   mock.method(globalThis, "fetch", () => Promise.reject(new Error("down")));
-  assert.equal((await getTenantConfig()).mode, "public");
+  const config = await getTenantConfig();
+  assert.equal(config.mode, "public");
+  assert.equal(config.degraded, true);
+});
+
+test("a good copy is never marked degraded", async () => {
+  mock.method(globalThis, "fetch", () => ok("ROE"));
+  assert.equal((await getTenantConfig()).degraded, undefined);
+});
+
+test("a degraded fallback is not cached: the next render asks again and gets the real look", async () => {
+  const fetchMock = mock.method(globalThis, "fetch", () => Promise.reject(new Error("down")));
+  assert.equal((await getTenantConfig()).degraded, true);
+  fetchMock.mock.restore();
+  mock.method(globalThis, "fetch", () => ok("ROE"));
+  const next = await getTenantConfig();
+  assert.equal(next.brand.name, "ROE");
+  assert.equal(next.degraded, undefined);
+});
+
+test("a slow first read answers degraded at once but the request carries on and fills the cache", async () => {
+  setFirstLoadWaitForTests(5);
+  let release: (r: Response) => void = () => {};
+  const fetchMock = mock.method(globalThis, "fetch", () => new Promise<Response>((resolve) => { release = resolve; }));
+  assert.equal((await getTenantConfig()).degraded, true, "the page is not held back");
+  release(new Response(body("ROE"), { status: 200 }));
+  await new Promise((r) => setTimeout(r, 10));
+  const next = await getTenantConfig();
+  assert.equal(next.brand.name, "ROE", "the late answer was kept, not aborted");
+  assert.equal(fetchMock.mock.callCount(), 1);
+});
+
+test("a non-config answer (error page, wrong shape) is treated as a failure", async () => {
+  mock.method(globalThis, "fetch", () => Promise.resolve(new Response(JSON.stringify({ hello: 1 }), { status: 200 })));
+  assert.equal((await getTenantConfig()).degraded, true);
 });
 
 test("concurrent renders share one request", async () => {

@@ -11,6 +11,7 @@ import { useTranslations } from "@/components/providers/i18n-provider";
 import { apiCache, CACHE_TTL, cacheKey } from "@/lib/api-cache";
 import { useBoardRealtime } from "@/hooks/useBoardRealtime";
 import { Skeleton } from "@/components/ui/skeleton";
+import { readBoardSnapshot, writeBoardSnapshot } from "@/lib/board-snapshot";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { CardDetailModal } from "@/components/ui/card-detail-modal";
 import { getUserAvatarUrl } from "@/lib/gravatar";
@@ -96,7 +97,11 @@ export default function BoardMobilePage() {
   const loadBoard = useCallback(() => {
     if (!accessToken || !boardId) return;
 
-    const cached = apiCache.get<any>(cacheKey.board(boardId));
+    // After a hard reload memory is empty: the per-user copy in sessionStorage paints the previous board at once.
+    const sessionStore = typeof window !== "undefined" ? window.sessionStorage : null;
+    const cached =
+      apiCache.get<any>(cacheKey.board(boardId)) ??
+      readBoardSnapshot<any>(sessionStore, user?.id, boardId);
     if (cached) {
       setBoardName(cached.name);
       setLists(cached.lists.map((l: any) => ({ id: l.id, title: l.name, cards: l.cards })));
@@ -106,13 +111,14 @@ export default function BoardMobilePage() {
     getBoard(boardId, accessToken)
       .then((board) => {
         apiCache.set(cacheKey.board(boardId), board, CACHE_TTL.BOARD_DETAIL);
+        writeBoardSnapshot(sessionStore, user?.id, boardId, board as object);
         setBoardName(board.name);
         setBoardTeamId(board.teamId ?? null);
         setLists(board.lists.map((l: any) => ({ id: l.id, title: l.name, cards: l.cards })));
         setIsLoading(false);
       })
       .catch(() => setIsLoading(false));
-  }, [accessToken, boardId]);
+  }, [accessToken, boardId, user?.id]);
 
   useEffect(() => { loadBoard(); }, [loadBoard]);
 

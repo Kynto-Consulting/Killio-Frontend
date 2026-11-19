@@ -44,6 +44,8 @@ export default function WorkspacesPage() {
   const [documents, setDocuments] = useState<DocumentSummary[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
+  // True from the very first frame (the effect that starts the fetch runs after it) until the first answer: the grid shows skeletons, never a blank area.
+  const isFirstLoadPending = !localMode && !hasLoaded && !!activeTeamId;
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
@@ -399,7 +401,7 @@ export default function WorkspacesPage() {
             <p className="text-sm text-muted-foreground mt-1">{t("startFromScratch")}</p>
           </div>
 
-          {isLoading && boards.length === 0 ? (
+          {(isLoading || isFirstLoadPending) && boards.length === 0 ? (
             <>
               {[1,2,3,4,5,6].map(i => <SkeletonBoardCard key={i} />)}
             </>
@@ -457,7 +459,7 @@ export default function WorkspacesPage() {
             <p className="text-sm text-muted-foreground mt-1">{t("startWriting")}</p>
           </div>
 
-          {isLoading && documents.length === 0 ? (
+          {(isLoading || isFirstLoadPending) && documents.length === 0 ? (
             <>
               {[1,2,3,4].map(i => <SkeletonDocumentRow key={i} className="col-span-full" />)}
             </>

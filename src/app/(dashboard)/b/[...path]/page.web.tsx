@@ -61,6 +61,8 @@ import { BoardChatDrawer } from "@/components/ui/board-chat-drawer";
 import { BoardSettingsModal } from "@/components/ui/board-settings-modal";
 import { useAsyncAction, useConfirm } from "@/hooks/ui";
 import { hslTripletToHex, resolveThemeTokens } from "@/lib/board/board-theme";
+import { readBoardSnapshot, writeBoardSnapshot } from "@/lib/board-snapshot";
+import { BoardSkeleton } from "@/components/board/board-skeleton";
 import { useTenant } from "@/components/providers/tenant-provider";
 
 type BoardListState = {
@@ -874,10 +876,15 @@ export default function BoardPage() {
   const [isPublishOpen, setIsPublishOpen] = useState(false);
   const [isBoardSettingsOpen, setIsBoardSettingsOpen] = useState(false);
   const [boardVisibility, setBoardVisibility] = useState<"private" | "team" | "public_link">("team");
+  // Until the board arrives there is no appearance to apply: "none" follows the app theme (bg-background), not a hard-coded black.
   const [boardAppearance, setBoardAppearance] = useState<BoardAppearanceState>({
-    backgroundKind: "color",
-    backgroundValue: "#000000",
+    backgroundKind: "none",
   });
+  // False until the board has been applied once (from a stored copy or from the API). While false a skeleton is drawn.
+  const [boardReady, setBoardReady] = useState(false);
+  const [boardLoadFailed, setBoardLoadFailed] = useState(false);
+  const snapshotUserIdRef = useRef<string | undefined>(undefined);
+  snapshotUserIdRef.current = user?.id;
   // Named view tabs of the board (Kanban and Gantt are built in; Lista and any added view are extra). `boardView` is the type to render.
   const boardTabs = useBoardTabs(boardId, { serverSync: !localMode });
   const boardView = boardTabs.active.type;
@@ -943,6 +950,8 @@ export default function BoardPage() {
     });
     setBoardTeamId(board.teamId ?? null);
     setLists(board.lists.map(list => ({ id: list.id, title: list.name, cards: list.cards, systemKey: (list as any).systemKey ?? (list as any).system_key ?? null, assignedGroupId: (list as any).assignedGroupId ?? (list as any).assigned_group_id ?? null })));
+    setBoardReady(true);
+    setBoardLoadFailed(false);
   }, []);
 
   const loadBoard = useCallback(() => {
@@ -950,17 +959,23 @@ export default function BoardPage() {
     if (localMode && !localWs.getDir()) return; // wait for the workspace folder
 
     // Show cached board instantly (no loading flash on revisit)
-    const cached = apiCache.get<Awaited<ReturnType<typeof getBoard>>>(cacheKey.board(boardId));
+    // Memory first (revisit); after a hard reload memory is empty, so the copy kept in sessionStorage (per user) paints instead.
+    const sessionStore = !localMode && typeof window !== "undefined" ? window.sessionStorage : null;
+    const cached =
+      apiCache.get<Awaited<ReturnType<typeof getBoard>>>(cacheKey.board(boardId)) ??
+      readBoardSnapshot<Awaited<ReturnType<typeof getBoard>>>(sessionStore, snapshotUserIdRef.current, boardId);
     if (cached) applyBoardData(cached);
 
     getBoard(boardId, accessToken)
       .then((board) => {
         apiCache.set(cacheKey.board(boardId), board, CACHE_TTL.BOARD_DETAIL);
+        writeBoardSnapshot(sessionStore, snapshotUserIdRef.current, boardId, board as object);
         applyBoardData(board);
       })
       .catch((err) => {
         console.error("Failed to fetch board", err);
         if (!cached) {
+          setBoardLoadFailed(true);
           setBoardName(t("loadBoardError"));
           setBoardDescription(null);
         }
@@ -1549,6 +1564,8 @@ export default function BoardPage() {
     "--board-list": boardTheme.list,
     "--board-ghost": boardTheme.buttonGhost,
   } as CSSProperties;
+
+  if (!boardReady && !boardLoadFailed) return <BoardSkeleton />;
 
   return (
     <div data-board-scroll className={`flex flex-col h-full overflow-hidden relative ${boardBackground.className}`} style={boardShellStyle}>

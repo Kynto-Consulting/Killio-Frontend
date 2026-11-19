@@ -8,6 +8,11 @@ export type FeatureKey = "marketplace" | "vault" | "rooms" | "scripts" | "integr
 
 export type PublicTenantConfig = {
   mode: TenantMode;
+  /**
+   * Set only by the server when the real configuration could not be read in time and the public look was
+   * served instead. Such a copy is never cached or persisted as if it were the tenant's own.
+   */
+  degraded?: boolean;
   defaultLocale: "es" | "en" | null;
   features: Record<FeatureKey, boolean>;
   permissions: { membersCanInvite: boolean; allowedInviteRoles: Array<"admin" | "member" | "viewer" | "guest">; allowTeamCreation: boolean };

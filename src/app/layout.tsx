@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { getTenantConfig } from '@/lib/tenant/server';
 import { buildTenantThemeCss, initialHtmlClass, SYSTEM_THEME_SCRIPT, tenantFontPreloads } from '@/lib/tenant/theme';
+import { TENANT_RESTORE_SCRIPT } from '@/lib/tenant/persist';
 import { TenantProvider } from '@/components/providers/tenant-provider';
 import { PoweredByBadge } from '@/components/marketing/powered-by-badge';
 
@@ -55,12 +56,13 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <link key={font.href} rel="preload" as="font" type={font.type} href={font.href} crossOrigin="anonymous" />
         ))}
         {themeCss ? <style id="tenant-theme" dangerouslySetInnerHTML={{ __html: themeCss }} /> : null}
+        {tenant.degraded ? <script dangerouslySetInnerHTML={{ __html: TENANT_RESTORE_SCRIPT }} /> : null}
         {tenant.mode === 'tenant' && tenant.theme.defaultMode === 'system' ? (
           <script dangerouslySetInnerHTML={{ __html: SYSTEM_THEME_SCRIPT }} />
         ) : null}
       </head>
       <body className="antialiased">
-        <TenantProvider value={tenant}>
+        <TenantProvider value={tenant} degraded={tenant.degraded === true}>
           <PlatformProvider platform={platform}>
             <SessionProvider>
               <RealtimeProvider>

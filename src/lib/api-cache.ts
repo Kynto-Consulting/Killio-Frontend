@@ -188,6 +188,13 @@ export const apiCache = {
     lsDelete(key);
   },
 
+  /** Remove everything from all tiers (logout: the cache must not outlive the user that filled it). */
+  clearAll(): void {
+    memoryStore.clear();
+    if (cacheApiAvailable()) caches.delete(CACHE_NAME).catch(() => {});
+    lsDeletePrefix('');
+  },
+
   /** Remove all keys matching a prefix from all tiers. */
   invalidatePrefix(prefix: string): void {
     for (const key of memoryStore.keys()) {

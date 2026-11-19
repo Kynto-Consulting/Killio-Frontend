@@ -4,6 +4,8 @@ import React, { createContext, useCallback, useContext, useEffect, useMemo, useS
 import { useRouter } from "next/navigation";
 import { AuthResponse, refresh } from "@/lib/api/contracts";
 import { normalizeSessionUser, type SessionUser } from "@/lib/workspace-members";
+import { apiCache } from "@/lib/api-cache";
+import { clearClientCaches } from "@/lib/board-snapshot";
 
 const LAST_TEAM_BY_USER_STORAGE_KEY = "killio_last_team_by_user";
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -115,6 +117,8 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
     // HttpOnly killio_refresh cookie is cleared server-side via /auth/logout
     localStorage.removeItem("killio_user");
     localStorage.removeItem("killio_active_team");
+    // Cached boards/lists belong to the user that just left: memory, Cache API, localStorage and sessionStorage.
+    try { apiCache.clearAll(); clearClientCaches(sessionStorage); } catch { /* storage unavailable */ }
     setUser(null);
     setActiveTeamId(null);
     setAccessToken(null);

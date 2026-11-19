@@ -264,13 +264,10 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
         )}
 
         {totalChecklistItems > 0 ? (
-          <div className="flex flex-col gap-1.5" aria-label={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" role="img" aria-label={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}>
               <CheckSquare className={`h-3.5 w-3.5 shrink-0 ${checklistPercent === 100 ? "text-emerald-500" : "text-muted-foreground"}`} aria-hidden />
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={checklistPercent}>
-                <div className={`h-full rounded-full transition-all ${checklistPercent === 100 ? "bg-emerald-500" : "bg-primary"}`} style={{ width: `${checklistPercent}%` }} />
-              </div>
-              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{completedChecklistItems}/{totalChecklistItems}</span>
+              <span className={`tabular-nums ${checklistPercent === 100 ? "text-emerald-600 dark:text-emerald-400" : ""}`}>{completedChecklistItems}/{totalChecklistItems}</span>
             </div>
             {checklistPreview.length > 0 ? (
               <ul className="flex flex-col gap-0.5">
