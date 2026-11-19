@@ -10,6 +10,7 @@ import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentTool
 import { generateWorkspaceSlug } from "@/lib/agent-workspace-slug";
 import { importKillioFile } from "@/lib/killio-import-actions";
 import { isDraftEntityKind, orderForImport } from "@/lib/draft-import-order";
+import { buildRefinementMessage, detectModifiedPaths, omitKeys, snapshotContents } from "@/lib/draft-refine";
 import { uploadFile } from "@/lib/api/uploads";
 import { AssistantMessage } from "@/components/agent/AgentChatPanel";
 import type { AgentMessage, ToolEvent } from "@/hooks/use-agent-chat";
@@ -352,6 +353,18 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   const [draftFolderMeta, setDraftFolderMeta] = useState<Record<string, AgentVfsFolderMeta>>({});
   const [draftSelected, setDraftSelected] = useState<Set<string>>(new Set());
   const [draftSlug, setDraftSlug] = useState<string | null>(null);
+  // Always-current mirrors for timers / stream callbacks that outlive the render that created them.
+  const draftSlugRef = useRef<string | null>(null);
+  draftSlugRef.current = draftSlug;
+  const draftFilesRef = useRef<AgentVfsFile[]>([]);
+  draftFilesRef.current = draftFiles;
+  // Conversation returned by the first run; refinements reuse it (and the same scratch slug).
+  const draftConversationIdRef = useRef<string | undefined>(undefined);
+  // Refinement ("Pedir cambios") turns shown under the first assistant message.
+  const [refineTurns, setRefineTurns] = useState<Array<{ id: string; userText: string; msg: AgentMessage }>>([]);
+  const [refineInput, setRefineInput] = useState("");
+  // Files re-written by a refinement after the first run: path -> was already imported/skipped before the rewrite.
+  const [draftModified, setDraftModified] = useState<Record<string, boolean>>({});
   // Team used as the VFS owner scope for the scratch folder. In local mode
   // activeTeamId is null, so we remember the fallback team here so scan +
   // delete keep working after the stream ends.
@@ -595,8 +608,13 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   // Called on: explicit dismiss (X), 30-min expiry, or after import-all.
   const discardDraftWorkspace = async () => {
     if (draftExpiryTimerRef.current) { clearTimeout(draftExpiryTimerRef.current); draftExpiryTimerRef.current = null; }
-    const slug = draftSlug;
+    // Read the slug from the ref: the 30-min timer calls the closure of the render that armed it, where draftSlug was still null.
+    const slug = draftSlugRef.current ?? draftSlug;
     const cleanupTeam = activeTeamId || teamForScanRef.current;
+    draftConversationIdRef.current = undefined;
+    setRefineTurns([]);
+    setRefineInput("");
+    setDraftModified({});
     setDraftFiles([]);
     setDraftFolderMeta({});
     setDraftSelected(new Set());
@@ -684,6 +702,154 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     });
   };
 
+  // Provisional file card from a write_file tool input (shared by the first run and refinements).
+  const DRAFT_KINDS = new Set(['kd', 'kb', 'km', 'ks', 'kt', 'kg']);
+  const deriveDraftFile = (input: any): AgentVfsFile | null => {
+    const rawPath = input?.path ?? input?.filename;
+    if (typeof rawPath !== 'string' || !rawPath) return null;
+    const norm = rawPath.replace(/\\/g, '/').replace(/^\.?\//, '');
+    const name = norm.split('/').pop() || norm;
+    const ext = (name.split('.').pop() || '').toLowerCase();
+    if (!DRAFT_KINDS.has(ext)) return null;
+    const content = typeof input?.content === 'string' ? input.content : '';
+    const slashIdx = norm.lastIndexOf('/');
+    const folder = slashIdx >= 0 ? norm.slice(0, slashIdx) : null;
+    return { path: norm, name, kind: ext as AgentVfsFile['kind'], size: content.length, content, folder };
+  };
+
+  // "Pedir cambios": a REFINEMENT turn on the existing draft. Same scratch folder (workspaceSlug) and same
+  // conversation (conversationId from the first run's `done` event), so the model sees and edits its own files
+  // (backend rule 9). Streamed turns append under the first assistant message; the file list is upserted by path.
+  //
+  // RE-IMPORT CAVEAT (see importKillioFile): .kd/.kb/.km/.ks always CREATE a new entity (no lookup by name), so
+  // importing a modified file that was already imported produces a DUPLICATE. .kt/.kg are matched by name and an
+  // existing one is SKIPPED, not overwritten, so the revised version would not be applied. We therefore reset the
+  // file to 'pending', flag it "modificado" and show a note instead of duplicating silently.
+  const handleRefine = async () => {
+    const text = refineInput.trim();
+    const slug = draftSlugRef.current;
+    const team = teamForScanRef.current;
+    if (!text || !slug || !team || !accessToken || agentRunning || draftImporting) return;
+    setRefineInput('');
+
+    const baseline = snapshotContents(draftFilesRef.current);
+    const importedBefore = new Set(
+      Object.entries(draftStatusByPath).filter(([, st]) => st === 'done' || st === 'skipped').map(([p]) => p),
+    );
+    const markModified = (paths: string[]) => {
+      if (paths.length === 0) return;
+      setDraftModified((m) => {
+        const next = { ...m };
+        for (const p of paths) next[p] = m[p] || importedBefore.has(p);
+        return next;
+      });
+      setDraftStatusByPath((s) => omitKeys(s, paths));
+      setDraftNoteByPath((n) => omitKeys(n, paths));
+      setDraftErrorByPath((e) => omitKeys(e, paths));
+      setDraftSelected((prev) => { const n = new Set(prev); paths.forEach((p) => n.add(p)); return n; });
+    };
+
+    setAgentRunning(true);
+    armDraftExpiry(); // the user is still working on it: restart the 30-minute purge clock
+
+    const turnId = `refine-${Date.now()}`;
+    let rawText = '';
+    const toolEvts: ToolEvent[] = [];
+    setRefineTurns((prev) => [...prev, { id: turnId, userText: text, msg: { id: turnId, role: 'assistant', text: '', toolEvents: [], isStreaming: true } }]);
+    const pushMsg = (streaming: boolean) => setRefineTurns((prev) => prev.map((turn) => turn.id === turnId
+      ? { ...turn, msg: { ...turn.msg, text: rawText, toolEvents: [...toolEvts], isStreaming: streaming } }
+      : turn));
+
+    try {
+      await new Promise<void>((resolve) => {
+        const cancel = streamAgentChat(
+          {
+            teamId: team,
+            message: buildRefinementMessage(text),
+            enabledToolIds: enabledAgentTools,
+            workspaceSlug: slug,
+            autoScan: true,
+            conversationId: draftConversationIdRef.current,
+          },
+          accessToken,
+          (event: AgentStreamEvent) => {
+            if (event.conversationId) draftConversationIdRef.current = event.conversationId;
+            if (event.type === 'tool_start') {
+              toolEvts.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: 'start' });
+              pushMsg(true);
+            } else if (event.type === 'tool_done' || event.type === 'tool_result') {
+              const id = (event as any).id;
+              const output: any = (event as any).output ?? (event as any).data;
+              const idx = toolEvts.findIndex((e) => e.id === id && e.phase === 'start');
+              const done: ToolEvent = {
+                id, tool: event.tool, input: (event as any).input,
+                output, success: (event as any).success ?? true,
+                durationMs: (event as any).durationMs, phase: 'done',
+              };
+              if (idx >= 0) toolEvts[idx] = done; else toolEvts.push(done);
+              pushMsg(true);
+              if (done.tool === 'write_file' && done.success !== false) {
+                const f = deriveDraftFile(done.input ?? (event as any).input);
+                if (f) {
+                  setDraftFiles((prev) => [...prev.filter((x) => x.path !== f.path), f]);
+                  setDraftSelected((prev) => { const n = new Set(prev); n.add(f.path); return n; });
+                  markModified(detectModifiedPaths(baseline, [f]));
+                }
+              }
+            } else if (event.type === 'delta') {
+              rawText += event.text;
+              pushMsg(true);
+            } else if (event.type === 'done') {
+              const composed = event.text || '';
+              const CHIP_RE = /<(?:async_)?invoke\b|<batch_(?:tool|invoke)\b/;
+              rawText = (composed && (CHIP_RE.test(composed) || !CHIP_RE.test(rawText))) ? composed : rawText;
+              pushMsg(false);
+              const { answer } = splitAgentStream(rawText);
+              speak(answer || rawText);
+              (async () => {
+                try {
+                  let files = (event as any).draftFiles as AgentVfsFile[] | undefined;
+                  let folders = (event as any).draftFolders as Record<string, AgentVfsFolderMeta> | undefined;
+                  if (!files) {
+                    const scan = await scanAgentWorkspace({ slug, teamId: team }, accessToken);
+                    files = scan.files; folders = scan.folders;
+                  }
+                  const list = files || [];
+                  // edit_file changes carry no inline content, so only this authoritative scan sees them.
+                  markModified(detectModifiedPaths(baseline, list));
+                  const fresh = list.filter((f) => !baseline.has(f.path)).map((f) => f.path);
+                  setDraftFiles(list);
+                  setDraftFolderMeta(folders ?? {});
+                  setDraftSelected((prev) => {
+                    const n = new Set<string>();
+                    const existing = new Set(list.map((f) => f.path));
+                    prev.forEach((p) => { if (existing.has(p)) n.add(p); });
+                    fresh.forEach((p) => n.add(p));
+                    return n;
+                  });
+                  if (list.length > 0) armDraftExpiry();
+                } catch (err) {
+                  console.error('draft refine scan failed', err);
+                }
+              })();
+              resolve();
+            } else if (event.type === 'error') {
+              rawText += `\n\nError: ${event.message}`;
+              pushMsg(false);
+              resolve();
+            }
+          },
+        );
+        setTimeout(() => { try { cancel(); } catch { /* noop */ } resolve(); }, 180000);
+      });
+    } catch (err) {
+      console.error('Draft refinement failed', err);
+      pushToast('error', t('aiPanel.generationError'));
+    } finally {
+      setAgentRunning(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (selectedFiles.length === 0 && !fileText.trim()) return;
     setIsGenerating(true);
@@ -694,6 +860,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setPreviewScripts([]);
     setPreviewAgents([]);
     setAgentMsg(null);
+    setRefineTurns([]);
+    setDraftModified({});
+    draftConversationIdRef.current = undefined;
     setDraftFiles([]);
     setDraftFolderMeta({});
     setDraftSelected(new Set());
@@ -848,7 +1017,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           toolsHint,
           assetTags.join('\n'),
           finalContent,
-          'El texto de los archivos ya está incluido arriba y además quedan adjuntos como assets (puedes re-leer el original con chat_read_attachment usando el src del asset). Primero PLANIFICA (bloque <plan> con pasos), luego construye el proyecto escribiendo archivos Killio (.kd/.kb/.km/.ks) con write_file en tu carpeta de trabajo. Usa los formatos y bricks reales (no texto plano).',
+          'El texto de los archivos ya está incluido arriba y además quedan adjuntos como assets (puedes re-leer el original con chat_read_attachment usando el src del asset). Primero PLANIFICA (bloque <plan> con pasos), luego construye el proyecto escribiendo archivos Killio (.kd/.kb/.km/.ks/.kt/.kg) con write_file en tu carpeta de trabajo: documentos .kd, tableros .kb, meshes .km, scripts .ks, plantillas de tarjeta .kt y grupos de etiquetas .kg. Si el usuario pide plantillas, DEBES escribir archivos .kt reales (con wizard si la tarjeta necesita preguntas) y los .kg que usen; una guía .kd puede acompañarlas pero nunca sustituirlas. Si el usuario pide inspirarte en otros boards o en lo que ya existe ("inspírate en los otros boards"), primero INVESTIGA con las herramientas de lectura (board_list, board_get, card_template_list, tag_group_list, search_workspace) y reutiliza las convenciones que encuentres antes de escribir nada. Usa los formatos y bricks reales (no texto plano).',
         ].filter(Boolean).join('\n\n');
 
         setGenerationProgress(35);
@@ -873,19 +1042,6 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         // Build a provisional file card the instant a write_file tool completes,
         // so the deliverable appears progressively (not all at once at done). The
         // authoritative in-request scan at `done` replaces these by path.
-        const DRAFT_KINDS = new Set(['kd', 'kb', 'km', 'ks', 'kt', 'kg']);
-        const deriveDraftFile = (input: any): AgentVfsFile | null => {
-          const rawPath = input?.path ?? input?.filename;
-          if (typeof rawPath !== 'string' || !rawPath) return null;
-          const norm = rawPath.replace(/\\/g, '/').replace(/^\.?\//, '');
-          const name = norm.split('/').pop() || norm;
-          const ext = (name.split('.').pop() || '').toLowerCase();
-          if (!DRAFT_KINDS.has(ext)) return null;
-          const content = typeof input?.content === 'string' ? input.content : '';
-          const slashIdx = norm.lastIndexOf('/');
-          const folder = slashIdx >= 0 ? norm.slice(0, slashIdx) : null;
-          return { path: norm, name, kind: ext as AgentVfsFile['kind'], size: content.length, content, folder };
-        };
         const upsertDraftFile = (f: AgentVfsFile) => {
           setDraftFiles((prev) => [...prev.filter((x) => x.path !== f.path), f]);
           setDraftSelected((prev) => { const n = new Set(prev); n.add(f.path); return n; });
@@ -932,6 +1088,8 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                 const streamedHasChips = CHIP_RE.test(rawText);
                 rawText = (composed && (composedHasChips || !streamedHasChips)) ? composed : rawText;
                 pushMsg(false);
+                // Remember the conversation so "Pedir cambios" continues it (same slug + same conversationId).
+                if (event.conversationId) draftConversationIdRef.current = event.conversationId;
                 const { answer } = splitAgentStream(rawText);
                 speak(answer || rawText);
                 setGenerationProgress(100);
@@ -1858,6 +2016,25 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                     </div>
                   )}
 
+                  {generationType === 'agents' && refineTurns.map((turn) => (
+                    <div key={turn.id} className="mb-4 space-y-2">
+                      <div className="ml-auto max-w-[85%] rounded-lg border border-border bg-secondary/50 px-3 py-2 text-xs text-foreground whitespace-pre-wrap break-words">
+                        {turn.userText}
+                      </div>
+                      <AssistantMessage
+                        t={t as any}
+                        message={turn.msg}
+                        isLast
+                        toolsExpanded
+                        onToggleTools={() => {}}
+                        onCopy={() => { try { navigator.clipboard.writeText(splitAgentStream(turn.msg.text).answer || turn.msg.text); } catch { /* noop */ } }}
+                        copied={false}
+                        onThumb={() => {}}
+                        onRetry={() => {}}
+                      />
+                    </div>
+                  ))}
+
                   {generationType === 'agents' && draftFiles.length > 0 && (() => {
                     const KIND_ICON: Record<string, React.ReactNode> = {
                       kd: <FileTextIcon className="h-4 w-4" />,
@@ -1959,6 +2136,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                                         <span className="text-xs font-semibold truncate">{f.name}</span>
                                         <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent">{f.kind}</span>
                                         <span className="text-[10px] text-muted-foreground truncate">{t(`aiPanel.killioImport.${f.kind}`)}</span>
+                                        {f.path in draftModified && st !== 'done' && st !== 'skipped' && (
+                                          <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-600 dark:text-amber-400">{t("aiPanel.draftWorkspace.modified")}</span>
+                                        )}
                                       </div>
                                       <p className="text-[10px] text-muted-foreground mt-0.5 truncate" title={f.path}>{f.path}</p>
                                       <div className="text-[10px] text-muted-foreground mt-1">
@@ -1968,6 +2148,11 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                                         {(st === 'done' || st === 'skipped') && draftNoteByPath[f.path] && <p className="mt-0.5 whitespace-normal break-words">{draftNoteByPath[f.path]}</p>}
                                         {st === 'error' && <span className="inline-flex items-start gap-1 text-red-500 whitespace-normal break-words"><XIcon className="h-3 w-3 mt-0.5 shrink-0" />{draftErrorByPath[f.path] || t("aiPanel.draftWorkspace.errGeneric")}</span>}
                                         {(st === 'idle' || !st) && <span>{(f.size / 1024).toFixed(1)} KB</span>}
+                                        {draftModified[f.path] && st !== 'done' && st !== 'skipped' && (
+                                          <p className="mt-0.5 whitespace-normal break-words text-amber-600 dark:text-amber-400">
+                                            {t(isDraftEntityKind(f.kind) ? "aiPanel.draftWorkspace.reimportSkipNote" : "aiPanel.draftWorkspace.reimportDupNote")}
+                                          </p>
+                                        )}
                                       </div>
                                     </div>
                                   </button>
@@ -1979,6 +2164,40 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       </div>
                     );
                   })()}
+
+                  {generationType === 'agents' && draftSlug && agentMsg && (
+                    <div className="mt-3 rounded-xl border border-border/60 bg-card/40 p-2.5">
+                      <div className="text-[11px] uppercase tracking-wide text-muted-foreground font-semibold mb-1.5">
+                        {t("aiPanel.draftWorkspace.refineTitle")}
+                      </div>
+                      <div className="flex items-end gap-2">
+                        <textarea
+                          value={refineInput}
+                          onChange={(e) => setRefineInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) {
+                              e.preventDefault();
+                              void handleRefine();
+                            }
+                          }}
+                          rows={2}
+                          disabled={agentRunning || draftImporting}
+                          placeholder={t("aiPanel.draftWorkspace.refinePlaceholder")}
+                          className="flex-1 resize-none rounded-lg border border-border bg-background text-foreground placeholder:text-muted-foreground px-2.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-accent/50 disabled:opacity-60"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => { void handleRefine(); }}
+                          disabled={agentRunning || draftImporting || !refineInput.trim()}
+                          title={t("aiPanel.draftWorkspace.refineSend")}
+                          aria-label={t("aiPanel.draftWorkspace.refineSend")}
+                          className="h-8 w-8 shrink-0 inline-flex items-center justify-center rounded-lg bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-50"
+                        >
+                          {agentRunning ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
 
                   {generationType === 'agents' && (
                     <div className="bg-primary/5 border border-primary/20 text-primary-foreground/90 p-4 rounded-lg text-sm flex items-start">

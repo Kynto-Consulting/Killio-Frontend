@@ -207,6 +207,12 @@
       "errGeneric": "Error al importar",
       "expiresIn": "expira en {{mins}} min",
       "writing": "escribiendo…",
+      "modified": "modificado",
+      "refineTitle": "Pedir cambios",
+      "refinePlaceholder": "Pide ajustes al borrador (Enter envía, Shift+Enter nueva línea)",
+      "refineSend": "Enviar cambios",
+      "reimportDupNote": "Ya importaste una versión anterior: volver a importarlo crearía un duplicado. Bórrala del workspace si quieres reemplazarla.",
+      "reimportSkipNote": "Ya importaste una versión anterior: al importarlo se omitirá porque el nombre ya existe, no se sobrescribe. Renómbralo o bórralo del workspace antes.",
       "discard": "Descartar y borrar carpeta"
     },
     "killioImport": {

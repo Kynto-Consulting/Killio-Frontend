@@ -207,6 +207,12 @@
       "errGeneric": "Import failed",
       "expiresIn": "expires in {{mins}} min",
       "writing": "writing…",
+      "modified": "modified",
+      "refineTitle": "Request changes",
+      "refinePlaceholder": "Ask for adjustments to the draft (Enter sends, Shift+Enter newline)",
+      "refineSend": "Send changes",
+      "reimportDupNote": "You already imported an earlier version: importing it again would create a duplicate. Delete the old one from the workspace if you want to replace it.",
+      "reimportSkipNote": "You already imported an earlier version: importing it will be skipped because the name already exists (it is not overwritten). Rename it or delete the old one first.",
       "discard": "Discard & delete folder"
     },
     "killioImport": {
