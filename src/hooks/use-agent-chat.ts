@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
+import { useUiMode } from "@/components/providers/ui-mode-provider";
 import { streamAgentChat, AgentEntityScope, AgentStreamEvent, AgentConversationMode, AgentPageContext, getAgentMessages } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import type { ResolverContext } from "@/lib/reference-resolver";
@@ -271,11 +272,12 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
 }
 
 /** Only the fields that are set, so the panel's requests stay byte-identical to what they were. */
-function paletteBodyExtras(extras: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext }) {
-  const out: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext } = {};
+function paletteBodyExtras(extras: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext; uiMode?: "reduced" }) {
+  const out: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext; uiMode?: "reduced" } = {};
   if (extras.mode) out.mode = extras.mode;
   if (extras.source) out.source = extras.source;
   if (extras.pageContext) out.pageContext = extras.pageContext;
+  if (extras.uiMode) out.uiMode = extras.uiMode;
   return out;
 }
 
@@ -288,8 +290,11 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
   const conversationIdRef = useRef<string | undefined>(initialConversationId);
   // Palette extras live in a ref refreshed every render so the stable stream
   // handler and the send callbacks always see the latest values.
-  const extrasRef = useRef({ mode, source, pageContext, onStreamEvent });
-  extrasRef.current = { mode, source, pageContext, onStreamEvent };
+  // Reduced interface mode: the server hides advanced tools from the assistant. Full mode sends nothing extra.
+  const { mode: uiModeNow } = useUiMode();
+  const uiMode = uiModeNow === "reduced" ? ("reduced" as const) : undefined;
+  const extrasRef = useRef({ mode, source, pageContext, onStreamEvent, uiMode });
+  extrasRef.current = { mode, source, pageContext, onStreamEvent, uiMode };
   const cancelRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef<string>("");
   // Preferred model for the next message. Threaded into /agent/chat/stream as

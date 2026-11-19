@@ -21,6 +21,8 @@ import { BoardProjectsView } from "@/components/boards/board-projects-view";
 import { PinButton } from "@/components/ui/pin-button";
 import { BoardViewTabs } from "@/components/boards/board-view-tabs";
 import { useBoardTabs } from "@/components/boards/use-board-tabs";
+import { useUiMode } from "@/components/providers/ui-mode-provider";
+import { pickActiveTab } from "@/lib/ui-mode/ui-mode";
 import { isBuiltinTab, tabDisplayName, uniqueTabName, type BoardTabType } from "@/lib/boards/board-tabs";
 import { applyBoardFilters } from "@/lib/boards/apply-filters";
 import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
@@ -887,7 +889,10 @@ export default function BoardPage() {
   snapshotUserIdRef.current = user?.id;
   // Named view tabs of the board (Kanban and Gantt are built in; Lista and any added view are extra). `boardView` is the type to render.
   const boardTabs = useBoardTabs(boardId, { serverSync: !localMode });
-  const boardView = boardTabs.active.type;
+  // Reduced mode hides the Gantt / Summary / Projects views (they stay saved); a hidden active tab falls back to Kanban.
+  const { mode: uiMode } = useUiMode();
+  const activeBoardTab = pickActiveTab(boardTabs.tabs, boardTabs.active.id, uiMode);
+  const boardView = activeBoardTab.type;
   const { ask: askDeleteView, ConfirmDialog: DeleteViewConfirmDialog } = useConfirm();
   const [createCardTarget, setCreateCardTarget] = useState<{ listId: string; listName: string } | null>(null);
   const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
@@ -1583,7 +1588,7 @@ export default function BoardPage() {
           {!localMode ? <PinButton teamId={boardTeamId} kind="board" id={boardId} stopClick={false} alwaysVisible /> : null}
           <BoardViewTabs
             tabs={boardTabs.tabs}
-            activeId={boardTabs.active.id}
+            activeId={activeBoardTab.id}
             canManage={permissions.canEdit}
             onSelect={boardTabs.select}
             onAdd={(type: BoardTabType) => {

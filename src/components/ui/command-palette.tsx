@@ -58,6 +58,8 @@ import { AgentChatPanel } from "@/components/agent";
 import { PaletteAskPanel, type AskPageScope } from "@/components/ui/command-palette-ask";
 import { resolveEnterAction, resolvePaletteIntent, resolveTabAction } from "@/lib/palette-ask/intent";
 import { fmt, getAskCopy } from "@/lib/palette-ask/copy";
+import { useUiMode } from "@/components/providers/ui-mode-provider";
+import { isPaletteCommandVisible, isPaletteItemVisible, isPaletteSuggestionVisible } from "@/lib/ui-mode/ui-mode";
 
 /** cmdk value of the "Preguntar a …" row; Enter/Tab look for it to know the row is the selected one. */
 const ASK_ROW_VALUE = "ask-killio-row";
@@ -110,7 +112,7 @@ function resolveIcon(commandId: string) {
 const i18n = {
   es: {
     placeholder: {
-      global: "Comando global. Ej: history, teams, board 2",
+      global: "Comando global. Ej: teams, board 2, doc create",
       board: "Comando de tablero. Ej: board share, list add Sprint, card 1 from 2 rename Titulo",
       cards: "Comando de cards. Ej: cards done all, card done login",
       lists: "Comando de listas. Ej: list add In Review",
@@ -144,7 +146,7 @@ const i18n = {
   },
   en: {
     placeholder: {
-      global: "Global command. Ex: history, teams, board 2",
+      global: "Global command. Ex: teams, board 2, doc create",
       board: "Board command. Ex: board share, list add Sprint, card 1 from 2 rename Title",
       cards: "Cards command. Ex: cards done all, card done login",
       lists: "Lists command. Ex: list add In Review",
@@ -569,6 +571,9 @@ export function CommandPalette() {
   };
 
 
+  const uiMode = useUiMode();
+  const uiModeRef = useRef(uiMode.mode);
+  uiModeRef.current = uiMode.mode;
   const [astSuggestions, setAstSuggestions] = useState<SuggestionItem[]>([]);
 
   const parseContext = useMemo<PaletteParseContext>(() => ({
@@ -589,7 +594,7 @@ export function CommandPalette() {
     }
     suggestCommand(commandQuery, paletteCommandSpecs, parseContext, 12).then((items) => {
       if (mounted) {
-        setAstSuggestions(items);
+        setAstSuggestions(items.filter((it) => isPaletteSuggestionVisible(String(it.value), uiModeRef.current)));
         setAstQuery(commandQuery);
       }
     });
@@ -769,6 +774,11 @@ export function CommandPalette() {
         return;
       }
       notifyInfo("Comando no reconocido. Escribe 'help' para ver ejemplos.");
+      return;
+    }
+
+    if (!isPaletteCommandVisible(target.spec.id, uiMode.mode)) {
+      notifyInfo("Este comando es del modo Completo. Puedes activarlo en Preferencias de la app.");
       return;
     }
 
@@ -1766,6 +1776,7 @@ export function CommandPalette() {
                   </div>
                 </Command.Item>
 
+                {isPaletteItemVisible("history", uiMode.mode) ? (
                 <Command.Item
                   value="history"
                   onSelect={() => {
@@ -1780,6 +1791,7 @@ export function CommandPalette() {
                     <div className="truncate text-xs text-muted-foreground">Accesos recientes y trazabilidad</div>
                   </div>
                 </Command.Item>
+                ) : null}
               </Command.Group>
             ) : null}
 

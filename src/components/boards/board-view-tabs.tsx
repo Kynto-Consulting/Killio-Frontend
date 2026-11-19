@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import { CalendarDays, ChartGantt, FolderKanban, LayoutDashboard, List, MoreHorizontal, Plus, SquareKanban } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
+import { useUiMode } from "@/components/providers/ui-mode-provider";
+import { visibleAddableTypes, visibleTabs } from "@/lib/ui-mode/ui-mode";
 import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, isBuiltinTab, MAX_TAB_NAME, tabDisplayName, type BoardTab, type BoardTabType } from "@/lib/boards/board-tabs";
 
 const ICONS: Record<BoardTabType, typeof List> = { kanban: SquareKanban, gantt: ChartGantt, list: List, calendar: CalendarDays, summary: LayoutDashboard, projects: FolderKanban };
@@ -24,8 +26,10 @@ interface BoardViewTabsProps {
  * The pill group that switches the board view: one pill per tab, plus a "+" pill that adds a view. Extra tabs are renamed
  * (double click, F2 or the context menu) and deleted (context menu); the built-in Kanban and Gantt tabs are fixed.
  */
-export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDelete, canManage }: BoardViewTabsProps) {
+export function BoardViewTabs({ tabs: allTabs, activeId, onSelect, onAdd, onRename, onDelete, canManage }: BoardViewTabsProps) {
   const t = useTranslations("board-detail");
+  const { mode } = useUiMode();
+  const tabs = visibleTabs(allTabs, mode);
   const labels: Record<BoardTabType, string> = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView"), summary: t("header.summaryView"), projects: t("header.projectsView") };
   const [addOpen, setAddOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
@@ -165,7 +169,7 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
           </button>
           {addOpen && addPos && typeof document !== "undefined" ? createPortal(
             <div ref={addMenuRef} role="menu" className="fixed z-[200] w-56 rounded-lg border border-border bg-card p-1 shadow-lg" style={{ left: addPos.left, top: addPos.top }}>
-              {ADDABLE_TAB_TYPES.map((type) => {
+              {visibleAddableTypes(ADDABLE_TAB_TYPES, mode).map((type) => {
                 const Icon = ICONS[type];
                 const experimental = EXPERIMENTAL_TAB_TYPES.includes(type);
                 return (

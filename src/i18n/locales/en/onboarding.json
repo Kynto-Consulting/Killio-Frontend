@@ -1,0 +1,186 @@
+{
+  "wizard": {
+    "dialogLabel": "Welcome assistant",
+    "stepOf": "Step {{current}} of {{total}}",
+    "back": "Back",
+    "next": "Next",
+    "skip": "Skip for now",
+    "later": "Continue later",
+    "resumeHint": "You can pick it up any time from Help.",
+    "welcome": {
+      "title": "Welcome to {{brand}}",
+      "body": "Tell us a bit about you in under a minute and we will tailor your space. Everything is optional and you can skip any screen."
+    },
+    "role": {
+      "title": "Who are you?",
+      "body": "Pick what describes you best."
+    },
+    "occupation": {
+      "title": "What do you do?",
+      "body": "So we can pick better examples for you."
+    },
+    "goals": {
+      "title": "What do you want to achieve?",
+      "body": "Choose up to 3 goals."
+    },
+    "teamSize": {
+      "title": "How many people are on your team?",
+      "body": "Including you."
+    },
+    "firstAction": {
+      "title": "What do you want to do first?",
+      "body": "We will take you straight there when we are done."
+    },
+    "language": {
+      "title": "Which language do you prefer?",
+      "body": "You can change it later in Preferences."
+    },
+    "start": {
+      "title": "All set. How do we start?",
+      "body": "Choose how you want to see {{brand}} and where to begin.",
+      "modeTitle": "How you want to see {{brand}}",
+      "suggested": "Suggested for you",
+      "scratch": "Start from scratch",
+      "scratchBody": "An empty space, ready for you.",
+      "demo": "Start with a demo",
+      "demoBody": "Creates a sample board, document and template. They are marked as demo and you can delete them all at once.",
+      "working": "Setting up your space…",
+      "demoError": "We could not create the demo. What was created has been cleaned up; try again or start from scratch.",
+      "noWorkspace": "You need an active workspace to create the demo."
+    }
+  },
+  "options": {
+    "role": {
+      "founder": "Founder or owner",
+      "manager": "Lead or manager",
+      "member": "Part of a team",
+      "freelance": "Freelancer",
+      "student": "Student",
+      "other": "Other"
+    },
+    "occupation": {
+      "software": "Software and tech",
+      "design": "Design and creative",
+      "marketing": "Marketing and sales",
+      "operations": "Operations and projects",
+      "education": "Education",
+      "health": "Health",
+      "other": "Other"
+    },
+    "goals": {
+      "tasks": "Organize tasks",
+      "projects": "Manage projects",
+      "docs": "Write and share documents",
+      "team": "Coordinate my team",
+      "knowledge": "Centralize knowledge",
+      "ai": "Use AI to work faster"
+    },
+    "teamSize": {
+      "solo": "Just me",
+      "2-5": "2 to 5",
+      "6-20": "6 to 20",
+      "21+": "More than 20"
+    },
+    "firstAction": {
+      "board": "Create a board",
+      "document": "Write a document",
+      "invite": "Invite my team",
+      "explore": "Just explore"
+    },
+    "language": {
+      "es": "Español",
+      "en": "English"
+    }
+  },
+  "mode": {
+    "label": "Killio mode",
+    "reduced": "Reduced",
+    "full": "Full",
+    "reducedDesc": "Just the essentials: boards, cards, documents and team.",
+    "fullDesc": "Everything: meshes, scripts, KQL, rooms, graph, integrations, Gantt, Summary and Projects views, advanced AI.",
+    "note": "Switching mode only hides or shows options: nothing is deleted or moved. Change it any time.",
+    "followTeam": "Use the team default mode",
+    "fromTeam": "Your team uses {{mode}} mode by default.",
+    "teamDefaultTitle": "Team default mode",
+    "teamDefaultDesc": "Applies to people who have not chosen their own mode.",
+    "teamDefaultNone": "No default (Full)",
+    "teamDefaultSaved": "Team default mode updated.",
+    "saved": "Mode updated.",
+    "saveError": "Could not save the mode.",
+    "hiddenTitle": "This section belongs to Full mode",
+    "hiddenBody": "You are in Reduced mode, which hides the advanced parts. Your data is untouched.",
+    "switchFull": "Switch to Full mode",
+    "goHome": "Back to home"
+  },
+  "help": {
+    "title": "Help",
+    "wizard": "Welcome assistant",
+    "tour": "First-steps tour",
+    "tourDesc": "A short walk through the essentials.",
+    "demoDelete": "Delete the demo space",
+    "demoDeleteConfirm": "The demo board, document and template will be deleted. This cannot be undone.",
+    "demoDeleted": "Demo deleted.",
+    "demoDeletePartial": "Part of the demo was deleted; {{count}} items could not be deleted.",
+    "demoDeleteError": "Could not delete the demo.",
+    "demoBanner": "You are looking at a demo space.",
+    "demoBannerDelete": "Delete demo"
+  },
+  "tour": {
+    "dialogLabel": "First-steps tour",
+    "skip": "Close tour",
+    "next": "Next",
+    "back": "Back",
+    "done": "Finish",
+    "stepOf": "{{current}} of {{total}}",
+    "steps": {
+      "boards": {
+        "title": "Boards",
+        "body": "Organize work in lists and cards. Drag cards between lists as they progress."
+      },
+      "cards": {
+        "title": "Cards",
+        "body": "Each card holds details, assignees, dates and notes. Templates save you from repeating yourself."
+      },
+      "documents": {
+        "title": "Documents",
+        "body": "Write notes, guides and minutes, and share them with your team."
+      },
+      "team": {
+        "title": "Your team",
+        "body": "Invite other people and decide who can view or edit."
+      },
+      "palette": {
+        "title": "Command palette",
+        "body": "Press Ctrl+K (or ⌘K) to search, jump anywhere or ask Killio."
+      },
+      "modes": {
+        "title": "Reduced or Full mode",
+        "body": "When you want more tools, switch in App preferences. Nothing is lost."
+      }
+    }
+  },
+  "demo": {
+    "board": "My first board",
+    "lists": {
+      "todo": "To do",
+      "doing": "In progress",
+      "done": "Done"
+    },
+    "cards": {
+      "c1": "Explore this board",
+      "c1s": "Drag this card to “In progress”.",
+      "c2": "Create my first card",
+      "c2s": "Use the + button on a list.",
+      "c3": "Invite someone from my team",
+      "c4": "Read the welcome document",
+      "c5": "Delete the demo when I am done",
+      "c5s": "Help → Delete the demo space."
+    },
+    "document": "Welcome guide",
+    "p1": "# Welcome to your demo space\nThis document, the board and the template were created so you can try things safely.",
+    "p2": "## What you can try\n- Move cards between lists.\n- Edit this text.\n- Create a card from the template.",
+    "p3": "When you are done, delete everything at once from **Help → Delete the demo space**.",
+    "template": "Quick task",
+    "templateDesc": "Sample template that creates dated cards."
+  }
+}

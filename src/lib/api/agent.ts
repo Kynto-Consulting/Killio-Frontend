@@ -254,6 +254,8 @@ export function streamAgentChat(
     mode?: AgentConversationMode;
     /** Where the request comes from; the backend applies palette rules to 'palette'. */
     source?: 'palette';
+    /** 'reduced': the person uses the simple interface mode; the server hides advanced tools from the model. */
+    uiMode?: 'reduced';
     /** Scope the question to the page the user has open. */
     pageContext?: AgentPageContext;
   },

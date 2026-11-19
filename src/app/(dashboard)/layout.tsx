@@ -2,6 +2,7 @@ import { PlatformComponent } from "@/lib/platform";
 import { LayoutWeb } from "./layout.web";
 import { LayoutMobile } from "./layout.mobile";
 import { FeatureRouteGuard } from "@/components/tenant/feature-route-guard";
+import { ModeRouteGuard } from "@/components/onboarding/onboarding-host";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -16,7 +17,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <PlatformComponent
         web={LayoutWeb}
         mobile={LayoutMobile}
-        props={{ children }}
+        props={{ children: <ModeRouteGuard>{children}</ModeRouteGuard> }}
       />
     </FeatureRouteGuard>
   );

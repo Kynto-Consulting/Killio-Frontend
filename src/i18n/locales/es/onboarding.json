@@ -1,0 +1,186 @@
+{
+  "wizard": {
+    "dialogLabel": "Asistente de bienvenida",
+    "stepOf": "Paso {{current}} de {{total}}",
+    "back": "Atrás",
+    "next": "Siguiente",
+    "skip": "Saltar por ahora",
+    "later": "Seguir más tarde",
+    "resumeHint": "Puedes retomarlo cuando quieras desde Ayuda.",
+    "welcome": {
+      "title": "Te damos la bienvenida a {{brand}}",
+      "body": "Cuéntanos un poco de ti en menos de un minuto y dejamos el espacio a tu medida. Todo es opcional y puedes saltarte cualquier pantalla."
+    },
+    "role": {
+      "title": "¿Quién eres?",
+      "body": "Elige lo que mejor te describa."
+    },
+    "occupation": {
+      "title": "¿A qué te dedicas?",
+      "body": "Así elegimos mejores ejemplos para ti."
+    },
+    "goals": {
+      "title": "¿Qué quieres lograr?",
+      "body": "Elige hasta 3 objetivos."
+    },
+    "teamSize": {
+      "title": "¿Cuántas personas son en tu equipo?",
+      "body": "Incluyéndote a ti."
+    },
+    "firstAction": {
+      "title": "¿Qué quieres hacer primero?",
+      "body": "Te llevamos directo ahí cuando terminemos."
+    },
+    "language": {
+      "title": "¿En qué idioma prefieres usarlo?",
+      "body": "Puedes cambiarlo luego en Preferencias."
+    },
+    "start": {
+      "title": "Todo listo. ¿Cómo empezamos?",
+      "body": "Elige cómo quieres ver {{brand}} y por dónde arrancar.",
+      "modeTitle": "Cómo quieres ver {{brand}}",
+      "suggested": "Sugerido para ti",
+      "scratch": "Empezar desde cero",
+      "scratchBody": "Un espacio vacío, listo para ti.",
+      "demo": "Empezar con una demo",
+      "demoBody": "Crea un tablero, un documento y una plantilla de ejemplo. Los marcamos como demo y los borras de una vez.",
+      "working": "Preparando tu espacio…",
+      "demoError": "No pudimos crear la demo. Se limpió lo que se alcanzó a crear; inténtalo de nuevo o empieza desde cero.",
+      "noWorkspace": "Necesitas un espacio de trabajo activo para crear la demo."
+    }
+  },
+  "options": {
+    "role": {
+      "founder": "Fundador/a o dueño/a",
+      "manager": "Líder o gerente",
+      "member": "Parte de un equipo",
+      "freelance": "Independiente",
+      "student": "Estudiante",
+      "other": "Otro"
+    },
+    "occupation": {
+      "software": "Software y tecnología",
+      "design": "Diseño y creatividad",
+      "marketing": "Marketing y ventas",
+      "operations": "Operaciones y proyectos",
+      "education": "Educación",
+      "health": "Salud",
+      "other": "Otro"
+    },
+    "goals": {
+      "tasks": "Organizar tareas",
+      "projects": "Gestionar proyectos",
+      "docs": "Escribir y compartir documentos",
+      "team": "Coordinar a mi equipo",
+      "knowledge": "Centralizar conocimiento",
+      "ai": "Usar IA para trabajar más rápido"
+    },
+    "teamSize": {
+      "solo": "Solo yo",
+      "2-5": "2 a 5",
+      "6-20": "6 a 20",
+      "21+": "Más de 20"
+    },
+    "firstAction": {
+      "board": "Crear un tablero",
+      "document": "Escribir un documento",
+      "invite": "Invitar a mi equipo",
+      "explore": "Solo explorar"
+    },
+    "language": {
+      "es": "Español",
+      "en": "English"
+    }
+  },
+  "mode": {
+    "label": "Modo de Killio",
+    "reduced": "Reducido",
+    "full": "Completo",
+    "reducedDesc": "Solo lo esencial: tableros, tarjetas, documentos y equipo.",
+    "fullDesc": "Todo: mallas, scripts, KQL, salas, grafo, integraciones, vistas Gantt, Resumen y Proyectos, IA avanzada.",
+    "note": "Cambiar de modo solo oculta o muestra opciones: no borra ni mueve nada. Puedes cambiarlo cuando quieras.",
+    "followTeam": "Usar el modo por defecto del equipo",
+    "fromTeam": "Tu equipo usa el modo {{mode}} por defecto.",
+    "teamDefaultTitle": "Modo por defecto del equipo",
+    "teamDefaultDesc": "Aplica a quienes no hayan elegido su propio modo.",
+    "teamDefaultNone": "Sin modo por defecto (Completo)",
+    "teamDefaultSaved": "Modo por defecto del equipo actualizado.",
+    "saved": "Modo actualizado.",
+    "saveError": "No se pudo guardar el modo.",
+    "hiddenTitle": "Esta sección es del modo Completo",
+    "hiddenBody": "Estás en modo Reducido, que oculta las partes avanzadas. Tus datos siguen intactos.",
+    "switchFull": "Cambiar a modo Completo",
+    "goHome": "Volver al inicio"
+  },
+  "help": {
+    "title": "Ayuda",
+    "wizard": "Asistente de bienvenida",
+    "tour": "Tour de primeros pasos",
+    "tourDesc": "Un recorrido corto por lo esencial.",
+    "demoDelete": "Borrar el espacio de demo",
+    "demoDeleteConfirm": "Se borrarán el tablero, el documento y la plantilla de demo. Esta acción no se puede deshacer.",
+    "demoDeleted": "Demo borrada.",
+    "demoDeletePartial": "Se borró parte de la demo; {{count}} elementos no se pudieron borrar.",
+    "demoDeleteError": "No se pudo borrar la demo.",
+    "demoBanner": "Estás viendo un espacio de demo.",
+    "demoBannerDelete": "Borrar demo"
+  },
+  "tour": {
+    "dialogLabel": "Tour de primeros pasos",
+    "skip": "Cerrar tour",
+    "next": "Siguiente",
+    "back": "Atrás",
+    "done": "Terminar",
+    "stepOf": "{{current}} de {{total}}",
+    "steps": {
+      "boards": {
+        "title": "Tableros",
+        "body": "Organiza el trabajo en listas y tarjetas. Arrastra las tarjetas entre listas según avanzan."
+      },
+      "cards": {
+        "title": "Tarjetas",
+        "body": "Cada tarjeta guarda detalles, responsables, fechas y notas. Las plantillas te ahorran repetir lo mismo."
+      },
+      "documents": {
+        "title": "Documentos",
+        "body": "Escribe notas, guías y actas, y compártelas con tu equipo."
+      },
+      "team": {
+        "title": "Tu equipo",
+        "body": "Invita a otras personas y decide quién puede ver o editar."
+      },
+      "palette": {
+        "title": "Paleta de comandos",
+        "body": "Pulsa Ctrl+K (o ⌘K) para buscar, ir a cualquier sitio o preguntarle a Killio."
+      },
+      "modes": {
+        "title": "Modo Reducido o Completo",
+        "body": "Cuando quieras más herramientas, cámbialo en Preferencias de la app. No se pierde nada."
+      }
+    }
+  },
+  "demo": {
+    "board": "Mi primer tablero",
+    "lists": {
+      "todo": "Por hacer",
+      "doing": "En curso",
+      "done": "Hecho"
+    },
+    "cards": {
+      "c1": "Explorar este tablero",
+      "c1s": "Arrastra esta tarjeta a «En curso».",
+      "c2": "Crear mi primera tarjeta",
+      "c2s": "Usa el botón + de una lista.",
+      "c3": "Invitar a una persona de mi equipo",
+      "c4": "Leer el documento de bienvenida",
+      "c5": "Borrar la demo cuando termine",
+      "c5s": "Ayuda → Borrar el espacio de demo."
+    },
+    "document": "Guía de bienvenida",
+    "p1": "# Bienvenido a tu espacio de demo\nEste documento, el tablero y la plantilla fueron creados para que pruebes sin riesgo.",
+    "p2": "## Qué puedes probar\n- Mover tarjetas entre listas.\n- Editar este texto.\n- Crear una tarjeta desde la plantilla.",
+    "p3": "Cuando termines, bórralo todo de una vez desde **Ayuda → Borrar el espacio de demo**.",
+    "template": "Tarea rápida",
+    "templateDesc": "Plantilla de ejemplo para crear tarjetas con fecha."
+  }
+}

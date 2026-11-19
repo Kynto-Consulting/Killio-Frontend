@@ -8,6 +8,8 @@ import { useAsyncAction } from "@/hooks/ui";
 import { Select } from "@/components/ui/select";
 import { useExperimentalEditorMode } from "@/hooks/use-experimental-editor-mode";
 import { PersonalIntegrationsModal } from "@/components/integrations/personal-integrations-modal";
+import { ModeSettings } from "@/components/onboarding/mode-settings";
+import { useUiMode } from "@/components/providers/ui-mode-provider";
 
 interface AppPreferencesModalProps {
   isOpen: boolean;
@@ -21,6 +23,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
   const [language, setLanguage] = useState<Locale>(locale);
   const [experimentalEditor, setExperimentalEditor] = useExperimentalEditorMode();
   const [showPersonalIntegrations, setShowPersonalIntegrations] = useState(false);
+  const uiMode = useUiMode();
 
   useEffect(() => { setLanguage(locale); }, [locale]);
 
@@ -43,8 +46,8 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
   ];
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/80 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-2xl border border-border bg-card p-6 shadow-2xl animate-in zoom-in-95 duration-200">
         <button
           onClick={onClose}
           className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
@@ -81,6 +84,10 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
             </div>
 
             <div className="h-px w-full bg-border/50" />
+
+            <ModeSettings />
+
+            {uiMode.mode === "full" ? <><div className="h-px w-full bg-border/50" />
 
             {/* Experimental — local, per-device */}
             <div className="space-y-3">
@@ -130,7 +137,7 @@ export function AppPreferencesModal({ isOpen, onClose }: AppPreferencesModalProp
                 </div>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
               </button>
-            </div>
+            </div></> : null}
 
           </div>
 

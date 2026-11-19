@@ -23,6 +23,9 @@ import { useLocalWorkspace, LocalWorkspaceProvider } from "@/components/provider
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useCall } from "@/components/providers/call-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { UiModeProvider, useUiMode } from "@/components/providers/ui-mode-provider";
+import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
+import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
 import { useVersionCheck } from "@/hooks/use-version-check";
 import { useEffect, useState } from "react";
 import { RefreshCw, HardDrive, CloudUpload, Trash2 } from "lucide-react";
@@ -46,7 +49,10 @@ export function LayoutWeb({ children }: { children: React.ReactNode }) {
   // component which can drop client context.
   return (
     <LocalWorkspaceProvider>
-      <LayoutWebInner>{children}</LayoutWebInner>
+      {/* Interface mode + onboarding: here (not in the segment layout) because "/" renders this layout directly. */}
+      <UiModeProvider>
+        <LayoutWebInner>{children}</LayoutWebInner>
+      </UiModeProvider>
     </LocalWorkspaceProvider>
   );
 }
@@ -94,6 +100,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const { user, activeTeamId, setActiveTeamId, accessToken, logout, accounts } = useSession();
   const { isAdmin: canAccessScripts } = useActiveTeamRole(activeTeamId, accessToken, user?.id);
   const localWs = useLocalWorkspace();
+  const uiMode = useUiMode();
   const localMode = localWs.mode === "local";
 
   // In a Local workspace only disk-backed routes remain (boards/meshes/docs +
@@ -101,6 +108,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   const LOCAL_ALLOWED = new Set(["/", "/b", "/m", "/d", "/graph"]);
   const navigationItems = navigation.filter(item => {
     if (localMode) return LOCAL_ALLOWED.has(item.href);
+    if (!isPathVisibleInMode(item.href, uiMode.mode)) return false;
     // The Scripts group lives under /integrations: it stays while either of its modules is on.
     if (item.href === "/integrations" && !isScriptsGroupEnabled(tenant.features)) return false;
     if (item.href !== "/integrations" && !isPathEnabled(item.href, tenant.features)) return false;
@@ -490,6 +498,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
+      <OnboardingHost />
       {/* Offline → online-workspace switch prompt. Keeps the session alive
           and steers the user into a local workspace they can actually use. */}
       {isOfflineSwitchOpen && (
@@ -907,6 +916,8 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
               </button>
 
               <div className="h-px bg-border/50 my-1"></div>
+
+              <HelpMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}

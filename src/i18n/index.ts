@@ -58,6 +58,8 @@ import enFileOptions from "@/i18n/locales/en/file-options.json";
 import esFileOptions from "@/i18n/locales/es/file-options.json";
 import enQueryFlow from "@/i18n/locales/en/query-flow.json";
 import esQueryFlow from "@/i18n/locales/es/query-flow.json";
+import enOnboarding from "@/i18n/locales/en/onboarding.json";
+import esOnboarding from "@/i18n/locales/es/onboarding.json";
 
 export const SUPPORTED_LOCALES = ["en", "es"] as const;
 
@@ -71,7 +73,7 @@ export const NAMESPACES = [
   "history", "board-detail", "document-detail", "notifications",
   "landing", "legal", "integrations", "pricing", "marketplace", "rooms", "mesh",
   "share-local", "vault", "groups", "board-filters", "kql",
-  "file-options", "query-flow",
+  "file-options", "query-flow", "onboarding",
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];
@@ -114,6 +116,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     kql: enKql,
     "file-options": enFileOptions,
     "query-flow": enQueryFlow,
+    onboarding: enOnboarding,
   },
   es: {
     common: esCommon,
@@ -146,6 +149,7 @@ const dictionaries: Record<Locale, LocaleMessages> = {
     kql: esKql,
     "file-options": esFileOptions,
     "query-flow": esQueryFlow,
+    onboarding: esOnboarding,
   },
 };
 

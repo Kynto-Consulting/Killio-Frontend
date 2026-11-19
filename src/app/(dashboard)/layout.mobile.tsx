@@ -17,6 +17,8 @@ import { useSession } from "@/components/providers/session-provider";
 import { LocalWorkspaceProvider } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { useActiveTeamRole } from "@/hooks/use-active-team-role";
+import { HelpMenuItems, OnboardingHost } from "@/components/onboarding/onboarding-host";
+import { UiModeProvider } from "@/components/providers/ui-mode-provider";
 import { useEffect, useState } from "react";
 import { listTeams, listTeamBoards, createTeam, createInvite, BoardSummary, TeamView, TeamRole } from "@/lib/api/contracts";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
@@ -26,7 +28,9 @@ import { getUserAvatarUrl } from "@/lib/gravatar";
 export function LayoutMobile({ children }: { children: React.ReactNode }) {
   return (
     <LocalWorkspaceProvider>
-      <LayoutMobileInner>{children}</LayoutMobileInner>
+      <UiModeProvider>
+        <LayoutMobileInner>{children}</LayoutMobileInner>
+      </UiModeProvider>
     </LocalWorkspaceProvider>
   );
 }
@@ -276,6 +280,7 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden selection:bg-accent/30 selection:text-foreground">
       <CommandPalette />
+      <OnboardingHost />
       <CreateWorkspaceModal
         isOpen={isCreateWorkspaceModalOpen}
         onClose={() => setIsCreateWorkspaceModalOpen(false)}
@@ -442,6 +447,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
               </button>
 
               <div className="h-px bg-border/50 my-1"></div>
+
+              <HelpMenuItems onDone={() => setIsSettingsOpen(false)} />
 
               <button
                 onClick={() => { setIsSettingsOpen(false); setIsSwitchAccountModalOpen(true); }}

@@ -1,5 +1,7 @@
 "use client";
 
+import { useUiMode } from "@/components/providers/ui-mode-provider";
+import { isPathVisibleInMode } from "@/lib/ui-mode/ui-mode";
 import { Fragment, useEffect, useState } from "react";
 import { useTenant } from "@/components/providers/tenant-provider";
 import { isPathEnabled, isScriptsGroupEnabled } from "@/lib/tenant/features";
@@ -50,8 +52,10 @@ export function MobileNavSheet({
   const tDashboard = useTranslations("dashboard");
   const tenant = useTenant();
   const billingEnabled = tenant.billing.enabled;
+  const uiMode = useUiMode();
   const visibleNavigation = navigation.filter((item) =>
-    item.href === "/integrations" ? isScriptsGroupEnabled(tenant.features) : isPathEnabled(item.href, tenant.features),
+    isPathVisibleInMode(item.href, uiMode.mode) &&
+    (item.href === "/integrations" ? isScriptsGroupEnabled(tenant.features) : isPathEnabled(item.href, tenant.features)),
   );
   const tCommon = useTranslations("common");
   const tIntegrations = useTranslations("integrations");

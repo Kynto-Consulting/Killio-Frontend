@@ -112,6 +112,8 @@ function SignupPageContent() {
       }
       // Refresh token is set as HttpOnly cookie by the backend — only store user info
       localStorage.setItem("killio_user", JSON.stringify(data.user));
+      // The welcome wizard opens once for accounts that were just created (it never opens for existing users on its own).
+      try { localStorage.setItem("killio_onboarding_new", "1"); } catch { /* storage unavailable */ }
       login(data.user, data.accessToken, data.refreshToken, data.expiresInSeconds);
       router.push(postLoginDestination(data.user, safeFrom));
     } catch (unknownError: unknown) {
