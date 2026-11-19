@@ -659,10 +659,11 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
           setDraftErrorByPath((e) => ({ ...e, [p]: err?.message || 'Import failed' }));
         }
       }
-      // If every file in the folder is now handled (done/error), purge it.
+      // Purge the folder only when every file was imported or skipped. A file that failed validation stays so it can be fixed and
+      // retried; the 30-minute auto-purge still clears it later.
       const allHandled = draftFiles.every((f) => {
         const st = handledStatus[f.path] || draftStatusByPath[f.path];
-        return st === 'done' || st === 'skipped' || st === 'error';
+        return st === 'done' || st === 'skipped';
       });
       if (allHandled) {
         await discardDraftWorkspace();
