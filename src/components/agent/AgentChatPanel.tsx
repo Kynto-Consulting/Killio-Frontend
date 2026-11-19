@@ -907,6 +907,11 @@ export function AssistantMessage({
       ? t("agent.messages.actionCount_one")
       : t("agent.messages.actionCount_other", { count });
 
+  // Still waiting for the first token and nothing to draw yet: the panel's single "thinking" bubble covers this, so no empty row.
+  if (message.isStreaming && !visibleText.trim() && !hasPartialToolCall && !hasInlineToolChips && dedupedMarkupBlocks.length === 0 && (message.toolEvents ?? []).length === 0) {
+    return null;
+  }
+
   return (
     <div className="flex justify-start gap-2 group">
       <div className="shrink-0 flex items-start mt-0.5">
