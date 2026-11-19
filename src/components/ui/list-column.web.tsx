@@ -223,6 +223,17 @@ export function ListColumnWeb({
           )}
         </div>
         <div className="flex items-center space-x-1 relative">
+          {!isGuest ? (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label={t("list.addCard")}
+              title={t("list.addCard")}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setCollapsed(true)}
