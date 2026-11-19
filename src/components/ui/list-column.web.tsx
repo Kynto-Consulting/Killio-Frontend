@@ -239,18 +239,6 @@ export function ListColumnWeb({
           >
             <MoreHorizontal className="h-4 w-4" />
           </button>
-          {/* last in the row, next to the count: the hover-only buttons grow to its left, so the + never moves */}
-          {!isGuest ? (
-            <button
-              type="button"
-              onClick={() => setIsModalOpen(true)}
-              className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              aria-label={t("list.addCard")}
-              title={t("list.addCard")}
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-          ) : null}
 
           {isMenuOpen && (
             <div className="absolute right-0 top-8 w-52 bg-background border border-border rounded-md shadow-lg py-1 z-10 text-sm">
@@ -327,6 +315,18 @@ export function ListColumnWeb({
             onResetSort={isSorted ? resetSort : undefined}
             onOpenTab={setViewTab}
           />
+          {/* last in the row, next to the count: the hover-only buttons and the filter indicator appear to its left, so the + never moves */}
+          {!isGuest ? (
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(true)}
+              className="h-6 w-6 rounded hover:bg-accent/10 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              aria-label={t("list.addCard")}
+              title={t("list.addCard")}
+            >
+              <Plus className="h-4 w-4" />
+            </button>
+          ) : null}
           <span className="text-xs font-medium text-muted-foreground bg-background/50 px-2 py-0.5 rounded-full ml-1 tabular-nums" title={total !== list.cards.length ? tf("bar.count", { shown: list.cards.length, total }) : undefined}>
             {total !== list.cards.length ? `${list.cards.length}/${total}` : list.cards.length}
           </span>
