@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Copy, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, Copy, Loader2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -42,6 +42,22 @@ const newId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto
 const inputCls = "h-9 w-full rounded-md border border-border bg-background px-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60";
 const ghostBtn = "inline-flex h-9 items-center gap-1.5 rounded-md border border-border bg-background px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50";
 const primaryBtn = "inline-flex h-9 items-center gap-1.5 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50";
+
+const ICON_SUGGESTIONS = ["🧾", "🐞", "✨", "📌", "🚀", "🔧", "📊", "✅", "💡", "📞"];
+const OFFSET_PRESETS = ["0", "1", "3", "7", "14"];
+
+/** Quick picks under a day-offset input: no date, today, or a few common distances. */
+function OffsetPresets({ value, onPick, t }: { value: string; onPick: (v: string) => void; t: (k: string) => string }) {
+  const chip = (on: boolean) => `inline-flex h-6 items-center rounded-full border px-2 text-[11px] font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "border-primary bg-primary/10 text-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted"}`;
+  return (
+    <div className="flex flex-wrap gap-1">
+      <button type="button" className={chip(value.trim() === "")} onClick={() => onPick("")}>{t("cardTemplates.editor.offsetNone")}</button>
+      {OFFSET_PRESETS.map((v) => (
+        <button key={v} type="button" className={chip(value.trim() === v)} onClick={() => onPick(v)}>{v === "0" ? t("cardTemplates.editor.offsetToday") : `+${v}`}</button>
+      ))}
+    </div>
+  );
+}
 
 const tagDot = (color?: string | null) => (color ? (color.startsWith("#") ? color : `#${color}`) : "transparent");
 
@@ -362,7 +378,10 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                 className={`flex w-full items-center gap-2 rounded-md px-2.5 py-2 text-left text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${selected === tpl.id ? "bg-primary/10 font-medium text-primary" : "text-foreground hover:bg-muted"}`}
               >
                 <span aria-hidden="true" className="w-5 shrink-0 text-center">{tpl.icon || ""}</span>
-                <span className="min-w-0 flex-1 truncate">{tpl.name}</span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{tpl.name}</span>
+                  {tpl.description ? <span className="block truncate text-[11px] font-normal text-muted-foreground">{tpl.description}</span> : null}
+                </span>
               </button>
             ))}
           </nav>
@@ -387,6 +406,11 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                     <span className="text-sm font-semibold">{t("cardTemplates.editor.icon")}</span>
                     <input className={inputCls} value={form.icon} maxLength={TEMPLATE_LIMITS.icon} onChange={(e) => patch({ icon: e.target.value })} placeholder={t("cardTemplates.editor.iconPlaceholder")} />
                   </label>
+                </div>
+                <div className="-mt-3 flex flex-wrap items-center gap-1" role="group" aria-label={t("cardTemplates.editor.iconSuggestions")}>
+                  {ICON_SUGGESTIONS.map((e) => (
+                    <button key={e} type="button" aria-pressed={form.icon === e} onClick={() => patch({ icon: form.icon === e ? "" : e })} className={`flex h-7 w-7 items-center justify-center rounded-md border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${form.icon === e ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted"}`}>{e}</button>
+                  ))}
                 </div>
 
                 <label className="block space-y-1">
@@ -418,11 +442,13 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                     <label className="block space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">{t("cardTemplates.editor.startOffset")}</span>
                       <input className={inputCls} inputMode="numeric" value={form.startOffset} onChange={(e) => patch({ startOffset: e.target.value })} placeholder={t("cardTemplates.editor.offsetPlaceholder")} aria-invalid={Boolean(fieldErr("startOffset"))} />
+                      <OffsetPresets value={form.startOffset} onPick={(v) => patch({ startOffset: v })} t={t} />
                       {fieldErr("startOffset") ? <span role="alert" className="text-xs text-destructive">{fieldErr("startOffset")}</span> : null}
                     </label>
                     <label className="block space-y-1">
                       <span className="text-xs font-medium text-muted-foreground">{t("cardTemplates.editor.dueOffset")}</span>
                       <input className={inputCls} inputMode="numeric" value={form.dueOffset} onChange={(e) => patch({ dueOffset: e.target.value })} placeholder={t("cardTemplates.editor.offsetPlaceholder")} aria-invalid={Boolean(fieldErr("dueOffset"))} />
+                      <OffsetPresets value={form.dueOffset} onPick={(v) => patch({ dueOffset: v })} t={t} />
                       {fieldErr("dueOffset") ? <span role="alert" className="text-xs text-destructive">{fieldErr("dueOffset")}</span> : null}
                     </label>
                   </div>
@@ -447,9 +473,9 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                                 type="button"
                                 aria-pressed={on}
                                 onClick={() => patch({ tagIds: toggleId(form.tagIds, tag.id) })}
-                                className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted"}`}
+                                className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary" : "border-border bg-background text-foreground hover:bg-muted"}`}
                               >
-                                <span className="h-2 w-2 rounded-full border border-border/60" style={{ background: tagDot(tag.color) }} />
+                                {on ? <Check className="h-3 w-3 text-primary" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full border border-border/60" style={{ background: tagDot(tag.color) }} />}
                                 {tag.name}
                               </button>
                             );

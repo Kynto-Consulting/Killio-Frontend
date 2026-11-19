@@ -2,7 +2,7 @@
 import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
+import { Check, ChevronDown, X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
 import { updateCard as apiUpdateCard, addCardTag as apiAddCardTag, removeCardTag as apiRemoveCardTag, addCardAssignee as apiAddCardAssignee, removeCardAssignee as apiRemoveCardAssignee, createCardBrick as apiCreateCardBrick, updateCardBrick as apiUpdateCardBrick, deleteCardBrick as apiDeleteCardBrick, reorderCardBricks as apiReorderCardBricks, createCard, getTagsByScope as apiGetTagsByScope, getBoardMembers as apiGetBoardMembers, listTeamMembers, getCardActivity as apiGetCardActivity, addCardComment as apiAddCardComment, createTag as apiCreateTag, updateList, uploadFile as apiUploadFile, ApiError } from "../../lib/api/contracts";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
@@ -258,6 +258,7 @@ export function CardDetailModal({
   const [cardTemplates, setCardTemplates] = useState<CardTemplate[]>([]);
   const [boardListOptions, setBoardListOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [isResolvingTemplate, setIsResolvingTemplate] = useState(false);
   const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
   /** Where the new card will be created: the list the modal was opened from, unless a template or the user changes it. */
@@ -1892,11 +1893,81 @@ export function CardDetailModal({
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
             <span className="hover:text-foreground cursor-pointer transition-colors">{boardName || "Board"}</span>
             <span className="text-border">/</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">{(!card?.id && createListId ? boardListOptions.find((l) => l.id === createListId)?.name : undefined) || listName || "List"}</span>
+            {!card?.id && !readonly && cardTemplates.length > 0 && boardListOptions.length > 0 ? (
+              <select
+                aria-label={t('cardTemplates.createdIn')}
+                title={t('cardTemplates.createdIn')}
+                value={createListId ?? listId ?? ''}
+                onChange={(e) => setCreateListId(e.target.value || null)}
+                className="max-w-[11rem] cursor-pointer truncate rounded-md border border-transparent bg-transparent py-0.5 pl-1 pr-5 text-sm text-foreground hover:border-border hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                {boardListOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+              </select>
+            ) : (
+              <span className="hover:text-foreground cursor-pointer transition-colors">{(!card?.id && createListId ? boardListOptions.find((l) => l.id === createListId)?.name : undefined) || listName || "List"}</span>
+            )}
             <span className="text-border">/</span>
             <span className="font-semibold text-foreground truncate max-w-[200px]">{localTitle || card?.title || "Untitled Card"}</span>
           </div>
           <div className="flex items-center gap-2">
+            {!card?.id && !readonly && cardTemplates.length > 0 ? (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-haspopup="listbox"
+                  aria-expanded={templateMenuOpen}
+                  onClick={() => setTemplateMenuOpen((v) => !v)}
+                  className="inline-flex h-8 max-w-[14rem] items-center gap-1.5 rounded-md border border-border bg-background px-2.5 text-sm font-medium text-foreground transition-colors hover:bg-muted focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                >
+                  {isResolvingTemplate ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-label={t('cardTemplates.applying')} /> : <FileText className="h-3.5 w-3.5 text-muted-foreground" />}
+                  <span className="truncate">{selectedTemplateId ? (cardTemplates.find((x) => x.id === selectedTemplateId)?.name ?? t('cardTemplates.pickerLabel')) : t('cardTemplates.pickerLabel')}</span>
+                  <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+                {templateMenuOpen ? (
+                  <>
+                    <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setTemplateMenuOpen(false)} />
+                    <div role="listbox" aria-label={t('cardTemplates.pickerLabel')} className="absolute right-0 top-full z-20 mt-1 max-h-[60vh] w-72 max-w-[85vw] overflow-y-auto rounded-xl border border-border bg-popover p-1 text-popover-foreground shadow-xl">
+                      {[
+                        { id: null as string | null, icon: null as string | null, name: t('cardTemplates.blank'), description: t('cardTemplates.blankHint'), meta: '' },
+                        ...cardTemplates.map((tpl) => ({
+                          id: tpl.id as string | null,
+                          icon: tpl.icon,
+                          name: tpl.name,
+                          description: tpl.description || '',
+                          meta: [
+                            tpl.targetListId ? boardListOptions.find((l) => l.id === tpl.targetListId)?.name : undefined,
+                            tpl.tagIds.length > 0 ? t('cardTemplates.metaTags', { count: tpl.tagIds.length }) : undefined,
+                          ].filter(Boolean).join(' · '),
+                        })),
+                      ].map((opt) => {
+                        const on = selectedTemplateId === opt.id;
+                        return (
+                          <button
+                            key={opt.id ?? 'blank'}
+                            type="button"
+                            role="option"
+                            aria-selected={on}
+                            disabled={isResolvingTemplate}
+                            onClick={() => { setTemplateMenuOpen(false); void applyCardTemplate(opt.id); }}
+                            className={`flex w-full items-start gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${on ? 'bg-primary/10' : 'hover:bg-muted'}`}
+                          >
+                            <span aria-hidden="true" className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-base">
+                              {opt.icon || <FileText className="h-3.5 w-3.5 text-muted-foreground" />}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium text-foreground">{opt.name}</span>
+                              {opt.description ? <span className="line-clamp-2 block text-xs text-muted-foreground">{opt.description}</span> : null}
+                              {opt.meta ? <span className="mt-0.5 block truncate text-[11px] text-muted-foreground/80">{opt.meta}</span> : null}
+                            </span>
+                            {on ? <Check className="mt-1 h-4 w-4 shrink-0 text-primary" aria-hidden="true" /> : null}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                ) : null}
+              </div>
+            ) : null}
             {!card?.id && (
               <button onClick={submitCreate} disabled={isCreating} className="bg-primary text-primary-foreground hover:bg-primary/90 px-3 py-1 rounded text-sm font-medium transition-colors disabled:opacity-50">
                 {isCreating ? "Creating..." : "Create"}
@@ -1940,63 +2011,13 @@ export function CardDetailModal({
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
           <div className={`flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar border-r border-border ${activeTab === 'details' ? 'block' : 'hidden'}`}>
             <div className="max-w-4xl mx-auto space-y-6">
-              {!card?.id && !readonly && cardTemplates.length > 0 ? (
-                <section aria-label={t('cardTemplates.pickerLabel')} className="rounded-xl border border-border bg-card/60 p-3 space-y-3">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('cardTemplates.pickerLabel')}</span>
-                    <div role="radiogroup" aria-label={t('cardTemplates.pickerLabel')} className="flex flex-wrap items-center gap-1.5">
-                      <button
-                        type="button"
-                        role="radio"
-                        aria-checked={selectedTemplateId === null}
-                        disabled={isResolvingTemplate}
-                        onClick={() => void applyCardTemplate(null)}
-                        className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${selectedTemplateId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted'}`}
-                      >
-                        {t('cardTemplates.blank')}
-                      </button>
-                      {cardTemplates.map((tpl) => (
-                        <button
-                          key={tpl.id}
-                          type="button"
-                          role="radio"
-                          aria-checked={selectedTemplateId === tpl.id}
-                          disabled={isResolvingTemplate}
-                          title={tpl.description || undefined}
-                          onClick={() => void applyCardTemplate(tpl.id)}
-                          className={`inline-flex h-8 max-w-[16rem] items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${selectedTemplateId === tpl.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted'}`}
-                        >
-                          {tpl.icon ? <span aria-hidden="true">{tpl.icon}</span> : null}
-                          <span className="truncate">{tpl.name}</span>
-                        </button>
-                      ))}
-                      {isResolvingTemplate ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label={t('cardTemplates.applying')} /> : null}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                    <label htmlFor="create-card-list" className="font-medium">{t('cardTemplates.createdIn')}</label>
-                    {boardListOptions.length > 0 ? (
-                      <select
-                        id="create-card-list"
-                        value={createListId ?? listId ?? ''}
-                        onChange={(e) => setCreateListId(e.target.value || null)}
-                        className="h-8 max-w-[16rem] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                      >
-                        {boardListOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-                      </select>
-                    ) : (
-                      <span className="font-medium text-foreground">{listName || '-'}</span>
-                    )}
-                  </div>
-                  {templateWarnings.length > 0 ? (
-                    <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
-                      <p className="font-semibold">{t('cardTemplates.warningsTitle')}</p>
-                      <ul className="mt-1 list-disc pl-4 space-y-0.5">
-                        {templateWarnings.map((w, i) => <li key={i}>{w}</li>)}
-                      </ul>
-                    </div>
-                  ) : null}
-                </section>
+              {!card?.id && !readonly && templateWarnings.length > 0 ? (
+                <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                  <p className="font-semibold">{t('cardTemplates.warningsTitle')}</p>
+                  <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                    {templateWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                  </ul>
+                </div>
               ) : null}
               <div className="group relative">
                 <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")} />
