@@ -688,7 +688,7 @@ function TeamsPageInner() {
                     </div>
 
                     {/* Avatar + name + email */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, paddingRight: 60 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14, paddingRight: isMe ? 112 : 70 }}>
                       <div
                         onClick={!isMe && activeTeamId ? (e) => {
                           const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -705,7 +705,6 @@ function TeamsPageInner() {
                           <span style={{ fontSize: 14, fontWeight: 700, color: "hsl(var(--ink))", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                             {member.alias || member.name}
                           </span>
-                          <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: isActive ? "#4ade80" : "hsl(var(--ink) / 0.15)" }} />
                         </div>
                         {member.alias && (
                           <div style={{ fontSize: 10, color: "hsl(var(--ink) / 0.3)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{member.name}</div>
