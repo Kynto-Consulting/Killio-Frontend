@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { ProfileHover } from "@/components/ui/profile-hover";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronDown, ChevronRight, Columns3, MessageSquare, Plus, Search, X } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -52,10 +53,19 @@ interface BoardListViewProps {
 
 function Avatar({ assignee }: { assignee: any }) {
   const name = assignee?.name || assignee?.displayName || assignee?.email || "";
+  return (
+    <ProfileHover name={name} email={assignee?.email} avatarUrl={assignee?.avatar_url || assignee?.avatarUrl}>
+      <AvatarFace assignee={assignee} />
+    </ProfileHover>
+  );
+}
+
+function AvatarFace({ assignee }: { assignee: any }) {
+  const name = assignee?.name || assignee?.displayName || assignee?.email || "";
   const url = assignee?.avatar_url || assignee?.avatarUrl;
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={getUserAvatarUrl(url, assignee?.email, 24)} alt={name} title={name} className="h-6 w-6 shrink-0 rounded-full border border-border object-cover" />;
+    return <img src={getUserAvatarUrl(url, assignee?.email, 24)} alt={name} className="h-6 w-6 shrink-0 rounded-full border border-border object-cover" />;
   }
   return (
     <span title={name || undefined} className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-border text-[10px] font-semibold text-white" style={{ backgroundColor: `hsl(${nameHue(name)} 55% 42%)` }}>

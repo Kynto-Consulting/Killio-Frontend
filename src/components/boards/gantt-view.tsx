@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ProfileHover } from "@/components/ui/profile-hover";
 import { CalendarDays, ChartGantt, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -37,11 +38,19 @@ function assigneeName(a: any): string {
 }
 
 function Avatar({ assignee }: { assignee: any }) {
+  return (
+    <ProfileHover name={assigneeName(assignee)} email={assignee?.email} avatarUrl={assignee?.avatar_url || assignee?.avatarUrl}>
+      <AvatarFace assignee={assignee} />
+    </ProfileHover>
+  );
+}
+
+function AvatarFace({ assignee }: { assignee: any }) {
   const name = assigneeName(assignee);
   const url = assignee?.avatar_url || assignee?.avatarUrl;
   if (url) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={getUserAvatarUrl(url, assignee?.email, 24)} alt={name} title={name} className="h-6 w-6 shrink-0 rounded-full object-cover" />;
+    return <img src={getUserAvatarUrl(url, assignee?.email, 24)} alt={name} className="h-6 w-6 shrink-0 rounded-full object-cover" />;
   }
   const hue = nameHue(name);
   return (

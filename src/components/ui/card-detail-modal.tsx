@@ -1,6 +1,7 @@
 "use client";
 import { useActionTheme } from "@/hooks/use-action-theme";
 
+import { ProfileHover } from "@/components/ui/profile-hover";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { Check, ChevronDown, Sparkles, X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
@@ -2286,7 +2287,7 @@ export function CardDetailModal({
                   <div className="flex items-center space-x-2 relative ml-auto">
                     <Users className="w-4 h-4" />
                     <div className="flex -space-x-2 overflow-hidden">
-                      {localAssignees.map(u => <img key={u.id} src={getUserAvatarUrl(u.avatar_url, u.email, 24)} alt={u.name} className="h-6 w-6 rounded-full border-2 border-background object-cover" />)}
+                      {localAssignees.map(u => <ProfileHover key={u.id} name={u.name} email={u.email} avatarUrl={u.avatar_url}><img src={getUserAvatarUrl(u.avatar_url, u.email, 24)} alt={u.name} className="h-6 w-6 rounded-full border-2 border-background object-cover" /></ProfileHover>)}
                     </div>
                     <button onClick={() => { setIsTimerDropdownOpen(false); setIsAssigneeDropdownOpen(!isAssigneeDropdownOpen); }} disabled={readonly} className="h-6 w-6 rounded-full border border-dashed flex items-center justify-center ml-1 disabled:opacity-40"><UserPlus className="h-3 w-3" /></button>
                     {card?.id && localAssignees.length > 0 && isCurrentUserAssigned ? (

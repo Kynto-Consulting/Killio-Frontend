@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
+import { ProfileHover } from "@/components/ui/profile-hover";
 import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -295,13 +296,13 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
             {(card.assignees || []).length > 0 && (
               <div className="flex items-center -space-x-1.5">
                 {assignees.map((assignee: any) => (
-                  <img
-                    key={assignee.id}
-                    src={getUserAvatarUrl(assignee.avatar_url || assignee.avatarUrl, assignee.email, 20)}
-                    alt={assignee.name || assignee.displayName || assignee.email}
-                    title={assignee.name || assignee.displayName || assignee.email}
-                    className="h-5 w-5 rounded-full border border-border/70 object-cover bg-muted"
-                  />
+                  <ProfileHover key={assignee.id} name={assignee.name || assignee.displayName || assignee.email || ""} email={assignee.email} avatarUrl={assignee.avatar_url || assignee.avatarUrl}>
+                    <img
+                      src={getUserAvatarUrl(assignee.avatar_url || assignee.avatarUrl, assignee.email, 20)}
+                      alt={assignee.name || assignee.displayName || assignee.email}
+                      className="h-5 w-5 rounded-full border border-border/70 object-cover bg-muted"
+                    />
+                  </ProfileHover>
                 ))}
                 {hiddenAssigneesCount > 0 && (
                   <span className="ml-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full border border-border bg-muted px-1 text-[10px] font-medium text-muted-foreground">
