@@ -13,7 +13,26 @@ export interface AgentConversation {
   updatedAt: string;
 }
 
-export type AgentStreamEvent =
+/** Conversation persistence: ephemeral conversations are not kept in the user's history. */
+export type AgentConversationMode = 'ephemeral' | 'saved';
+
+/** Page the palette scopes a question to (the board/document/mesh currently open). */
+export interface AgentPageContext {
+  type: 'board' | 'document' | 'mesh';
+  id: string;
+}
+
+/** Optional metadata any stream event may carry (palette phase 1). */
+export interface AgentStreamMeta {
+  conversationId?: string;
+  mode?: AgentConversationMode;
+  /** 0-100 share of the per-user monthly cap already used. */
+  usagePercent?: number;
+}
+
+export type AgentStreamEvent = AgentStreamEventBase & AgentStreamMeta;
+
+type AgentStreamEventBase =
   | { type: 'tool_start'; id?: string; tool: string; input?: Record<string, unknown> }
   | { type: 'tool_done'; id?: string; tool: string; success: boolean; durationMs: number; input?: Record<string, unknown>; output?: Record<string, unknown> }
   | { type: 'tool_approval_request'; id?: string; tool: string; input: Record<string, unknown> }
@@ -43,7 +62,7 @@ export type AgentStreamEvent =
       draftFiles?: AgentVfsFile[];
       draftFolders?: Record<string, AgentVfsFolderMeta>;
     }
-  | { type: 'error'; message: string };
+  | { type: 'error'; message: string; code?: string; status?: number };
 
 /** One model in the catalog returned by GET /agent/models. */
 export interface AgentModelOption {
@@ -200,6 +219,12 @@ export function streamAgentChat(
     /** Preferred model id for this message. Validated + clamped to plan
      *  server-side; once-only change per conversation is enforced there. */
     model?: string;
+    /** Command palette: 'ephemeral' conversations are not kept in the history. */
+    mode?: AgentConversationMode;
+    /** Where the request comes from; the backend applies palette rules to 'palette'. */
+    source?: 'palette';
+    /** Scope the question to the page the user has open. */
+    pageContext?: AgentPageContext;
   },
   accessToken: string,
   onEvent: (event: AgentStreamEvent) => void,
@@ -222,7 +247,15 @@ export function streamAgentChat(
     .then(async (res) => {
       try {
         if (!res.ok || !res.body) {
-          onEvent({ type: 'error', message: `Agent stream failed (${res.status})` });
+          // Keep the message as it was; add the HTTP status and, when the body
+          // carries one, the machine code (e.g. PER_USER_CAP_REACHED).
+          let code: string | undefined;
+          try {
+            const payload = await res.json();
+            const raw = payload?.code ?? payload?.error?.code ?? payload?.message?.code;
+            if (typeof raw === 'string') code = raw;
+          } catch { /* body is not JSON */ }
+          onEvent({ type: 'error', message: `Agent stream failed (${res.status})`, status: res.status, code });
           return;
         }
         const reader = res.body.getReader();
@@ -294,4 +327,67 @@ export async function getProactiveSuggestion(
   });
   if (!res.ok) return { text: '' };
   return res.json();
+}
+
+// ── Command palette (phase 1) ────────────────────────────────────────────────
+
+export interface AiPaletteSettings {
+  defaultMode: AgentConversationMode;
+  /** When true the member cannot change the mode of a conversation. */
+  lockMode: boolean;
+  retentionDays?: number;
+  perUserMonthlyCredits?: number | null;
+}
+
+const DEFAULT_AI_PALETTE_SETTINGS: AiPaletteSettings = { defaultMode: 'ephemeral', lockMode: false };
+
+/** GET /teams/:teamId/ai-palette-settings. Any failure falls back to ephemeral + unlocked. */
+export async function getAiPaletteSettings(teamId: string, accessToken: string): Promise<AiPaletteSettings> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/teams/${encodeURIComponent(teamId)}/ai-palette-settings`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!res.ok) return { ...DEFAULT_AI_PALETTE_SETTINGS };
+    const body = await res.json();
+    return {
+      ...DEFAULT_AI_PALETTE_SETTINGS,
+      ...body,
+      defaultMode: body?.defaultMode === 'saved' ? 'saved' : 'ephemeral',
+      lockMode: body?.lockMode === true,
+    };
+  } catch {
+    return { ...DEFAULT_AI_PALETTE_SETTINGS };
+  }
+}
+
+/** PATCH /agent/conversations/:id — rename and/or promote an ephemeral conversation to saved. */
+export async function updateAgentConversation(
+  conversationId: string,
+  patch: { title?: string; mode?: 'saved' },
+  accessToken: string,
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/agent/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+      body: JSON.stringify(patch),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** DELETE /agent/conversations/:id — owner only. Best effort; `keepalive` lets it survive a tab close. */
+export async function deleteAgentConversation(conversationId: string, accessToken: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/agent/conversations/${encodeURIComponent(conversationId)}`, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${accessToken}` },
+      keepalive: true,
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }

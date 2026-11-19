@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import { useSession } from "@/components/providers/session-provider";
-import { streamAgentChat, AgentEntityScope, AgentStreamEvent, getAgentMessages } from "@/lib/api/agent";
+import { streamAgentChat, AgentEntityScope, AgentStreamEvent, AgentConversationMode, AgentPageContext, getAgentMessages } from "@/lib/api/agent";
 import { buildAiMessageWithReferenceContext } from "@/lib/reference-ai-context";
 import type { ResolverContext } from "@/lib/reference-resolver";
 
@@ -106,6 +106,16 @@ export interface UseAgentChatOptions {
    *  .kd/.kb/.km/.ks files and emits killio_import chips that the chat
    *  renders, which then land in the local FS handle). */
   workspaceSlug?: string;
+  /** Command palette: persistence mode sent on every request. */
+  mode?: AgentConversationMode;
+  /** Command palette: marks the request as coming from the palette. */
+  source?: "palette";
+  /** Command palette: scopes the question to the page the user has open. */
+  pageContext?: AgentPageContext;
+  /** Continue an existing conversation (e.g. one handed over from the palette). */
+  initialConversationId?: string;
+  /** Raw stream events, for callers that need metadata the chat state does not keep (usagePercent, error codes…). */
+  onStreamEvent?: (event: AgentStreamEvent) => void;
 }
 
 function parseInvokeParameters(inputStr: string): Record<string, unknown> {
@@ -260,13 +270,26 @@ export function parseInlineToolEvents(content: string): ToolEvent[] {
   return events;
 }
 
-export function useAgentChat({ teamId, entityType, entityId, resolverContext, workspaceSlug }: UseAgentChatOptions) {
+/** Only the fields that are set, so the panel's requests stay byte-identical to what they were. */
+function paletteBodyExtras(extras: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext }) {
+  const out: { mode?: AgentConversationMode; source?: "palette"; pageContext?: AgentPageContext } = {};
+  if (extras.mode) out.mode = extras.mode;
+  if (extras.source) out.source = extras.source;
+  if (extras.pageContext) out.pageContext = extras.pageContext;
+  return out;
+}
+
+export function useAgentChat({ teamId, entityType, entityId, resolverContext, workspaceSlug, mode, source, pageContext, initialConversationId, onStreamEvent }: UseAgentChatOptions) {
   const { accessToken } = useSession();
   const [messages, setMessages] = useState<AgentMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [activeToolEvents, setActiveToolEvents] = useState<ToolEvent[]>([]);
-  const conversationIdRef = useRef<string | undefined>(undefined);
+  const conversationIdRef = useRef<string | undefined>(initialConversationId);
+  // Palette extras live in a ref refreshed every render so the stable stream
+  // handler and the send callbacks always see the latest values.
+  const extrasRef = useRef({ mode, source, pageContext, onStreamEvent });
+  extrasRef.current = { mode, source, pageContext, onStreamEvent };
   const cancelRef = useRef<(() => void) | null>(null);
   const lastUserTextRef = useRef<string>("");
   // Preferred model for the next message. Threaded into /agent/chat/stream as
@@ -287,6 +310,10 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
   const makeStreamHandler = useCallback(
     (assistantId: string, toolEvts: ToolEvent[], accTextRef: { current: string }) =>
       (event: AgentStreamEvent) => {
+        extrasRef.current.onStreamEvent?.(event);
+        if (typeof event.conversationId === "string" && event.conversationId) {
+          conversationIdRef.current = event.conversationId;
+        }
         switch (event.type) {
           case "tool_start":
             toolEvts.push({ id: (event as any).id, tool: event.tool, input: event.input, phase: "start" });
@@ -432,7 +459,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
       const toolEvts: ToolEvent[] = [];
 
       const cancel = streamAgentChat(
-        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug, model: selectedModelRef.current },
+        { conversationId: conversationIdRef.current, teamId, entityType, entityId, message, workspaceSlug, model: selectedModelRef.current, ...paletteBodyExtras(extrasRef.current) },
         accessToken!,
         makeStreamHandler(assistantId, toolEvts, accTextRef),
       );
@@ -587,6 +614,7 @@ export function useAgentChat({ teamId, entityType, entityId, resolverContext, wo
         approvalToolCall: { id: toolId, name: toolName, input },
         workspaceSlug,
         model: selectedModelRef.current,
+        ...paletteBodyExtras(extrasRef.current),
       },
       accessToken!,
       makeStreamHandler(assistantId, toolEvts, accTextRef),

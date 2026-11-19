@@ -118,6 +118,8 @@ interface AgentChatPanelProps {
   cards?: any[];
   bricks?: any[];
   resolverContext?: ResolverContext;
+  /** Open an existing conversation on mount (e.g. handed over from the command palette). */
+  initialConversationId?: string;
 }
 
 // ─── Entity config ────────────────────────────────────────────────────────────
@@ -256,6 +258,7 @@ export function AgentChatPanel({
   cards = [],
   bricks = [],
   resolverContext,
+  initialConversationId,
 }: AgentChatPanelProps) {
   const { accessToken } = useSession();
   const t = useTranslations("common");
@@ -315,6 +318,13 @@ export function AgentChatPanel({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, activeToolEvents]);
+
+  const initialConversationLoadedRef = useRef(false);
+  useEffect(() => {
+    if (!initialConversationId || initialConversationLoadedRef.current) return;
+    initialConversationLoadedRef.current = true;
+    loadConversation(initialConversationId);
+  }, [initialConversationId, loadConversation]);
 
   useEffect(() => {
     if (initialMessage && !initialSentRef.current) {

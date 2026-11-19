@@ -9,6 +9,7 @@
     "test:template-format": "node scripts/template-formatting-smoke-active.js",
     "test:history": "node --experimental-strip-types --test \"src/lib/history/*.test.ts\"",
     "test:latex": "node --experimental-strip-types --test \"src/lib/latex/*.test.ts\"",
+    "test:palette-ask": "node --experimental-strip-types --test \"src/lib/palette-ask/*.test.ts\"",
     "build:turbo": "next build --turbo"
   },
   "dependencies": {

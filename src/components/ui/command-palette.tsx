@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { SuggestionItem, suggestCommand, tokenize } from "@kyntocg/river";
 import { Command } from "cmdk";
 import {
@@ -22,6 +22,7 @@ import {
   Tag,
   Edit3,
   FileText,
+  Sparkles,
 } from "lucide-react";
 import { toast } from "@/lib/toast";
 import { usePathname, useRouter } from "next/navigation";
@@ -51,6 +52,17 @@ import {
 } from "@/lib/api/contracts";
 import { useSession } from "@/components/providers/session-provider";
 import { killioArgs, PaletteParseContext, type BoardSnapshot } from "@/lib/commands/args";
+import { useI18n } from "@/components/providers/i18n-provider";
+import { useBrandName, useTenant } from "@/components/providers/tenant-provider";
+import { AgentChatPanel } from "@/components/agent";
+import { PaletteAskPanel, type AskPageScope } from "@/components/ui/command-palette-ask";
+import { resolveEnterAction, resolvePaletteIntent, resolveTabAction } from "@/lib/palette-ask/intent";
+import { fmt, getAskCopy } from "@/lib/palette-ask/copy";
+
+/** cmdk value of the "Preguntar a …" row; Enter/Tab look for it to know the row is the selected one. */
+const ASK_ROW_VALUE = "ask-killio-row";
+
+type FullChatHandoff = { conversationId: string; scope: AskPageScope | null };
 
 type PaletteContext = "global" | "board" | "cards" | "lists" | "system";
 
@@ -393,6 +405,21 @@ export function CommandPalette() {
   const pathname = usePathname();
   const { accessToken, activeTeamId } = useSession();
 
+  // "Preguntar a …": AI inside the palette. State of the answer panel lives in PaletteAskPanel;
+  // here we only keep what must survive going back to the command list (the draft is commandQuery).
+  const { locale: appLocale } = useI18n();
+  const brandName = useBrandName();
+  const { features } = useTenant();
+  const askCopy = useMemo(() => getAskCopy(appLocale), [appLocale]);
+  const [askActive, setAskActive] = useState(false);
+  const [askSeed, setAskSeed] = useState("");
+  const [askSession, setAskSession] = useState(0);
+  const [fullChat, setFullChat] = useState<FullChatHandoff | null>(null);
+  const [astQuery, setAstQuery] = useState("");
+  const userNavigatedRef = useRef(false);
+  const returnFocusRef = useRef<HTMLElement | null>(null);
+  const escStateRef = useRef({ open: false, askActive: false });
+
   const t = i18n[locale];
 
   const pushNotice = (variant: any, text: string) => {
@@ -557,27 +584,81 @@ export function CommandPalette() {
     let mounted = true;
     if (!commandQuery.trim()) {
       setAstSuggestions([]);
+      setAstQuery(commandQuery);
       return () => {}; // Return an empty cleanup function
     }
     suggestCommand(commandQuery, paletteCommandSpecs, parseContext, 12).then((items) => {
-      if (mounted) setAstSuggestions(items);
+      if (mounted) {
+        setAstSuggestions(items);
+        setAstQuery(commandQuery);
+      }
     });
     return () => { mounted = false; };
   }, [commandQuery, parseContext]);
 
-  const applyAutocomplete = () => {
-    if (astSuggestions.length === 0) return;
+  /** The text Tab would produce, or null when there is nothing to complete. */
+  const autocompleteText = (): string | null => {
+    if (astSuggestions.length === 0) return null;
     const target = astSuggestions[0].value;
     const tokensResult = tokenize(commandQuery);
     const tokens = [...tokensResult.tokens];
     const isVariableHint = target.startsWith("<") && target.endsWith(">");
 
     if (tokensResult.hasTrailingSpace || tokens.length === 0) {
-      setCommandQuery(commandQuery + (isVariableHint ? "" : target + " "));
-    } else {
-      tokens[tokens.length - 1] = target;
-      setCommandQuery(tokens.join(" ") + (isVariableHint ? "" : " "));
+      return commandQuery + (isVariableHint ? "" : target + " ");
     }
+    tokens[tokens.length - 1] = target;
+    return tokens.join(" ") + (isVariableHint ? "" : " ");
+  };
+
+  const applyAutocomplete = () => {
+    const next = autocompleteText();
+    if (next !== null) setCommandQuery(next);
+  };
+
+  // ── Preguntar a …: command or question? ────────────────────────────────────
+  const askEnabled = features.ai && Boolean(accessToken);
+
+  const pageScope = useMemo<AskPageScope | null>(() => {
+    const m = pathname?.match(/\/(b|d|m)\/([^/?#]+)/);
+    if (!m) return null;
+    const id = decodeURIComponent(m[2]);
+    if (m[1] === "b") return { type: "board", id, name: boardSnapshot?.id === id ? boardSnapshot.name : null };
+    return { type: m[1] === "d" ? "document" : "mesh", id };
+  }, [pathname, boardSnapshot]);
+
+  const commandMatches = useMemo(() => {
+    const q = commandQuery.trim().toLowerCase();
+    if (!q) return false;
+    const roots = new Set<string>();
+    for (const spec of paletteCommandSpecs) {
+      if (spec.available && !spec.available(parseContext)) continue;
+      const seg = spec.segments[0];
+      if (seg?.kind === "literal") roots.add(seg.value.toLowerCase());
+    }
+    const tokens = q.split(/\s+/);
+    // One word: it may be the start of a command. Several words: the first must be a command and the rest must fit it.
+    if (tokens.length === 1) return [...roots].some((root) => root.startsWith(tokens[0]));
+    if (!roots.has(tokens[0])) return false;
+    if (astQuery === commandQuery && astSuggestions.length > 0) return true;
+    try {
+      return Boolean(parseCommand(commandQuery.trim(), paletteCommandSpecs, parseContext).best?.executable);
+    } catch {
+      return false;
+    }
+  }, [commandQuery, astQuery, astSuggestions, parseContext]);
+
+  const intent = useMemo(() => resolvePaletteIntent(commandQuery, commandMatches), [commandQuery, commandMatches]);
+
+  const openAsk = (question: string) => {
+    setAskSeed(question);
+    setAskSession((n) => n + 1);
+    setAskActive(true);
+  };
+
+  const selectedRowIsAsk = () => {
+    const el = document.querySelector('[cmdk-root] [cmdk-item][aria-selected="true"]');
+    return Boolean(el?.getAttribute("data-value")?.startsWith(ASK_ROW_VALUE));
   };
 
   const enqueueTransactionAction = (action: TransactionAction) => {
@@ -1245,10 +1326,16 @@ export function CommandPalette() {
       const isCtrlK = (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "k";
       if (isCtrlK) {
         e.preventDefault();
+        if (!escStateRef.current.open && document.activeElement instanceof HTMLElement) returnFocusRef.current = document.activeElement;
         setOpen(true);
       }
       if (e.key === "Escape") {
         e.preventDefault();
+        // In the answer panel the first Esc goes back to the command list (the draft stays in the box); the next one closes.
+        if (escStateRef.current.open && escStateRef.current.askActive) {
+          setAskActive(false);
+          return;
+        }
         setOpen(false);
       }
     };
@@ -1258,7 +1345,32 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    const handleOpenCmdk = () => setOpen(true);
+    escStateRef.current = { open, askActive };
+  }, [open, askActive]);
+
+  // Leaving the palette always leaves the answer panel too; focus goes back to where it was.
+  useEffect(() => {
+    if (open) return;
+    setAskActive(false);
+    setAskSeed("");
+    returnFocusRef.current?.focus?.();
+    returnFocusRef.current = null;
+  }, [open]);
+
+  // Esc from the answer panel: put the cursor back in the command box.
+  useEffect(() => {
+    if (!open || askActive) return;
+    const focusInput = () => document.querySelector<HTMLInputElement>("[cmdk-root] [cmdk-input]")?.focus();
+    focusInput();
+    const id = window.setTimeout(focusInput, 0);
+    return () => window.clearTimeout(id);
+  }, [open, askActive]);
+
+  useEffect(() => {
+    const handleOpenCmdk = () => {
+      if (!escStateRef.current.open && document.activeElement instanceof HTMLElement) returnFocusRef.current = document.activeElement;
+      setOpen(true);
+    };
     window.addEventListener("open-cmdk", handleOpenCmdk);
     return () => window.removeEventListener("open-cmdk", handleOpenCmdk);
   }, []);
@@ -1285,7 +1397,24 @@ export function CommandPalette() {
     setCurrentContext(isBoardContext ? "board" : "global");
   }, [open, isBoardContext]);
 
-  if (!open) return null;
+  const fullChatDrawer = fullChat ? (
+    <div
+      role="dialog"
+      aria-label={fmt(askCopy.panel.dialogLabel, { brand: brandName })}
+      className="fixed bottom-0 right-0 top-0 z-[100] flex w-[min(440px,100vw)] shadow-2xl"
+    >
+      <AgentChatPanel
+        teamId={activeTeamId ?? ""}
+        entityType={fullChat.scope?.type}
+        entityId={fullChat.scope?.id}
+        initialConversationId={fullChat.conversationId}
+        onClose={() => setFullChat(null)}
+        className="flex-1 border-l border-border"
+      />
+    </div>
+  ) : null;
+
+  if (!open) return fullChatDrawer;
 
   const boardCards = boardSnapshot?.lists.flatMap((list) => list.cards) ?? [];
   const boardCardsWithDueDate = boardCards.filter((card) => Boolean(card.dueAt));
@@ -1298,9 +1427,31 @@ export function CommandPalette() {
   const itemClassName =
     "flex items-center gap-3 px-3 py-2 text-sm rounded-md cursor-pointer hover:bg-accent/10 hover:text-foreground text-foreground/80 transition-colors aria-selected:bg-accent/10 aria-selected:text-foreground mt-1";
 
+  const askRowOnTop = askEnabled && !(intent.askPosition === "second" && astSuggestions.length > 0);
+  const askRowContent = (
+    <>
+      <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+      <div className="min-w-0 flex-1">
+        <div className="truncate font-medium">
+          {intent.kind === "empty" ? askCopy.row.empty : fmt(askCopy.row.title, { brand: brandName })}
+        </div>
+        {intent.kind !== "empty" && intent.question ? (
+          <div className="truncate text-xs text-muted-foreground">«{intent.question}»</div>
+        ) : null}
+      </div>
+      {intent.suggested ? (
+        <span className="rounded-full border border-border px-1.5 py-0.5 text-[10px] text-muted-foreground">{askCopy.row.suggested}</span>
+      ) : null}
+      <span className="rounded border border-accent/20 bg-accent/10 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+        {intent.askPosition === "second" ? askCopy.row.tab : "↵ " + askCopy.row.enter}
+      </span>
+    </>
+  );
+
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm p-4">
+    <div className={`fixed inset-0 z-[100] flex items-start justify-center pt-[15vh] bg-background/80 backdrop-blur-sm p-4 ${askActive ? "max-sm:p-0 max-sm:pt-0" : ""}`}>
       <div className="absolute inset-0 -z-10" onClick={() => setOpen(false)} />
+      {fullChatDrawer}
 
       {notices.length > 0 ? (
         <div className="fixed top-4 right-4 z-[90] flex w-full max-w-sm flex-col gap-2">
@@ -1321,23 +1472,63 @@ export function CommandPalette() {
         </div>
       ) : null}
 
-      <div className="w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
-        <Command label="Global Command Menu" className="flex flex-col w-full h-full">
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={askActive ? fmt(askCopy.panel.dialogLabel, { brand: brandName }) : "Global Command Menu"}
+        className={`w-full max-w-xl rounded-xl border border-border bg-card shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 ${askActive ? "max-sm:h-full max-sm:max-w-none max-sm:rounded-none max-sm:border-0" : ""}`}
+      >
+        {askActive ? (
+          <PaletteAskPanel
+            key={askSession}
+            teamId={activeTeamId ?? ""}
+            initialQuestion={askSeed}
+            pageScope={pageScope}
+            onBack={() => setAskActive(false)}
+            onClose={() => setOpen(false)}
+            onExpand={(conversationId) => {
+              setFullChat({ conversationId, scope: pageScope });
+              setOpen(false);
+            }}
+          />
+        ) : null}
+        <Command label="Global Command Menu" className={`flex flex-col w-full h-full ${askActive ? "hidden" : ""}`}>
           <div className="border-b border-border px-4 py-3">
             <div className="flex items-center gap-3">
               <Search className="h-5 w-5 text-muted-foreground" />
               <Command.Input
                 autoFocus
                 value={commandQuery}
-                onValueChange={setCommandQuery}
+                onValueChange={(value) => {
+                  userNavigatedRef.current = false;
+                  setCommandQuery(value);
+                }}
                 onKeyDown={async (e) => {
+                  if (e.key === "ArrowDown" || e.key === "ArrowUp") userNavigatedRef.current = true;
                   if (e.key === "Tab") {
                     e.preventDefault();
+                    if (askEnabled) {
+                      // Tab completes a command; when there is nothing left to complete it picks "Preguntar a …".
+                      const next = autocompleteText();
+                      if (resolveTabAction(intent, next !== null && next !== commandQuery) === "ask") {
+                        openAsk(intent.question);
+                        return;
+                      }
+                    }
                     applyAutocomplete();
                     return;
                   }
                   if (e.key === "Enter" && commandQuery.trim()) {
                     e.preventDefault();
+                    if (askEnabled) {
+                      let action = resolveEnterAction(intent);
+                      if (userNavigatedRef.current) action = selectedRowIsAsk() ? "ask" : "command";
+                      else if (intent.kind === "forced") action = "ask";
+                      if (action === "ask") {
+                        openAsk(intent.question);
+                        return;
+                      }
+                    }
                     await executeCommandWithArgs(commandQuery);
                   }
                 }}
@@ -1378,9 +1569,17 @@ export function CommandPalette() {
           </div>
 
           <Command.List className="max-h-[420px] overflow-y-auto p-2 pb-4 hide-scrollbar">
-            <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
-              Sin resultados en el contexto {contextMeta[currentContext].label}.
-            </Command.Empty>
+            {askRowOnTop ? (
+              <Command.Group forceMount className="px-2 mt-1">
+                <Command.Item forceMount value={ASK_ROW_VALUE} onSelect={() => openAsk(intent.question)} className={itemClassName}>
+                  {askRowContent}
+                </Command.Item>
+              </Command.Group>
+            ) : askEnabled ? null : (
+              <Command.Empty className="py-6 text-center text-sm text-muted-foreground">
+                Sin resultados en el contexto {contextMeta[currentContext].label}.
+              </Command.Empty>
+            )}
 
             <Command.Group heading="Context Navigator" className="px-2 text-xs font-semibold text-muted-foreground mt-2 mb-1">
               {availableContexts.map((ctx) => {
@@ -1487,7 +1686,7 @@ export function CommandPalette() {
             ) : null}
 
             {astSuggestions.length > 0 ? (
-              <Command.Group heading="Suggestions" className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
+              <Command.Group heading="Suggestions" forceMount={askEnabled && intent.askPosition === "second"} className="px-2 text-xs font-semibold text-muted-foreground mt-4 mb-1">
                 {astSuggestions.map((suggestion, idx) => {
                   const Icon = resolveIcon(suggestion.commandId) as React.ComponentType<{ className?: string }> ;
                   return (
@@ -1519,6 +1718,16 @@ export function CommandPalette() {
                     </Command.Item>
                   );
                 })}
+                {askEnabled && intent.askPosition === "second" ? (
+                  <Command.Item
+                    forceMount
+                    value={ASK_ROW_VALUE}
+                    onSelect={() => openAsk(intent.question)}
+                    className={itemClassName}
+                  >
+                    {askRowContent}
+                  </Command.Item>
+                ) : null}
               </Command.Group>
             ) : null}
 
