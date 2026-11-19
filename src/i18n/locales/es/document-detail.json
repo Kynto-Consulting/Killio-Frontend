@@ -712,5 +712,52 @@
     "slide": "Diapositiva {{n}}",
     "rowsShown": "{{n}} fila(s) mostradas"
   },
-  "loadMore": "Cargar más"
+  "loadMore": "Cargar más",
+  "payment": {
+    "untitled": "Pago",
+    "amountLabel": "Total",
+    "payNow": "Pagar ahora",
+    "copied": "Copiado",
+    "copyLink": "Copiar enlace",
+    "noCheckoutUrlHint": "Genera un link de pago configurando las credenciales del proveedor.",
+    "header": "Pago",
+    "cancel": "Cancelar",
+    "edit": "Editar",
+    "notConfigured": "Pago no configurado",
+    "notConfiguredHint": "Configura el monto y el proveedor para activar este brick.",
+    "configure": "Configurar pago",
+    "status": {
+      "pending": "Pendiente",
+      "paid": "Pagado",
+      "failed": "Fallido",
+      "refunded": "Reembolsado"
+    },
+    "state": {
+      "paidConfirmed": "Pago confirmado",
+      "failed": "Pago fallido",
+      "failedRetry": "Puedes intentarlo de nuevo."
+    },
+    "form": {
+      "titlePlaceholder": "Título del pago",
+      "descriptionPlaceholder": "Descripción opcional",
+      "amount": "Monto",
+      "currency": "Moneda",
+      "provider": "Proveedor",
+      "providerStripe": "Stripe",
+      "providerPaypal": "PayPal",
+      "providerMercadoPago": "MercadoPago",
+      "checkoutUrl": "URL de pago (opcional)",
+      "checkoutUrlPlaceholder": "https://... (si tienes un link externo)",
+      "checkoutUrlHint": "Si está vacío se generará automáticamente con las credenciales del workspace. Solo se admiten enlaces https.",
+      "checkoutUrlInvalid": "La URL de pago debe empezar con https://",
+      "save": "Guardar",
+      "saving": "Guardando...",
+      "linkError": "No se pudo generar el link de pago.",
+      "postPayment": "Notificación post-pago",
+      "loadingScripts": "Cargando...",
+      "noScript": "Sin script de notificación",
+      "credentialsInfo": "Las credenciales del proveedor se gestionan en Integrations del workspace.",
+      "openIntegrations": "Abrir Integrations"
+    }
+  }
 }

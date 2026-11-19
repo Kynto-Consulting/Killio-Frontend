@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { CreditCard, AlertCircle, CheckCircle2, Copy, ExternalLink, Lock, RefreshCw, Loader2, Clock, RotateCcw, Settings } from 'lucide-react';
-import { useTranslations } from '@/components/providers/i18n-provider';
+import { useParams } from 'next/navigation';
+import { useI18n, useTranslations } from '@/components/providers/i18n-provider';
 import { useSession } from '@/components/providers/session-provider';
 import { listScripts, type ScriptSummary } from '@/lib/api/scripts';
 import { createPaymentLink, type CreatePaymentLinkPayload } from '@/lib/api/payments';
@@ -46,7 +47,19 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   ARS: '$',
   MXN: '$',
   BRL: 'R$',
+  PEN: 'S/',
 };
+
+/** Only https: links are rendered/clickable (blocks javascript:, data:, http:). */
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== 'string' || !value.trim()) return false;
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === 'https:' && !url.username && !url.password;
+  } catch {
+    return false;
+  }
+}
 
 const StatusIcon = ({ status }: { status: string }) => {
   if (status === 'paid') return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
@@ -64,6 +77,11 @@ export function UnifiedPaymentBrick({
 }: UnifiedPaymentBrickProps) {
   const t = useTranslations('document-detail');
   const { activeTeamId, accessToken } = useSession();
+  const { locale } = useI18n();
+  const routeParams = useParams() as { path?: string | string[]; docId?: string; id?: string } | null;
+  // Document routes are /d/[...path] (first segment = document id); public/other routes use docId or id.
+  const routePath = routeParams?.path;
+  const documentId = (Array.isArray(routePath) ? routePath[0] : routePath) || routeParams?.docId || routeParams?.id || undefined;
 
   const [isEditing, setIsEditing] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
@@ -115,10 +133,16 @@ export function UnifiedPaymentBrick({
     let checkoutUrl = formData.checkoutUrl.trim();
     let externalProductId = content.externalProductId ?? null;
 
-    if (!checkoutUrl && formData.amount > 0 && accessToken) {
+    if (checkoutUrl && !isHttpsUrl(checkoutUrl)) {
+      toast(t('payment.form.checkoutUrlInvalid'), 'error');
+      setIsSaving(false);
+      return;
+    }
+
+    if (!checkoutUrl && formData.amount > 0 && accessToken && documentId) {
       try {
         const payload: CreatePaymentLinkPayload = {
-          cardId: id,
+          documentId,
           brickId: id,
           title: formData.title,
           description: formData.description || undefined,
@@ -129,7 +153,7 @@ export function UnifiedPaymentBrick({
         };
 
         const paymentLink = await createPaymentLink(payload, accessToken);
-        checkoutUrl = paymentLink.checkoutUrl;
+        checkoutUrl = isHttpsUrl(paymentLink.checkoutUrl) ? paymentLink.checkoutUrl : '';
         externalProductId = paymentLink.externalProductId ?? null;
       } catch (error) {
         console.error('Error generating payment link:', error);
@@ -147,7 +171,6 @@ export function UnifiedPaymentBrick({
       connectionId: formData.connectionId,
       checkoutUrl: checkoutUrl || content.checkoutUrl || null,
       externalProductId,
-      status: content.status || 'pending',
       credentialsLocked: true,
       credentialsLastUpdatedAt: new Date().toISOString(),
     });
@@ -156,7 +179,7 @@ export function UnifiedPaymentBrick({
   };
 
   const handleCopyUrl = () => {
-    if (content.checkoutUrl) {
+    if (isHttpsUrl(content.checkoutUrl)) {
       navigator.clipboard.writeText(content.checkoutUrl);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
@@ -169,14 +192,15 @@ export function UnifiedPaymentBrick({
   };
 
   const status = content.status || 'pending';
-  const checkoutUrl = content.checkoutUrl;
+  // Never render a non-https checkout link as clickable.
+  const checkoutUrl = isHttpsUrl(content.checkoutUrl) ? content.checkoutUrl.trim() : null;
   const isConfigured = !!(content.amount && content.amount > 0);
 
   const statusConfig = {
-    pending: { color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10', label: t('payment.status.pending') || 'Pendiente' },
-    paid: { color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10', label: t('payment.status.paid') || 'Pagado' },
-    failed: { color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-500/10', label: t('payment.status.failed') || 'Fallido' },
-    refunded: { color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-500/10', label: t('payment.status.refunded') || 'Reembolsado' },
+    pending: { color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-500/10', label: t('payment.status.pending') },
+    paid: { color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-500/10', label: t('payment.status.paid') },
+    failed: { color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-500/10', label: t('payment.status.failed') },
+    refunded: { color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-500/10', label: t('payment.status.refunded') },
   };
 
   const currentStatus = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
@@ -191,9 +215,9 @@ export function UnifiedPaymentBrick({
     return (
       <div className="rounded-lg border border-border bg-card p-5 space-y-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Pago</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">{t('payment.header')}</p>
           <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => setIsEditing(false)}>
-            Cancelar
+            {t('payment.cancel')}
           </Button>
         </div>
 
@@ -235,6 +259,7 @@ export function UnifiedPaymentBrick({
               <option value="ARS">ARS</option>
               <option value="MXN">MXN</option>
               <option value="BRL">BRL</option>
+              <option value="PEN">PEN</option>
             </select>
           </div>
         </div>
@@ -264,7 +289,7 @@ export function UnifiedPaymentBrick({
 
         <div className="rounded-md border border-border/60 bg-muted/20 p-3 space-y-2">
           <div className="flex items-center justify-between gap-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Notificación post-pago</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{t('payment.form.postPayment')}</p>
             <button
               type="button"
               onClick={() => {
@@ -299,7 +324,7 @@ export function UnifiedPaymentBrick({
             disabled={isLoadingScripts}
             className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none"
           >
-            <option value="">{isLoadingScripts ? 'Cargando...' : 'Sin script de notificación'}</option>
+            <option value="">{isLoadingScripts ? t('payment.form.loadingScripts') : t('payment.form.noScript')}</option>
             {webhookScripts.map((script) => (
               <option key={script.id} value={script.id}>
                 {script.name || script.id}
@@ -312,21 +337,21 @@ export function UnifiedPaymentBrick({
           <Lock className="w-3.5 h-3.5 text-emerald-600 mt-0.5 shrink-0" />
           <div className="space-y-1">
             <p className="text-xs text-emerald-700 dark:text-emerald-300 font-medium">
-              Las credenciales del proveedor se gestionan en Integrations del workspace.
+              {t('payment.form.credentialsInfo')}
             </p>
             <button
               type="button"
               onClick={() => window.open('/integrations', '_blank')}
               className="text-xs text-emerald-600 dark:text-emerald-400 underline underline-offset-2 hover:no-underline"
             >
-              Abrir Integrations
+              {t('payment.form.openIntegrations')}
             </button>
           </div>
         </div>
 
         <Button onClick={handleSave} className="w-full" disabled={isSaving}>
           {isSaving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
-          {isSaving ? 'Guardando...' : (t('payment.form.save') || 'Guardar')}
+          {isSaving ? t('payment.form.saving') : t('payment.form.save')}
         </Button>
       </div>
     );
@@ -338,8 +363,8 @@ export function UnifiedPaymentBrick({
       <div className="rounded-lg border border-dashed border-border bg-muted/10 p-6 text-center space-y-3">
         <CreditCard className="w-8 h-8 text-muted-foreground mx-auto" />
         <div>
-          <p className="text-sm font-medium text-foreground">Pago no configurado</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Configura el monto y el proveedor para activar este brick.</p>
+          <p className="text-sm font-medium text-foreground">{t('payment.notConfigured')}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">{t('payment.notConfiguredHint')}</p>
         </div>
         <Button
           variant="outline"
@@ -350,7 +375,7 @@ export function UnifiedPaymentBrick({
           }}
         >
           <Settings className="h-3.5 w-3.5 mr-2" />
-          Configurar pago
+          {t('payment.configure')}
         </Button>
       </div>
     );
@@ -387,7 +412,7 @@ export function UnifiedPaymentBrick({
                 setIsEditing(true);
               }}
               className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
-              title="Editar"
+              title={t('payment.edit')}
             >
               <Settings className="w-3.5 h-3.5" />
             </button>
@@ -417,7 +442,7 @@ export function UnifiedPaymentBrick({
               <div className="text-sm">
                 <p className="font-medium text-emerald-600">{t('payment.state.paidConfirmed') || 'Pago confirmado'}</p>
                 <p className="text-emerald-600/80 text-xs">
-                  {new Date(content.paidAt).toLocaleDateString('es-ES', { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(content.paidAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
                 {content.payerEmail && (
                   <p className="text-emerald-600/70 text-xs mt-0.5">{content.payerEmail}</p>

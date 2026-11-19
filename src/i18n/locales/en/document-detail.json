@@ -712,5 +712,52 @@
     "slide": "Slide {{n}}",
     "rowsShown": "{{n}} row(s) shown"
   },
-  "loadMore": "Load more"
+  "loadMore": "Load more",
+  "payment": {
+    "untitled": "Payment",
+    "amountLabel": "Total",
+    "payNow": "Pay now",
+    "copied": "Copied",
+    "copyLink": "Copy link",
+    "noCheckoutUrlHint": "Generate a payment link by configuring the provider credentials.",
+    "header": "Payment",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "notConfigured": "Payment not configured",
+    "notConfiguredHint": "Set the amount and the provider to activate this brick.",
+    "configure": "Configure payment",
+    "status": {
+      "pending": "Pending",
+      "paid": "Paid",
+      "failed": "Failed",
+      "refunded": "Refunded"
+    },
+    "state": {
+      "paidConfirmed": "Payment confirmed",
+      "failed": "Payment failed",
+      "failedRetry": "You can try again."
+    },
+    "form": {
+      "titlePlaceholder": "Payment title",
+      "descriptionPlaceholder": "Optional description",
+      "amount": "Amount",
+      "currency": "Currency",
+      "provider": "Provider",
+      "providerStripe": "Stripe",
+      "providerPaypal": "PayPal",
+      "providerMercadoPago": "MercadoPago",
+      "checkoutUrl": "Payment URL (optional)",
+      "checkoutUrlPlaceholder": "https://... (if you have an external link)",
+      "checkoutUrlHint": "If empty it is generated automatically with the workspace credentials. Only https links are accepted.",
+      "checkoutUrlInvalid": "The payment URL must start with https://",
+      "save": "Save",
+      "saving": "Saving...",
+      "linkError": "The payment link could not be generated.",
+      "postPayment": "Post-payment notification",
+      "loadingScripts": "Loading...",
+      "noScript": "No notification script",
+      "credentialsInfo": "Provider credentials are managed in the workspace Integrations.",
+      "openIntegrations": "Open Integrations"
+    }
+  }
 }
