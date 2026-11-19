@@ -41,6 +41,8 @@ function LoginPageContent() {
   const allowCode = loginMode === "otp" || loginMode === "password_or_otp";
   const [preferredMethod, setPreferredMethod] = useState<"password" | "code">(loginMode === "otp" ? "code" : "password");
   const [codeSent, setCodeSent] = useState(false);
+  // true when the person already has a code (an invitation, or one sent earlier): no new code is requested
+  const [haveCode, setHaveCode] = useState(false);
   const [code, setCode] = useState("");
   // Stay inside what the tenant allows even if the config changes after first render.
   const method: "password" | "code" = !allowCode ? "password" : !allowPassword ? "code" : preferredMethod;
@@ -77,6 +79,19 @@ function LoginPageContent() {
     setPreferredMethod(next);
     setError(null);
     setCodeSent(false);
+    setHaveCode(false);
+    setCode("");
+  }
+
+  /** Goes straight to typing a code that was already received, without sending (and replacing) another one. */
+  function handleHaveCode() {
+    setError(null);
+    if (!identifier.trim().toLowerCase().includes("@")) {
+      setError(t("login.emailCodeNeedsEmail"));
+      return;
+    }
+    setHaveCode(true);
+    setCodeSent(true);
     setCode("");
   }
 
@@ -91,6 +106,7 @@ function LoginPageContent() {
     setIsLoading(true);
     try {
       await requestOtp({ email, purpose: "login" });
+      setHaveCode(false);
       setCodeSent(true);
       setCode("");
     } catch (unknownError) {
@@ -220,7 +236,7 @@ function LoginPageContent() {
           {method === "code" && codeSent && (
             <div className="space-y-2">
               <p role="status" className="rounded-md border border-border bg-background/50 p-3 text-sm text-muted-foreground">
-                {t("login.codeSentBody")}
+                {haveCode ? t("login.haveCodeBody") : t("login.codeSentBody")}
               </p>
               <label className="text-sm font-medium leading-none" htmlFor="login-code">
                 {t("login.codeLabel")}
@@ -307,6 +323,17 @@ function LoginPageContent() {
             )}
           </button>
 
+          {method === "code" && !codeSent && (
+            <button
+              type="button"
+              disabled={isLoading}
+              onClick={handleHaveCode}
+              className="inline-flex h-11 w-full items-center justify-center rounded-full border border-border text-sm font-medium transition-colors hover:bg-accent/10 disabled:opacity-60"
+            >
+              {t("login.haveCode")}
+            </button>
+          )}
+
           {method === "code" && codeSent && (
             <div className="flex items-center justify-between gap-3 text-xs">
               <button
@@ -320,7 +347,7 @@ function LoginPageContent() {
               <button
                 type="button"
                 disabled={isLoading}
-                onClick={() => { setCodeSent(false); setCode(""); setError(null); }}
+                onClick={() => { setCodeSent(false); setHaveCode(false); setCode(""); setError(null); }}
                 className="font-medium text-muted-foreground hover:text-foreground hover:underline disabled:opacity-60"
               >
                 {t("login.codeChangeEmail")}
