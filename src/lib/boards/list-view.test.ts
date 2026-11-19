@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildRows, deriveTagGroupColumns, filterRowsByText, flattenItems, groupRows, nextSort, sortRows, toggleHiddenColumn, visibleColumnIds, visibleRange } from "./list-view.ts";
+import { buildRows, deriveTagGroupColumns, filterRowsByText, flattenItems, groupRows, nextSort, sortRows, stripGroupPrefix, toggleHiddenColumn, visibleColumnIds, visibleRange } from "./list-view.ts";
 import type { ListViewList } from "./list-view.ts";
 
 const tag = (name: string) => ({ id: name, name });
@@ -105,4 +105,12 @@ test("column visibility: hidden ids are removed, new groups show up by default",
   assert.deepEqual(visibleColumnIds(cols, ["tagGroup:g-resp", "due", "gone"]), ["state", "tagGroup:g-init", "assignees", "comments"]);
   assert.deepEqual(toggleHiddenColumn(undefined, "due"), ["due"]);
   assert.deepEqual(toggleHiddenColumn(["due", "state"], "due"), ["state"]);
+});
+
+test('stripGroupPrefix drops the group name a tag repeats, and nothing else', () => {
+  assert.equal(stripGroupPrefix('Responsable: TI', 'Responsable'), 'TI');
+  assert.equal(stripGroupPrefix('iniciativa:  WebROE', 'Iniciativa'), 'WebROE');
+  assert.equal(stripGroupPrefix('P3', 'Prioridad'), 'P3');
+  assert.equal(stripGroupPrefix('Responsable: TI', 'Tipo'), 'Responsable: TI');
+  assert.equal(stripGroupPrefix('Tipo:', 'Tipo'), 'Tipo:');
 });

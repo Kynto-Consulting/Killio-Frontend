@@ -250,3 +250,13 @@ test("previewForm estimates title, dates and counts, and flags dangling ids", ()
   assert.equal(none.dueDay, null);
   assert.equal(none.listName, null);
 });
+
+test("blocksToBricks accepts the document shape ({ content: { markdown } }) as well as the flat card shape", () => {
+  let n = 0;
+  const id = () => `b${++n}`;
+  const flat = blocksToBricks([{ kind: "text", displayStyle: "paragraph", markdown: "A" } as never], id);
+  const nested = blocksToBricks([{ kind: "text", content: { markdown: "B", displayStyle: "h2" } } as never], id);
+  assert.equal((flat[0] as { markdown: string }).markdown, "A");
+  assert.equal((nested[0] as { markdown: string }).markdown, "B");
+  assert.equal((nested[0] as { displayStyle: string }).displayStyle, "h2");
+});

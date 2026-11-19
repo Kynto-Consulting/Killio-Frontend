@@ -16,6 +16,7 @@ import {
   isSortableKey,
   nextSort,
   sortRows,
+  stripGroupPrefix,
   toggleHiddenColumn,
   toggleableColumnIds,
   visibleColumnIds,
@@ -63,9 +64,9 @@ function Avatar({ assignee }: { assignee: any }) {
   );
 }
 
-function TagChip({ name, color }: { name: string; color?: string | null }) {
+function TagChip({ name, color, title }: { name: string; color?: string | null; title?: string }) {
   return (
-    <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-foreground">
+    <span title={title} className="inline-flex max-w-full items-center gap-1 rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium leading-none text-foreground">
       {color ? <span aria-hidden className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color.startsWith("#") ? color : `#${color}` }} /> : null}
       <span className="truncate">{name}</span>
     </span>
@@ -174,7 +175,7 @@ const Row = memo(function Row({ row, index, top, active, columns, tagColumns, gr
         return (
           <div role="gridcell" key={id} className="flex min-w-0 items-center gap-1 overflow-hidden">
             {names.slice(0, 3).map((n) => (
-              <TagChip key={n} name={n} color={card.tags?.find((t: any) => t?.name === n)?.color} />
+              <TagChip key={n} name={stripGroupPrefix(n, col.name)} title={n} color={card.tags?.find((t: any) => t?.name === n)?.color} />
             ))}
             {names.length > 3 ? <span className="text-[11px] text-muted-foreground">+{names.length - 3}</span> : null}
           </div>

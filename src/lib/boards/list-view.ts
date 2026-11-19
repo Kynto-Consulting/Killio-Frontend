@@ -75,6 +75,18 @@ export function tagsOfGroup(tags: Array<{ name: string }> | undefined | null, gr
   return tags.filter((t) => t && typeof t.name === 'string' && wanted.has(norm(t.name))).map((t) => t.name);
 }
 
+/**
+ * Tags often carry their group as a prefix ("Responsable: TI") so they stay distinct on the board. Under a column that is
+ * already titled "Responsable" the prefix is noise: "TI" is what the eye needs. Anything else is returned unchanged.
+ */
+export function stripGroupPrefix(tagName: string, groupName: string): string {
+  const prefix = `${norm(groupName)}:`;
+  if (!norm(tagName).startsWith(prefix)) return tagName;
+  const colon = tagName.indexOf(':');
+  const rest = colon >= 0 ? tagName.slice(colon + 1).trim() : '';
+  return rest || tagName;
+}
+
 /** The tag groups at least one card uses, in the order the groups are defined: one column each. */
 export function deriveTagGroupColumns(lists: ListViewList[], tagGroups: TagGroup[]): TagGroupColumn[] {
   const used = new Set<string>();

@@ -69,8 +69,12 @@ type ChecklistInput = Extract<CardTemplateBlock, { kind: "checklist" }>;
 /** Template blocks (API shape) -> the modal's draft bricks. Spaced positions, no parent. Unknown kinds are skipped. */
 export function blocksToBricks(blocks: ReadonlyArray<CardTemplateBlock | null | undefined>, makeId: () => string): BoardBrick[] {
   const out: BoardBrick[] = [];
-  for (const raw of blocks ?? []) {
+  for (let raw of blocks ?? []) {
     if (!raw || typeof raw !== "object") continue;
+    // Card blocks are flat ({ kind, markdown, displayStyle }); a block written in the document shape ({ kind, content: {...} })
+    // is accepted too, so a template created by another client or script still shows up.
+    const nested = (raw as { content?: unknown }).content;
+    if (nested && typeof nested === "object" && !Array.isArray(nested)) raw = { ...(nested as object), kind: raw.kind } as CardTemplateBlock;
     const position = (out.length + 1) * 1000;
     const base = { id: makeId(), position, parentBlockId: null };
     if (raw.kind === "text") {
