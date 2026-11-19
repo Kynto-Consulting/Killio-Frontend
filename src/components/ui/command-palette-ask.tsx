@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import {
   AlertCircle,
   ArrowLeft,
@@ -34,7 +32,9 @@ import {
   type AiPaletteSettings,
 } from "@/lib/api/agent";
 import { getTeamAiUsage } from "@/lib/api/contracts";
-import { parseAiMarkup, splitAtPartialToolTag } from "@/lib/ai-markup";
+import { parseAiMarkup } from "@/lib/ai-markup";
+import { buildAssistantRender } from "@/lib/agent-render";
+import { AssistantMessageContent } from "@/components/agent/assistant-message-content";
 import { toast } from "@/lib/toast";
 import { fmt, getAskCopy, type AskCopy } from "@/lib/palette-ask/copy";
 import { classifyAskError, shouldShowUsageNotice, type AskErrorKind } from "@/lib/palette-ask/errors";
@@ -204,8 +204,8 @@ export function PaletteAskPanel({ teamId, initialQuestion, pageScope, onBack, on
   const emptyResult = useMemo(() => {
     if (isLoading || error || !lastAssistant || lastAssistant.isStreaming || hasUndecided) return false;
     if (pendingApprovals.length > 0) return false;
-    const { visibleText } = parseAiMarkup(lastAssistant.text);
-    return !visibleText.trim() && (lastAssistant.toolEvents ?? []).every((e) => e.phase !== "done" || e.success === false);
+    // A reply that is only a brick/image is not empty.
+    return !buildAssistantRender(lastAssistant.text).hasContent && (lastAssistant.toolEvents ?? []).every((e) => e.phase !== "done" || e.success === false);
   }, [isLoading, error, lastAssistant, hasUndecided, pendingApprovals.length]);
 
   const runningTool = useMemo(() => [...activeToolEvents].reverse().find((e) => e.phase === "start"), [activeToolEvents]);
@@ -643,7 +643,8 @@ function AnswerBlock({
   onNavigate: () => void;
 }) {
   const parsed = useMemo(() => parseAiMarkup(message.text), [message.text]);
-  const text = useMemo(() => splitAtPartialToolTag(parsed.visibleText).clean.trim(), [parsed.visibleText]);
+  const render = useMemo(() => buildAssistantRender(message.text, { streaming: message.isStreaming }), [message.text, message.isStreaming]);
+  const text = render.text;
 
   const sources = useMemo(() => {
     const fromTools = extractSources(message.toolEvents, message.toolResults);
@@ -666,7 +667,7 @@ function AnswerBlock({
 
   // A failed turn is shown as the error state (with Reintentar), not as a bubble.
   if (text.startsWith("Error:") && approvals.length === 0 && doneTools.length === 0) return null;
-  if (message.isStreaming && !text && doneTools.length === 0 && approvals.length === 0) return null;
+  if (message.isStreaming && !render.hasContent && doneTools.length === 0 && approvals.length === 0) return null;
 
   return (
     <div className="flex gap-2">
@@ -689,12 +690,13 @@ function AnswerBlock({
           </div>
         ) : null}
 
-        {text ? (
-          <div className="prose prose-sm dark:prose-invert max-w-none break-words text-sm text-foreground [overflow-wrap:anywhere] prose-p:my-1.5 prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-pre:overflow-x-auto prose-pre:border prose-pre:border-border prose-pre:bg-muted/50 prose-pre:text-foreground prose-code:text-foreground">
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-              {text}
-            </ReactMarkdown>
-          </div>
+        {render.hasContent ? (
+          <AssistantMessageContent
+            text={message.text}
+            isStreaming={message.isStreaming}
+            variant="compact"
+            markdownComponents={markdownComponents}
+          />
         ) : null}
 
         {!message.isStreaming ? <SourceChips copy={copy} sources={sources} onNavigate={onNavigate} /> : null}

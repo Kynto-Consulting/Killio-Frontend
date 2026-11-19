@@ -30,76 +30,11 @@ import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RichText } from "../ui/rich-text";
-import { UnifiedBrickRenderer } from "../bricks/brick-renderer";
+import { AssetView, resolveAssetUrl } from "@/components/agent/assistant-message-content";
+import { assetToBlock, dropOrphanAssetOpenTags, stripPartialAssistantTags } from "@/lib/agent-render";
 import { uploadFile } from "@/lib/api/uploads";
 import { API_BASE_URL } from "@/lib/api/client";
 
-const resolveAssetUrl = (url: string) => {
-  if (!url) return "";
-  if (url.startsWith("http") || url.startsWith("data:")) return url;
-  if (url.startsWith("/")) return `${API_BASE_URL}${url}`;
-  return url;
-};
-
-async function fetchAndDownload(url: string, filename?: string, accessToken?: string) {
-  try {
-    const headers: Record<string, string> = {};
-    if (accessToken && url.startsWith(API_BASE_URL)) headers['Authorization'] = `Bearer ${accessToken}`;
-    const res = await fetch(url, { headers });
-    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-    const blob = await res.blob();
-    const blobUrl = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = blobUrl;
-    a.download = filename || (url.split('/').pop() || 'download');
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    window.URL.revokeObjectURL(blobUrl);
-  } catch (err) {
-    console.error('Download failed:', err);
-    window.open(url, '_blank');
-  }
-}
-
-
-const IframeWithPreview = ({ src, title, height, screenshot, t }: { src: string, title?: string, height: string, screenshot?: string, t: TFn }) => {
-  const [isLive, setIsLive] = useState(false);
-
-  if (isLive) {
-    return (
-      <iframe
-        src={src}
-        className="w-full rounded-lg bg-white animate-in fade-in duration-500"
-        style={{ height }}
-        title={title || "Portal Content"}
-      />
-    );
-  }
-
-  return (
-    <div
-      className="relative flex flex-col items-center justify-center bg-background/50 dark:bg-slate-950/50 rounded-lg cursor-pointer hover:bg-card/60 dark:hover:bg-slate-900/60 transition-all border border-blue-500/10 overflow-hidden"
-      style={{ height }}
-      onClick={() => setIsLive(true)}
-    >
-      {screenshot && (
-        <img
-          src={screenshot}
-          alt={title || "Preview"}
-          className="absolute inset-0 w-full h-full object-cover opacity-30 group-hover/iframe:opacity-50 transition-opacity"
-        />
-      )}
-      <div className="relative z-10 w-16 h-16 rounded-full bg-blue-500/20 backdrop-blur-sm flex items-center justify-center text-blue-400 group-hover/iframe:scale-110 transition-transform">
-        <Play className="w-8 h-8 ml-1" />
-      </div>
-      <div className="relative z-10 mt-4 text-xs font-bold text-blue-600 dark:text-blue-300 uppercase tracking-widest drop-shadow-md">{t("agent.asset.activateLive")}</div>
-      <div className="relative z-10 mt-1 text-[10px] text-blue-500/60 font-mono truncate max-w-[80%]">
-        {src.startsWith('/') ? window.location.hostname : (src.startsWith('http') ? new URL(src).hostname : src)}
-      </div>
-    </div>
-  );
-};
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -863,7 +798,7 @@ export function AssistantMessage({
 }) {
   const [expandedMarkup, setExpandedMarkup] = useState<Set<string>>(new Set());
 
-  const { visibleText: rawVisibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(message.text), [message.text]);
+  const { visibleText: rawVisibleText, blocks: markupBlocks } = useMemo(() => parseAiMarkup(dropOrphanAssetOpenTags(message.text)), [message.text]);
   // If the message text already contains inline tool_call/batch_tool chips, suppress the
   // doneEvents summary section below to prevent the same tools appearing twice.
   const hasInlineToolChips = useMemo(
@@ -896,10 +831,11 @@ export function AssistantMessage({
       return true;
     });
   }, [markupBlocks]);
-  const { clean: visibleText, hasPartial: hasPartialToolCall } = useMemo(
-    () => splitAtPartialToolTag(rawVisibleText),
-    [rawVisibleText],
-  );
+  const { clean: visibleText, hasPartial: hasPartialToolCall } = useMemo(() => {
+    const split = splitAtPartialToolTag(rawVisibleText);
+    // Never flash a half-written <asset ...> tag while the reply is still streaming.
+    return { clean: stripPartialAssistantTags(split.clean, Boolean(message.isStreaming)).clean, hasPartial: split.hasPartial };
+  }, [rawVisibleText, message.isStreaming]);
 
   const toggleMarkup = useCallback((key: string) => {
     setExpandedMarkup((prev) => {
@@ -1035,177 +971,7 @@ export function AssistantMessage({
           }
 
           if (block.tag === "asset") {
-            const { type, src, width, height, title, kind: brickKind, screenshot } = block.attributes || {};
-
-            // "Portal" style for interactive/media types and entities
-            const isUpload = src?.startsWith("/uploads/");
-            const isPortal = !isUpload && ["iframe", "document", "mesh", "kanban", "script"].includes(type || "");
-            const isBrick = type === "brick";
-
-            const assetSrc = resolveAssetUrl(src || "");
-            if (isPortal) {
-              return (
-                <div key={key} className="my-3 rounded-xl overflow-hidden border-2 border-blue-500/20 dark:border-blue-400/20 bg-card/95 dark:bg-slate-900/95 shadow-lg animate-in zoom-in-95 duration-200">
-                  <div className="flex h-8 items-center gap-2 border-b border-blue-500/10 bg-blue-950/40 px-3 select-none">
-                    <ExternalLink className="h-3.5 w-3.5 shrink-0 text-blue-400" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-blue-600 dark:text-blue-300">
-                      {type === 'iframe' ? 'Live Content' : type}
-                    </span>
-                    {title && <span className="ml-1 truncate text-[10px] text-blue-700/60 dark:text-blue-200/60">— {title}</span>}
-                          <div className="ml-auto flex items-center gap-1">
-                      <a
-                        href={type === 'document' ? `/d/${src}` : (type === 'kanban' || type === 'mesh' ? `/b/${src}` : src)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1 hover:bg-blue-400/20 rounded transition-colors text-blue-400"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
-                      {assetSrc && (assetSrc.startsWith('http') || assetSrc.startsWith('data:') || assetSrc.startsWith(API_BASE_URL)) && (
-                        <button
-                          type="button"
-                          onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || `attachment`, accessToken!); }}
-                          className="p-1 hover:bg-blue-400/20 rounded transition-colors text-blue-400"
-                          title={t?.("agent.asset.download") || 'Descargar'}
-                        >
-                          <Download className="h-3.5 w-3.5" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="p-1">
-                    {type === "iframe" ? (
-                      <div className="relative group/iframe">
-                        <IframeWithPreview
-                          src={src.startsWith('/') ? (src.includes('?') ? `${src}&noLayout=true` : `${src}?noLayout=true`) : src}
-                          title={title || "Portal Content"}
-                          height={height || '400px'}
-                          screenshot={screenshot}
-                          t={t}
-                        />
-                      </div>
-                    ) : (
-                      <div
-                        className="group/asset relative p-4 bg-blue-500/5 hover:bg-blue-500/10 transition-colors cursor-pointer rounded-lg flex items-center gap-4"
-                        onClick={() => {
-                          if (type === 'document') window.open(`/d/${src}`, '_blank');
-                          if (type === 'kanban' || type === 'mesh') window.open(`/b/${src}`, '_blank');
-                          if (type === 'script') window.open(`/s/${src}`, '_blank');
-                        }}
-                      >
-                        <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                          {type === 'document' && <FileText className="w-6 h-6" />}
-                          {type === 'kanban' && <Columns className="w-6 h-6" />}
-                          {type === 'mesh' && <Layers className="w-6 h-6" />}
-                          {type === 'script' && <Code2 className="w-6 h-6" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-bold text-blue-50 truncate">{title || `Abrir ${type}`}</div>
-                          <div className="text-[10px] text-blue-400/60 font-mono tracking-tight uppercase">Entidad: {src?.slice(0, 12)}...</div>
-                        </div>
-                        <div className="opacity-0 group-hover/asset:opacity-100 transition-opacity bg-blue-500/20 p-2 rounded-full">
-                          <ArrowRight className="w-4 h-4 text-blue-400" />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            }
-
-            if (isBrick) {
-              let brickData: any = null;
-              try {
-                const raw = (block.content || "").replace(/&quot;/g, '"').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/\\"/g, '"'); try { brickData = JSON.parse(raw); } catch (e) { brickData = {}; }
-              } catch (e) { }
-
-              const previewBrick = {
-                id: `asset-brick-${key}`,
-                documentId: 'preview',
-                kind: brickKind || brickData?.kind || brickData?.content?.kind || 'text',
-                content: (brickData?.content ?? brickData ?? {}),
-                position: 0,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-              };
-
-              return (
-                <div key={key} className="my-3 rounded-xl overflow-hidden border border-violet-500/30 dark:border-violet-400/20 bg-card shadow-sm animate-in slide-in-from-bottom-2 duration-300">
-                  <div className="flex h-8 items-center gap-2 border-b border-violet-500/10 bg-violet-500/5 px-3 select-none">
-                    <Database className="h-3.5 w-3.5 shrink-0 text-primary" />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-primary">
-                      Asset Brick · {previewBrick.kind}
-                    </span>
-                    {title && <span className="ml-1 truncate text-[10px] text-muted-foreground">— {title}</span>}
-                  </div>
-                  <div className="p-2 overflow-auto max-h-[500px]">
-                    <UnifiedBrickRenderer
-                      brick={previewBrick as any}
-                      canEdit={false}
-                      onUpdate={() => { }}
-                      isCompact
-                    />
-                  </div>
-                </div>
-              );
-            }
-
-            return (
-              <div key={key} className="my-2 rounded-xl border border-border/50 bg-background/50 p-2 overflow-hidden animate-in zoom-in-95 fill-mode-both">
-                {type === "img" && assetSrc && (
-                  <div className="relative group/img-asset overflow-hidden rounded-lg">
-                    <img
-                      src={assetSrc}
-                      alt={title || "Image Asset"}
-                      className="w-full h-auto object-contain shadow-sm transition-all group-hover/img-asset:scale-[1.01] cursor-zoom-in bg-card"
-                      style={{ maxHeight: height || '400px' }}
-                    />
-                    <div className="absolute inset-0 bg-black/40 opacity-0 group-hover/img-asset:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <a
-                        href={assetSrc}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-2 bg-foreground/20 dark:bg-white/20 hover:bg-foreground/40 dark:hover:bg-white/40 rounded-full text-foreground dark:text-white transition-all backdrop-blur-sm pointer-events-auto"
-                        title={t("agent.asset.original")}
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </a>
-                      <button
-                        type="button"
-                        onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || "image.png", accessToken!); }}
-                        className="p-2 bg-foreground/20 dark:bg-white/20 hover:bg-foreground/40 dark:hover:bg-white/40 rounded-full text-foreground dark:text-white transition-all backdrop-blur-sm pointer-events-auto"
-                        title={t("agent.asset.download")}
-                      >
-                        <Download className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {(type === "pdf" || type === "document") && assetSrc && (
-                  <div className="flex items-center gap-3 p-3 bg-white/50 dark:bg-black/20 rounded-lg border border-border/50">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                      <FileText className="w-6 h-6 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-[11px] font-bold truncate text-foreground">{title || (type === 'pdf' ? "PDF Document" : "Documento")}</div>
-                      <div className="text-[9px] text-muted-foreground uppercase font-mono tracking-tighter">Adjunto</div>
-                    </div>
-                    <a href={assetSrc} target="_blank" rel="noopener noreferrer" className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-primary">
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                    <button
-                      type="button"
-                      onClick={async (e) => { e.stopPropagation(); await fetchAndDownload(assetSrc, title || 'attachment', accessToken!); }}
-                      className="p-2 hover:bg-violet-100 dark:hover:bg-violet-900/40 rounded-full transition-colors text-primary"
-                      title={t("agent.asset.download")}
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-                  </div>
-                )}
-              </div>
-            );
+            return <AssetView key={key} block={assetToBlock(key, block.attributes, block.content)} variant="chat" t={t} />;
           }
 
           // "text" blocks: when the message carries inline tool chips, render the
@@ -1215,7 +981,7 @@ export function AssistantMessage({
           // bottom bubble via visibleText.
           if (block.tag === "text") {
             if (!hasInlineToolChips) return null;
-            const seg = splitAtPartialToolTag(block.content ?? "").clean.replace(/\s+$/g, "");
+            const seg = stripPartialAssistantTags(splitAtPartialToolTag(block.content ?? "").clean, Boolean(message.isStreaming) && index === dedupedMarkupBlocks.length - 1).clean.replace(/\s+$/g, "");
             if (!seg.trim()) return null;
             return (
               <div
@@ -1479,7 +1245,7 @@ export function AssistantMessage({
               <div className="prose prose-sm dark:prose-invert max-w-none break-words [overflow-wrap:anywhere] text-foreground prose-p:my-1.5 prose-p:leading-relaxed prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-li:marker:text-muted-foreground prose-pre:bg-background/70 prose-pre:text-foreground prose-pre:border prose-pre:border-border/50 prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:rounded prose-code:break-words">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{visibleText}</ReactMarkdown>
               </div>
-            ) : !message.isStreaming && !hasPartialToolCall ? (
+            ) : !message.isStreaming && !hasPartialToolCall && dedupedMarkupBlocks.length === 0 ? (
               // finished with nothing to show: say so instead of an empty bubble (the thinking indicator below is the only "working" state)
               <p className="text-xs italic text-muted-foreground">{t("agent.messages.emptyResponse")}</p>
             ) : null}
