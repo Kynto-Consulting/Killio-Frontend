@@ -30,6 +30,7 @@ import type { DocumentSummary } from "@/lib/api/documents";
 import type { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RichText } from "../ui/rich-text";
+import { ToolRawPopover } from "@/components/agent/tool-raw-popover";
 import { AssetView, resolveAssetUrl } from "@/components/agent/assistant-message-content";
 import { assetToBlock, dropOrphanAssetOpenTags, stripPartialAssistantTags } from "@/lib/agent-render";
 import { uploadFile } from "@/lib/api/uploads";
@@ -1205,30 +1206,7 @@ export function AssistantMessage({
                     <span className="text-muted-foreground ml-1.5 shrink-0">{e.durationMs}ms</span>
                   )}
 
-                  <div className="group/info relative ml-auto shrink-0">
-                    <Info className="w-2.5 h-2.5 text-muted-foreground hover:text-primary cursor-help transition-colors" />
-                    <div className="absolute bottom-full right-0 mb-1 w-[280px] p-2 bg-neutral-900 border border-neutral-800 rounded-lg shadow-xl opacity-0 invisible group-hover/info:opacity-100 group-hover/info:visible transition-all z-50 pointer-events-auto">
-                      <div className="text-[9px] font-mono text-primary mb-1 flex items-center justify-between">
-                        <span className="flex items-center gap-1">
-                          <Wrench className="w-2 h-2" />
-                          TOOL CALL RAW
-                        </span>
-                        <button
-                          onClick={(clickEvt) => {
-                            clickEvt.stopPropagation();
-                            navigator.clipboard.writeText(JSON.stringify(e.input || {}, null, 2));
-                          }}
-                          className="p-1 hover:bg-neutral-800 rounded transition-colors text-neutral-400 hover:text-violet-400"
-                          title="Copy JSON"
-                        >
-                          <Copy className="w-2 h-2" />
-                        </button>
-                      </div>
-                      <pre className="text-[9px] font-mono text-neutral-300 whitespace-pre-wrap break-all overflow-y-auto max-h-[160px] custom-scrollbar">
-                        {JSON.stringify(e.input || {}, null, 2)}
-                      </pre>
-                    </div>
-                  </div>
+                  <ToolRawPopover input={e.input} />
                 </div>
               );
             })}
