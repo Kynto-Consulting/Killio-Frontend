@@ -121,7 +121,6 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
   const checklist = summarizeChecklists(card.blocks as unknown[]);
   const totalChecklistItems = checklist.total;
   const completedChecklistItems = checklist.done;
-  const checklistPreview = checklist.pending.slice(0, 3);
   const checklistPercent = totalChecklistItems > 0 ? Math.round((completedChecklistItems / totalChecklistItems) * 100) : 0;
 
   const attachmentsCount = mediaBlocks.length;
@@ -263,34 +262,22 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
           </div>
         )}
 
-        {totalChecklistItems > 0 ? (
-          <div className="flex flex-col gap-1.5">
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground" role="img" aria-label={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}>
-              <CheckSquare className={`h-3.5 w-3.5 shrink-0 ${checklistPercent === 100 ? "text-emerald-500" : "text-muted-foreground"}`} aria-hidden />
-              <span className={`tabular-nums ${checklistPercent === 100 ? "text-emerald-600 dark:text-emerald-400" : ""}`}>{completedChecklistItems}/{totalChecklistItems}</span>
-            </div>
-            {checklistPreview.length > 0 ? (
-              <ul className="flex flex-col gap-0.5">
-                {checklistPreview.map((it, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
-                    <span aria-hidden className="mt-[3px] h-2.5 w-2.5 shrink-0 rounded-[3px] border border-muted-foreground/50" />
-                    <span className="min-w-0 truncate">{it.label || "—"}</span>
-                  </li>
-                ))}
-                {checklist.pending.length > checklistPreview.length ? (
-                  <li className="pl-4 text-[11px] text-muted-foreground/80">{t("card.checklistMore", { count: checklist.pending.length - checklistPreview.length })}</li>
-                ) : null}
-              </ul>
-            ) : null}
-          </div>
-        ) : null}
-
         {!isArchived ? (
           <div className="flex items-center justify-between text-[color:var(--board-text,hsl(var(--muted-foreground)))] mt-1">
             <div className="flex items-center space-x-3">
               {hasDescription && (
                 <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>
                   <AlignLeft className="h-3.5 w-3.5" />
+                </div>
+              )}
+              {totalChecklistItems > 0 && (
+                <div
+                  className={`flex items-center space-x-1 text-xs transition-colors ${checklistPercent === 100 ? "text-emerald-600 dark:text-emerald-400" : "hover:text-foreground"}`}
+                  title={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}
+                  aria-label={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}
+                >
+                  <CheckSquare className="h-3.5 w-3.5" />
+                  <span className="tabular-nums">{completedChecklistItems}/{totalChecklistItems}</span>
                 </div>
               )}
               {(card.commentsCount || 0) > 0 && (
