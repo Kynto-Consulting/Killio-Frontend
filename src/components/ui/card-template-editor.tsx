@@ -33,6 +33,7 @@ import {
   type TagLike,
   type TemplateForm,
 } from "@/lib/card-templates/model";
+import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
 import { normalizeWorkspaceMembers } from "@/lib/workspace-members";
 import { toast } from "@/lib/toast";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -290,6 +291,22 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
     }
   };
 
+  /** Turns a tag on or off; turning it on honours the group rules (single replaces, a full limited group refuses). */
+  const toggleTag = (tagId: string) => {
+    if (form.tagIds.includes(tagId)) {
+      patch({ tagIds: toggleId(form.tagIds, tagId) });
+      return;
+    }
+    const tag = tags.find((x) => x.id === tagId);
+    if (!tag) return;
+    const res = addTagWithRules(form.tagIds, tag, tags, tagGroups);
+    if (!res.ok) {
+      toast(t("tagRules.blocked", { group: res.group, count: res.limit }), "warning");
+      return;
+    }
+    patch({ tagIds: res.ids });
+  };
+
   const createBoardTag = async () => {
     const name = newTagName.trim();
     if (!name || !accessToken || creatingTag) return;
@@ -463,7 +480,21 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                     {visibleSections.length === 0 ? <p className="text-xs text-muted-foreground">{t("cardTemplates.editor.tagsEmpty")}</p> : null}
                     {visibleSections.map((section) => (
                       <div key={section.id} role="group" aria-label={section.name} className="space-y-1.5">
-                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{section.name}</p>
+                        {(() => {
+                          const grp = tagGroups.find((g) => g.id === section.id);
+                          const limit = grp ? groupLimit(grp) : null;
+                          const picked = section.tags.filter((x) => form.tagIds.includes(x.id)).length;
+                          return (
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{section.name}</p>
+                              {grp && limit !== null ? (
+                                <span className={`rounded-full border px-1.5 text-[10px] font-medium ${picked >= limit ? "border-primary/40 bg-primary/10 text-foreground" : "border-border text-muted-foreground"}`}>
+                                  {grp.mode === "single" ? t("tagRules.single") : `${t("tagRules.limited", { count: limit })} · ${picked}/${limit}`}
+                                </span>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                         <div className="flex flex-wrap gap-1.5">
                           {section.tags.map((tag) => {
                             const on = form.tagIds.includes(tag.id);
@@ -472,7 +503,7 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                                 key={tag.id}
                                 type="button"
                                 aria-pressed={on}
-                                onClick={() => patch({ tagIds: toggleId(form.tagIds, tag.id) })}
+                                onClick={() => toggleTag(tag.id)}
                                 className={`inline-flex h-7 items-center gap-1.5 rounded-full border px-2.5 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary" : "border-border bg-background text-foreground hover:bg-muted"}`}
                               >
                                 {on ? <Check className="h-3 w-3 text-primary" aria-hidden="true" /> : <span className="h-2 w-2 rounded-full border border-border/60" style={{ background: tagDot(tag.color) }} />}

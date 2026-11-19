@@ -93,6 +93,18 @@
   },
   "tagGroups": {
     "title": "Grupos de etiquetas",
+    "mode": {
+      "label": "Etiquetas por tarjeta",
+      "single": "Una sola",
+      "multi": "Varias",
+      "limited": "Hasta un máximo",
+      "max": "Máximo",
+      "hintSingle": "Al elegir otra etiqueta del grupo, reemplaza a la anterior.",
+      "hintMulti": "Sin límite: la tarjeta puede llevar todas las que quieras.",
+      "hintLimited": "La tarjeta puede llevar hasta ese número de etiquetas del grupo."
+    },
+    "modeBadgeSingle": "Una",
+    "modeBadgeLimited": "Máx. {{count}}",
     "open": "Grupos de etiquetas...",
     "intro": "Un grupo de etiquetas es un conjunto ordenado de etiquetas. Ordena una lista por un grupo para clasificar las tarjetas por su mejor etiqueta, o divide la lista en una categoría por etiqueta.",
     "empty": "Aún no hay grupos.",

@@ -78,8 +78,8 @@ export const updateBoardSavedView = (boardId: string, viewId: string, patch: { n
 export const deleteBoardSavedView = (boardId: string, viewId: string, accessToken: string) => call<{ deleted: true }>(`${b(boardId)}/saved-views/${encodeURIComponent(viewId)}`, accessToken, { method: "DELETE" });
 
 export const listTeamTagGroups = (teamId: string, accessToken: string) => call<ServerTagGroup[]>(t(teamId), accessToken);
-export const createTeamTagGroup = (teamId: string, group: { id?: string; name: string; tags: string[]; position?: number }, accessToken: string) => call<ServerTagGroup>(t(teamId), accessToken, { method: "POST", body: group });
-export const updateTeamTagGroup = (teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number }, accessToken: string) =>
+export const createTeamTagGroup = (teamId: string, group: { id?: string; name: string; tags: string[]; position?: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }, accessToken: string) => call<ServerTagGroup>(t(teamId), accessToken, { method: "POST", body: group });
+export const updateTeamTagGroup = (teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }, accessToken: string) =>
   call<ServerTagGroup>(`${t(teamId)}/${encodeURIComponent(groupId)}`, accessToken, { method: "PATCH", body: patch });
 export const deleteTeamTagGroup = (teamId: string, groupId: string, accessToken: string) => call<{ deleted: true }>(`${t(teamId)}/${encodeURIComponent(groupId)}`, accessToken, { method: "DELETE" });
 
@@ -97,8 +97,8 @@ export function createViewSettingsApi(getToken: () => string | null) {
     updateSavedView: (boardId: string, viewId: string, patch: { name?: string; expression?: string }) => updateBoardSavedView(boardId, viewId, patch, token()),
     deleteSavedView: (boardId: string, viewId: string) => deleteBoardSavedView(boardId, viewId, token()),
     listTagGroups: (teamId: string) => listTeamTagGroups(teamId, token()),
-    createTagGroup: (teamId: string, group: { id: string; name: string; tags: string[]; position: number }) => createTeamTagGroup(teamId, group, token()),
-    updateTagGroup: (teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number }) => updateTeamTagGroup(teamId, groupId, patch, token()),
+    createTagGroup: (teamId: string, group: { id: string; name: string; tags: string[]; position: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }) => createTeamTagGroup(teamId, group, token()),
+    updateTagGroup: (teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }) => updateTeamTagGroup(teamId, groupId, patch, token()),
     deleteTagGroup: (teamId: string, groupId: string) => deleteTeamTagGroup(teamId, groupId, token()),
   };
 }

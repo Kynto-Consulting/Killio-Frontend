@@ -11,6 +11,9 @@ export interface TagGroup {
   name: string;
   /** Ordered tag names; the position is the rank (lower first). */
   tags: string[];
+  /** How many tags of the group a card may carry: one (`single`), at most `maxTags` (`limited`) or any (omitted = `multi`). */
+  mode?: 'single' | 'multi' | 'limited';
+  maxTags?: number | null;
 }
 
 export type SortDir = 'asc' | 'desc';
@@ -172,7 +175,14 @@ export function sanitizeTagGroups(raw: unknown): TagGroup[] {
     ids.add(o.id);
     const tags: string[] = [];
     if (Array.isArray(o.tags)) for (const t of o.tags) if (typeof t === 'string' && t.trim() && !tags.includes(t)) tags.push(t.slice(0, 80));
-    out.push({ id: o.id.slice(0, 64), name: o.name.trim().slice(0, 80), tags: tags.slice(0, 100) });
+    const group: TagGroup = { id: o.id.slice(0, 64), name: o.name.trim().slice(0, 80), tags: tags.slice(0, 100) };
+    if (o.mode === 'single') group.mode = 'single';
+    else if (o.mode === 'limited') {
+      const n = Math.floor(Number(o.maxTags));
+      group.mode = 'limited';
+      group.maxTags = Number.isFinite(n) ? Math.min(50, Math.max(1, n)) : 3;
+    }
+    out.push(group);
   }
   return out.slice(0, 50);
 }

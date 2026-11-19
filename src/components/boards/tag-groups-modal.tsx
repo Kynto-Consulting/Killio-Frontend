@@ -63,7 +63,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
                 className={`w-full rounded-md px-2 py-1.5 text-left text-sm ${g.id === selectedId ? "bg-accent/10 text-accent" : "text-foreground hover:bg-muted"}`}
               >
                 <span className="block truncate font-medium">{g.name}</span>
-                <span className="block text-[11px] text-muted-foreground">{t("tagGroups.tagCount", { count: g.tags.length })}</span>
+                <span className="block text-[11px] text-muted-foreground">{t("tagGroups.tagCount", { count: g.tags.length })}{g.mode === "single" ? ` · ${t("tagGroups.modeBadgeSingle")}` : g.mode === "limited" ? ` · ${t("tagGroups.modeBadgeLimited", { count: g.maxTags ?? 3 })}` : ""}</span>
               </button>
             ))}
           </div>
@@ -105,6 +105,41 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
                   {t("tagGroups.delete")}
                 </button>
               </div>
+
+              <fieldset className="space-y-1.5 rounded-md border border-border bg-background/50 p-2.5">
+                <legend className="px-1 text-xs font-semibold text-foreground">{t("tagGroups.mode.label")}</legend>
+                <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label={t("tagGroups.mode.label")}>
+                  {(["single", "multi", "limited"] as const).map((m) => {
+                    const on = (selected.mode ?? "multi") === m;
+                    return (
+                      <button
+                        key={m}
+                        type="button"
+                        role="radio"
+                        aria-checked={on}
+                        onClick={() => update(selected.id, m === "multi" ? { mode: undefined, maxTags: undefined } : m === "single" ? { mode: "single", maxTags: undefined } : { mode: "limited", maxTags: selected.maxTags ?? 3 })}
+                        className={`h-7 rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${on ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary" : "border-border bg-background text-muted-foreground hover:bg-muted"}`}
+                      >
+                        {t(`tagGroups.mode.${m}`)}
+                      </button>
+                    );
+                  })}
+                  {selected.mode === "limited" ? (
+                    <label className="ml-1 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                      {t("tagGroups.mode.max")}
+                      <input
+                        type="number"
+                        min={1}
+                        max={50}
+                        value={selected.maxTags ?? 3}
+                        onChange={(e) => update(selected.id, { maxTags: Math.min(50, Math.max(1, Math.floor(Number(e.target.value)) || 1)) })}
+                        className="h-7 w-16 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                      />
+                    </label>
+                  ) : null}
+                </div>
+                <p className="text-[11px] text-muted-foreground">{t(selected.mode === "single" ? "tagGroups.mode.hintSingle" : selected.mode === "limited" ? "tagGroups.mode.hintLimited" : "tagGroups.mode.hintMulti")}</p>
+              </fieldset>
 
               <p className="text-[11px] text-muted-foreground">{t("tagGroups.orderHint")}</p>
               <ol className="space-y-1">

@@ -93,6 +93,18 @@
   },
   "tagGroups": {
     "title": "Tag groups",
+    "mode": {
+      "label": "Tags per card",
+      "single": "Just one",
+      "multi": "Several",
+      "limited": "Up to a maximum",
+      "max": "Maximum",
+      "hintSingle": "Choosing another tag of the group replaces the previous one.",
+      "hintMulti": "No limit: a card can carry as many as you want.",
+      "hintLimited": "A card can carry up to that many tags of the group."
+    },
+    "modeBadgeSingle": "One",
+    "modeBadgeLimited": "Max. {{count}}",
     "open": "Tag groups...",
     "intro": "A tag group is an ordered set of tags. Sort a list by a group to rank cards by their best tag in it, or split a list into one category per tag.",
     "empty": "No groups yet.",

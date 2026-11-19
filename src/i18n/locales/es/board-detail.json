@@ -9,6 +9,11 @@
   "createListError": "No se pudo crear la lista",
   "createCardError": "No se pudo crear la tarjeta",
   "createCardSuccess": "Tarjeta creada: {{title}}",
+  "tagRules": {
+    "single": "Una",
+    "limited": "Máx. {{count}}",
+    "blocked": "El grupo «{{group}}» admite como máximo {{count}} etiquetas."
+  },
   "cardTemplates": {
     "pickerLabel": "Plantilla",
     "blank": "En blanco",

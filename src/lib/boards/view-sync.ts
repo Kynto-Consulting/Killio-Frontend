@@ -63,8 +63,8 @@ export interface ViewSettingsApi {
   updateSavedView(boardId: string, viewId: string, patch: { name?: string; expression?: string }): Promise<unknown>;
   deleteSavedView(boardId: string, viewId: string): Promise<unknown>;
   listTagGroups(teamId: string): Promise<ServerTagGroupRow[]>;
-  createTagGroup(teamId: string, group: { id: string; name: string; tags: string[]; position: number }): Promise<unknown>;
-  updateTagGroup(teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number }): Promise<unknown>;
+  createTagGroup(teamId: string, group: { id: string; name: string; tags: string[]; position: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }): Promise<unknown>;
+  updateTagGroup(teamId: string, groupId: string, patch: { name?: string; tags?: string[]; position?: number; mode?: 'single' | 'multi' | 'limited'; maxTags?: number | null }): Promise<unknown>;
   deleteTagGroup(teamId: string, groupId: string): Promise<unknown>;
 }
 
@@ -141,6 +141,9 @@ const retriable = (e: unknown): boolean => {
   return s === null || s >= 500 || s === 408 || s === 429 || s === 401;
 };
 
+/** Mode and limit as the server stores them (`multi` and no limit when the group has none). */
+const ruleOf = (g: TagGroup): { mode: 'single' | 'multi' | 'limited'; maxTags: number | null } => ({ mode: g.mode ?? 'multi', maxTags: g.mode === 'limited' ? g.maxTags ?? 3 : null });
+
 /** Server limits: group name 40, tag 60, 100 tags, unique names, 100 groups. */
 export function clampTagGroups(groups: TagGroup[]): TagGroup[] {
   const out: TagGroup[] = [];
@@ -158,7 +161,7 @@ export function clampTagGroups(groups: TagGroup[]): TagGroup[] {
         tags.push(tag);
       }
     }
-    out.push({ id: g.id, name, tags: tags.slice(0, 100) });
+    out.push({ id: g.id, name, tags: tags.slice(0, 100), ...(g.mode ? { mode: g.mode } : {}), ...(g.mode === 'limited' && g.maxTags ? { maxTags: g.maxTags } : {}) });
   }
   return out.slice(0, 100);
 }
@@ -531,7 +534,7 @@ export function createViewSync(opts: ViewSyncOptions): ViewSyncController {
         const l = snapGroups.get(b.id);
         if (!l || same(l, b)) continue;
         try {
-          await api.updateTagGroup(teamId, b.id, { ...(l.name !== b.name ? { name: l.name } : {}), ...(!same(l.tags, b.tags) ? { tags: l.tags } : {}) });
+          await api.updateTagGroup(teamId, b.id, { ...(l.name !== b.name ? { name: l.name } : {}), ...(!same(l.tags, b.tags) ? { tags: l.tags } : {}), ...(ruleOf(l).mode !== ruleOf(b).mode || ruleOf(l).maxTags !== ruleOf(b).maxTags ? ruleOf(l) : {}) });
           base.tagGroups = base.tagGroups.map((x) => (x.id === b.id ? clone(l) : x));
         } catch (e) {
           if (statusOf(e) !== 404) throw e;
@@ -541,7 +544,7 @@ export function createViewSync(opts: ViewSyncOptions): ViewSyncController {
       const known = new Set(base.tagGroups.map((g) => g.id));
       for (const [index, l] of groups.entries()) {
         if (known.has(l.id)) continue;
-        await api.createTagGroup(teamId, { id: l.id, name: l.name, tags: l.tags, position: index });
+        await api.createTagGroup(teamId, { id: l.id, name: l.name, tags: l.tags, position: index, ...ruleOf(l) });
         base.tagGroups.push(clone(l));
       }
     } else {

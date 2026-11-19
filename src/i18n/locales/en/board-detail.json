@@ -9,6 +9,11 @@
   "createListError": "Failed to create list",
   "createCardError": "Failed to create card",
   "createCardSuccess": "Card created: {{title}}",
+  "tagRules": {
+    "single": "One",
+    "limited": "Max. {{count}}",
+    "blocked": "The group \"{{group}}\" allows at most {{count}} tags."
+  },
   "cardTemplates": {
     "pickerLabel": "Template",
     "blank": "Blank",

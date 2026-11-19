@@ -37,7 +37,9 @@ import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } 
 import { AgentChatPanel } from "@/components/agent";
 import { listCardTemplates, resolveCardTemplate, type CardTemplate } from "@/lib/api/card-templates";
 import { getBoard as apiGetBoardForLists } from "@/lib/api/contracts";
-import { localDateISO, resolvedToModalState } from "@/lib/card-templates/model";
+import { groupTagsBySection, localDateISO, resolvedToModalState } from "@/lib/card-templates/model";
+import { listTeamTagGroups, type ServerTagGroup } from "@/lib/api/view-settings";
+import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -225,6 +227,8 @@ export function CardDetailModal({
   const router = useRouter();
 
   const [availableTags, setAvailableTags] = useState<any[]>([]);
+  /** Team tag groups: they section the tag picker and carry the single / limited rules. */
+  const [tagGroups, setTagGroups] = useState<ServerTagGroup[]>([]);
   const [boardMembers, setBoardMembers] = useState<any[]>([]);
   const { groups: assignableGroups } = useTeamGroups(activeTeamId);
   const tGroups = useTranslations("groups");
@@ -369,6 +373,7 @@ export function CardDetailModal({
       }).catch(console.error);
 
       const resolvedTeamId = teamId || activeTeamId;
+      if (resolvedTeamId) listTeamTagGroups(resolvedTeamId, accessToken).then(setTagGroups).catch(() => setTagGroups([]));
       Promise.all([
         resolvedTeamId
           ? listTeamMembers(resolvedTeamId, accessToken!).catch(() => [])
@@ -597,6 +602,21 @@ export function CardDetailModal({
     } finally {
       setIsAddingTag(false);
     }
+  };
+
+  /** Adds a tag honouring its groups: a `single` group swaps the tag already chosen, a full `limited` group refuses it. */
+  const handleAddTagRuled = async (tag: any) => {
+    const res = addTagWithRules(localTags.map((x) => x.id).filter(Boolean), tag, [...availableTags, ...localTags], tagGroups);
+    if (!res.ok) {
+      setTagError(t('tagRules.blocked', { group: res.group, count: res.limit }));
+      return;
+    }
+    setTagError(null);
+    for (const id of res.replaced) {
+      const old = localTags.find((x) => x.id === id);
+      if (old) await handleRemoveTag(old);
+    }
+    await handleAddTag(tag);
   };
 
   const getTagKey = (tag: any) => String(tag?.id || tag?.name || tag);
@@ -2062,26 +2082,54 @@ export function CardDetailModal({
 
                         {filteredAvailableTags.length > 0 && (
                           <div className="space-y-1">
-                            <div className="space-y-1">
-                              <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
-                              <div className="max-h-32 overflow-y-auto space-y-1 pr-1 custom-scrollbar">
-                                {filteredAvailableTags.map(tag => (
-                                  <button
-                                    key={tag.id}
-                                    onClick={() => {
-                                      handleAddTag(tag);
-                                      setTagSearch("");
-                                    }}
-                                    className="w-full text-left px-2 py-1.5 text-xs hover:bg-accent rounded-md flex items-center justify-between group transition-colors"
-                                  >
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: normalizeColor(tag.color) }} />
-                                      <span className="font-medium">{getTagLabel(tag)}</span>
-                                    </div>
-                                    <Plus className="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />
-                                  </button>
-                                ))}
-                              </div>
+                            <p className="text-[10px] uppercase font-bold text-muted-foreground/60 px-2 tracking-wider">Tags existentes</p>
+                            <div className="max-h-64 overflow-y-auto space-y-2 pr-1 custom-scrollbar">
+                              {groupTagsBySection(filteredAvailableTags, tagGroups, 'Otras').map((section) => {
+                                const grp = tagGroups.find((g) => g.id === section.id);
+                                const limit = grp ? groupLimit(grp) : null;
+                                const picked = section.tags.filter((x) => localTags.some((l) => l.id === x.id)).length;
+                                const onlyOther = section.id === '__other__' && tagGroups.length === 0;
+                                return (
+                                  <div key={section.id} role="group" aria-label={section.name} className="space-y-0.5">
+                                    {onlyOther ? null : (
+                                      <div className="flex items-center justify-between gap-2 px-2 pt-1">
+                                        <p className="truncate text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">{section.name}</p>
+                                        {grp && limit !== null ? (
+                                          <span className={`shrink-0 rounded-full border px-1.5 text-[10px] font-medium ${picked >= limit ? 'border-primary/40 bg-primary/10 text-foreground' : 'border-border text-muted-foreground'}`}>
+                                            {grp.mode === 'single' ? t('tagRules.single') : `${t('tagRules.limited', { count: limit })} · ${picked}/${limit}`}
+                                          </span>
+                                        ) : null}
+                                      </div>
+                                    )}
+                                    {section.tags.map((tag) => {
+                                      const on = localTags.some((l) => l.id === tag.id);
+                                      return (
+                                        <button
+                                          key={tag.id}
+                                          type="button"
+                                          aria-pressed={on}
+                                          onClick={() => {
+                                            if (on) {
+                                              const current = localTags.find((l) => l.id === tag.id);
+                                              if (current) void handleRemoveTag(current);
+                                            } else {
+                                              void handleAddTagRuled(tag);
+                                              setTagSearch("");
+                                            }
+                                          }}
+                                          className={`w-full text-left px-2 py-1.5 text-xs rounded-md flex items-center justify-between group transition-colors ${on ? 'bg-primary/10' : 'hover:bg-accent'}`}
+                                        >
+                                          <div className="flex min-w-0 items-center space-x-2">
+                                            <div className="w-2 h-2 shrink-0 rounded-full shadow-sm" style={{ backgroundColor: normalizeColor(tag.color ?? undefined) }} />
+                                            <span className="truncate font-medium">{getTagLabel(tag)}</span>
+                                          </div>
+                                          {on ? <Check className="h-3 w-3 shrink-0 text-primary" /> : <Plus className="h-3 w-3 opacity-0 group-hover:opacity-40 transition-opacity" />}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
                         )}
