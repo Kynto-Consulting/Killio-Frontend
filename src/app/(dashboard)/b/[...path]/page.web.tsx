@@ -1549,7 +1549,7 @@ export default function BoardPage() {
   } as CSSProperties;
 
   return (
-    <div className={`flex flex-col h-full overflow-hidden relative ${boardBackground.className}`} style={boardShellStyle}>
+    <div data-board-scroll className={`flex flex-col h-full overflow-hidden relative ${boardBackground.className}`} style={boardShellStyle}>
       {/* Board Header */}
       <header
         className="flex items-center justify-between px-6 py-3 border-b backdrop-blur-sm z-10 w-full shrink-0"

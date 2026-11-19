@@ -70,7 +70,6 @@ export function NavbarAiCredits({ teamId, accessToken }: NavbarAiCreditsProps) {
             <Sparkles className="h-3.5 w-3.5" />
             <span className="font-medium">{t("agent.credits.used", { used: aiUsage.creditsUsed.toFixed(2), limit: aiUsage.limit.toFixed(2) })}</span>
           </span>
-          <span className="hidden xl:inline truncate">Credits</span>
           {billingEnabled && (
           <button
             type="button"

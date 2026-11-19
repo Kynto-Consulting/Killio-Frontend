@@ -327,6 +327,7 @@
       "untitled": "Conversación sin título"
     },
     "messages": {
+      "emptyResponse": "No recibí respuesta del modelo. Pulsa reintentar.",
       "copy": "Copiar respuesta",
       "thumbsUp": "Buena respuesta",
       "thumbsDown": "Respuesta mejorable",

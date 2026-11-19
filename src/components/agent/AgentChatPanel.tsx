@@ -1458,33 +1458,24 @@ export function AssistantMessage({
           <ToolResultCards t={t} results={message.toolResults} />
         )}
 
-        {!hasInlineToolChips ? (
+        {!hasInlineToolChips && (visibleText || hasPartialToolCall || !message.isStreaming) ? (
           <div className="px-4 py-3 rounded-2xl rounded-bl-md bg-muted/60 text-foreground text-sm leading-relaxed break-words [overflow-wrap:anywhere] min-w-0">
             {visibleText ? (
               <div className="prose prose-sm dark:prose-invert max-w-none break-words [overflow-wrap:anywhere] text-foreground prose-p:my-1.5 prose-p:leading-relaxed prose-headings:my-2 prose-headings:text-foreground prose-strong:text-foreground prose-ul:my-1.5 prose-ol:my-1.5 prose-li:my-0.5 prose-li:marker:text-muted-foreground prose-pre:bg-background/70 prose-pre:text-foreground prose-pre:border prose-pre:border-border/50 prose-pre:overflow-x-auto prose-pre:max-w-full prose-code:text-foreground prose-code:bg-background/60 prose-code:px-1 prose-code:rounded prose-code:break-words">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{visibleText}</ReactMarkdown>
               </div>
-            ) : message.isStreaming && !hasPartialToolCall ? (
-              <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
-                <Bot className="w-3.5 h-3.5" />
-                <span className="text-[11px]">{t("agent.header.thinking")}</span>
-              </div>
+            ) : !message.isStreaming && !hasPartialToolCall ? (
+              // finished with nothing to show: say so instead of an empty bubble (the thinking indicator below is the only "working" state)
+              <p className="text-xs italic text-muted-foreground">{t("agent.messages.emptyResponse")}</p>
             ) : null}
             {hasPartialToolCall && <BuildingToolCallChip t={t} />}
           </div>
-        ) : (
+        ) : !hasInlineToolChips ? null : (
           // Inline mode: prose is already rendered between the chips above. Only
           // show a slim streaming tail (building chip / thinking), no extra bubble.
           (message.isStreaming || hasPartialToolCall) && (
             <div className="px-1 py-0.5">
-              {hasPartialToolCall ? (
-                <BuildingToolCallChip t={t} />
-              ) : message.isStreaming ? (
-                <div className="flex items-center gap-1.5 py-1 italic text-muted-foreground/60 animate-pulse">
-                  <Bot className="w-3.5 h-3.5" />
-                  <span className="text-[11px]">{t("agent.header.thinking")}</span>
-                </div>
-              ) : null}
+              {hasPartialToolCall ? <BuildingToolCallChip t={t} /> : null}
             </div>
           )
         )}

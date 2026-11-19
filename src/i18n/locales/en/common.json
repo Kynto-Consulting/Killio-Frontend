@@ -327,6 +327,7 @@
       "untitled": "Untitled conversation"
     },
     "messages": {
+      "emptyResponse": "The model returned no answer. Press retry.",
       "copy": "Copy response",
       "thumbsUp": "Good response",
       "thumbsDown": "Room for improvement",
