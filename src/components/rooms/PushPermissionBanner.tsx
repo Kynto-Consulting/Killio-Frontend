@@ -28,8 +28,8 @@ export function PushPermissionBanner({ accessToken }: Props) {
   if (typeof window !== "undefined" && !("PushManager" in window)) return null;
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 bg-violet-950/70 border-b border-violet-800/40 text-sm text-violet-800 dark:text-violet-100 shrink-0">
-      <Bell className="w-4 h-4 text-violet-600 dark:text-violet-300 shrink-0" />
+    <div className="flex items-center gap-3 px-4 py-2.5 bg-primary/10 border-b border-primary/20 text-sm text-foreground shrink-0">
+      <Bell className="w-4 h-4 text-primary shrink-0" />
       <span className="flex-1 text-[13px]">
         {tCommon("pushBanner.message")}
       </span>
@@ -38,13 +38,13 @@ export function PushPermissionBanner({ accessToken }: Props) {
           const ok = await subscribe();
           if (!ok) setDismissed(true);
         }}
-        className="shrink-0 px-3 py-1 rounded-md bg-violet-600 hover:bg-violet-500 text-white text-[12px] font-semibold transition-colors"
+        className="shrink-0 px-3 py-1 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-[12px] font-semibold transition-colors"
       >
         {tCommon("pushBanner.enable")}
       </button>
       <button
         onClick={() => setDismissed(true)}
-        className="shrink-0 p-1 rounded hover:bg-violet-800/50 text-violet-400 hover:text-violet-700 dark:hover:text-violet-200 transition-colors"
+        className="shrink-0 p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-foreground transition-colors"
         aria-label={tCommon("pushBanner.dismiss")}
       >
         <X className="w-3.5 h-3.5" />
@@ -71,7 +71,7 @@ export function PushNotificationToggle({ accessToken }: Props) {
       title={active ? tCommon("pushBanner.disable") : tCommon("pushBanner.enable")}
       className={`p-1.5 rounded-md transition-colors ${
         active
-          ? "text-violet-400 hover:bg-violet-900/40"
+          ? "text-primary hover:bg-primary/10"
           : "text-neutral-400 hover:bg-neutral-100 dark:hover:bg-neutral-800/60"
       }`}
     >
