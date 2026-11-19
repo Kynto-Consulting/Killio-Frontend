@@ -333,6 +333,9 @@
     "tabs": {
       "defaultTab1": "Tab 1",
       "defaultTabn": "Tab",
+      "rename": "Rename tab",
+      "renameHint": "Click to switch tabs. Ctrl+click, double click or the pencil to rename it.",
+      "delete": "Delete tab",
       "placeholder": "Write tab content...",
       "empty": "Empty tab. Click or drop a block inside."
     },

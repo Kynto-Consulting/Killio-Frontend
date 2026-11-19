@@ -2,6 +2,7 @@
  * Pure logic of card templates: offsets, the resolve response -> create-modal state, the editor form <-> API DTO,
  * and the editor's live preview. No React, no I/O (runnable by `node --experimental-strip-types --test`).
  */
+import type { TemplateWizard } from "./wizard.ts";
 import type { BoardBrick } from "../api/contracts";
 import type { CardTemplate, CardTemplateBlock, CardTemplateInput, ResolvedCardTemplate } from "../api/card-templates";
 
@@ -214,10 +215,11 @@ export interface TemplateForm {
   startOffset: string;
   dueOffset: string;
   blocks: BoardBrick[];
+  wizard: TemplateWizard | null;
 }
 
 export function emptyForm(): TemplateForm {
-  return { name: "", description: "", icon: "", titlePattern: "", targetListId: "", tagIds: [], assigneeUserIds: [], assigneeGroupIds: [], startOffset: "", dueOffset: "", blocks: [] };
+  return { name: "", description: "", icon: "", titlePattern: "", targetListId: "", tagIds: [], assigneeUserIds: [], assigneeGroupIds: [], startOffset: "", dueOffset: "", blocks: [], wizard: null };
 }
 
 export function templateToForm(t: CardTemplate, makeId: () => string): TemplateForm {
@@ -233,6 +235,7 @@ export function templateToForm(t: CardTemplate, makeId: () => string): TemplateF
     startOffset: t.startOffsetDays === null || t.startOffsetDays === undefined ? "" : String(t.startOffsetDays),
     dueOffset: t.dueOffsetDays === null || t.dueOffsetDays === undefined ? "" : String(t.dueOffsetDays),
     blocks: blocksToBricks(t.blocks ?? [], makeId),
+    wizard: t.wizard ?? null,
   };
 }
 
@@ -279,6 +282,7 @@ export function formToInput(form: TemplateForm): FormToInput {
       startOffsetDays: start.ok ? start.value : null,
       dueOffsetDays: due.ok ? due.value : null,
       blocks: bricksToBlocks(form.blocks),
+      wizard: form.wizard && form.wizard.steps.length > 0 ? form.wizard : null,
     },
   };
 }

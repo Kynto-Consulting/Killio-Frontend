@@ -4,6 +4,7 @@
  * In a local workspace (.kb file) there is no server: every call is a no-op (list -> [], the rest -> null).
  */
 import type { BrickMutationInput } from "./contracts";
+import type { TemplateWizard } from "@/lib/card-templates/wizard";
 import { localDateISO } from "../card-templates/model";
 
 const API = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -32,6 +33,8 @@ export interface CardTemplate {
   blocks: CardTemplateBlock[];
   /** Reserved for typed fields (phase 2). */
   fields?: unknown[];
+  /** Steps the "new card" modal walks through; `null` = none. */
+  wizard?: TemplateWizard | null;
 }
 
 export interface CardTemplateInput {
@@ -48,6 +51,8 @@ export interface CardTemplateInput {
   startOffsetDays: number | null;
   dueOffsetDays: number | null;
   blocks: CardTemplateBlock[];
+  /** `null` removes the wizard. */
+  wizard?: TemplateWizard | null;
 }
 
 /** What `resolve` produces: everything the create modal needs, with nothing written. */

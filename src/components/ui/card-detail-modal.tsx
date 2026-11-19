@@ -2,7 +2,7 @@
 import { useActionTheme } from "@/hooks/use-action-theme";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { Check, ChevronDown, X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
+import { Check, ChevronDown, Sparkles, X, AlignLeft, Image as ImageIcon, CheckSquare, MessageSquare, Plus, GripVertical, FileText, CornerDownRight, Calendar, Tag as TagIcon, Users, UserPlus, Loader2, Info, History as HistoryIcon, Search, Clock3, Archive, ArchiveRestore } from "lucide-react";
 import * as diff from "diff";
 import { updateCard as apiUpdateCard, addCardTag as apiAddCardTag, removeCardTag as apiRemoveCardTag, addCardAssignee as apiAddCardAssignee, removeCardAssignee as apiRemoveCardAssignee, createCardBrick as apiCreateCardBrick, updateCardBrick as apiUpdateCardBrick, deleteCardBrick as apiDeleteCardBrick, reorderCardBricks as apiReorderCardBricks, createCard, getTagsByScope as apiGetTagsByScope, getBoardMembers as apiGetBoardMembers, listTeamMembers, getCardActivity as apiGetCardActivity, addCardComment as apiAddCardComment, createTag as apiCreateTag, updateList, uploadFile as apiUploadFile, ApiError } from "../../lib/api/contracts";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
@@ -40,6 +40,8 @@ import { getBoard as apiGetBoardForLists } from "@/lib/api/contracts";
 import { groupTagsBySection, localDateISO, resolvedToModalState } from "@/lib/card-templates/model";
 import { listTeamTagGroups, type ServerTagGroup } from "@/lib/api/view-settings";
 import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
+import { activeWizard, applyWizardAnswers, dayToIso, type WizardAnswers, type WizardBrick } from "@/lib/card-templates/wizard";
+import { CardTemplateWizardDialog } from "./card-template-wizard-dialog";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -263,6 +265,11 @@ export function CardDetailModal({
   const [boardListOptions, setBoardListOptions] = useState<Array<{ id: string; name: string }>>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  /** The wizard of the chosen template is open; `pendingAutoCreate` creates the card once its answers are in the form. */
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [pendingAutoCreate, setPendingAutoCreate] = useState(false);
+  /** What the template left on the card, and the last answers: the wizard always starts from these, so reopening it re-fills the placeholders. */
+  const wizardBase = useRef<{ blocks: any[]; title: string; tagIds: string[]; answers: WizardAnswers } | null>(null);
   const [isResolvingTemplate, setIsResolvingTemplate] = useState(false);
   const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
   /** Where the new card will be created: the list the modal was opened from, unless a template or the user changes it. */
@@ -546,10 +553,12 @@ export function CardDetailModal({
       setLocalAssignees(state.assignees.map(normalizeAssignee));
       setLocalBlocks(state.blocks.length > 0 ? state.blocks : [createEmptyTextBrick()]);
       setCreateListId(state.listId || listId || null);
+      wizardBase.current = { blocks: state.blocks, title: state.title.trim() ? state.title : '', tagIds: state.tags.map((x: any) => x.id).filter(Boolean), answers: {} };
       const warnings = [...state.warnings];
       if (state.unknownTagIds.length > 0) warnings.push(t('cardTemplates.unknownTags', { count: state.unknownTagIds.length }));
       setTemplateWarnings(warnings);
       if (warnings.length > 0) toast(t('cardTemplates.warningsToast', { count: warnings.length }), 'warning', 5000);
+      if (activeWizard(cardTemplates.find((x) => x.id === templateId)?.wizard)) setWizardOpen(true);
     } catch (err) {
       console.error("Failed to resolve card template", err);
       toast(t('cardTemplates.resolveError'), 'error');
@@ -618,6 +627,73 @@ export function CardDetailModal({
     }
     await handleAddTag(tag);
   };
+
+  const selectedWizard = activeWizard(cardTemplates.find((x) => x.id === selectedTemplateId)?.wizard);
+
+  /** Answers to start the wizard from: the tags of each group and the list the card already has. */
+  const wizardInitial = (): WizardAnswers => {
+    const out: WizardAnswers = { ...(wizardBase.current?.answers ?? {}) };
+    if (!selectedWizard) return out;
+    for (const step of selectedWizard.steps) {
+      for (const f of step.fields) {
+        if (f.kind === 'tag_group') {
+          const g = tagGroups.find((x) => x.id === f.groupId);
+          const names = new Set((g?.tags ?? []).map((n) => n.trim().toLowerCase()));
+          if (out[f.id]) continue;
+          const ids = localTags.filter((x) => names.has(String(x?.name ?? '').trim().toLowerCase())).map((x) => x.id);
+          if (ids.length > 0) out[f.id] = ids;
+        } else if (f.kind === 'list') {
+          const current = createListId ?? listId;
+          if (current && !out[f.id]) out[f.id] = current;
+        }
+      }
+    }
+    return out;
+  };
+
+  const handleWizardFinish = (answers: WizardAnswers, skipped = false) => {
+    setWizardOpen(false);
+    if (!selectedWizard) return;
+    if (wizardBase.current && !skipped) wizardBase.current.answers = answers;
+    const res = applyWizardAnswers({
+      wizard: selectedWizard,
+      answers,
+      blocks: (wizardBase.current?.blocks ?? localBlocks) as unknown as WizardBrick[],
+      tagIds: wizardBase.current?.tagIds ?? localTags.map((x) => x.id).filter(Boolean),
+      allTags: availableTags,
+      groups: tagGroups,
+      title: wizardBase.current ? wizardBase.current.title : localTitle === 'New Card' ? '' : localTitle,
+      listId: createListId ?? listId ?? null,
+      makeId: () => `tmp-${crypto.randomUUID()}`,
+      lists: boardListOptions,
+      builtins: { date: localDateISO(), user: user?.name || (user as any)?.displayName || '', board: boardName || '' },
+      members: boardMembers.map((m: any) => ({ id: m.id, name: m.name || m.email || '' })),
+      assigneeIds: localAssignees.map((a: any) => a.id).filter(Boolean),
+    });
+    setLocalTags(res.tagIds.map((id) => availableTags.find((x) => x.id === id)).filter(Boolean) as any[]);
+    setLocalBlocks(res.blocks as unknown as typeof localBlocks);
+    const nextTitle = res.title.trim() || 'New Card';
+    setLocalTitle(nextTitle);
+    syncTitleDom(nextTitle);
+    setCreateListId(res.listId);
+    if (res.dueDay) {
+      const iso = dayToIso(res.dueDay);
+      if (iso) { setLocalDueAtTimestamp(iso); setLocalDueAt(normalizeDueDateInputValue(iso)); }
+    }
+    if (res.startDay) {
+      const iso = dayToIso(res.startDay);
+      if (iso) setLocalStartAt(iso);
+    }
+    setLocalAssignees(res.assigneeIds.map((id) => boardMembers.find((m: any) => m.id === id)).filter(Boolean).map((m: any) => normalizeAssignee(m)) as any[]);
+    if (!skipped && selectedWizard.autoCreate !== false) setPendingAutoCreate(true);
+  };
+
+  useEffect(() => {
+    if (!pendingAutoCreate) return;
+    setPendingAutoCreate(false);
+    void submitCreate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingAutoCreate]);
 
   const getTagKey = (tag: any) => String(tag?.id || tag?.name || tag);
 
@@ -1906,6 +1982,21 @@ export function CardDetailModal({
 
   if (!isOpen) return null;
 
+  const wizardDialog = !card?.id && selectedWizard ? (
+    <CardTemplateWizardDialog
+      open={wizardOpen}
+      wizard={selectedWizard}
+      templateName={cardTemplates.find((x) => x.id === selectedTemplateId)?.name ?? ''}
+      tags={availableTags}
+      groups={tagGroups}
+      lists={boardListOptions}
+      members={boardMembers.map((m: any) => ({ id: m.id, name: m.name || m.email || '' }))}
+      initial={wizardInitial()}
+      onFinish={handleWizardFinish}
+      onClose={() => handleWizardFinish({}, true)}
+    />
+  ) : null;
+
   const content = (
     <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 backdrop-blur-md p-2 sm:p-4 overflow-hidden" onClick={e => e.target === e.currentTarget && handleClose()}>
       <div className="relative w-full max-w-6xl rounded-2xl border border-border/80 bg-background shadow-2xl flex flex-col h-[96vh] max-h-[96vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -1943,6 +2034,11 @@ export function CardDetailModal({
                   <span className="truncate">{selectedTemplateId ? (cardTemplates.find((x) => x.id === selectedTemplateId)?.name ?? t('cardTemplates.pickerLabel')) : t('cardTemplates.pickerLabel')}</span>
                   <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                 </button>
+                {selectedWizard ? (
+                  <button type="button" onClick={() => setWizardOpen(true)} className="ml-1.5 inline-flex h-8 items-center gap-1.5 rounded-md border border-primary/40 bg-primary/10 px-2.5 text-sm font-medium text-foreground hover:bg-primary/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />{t('cardTemplates.wizard.open')}
+                  </button>
+                ) : null}
                 {templateMenuOpen ? (
                   <>
                     <button type="button" aria-hidden="true" tabIndex={-1} className="fixed inset-0 z-10 cursor-default" onClick={() => setTemplateMenuOpen(false)} />
@@ -1957,6 +2053,7 @@ export function CardDetailModal({
                           meta: [
                             tpl.targetListId ? boardListOptions.find((l) => l.id === tpl.targetListId)?.name : undefined,
                             tpl.tagIds.length > 0 ? t('cardTemplates.metaTags', { count: tpl.tagIds.length }) : undefined,
+                            activeWizard(tpl.wizard) ? t('cardTemplates.wizard.badge') : undefined,
                           ].filter(Boolean).join(' · '),
                         })),
                       ].map((opt) => {
@@ -2610,5 +2707,5 @@ export function CardDetailModal({
     </div>
   );
 
-  return typeof document !== "undefined" ? createPortal(content, document.body) : null;
+  return typeof document !== "undefined" ? createPortal(<>{content}{wizardDialog}</>, document.body) : null;
 }

@@ -1561,16 +1561,6 @@ export default function BoardPage() {
         <div className="flex items-center space-x-4">
           <h1 className="text-xl font-bold tracking-tight" style={{ color: "var(--board-text, inherit)" }}>{boardName}</h1>
           <div className="h-4 w-[1px]" style={{ backgroundColor: "var(--board-border)" }}></div>
-          <button
-            className="flex items-center text-sm px-2.5 py-1 rounded-md font-medium transition-colors"
-            style={{
-              backgroundColor: "var(--board-ghost)",
-              color: "var(--board-accent)",
-            }}
-          >
-            <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
-            {t("header.live")}
-          </button>
           {!localMode ? <PinButton teamId={boardTeamId} kind="board" id={boardId} stopClick={false} alwaysVisible /> : null}
           <BoardViewTabs
             tabs={boardTabs.tabs}

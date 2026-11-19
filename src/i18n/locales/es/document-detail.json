@@ -333,6 +333,9 @@
     "tabs": {
       "defaultTab1": "Tab 1",
       "defaultTabn": "Tab",
+      "rename": "Renombrar pestaña",
+      "renameHint": "Clic para cambiar de pestaña. Ctrl+clic, doble clic o el lápiz para renombrarla.",
+      "delete": "Eliminar pestaña",
       "placeholder": "Escribe el contenido de la pestaña...",
       "empty": "Pestaña vacía. Haz clic o suelta un bloque dentro."
     },

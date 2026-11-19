@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { UnifiedBrickList } from "./unified-brick-list";
@@ -35,6 +35,29 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
   const t = useTranslations("document-detail");
   const safeTabs = tabs.length > 0 ? tabs : [{ id: "1", label: t("bricks.tabs.defaultTab1"), content: "" }];
   const [activeTab, setActiveTab] = useState(safeTabs[0].id);
+  /** A tab is renamed on purpose (Ctrl/Cmd + click, double click, F2 or the pencil): a plain click only switches tabs. */
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId) inputRef.current?.select();
+  }, [editingId]);
+
+  const startRename = (tab: { id: string; label: string }) => {
+    if (readonly) return;
+    setActiveTab(tab.id);
+    setDraft(tab.label);
+    setEditingId(tab.id);
+  };
+  const commitRename = () => {
+    if (editingId) {
+      const label = draft.trim();
+      const current = safeTabs.find((x) => x.id === editingId);
+      if (label && current && label !== current.label) updateTab(editingId, { label });
+    }
+    setEditingId(null);
+  };
 
   const nestedBricks = resolveNestedBricks({ childrenByContainer: childrenByContainer || {} }, activeTab, activeBricks as any[]) as any[];
 
@@ -65,7 +88,7 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
 
   return (
     <div className="flex flex-col border border-border/50 rounded-lg group">
-      <div className="flex bg-muted/20 border-b border-border/50 relative px-1 pt-1 overflow-x-auto overflow-y-hidden rounded-t-lg">
+      <div role="tablist" className="flex bg-muted/20 border-b border-border/50 relative px-1 pt-1 overflow-x-auto overflow-y-hidden rounded-t-lg">
         {safeTabs.map((tab) => (
           <div
             key={tab.id}
@@ -75,22 +98,63 @@ export const UnifiedTabsBrick: React.FC<TabsBrickProps> = ({
                 ? "border-primary text-foreground bg-background"
                 : "border-transparent text-muted-foreground hover:text-foreground hover:bg-muted/10"
             )}
-            onClick={() => setActiveTab(tab.id)}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            tabIndex={0}
+            title={readonly ? undefined : t("bricks.tabs.renameHint")}
+            onClick={(e) => {
+              if (editingId === tab.id) return;
+              if (!readonly && (e.ctrlKey || e.metaKey)) startRename(tab);
+              else setActiveTab(tab.id);
+            }}
+            onDoubleClick={() => startRename(tab)}
+            onKeyDown={(e) => {
+              if (editingId === tab.id) return;
+              if (e.key === "F2") { e.preventDefault(); startRename(tab); }
+              else if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setActiveTab(tab.id); }
+            }}
           >
-            {!readonly ? (
+            {editingId === tab.id ? (
               <input
-                value={tab.label}
-                onChange={(e) => updateTab(tab.id, { label: e.target.value })}
-                className="bg-transparent outline-none border-none min-w-[50px] focus:ring-1 ring-border/50 rounded px-1"
-                onClick={(e) => { e.stopPropagation(); }}
+                ref={inputRef}
+                autoFocus
+                value={draft}
+                maxLength={60}
+                aria-label={t("bricks.tabs.rename")}
+                onChange={(e) => setDraft(e.target.value)}
+                onBlur={commitRename}
+                onClick={(e) => e.stopPropagation()}
+                onDoubleClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => {
+                  e.stopPropagation();
+                  if (e.key === "Enter") commitRename();
+                  else if (e.key === "Escape") setEditingId(null);
+                }}
+                className="bg-transparent outline-none border-none min-w-[50px] ring-1 ring-primary/60 rounded px-1"
               />
             ) : (
-               <span>{tab.label}</span>
+              <span>{tab.label}</span>
             )}
-            {!readonly && safeTabs.length > 1 && (
+            {!readonly && editingId !== tab.id && (
               <button
                 type="button"
-                className="ml-2 opacity-0 group-hover/tab:opacity-100 hover:text-destructive transition-opacity"
+                aria-label={t("bricks.tabs.rename")}
+                title={t("bricks.tabs.rename")}
+                className={cn("ml-2 hover:text-foreground transition-opacity", activeTab === tab.id ? "opacity-40 hover:opacity-100" : "opacity-0 group-hover/tab:opacity-60 hover:!opacity-100")}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  startRename(tab);
+                }}
+              >
+                <Pencil className="w-3.5 h-3.5" />
+              </button>
+            )}
+            {!readonly && safeTabs.length > 1 && editingId !== tab.id && (
+              <button
+                type="button"
+                aria-label={t("bricks.tabs.delete")}
+                title={t("bricks.tabs.delete")}
+                className="ml-1.5 opacity-0 group-hover/tab:opacity-100 hover:text-destructive transition-opacity"
                 onClick={(e) => {
                   e.stopPropagation();
                   removeTab(tab.id);

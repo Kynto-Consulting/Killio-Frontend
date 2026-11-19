@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Check, Copy, Loader2, Plus, Search, Trash2, X } from "lucide-react";
+import { Check, Copy, FileText, Loader2, Plus, Search, Sparkles, Trash2, X } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -34,6 +34,8 @@ import {
   type TemplateForm,
 } from "@/lib/card-templates/model";
 import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
+import { CardTemplateWizardEditor } from "./card-template-wizard-editor";
+import { activeWizard, starterWizard } from "@/lib/card-templates/wizard";
 import { normalizeWorkspaceMembers } from "@/lib/workspace-members";
 import { toast } from "@/lib/toast";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -63,6 +65,7 @@ function OffsetPresets({ value, onPick, t }: { value: string; onPick: (v: string
 const tagDot = (color?: string | null) => (color ? (color.startsWith("#") ? color : `#${color}`) : "transparent");
 
 type Selection = "new" | string | null;
+type EditorTab = "basics" | "content" | "wizard";
 
 interface Option {
   id: string;
@@ -109,6 +112,8 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
   const [confirmDelete, setConfirmDelete] = useState(false);
   /** What to do once the user agrees to discard unsaved changes (closing or switching template). */
   const [discardAction, setDiscardAction] = useState<(() => void) | null>(null);
+  /** The form is split in three tabs so a new person sees a few things at a time. */
+  const [tab, setTab] = useState<EditorTab>("basics");
   const [tagSearch, setTagSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [newTagName, setNewTagName] = useState("");
@@ -200,9 +205,22 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
     if (open) panelRef.current?.focus();
   }, [open]);
 
+  /** A new template, starting as a plain fill-in one or as a wizard whose steps come from the team's tag groups. */
+  const startNew = (mode: "fill" | "wizard") => {
+    guard(() => {
+      setSelected("new");
+      setErrors({});
+      setServerResult(null);
+      setTab(mode === "wizard" ? "wizard" : "basics");
+      setForm({ ...emptyForm(), wizard: mode === "wizard" ? starterWizard(tagGroups.map((g) => ({ id: g.id, name: g.name, mode: (g as { mode?: string }).mode })), newId) : null });
+      setDirty(mode === "wizard");
+    });
+  };
+
   const select = (id: Selection) => {
     if (id === selected) return;
     guard(() => {
+      setTab("basics");
       setSelected(id);
       setErrors({});
       setDirty(false);
@@ -220,6 +238,8 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
     const res = formToInput(form);
     if (!res.ok) {
       setErrors(res.errors);
+      const e = res.errors;
+      if (!e.name) setTab(e.tagIds || e.blocks ? "content" : "basics");
       return;
     }
     setErrors({});
@@ -383,7 +403,7 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
         <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           {/* List */}
           <nav aria-label={t("cardTemplates.editor.listTitle")} className="flex max-h-48 shrink-0 flex-col gap-1 overflow-y-auto border-b border-border p-3 md:max-h-none md:w-60 md:border-b-0 md:border-r">
-            <button type="button" onClick={() => select("new")} className={`${ghostBtn} w-full justify-center ${selected === "new" ? "border-primary text-primary" : ""}`}>
+            <button type="button" onClick={() => guard(() => { setSelected(null); setForm(emptyForm()); setDirty(false); setErrors({}); })} className={`${ghostBtn} w-full justify-center`}>
               <Plus className="h-4 w-4" />
               {t("cardTemplates.editor.new")}
             </button>
@@ -408,7 +428,24 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
           </nav>
 
           {!isEditing ? (
-            <div className="flex flex-1 items-center justify-center p-8 text-center text-sm text-muted-foreground">{t("cardTemplates.editor.selectHint")}</div>
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 overflow-y-auto p-6 text-center">
+              <div>
+                <h3 className="text-base font-semibold text-foreground">{templates.length === 0 ? t("cardTemplates.editor.start.firstTitle") : t("cardTemplates.editor.start.title")}</h3>
+                <p className="mx-auto mt-1 max-w-md text-sm text-muted-foreground">{templates.length === 0 ? t("cardTemplates.editor.start.firstHint") : t("cardTemplates.editor.selectHint")}</p>
+              </div>
+              <div className="grid w-full max-w-2xl gap-3 sm:grid-cols-2">
+                <button type="button" onClick={() => startNew("fill")} className="flex flex-col items-start gap-1.5 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-muted"><FileText className="h-4 w-4" /></span>
+                  <span className="text-sm font-semibold text-foreground">{t("cardTemplates.editor.start.fillTitle")}</span>
+                  <span className="text-xs text-muted-foreground">{t("cardTemplates.editor.start.fillBody")}</span>
+                </button>
+                <button type="button" onClick={() => startNew("wizard")} className="flex flex-col items-start gap-1.5 rounded-xl border border-border bg-background p-4 text-left transition-colors hover:border-primary/60 hover:bg-primary/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-md bg-primary/10"><Sparkles className="h-4 w-4 text-primary" /></span>
+                  <span className="text-sm font-semibold text-foreground">{t("cardTemplates.editor.start.wizardTitle")}</span>
+                  <span className="text-xs text-muted-foreground">{t("cardTemplates.editor.start.wizardBody")}</span>
+                </button>
+              </div>
+            </div>
           ) : (
             <>
               {/* Form */}
@@ -417,7 +454,7 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                 onSubmit={(e) => { e.preventDefault(); void save(); }}
                 noValidate
               >
-                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
+                <div className="shrink-0 space-y-3 px-4 pt-4">
                 <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
                   <label className="block space-y-1">
                     <span className="text-sm font-semibold">{t("cardTemplates.editor.name")}</span>
@@ -429,12 +466,30 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                     <input className={inputCls} value={form.icon} maxLength={TEMPLATE_LIMITS.icon} onChange={(e) => patch({ icon: e.target.value })} placeholder={t("cardTemplates.editor.iconPlaceholder")} />
                   </label>
                 </div>
-                <div className="-mt-3 flex flex-wrap items-center gap-1" role="group" aria-label={t("cardTemplates.editor.iconSuggestions")}>
+                <div className="flex flex-wrap items-center gap-1" role="group" aria-label={t("cardTemplates.editor.iconSuggestions")}>
                   {ICON_SUGGESTIONS.map((e) => (
                     <button key={e} type="button" aria-pressed={form.icon === e} onClick={() => patch({ icon: form.icon === e ? "" : e })} className={`flex h-7 w-7 items-center justify-center rounded-md border text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${form.icon === e ? "border-primary bg-primary/10" : "border-border bg-background hover:bg-muted"}`}>{e}</button>
                   ))}
                 </div>
 
+                </div>
+                <div role="tablist" aria-label={t("cardTemplates.editor.title")} className="flex shrink-0 gap-1 border-b border-border px-4 pt-2">
+                  {([["basics", t("cardTemplates.editor.tabs.basics")], ["content", t("cardTemplates.editor.tabs.content")], ["wizard", t("cardTemplates.editor.tabs.wizard")]] as Array<[EditorTab, string]>).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      role="tab"
+                      aria-selected={tab === id}
+                      onClick={() => setTab(id)}
+                      className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
+                    >
+                      {label}
+                      {id === "wizard" && activeWizard(form.wizard) ? <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-primary" /> : null}
+                    </button>
+                  ))}
+                </div>
+                <div className="min-h-0 flex-1 overflow-y-auto p-4">
+                <div className={tab === "basics" ? "space-y-6" : "hidden"}>
                 <label className="block space-y-1">
                   <span className="text-sm font-semibold">{t("cardTemplates.editor.description")}</span>
                   <input className={inputCls} value={form.description} onChange={(e) => patch({ description: e.target.value })} placeholder={t("cardTemplates.editor.descriptionPlaceholder")} />
@@ -476,6 +531,8 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                   </div>
                 </Section>
 
+                </div>
+                <div className={tab === "content" ? "space-y-6" : "hidden"}>
                 <Section title={t("cardTemplates.editor.tags")} hint={t("cardTemplates.editor.tagsHint")} error={fieldErr("tagIds")}>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -610,6 +667,12 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                   </div>
                 </Section>
 
+                </div>
+                <div className={tab === "wizard" ? "space-y-6" : "hidden"}>
+                  <Section title={t("cardTemplates.editor.wizard.title")} hint={t("cardTemplates.editor.wizard.hint")}>
+                    <CardTemplateWizardEditor wizard={form.wizard} onChange={(w) => patch({ wizard: w })} groups={tagGroups.map((g) => ({ id: g.id, name: g.name, mode: (g as { mode?: string }).mode }))} />
+                  </Section>
+                </div>
                 </div>
 
                 <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-3">
