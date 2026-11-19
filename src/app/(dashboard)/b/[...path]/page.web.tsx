@@ -15,6 +15,7 @@ import { useBoardView } from "@/components/boards/use-board-view";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { GanttView } from "@/components/boards/gantt-view";
 import { BoardListView } from "@/components/boards/board-list-view";
+import { BoardCalendarView } from "@/components/boards/board-calendar-view";
 import { BoardViewTabs } from "@/components/boards/board-view-tabs";
 import { useBoardTabs } from "@/components/boards/use-board-tabs";
 import { isBuiltinTab, tabDisplayName, uniqueTabName, type BoardTabType } from "@/lib/boards/board-tabs";
@@ -1575,18 +1576,18 @@ export default function BoardPage() {
             canManage={permissions.canEdit}
             onSelect={boardTabs.select}
             onAdd={(type: BoardTabType) => {
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
               const id = `view_${genLocalId()}`;
               boardTabs.dispatch({ type: "add", id, tabType: type, name: uniqueTabName(labels[type], boardTabs.tabs, labels) });
               boardTabs.select(id);
             }}
             onRename={(id, name) => {
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
               boardTabs.dispatch({ type: "rename", id, name: uniqueTabName(name.trim(), boardTabs.tabs, labels, id) });
             }}
             onDelete={async (tab) => {
               if (isBuiltinTab(tab)) return;
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
               const ok = await askDeleteView({
                 title: t("viewTabs.delete"),
                 description: t("viewTabs.deleteConfirm", { name: tabDisplayName(tab, labels) }),
@@ -1945,6 +1946,15 @@ export default function BoardPage() {
       <main className="flex-1 overflow-hidden bg-background">
         <GanttView
           lists={filteredLists}
+          locale={locale}
+          onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+        />
+      </main>
+      ) : boardView === "calendar" ? (
+      <main className="flex-1 min-h-0 overflow-hidden bg-background">
+        <BoardCalendarView
+          key={boardTabs.active.id}
+          lists={viewLists}
           locale={locale}
           onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
         />

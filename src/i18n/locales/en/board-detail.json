@@ -93,6 +93,8 @@
       "deleteConfirm": "Delete \"{{name}}\"? Cards already created from it are not affected.",
       "copySuffix": "(copy)",
       "unsavedConfirm": "Discard the unsaved changes?",
+      "unsavedTitle": "Unsaved changes",
+      "discard": "Discard",
       "serverError": "Could not test the template",
       "preview": "Preview",
       "previewHint": "Estimate of a new card from this template; dates use today. Test it on the server for the exact result.",
@@ -148,6 +150,7 @@
     "deleteBoard": "Delete Board",
     "connecting": "Connecting...",
     "listView": "List",
+    "calendarView": "Calendar",
     "addView": "Add view"
   },
   "drag": {
@@ -433,10 +436,20 @@
     "columnsHint": "Tag group columns appear when the board's cards use them",
     "clearSearch": "Clear search"
   },
+  "calendar": {
+    "prev": "Previous month",
+    "next": "Next month",
+    "today": "Today",
+    "more": "+{{count}} more",
+    "less": "Show less",
+    "undated": "{{count}} cards without a due date are not shown in the calendar."
+  },
   "viewTabs": {
     "add": "Add view",
     "addTitle": "Add a view to this board",
     "typeList": "List",
+    "typeCalendar": "Calendar",
+    "inDevelopment": "In development",
     "typeKanban": "Kanban",
     "typeGantt": "Gantt",
     "rename": "Rename",

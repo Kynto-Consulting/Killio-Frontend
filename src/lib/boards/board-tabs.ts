@@ -9,7 +9,13 @@
  */
 import type { KeyValueStorage } from './view-storage.ts';
 
-export type BoardTabType = 'kanban' | 'gantt' | 'list';
+/** `calendar` is experimental: it is never part of the default tabs, only added by hand from the "+" menu. */
+export type BoardTabType = 'kanban' | 'gantt' | 'list' | 'calendar';
+
+/** Types the "+" menu offers. Extra Kanban / Gantt tabs would show the same thing as the built-in ones, so they are not offered. */
+export const ADDABLE_TAB_TYPES: readonly BoardTabType[] = ['list', 'calendar'];
+/** Types still in development: the menu marks them. */
+export const EXPERIMENTAL_TAB_TYPES: readonly BoardTabType[] = ['calendar'];
 
 export interface ListTabConfig {
   /** Column ids switched off in the "Columns" menu (`state`, `assignees`, `due`, `comments`, `tagGroup:<id>`). */
@@ -36,7 +42,7 @@ export type BoardTabAction =
 export const BUILTIN_TAB_IDS = ['kanban', 'gantt'] as const;
 export const MAX_TABS = 20;
 export const MAX_TAB_NAME = 40;
-const TYPES: readonly BoardTabType[] = ['kanban', 'gantt', 'list'];
+const TYPES: readonly BoardTabType[] = ['kanban', 'gantt', 'list', 'calendar'];
 
 export const isBuiltinTab = (tab: Pick<BoardTab, 'id'>) => (BUILTIN_TAB_IDS as readonly string[]).includes(tab.id);
 

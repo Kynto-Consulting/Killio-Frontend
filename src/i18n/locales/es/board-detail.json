@@ -93,6 +93,8 @@
       "deleteConfirm": "¿Eliminar \"{{name}}\"? Las tarjetas ya creadas con ella no se ven afectadas.",
       "copySuffix": "(copia)",
       "unsavedConfirm": "¿Descartar los cambios sin guardar?",
+      "unsavedTitle": "Cambios sin guardar",
+      "discard": "Descartar",
       "serverError": "No se pudo probar la plantilla",
       "preview": "Vista previa",
       "previewHint": "Estimación de una tarjeta nueva con esta plantilla; las fechas usan hoy. Pruébala en el servidor para ver el resultado exacto.",
@@ -148,6 +150,7 @@
     "deleteBoard": "Eliminar tablero",
     "connecting": "Conectando...",
     "listView": "Lista",
+    "calendarView": "Calendario",
     "addView": "Agregar vista"
   },
   "drag": {
@@ -433,10 +436,20 @@
     "columnsHint": "Las columnas de grupos de etiquetas aparecen cuando las tarjetas del tablero las usan",
     "clearSearch": "Limpiar búsqueda"
   },
+  "calendar": {
+    "prev": "Mes anterior",
+    "next": "Mes siguiente",
+    "today": "Hoy",
+    "more": "+{{count}} más",
+    "less": "Ver menos",
+    "undated": "{{count}} tarjetas sin fecha de vencimiento no aparecen en el calendario."
+  },
   "viewTabs": {
     "add": "Agregar vista",
     "addTitle": "Agregar una vista a este tablero",
     "typeList": "Lista",
+    "typeCalendar": "Calendario",
+    "inDevelopment": "En desarrollo",
     "typeKanban": "Kanban",
     "typeGantt": "Gantt",
     "rename": "Renombrar",

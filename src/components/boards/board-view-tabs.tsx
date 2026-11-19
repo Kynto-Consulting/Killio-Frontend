@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { ChartGantt, List, Plus, SquareKanban } from "lucide-react";
+import { CalendarDays, ChartGantt, List, Plus, SquareKanban } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { isBuiltinTab, MAX_TAB_NAME, tabDisplayName, type BoardTab, type BoardTabType } from "@/lib/boards/board-tabs";
+import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, isBuiltinTab, MAX_TAB_NAME, tabDisplayName, type BoardTab, type BoardTabType } from "@/lib/boards/board-tabs";
 
-const ICONS: Record<BoardTabType, typeof List> = { kanban: SquareKanban, gantt: ChartGantt, list: List };
+const ICONS: Record<BoardTabType, typeof List> = { kanban: SquareKanban, gantt: ChartGantt, list: List, calendar: CalendarDays };
 
 interface BoardViewTabsProps {
   tabs: BoardTab[];
@@ -25,7 +25,7 @@ interface BoardViewTabsProps {
  */
 export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDelete, canManage }: BoardViewTabsProps) {
   const t = useTranslations("board-detail");
-  const labels: Record<BoardTabType, string> = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+  const labels: Record<BoardTabType, string> = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
   const [addOpen, setAddOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -141,9 +141,10 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
             <Plus className="h-3.5 w-3.5" aria-hidden />
           </button>
           {addOpen ? (
-            <div role="menu" className="absolute left-0 top-full z-50 mt-2 w-44 rounded-lg border border-border bg-card p-1 shadow-lg">
-              {(["list", "kanban", "gantt"] as BoardTabType[]).map((type) => {
+            <div role="menu" className="absolute left-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card p-1 shadow-lg">
+              {ADDABLE_TAB_TYPES.map((type) => {
                 const Icon = ICONS[type];
+                const experimental = EXPERIMENTAL_TAB_TYPES.includes(type);
                 return (
                   <button
                     key={type}
@@ -156,7 +157,8 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
                     className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sm text-foreground outline-none hover:bg-muted focus-visible:bg-muted"
                   >
                     <Icon className="h-4 w-4 text-muted-foreground" aria-hidden />
-                    {labels[type]}
+                    <span className="flex-1">{labels[type]}</span>
+                    {experimental ? <span className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 text-[10px] font-medium text-amber-700 dark:text-amber-300">{t("viewTabs.inDevelopment")}</span> : null}
                   </button>
                 );
               })}

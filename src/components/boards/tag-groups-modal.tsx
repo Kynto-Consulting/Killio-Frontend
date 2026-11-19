@@ -5,6 +5,7 @@ import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { moveItem, type TagGroup } from "@/lib/boards/sorting";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ModalShell } from "./modal-shell";
 import { useViewSyncState } from "./use-board-view";
 import { ViewSyncBadge } from "./view-sync-badge";
@@ -29,6 +30,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
   const [newTag, setNewTag] = useState("");
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -95,10 +97,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
                 <input className={inputCls} value={selected.name} maxLength={40} onChange={(e) => update(selected.id, { name: e.target.value })} aria-label={t("tagGroups.name")} />
                 <button
                   type="button"
-                  onClick={() => {
-                    if (!window.confirm(t("tagGroups.deleteConfirm", { name: selected.name }))) return;
-                    onChange(groups.filter((g) => g.id !== selected.id));
-                  }}
+                  onClick={() => setConfirmDeleteId(selected.id)}
                   className="h-8 px-2 inline-flex items-center gap-1 rounded-md text-xs text-red-600 dark:text-red-400 hover:bg-red-500/10"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -142,7 +141,7 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
               </fieldset>
 
               <p className="text-[11px] text-muted-foreground">{t("tagGroups.orderHint")}</p>
-              <ol className="space-y-1">
+              <ol className="max-h-72 space-y-1 overflow-y-auto overscroll-contain rounded-md border border-border bg-muted/30 p-1.5">
                 {selected.tags.length === 0 ? <li className="text-xs text-muted-foreground">{t("tagGroups.noTags")}</li> : null}
                 {selected.tags.map((tag, i) => (
                   <li key={tag} className="flex items-center gap-2 rounded-md border border-border bg-background px-2 py-1">
@@ -192,6 +191,19 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
           )}
         </div>
       </div>
+      <ConfirmDialog
+        isOpen={confirmDeleteId !== null}
+        onClose={() => setConfirmDeleteId(null)}
+        onConfirm={() => {
+          const id = confirmDeleteId;
+          setConfirmDeleteId(null);
+          if (id) onChange(groups.filter((g) => g.id !== id));
+        }}
+        title={t("tagGroups.delete")}
+        description={t("tagGroups.deleteConfirm", { name: groups.find((g) => g.id === confirmDeleteId)?.name ?? "" })}
+        confirmLabel={t("tagGroups.delete")}
+        variant="danger"
+      />
     </ModalShell>
   );
 }

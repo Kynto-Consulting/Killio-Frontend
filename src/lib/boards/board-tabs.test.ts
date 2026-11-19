@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { activeTabKey, boardTabsKey, boardTabsReducer, createBoardTabsStore, defaultTabs, MAX_TABS, normalizeTabs, resolveActiveTab, tabDisplayName, uniqueTabName } from "./board-tabs.ts";
+import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, activeTabKey, boardTabsKey, boardTabsReducer, createBoardTabsStore, defaultTabs, MAX_TABS, normalizeTabs, resolveActiveTab, tabDisplayName, uniqueTabName } from "./board-tabs.ts";
 import type { BoardTab } from "./board-tabs.ts";
 
-const labels = { kanban: "Kanban", gantt: "Gantt", list: "Lista" };
+const labels = { kanban: "Kanban", gantt: "Gantt", list: "Lista", calendar: "Calendario" };
 const memory = () => {
   const m = new Map<string, string>();
   return { map: m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
@@ -103,4 +103,13 @@ test("store: round trip per board, survives broken JSON and missing storage", ()
   const throwing = createBoardTabsStore({ getItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("quota"); }, removeItem: () => {} });
   assert.doesNotThrow(() => throwing.saveTabs("b", tabs));
   assert.equal(throwing.load("b").tabs.length, 3);
+});
+
+test("the + menu offers lists and the experimental calendar only; the calendar never comes by default", () => {
+  assert.deepEqual([...ADDABLE_TAB_TYPES], ["list", "calendar"]);
+  assert.deepEqual([...EXPERIMENTAL_TAB_TYPES], ["calendar"]);
+  assert.ok(!defaultTabs().some((x) => x.type === "calendar"));
+  const added = boardTabsReducer(defaultTabs(), { type: "add", id: "view_1", tabType: "calendar", name: "Calendario" });
+  assert.equal(added.at(-1)?.type, "calendar");
+  assert.equal(normalizeTabs(added).at(-1)?.type, "calendar");
 });

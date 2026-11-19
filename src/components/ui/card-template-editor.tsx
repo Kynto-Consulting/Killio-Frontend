@@ -107,6 +107,8 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
   const [errors, setErrors] = useState<FormErrors>({});
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  /** What to do once the user agrees to discard unsaved changes (closing or switching template). */
+  const [discardAction, setDiscardAction] = useState<(() => void) | null>(null);
   const [tagSearch, setTagSearch] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [newTagName, setNewTagName] = useState("");
@@ -175,23 +177,24 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
     setConfirmDelete(false);
   }, [open]);
 
-  const confirmDiscard = useCallback(() => !dirty || window.confirm(t("cardTemplates.editor.unsavedConfirm")), [dirty, t]);
+  const guard = useCallback((action: () => void) => {
+    if (!dirty) action();
+    else setDiscardAction(() => action);
+  }, [dirty]);
 
-  const requestClose = useCallback(() => {
-    if (confirmDiscard()) onClose();
-  }, [confirmDiscard, onClose]);
+  const requestClose = useCallback(() => guard(onClose), [guard, onClose]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !confirmDelete) {
+      if (e.key === "Escape" && !confirmDelete && !discardAction) {
         e.stopPropagation();
         requestClose();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, requestClose, confirmDelete]);
+  }, [open, requestClose, confirmDelete, discardAction]);
 
   useEffect(() => {
     if (open) panelRef.current?.focus();
@@ -199,16 +202,17 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
 
   const select = (id: Selection) => {
     if (id === selected) return;
-    if (!confirmDiscard()) return;
-    setSelected(id);
-    setErrors({});
-    setDirty(false);
-    setServerResult(null);
-    if (id === "new") setForm(emptyForm());
-    else {
-      const tpl = templates.find((x) => x.id === id);
-      setForm(tpl ? templateToForm(tpl, newId) : emptyForm());
-    }
+    guard(() => {
+      setSelected(id);
+      setErrors({});
+      setDirty(false);
+      setServerResult(null);
+      if (id === "new") setForm(emptyForm());
+      else {
+        const tpl = templates.find((x) => x.id === id);
+        setForm(tpl ? templateToForm(tpl, newId) : emptyForm());
+      }
+    });
   };
 
   const save = async () => {
@@ -409,10 +413,11 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
             <>
               {/* Form */}
               <form
-                className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4"
+                className="flex min-h-0 flex-1 flex-col"
                 onSubmit={(e) => { e.preventDefault(); void save(); }}
                 noValidate
               >
+                <div className="min-h-0 flex-1 space-y-6 overflow-y-auto p-4">
                 <div className="grid gap-3 sm:grid-cols-[1fr_6rem]">
                   <label className="block space-y-1">
                     <span className="text-sm font-semibold">{t("cardTemplates.editor.name")}</span>
@@ -605,7 +610,9 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
                   </div>
                 </Section>
 
-                <div className="sticky bottom-0 -mx-4 -mb-4 flex flex-wrap items-center justify-between gap-2 border-t border-border bg-card/95 px-4 py-3 backdrop-blur">
+                </div>
+
+                <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-t border-border bg-card px-4 py-3">
                   <div className="flex items-center gap-2">
                     {selectedTemplate ? (
                       <>
@@ -705,6 +712,20 @@ export function CardTemplateEditor({ open, onClose, boardId, teamId }: { open: b
           )}
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={discardAction !== null}
+        onClose={() => setDiscardAction(null)}
+        onConfirm={() => {
+          const action = discardAction;
+          setDiscardAction(null);
+          action?.();
+        }}
+        title={t("cardTemplates.editor.unsavedTitle")}
+        description={t("cardTemplates.editor.unsavedConfirm")}
+        confirmLabel={t("cardTemplates.editor.discard")}
+        variant="warning"
+      />
 
       <ConfirmDialog
         isOpen={confirmDelete}
