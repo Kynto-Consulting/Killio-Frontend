@@ -9,10 +9,11 @@ import { listTeamBoards, BoardSummary, getBoard, ListView, createCard, createCar
 import { streamAgentChat, AgentStreamEvent, AgentToolManifestEntry, getAgentToolsManifest, scanAgentWorkspace, deleteAgentWorkspace, AgentVfsFile, AgentVfsFolderMeta } from "@/lib/api/agent";
 import { generateWorkspaceSlug } from "@/lib/agent-workspace-slug";
 import { importKillioFile } from "@/lib/killio-import-actions";
+import { isDraftEntityKind, orderForImport } from "@/lib/draft-import-order";
 import { uploadFile } from "@/lib/api/uploads";
 import { AssistantMessage } from "@/components/agent/AgentChatPanel";
 import type { AgentMessage, ToolEvent } from "@/hooks/use-agent-chat";
-import { FileText as FileTextIcon, Layout as LayoutIcon, Network as NetworkIcon, Workflow as WorkflowIcon, Folder as FolderIcon, Check as CheckIcon, X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
+import { FileText as FileTextIcon, Layout as LayoutIcon, Network as NetworkIcon, Workflow as WorkflowIcon, Folder as FolderIcon, LayoutTemplate as LayoutTemplateIcon, Tags as TagsIcon, Check as CheckIcon, X as XIcon, Loader2 as Loader2Icon } from "lucide-react";
 import { CardDetailModal } from "./card-detail-modal";
 import { listAllDocuments, DocumentSummary, createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { UnifiedBrickList } from "../bricks/unified-brick-list";
@@ -355,7 +356,9 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
   // activeTeamId is null, so we remember the fallback team here so scan +
   // delete keep working after the stream ends.
   const teamForScanRef = useRef<string | null>(null);
-  const [draftStatusByPath, setDraftStatusByPath] = useState<Record<string, "idle" | "importing" | "done" | "error">>({});
+  const [draftStatusByPath, setDraftStatusByPath] = useState<Record<string, "idle" | "importing" | "done" | "skipped" | "error">>({});
+  // Server sentence for an imported/skipped .kt/.kg (what was created, or why it was skipped) + non-blocking warnings.
+  const [draftNoteByPath, setDraftNoteByPath] = useState<Record<string, string>>({});
   const [draftErrorByPath, setDraftErrorByPath] = useState<Record<string, string>>({});
   const [draftImporting, setDraftImporting] = useState(false);
   // Scratch folder is private + ephemeral: auto-purge 30 min after the run
@@ -599,6 +602,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setDraftSelected(new Set());
     setDraftStatusByPath({});
     setDraftErrorByPath({});
+    setDraftNoteByPath({});
     setDraftExpiresAt(null);
     setDraftSlug(null);
     if (slug && cleanupTeam && accessToken) {
@@ -623,22 +627,32 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     // Cloud needs a team; local writes straight to the FS handle.
     if (!isLocalMode && !activeTeamId) return;
     setDraftImporting(true);
-    const handledStatus: Record<string, "done" | "error"> = {};
+    const handledStatus: Record<string, "done" | "skipped" | "error"> = {};
+    // Boards created during THIS import (name -> id): a .kt may name a board that a .kb of the same run created.
+    const createdBoardIds: Record<string, string> = {};
     try {
-      for (const p of paths) {
-        const file = draftFiles.find((f) => f.path === p);
-        if (!file) continue;
-        if (draftStatusByPath[p] === 'done') { handledStatus[p] = 'done'; continue; }
+      // Tag groups first and card templates last (a wizard needs its group; a template may need a new board).
+      const files = orderForImport(paths.map((p) => draftFiles.find((f) => f.path === p)).filter((f): f is AgentVfsFile => !!f));
+      for (const file of files) {
+        const p = file.path;
+        if (draftStatusByPath[p] === 'done' || draftStatusByPath[p] === 'skipped') { handledStatus[p] = draftStatusByPath[p] as "done" | "skipped"; continue; }
         setDraftStatusByPath((s) => ({ ...s, [p]: 'importing' }));
         try {
-          await importKillioFile(
+          if (isLocalMode && isDraftEntityKind(file.kind)) throw new Error(t("aiPanel.draftWorkspace.errLocalOnly"));
+          const res = await importKillioFile(
             { kind: file.kind, name: file.name, content: file.content },
             isLocalMode
               ? { mode: 'local', writeLocal: writeLocalFile, folder: file.folder }
-              : { mode: 'cloud', accessToken, activeTeamId: activeTeamId as string },
+              : { mode: 'cloud', accessToken, activeTeamId: activeTeamId as string, boardIdsByName: createdBoardIds },
           );
-          handledStatus[p] = 'done';
-          setDraftStatusByPath((s) => ({ ...s, [p]: 'done' }));
+          if (res.entityKind === 'board' && res.entityId && res.entityName) createdBoardIds[res.entityName] = res.entityId;
+          const outcome: 'done' | 'skipped' = res.status === 'skipped' ? 'skipped' : 'done';
+          handledStatus[p] = outcome;
+          setDraftStatusByPath((s) => ({ ...s, [p]: outcome }));
+          if (res.message) {
+            const note = [res.message, ...(res.warnings ?? [])].join(' ');
+            setDraftNoteByPath((n) => ({ ...n, [p]: note }));
+          }
         } catch (err: any) {
           handledStatus[p] = 'error';
           setDraftStatusByPath((s) => ({ ...s, [p]: 'error' }));
@@ -648,7 +662,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
       // If every file in the folder is now handled (done/error), purge it.
       const allHandled = draftFiles.every((f) => {
         const st = handledStatus[f.path] || draftStatusByPath[f.path];
-        return st === 'done' || st === 'error';
+        return st === 'done' || st === 'skipped' || st === 'error';
       });
       if (allHandled) {
         await discardDraftWorkspace();
@@ -684,6 +698,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
     setDraftSelected(new Set());
     setDraftStatusByPath({});
     setDraftErrorByPath({});
+    setDraftNoteByPath({});
     setDraftExpiresAt(null);
     if (draftExpiryTimerRef.current) { clearTimeout(draftExpiryTimerRef.current); draftExpiryTimerRef.current = null; }
     setExpandedScriptPreviewIds([]);
@@ -857,7 +872,7 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
         // Build a provisional file card the instant a write_file tool completes,
         // so the deliverable appears progressively (not all at once at done). The
         // authoritative in-request scan at `done` replaces these by path.
-        const DRAFT_KINDS = new Set(['kd', 'kb', 'km', 'ks']);
+        const DRAFT_KINDS = new Set(['kd', 'kb', 'km', 'ks', 'kt', 'kg']);
         const deriveDraftFile = (input: any): AgentVfsFile | null => {
           const rawPath = input?.path ?? input?.filename;
           if (typeof rawPath !== 'string' || !rawPath) return null;
@@ -1848,6 +1863,8 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                       kb: <LayoutIcon className="h-4 w-4" />,
                       km: <NetworkIcon className="h-4 w-4" />,
                       ks: <WorkflowIcon className="h-4 w-4" />,
+                      kt: <LayoutTemplateIcon className="h-4 w-4" />,
+                      kg: <TagsIcon className="h-4 w-4" />,
                     };
                     const toggleSel = (p: string) => setDraftSelected((prev) => {
                       const next = new Set(prev);
@@ -1929,8 +1946,8 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                                     key={f.path}
                                     type="button"
                                     onClick={() => toggleSel(f.path)}
-                                    disabled={st === 'importing' || st === 'done'}
-                                    className={`w-full flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors ${sel ? 'border-accent/40 bg-accent/5' : 'border-border hover:bg-secondary/40'} ${st === 'done' ? 'opacity-70' : ''}`}
+                                    disabled={st === 'importing' || st === 'done' || st === 'skipped'}
+                                    className={`w-full flex items-start gap-2 rounded-lg border p-2.5 text-left transition-colors ${sel ? 'border-accent/40 bg-accent/5' : 'border-border hover:bg-secondary/40'} ${st === 'done' || st === 'skipped' ? 'opacity-70' : ''}`}
                                   >
                                     <div className={`mt-0.5 h-3.5 w-3.5 rounded border shrink-0 flex items-center justify-center ${sel ? 'bg-accent border-accent text-accent-foreground' : 'border-border'}`}>
                                       {sel && <CheckIcon className="h-3 w-3" />}
@@ -1940,12 +1957,15 @@ export function AiGenerationPanel({ isOpen, onClose }: { isOpen: boolean; onClos
                                       <div className="flex items-center gap-1.5">
                                         <span className="text-xs font-semibold truncate">{f.name}</span>
                                         <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/10 text-accent">{f.kind}</span>
+                                        <span className="text-[10px] text-muted-foreground truncate">{t(`aiPanel.killioImport.${f.kind}`)}</span>
                                       </div>
                                       <p className="text-[10px] text-muted-foreground mt-0.5 truncate" title={f.path}>{f.path}</p>
                                       <div className="text-[10px] text-muted-foreground mt-1">
                                         {st === 'importing' && <span className="inline-flex items-center gap-1"><Loader2Icon className="h-3 w-3 animate-spin" />{t("aiPanel.draftWorkspace.importing")}</span>}
                                         {st === 'done' && <span className="inline-flex items-center gap-1 text-emerald-500"><CheckIcon className="h-3 w-3" />{t("aiPanel.draftWorkspace.imported")}</span>}
-                                        {st === 'error' && <span className="inline-flex items-center gap-1 text-red-500"><XIcon className="h-3 w-3" />{draftErrorByPath[f.path] || t("aiPanel.draftWorkspace.errGeneric")}</span>}
+                                        {st === 'skipped' && <span className="inline-flex items-center gap-1 text-amber-500"><CheckIcon className="h-3 w-3" />{t("aiPanel.draftWorkspace.skipped")}</span>}
+                                        {(st === 'done' || st === 'skipped') && draftNoteByPath[f.path] && <p className="mt-0.5 whitespace-normal break-words">{draftNoteByPath[f.path]}</p>}
+                                        {st === 'error' && <span className="inline-flex items-start gap-1 text-red-500 whitespace-normal break-words"><XIcon className="h-3 w-3 mt-0.5 shrink-0" />{draftErrorByPath[f.path] || t("aiPanel.draftWorkspace.errGeneric")}</span>}
                                         {(st === 'idle' || !st) && <span>{(f.size / 1024).toFixed(1)} KB</span>}
                                       </div>
                                     </div>

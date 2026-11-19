@@ -1,4 +1,4 @@
-// Shared import logic for .kd/.kb/.km/.ks/.kf files coming out of the agent.
+// Shared import logic for .kd/.kb/.km/.ks/.kt/.kg/.kf files coming out of the agent.
 // Used by both the KillioImportChip (inline single-file import in agent
 // chat) and the AI Draft Studio scan-folder preview (bulk import with
 // per-file selection). Keep this file pure — no React, no hooks.
@@ -9,9 +9,11 @@ import { deserializeKmToMesh } from "@/lib/mesh-file";
 import { createDocument, createDocumentBrick } from "@/lib/api/documents";
 import { createBoard, createList, createCard, createCardBrick } from "@/lib/api/contracts";
 import { createScript, saveScriptGraph } from "@/lib/api/scripts";
-import { importMeshFromKaml } from "@/lib/api/agent";
+import { importMeshFromKaml, importDraftFiles } from "@/lib/api/agent";
+import { isDraftEntityKind, outcomeOf } from "@/lib/draft-import-order";
 
-export type KillioImportKind = "kd" | "kb" | "km" | "ks" | "kf";
+// kt = card template, kg = tag group: Draft Studio only, created server-side (POST /agent/import-draft).
+export type KillioImportKind = "kd" | "kb" | "km" | "ks" | "kt" | "kg" | "kf";
 
 export interface KillioImportInput {
   kind: KillioImportKind;
@@ -24,8 +26,15 @@ export interface KillioImportResult {
   kind: KillioImportKind;
   name: string;
   entityId?: string;
-  entityKind?: "document" | "board" | "mesh" | "script";
+  entityKind?: "document" | "board" | "mesh" | "script" | "card_template" | "tag_group";
+  /** Display name of the created entity (a board's name lets a later .kt target it). */
+  entityName?: string;
   url?: string;
+  /** `skipped` = a .kt/.kg whose name already existed (nothing created, nothing changed). */
+  status?: "created" | "skipped";
+  /** Server sentence for .kt/.kg: what was created or why it was skipped. */
+  message?: string;
+  warnings?: string[];
 }
 
 /**
@@ -36,7 +45,13 @@ export interface KillioImportResult {
  *           agent's output is already the native format — no conversion).
  */
 export type KillioImportTarget =
-  | { mode: "cloud"; accessToken: string; activeTeamId: string }
+  | {
+      mode: "cloud";
+      accessToken: string;
+      activeTeamId: string;
+      /** Boards created earlier in the same import (name -> id): lets a .kt name a board that came from a .kb. */
+      boardIdsByName?: Record<string, string>;
+    }
   | { mode: "local"; writeLocal: (path: string, content: string) => Promise<void>; folder?: string | null };
 
 /**
@@ -50,6 +65,7 @@ export async function importKillioFile(
 ): Promise<KillioImportResult> {
   // ── Local workspace: just write the file (it's already KAML) ──────────────
   if (target.mode === "local") {
+    if (isDraftEntityKind(input.kind)) throw new Error("Card templates and tag groups can only be imported into a cloud workspace.");
     const rel = target.folder ? `${target.folder.replace(/\/+$/, "")}/${input.name}` : input.name;
     await target.writeLocal(rel, input.content);
     return { kind: input.kind, name: input.name, url: rel };
@@ -57,6 +73,25 @@ export async function importKillioFile(
 
   // ── Cloud: decode + create entity ─────────────────────────────────────────
   const { accessToken, activeTeamId } = target;
+
+  if (isDraftEntityKind(input.kind)) {
+    // Parsed + validated + created by the backend through the existing services (permission checks included).
+    const [res] = await importDraftFiles(
+      { teamId: activeTeamId, files: [{ name: input.name, content: input.content }], boardIds: target.boardIdsByName },
+      accessToken,
+    );
+    const out = outcomeOf(res);
+    return {
+      kind: input.kind,
+      name: input.name,
+      entityId: out.id,
+      entityKind: input.kind === "kt" ? "card_template" : "tag_group",
+      status: out.status,
+      message: out.message,
+      warnings: out.warnings,
+    };
+  }
+
   const decoded = decodeKillioFile(input.content);
 
   if (input.kind === "kf") {
@@ -109,7 +144,7 @@ export async function importKillioFile(
         }
       }
     }
-    return { kind: "kb", name: input.name, entityId: board.id, entityKind: "board", url: `/b/${board.id}` };
+    return { kind: "kb", name: input.name, entityId: board.id, entityKind: "board", entityName: draft.name, url: `/b/${board.id}` };
   }
 
   if (input.kind === "km") {

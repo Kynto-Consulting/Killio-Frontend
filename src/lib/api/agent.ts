@@ -114,7 +114,7 @@ export interface AgentToolManifestEntry {
 export interface AgentVfsFile {
   path: string;
   name: string;
-  kind: "kd" | "kb" | "km" | "ks";
+  kind: "kd" | "kb" | "km" | "ks" | "kt" | "kg";
   size: number;
   content: string;
   folder: string | null;
@@ -128,7 +128,7 @@ export interface AgentVfsFolderMeta {
 
 /** GET /agent/vfs/scan — walks the draft-studio scratch folder
  *  /tmp/draft-studio/<slug>/ and returns every .kd/.kb/.km/.ks file
- *  inside with content embedded, plus any .kf folder-marker metadata. */
+ *  (and .kt card templates / .kg tag groups) inside with content embedded, plus any .kf folder-marker metadata. */
 export async function scanAgentWorkspace(
   params: { slug: string; teamId: string; entityType?: string; entityId?: string },
   accessToken: string,
@@ -182,6 +182,37 @@ export async function importMeshFromKaml(
   });
   if (!res.ok) throw new Error(`Mesh import failed (${res.status})`);
   return res.json();
+}
+
+/** One file of a POST /agent/import-draft response (same order as the request). `message` is a sentence to show verbatim. */
+export interface DraftImportFileResult {
+  name: string;
+  kind: "kt" | "kg" | null;
+  status: "created" | "skipped" | "error";
+  id?: string;
+  message: string;
+  warnings: string[];
+}
+
+/** POST /agent/import-draft — imports .kt (card template) and .kg (tag group) files through the existing services
+ *  (their permission checks apply). One bad file only fails itself. `boardIds` maps the name of a board created
+ *  earlier in the same import to its id, so a .kt can point at a board that came from a .kb. */
+export async function importDraftFiles(
+  body: { teamId: string; files: Array<{ name: string; content: string }>; boardIds?: Record<string, string> },
+  accessToken: string,
+): Promise<DraftImportFileResult[]> {
+  const res = await fetch(`${API_BASE_URL}/agent/import-draft`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    let msg = `Import failed (${res.status})`;
+    try { const j = await res.json(); const m = Array.isArray(j?.message) ? j.message.join(', ') : j?.message; if (typeof m === 'string' && m) msg = m; } catch { /* not JSON */ }
+    throw new Error(msg);
+  }
+  const json = await res.json();
+  return Array.isArray(json?.results) ? json.results as DraftImportFileResult[] : [];
 }
 
 /** GET /agent/tools/manifest — every tool the backend can expose, used by

@@ -2,19 +2,19 @@
 
 // KillioImportChip — rendered in the agent chat whenever the agent calls the
 // `killio_import` tool. Shows the proposed file (.kd / .kb / .km / .ks / .kf)
-// as a clickable card; clicking it decodes the KAML payload and creates the
+// as a clickable card (.kt card templates and .kg tag groups too, created server-side); clicking it decodes the KAML payload and creates the
 // matching entity in the user's active team (or writes it to the local
 // workspace FS handle when localMode is on).
 
 import React from "react";
-import { FileText, Layout, Network, Workflow, Folder, Loader2, Check, X, Download } from "lucide-react";
+import { FileText, Layout, Network, Workflow, Folder, LayoutTemplate, Tags, Loader2, Check, X, Download } from "lucide-react";
 import { importKillioFile } from "@/lib/killio-import-actions";
 import { useSession } from "@/components/providers/session-provider";
 import { useLocalWorkspace } from "@/components/providers/local-workspace-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { toast } from "@/lib/toast";
 
-type KillioKind = "kd" | "kb" | "km" | "ks" | "kf";
+type KillioKind = "kd" | "kb" | "km" | "ks" | "kt" | "kg" | "kf";
 
 interface Props {
   path: string;
@@ -31,6 +31,8 @@ const ICON: Record<KillioKind, React.ReactNode> = {
   kb: <Layout className="h-4 w-4" />,
   km: <Network className="h-4 w-4" />,
   ks: <Workflow className="h-4 w-4" />,
+  kt: <LayoutTemplate className="h-4 w-4" />,
+  kg: <Tags className="h-4 w-4" />,
   kf: <Folder className="h-4 w-4" />,
 };
 
@@ -41,11 +43,13 @@ export function KillioImportChip({ path, kind, name, label, description, content
   const isLocal = workspaceMode === "local";
 
   const KIND_LABEL: Record<KillioKind, string> = {
-    kd: t("killioImport.kd"),
-    kb: t("killioImport.kb"),
-    km: t("killioImport.km"),
-    ks: t("killioImport.ks"),
-    kf: t("killioImport.kf"),
+    kd: t("aiPanel.killioImport.kd"),
+    kb: t("aiPanel.killioImport.kb"),
+    km: t("aiPanel.killioImport.km"),
+    ks: t("aiPanel.killioImport.ks"),
+    kt: t("aiPanel.killioImport.kt"),
+    kg: t("aiPanel.killioImport.kg"),
+    kf: t("aiPanel.killioImport.kf"),
   };
 
   const [state, setState] = React.useState<"idle" | "importing" | "done" | "error">("idle");
@@ -57,6 +61,7 @@ export function KillioImportChip({ path, kind, name, label, description, content
     setErrMsg(null);
     try {
       if (isLocal) {
+        if (kind === "kt" || kind === "kg") throw new Error(t("aiPanel.draftWorkspace.errLocalOnly"));
         // Local workspace: write the raw KAML straight into the FS handle —
         // a local workspace IS a folder of .kd/.kb/.km/.ks/.kf files, so the
         // agent's output is already the native format.
@@ -64,24 +69,25 @@ export function KillioImportChip({ path, kind, name, label, description, content
           { kind, name, label, content },
           { mode: "local", writeLocal: writeLocalFile },
         );
-        toast(t("killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
+        toast(t("aiPanel.killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
         setState("done");
         return;
       }
-      if (!activeTeamId || !accessToken) throw new Error(t("killioImport.noTarget"));
+      if (!activeTeamId || !accessToken) throw new Error(t("aiPanel.killioImport.noTarget"));
       if (kind === "kf") {
-        toast(t("killioImport.folderAck"), "info");
+        toast(t("aiPanel.killioImport.folderAck"), "info");
         setState("done");
         return;
       }
-      await importKillioFile(
+      const res = await importKillioFile(
         { kind, name, label, content },
         { mode: "cloud", accessToken, activeTeamId },
       );
-      toast(t("killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
+      if (res.status === "skipped") toast(res.message || t("aiPanel.draftWorkspace.skipped"), "info");
+      else toast(t("aiPanel.killioImport.imported", { kind: KIND_LABEL[kind] }), "success");
       setState("done");
     } catch (err: any) {
-      setErrMsg(err?.message || t("killioImport.errGeneric"));
+      setErrMsg(err?.message || t("aiPanel.killioImport.errGeneric"));
       setState("error");
     }
   };
@@ -117,11 +123,11 @@ export function KillioImportChip({ path, kind, name, label, description, content
           <p className="text-[11px] text-muted-foreground mt-0.5 truncate" title={path}>{path}</p>
         )}
         <div className="text-[10px] text-muted-foreground mt-1 flex items-center gap-1">
-          {isBusy && <span>{t("killioImport.importing")}</span>}
-          {isDone && <span className="text-emerald-500">{t("killioImport.doneLabel")}</span>}
-          {isErr && <span className="text-red-500">{t("killioImport.errPrefix")}{errMsg}</span>}
+          {isBusy && <span>{t("aiPanel.killioImport.importing")}</span>}
+          {isDone && <span className="text-emerald-500">{t("aiPanel.killioImport.doneLabel")}</span>}
+          {isErr && <span className="text-red-500">{t("aiPanel.killioImport.errPrefix")}{errMsg}</span>}
           {!isBusy && !isDone && !isErr && (
-            <><Download className="h-3 w-3" /> {t("killioImport.cta")}</>
+            <><Download className="h-3 w-3" /> {t("aiPanel.killioImport.cta")}</>
           )}
         </div>
       </div>
