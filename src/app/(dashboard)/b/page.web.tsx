@@ -296,7 +296,8 @@ export default function BoardsPage() {
                  className={`h-20 ${cover.className} w-full border-b border-border/50 relative px-4 flex items-center`}
                  style={cover.style}
                >
-                 <Layout className="h-8 w-8 text-accent/40" />
+                 {/* white on the cover (a coloured gradient), with a soft shadow so it reads on light covers too */}
+                 <Layout className="h-8 w-8 text-white/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]" />
               </div>
               <div className="p-4 flex flex-col flex-1">
                 <div className="flex items-start justify-between">

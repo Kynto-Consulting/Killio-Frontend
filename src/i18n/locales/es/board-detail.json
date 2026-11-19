@@ -17,6 +17,7 @@
   "cardTemplates": {
     "pickerLabel": "Plantilla",
     "blank": "En blanco",
+    "searchList": "Buscar lista",
     "blankHint": "Una tarjeta vacía, sin rellenar nada",
     "metaTags": "{{count}} etiquetas",
     "createdIn": "Se creará en:",

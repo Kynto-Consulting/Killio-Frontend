@@ -42,6 +42,7 @@ import { listTeamTagGroups, type ServerTagGroup } from "@/lib/api/view-settings"
 import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
 import { activeWizard, applyWizardAnswers, dayToIso, type WizardAnswers, type WizardBrick } from "@/lib/card-templates/wizard";
 import { CardTemplateWizardDialog } from "./card-template-wizard-dialog";
+import { ListPicker } from "./list-picker";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -2005,15 +2006,13 @@ export function CardDetailModal({
             <span className="hover:text-foreground cursor-pointer transition-colors">{boardName || "Board"}</span>
             <span className="text-border">/</span>
             {!card?.id && !readonly && cardTemplates.length > 0 && boardListOptions.length > 0 ? (
-              <select
-                aria-label={t('cardTemplates.createdIn')}
-                title={t('cardTemplates.createdIn')}
+              <ListPicker
+                label={t('cardTemplates.createdIn')}
+                searchPlaceholder={t('cardTemplates.searchList')}
                 value={createListId ?? listId ?? ''}
-                onChange={(e) => setCreateListId(e.target.value || null)}
-                className="max-w-[11rem] cursor-pointer truncate rounded-md border border-transparent bg-transparent py-0.5 pl-1 pr-5 text-sm text-foreground hover:border-border hover:bg-muted/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              >
-                {boardListOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
-              </select>
+                options={boardListOptions}
+                onChange={(id) => setCreateListId(id || null)}
+              />
             ) : (
               <span className="hover:text-foreground cursor-pointer transition-colors">{(!card?.id && createListId ? boardListOptions.find((l) => l.id === createListId)?.name : undefined) || listName || "List"}</span>
             )}

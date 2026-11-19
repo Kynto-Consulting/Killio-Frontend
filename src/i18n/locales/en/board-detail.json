@@ -17,6 +17,7 @@
   "cardTemplates": {
     "pickerLabel": "Template",
     "blank": "Blank",
+    "searchList": "Search list",
     "blankHint": "An empty card, nothing pre-filled",
     "metaTags": "{{count}} tags",
     "createdIn": "Will be created in:",
