@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
+import { createPortal } from "react-dom";
 import { CalendarDays, ChartGantt, FolderKanban, LayoutDashboard, List, Plus, SquareKanban } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -32,12 +33,14 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
   const [menu, setMenu] = useState<{ tab: BoardTab; x: number; y: number } | null>(null);
   const addRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const addMenuRef = useRef<HTMLDivElement>(null);
+  const [addPos, setAddPos] = useState<{ left: number; top: number } | null>(null);
 
   useEffect(() => {
     if (!addOpen && !menu) return;
     const onDown = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (addOpen && addRef.current && !addRef.current.contains(target)) setAddOpen(false);
+      if (addOpen && addRef.current && !addRef.current.contains(target) && !addMenuRef.current?.contains(target)) setAddOpen(false);
       if (menu && menuRef.current && !menuRef.current.contains(target)) setMenu(null);
     };
     const onEsc = (e: globalThis.KeyboardEvent) => {
@@ -134,14 +137,16 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
             aria-expanded={addOpen}
             onClick={() => {
               setMenu(null);
+              const rect = addRef.current?.getBoundingClientRect();
+              if (rect) setAddPos({ left: Math.max(8, Math.min(rect.left, window.innerWidth - 232)), top: rect.bottom + 8 });
               setAddOpen((o) => !o);
             }}
             className={`${pill(addOpen)} px-2`}
           >
             <Plus className="h-3.5 w-3.5" aria-hidden />
           </button>
-          {addOpen ? (
-            <div role="menu" className="absolute left-0 top-full z-50 mt-2 w-56 rounded-lg border border-border bg-card p-1 shadow-lg">
+          {addOpen && addPos && typeof document !== "undefined" ? createPortal(
+            <div ref={addMenuRef} role="menu" className="fixed z-[200] w-56 rounded-lg border border-border bg-card p-1 shadow-lg" style={{ left: addPos.left, top: addPos.top }}>
               {ADDABLE_TAB_TYPES.map((type) => {
                 const Icon = ICONS[type];
                 const experimental = EXPERIMENTAL_TAB_TYPES.includes(type);
@@ -162,7 +167,8 @@ export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDel
                   </button>
                 );
               })}
-            </div>
+            </div>,
+            document.body,
           ) : null}
         </div>
       ) : null}

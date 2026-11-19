@@ -62,7 +62,11 @@
         "autoCreate": "Create the card when the last step is done",
         "builtins": "Always available: {{date}} (today), {{user}} (who creates the card) and {{board}} (the board).",
         "dateTarget": "The date goes to",
-        "dateTargets": { "due": "Due date", "start": "Start date", "line": "A description line" },
+        "dateTargets": {
+          "due": "Due date",
+          "start": "Start date",
+          "line": "A description line"
+        },
         "toggleKey": "Description line (optional), e.g. Needs QA",
         "min": "Minimum",
         "max": "Maximum",
@@ -95,7 +99,12 @@
         "noGroup": "Choose a group",
         "lineKey": "Line name (e.g. Effort (d))",
         "input": "Answer type",
-        "inputs": { "text": "Text", "number": "Number", "range": "Range (slider)", "select": "List of options" },
+        "inputs": {
+          "text": "Text",
+          "number": "Number",
+          "range": "Range (slider)",
+          "select": "List of options"
+        },
         "options": "Options (one per line)",
         "allowCustom": "Allow typing another value",
         "help": "Help for the person answering (optional)",
@@ -106,7 +115,11 @@
         "preview": "Wizard preview",
         "stepsCount": "{{count}} steps"
       },
-      "tabs": { "basics": "Basics", "content": "Content", "wizard": "Wizard" },
+      "tabs": {
+        "basics": "Basics",
+        "content": "Content",
+        "wizard": "Wizard"
+      },
       "start": {
         "title": "Create another template",
         "firstTitle": "Create your first template",
@@ -555,10 +568,10 @@
     "allOwners": "Everyone",
     "groupBy": "Group by",
     "groupDefault": "Default ({{name}})",
-    "groupArea": "Area",
-    "groupProject": "Project",
-    "groupPhase": "Phase",
-    "areaNone": "No area",
+    "groupArea": "Level 1",
+    "groupProject": "Level 2",
+    "groupPhase": "Level 3",
+    "areaNone": "No value",
     "areaAll": "All",
     "cardCount": "{{count}} cards",
     "emptyArea": "No tasks yet",
@@ -570,13 +583,15 @@
     "progressDone": "{{percent}}% done",
     "mostOverdue": "Most overdue",
     "noOverdue": "Nothing overdue",
-    "rescheduled": "↻ {{count}} due dates moved"
+    "rescheduled": "↻ {{count}} due dates moved",
+    "groupLabel": "Group",
+    "groupNone": "Pick a tag group…"
   },
   "projects": {
     "active": "Active",
     "finished": "Completed",
-    "noProject": "No project",
-    "noPhase": "No phase",
+    "noProject": "No value",
+    "noPhase": "No value",
     "subtasksDone": "Subtasks done",
     "expandAll": "Expand all",
     "collapseAll": "Collapse all",

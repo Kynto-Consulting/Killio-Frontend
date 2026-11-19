@@ -28,9 +28,11 @@ export interface GroupNames {
 export const DONE_STATUS = /resuelt|realizad|hecho|\bdone\b|complet|cerrad|terminad|finalizad/i;
 export const BLOCKED_STATUS = /bloquead|blocked/i;
 
-const AREA_DEFAULT = /^(area|areas)$/;
-const PROJECT_DEFAULT = /^(proyecto|project)$/;
-const PHASE_DEFAULT = /^(fase|phase)$/;
+/** No group name is assumed: a view groups only by the tag group the board picked, never by a guessed "Area" / "Proyecto". */
+const NEVER = /(?!)/;
+const AREA_DEFAULT = NEVER;
+const PROJECT_DEFAULT = NEVER;
+const PHASE_DEFAULT = NEVER;
 export const DEFAULT_PATTERNS = { area: AREA_DEFAULT, project: PROJECT_DEFAULT, phase: PHASE_DEFAULT } as const;
 
 export const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();

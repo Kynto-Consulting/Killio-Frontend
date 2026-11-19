@@ -62,7 +62,11 @@
         "autoCreate": "Crear la tarjeta al terminar el último paso",
         "builtins": "Siempre disponibles: {{date}} (fecha de hoy), {{user}} (quien crea la tarjeta) y {{board}} (el tablero).",
         "dateTarget": "La fecha va a",
-        "dateTargets": { "due": "Fecha de vencimiento", "start": "Fecha de inicio", "line": "Una línea de la descripción" },
+        "dateTargets": {
+          "due": "Fecha de vencimiento",
+          "start": "Fecha de inicio",
+          "line": "Una línea de la descripción"
+        },
         "toggleKey": "Línea de la descripción (opcional), p. ej. Requiere QA",
         "min": "Mínimo",
         "max": "Máximo",
@@ -95,7 +99,12 @@
         "noGroup": "Elige un grupo",
         "lineKey": "Nombre de la línea (p. ej. Esfuerzo (d))",
         "input": "Tipo de respuesta",
-        "inputs": { "text": "Texto", "number": "Número", "range": "Rango (deslizador)", "select": "Lista de opciones" },
+        "inputs": {
+          "text": "Texto",
+          "number": "Número",
+          "range": "Rango (deslizador)",
+          "select": "Lista de opciones"
+        },
         "options": "Opciones (una por línea)",
         "allowCustom": "Permitir escribir otro valor",
         "help": "Ayuda para quien responde (opcional)",
@@ -106,7 +115,11 @@
         "preview": "Vista previa del asistente",
         "stepsCount": "{{count}} pasos"
       },
-      "tabs": { "basics": "Datos", "content": "Contenido", "wizard": "Asistente" },
+      "tabs": {
+        "basics": "Datos",
+        "content": "Contenido",
+        "wizard": "Asistente"
+      },
       "start": {
         "title": "Crea otra plantilla",
         "firstTitle": "Crea tu primera plantilla",
@@ -555,10 +568,10 @@
     "allOwners": "Todos",
     "groupBy": "Agrupar por",
     "groupDefault": "Predeterminado ({{name}})",
-    "groupArea": "Área",
-    "groupProject": "Proyecto",
-    "groupPhase": "Fase",
-    "areaNone": "Sin área",
+    "groupArea": "Nivel 1",
+    "groupProject": "Nivel 2",
+    "groupPhase": "Nivel 3",
+    "areaNone": "Sin valor",
     "areaAll": "Todas",
     "cardCount": "{{count}} tarjetas",
     "emptyArea": "Sin tareas todavía",
@@ -570,13 +583,15 @@
     "progressDone": "{{percent}}% realizado",
     "mostOverdue": "Más atrasadas",
     "noOverdue": "Nada atrasado",
-    "rescheduled": "↻ {{count}} fechas movidas"
+    "rescheduled": "↻ {{count}} fechas movidas",
+    "groupLabel": "Grupo",
+    "groupNone": "Elegir grupo de etiquetas…"
   },
   "projects": {
     "active": "Activo",
     "finished": "Completado",
-    "noProject": "Sin proyecto",
-    "noPhase": "Sin fase",
+    "noProject": "Sin valor",
+    "noPhase": "Sin valor",
     "subtasksDone": "Subtareas listas",
     "expandAll": "Expandir todo",
     "collapseAll": "Contraer todo",

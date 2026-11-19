@@ -120,7 +120,7 @@ export function BoardSummaryView({ lists, tagGroups, locale, config, onConfigCha
   const [ownerKey, setOwnerKey] = useState<string | null>(null);
   const summary = useMemo(() => buildSummary(lists, tagGroups, { ...config, ownerKey }), [lists, tagGroups, config, ownerKey]);
   const options = useMemo(() => groupNameOptions(tagGroups, lists), [tagGroups, lists]);
-  const defaultArea = t("summary.groupArea");
+  const defaultArea = t("summary.groupLabel");
 
   return (
     <div className="h-full overflow-y-auto overflow-x-hidden">

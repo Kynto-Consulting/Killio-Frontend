@@ -64,12 +64,12 @@ test("statusKind classifies list names", () => {
 
 test("groupValues: prefix convention, tag groups, only the first colon splits", () => {
   const tags = [tag("Área: TI"), tag("Fase: Fase 4: Web ROE (Frontend)"), tag("Proyecto: Fast Track"), tag("urgente")];
-  assert.deepEqual(groupValues(tags, [], undefined, DEFAULT_PATTERNS.area), ["TI"]);
-  assert.deepEqual(groupValues(tags, [], undefined, DEFAULT_PATTERNS.phase), ["Fase 4: Web ROE (Frontend)"]);
-  assert.deepEqual(groupValues(tags, [], "proyecto", DEFAULT_PATTERNS.area), ["Fast Track"], "configured name wins over the default");
+  assert.deepEqual(groupValues(tags, [], "Área", DEFAULT_PATTERNS.area), ["TI"]);
+  assert.deepEqual(groupValues(tags, [], "Fase", DEFAULT_PATTERNS.phase), ["Fase 4: Web ROE (Frontend)"]);
+  assert.deepEqual(groupValues(tags, [], "proyecto", DEFAULT_PATTERNS.area), ["Fast Track"], "the configured name decides");
   assert.deepEqual(groupValues(tags, [], "Equipo", DEFAULT_PATTERNS.area), []);
   const groups = [{ id: "g1", name: "Area", tags: ["Digital", "Operaciones"] }];
-  assert.deepEqual(groupValues([tag("Digital"), tag("Área: Digital")], groups, undefined, DEFAULT_PATTERNS.area), ["Digital"], "deduplicated");
+  assert.deepEqual(groupValues([tag("Digital"), tag("Área: Digital")], groups, "Área", DEFAULT_PATTERNS.area), ["Digital"], "deduplicated");
   assert.deepEqual(groupValues(undefined, groups, undefined, DEFAULT_PATTERNS.area), []);
   assert.deepEqual(groupNameOptions(groups, lists(["A", [card("1", { tags })]])), ["Area", "Fase", "Proyecto"]);
 });
@@ -103,7 +103,7 @@ test("buildSummary: KPIs, progress, status bar, top overdue, rescheduled", () =>
     ["Bloqueadas", [card("8", { tags: [ti], dueAt: at(2) })]],
     ["Realizado", [card("9", { tags: [ti], dueAt: at(-20) }), card("10", { tags: [dig], summary: "Reprogramada: 1 vez" })]],
   );
-  const s = buildSummary(ls, [], { today });
+  const s = buildSummary(ls, [], { today, areaGroup: "Área", projectGroup: "Proyecto", phaseGroup: "Fase" });
   assert.equal(s.hasAreaGroup, true);
   assert.deepEqual(s.areas.map((a) => a.name), ["Digital", "TI"], "alphabetical when the board defines no order");
   const t = s.areas.find((a) => a.name === "TI")!;
@@ -126,12 +126,12 @@ test("buildSummary: KPIs, progress, status bar, top overdue, rescheduled", () =>
 test("buildSummary: areas defined by a tag group appear empty; cards without area go to 'none'", () => {
   const groups = [{ id: "g", name: "Área", tags: ["Área: TI", "Área: Médica"] }];
   const ls = lists(["Pendiente", [card("1", { tags: [tag("Área: TI")] }), card("2")]]);
-  const s = buildSummary(ls, groups, { today });
+  const s = buildSummary(ls, groups, { today, areaGroup: "Área" });
   assert.deepEqual(s.areas.map((a) => [a.kind, a.name, a.total, a.empty]), [["area", "TI", 1, false], ["area", "Médica", 0, true], ["none", "", 1, false]]);
 });
 
 test("buildSummary: no area group -> one 'all' card; empty board; no due dates; no tags", () => {
-  const s = buildSummary(lists(["Pendiente", [card("1"), card("2", { tags: [tag("x")] })]], ["Hecho", [card("3")]]), [], { today });
+  const s = buildSummary(lists(["Pendiente", [card("1"), card("2", { tags: [tag("x")] })]], ["Hecho", [card("3")]]), [], { today, areaGroup: "Área" });
   assert.equal(s.hasAreaGroup, false);
   assert.equal(s.areas.length, 1);
   assert.equal(s.areas[0].kind, "all");
@@ -157,4 +157,10 @@ test("buildSummary: owner filter and configured area group name", () => {
   const mine = buildSummary(ls, [], { today, areaGroup: "Equipo", ownerKey: "u1" });
   assert.deepEqual(mine.areas.map((a) => [a.name, a.total]), [["Rojo", 1]]);
   assert.deepEqual(mine.owners.map((o) => o.name), ["Ana", "Bob"], "the filter list is not narrowed by the filter");
+});
+
+test("buildSummary: no group name is guessed — without a configured tag group everything is one 'all' card", () => {
+  const ls = lists(["Pendiente", [card("1", { tags: [tag("Área: Digital")] }), card("2", { tags: [tag("Área: TI")] })]]);
+  const s = buildSummary(ls, [], { today });
+  assert.deepEqual(s.areas.map((a) => [a.kind, a.total]), [["all", 2]]);
 });

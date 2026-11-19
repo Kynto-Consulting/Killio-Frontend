@@ -26,7 +26,7 @@ test("buildProjects: area > project > phase tree with counts and ordering", () =
     ]],
     ["Realizado", [card("e", { tags: [ti, ft, f1], dueAt: at(-8) }), card("f", { tags: [ti, ft, f1] })]],
   );
-  const r = buildProjects(ls, [], { today });
+  const r = buildProjects(ls, [], { today, areaGroup: "Área", projectGroup: "Proyecto", phaseGroup: "Fase" });
   assert.equal(r.areas.length, 1);
   const area = r.areas[0];
   assert.deepEqual([area.name, area.total, area.done], ["TI", 7, 2]);
@@ -44,10 +44,10 @@ test("buildProjects: area > project > phase tree with counts and ordering", () =
 
 test("buildProjects: cards without project, project all done, no area, empty board", () => {
   const ls = lists(["Realizado", [card("1", { tags: [tag("Proyecto: X")] })]], ["Pendiente", [card("2")]]);
-  const r = buildProjects(ls, [], { today });
+  const r = buildProjects(ls, [], { today, areaGroup: "Área", projectGroup: "Proyecto", phaseGroup: "Fase" });
   assert.equal(r.areas[0].kind, "all");
   assert.deepEqual(r.areas[0].projects.map((p) => [p.kind, p.name, p.active]), [["project", "X", false], ["none", "", true]]);
-  const e = buildProjects([], [], { today });
+  const e = buildProjects([], [], { today, areaGroup: "Área" });
   assert.equal(e.areas[0].projects.length, 0);
   assert.deepEqual(collapsibleKeys(e.areas), []);
   assert.deepEqual(collapsibleKeys(r.areas), ["__all__/X", "__all__/X/__none__", "__all__/__none__", "__all__/__none__/__none__"]);

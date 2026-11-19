@@ -82,7 +82,7 @@ export function BacklogControls({ owners, ownerKey, onOwnerChange, levels, group
             <label key={lv.key} className="flex items-center gap-1.5 text-xs text-muted-foreground" htmlFor={`${uid}-${lv.key}`}>
               {lv.label}
               <select id={`${uid}-${lv.key}`} value={lv.value} disabled={!canEdit} onChange={(e) => onGroupChange(lv.key, e.target.value || null)} className={select}>
-                <option value="">{t("summary.groupDefault", { name: lv.defaultName })}</option>
+                <option value="">{t("summary.groupNone")}</option>
                 {options.map((g) => (
                   <option key={g} value={g}>
                     {g}
