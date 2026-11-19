@@ -116,7 +116,7 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
 
   const caret = error && expression.length <= 160 ? `${" ".repeat(Math.min(error.position, expression.length))}^` : null;
   const activeCount =
-    (q.mine ? 1 : 0) + (q.unassigned ? 1 : 0) + (q.overdue ? 1 : 0) + (q.dueThisWeek ? 1 : 0) + (q.status ? 1 : 0) + (q.group ? 1 : 0) +
+    (q.mine ? 1 : 0) + (q.unassigned ? 1 : 0) + (q.overdue ? 1 : 0) + (q.dueThisWeek ? 1 : 0) + (q.checklist ? 1 : 0) + (q.status ? 1 : 0) + (q.group ? 1 : 0) +
     (q.tags?.length ? 1 : 0) + (q.dateFrom || q.dateTo ? 1 : 0) + (q.text ? 1 : 0) + (isCustom && active ? 1 : 0);
   const section = "text-[10px] font-semibold uppercase tracking-wide text-muted-foreground";
 
@@ -154,6 +154,15 @@ export function BoardFilterBar(props: BoardFilterBarProps) {
                 {chip(t("quick.dueThisWeek"), !!q.dueThisWeek, { dueThisWeek: true }, { dueThisWeek: false })}
                 {chip(t("quick.open"), q.status === "open", { status: "open" }, { status: null })}
                 {chip(t("quick.done"), q.status === "done", { status: "done" }, { status: null })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <p className={section}>{t("quick.checklist")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {chip(t("quick.checklistComplete"), q.checklist === "complete", { checklist: "complete" }, { checklist: null })}
+                {chip(t("quick.checklistPending"), q.checklist === "pending", { checklist: "pending" }, { checklist: null })}
+                {chip(t("quick.checklistNone"), q.checklist === "none", { checklist: "none" }, { checklist: null })}
               </div>
             </div>
 

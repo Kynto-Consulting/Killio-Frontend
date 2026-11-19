@@ -3,9 +3,10 @@
  * fill the card. Pure (no React, no path aliases) so it runs under `node --test`. The server validates the definition
  * (`card-template-wizard.ts` in the backend); this file only reads it and applies answers.
  */
+import { buildMediaCaption } from "../media-bricks.ts";
 import { addTagWithRules, type RuleGroup } from "../tags/group-rules.ts";
 
-export type WizardFieldKind = "tag_group" | "list" | "title" | "line" | "text" | "checklist" | "date" | "assignees" | "toggle";
+export type WizardFieldKind = "tag_group" | "list" | "title" | "line" | "text" | "checklist" | "date" | "assignees" | "toggle" | "image" | "file";
 export type WizardInput = "text" | "number" | "range" | "select";
 export type WizardDateTarget = "due" | "start" | "line";
 
@@ -22,9 +23,11 @@ export interface WizardField {
   input?: WizardInput;
   options?: string[];
   allowCustom?: boolean;
-  /** number / range */
+  /** number / range; for image / file, `max` is the number of files (1 when absent, 10 at most) */
   min?: number;
   max?: number;
+  /** file: allowed mime types (`application/pdf`, `image/*`); absent = any file. */
+  accept?: string[];
   step?: number;
   /** date: the card's due date, its start date or a description line. */
   target?: WizardDateTarget;
@@ -46,7 +49,10 @@ export interface TemplateWizard {
   steps: WizardStep[];
 }
 
-/** A text answer, or the chosen tag ids of a tag group. */
+/**
+ * A text answer, or the chosen tag ids of a tag group. An `image` / `file` answer is a list of `encodeWizardFile` strings
+ * (the files are uploaded while the person answers, so the answer only carries where they are).
+ */
 export type WizardAnswers = Record<string, string | string[]>;
 
 /** A person of the board, for the `assignees` question. */
@@ -80,6 +86,63 @@ export const isAnswered = (v: string | string[] | undefined): boolean => (Array.
 
 /** Ids of the required fields of a step that still have no answer. */
 export const missingRequired = (step: WizardStep, answers: WizardAnswers): string[] => step.fields.filter((f) => f.required && !isAnswered(answers[f.id])).map((f) => f.id);
+
+/** What the server accepts per upload (multer `fileSize` in the uploads module). */
+export const WIZARD_MAX_FILE_BYTES = 10 * 1024 * 1024;
+export const WIZARD_MAX_FILES = 10;
+
+/** An uploaded file as an `image` / `file` answer remembers it. */
+export interface WizardFile {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
+export const isMediaKind = (kind: string): boolean => kind === "image" || kind === "file";
+export const encodeWizardFile = (f: WizardFile): string => JSON.stringify({ url: f.url, name: f.name, mime: f.mime, size: f.size });
+
+export function decodeWizardFile(raw: unknown): WizardFile | null {
+  if (typeof raw !== "string") return null;
+  try {
+    const o = JSON.parse(raw) as Record<string, unknown>;
+    if (!o || typeof o.url !== "string" || o.url === "") return null;
+    return { url: o.url, name: typeof o.name === "string" && o.name ? o.name : "file", mime: typeof o.mime === "string" ? o.mime : "", size: typeof o.size === "number" && Number.isFinite(o.size) ? o.size : 0 };
+  } catch {
+    return null;
+  }
+}
+
+/** The files of an `image` / `file` answer (anything that is not an encoded file is ignored). */
+export const wizardFiles = (v: string | string[] | undefined): WizardFile[] => (Array.isArray(v) ? v : typeof v === "string" && v ? [v] : []).map(decodeWizardFile).filter((x): x is WizardFile => x !== null);
+
+/** How many files an `image` / `file` question takes: `max`, 1 when absent, never more than WIZARD_MAX_FILES. */
+export const maxFilesOf = (f: Pick<WizardField, "max">): number => (typeof f.max === "number" && Number.isInteger(f.max) && f.max >= 1 ? Math.min(f.max, WIZARD_MAX_FILES) : 1);
+
+/** Mime types a question takes: images only for `image`, the admin's list (or anything) for `file`. */
+export const acceptOf = (f: Pick<WizardField, "kind" | "accept">): string[] => (f.kind === "image" ? ["image/*"] : f.accept ?? []);
+
+/** `true` when `mime` fits the list (`type/subtype` or `type/*`); an empty list takes anything. */
+export function mimeAllowed(accept: ReadonlyArray<string>, mime: string): boolean {
+  if (accept.length === 0) return true;
+  const m = mime.trim().toLowerCase();
+  if (!m) return false;
+  return accept.some((a) => {
+    const p = a.trim().toLowerCase();
+    return p.endsWith("/*") ? m.startsWith(p.slice(0, -1)) : m === p;
+  });
+}
+
+export type WizardFileError = "size" | "type" | "count";
+
+/** Why a file cannot be added to a question (`existing` = files it already has), or `null` when it can. A single-file question replaces its file, so it never runs out of room. */
+export function checkWizardFile(f: Pick<WizardField, "kind" | "accept" | "max">, file: { type: string; size: number }, existing: number): WizardFileError | null {
+  if (!mimeAllowed(acceptOf(f), file.type)) return "type";
+  if (file.size > WIZARD_MAX_FILE_BYTES) return "size";
+  const max = maxFilesOf(f);
+  if (max > 1 && existing >= max) return "count";
+  return null;
+}
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
@@ -191,6 +254,8 @@ export function applyWizardAnswers(input: ApplyInput): ApplyResult {
       } else if (f.kind === "checklist") {
         const items = (Array.isArray(v) ? v : [v]).map((x) => String(x).trim()).filter(Boolean);
         blocks = setChecklistUnderHeading(blocks, f.label, items, input.makeId);
+      } else if (isMediaKind(f.kind)) {
+        blocks = setMediaUnderHeading(blocks, f.label, wizardFiles(v).slice(0, maxFilesOf(f)), f.kind === "image" ? "image" : "file", input.makeId);
       } else if (f.kind === "date") {
         const day = String(v).trim();
         if (f.target === "start") startDay = day;
@@ -246,6 +311,7 @@ export function buildVariables(
       else if (f.kind === "assignees") text = (Array.isArray(v) ? v : [v]).map((id) => ctx.members?.find((m) => m.id === id)?.name ?? "").filter(Boolean).join(", ");
       else if (f.kind === "checklist") text = (Array.isArray(v) ? v : [v]).map((x) => String(x).trim()).filter(Boolean).join(", ");
       else if (f.kind === "toggle") text = v === "yes" ? YES : NO;
+      else if (isMediaKind(f.kind)) text = wizardFiles(v).slice(0, maxFilesOf(f)).map(markdownLink).join(", ");
       else text = String(v).trim();
       vars[f.variable.toLowerCase()] = text;
     }
@@ -271,6 +337,36 @@ export function setChecklistUnderHeading(blocks: WizardBrick[], label: string, i
   const next = blocks[idx + 1];
   if (next && next.kind === "checklist") return blocks.map((b, i) => (i === idx + 1 ? { ...b, items: items.map((l) => ({ id: makeId(), label: l, checked: false })) } : b));
   return [...blocks.slice(0, idx + 1), list(), ...blocks.slice(idx + 1)];
+}
+
+const mdUrl = (url: string) => url.replace(/[()\s]/g, (c) => ({ "(": "%28", ")": "%29" })[c] ?? "%20");
+/** `[name](url)`: how an uploaded file reads inside a `{{variable}}` (several are joined with ", "). */
+export const markdownLink = (f: WizardFile): string => `[${f.name.replace(/[[\]\\]/g, "\\$&")}](${mdUrl(f.url)})`;
+
+/**
+ * Puts the uploaded files of a question in ONE media brick (`image` or `file`; several files become a carousel, as the
+ * card's own upload does) under the heading whose text is `label`: it replaces an empty media brick that follows the heading,
+ * else goes right after it. Without such a heading, a `## label` heading and the brick are appended. No files change nothing.
+ */
+export function setMediaUnderHeading(blocks: WizardBrick[], label: string, files: WizardFile[], mediaType: "image" | "file", makeId: () => string): WizardBrick[] {
+  if (files.length === 0) return blocks;
+  const items = files.map((f) => ({ url: f.url, title: f.name, mimeType: f.mime || null, sizeBytes: f.size || null }));
+  const brick = (): WizardBrick => ({
+    id: makeId(),
+    kind: "media",
+    mediaType,
+    title: items[0].title,
+    url: items[0].url,
+    mimeType: items[0].mimeType,
+    sizeBytes: items[0].sizeBytes,
+    caption: items.length > 1 ? buildMediaCaption({ subtitle: "", items }) : null,
+    parentBlockId: null,
+  });
+  const idx = blocks.findIndex((b) => isHeading(b) && headingText(b) === label.trim().toLowerCase());
+  if (idx < 0) return [...blocks, { id: makeId(), kind: "text", displayStyle: "paragraph", markdown: `## ${label}`, tasks: [] }, brick()];
+  const next = blocks[idx + 1];
+  if (next && next.kind === "media" && !next.url) return blocks.map((b, i) => (i === idx + 1 ? { ...brick(), id: b.id } : b));
+  return [...blocks.slice(0, idx + 1), brick(), ...blocks.slice(idx + 1)];
 }
 
 /** One step per kind of thing to ask, built from the team tag groups: a classification step (one field per group) and a detail step. */

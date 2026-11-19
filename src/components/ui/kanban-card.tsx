@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { ProfileHover } from "@/components/ui/profile-hover";
+import { summarizeChecklists } from "@/lib/boards/card-checklist";
 import { createPortal } from "react-dom";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -116,15 +117,12 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
 
   const hasDescription = !!descriptionSnippet;
 
-  const checklists = textBlocks.filter(b => b.displayStyle === 'checklist');
-  let totalChecklistItems = 0;
-  let completedChecklistItems = 0;
-  checklists.forEach(cl => {
-    (cl.tasks || []).forEach(t => {
-      totalChecklistItems++;
-      if (t.checked) completedChecklistItems++;
-    });
-  });
+  // Every checklist item of the card (text bricks styled as checklist AND `checklist` bricks): what is done vs what is left.
+  const checklist = summarizeChecklists(card.blocks as unknown[]);
+  const totalChecklistItems = checklist.total;
+  const completedChecklistItems = checklist.done;
+  const checklistPreview = checklist.pending.slice(0, 3);
+  const checklistPercent = totalChecklistItems > 0 ? Math.round((completedChecklistItems / totalChecklistItems) * 100) : 0;
 
   const attachmentsCount = mediaBlocks.length;
   const assignees = (card.assignees || []).slice(0, 4);
@@ -265,18 +263,37 @@ export function KanbanCard({ card, listId, listName, boardName, boardId, teamId,
           </div>
         )}
 
+        {totalChecklistItems > 0 ? (
+          <div className="flex flex-col gap-1.5" aria-label={t("card.checklistProgress", { done: completedChecklistItems, total: totalChecklistItems })}>
+            <div className="flex items-center gap-2">
+              <CheckSquare className={`h-3.5 w-3.5 shrink-0 ${checklistPercent === 100 ? "text-emerald-500" : "text-muted-foreground"}`} aria-hidden />
+              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={checklistPercent}>
+                <div className={`h-full rounded-full transition-all ${checklistPercent === 100 ? "bg-emerald-500" : "bg-primary"}`} style={{ width: `${checklistPercent}%` }} />
+              </div>
+              <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">{completedChecklistItems}/{totalChecklistItems}</span>
+            </div>
+            {checklistPreview.length > 0 ? (
+              <ul className="flex flex-col gap-0.5">
+                {checklistPreview.map((it, i) => (
+                  <li key={i} className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                    <span aria-hidden className="mt-[3px] h-2.5 w-2.5 shrink-0 rounded-[3px] border border-muted-foreground/50" />
+                    <span className="min-w-0 truncate">{it.label || "—"}</span>
+                  </li>
+                ))}
+                {checklist.pending.length > checklistPreview.length ? (
+                  <li className="pl-4 text-[11px] text-muted-foreground/80">{t("card.checklistMore", { count: checklist.pending.length - checklistPreview.length })}</li>
+                ) : null}
+              </ul>
+            ) : null}
+          </div>
+        ) : null}
+
         {!isArchived ? (
           <div className="flex items-center justify-between text-[color:var(--board-text,hsl(var(--muted-foreground)))] mt-1">
             <div className="flex items-center space-x-3">
               {hasDescription && (
                 <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.hasDescription")}>
                   <AlignLeft className="h-3.5 w-3.5" />
-                </div>
-              )}
-              {totalChecklistItems > 0 && (
-                <div className="flex items-center space-x-1 text-xs hover:text-foreground transition-colors" title={t("card.checklistItems")}>
-                  <CheckSquare className="h-3.5 w-3.5" />
-                  <span>{completedChecklistItems}/{totalChecklistItems}</span>
                 </div>
               )}
               {(card.commentsCount || 0) > 0 && (

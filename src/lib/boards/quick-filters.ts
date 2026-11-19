@@ -9,6 +9,8 @@ export interface QuickFilters {
   unassigned?: boolean;
   overdue?: boolean;
   dueThisWeek?: boolean;
+  /** Checklist progress of the card: all items done / items still to do / no checklist at all. */
+  checklist?: 'complete' | 'pending' | 'none' | null;
   status?: 'done' | 'open' | null;
   group?: { id: string; name: string } | null;
   tags?: string[];
@@ -33,6 +35,9 @@ export function buildTerms(q: QuickFilters): string[] {
   if (q.status === 'open') out.push('open');
   if (q.overdue) out.push('overdue');
   if (q.dueThisWeek) out.push('due in this week');
+  if (q.checklist === 'complete') out.push('checklist_progress = 100');
+  if (q.checklist === 'pending') out.push('checklist_progress < 100');
+  if (q.checklist === 'none') out.push('checklist_total = 0');
   if (q.group?.id) out.push(`group = @[group:${q.group.id.replace(/[:\]]/g, '')}:${cleanGroupName(q.group.name)}]`);
   if (q.tags && q.tags.length) out.push(`tag in (${q.tags.map(quote).join(', ')})`);
   const field = q.dateField === 'created' ? 'created' : 'due';
@@ -57,6 +62,9 @@ const TERM_PATTERNS: Array<{ re: RegExp; apply: (m: RegExpExecArray, q: QuickFil
   { re: /open/y, apply: (_m, q) => !q.status && !!(q.status = 'open') },
   { re: /overdue/y, apply: (_m, q) => !q.overdue && !!(q.overdue = true) },
   { re: /due in this week/y, apply: (_m, q) => !q.dueThisWeek && !!(q.dueThisWeek = true) },
+  { re: /checklist_progress = 100/y, apply: (_m, q) => !q.checklist && !!(q.checklist = 'complete') },
+  { re: /checklist_progress < 100/y, apply: (_m, q) => !q.checklist && !!(q.checklist = 'pending') },
+  { re: /checklist_total = 0/y, apply: (_m, q) => !q.checklist && !!(q.checklist = 'none') },
   { re: /group = @\[group:([^:\]]+):([^\]]*)\]/y, apply: (m, q) => !q.group && !!(q.group = { id: m[1], name: m[2] }) },
   {
     re: /tag in \(((?:"(?:[^"\\]|\\.)*"(?:, )?)+)\)/y,

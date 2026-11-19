@@ -42,7 +42,11 @@
     "textPlaceholder": "Palabras del título",
     "regexPlaceholder": "Expresión regular, p. ej. ^bug",
     "regex": "Expresión regular",
-    "clearText": "Quitar texto"
+    "clearText": "Quitar texto",
+    "checklist": "Checklist",
+    "checklistComplete": "Completos",
+    "checklistPending": "Con tareas pendientes",
+    "checklistNone": "Sin checklist"
   },
   "views": {
     "title": "Vistas",

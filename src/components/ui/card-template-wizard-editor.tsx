@@ -3,7 +3,7 @@
 import { ChevronDown, ChevronUp, Plus, Sparkles, Trash2 } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
-import { starterWizard, type TemplateWizard, type WizardField, type WizardFieldKind, type WizardStep } from "@/lib/card-templates/wizard";
+import { isMediaKind, starterWizard, WIZARD_MAX_FILES, type TemplateWizard, type WizardField, type WizardFieldKind, type WizardStep } from "@/lib/card-templates/wizard";
 
 interface Group {
   id: string;
@@ -14,7 +14,7 @@ interface Group {
 const newId = () => (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID().slice(0, 12) : `w${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`);
 const inputCls = "h-8 w-full rounded-md border border-border bg-background px-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 const iconBtn = "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 disabled:hover:bg-transparent focus:outline-none focus-visible:ring-2 focus-visible:ring-primary";
-const KINDS: WizardFieldKind[] = ["tag_group", "list", "title", "line", "text", "checklist", "date", "assignees", "toggle"];
+const KINDS: WizardFieldKind[] = ["tag_group", "list", "title", "line", "text", "checklist", "date", "assignees", "toggle", "image", "file"];
 const num = (v: string): number | undefined => (v.trim() === "" || Number.isNaN(Number(v)) ? undefined : Number(v));
 
 /** `Área funcional` -> `area_funcional`: a safe variable name. */
@@ -98,7 +98,12 @@ export function CardTemplateWizardEditor({ wizard, onChange, groups }: { wizard:
             {step.fields.map((f, fi) => (
               <div key={f.id} className="space-y-2 rounded-md border border-border bg-card p-2.5">
                 <div className="flex flex-wrap items-center gap-2">
-                  <select className={`${inputCls} sm:w-52`} value={f.kind} onChange={(e) => patchField(si, fi, { kind: e.target.value as WizardFieldKind })} aria-label={t("cardTemplates.editor.wizard.kind")}>
+                  <select className={`${inputCls} sm:w-52`} value={f.kind} onChange={(e) => {
+                    const kind = e.target.value as WizardFieldKind;
+                    // `max` of a number question (any value) is not a valid file count: start the upload question clean
+                    const okMax = Number.isInteger(f.max) && (f.max as number) >= 1 && (f.max as number) <= WIZARD_MAX_FILES;
+                    patchField(si, fi, { kind, ...(isMediaKind(kind) && !okMax ? { max: undefined } : {}), ...(kind !== "file" ? { accept: undefined } : {}) });
+                  }} aria-label={t("cardTemplates.editor.wizard.kind")}>
                     {KINDS.map((k) => <option key={k} value={k}>{t(`cardTemplates.editor.wizard.kinds.${k}`)}</option>)}
                   </select>
                   <input className={`${inputCls} min-w-[8rem] flex-1`} value={f.label} maxLength={80} onChange={(e) => patchField(si, fi, { label: e.target.value })} placeholder={t("cardTemplates.editor.wizard.label")} aria-label={t("cardTemplates.editor.wizard.label")} />
@@ -154,6 +159,24 @@ export function CardTemplateWizardEditor({ wizard, onChange, groups }: { wizard:
                         </label>
                       </>
                     ) : null}
+                  </div>
+                ) : null}
+
+                {isMediaKind(f.kind) ? (
+                  <div className="grid gap-2 sm:grid-cols-[9rem_1fr]">
+                    <input type="number" min={1} max={WIZARD_MAX_FILES} step={1} className={inputCls} value={f.max ?? ""} onChange={(e) => patchField(si, fi, { max: num(e.target.value) })} placeholder={t("cardTemplates.editor.wizard.maxFiles")} aria-label={t("cardTemplates.editor.wizard.maxFiles")} title={t("cardTemplates.editor.wizard.maxFiles")} />
+                    {f.kind === "file" ? (
+                      <input
+                        key={`${f.id}-accept`}
+                        className={`${inputCls} font-mono text-xs`}
+                        defaultValue={(f.accept ?? []).join(", ")}
+                        onBlur={(e) => patchField(si, fi, { accept: e.target.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean) })}
+                        placeholder="application/pdf, image/*"
+                        aria-label={t("cardTemplates.editor.wizard.accept")}
+                        title={t("cardTemplates.editor.wizard.accept")}
+                      />
+                    ) : null}
+                    <p className="text-xs text-muted-foreground sm:col-span-2">{t("cardTemplates.editor.wizard.uploadHint")}</p>
                   </div>
                 ) : null}
 

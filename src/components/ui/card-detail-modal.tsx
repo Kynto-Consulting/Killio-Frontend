@@ -1994,6 +1994,12 @@ export function CardDetailModal({
       lists={boardListOptions}
       members={boardMembers.map((m: any) => ({ id: m.id, name: m.name || m.email || '' }))}
       initial={wizardInitial()}
+      onUploadFile={async (file) => {
+        if (!accessToken) throw new Error('Not signed in');
+        const scopeTeam = teamId || activeTeamId;
+        const up = await uploadFile(file, accessToken, scopeTeam ? { ownerScopeType: 'team', ownerScopeId: scopeTeam, usage: 'card-template-wizard' } : { usage: 'card-template-wizard' });
+        return { url: up.url };
+      }}
       onFinish={handleWizardFinish}
       onClose={() => handleWizardFinish({}, true)}
     />

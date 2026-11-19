@@ -46,7 +46,25 @@
       "clear": "Borrar",
       "noMembers": "No hay personas en este tablero",
       "finishFill": "Aplicar",
-      "badge": "Con asistente"
+      "badge": "Con asistente",
+      "dropImages": "Arrastra imágenes aquí o",
+      "dropFiles": "Arrastra archivos aquí o",
+      "chooseImages": "elige imágenes",
+      "chooseFiles": "elige archivos",
+      "replaceFile": "elige otro",
+      "dropActive": "Suelta para subir",
+      "filesCount": "{{n}} de {{max}}",
+      "uploading": "Subiendo...",
+      "removeFile": "Quitar {{name}}",
+      "uploadsBusy": "Espera a que terminen las subidas",
+      "fileLimits": "Hasta {{mb}} MB cada uno",
+      "fileTypes": "Permitidos: {{types}}",
+      "fileErrors": {
+        "size": "{{name}} pesa más de {{mb}} MB.",
+        "type": "{{name}} no es un tipo permitido.",
+        "count": "{{name}} se omitió: máximo {{max}} archivos.",
+        "upload": "No se pudo subir {{name}}."
+      }
     },
     "editor": {
       "menu": "Plantillas de tarjeta",
@@ -93,7 +111,9 @@
           "list": "Estado (lista)",
           "title": "Nombre de la tarjeta",
           "line": "Línea de la descripción",
-          "text": "Texto bajo un encabezado"
+          "text": "Texto bajo un encabezado",
+          "image": "Imágenes (subida)",
+          "file": "Archivos (subida)"
         },
         "group": "Grupo de etiquetas",
         "noGroup": "Elige un grupo",
@@ -112,6 +132,9 @@
         "variableHint": "Nombre para usar como {{nombre}}",
         "empty": "Aún no hay pasos. Crea los pasos desde los grupos de etiquetas o añade uno a mano.",
         "textHint": "El texto se coloca bajo el encabezado de los bloques que se llame igual que la pregunta.",
+        "uploadHint": "Los archivos subidos se convierten en un bloque de imagen o de archivo bajo el encabezado que se llame igual que la pregunta (al final si no existe). Como {{variable}} se leen como una lista de enlaces.",
+        "maxFiles": "Máx. de archivos (1-10)",
+        "accept": "Tipos permitidos, separados por coma (p. ej. application/pdf, image/*). Vacío = cualquier archivo",
         "preview": "Vista previa del asistente",
         "stepsCount": "{{count}} pasos"
       },
@@ -326,7 +349,9 @@
     "copySuffix": "(copia)",
     "duplicated": "Tarjeta duplicada",
     "archive": "Archivar",
-    "actionError": "No se pudo actualizar la tarjeta"
+    "actionError": "No se pudo actualizar la tarjeta",
+    "checklistProgress": "{{done}} de {{total}} tareas hechas",
+    "checklistMore": "+{{count}} pendientes más"
   },
   "cardModal": {
     "archiveCard": "Archivar tarjeta",

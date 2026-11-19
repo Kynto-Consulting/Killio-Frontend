@@ -46,7 +46,25 @@
       "clear": "Clear",
       "noMembers": "There are no people in this board",
       "finishFill": "Apply",
-      "badge": "Has a wizard"
+      "badge": "Has a wizard",
+      "dropImages": "Drag images here or",
+      "dropFiles": "Drag files here or",
+      "chooseImages": "choose images",
+      "chooseFiles": "choose files",
+      "replaceFile": "choose another",
+      "dropActive": "Drop to upload",
+      "filesCount": "{{n}} of {{max}}",
+      "uploading": "Uploading...",
+      "removeFile": "Remove {{name}}",
+      "uploadsBusy": "Wait for the uploads to finish",
+      "fileLimits": "Up to {{mb}} MB each",
+      "fileTypes": "Allowed: {{types}}",
+      "fileErrors": {
+        "size": "{{name}} is larger than {{mb}} MB.",
+        "type": "{{name}} is not an allowed type.",
+        "count": "{{name}} was skipped: at most {{max}} files.",
+        "upload": "{{name}} could not be uploaded."
+      }
     },
     "editor": {
       "menu": "Card templates",
@@ -93,7 +111,9 @@
           "list": "State (list)",
           "title": "Card name",
           "line": "Description line",
-          "text": "Text under a heading"
+          "text": "Text under a heading",
+          "image": "Images (upload)",
+          "file": "Files (upload)"
         },
         "group": "Tag group",
         "noGroup": "Choose a group",
@@ -112,6 +132,9 @@
         "variableHint": "Name to use as {{name}}",
         "empty": "No steps yet. Create the steps from the tag groups or add one by hand.",
         "textHint": "The text goes under the block heading that has the same name as the question.",
+        "uploadHint": "The uploaded files become an image or file block under the heading named like the question (added at the end if there is none). As {{variable}} they read as a list of links.",
+        "maxFiles": "Max. files (1-10)",
+        "accept": "Allowed types, comma separated (e.g. application/pdf, image/*). Empty = any file",
         "preview": "Wizard preview",
         "stepsCount": "{{count}} steps"
       },
@@ -326,7 +349,9 @@
     "copySuffix": "(copy)",
     "duplicated": "Card duplicated",
     "archive": "Archive",
-    "actionError": "The card could not be updated"
+    "actionError": "The card could not be updated",
+    "checklistProgress": "{{done}} of {{total}} tasks done",
+    "checklistMore": "+{{count}} more pending"
   },
   "cardModal": {
     "archiveCard": "Archive card",
