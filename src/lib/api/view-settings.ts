@@ -1,5 +1,6 @@
 /** Board view settings (`/boards/:boardId/view-settings`) and team tag groups (`/teams/:teamId/tag-groups`). */
 import type { ListViewConfig } from "../boards/categories";
+import type { BoardTab } from "../boards/board-tabs";
 import type { SortRule, TagGroup } from "../boards/sorting";
 
 const API = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -15,8 +16,10 @@ export interface ServerBoardViewSettings {
   sort: SortRule[];
   lists: Record<string, ListViewConfig>;
   savedViews: ServerSavedView[];
+  /** The board's view tabs, shared by everyone; `null` = never saved (show the default tabs). */
+  views?: BoardTab[] | null;
   /** ISO timestamps of the last server write (last write wins). */
-  meta: { sortUpdatedAt: string | null; listUpdatedAt: Record<string, string> };
+  meta: { sortUpdatedAt: string | null; listUpdatedAt: Record<string, string>; viewsUpdatedAt?: string | null };
 }
 
 export interface ServerTagGroup extends TagGroup {
@@ -30,6 +33,8 @@ export interface UpdateBoardViewSettingsBody {
   sort?: SortRule[] | null;
   /** `{ [listId]: config | null }`: `null` removes the config. */
   listConfigs?: Record<string, ListViewConfig | null>;
+  /** Replaces the board's view tabs (max 20, names up to 40 characters); `null` clears them. */
+  views?: BoardTab[] | null;
 }
 
 export class ApiRequestError extends Error {

@@ -9,9 +9,15 @@ import { DndContext, DragOverlay, closestCorners, KeyboardSensor, PointerSensor,
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { ListColumn } from "@/components/ui/list-column";
 import { TagGroupsModal } from "@/components/boards/tag-groups-modal";
+import { CardTemplateEditor } from "@/components/ui/card-template-editor";
+import { LayoutTemplate } from "lucide-react";
 import { useBoardView } from "@/components/boards/use-board-view";
 import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { GanttView } from "@/components/boards/gantt-view";
+import { BoardListView } from "@/components/boards/board-list-view";
+import { BoardViewTabs } from "@/components/boards/board-view-tabs";
+import { useBoardTabs } from "@/components/boards/use-board-tabs";
+import { isBuiltinTab, tabDisplayName, uniqueTabName, type BoardTabType } from "@/lib/boards/board-tabs";
 import { applyBoardFilters } from "@/lib/boards/apply-filters";
 import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
 import { effectiveSortRules, normalizeSortRules, sortCards } from "@/lib/boards/sorting";
@@ -69,8 +75,6 @@ type BoardAppearanceState = {
   themePreset?: string | null;
   themeCustom?: Record<string, unknown>;
 };
-
-type BoardViewMode = "kanban" | "gantt";
 
 type ApplyEventResult = {
   nextLists: BoardListState[];
@@ -870,7 +874,11 @@ export default function BoardPage() {
     backgroundKind: "color",
     backgroundValue: "#000000",
   });
-  const [boardView, setBoardView] = useState<BoardViewMode>("kanban");
+  // Named view tabs of the board (Kanban and Gantt are built in; Lista and any added view are extra). `boardView` is the type to render.
+  const boardTabs = useBoardTabs(boardId, { serverSync: !localMode });
+  const boardView = boardTabs.active.type;
+  const { ask: askDeleteView, ConfirmDialog: DeleteViewConfirmDialog } = useConfirm();
+  const [createCardTarget, setCreateCardTarget] = useState<{ listId: string; listName: string } | null>(null);
   const [selectedGanttCard, setSelectedGanttCard] = useState<{ card: any; listId: string; listName: string } | null>(null);
 
   const bv = useBoardView(boardId);
@@ -888,6 +896,7 @@ export default function BoardPage() {
     return () => observer.disconnect();
   }, []);
   const [isTagGroupsOpen, setIsTagGroupsOpen] = useState(false);
+  const [isCardTemplatesOpen, setIsCardTemplatesOpen] = useState(false);
   const [isFilterMenuOpen, setIsFilterMenuOpen] = useState(false);
   const [isBoardMenuOpen, setIsBoardMenuOpen] = useState(false);
   const [showArchivedLists, setShowArchivedLists] = useState(false);
@@ -1410,6 +1419,35 @@ export default function BoardPage() {
     lists.flatMap(l => l.cards.flatMap((c: any) => (c.tags || []).map((t: any) => JSON.stringify({ id: t.id, name: t.name, slug: t.slug, color: t.color, tag_kind: t.tag_kind }))))
   )).map(str => JSON.parse(str as string)).filter(Boolean);
 
+  // Moves a card to another list from the list view (state dropdown): same optimistic update and API call as dropping it
+  // on the list in Kanban (appended at the end), then a reload to converge with the server.
+  const handleMoveCardToList = useCallback(async (cardId: string, fromListId: string, toListId: string) => {
+    if (!permissions.canEdit || fromListId === toListId) return;
+    const target = listsRef.current.find((l) => l.id === toListId);
+    if (!target) return;
+    const position = target.cards.length;
+    setLists((prev) => {
+      const src = prev.find((l) => l.id === fromListId);
+      const card = src?.cards.find((c: any) => c.id === cardId);
+      if (!src || !card) return prev;
+      return prev.map((l) => {
+        if (l.id === fromListId) return { ...l, cards: l.cards.filter((c: any) => c.id !== cardId) };
+        if (l.id === toListId) return { ...l, cards: [...l.cards, card] };
+        return l;
+      });
+    });
+    if (!accessToken) return;
+    try {
+      await updateCard(cardId, { list_id: toListId, position }, accessToken);
+      toast(t("listView.moved", { list: target.title }), "success");
+    } catch (err) {
+      console.error("Failed to persist card move", err);
+      toast(t("listView.moveError"), "error");
+    } finally {
+      loadBoard();
+    }
+  }, [permissions.canEdit, accessToken, loadBoard, t]);
+
   // ── Filters, sorting and categories (views only: `lists` is never changed) ──
   const [boardMembers, setBoardMembers] = useState<BoardMemberSummary[]>([]);
   useEffect(() => {
@@ -1531,24 +1569,33 @@ export default function BoardPage() {
             <span className="w-2 h-2 rounded-full bg-green-500 mr-2 animate-pulse"></span>
             {t("header.live")}
           </button>
-          <div className="flex items-center rounded-full border border-border/70 bg-background/60 p-1 shadow-sm backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => setBoardView("kanban")}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${boardView === "kanban" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <SquareKanban className="h-3.5 w-3.5" />
-              {t("header.kanbanView")}
-            </button>
-            <button
-              type="button"
-              onClick={() => setBoardView("gantt")}
-              className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors ${boardView === "gantt" ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:text-foreground"}`}
-            >
-              <ChartGantt className="h-3.5 w-3.5" />
-              {t("header.ganttView")}
-            </button>
-          </div>
+          <BoardViewTabs
+            tabs={boardTabs.tabs}
+            activeId={boardTabs.active.id}
+            canManage={permissions.canEdit}
+            onSelect={boardTabs.select}
+            onAdd={(type: BoardTabType) => {
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              const id = `view_${genLocalId()}`;
+              boardTabs.dispatch({ type: "add", id, tabType: type, name: uniqueTabName(labels[type], boardTabs.tabs, labels) });
+              boardTabs.select(id);
+            }}
+            onRename={(id, name) => {
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              boardTabs.dispatch({ type: "rename", id, name: uniqueTabName(name.trim(), boardTabs.tabs, labels, id) });
+            }}
+            onDelete={async (tab) => {
+              if (isBuiltinTab(tab)) return;
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView") };
+              const ok = await askDeleteView({
+                title: t("viewTabs.delete"),
+                description: t("viewTabs.deleteConfirm", { name: tabDisplayName(tab, labels) }),
+                confirmLabel: t("viewTabs.delete"),
+                variant: "destructive",
+              });
+              if (ok) boardTabs.dispatch({ type: "remove", id: tab.id });
+            }}
+          />
         </div>
 
         <div className="flex items-center space-x-2">
@@ -1680,6 +1727,20 @@ export default function BoardPage() {
                     {showArchivedLists ? t("list.hideArchived") : t("list.viewArchived")}
                   </button>
 
+                  {permissions.canManageBoard && !localMode && (
+                    <button
+                      onClick={() => {
+                        setIsBoardMenuOpen(false);
+                        setIsFilterMenuOpen(false);
+                        setIsCardTemplatesOpen(true);
+                      }}
+                      className="w-full h-9 px-3 inline-flex items-center justify-start rounded-md text-sm font-medium transition-colors hover:bg-accent/10 text-foreground"
+                    >
+                      <LayoutTemplate className="h-4 w-4 mr-2" />
+                      {t("cardTemplates.editor.menu")}
+                    </button>
+                  )}
+
                   {permissions.canEdit && (
                     <button
                       onClick={() => {
@@ -1734,6 +1795,10 @@ export default function BoardPage() {
       </header>
 
       <TagGroupsModal open={isTagGroupsOpen} onClose={() => setIsTagGroupsOpen(false)} groups={bv.tagGroups} onChange={bv.setTagGroups} availableTags={allAvailableTags} />
+
+      {permissions.canManageBoard && !localMode ? (
+        <CardTemplateEditor open={isCardTemplatesOpen} onClose={() => setIsCardTemplatesOpen(false)} boardId={boardId} teamId={boardTeamId} />
+      ) : null}
 
       {boardView === "kanban" ? (
       <>
@@ -1876,12 +1941,29 @@ export default function BoardPage() {
         </div>
       )}
       </>
-      ) : (
+      ) : boardView === "gantt" ? (
       <main className="flex-1 overflow-hidden bg-background">
         <GanttView
           lists={filteredLists}
           locale={locale}
           onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+        />
+      </main>
+      ) : (
+      <main className="flex-1 min-h-0 overflow-hidden bg-background">
+        <BoardListView
+          key={boardTabs.active.id}
+          lists={viewLists}
+          tagGroups={bv.tagGroups}
+          users={kqlCtx.users}
+          boardName={boardName}
+          locale={locale}
+          config={boardTabs.active.config ?? {}}
+          onConfigChange={(patch) => boardTabs.dispatch({ type: "config", id: boardTabs.active.id, patch })}
+          canEdit={permissions.canEdit}
+          onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+          onCreateCard={(listId, listName) => setCreateCardTarget({ listId, listName })}
+          onMoveCard={handleMoveCardToList}
         />
       </main>
       )}
@@ -1934,10 +2016,25 @@ export default function BoardPage() {
       />
 
       <DeleteBoardConfirmDialog />
+      <DeleteViewConfirmDialog />
 
       {navbarUsageSlotEl && activeTeamId && accessToken ? createPortal(
         <NavbarAiCredits teamId={activeTeamId} accessToken={accessToken} />,
         navbarUsageSlotEl
+      ) : null}
+
+      {createCardTarget ? (
+        <CardDetailModal
+          isOpen
+          onClose={() => setCreateCardTarget(null)}
+          listId={createCardTarget.listId}
+          listName={createCardTarget.listName}
+          boardName={boardName}
+          boardId={boardId}
+          teamId={boardTeamId ?? undefined}
+          teamDocs={teamDocs}
+          teamBoards={teamBoards}
+        />
       ) : null}
 
       {selectedGanttCard ? (

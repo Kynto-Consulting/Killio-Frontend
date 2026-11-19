@@ -21,6 +21,9 @@ import { applyBoardFilters } from "@/lib/boards/apply-filters";
 import { buildKqlContext, toKqlCard } from "@/lib/boards/kql-cards";
 import { effectiveSortRules, sortCards } from "@/lib/boards/sorting";
 import { useTeamGroups } from "@/hooks/use-team-groups";
+import { createCardBrick, reorderCardBricks } from "@/lib/api/contracts";
+import { listCardTemplates, resolveCardTemplate, type CardTemplate } from "@/lib/api/card-templates";
+import { localDateISO, resolvedDateToIso } from "@/lib/card-templates/model";
 
 type CardRow = {
   id: string;
@@ -53,6 +56,8 @@ function priorityColor(p?: string | null) {
   return "bg-muted-foreground/30";
 }
 
+const resolveDue = (value: string | null | undefined) => resolvedDateToIso(value) ?? undefined;
+
 const SWIPE_THRESHOLD = 72;
 const LONG_PRESS_MS = 450;
 
@@ -73,6 +78,8 @@ export default function BoardMobilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingCard, setIsAddingCard] = useState(false);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [cardTemplates, setCardTemplates] = useState<CardTemplate[]>([]);
+  const [newCardTemplateId, setNewCardTemplateId] = useState("");
   const [selectedCard, setSelectedCard] = useState<{ card: CardRow; listId: string; listName: string } | null>(null);
   const [showArchivedLists, setShowArchivedLists] = useState(false);
   const [archivedLists, setArchivedLists] = useState<ArchivedListSummary[]>([]);
@@ -195,31 +202,78 @@ export default function BoardMobilePage() {
   const activeList = viewLists[activeListIndex] ?? null;
   const visibleCards = (activeList?.cards ?? []).filter(c => !c.archivedAt);
 
+  // Templates of the board, loaded when the add-card form opens. Failing (no permission, old backend) means no select.
+  useEffect(() => {
+    if (!isAddingCard || !accessToken || !boardId) return;
+    let alive = true;
+    listCardTemplates(boardId, accessToken)
+      .then((rows) => { if (alive) setCardTemplates(rows); })
+      .catch(() => { if (alive) setCardTemplates([]); });
+    return () => { alive = false; };
+  }, [isAddingCard, accessToken, boardId]);
+
   const handleAddCard = async () => {
-    if (!newCardTitle.trim() || !accessToken || !activeList) return;
+    const typedTitle = newCardTitle.trim();
+    const templateId = newCardTemplateId;
+    if ((!typedTitle && !templateId) || !accessToken || !activeList) return;
+
+    let resolved: Awaited<ReturnType<typeof resolveCardTemplate>> = null;
+    if (templateId) {
+      try {
+        resolved = await resolveCardTemplate(boardId, templateId, { listId: activeList.id, today: localDateISO() }, accessToken);
+      } catch {
+        toast(t("cardTemplates.resolveError"), "error");
+        return;
+      }
+    }
+    // With a template, what was typed continues the template's title pattern.
+    const title = resolved ? `${resolved.title ?? ""}${typedTitle}`.trim() : typedTitle;
+    if (!title) return;
+    const targetListId = resolved?.listId || activeList.id;
+
     const tempId = `tmp-${Date.now()}`;
-    const tempCard: CardRow = { id: tempId, title: newCardTitle.trim() };
-    setLists(prev => prev.map((l, i) => i === activeListIndex ? { ...l, cards: [...l.cards, tempCard] } : l));
+    const tempCard: CardRow = { id: tempId, title };
+    setLists(prev => prev.map(l => l.id === targetListId ? { ...l, cards: [...l.cards, tempCard] } : l));
     setNewCardTitle("");
+    setNewCardTemplateId("");
     setIsAddingCard(false);
     apiCache.invalidate(cacheKey.board(boardId));
 
     try {
       const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
+      const dueAt = resolved ? resolveDue(resolved.dueAt) : undefined;
       const res = await fetch(`${API_BASE}/cards`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ listId: activeList.id, title: tempCard.title }),
+        body: JSON.stringify({
+          listId: targetListId,
+          title,
+          ...(resolved ? { tags: resolved.tagIds, assignees: resolved.assigneeIds, ...(dueAt ? { dueAt } : {}) } : {}),
+        }),
       });
       if (!res.ok) throw new Error("create failed");
       const newCard = await res.json();
-      setLists(prev => prev.map((l, i) =>
-        i === activeListIndex
+      setLists(prev => prev.map(l =>
+        l.id === targetListId
           ? { ...l, cards: l.cards.map(c => c.id === tempId ? { ...newCard, title: newCard.title } : c) }
           : l,
       ));
+      if (resolved && newCard?.id) {
+        // Best effort: the start date and the description blocks come after the card exists.
+        const startAt = resolvedDateToIso(resolved.startAt);
+        if (startAt) await updateCard(newCard.id, { start_at: startAt }, accessToken).catch(() => {});
+        const ids: string[] = [];
+        for (const block of resolved.blocks) {
+          try {
+            const created = await createCardBrick(newCard.id, block, accessToken);
+            ids.push(created.brick.id);
+          } catch { /* keep going */ }
+        }
+        if (ids.length > 1) await reorderCardBricks(newCard.id, { clientId: crypto.randomUUID(), brickIds: ids }, accessToken).catch(() => {});
+        if (resolved.warnings.length > 0) toast(t("cardTemplates.warningsToast", { count: resolved.warnings.length }), "warning", 5000);
+      }
     } catch {
-      setLists(prev => prev.map((l, i) => i === activeListIndex ? { ...l, cards: l.cards.filter(c => c.id !== tempId) } : l));
+      setLists(prev => prev.map(l => l.id === targetListId ? { ...l, cards: l.cards.filter(c => c.id !== tempId) } : l));
       toast(t("createCardError"), "error");
     }
   };
@@ -447,6 +501,19 @@ export default function BoardMobilePage() {
 
             {isAddingCard && (
               <div className="rounded-xl border border-accent/40 bg-card px-4 py-3 space-y-2">
+                {cardTemplates.length > 0 && (
+                  <select
+                    value={newCardTemplateId}
+                    onChange={e => setNewCardTemplateId(e.target.value)}
+                    aria-label={t("cardTemplates.pickerLabel")}
+                    className="w-full h-9 rounded-lg border border-border bg-background px-2 text-sm text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    <option value="">{t("cardTemplates.blank")}</option>
+                    {cardTemplates.map(tpl => (
+                      <option key={tpl.id} value={tpl.id}>{tpl.icon ? `${tpl.icon} ` : ""}{tpl.name}</option>
+                    ))}
+                  </select>
+                )}
                 <input
                   ref={inputRef}
                   autoFocus

@@ -35,6 +35,9 @@ import { MediaCarouselItem, parseMediaMeta, buildMediaCaption, uploadFilesAsMedi
 import { getContainerChildIds, getTopLevelBrickIds, insertChildId, setContainerChildIds } from "@/lib/bricks/nesting";
 import { getWorkspaceMemberLabel, normalizeWorkspaceMembers, toReferenceUsers } from "@/lib/workspace-members";
 import { AgentChatPanel } from "@/components/agent";
+import { listCardTemplates, resolveCardTemplate, type CardTemplate } from "@/lib/api/card-templates";
+import { getBoard as apiGetBoardForLists } from "@/lib/api/contracts";
+import { localDateISO, resolvedToModalState } from "@/lib/card-templates/model";
 
 const fieldLabels: Record<string, string> = {
   title: "título",
@@ -251,6 +254,14 @@ export function CardDetailModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [card?.id, accessToken, localAssignees, boardMembers, normalizeAssignee, tGroups]);
   const [isCreating, setIsCreating] = useState(false);
+  // ── Card templates (create mode only) ──
+  const [cardTemplates, setCardTemplates] = useState<CardTemplate[]>([]);
+  const [boardListOptions, setBoardListOptions] = useState<Array<{ id: string; name: string }>>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
+  const [isResolvingTemplate, setIsResolvingTemplate] = useState(false);
+  const [templateWarnings, setTemplateWarnings] = useState<string[]>([]);
+  /** Where the new card will be created: the list the modal was opened from, unless a template or the user changes it. */
+  const [createListId, setCreateListId] = useState<string | null>(listId ?? null);
   const [isAddingTag, setIsAddingTag] = useState(false);
   const [isCreatingTag, setIsCreatingTag] = useState(false);
   const [tagError, setTagError] = useState<string | null>(null);
@@ -452,6 +463,9 @@ export function CardDetailModal({
       setLocalTags([]);
       setLocalAssignees([]);
       setLocalBlocks([createEmptyTextBrick()]);
+      setSelectedTemplateId(null);
+      setTemplateWarnings([]);
+      setCreateListId(listId ?? null);
     }
     setTagSearch("");
     setNewTagColor('#3b82f6');
@@ -459,6 +473,84 @@ export function CardDetailModal({
     setIsAssigneeDropdownOpen(false);
     setIsTimerDropdownOpen(false);
   }, [isOpen, card, createEmptyTextBrick, normalizeAssignee, syncTitleDom]);
+
+  // Templates of the board: loaded when the create modal opens, only for people who can edit.
+  // A failure (no permission, old backend) just means no picker.
+  useEffect(() => {
+    if (!isOpen || card || readonly || !boardId || !accessToken) {
+      setCardTemplates([]);
+      return;
+    }
+    let alive = true;
+    listCardTemplates(boardId, accessToken, localMode)
+      .then((rows) => { if (alive) setCardTemplates(rows); })
+      .catch(() => { if (alive) setCardTemplates([]); });
+    return () => { alive = false; };
+  }, [isOpen, card, readonly, boardId, accessToken, localMode]);
+
+  // The board's lists, to show / change where the card will be created (only needed when there are templates).
+  useEffect(() => {
+    if (cardTemplates.length === 0 || !boardId || !accessToken || localMode) return;
+    let alive = true;
+    apiGetBoardForLists(boardId, accessToken)
+      .then((b) => { if (alive) setBoardListOptions((b.lists ?? []).map((l) => ({ id: l.id, name: l.name }))); })
+      .catch(() => { if (alive) setBoardListOptions([]); });
+    return () => { alive = false; };
+  }, [cardTemplates.length, boardId, accessToken, localMode]);
+
+  const applyCardTemplate = async (templateId: string | null) => {
+    if (isResolvingTemplate) return;
+    if (!templateId) {
+      setSelectedTemplateId(null);
+      setTemplateWarnings([]);
+      setLocalTitle("New Card");
+      syncTitleDom("New Card");
+      setLocalDueAt("");
+      setLocalStartAt(null);
+      setLocalDueAtTimestamp(null);
+      setLocalTags([]);
+      setLocalAssignees([]);
+      setLocalBlocks([createEmptyTextBrick()]);
+      setCreateListId(listId ?? null);
+      return;
+    }
+    if (!boardId || !accessToken) return;
+    setIsResolvingTemplate(true);
+    try {
+      const resolved = await resolveCardTemplate(boardId, templateId, { listId, today: localDateISO() }, accessToken, localMode);
+      if (!resolved) return;
+      const makeId = () => `tmp-${crypto.randomUUID()}`;
+      let state = resolvedToModalState(resolved, { tags: availableTags, members: boardMembers, makeId });
+      if (state.unknownTagIds.length > 0) {
+        // The tag list may not be loaded yet (or a tag was just created): one fresh read before giving up on them.
+        try {
+          const fresh = await getTagsByScope('board', boardId, accessToken);
+          setAvailableTags(fresh);
+          state = resolvedToModalState(resolved, { tags: fresh, members: boardMembers, makeId });
+        } catch { /* keep what we have */ }
+      }
+      const nextTitle = state.title.trim() ? state.title : "New Card";
+      setSelectedTemplateId(templateId);
+      setLocalTitle(nextTitle);
+      syncTitleDom(nextTitle);
+      setLocalStartAt(state.startAt);
+      setLocalDueAtTimestamp(state.dueAt);
+      setLocalDueAt(normalizeDueDateInputValue(state.dueAt));
+      setLocalTags(state.tags);
+      setLocalAssignees(state.assignees.map(normalizeAssignee));
+      setLocalBlocks(state.blocks.length > 0 ? state.blocks : [createEmptyTextBrick()]);
+      setCreateListId(state.listId || listId || null);
+      const warnings = [...state.warnings];
+      if (state.unknownTagIds.length > 0) warnings.push(t('cardTemplates.unknownTags', { count: state.unknownTagIds.length }));
+      setTemplateWarnings(warnings);
+      if (warnings.length > 0) toast(t('cardTemplates.warningsToast', { count: warnings.length }), 'warning', 5000);
+    } catch (err) {
+      console.error("Failed to resolve card template", err);
+      toast(t('cardTemplates.resolveError'), 'error');
+    } finally {
+      setIsResolvingTemplate(false);
+    }
+  };
 
   useEffect(() => {
     if (!isOpen || !isTimerActive) return;
@@ -1552,16 +1644,26 @@ export function CardDetailModal({
   }, [accessToken, card?.id, emitCardRefresh, router]);
 
   const submitCreate = async () => {
-    if (!listId || !accessToken || isCreating) return;
+    const targetListId = createListId ?? listId;
+    if (!targetListId || !accessToken || isCreating) return;
     setIsCreating(true);
     try {
       const createdCard = await createCard({
-        listId,
+        listId: targetListId,
         title: localTitle || "New Card",
         dueAt: localDueAtTimestamp || undefined,
         tags: localTags.map(t => t.id),
         assignees: localAssignees.map(a => a.id)
       }, accessToken);
+
+      // POST /cards takes no start date: a template's start offset is applied right after (best effort).
+      if (createdCard?.id && localStartAt) {
+        try {
+          await updateCard(createdCard.id, { start_at: localStartAt }, accessToken);
+        } catch (err) {
+          console.error("Failed to set the start date of the new card", err);
+        }
+      }
 
       const bricksToCreate = localBlocks.filter((block) => {
         if (block.kind !== 'text') return true;
@@ -1790,7 +1892,7 @@ export function CardDetailModal({
           <div className="flex items-center space-x-2 text-sm text-muted-foreground">
             <span className="hover:text-foreground cursor-pointer transition-colors">{boardName || "Board"}</span>
             <span className="text-border">/</span>
-            <span className="hover:text-foreground cursor-pointer transition-colors">{listName || "List"}</span>
+            <span className="hover:text-foreground cursor-pointer transition-colors">{(!card?.id && createListId ? boardListOptions.find((l) => l.id === createListId)?.name : undefined) || listName || "List"}</span>
             <span className="text-border">/</span>
             <span className="font-semibold text-foreground truncate max-w-[200px]">{localTitle || card?.title || "Untitled Card"}</span>
           </div>
@@ -1838,6 +1940,64 @@ export function CardDetailModal({
         <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
           <div className={`flex-1 overflow-y-auto p-4 md:p-8 hide-scrollbar border-r border-border ${activeTab === 'details' ? 'block' : 'hidden'}`}>
             <div className="max-w-4xl mx-auto space-y-6">
+              {!card?.id && !readonly && cardTemplates.length > 0 ? (
+                <section aria-label={t('cardTemplates.pickerLabel')} className="rounded-xl border border-border bg-card/60 p-3 space-y-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{t('cardTemplates.pickerLabel')}</span>
+                    <div role="radiogroup" aria-label={t('cardTemplates.pickerLabel')} className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        type="button"
+                        role="radio"
+                        aria-checked={selectedTemplateId === null}
+                        disabled={isResolvingTemplate}
+                        onClick={() => void applyCardTemplate(null)}
+                        className={`inline-flex h-8 items-center rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${selectedTemplateId === null ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                      >
+                        {t('cardTemplates.blank')}
+                      </button>
+                      {cardTemplates.map((tpl) => (
+                        <button
+                          key={tpl.id}
+                          type="button"
+                          role="radio"
+                          aria-checked={selectedTemplateId === tpl.id}
+                          disabled={isResolvingTemplate}
+                          title={tpl.description || undefined}
+                          onClick={() => void applyCardTemplate(tpl.id)}
+                          className={`inline-flex h-8 max-w-[16rem] items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${selectedTemplateId === tpl.id ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-background text-foreground hover:bg-muted'}`}
+                        >
+                          {tpl.icon ? <span aria-hidden="true">{tpl.icon}</span> : null}
+                          <span className="truncate">{tpl.name}</span>
+                        </button>
+                      ))}
+                      {isResolvingTemplate ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-label={t('cardTemplates.applying')} /> : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                    <label htmlFor="create-card-list" className="font-medium">{t('cardTemplates.createdIn')}</label>
+                    {boardListOptions.length > 0 ? (
+                      <select
+                        id="create-card-list"
+                        value={createListId ?? listId ?? ''}
+                        onChange={(e) => setCreateListId(e.target.value || null)}
+                        className="h-8 max-w-[16rem] rounded-md border border-border bg-background px-2 text-xs text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                      >
+                        {boardListOptions.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    ) : (
+                      <span className="font-medium text-foreground">{listName || '-'}</span>
+                    )}
+                  </div>
+                  {templateWarnings.length > 0 ? (
+                    <div role="status" className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                      <p className="font-semibold">{t('cardTemplates.warningsTitle')}</p>
+                      <ul className="mt-1 list-disc pl-4 space-y-0.5">
+                        {templateWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                      </ul>
+                    </div>
+                  ) : null}
+                </section>
+              ) : null}
               <div className="group relative">
                 <h1 ref={titleRef} className="text-3xl md:text-3xl font-bold tracking-tight text-foreground outline-none focus:border-accent pl-2 -ml-2 transition-colors" contentEditable suppressContentEditableWarning onInput={e => setLocalTitle(e.currentTarget.textContent || "")} onBlur={e => handleUpdateField('title', e.currentTarget.textContent || "")} />
                 <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground border-b border-border/50 pb-4">
