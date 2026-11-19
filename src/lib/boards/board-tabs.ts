@@ -10,10 +10,10 @@
 import type { KeyValueStorage } from './view-storage.ts';
 
 /** `calendar` is experimental: it is never part of the default tabs, only added by hand from the "+" menu. */
-export type BoardTabType = 'kanban' | 'gantt' | 'list' | 'calendar';
+export type BoardTabType = 'kanban' | 'gantt' | 'list' | 'calendar' | 'summary' | 'projects';
 
 /** Types the "+" menu offers. Extra Kanban / Gantt tabs would show the same thing as the built-in ones, so they are not offered. */
-export const ADDABLE_TAB_TYPES: readonly BoardTabType[] = ['list', 'calendar'];
+export const ADDABLE_TAB_TYPES: readonly BoardTabType[] = ['list', 'summary', 'projects', 'calendar'];
 /** Types still in development: the menu marks them. */
 export const EXPERIMENTAL_TAB_TYPES: readonly BoardTabType[] = ['calendar'];
 
@@ -25,24 +25,38 @@ export interface ListTabConfig {
   sort?: { key: string; dir: 'asc' | 'desc' } | null;
 }
 
+/**
+ * Config of the `summary` and `projects` tabs: the NAME of the tag group each level is grouped by. Absent = the default name
+ * match (Área / Proyecto / Fase). The server validates exactly these keys (strings of 1-60 characters).
+ */
+export interface GroupingTabConfig {
+  areaGroup?: string;
+  projectGroup?: string;
+  phaseGroup?: string;
+}
+
+export const GROUPING_TAB_TYPES: readonly BoardTabType[] = ['summary', 'projects'];
+export const GROUP_NAME_KEYS = ['areaGroup', 'projectGroup', 'phaseGroup'] as const;
+export const MAX_GROUP_NAME = 60;
+
 export interface BoardTab {
   id: string;
   type: BoardTabType;
   /** Empty = the translated default name of the type. */
   name: string;
-  config?: ListTabConfig;
+  config?: ListTabConfig & GroupingTabConfig;
 }
 
 export type BoardTabAction =
   | { type: 'add'; id: string; tabType: BoardTabType; name: string }
   | { type: 'rename'; id: string; name: string }
   | { type: 'remove'; id: string }
-  | { type: 'config'; id: string; patch: Partial<ListTabConfig> };
+  | { type: 'config'; id: string; patch: Partial<ListTabConfig> | Partial<Record<keyof GroupingTabConfig, string | null>> };
 
 export const BUILTIN_TAB_IDS = ['kanban', 'gantt'] as const;
 export const MAX_TABS = 20;
 export const MAX_TAB_NAME = 40;
-const TYPES: readonly BoardTabType[] = ['kanban', 'gantt', 'list', 'calendar'];
+const TYPES: readonly BoardTabType[] = ['kanban', 'gantt', 'list', 'calendar', 'summary', 'projects'];
 
 export const isBuiltinTab = (tab: Pick<BoardTab, 'id'>) => (BUILTIN_TAB_IDS as readonly string[]).includes(tab.id);
 
@@ -68,6 +82,19 @@ export function sanitizeListTabConfig(raw: unknown): ListTabConfig {
   return cfg;
 }
 
+/** Only the three group names, trimmed, 1-60 characters; anything else is dropped. */
+export function sanitizeGroupingConfig(raw: unknown): GroupingTabConfig {
+  const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  const cfg: GroupingTabConfig = {};
+  for (const key of GROUP_NAME_KEYS) {
+    const v = o[key];
+    if (typeof v !== 'string') continue;
+    const name = v.replace(/\s+/g, ' ').trim().slice(0, MAX_GROUP_NAME);
+    if (name) cfg[key] = name;
+  }
+  return cfg;
+}
+
 const isEmptyConfig = (c: ListTabConfig) => !c.hiddenColumns && c.groupByState !== false && !c.sort;
 
 /**
@@ -89,6 +116,9 @@ export function normalizeTabs(raw: unknown): BoardTab[] {
     if (type === 'list') {
       const config = sanitizeListTabConfig(o?.config);
       if (!isEmptyConfig(config)) tab.config = config;
+    } else if (GROUPING_TAB_TYPES.includes(type)) {
+      const config = sanitizeGroupingConfig(o?.config);
+      if (Object.keys(config).length) tab.config = config;
     }
     extras.push(tab);
   }
@@ -127,8 +157,16 @@ export function boardTabsReducer(tabs: BoardTab[], action: BoardTabAction): Boar
     }
     case 'config': {
       const tab = tabs.find((t) => t.id === action.id);
+      if (tab && GROUPING_TAB_TYPES.includes(tab.type)) {
+        const merged = sanitizeGroupingConfig({ ...tab.config, ...action.patch });
+        return tabs.map((t) => {
+          if (t.id !== action.id) return t;
+          const { config: _old, ...rest } = t;
+          return Object.keys(merged).length ? { ...rest, config: merged } : rest;
+        });
+      }
       if (!tab || tab.type !== 'list') return tabs;
-      const merged = sanitizeListTabConfig({ ...tab.config, ...action.patch });
+      const merged = sanitizeListTabConfig({ ...tab.config, ...(action.patch as Partial<ListTabConfig>) });
       return tabs.map((t) => {
         if (t.id !== action.id) return t;
         const { config: _old, ...rest } = t;

@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
-import { CalendarDays, ChartGantt, List, Plus, SquareKanban } from "lucide-react";
+import { CalendarDays, ChartGantt, FolderKanban, LayoutDashboard, List, Plus, SquareKanban } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, isBuiltinTab, MAX_TAB_NAME, tabDisplayName, type BoardTab, type BoardTabType } from "@/lib/boards/board-tabs";
 
-const ICONS: Record<BoardTabType, typeof List> = { kanban: SquareKanban, gantt: ChartGantt, list: List, calendar: CalendarDays };
+const ICONS: Record<BoardTabType, typeof List> = { kanban: SquareKanban, gantt: ChartGantt, list: List, calendar: CalendarDays, summary: LayoutDashboard, projects: FolderKanban };
 
 interface BoardViewTabsProps {
   tabs: BoardTab[];
@@ -25,7 +25,7 @@ interface BoardViewTabsProps {
  */
 export function BoardViewTabs({ tabs, activeId, onSelect, onAdd, onRename, onDelete, canManage }: BoardViewTabsProps) {
   const t = useTranslations("board-detail");
-  const labels: Record<BoardTabType, string> = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
+  const labels: Record<BoardTabType, string> = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView"), summary: t("header.summaryView"), projects: t("header.projectsView") };
   const [addOpen, setAddOpen] = useState(false);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");

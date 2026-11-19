@@ -4,7 +4,7 @@ import test from "node:test";
 import { ADDABLE_TAB_TYPES, EXPERIMENTAL_TAB_TYPES, activeTabKey, boardTabsKey, boardTabsReducer, createBoardTabsStore, defaultTabs, MAX_TABS, normalizeTabs, resolveActiveTab, tabDisplayName, uniqueTabName } from "./board-tabs.ts";
 import type { BoardTab } from "./board-tabs.ts";
 
-const labels = { kanban: "Kanban", gantt: "Gantt", list: "Lista", calendar: "Calendario" };
+const labels = { kanban: "Kanban", gantt: "Gantt", list: "Lista", calendar: "Calendario", summary: "Resumen", projects: "Proyectos" };
 const memory = () => {
   const m = new Map<string, string>();
   return { map: m, getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
@@ -105,11 +105,31 @@ test("store: round trip per board, survives broken JSON and missing storage", ()
   assert.equal(throwing.load("b").tabs.length, 3);
 });
 
-test("the + menu offers lists and the experimental calendar only; the calendar never comes by default", () => {
-  assert.deepEqual([...ADDABLE_TAB_TYPES], ["list", "calendar"]);
+test("the + menu offers lists, summary, projects and the experimental calendar; the calendar never comes by default", () => {
+  assert.deepEqual([...ADDABLE_TAB_TYPES], ["list", "summary", "projects", "calendar"]);
   assert.deepEqual([...EXPERIMENTAL_TAB_TYPES], ["calendar"]);
   assert.ok(!defaultTabs().some((x) => x.type === "calendar"));
   const added = boardTabsReducer(defaultTabs(), { type: "add", id: "view_1", tabType: "calendar", name: "Calendario" });
   assert.equal(added.at(-1)?.type, "calendar");
   assert.equal(normalizeTabs(added).at(-1)?.type, "calendar");
+});
+
+test("summary and projects tabs: addable, config limited to the three group names", () => {
+  assert.ok(ADDABLE_TAB_TYPES.includes("summary") && ADDABLE_TAB_TYPES.includes("projects"));
+  assert.ok(!EXPERIMENTAL_TAB_TYPES.includes("summary") && !EXPERIMENTAL_TAB_TYPES.includes("projects"));
+  assert.ok(!defaultTabs().some((t) => t.type === "summary" || t.type === "projects"));
+  const tabs = normalizeTabs({ views: [
+    { id: "s", type: "summary", name: "Resumen", config: { areaGroup: "  Equipo ", hiddenColumns: ["due"], projectGroup: "", phaseGroup: 4 } },
+    { id: "p", type: "projects", name: "", config: { areaGroup: "A", projectGroup: "x".repeat(80), sort: { key: "a", dir: "asc" } } },
+    { id: "e", type: "summary", name: "", config: {} },
+  ] });
+  assert.deepEqual(tabs[2], { id: "s", type: "summary", name: "Resumen", config: { areaGroup: "Equipo" } });
+  assert.deepEqual(tabs[3].config, { areaGroup: "A", projectGroup: "x".repeat(60) });
+  assert.equal(tabs[4].config, undefined);
+  let next = boardTabsReducer(tabs, { type: "config", id: "s", patch: { projectGroup: "Iniciativa", areaGroup: null } });
+  assert.deepEqual(next[2].config, { projectGroup: "Iniciativa" });
+  next = boardTabsReducer(next, { type: "config", id: "s", patch: { projectGroup: null } });
+  assert.equal(next[2].config, undefined);
+  next = boardTabsReducer(next, { type: "add", id: "n", tabType: "projects", name: "Proyectos" });
+  assert.equal(next[next.length - 1].type, "projects");
 });

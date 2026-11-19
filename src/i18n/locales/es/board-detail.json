@@ -238,6 +238,8 @@
     "connecting": "Conectando...",
     "listView": "Lista",
     "calendarView": "Calendario",
+    "summaryView": "Resumen",
+    "projectsView": "Proyectos",
     "addView": "Agregar vista"
   },
   "drag": {
@@ -536,6 +538,8 @@
     "addTitle": "Agregar una vista a este tablero",
     "typeList": "Lista",
     "typeCalendar": "Calendario",
+    "typeSummary": "Resumen",
+    "typeProjects": "Proyectos",
     "inDevelopment": "En desarrollo",
     "typeKanban": "Kanban",
     "typeGantt": "Gantt",
@@ -545,5 +549,40 @@
     "nameLabel": "Nombre de la vista",
     "menuLabel": "Opciones de la vista",
     "builtin": "Vista integrada"
+  },
+  "summary": {
+    "filterOwner": "Responsable",
+    "allOwners": "Todos",
+    "groupBy": "Agrupar por",
+    "groupDefault": "Predeterminado ({{name}})",
+    "groupArea": "Área",
+    "groupProject": "Proyecto",
+    "groupPhase": "Fase",
+    "areaNone": "Sin área",
+    "areaAll": "Todas",
+    "cardCount": "{{count}} tarjetas",
+    "emptyArea": "Sin tareas todavía",
+    "kpiOpen": "Abiertas",
+    "kpiOverdue": "Atrasadas",
+    "kpiDueSoon": "Vencen en {{days}}d",
+    "kpiBlocked": "Bloqueadas",
+    "progress": "Avance",
+    "progressDone": "{{percent}}% realizado",
+    "mostOverdue": "Más atrasadas",
+    "noOverdue": "Nada atrasado",
+    "rescheduled": "↻ {{count}} fechas movidas"
+  },
+  "projects": {
+    "active": "Activo",
+    "finished": "Completado",
+    "noProject": "Sin proyecto",
+    "noPhase": "Sin fase",
+    "subtasksDone": "Subtareas listas",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "noDue": "Sin fecha",
+    "original": "orig. {{date}}",
+    "rescheduledTitle": "Fecha movida {{count}} veces",
+    "empty": "No hay tarjetas para mostrar"
   }
 }

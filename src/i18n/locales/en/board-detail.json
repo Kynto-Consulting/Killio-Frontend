@@ -238,6 +238,8 @@
     "connecting": "Connecting...",
     "listView": "List",
     "calendarView": "Calendar",
+    "summaryView": "Summary",
+    "projectsView": "Projects",
     "addView": "Add view"
   },
   "drag": {
@@ -536,6 +538,8 @@
     "addTitle": "Add a view to this board",
     "typeList": "List",
     "typeCalendar": "Calendar",
+    "typeSummary": "Summary",
+    "typeProjects": "Projects",
     "inDevelopment": "In development",
     "typeKanban": "Kanban",
     "typeGantt": "Gantt",
@@ -545,5 +549,40 @@
     "nameLabel": "View name",
     "menuLabel": "View options",
     "builtin": "Built-in view"
+  },
+  "summary": {
+    "filterOwner": "Assignee",
+    "allOwners": "Everyone",
+    "groupBy": "Group by",
+    "groupDefault": "Default ({{name}})",
+    "groupArea": "Area",
+    "groupProject": "Project",
+    "groupPhase": "Phase",
+    "areaNone": "No area",
+    "areaAll": "All",
+    "cardCount": "{{count}} cards",
+    "emptyArea": "No tasks yet",
+    "kpiOpen": "Open",
+    "kpiOverdue": "Overdue",
+    "kpiDueSoon": "Due in {{days}}d",
+    "kpiBlocked": "Blocked",
+    "progress": "Progress",
+    "progressDone": "{{percent}}% done",
+    "mostOverdue": "Most overdue",
+    "noOverdue": "Nothing overdue",
+    "rescheduled": "↻ {{count}} due dates moved"
+  },
+  "projects": {
+    "active": "Active",
+    "finished": "Completed",
+    "noProject": "No project",
+    "noPhase": "No phase",
+    "subtasksDone": "Subtasks done",
+    "expandAll": "Expand all",
+    "collapseAll": "Collapse all",
+    "noDue": "No date",
+    "original": "orig. {{date}}",
+    "rescheduledTitle": "Due date moved {{count}} times",
+    "empty": "No cards to show"
   }
 }

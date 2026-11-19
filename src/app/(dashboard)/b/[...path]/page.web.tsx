@@ -16,6 +16,8 @@ import { useDragScroll } from "@/hooks/use-drag-scroll";
 import { GanttView } from "@/components/boards/gantt-view";
 import { BoardListView } from "@/components/boards/board-list-view";
 import { BoardCalendarView } from "@/components/boards/board-calendar-view";
+import { BoardSummaryView } from "@/components/boards/board-summary-view";
+import { BoardProjectsView } from "@/components/boards/board-projects-view";
 import { PinButton } from "@/components/ui/pin-button";
 import { BoardViewTabs } from "@/components/boards/board-view-tabs";
 import { useBoardTabs } from "@/components/boards/use-board-tabs";
@@ -1568,18 +1570,18 @@ export default function BoardPage() {
             canManage={permissions.canEdit}
             onSelect={boardTabs.select}
             onAdd={(type: BoardTabType) => {
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView"), summary: t("header.summaryView"), projects: t("header.projectsView") };
               const id = `view_${genLocalId()}`;
               boardTabs.dispatch({ type: "add", id, tabType: type, name: uniqueTabName(labels[type], boardTabs.tabs, labels) });
               boardTabs.select(id);
             }}
             onRename={(id, name) => {
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView"), summary: t("header.summaryView"), projects: t("header.projectsView") };
               boardTabs.dispatch({ type: "rename", id, name: uniqueTabName(name.trim(), boardTabs.tabs, labels, id) });
             }}
             onDelete={async (tab) => {
               if (isBuiltinTab(tab)) return;
-              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView") };
+              const labels = { kanban: t("header.kanbanView"), gantt: t("header.ganttView"), list: t("header.listView"), calendar: t("header.calendarView"), summary: t("header.summaryView"), projects: t("header.projectsView") };
               const ok = await askDeleteView({
                 title: t("viewTabs.delete"),
                 description: t("viewTabs.deleteConfirm", { name: tabDisplayName(tab, labels) }),
@@ -1939,6 +1941,32 @@ export default function BoardPage() {
         <GanttView
           lists={filteredLists}
           locale={locale}
+          onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+        />
+      </main>
+      ) : boardView === "summary" ? (
+      <main className="flex-1 min-h-0 overflow-hidden bg-background">
+        <BoardSummaryView
+          key={boardTabs.active.id}
+          lists={viewLists}
+          tagGroups={bv.tagGroups}
+          locale={locale}
+          config={boardTabs.active.config ?? {}}
+          onConfigChange={(patch) => boardTabs.dispatch({ type: "config", id: boardTabs.active.id, patch })}
+          canEdit={permissions.canEdit}
+          onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
+        />
+      </main>
+      ) : boardView === "projects" ? (
+      <main className="flex-1 min-h-0 overflow-hidden bg-background">
+        <BoardProjectsView
+          key={boardTabs.active.id}
+          lists={viewLists}
+          tagGroups={bv.tagGroups}
+          locale={locale}
+          config={boardTabs.active.config ?? {}}
+          onConfigChange={(patch) => boardTabs.dispatch({ type: "config", id: boardTabs.active.id, patch })}
+          canEdit={permissions.canEdit}
           onOpenCard={(card, listId, listName) => setSelectedGanttCard({ card, listId, listName })}
         />
       </main>
