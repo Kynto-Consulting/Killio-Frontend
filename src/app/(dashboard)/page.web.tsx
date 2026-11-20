@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import Link from "next/link";
-import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Pin, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow } from "lucide-react";
+import { AlignLeft, ArrowRight, ArrowRightLeft, Bot, BrainCircuit, CheckCircle2, CheckSquare, Clock, FileText, GitBranch, Layout, Loader2, MessageSquare, Pin, Plus, ShieldCheck, Sparkles, Trash2, Users, Webhook, Workflow, X } from "lucide-react";
 import { AiGenerationPanel } from "@/components/ui/ai-generation-panel";
 import { CreateBoardModal, type CreateBoardSubmitPayload } from "@/components/ui/create-board-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -28,7 +28,7 @@ export default function WorkspacesPage() {
   const t = useTranslations("workspace");
   const tLanding = useTranslations("landing");
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
-  const { accessToken, activeTeamId, isLoading: isSessionLoading } = useSession();
+  const { user, accessToken, activeTeamId, isLoading: isSessionLoading } = useSession();
   const router = useRouter();
   const localWs = useLocalWorkspace();
   const localMode = localWs.mode === "local";
@@ -49,6 +49,17 @@ export default function WorkspacesPage() {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [boardToDelete, setBoardToDelete] = useState<{ id: string; name: string } | null>(null);
   const [activeTab, setActiveTab] = useState<'boards' | 'documents'>('boards');
+  // "Import from Notion / Trello" banner: dismissible, remembered per person on this device.
+  const importDismissKey = user?.id ? `killio_import_banner_dismissed:${user.id}` : null;
+  const [importDismissed, setImportDismissed] = useState(true);
+  useEffect(() => {
+    if (!importDismissKey) return;
+    try { setImportDismissed(localStorage.getItem(importDismissKey) === "1"); } catch { setImportDismissed(false); }
+  }, [importDismissKey]);
+  const dismissImportBanner = () => {
+    setImportDismissed(true);
+    if (importDismissKey) try { localStorage.setItem(importDismissKey, "1"); } catch { /* storage unavailable */ }
+  };
   const { pins } = usePins(localMode ? null : activeTeamId);
   const pinnedEntries = useMemo(() => resolvePins(pins, { boards, documents }), [pins, boards, documents]);
   const [isCreateDocModalOpen, setIsCreateDocModalOpen] = useState(false);
@@ -345,8 +356,17 @@ export default function WorkspacesPage() {
         </div>
       </div>
 
-      {online && !localMode && hasLoaded && !isLoading && boards.length === 0 && documents.length === 0 && (
-        <div className="mb-8 flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 md:flex-row md:items-center md:justify-between">
+      {online && !localMode && hasLoaded && !isLoading && !importDismissed && boards.length === 0 && documents.length === 0 && (
+        <div className="relative mb-8 flex flex-col gap-4 rounded-xl border border-primary/30 bg-primary/5 p-5 pr-12 md:flex-row md:items-center md:justify-between">
+          <button
+            type="button"
+            onClick={dismissImportBanner}
+            aria-label={t("importBannerDismiss")}
+            title={t("importBannerDismiss")}
+            className="absolute right-3 top-3 rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <X className="h-4 w-4" aria-hidden="true" />
+          </button>
           <div className="flex items-start gap-3">
             <ArrowRightLeft className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
             <div>

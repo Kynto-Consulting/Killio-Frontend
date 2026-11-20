@@ -37,5 +37,6 @@
   "noActiveWorkspace": "No active workspace found. Please select or create one from the top menu first.",
   "importBannerTitle": "Bring everything over from Notion or Trello",
   "importBannerBody": "Import your pages and boards in a couple of minutes and keep working where you left off.",
-  "importBannerCta": "Import now"
+  "importBannerCta": "Import now",
+  "importBannerDismiss": "Dismiss"
 }
