@@ -125,3 +125,12 @@ test("a click reuses a window of the same origin only", () => {
   assert.equal(pickWindowToFocus(wins, "https://app.acme.com"), wins[1]);
   assert.equal(pickWindowToFocus([{ url: "not a url" }], "https://app.acme.com"), undefined);
 });
+
+import { hexLuma, iconBackground } from "./manifest.ts";
+
+test("icon background keeps the tenant colour unless the logo would vanish on it", () => {
+  assert.equal(iconBackground("#0a1429", 0.95), "#0a1429"); // light logo on dark: fine
+  assert.equal(iconBackground("#0a1429", 0.1), "#ffffff"); // dark logo on dark: use white
+  assert.equal(iconBackground("#ffffff", 0.9), "#111111"); // white logo on white: use near-black
+  assert.ok(hexLuma("#ffffff") > 0.99 && hexLuma("#000000") === 0);
+});

@@ -130,3 +130,21 @@ export function buildWebManifest(tenant: PublicTenantConfig): WebManifest {
     ],
   };
 }
+
+/** Relative luminance (0..1) of "#rrggbb"; 0.5 when it can not be parsed. */
+export function hexLuma(hex: string): number {
+  const m = /^#([0-9a-f]{6})$/i.exec(hex);
+  if (!m) return 0.5;
+  const n = parseInt(m[1], 16);
+  return (0.2126 * ((n >> 16) & 255) + 0.7152 * ((n >> 8) & 255) + 0.0722 * (n & 255)) / 255;
+}
+
+/**
+ * Background of a generated icon. The tenant's own colour, unless the logo would nearly disappear on it
+ * (a dark logo on a dark background, or the reverse): then plain white or near-black, whichever contrasts.
+ * `logoLuma` is the average luminance (0..1) of the logo's visible pixels.
+ */
+export function iconBackground(tenantBackground: string, logoLuma: number): string {
+  if (Math.abs(hexLuma(tenantBackground) - logoLuma) >= 0.35) return tenantBackground;
+  return logoLuma < 0.5 ? "#ffffff" : "#111111";
+}
