@@ -23,7 +23,7 @@ export function mapColumnTypeToFieldType(columnType: string): FormFieldType {
     // Selection
     select: "select",
     status: "select",
-    multi_select: "checkbox",
+    multi_select: "multi_select",
 
     // Temporal
     date: "date",
@@ -78,8 +78,8 @@ export function columnToFormField(column: BountifulColumn): any {
     required: false, // Default to optional, user can change
   };
 
-  // Add options for select/checkbox fields
-  if ((fieldType === "select" || fieldType === "checkbox") && options.length > 0) {
+  // Add options for the option-based fields
+  if ((fieldType === "select" || fieldType === "multi_select") && options.length > 0) {
     field.options = options;
   }
 
@@ -171,7 +171,7 @@ export function generateCardFormFields(boardTags?: { id: string; name: string; c
     fields.push({
       id: "field_tags",
       label: "Etiquetas",
-      type: "select" as const, // multi_select renders as select for now; backend accepts comma-separated
+      type: "multi_select" as const, // stored as an array of tag names; the backend matches them against the board tags
       placeholder: "Seleccionar etiqueta(s)",
       required: false,
       options: boardTags.map((t) => t.name),

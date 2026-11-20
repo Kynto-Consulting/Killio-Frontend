@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { ChevronLeft, ChevronRight, Loader2, Plus, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,17 @@ import { WorkspaceMemberLike } from "@/lib/workspace-members";
 import { TableBrickPicker, type TableBrickPickerSelection } from "./table-brick-picker";
 import { generateFormFieldsFromColumns, generateCardFormFields } from "@/lib/form-brick-table-mapper";
 import { listTeamBoards } from "@/lib/api/contracts";
+import {
+  brickTokenFromUrl,
+  buildFormSchema,
+  formSchemaSignature,
+  isRequiredValueMissing,
+  mapServerFormErrors,
+  normalizeConditionValue,
+  parseServerFormErrors,
+  type FormValue,
+  type ServerFieldError,
+} from "@/lib/form-brick-validation";
 type FormPage = {
   id: string;
   label: string;
@@ -72,17 +83,10 @@ const createPage = (index: number): FormPage => ({
   label: `Paso ${index}`,
 });
 
-const isRequiredFieldMissing = (type: FormFieldType, required: boolean | undefined, value: string | boolean | undefined) => {
-  if (!required) return false;
-  if (type === "checkbox") return value !== true;
-  return typeof value !== "string" || value.trim().length === 0;
-};
+const isRequiredFieldMissing = (type: FormFieldType, required: boolean | undefined, value: FormValue | undefined) =>
+  isRequiredValueMissing(type, required, value);
 
-const normalizeConditionText = (value: string | boolean | undefined): string => {
-  if (typeof value === "boolean") return value ? "true" : "false";
-  if (typeof value === "string") return value.trim().toLowerCase();
-  return "";
-};
+const normalizeConditionText = (value: FormValue | undefined): string => normalizeConditionValue(value);
 
 const evaluateFieldCondition = (
   condition: {
@@ -91,7 +95,7 @@ const evaluateFieldCondition = (
     operator?: string;
     value?: string;
   } | undefined,
-  sourceValue: string | boolean | undefined,
+  sourceValue: FormValue | undefined,
 ): boolean => {
   if (!condition?.enabled) return true;
   const sourceFieldId = String(condition.sourceFieldId || "").trim();
@@ -149,7 +153,10 @@ export function UnifiedFormBrick({
   }, [content.pages]);
 
   const [activePage, setActivePage] = useState(safePages[0]?.id || DEFAULT_PAGE_ID);
-  const [values, setValues] = useState<Record<string, string | boolean>>({});
+  const [values, setValues] = useState<Record<string, FormValue>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  // `${token}:${schema signature}` of the last form schema snapshot the backend acknowledged.
+  const schemaSyncedRef = useRef<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitState, setSubmitState] = useState<"idle" | "success" | "error">("idle");
   const [teamScripts, setTeamScripts] = useState<ScriptSummary[]>([]);
@@ -272,6 +279,15 @@ export function UnifiedFormBrick({
       return script.triggerType === "webhook" && script.isActive && typeof publicToken === "string" && publicToken.length > 0;
     });
   }, [teamScripts]);
+
+  const describeServerError = (error: ServerFieldError): string => {
+    if (error.code) {
+      const key = `form.errors.${error.code}`;
+      const text = t(key);
+      if (text !== key) return text;
+    }
+    return error.message || t("form.submitError");
+  };
 
   const endpoint = String(content.webhookUrl ?? "").trim();
   const submitLabel = (content.submitLabel || t("form.submitButton") || "Enviar").trim();
@@ -398,6 +414,35 @@ export function UnifiedFormBrick({
     });
   };
 
+  // Keep the schema snapshot stored on the connected token in sync with the field bricks, so the backend can
+  // validate anonymous submissions (required fields, types, options, conditions). Editors only.
+  const connectedToken = content.tableConnectorId ? brickTokenFromUrl(content.webhookUrl) : null;
+  const currentFormSchema = useMemo(
+    () => buildFormSchema(pseudoFieldEntries.map((entry) => entry.config)),
+    [pseudoFieldEntries],
+  );
+  useEffect(() => {
+    if (!canEdit || !connectedToken || !activeTeamId || !accessToken) return;
+    if (currentFormSchema.fields.length === 0) return;
+    const syncKey = `${connectedToken}:${formSchemaSignature(currentFormSchema)}`;
+    if (schemaSyncedRef.current === syncKey) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        await fetch(`${webhookBase}/w/${activeTeamId}/brick/token-schema`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${accessToken}` },
+          body: JSON.stringify({ token: connectedToken, formSchema: currentFormSchema }),
+        });
+        // Any answer (even a rejection) is final for this snapshot: do not retry on every unrelated edit.
+        schemaSyncedRef.current = syncKey;
+      } catch (error) {
+        console.warn("Could not sync the form schema", error);
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [canEdit, connectedToken, activeTeamId, accessToken, currentFormSchema, webhookBase]);
+
   const handleTableSelection = async (selection: TableBrickPickerSelection) => {
     setShowTablePicker(false);
     
@@ -443,6 +488,17 @@ export function UnifiedFormBrick({
       return;
     }
 
+    const mintSchema = newFields.length > 0
+      ? buildFormSchema(newFields.map((field) => ({
+          fieldId: field.id,
+          label: field.label,
+          type: field.type,
+          required: field.required,
+          options: field.options,
+          condition: { enabled: false },
+        })))
+      : undefined;
+
     try {
       const response = await fetch(`${webhookBase}/w/${activeTeamId}/brick/token`, {
         method: "POST",
@@ -455,6 +511,8 @@ export function UnifiedFormBrick({
           sourceType,
           sourceId,
           permission: 2, // write-only
+          // Snapshot of the form definition: the backend validates anonymous submissions against it.
+          formSchema: mintSchema,
         }),
       });
 
@@ -465,6 +523,7 @@ export function UnifiedFormBrick({
 
       const { token } = await response.json();
       const dbUrl = `${webhookBase}/public/brick/${token}`;
+      if (mintSchema) schemaSyncedRef.current = `${token}:${formSchemaSignature(mintSchema)}`;
 
       updateContent({
         tableConnectorId: brickId,
@@ -544,8 +603,14 @@ export function UnifiedFormBrick({
     }
   }, [canEdit, content.scriptId, content.webhookUrl, webhookScripts]);
 
-  const setFieldValue = (brickId: string, value: string | boolean) => {
+  const setFieldValue = (brickId: string, value: FormValue) => {
     setValues((current) => ({ ...current, [brickId]: value }));
+    setFieldErrors((current) => {
+      if (current[brickId] === undefined) return current;
+      const next = { ...current };
+      delete next[brickId];
+      return next;
+    });
   };
 
   const activePageIndex = navigablePages.findIndex((page) => page.id === activePage);
@@ -554,11 +619,12 @@ export function UnifiedFormBrick({
   const goToNextPage = () => {
     if (activePageIndex < 0 || isLastPage) return;
 
-    const currentRequiredMissing = visiblePseudoFieldEntries.find((entry) => {
+    const currentRequiredMissing = visiblePseudoFieldEntries.filter((entry) => {
       return entry.pageId === activePage && isRequiredFieldMissing(entry.config.type, entry.config.required, values[entry.brickId]);
     });
 
-    if (currentRequiredMissing) {
+    if (currentRequiredMissing.length > 0) {
+      setFieldErrors(Object.fromEntries(currentRequiredMissing.map((entry) => [entry.brickId, t("form.errors.required")])));
       toast(t("form.requiredFieldsStep"), "error");
       return;
     }
@@ -585,21 +651,23 @@ export function UnifiedFormBrick({
     }
 
     if (hasPseudoFields) {
-      const missingEntry = visiblePseudoFieldEntries.find((entry) => {
+      const missingEntries = visiblePseudoFieldEntries.filter((entry) => {
         return isRequiredFieldMissing(entry.config.type, entry.config.required, values[entry.brickId]);
       });
 
-      if (missingEntry) {
-        setActivePage(missingEntry.pageId);
+      if (missingEntries.length > 0) {
+        setFieldErrors(Object.fromEntries(missingEntries.map((entry) => [entry.brickId, t("form.errors.required")])));
+        setActivePage(missingEntries[0].pageId);
         toast(t("form.requiredFieldsSubmit"), "error");
         return;
       }
     }
 
+    setFieldErrors({});
     setIsSubmitting(true);
     setSubmitState("idle");
     try {
-      const normalizedValues = visiblePseudoFieldEntries.reduce<Record<string, string | boolean>>((acc, entry) => {
+      const normalizedValues = visiblePseudoFieldEntries.reduce<Record<string, FormValue>>((acc, entry) => {
         const value = values[entry.brickId];
         if (typeof value === "undefined") return acc;
         const key = entry.config.fieldId || entry.brickId;
@@ -629,12 +697,25 @@ export function UnifiedFormBrick({
       });
 
       if (!response.ok) {
+        if (response.status === 400) {
+          // The backend validates required fields and types too: show its per-field errors under the fields.
+          const body = await response.json().catch(() => null);
+          const mapped = mapServerFormErrors(parseServerFormErrors(body), fieldIdToBrickId, describeServerError);
+          if (Object.keys(mapped.byBrick).length > 0) {
+            setFieldErrors(mapped.byBrick);
+            const firstEntry = pseudoFieldEntries.find((entry) => entry.brickId === mapped.firstBrickId);
+            if (firstEntry) setActivePage(firstEntry.pageId);
+            toast(t("form.fixErrors"), "error");
+            return;
+          }
+        }
         throw new Error("Webhook rejected the submission.");
       }
 
       setSubmitState("success");
       toast(successMessage, "success");
       setValues({});
+      setFieldErrors({});
       setActivePage(navigablePages[0]?.id || DEFAULT_PAGE_ID);
       setTimeout(() => setSubmitState("idle"), 8000);
     } catch (error) {
@@ -928,6 +1009,7 @@ export function UnifiedFormBrick({
           interactive: true,
           values,
           setValue: setFieldValue,
+          errors: fieldErrors,
         }}
       >
         <form className="space-y-4" onSubmit={handleSubmit}>

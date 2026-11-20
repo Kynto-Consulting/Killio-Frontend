@@ -3,6 +3,8 @@
 import React, { createContext, useContext } from "react";
 import { Input } from "@/components/ui/input";
 import { translateNativeTagName } from "@/lib/native-tags";
+import { useTranslations } from "@/components/providers/i18n-provider";
+import { toggleMultiSelectOption, type FormValue } from "@/lib/form-brick-validation";
 
 export type FormFieldType =
   | "text"
@@ -14,7 +16,8 @@ export type FormFieldType =
   | "url"
   | "checkbox"
   | "radio"
-  | "select";
+  | "select"
+  | "multi_select";
 
 export type FormFieldConditionOperator =
   | "equals"
@@ -45,8 +48,10 @@ export type FormFieldConfig = {
 
 type FormFieldRuntimeContextValue = {
   interactive: boolean;
-  values: Record<string, string | boolean>;
-  setValue: (brickId: string, value: string | boolean) => void;
+  values: Record<string, FormValue>;
+  setValue: (brickId: string, value: FormValue) => void;
+  /** Error text per field brick id (client or server validation), shown under the control. */
+  errors?: Record<string, string>;
 };
 
 const FormFieldRuntimeContext = createContext<FormFieldRuntimeContextValue | null>(null);
@@ -95,7 +100,7 @@ export function normalizeFormFieldConfig(raw: unknown): FormFieldConfig | null {
         : "field";
 
   const type = (typeof input.type === "string" ? input.type : "text") as FormFieldType;
-  const allowedTypes: FormFieldType[] = ["text", "email", "textarea", "number", "date", "tel", "url", "checkbox", "radio", "select"];
+  const allowedTypes: FormFieldType[] = ["text", "email", "textarea", "number", "date", "tel", "url", "checkbox", "radio", "select", "multi_select"];
   const safeType = allowedTypes.includes(type) ? type : "text";
 
   const label = typeof input.label === "string" ? input.label.trim() : "";
@@ -160,8 +165,8 @@ interface UnifiedFormFieldBrickProps {
   config: FormFieldConfig;
   readonly: boolean;
   onUpdate: (config: FormFieldConfig) => void;
-  runtimeValue?: string | boolean;
-  onRuntimeValueChange?: (value: string | boolean) => void;
+  runtimeValue?: FormValue;
+  onRuntimeValueChange?: (value: FormValue) => void;
   interactive?: boolean;
 }
 
@@ -174,6 +179,8 @@ export function UnifiedFormFieldBrick({
   onRuntimeValueChange,
   interactive = false,
 }: UnifiedFormFieldBrickProps) {
+  const t = useTranslations("document-detail");
+  const runtime = useFormFieldRuntime();
   if (!readonly) {
     return (
       <div className="rounded-lg border border-border/70 bg-muted/20 p-3 space-y-3 transition-all hover:border-border">
@@ -195,21 +202,22 @@ export function UnifiedFormFieldBrick({
             onChange={(event) => onUpdate({ ...config, type: event.target.value as FormFieldType })}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none"
           >
-            <optgroup label="Texto">
-              <option value="text">Texto corto</option>
-              <option value="textarea">Area de texto</option>
-              <option value="email">Email</option>
-              <option value="url">URL / Enlace</option>
-              <option value="tel">Telefono</option>
+            <optgroup label={t("form.fieldTypes.groupText")}>
+              <option value="text">{t("form.fieldTypes.text")}</option>
+              <option value="textarea">{t("form.fieldTypes.textarea")}</option>
+              <option value="email">{t("form.fieldTypes.email")}</option>
+              <option value="url">{t("form.fieldTypes.url")}</option>
+              <option value="tel">{t("form.fieldTypes.tel")}</option>
             </optgroup>
-            <optgroup label="Numeros y fecha">
-              <option value="number">Numero</option>
-              <option value="date">Fecha</option>
+            <optgroup label={t("form.fieldTypes.groupNumbersDate")}>
+              <option value="number">{t("form.fieldTypes.number")}</option>
+              <option value="date">{t("form.fieldTypes.date")}</option>
             </optgroup>
-            <optgroup label="Opciones">
-              <option value="select">Desplegable</option>
-              <option value="radio">Seleccion unica</option>
-              <option value="checkbox">Casilla</option>
+            <optgroup label={t("form.fieldTypes.groupOptions")}>
+              <option value="select">{t("form.fieldTypes.select")}</option>
+              <option value="radio">{t("form.fieldTypes.radio")}</option>
+              <option value="multi_select">{t("form.fieldTypes.multi_select")}</option>
+              <option value="checkbox">{t("form.fieldTypes.checkbox")}</option>
             </optgroup>
           </select>
 
@@ -217,7 +225,7 @@ export function UnifiedFormFieldBrick({
             value={config.placeholder || ""}
             onChange={(event) => onUpdate({ ...config, placeholder: event.target.value })}
             placeholder="Placeholder"
-            disabled={config.type === "checkbox" || config.type === "radio"}
+            disabled={config.type === "checkbox" || config.type === "radio" || config.type === "multi_select"}
             className="h-9 disabled:opacity-50"
           />
         </div>
@@ -238,7 +246,7 @@ export function UnifiedFormFieldBrick({
           </div>
         </div>
 
-        {(config.type === "select" || config.type === "radio") && (
+        {(config.type === "select" || config.type === "radio" || config.type === "multi_select") && (
           <div className="space-y-1.5">
             <Input
               value={config.options?.join(", ") || ""}
@@ -366,84 +374,119 @@ export function UnifiedFormFieldBrick({
   }
 
   const isRequired = config.required;
+  const errorText = runtime?.errors?.[id];
 
-  if (config.type === "textarea") {
+  const renderControl = (): React.ReactNode => {
+    if (config.type === "textarea") {
+      return (
+        <textarea
+          id={id}
+          className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+          placeholder={config.placeholder || ""}
+          required={isRequired}
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => onRuntimeValueChange(event.target.value)}
+        />
+      );
+    }
+
+    if (config.type === "select") {
+      return (
+        <select
+          id={id}
+          className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+          required={isRequired}
+          value={typeof value === "string" ? value : ""}
+          onChange={(event) => onRuntimeValueChange(event.target.value)}
+        >
+          <option value="" disabled>
+            {config.placeholder || "Selecciona una opcion"}
+          </option>
+          {(config.options || []).map((option, index) => (
+            <option key={index} value={option}>
+              {translateNativeTagName(option)}
+            </option>
+          ))}
+        </select>
+      );
+    }
+
+    if (config.type === "radio") {
+      return (
+        <div className="space-y-2">
+          {(config.options || []).map((option, index) => (
+            <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <input
+                type="radio"
+                name={id}
+                value={option}
+                required={isRequired}
+                checked={value === option}
+                onChange={(event) => onRuntimeValueChange(event.target.value)}
+                className="h-4 w-4 text-accent border-input focus:ring-accent"
+              />
+              {translateNativeTagName(option)}
+            </label>
+          ))}
+        </div>
+      );
+    }
+
+    if (config.type === "multi_select") {
+      const selected = Array.isArray(value) ? value : [];
+      const options = config.options || [];
+      return (
+        <div className="space-y-2" role="group" aria-label={config.label || undefined}>
+          {options.map((option, index) => (
+            <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <input
+                type="checkbox"
+                value={option}
+                checked={selected.includes(option)}
+                onChange={(event) => onRuntimeValueChange(toggleMultiSelectOption(selected, option, event.target.checked, options))}
+                className="h-4 w-4 rounded border-input text-accent focus:ring-accent"
+              />
+              {translateNativeTagName(option)}
+            </label>
+          ))}
+        </div>
+      );
+    }
+
+    if (config.type === "checkbox") {
+      return (
+        <input
+          type="checkbox"
+          id={id}
+          required={isRequired}
+          checked={value === true}
+          onChange={(event) => onRuntimeValueChange(event.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-input text-accent focus:ring-accent cursor-pointer"
+        />
+      );
+    }
+
     return (
-      <textarea
+      <Input
         id={id}
-        className="min-h-[96px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-accent/30"
+        type={config.type}
         placeholder={config.placeholder || ""}
         required={isRequired}
-        value={(value as string) || ""}
+        value={typeof value === "string" ? value : ""}
         onChange={(event) => onRuntimeValueChange(event.target.value)}
+        className="w-full"
       />
     );
-  }
-
-  if (config.type === "select") {
-    return (
-      <select
-        id={id}
-        className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-accent/30"
-        required={isRequired}
-        value={(value as string) || ""}
-        onChange={(event) => onRuntimeValueChange(event.target.value)}
-      >
-        <option value="" disabled>
-          {config.placeholder || "Selecciona una opcion"}
-        </option>
-        {(config.options || []).map((option, index) => (
-          <option key={index} value={option}>
-            {translateNativeTagName(option)}
-          </option>
-        ))}
-      </select>
-    );
-  }
-
-  if (config.type === "radio") {
-    return (
-      <div className="space-y-2">
-        {(config.options || []).map((option, index) => (
-          <label key={index} className="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-            <input
-              type="radio"
-              name={id}
-              value={option}
-              required={isRequired}
-              checked={value === option}
-              onChange={(event) => onRuntimeValueChange(event.target.value)}
-              className="h-4 w-4 text-accent border-input focus:ring-accent"
-            />
-            {translateNativeTagName(option)}
-          </label>
-        ))}
-      </div>
-    );
-  }
-
-  if (config.type === "checkbox") {
-    return (
-      <input
-        type="checkbox"
-        id={id}
-        required={isRequired}
-        checked={!!value}
-        onChange={(event) => onRuntimeValueChange(event.target.checked)}
-        className="mt-0.5 h-4 w-4 rounded border-input text-accent focus:ring-accent cursor-pointer"
-      />
-    );
-  }
+  };
 
   return (
-    <Input
-      id={id}
-      type={config.type}
-      placeholder={config.placeholder || ""}
-      required={isRequired}
-      value={(value as string) || ""}
-      onChange={(event) => onRuntimeValueChange(event.target.value)}
-      className="w-full"
-    />
+    <div className="space-y-1">
+      {renderControl()}
+      {errorText ? (
+        <p role="alert" className="text-xs font-medium text-destructive">
+          {errorText}
+        </p>
+      ) : null}
+    </div>
   );
 }

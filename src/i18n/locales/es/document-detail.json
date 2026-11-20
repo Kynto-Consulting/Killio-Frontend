@@ -118,7 +118,36 @@
     "authRequired": "Debes estar autenticado para conectar a la base de datos.",
     "tableSourceError": "No se pudo determinar el origen de la tabla.",
     "requiredFieldsStep": "Completa todos los campos obligatorios de este paso.",
-    "requiredFieldsSubmit": "Completa todos los campos obligatorios antes de enviar."
+    "requiredFieldsSubmit": "Completa todos los campos obligatorios antes de enviar.",
+    "fixErrors": "Revisa los campos marcados en el formulario.",
+    "errors": {
+      "required": "Este campo es obligatorio.",
+      "invalid_email": "Introduce un correo electrónico válido.",
+      "invalid_url": "Introduce una URL válida (http o https).",
+      "invalid_phone": "Introduce un teléfono válido.",
+      "invalid_number": "Introduce un número válido.",
+      "invalid_date": "Introduce una fecha válida.",
+      "invalid_boolean": "Valor no válido.",
+      "invalid_option": "Selecciona una opción de la lista.",
+      "invalid_type": "Valor no válido.",
+      "too_long": "El texto es demasiado largo."
+    },
+    "fieldTypes": {
+      "groupText": "Texto",
+      "groupNumbersDate": "Números y fecha",
+      "groupOptions": "Opciones",
+      "text": "Texto corto",
+      "textarea": "Área de texto",
+      "email": "Email",
+      "url": "URL / Enlace",
+      "tel": "Teléfono",
+      "number": "Número",
+      "date": "Fecha",
+      "select": "Desplegable",
+      "radio": "Selección única",
+      "multi_select": "Selección múltiple",
+      "checkbox": "Casilla"
+    }
   },
   "title": {
     "editHint": "Editar titulo"
@@ -757,7 +786,9 @@
       "loadingScripts": "Cargando...",
       "noScript": "Sin script de notificación",
       "credentialsInfo": "Las credenciales del proveedor se gestionan en Integrations del workspace.",
-      "openIntegrations": "Abrir Integrations"
+      "openIntegrations": "Abrir Integrations",
+      "webhookUrl": "URL del webhook (pegar en el panel del proveedor)",
+      "webhookUrlHint": "Solo lectura. Pégala en el panel de tu proveedor para que los pagos se confirmen solos. Los pagos se marcan como pagados únicamente cuando el proveedor los confirma."
     }
   }
 }

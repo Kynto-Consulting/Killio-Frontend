@@ -6,7 +6,8 @@ import { useParams } from 'next/navigation';
 import { useI18n, useTranslations } from '@/components/providers/i18n-provider';
 import { useSession } from '@/components/providers/session-provider';
 import { listScripts, type ScriptSummary } from '@/lib/api/scripts';
-import { createPaymentLink, type CreatePaymentLinkPayload } from '@/lib/api/payments';
+import { createPaymentLink, getPaymentBrickStatus, type CreatePaymentLinkPayload, type PaymentBrickStatus } from '@/lib/api/payments';
+import { getApiBaseUrl } from '@/lib/api/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/lib/toast';
@@ -64,6 +65,7 @@ function isHttpsUrl(value: unknown): value is string {
 const StatusIcon = ({ status }: { status: string }) => {
   if (status === 'paid') return <CheckCircle2 className="w-4 h-4 text-emerald-600" />;
   if (status === 'failed') return <AlertCircle className="w-4 h-4 text-red-600" />;
+  // 'refunded' is display-only: refunds are not implemented, so nothing in the app sets it.
   if (status === 'refunded') return <RotateCcw className="w-4 h-4 text-blue-600" />;
   return <Clock className="w-4 h-4 text-amber-600" />;
 };
@@ -107,6 +109,15 @@ export function UnifiedPaymentBrick({
       'http://localhost:4000'
     ).replace(/\/+$/, '');
   }, []);
+
+  // URL the workspace admin pastes in the provider dashboard (Stripe / PayPal / MercadoPago webhooks).
+  const providerWebhookUrl = activeTeamId
+    ? `${getApiBaseUrl()}/webhooks/payments/${formData.provider}/${encodeURIComponent(activeTeamId)}`
+    : '';
+  const [isWebhookCopied, setIsWebhookCopied] = useState(false);
+
+  // Server-confirmed status polled while the brick is pending (the browser never decides it).
+  const [liveStatus, setLiveStatus] = useState<PaymentBrickStatus | null>(null);
 
   const webhookScripts = useMemo(() => {
     return teamScripts.filter((script) => {
@@ -178,6 +189,40 @@ export function UnifiedPaymentBrick({
     setIsSaving(false);
   };
 
+  const storedStatus = content.status || 'pending';
+  const hasPayableLink = isHttpsUrl(content.checkoutUrl);
+  useEffect(() => {
+    if (readonly || storedStatus !== 'pending' || !hasPayableLink || !accessToken || !documentId) return;
+    let cancelled = false;
+    const startedAt = Date.now();
+    const tick = async () => {
+      if (cancelled || document.hidden) return;
+      try {
+        const next = await getPaymentBrickStatus(id, accessToken);
+        if (!cancelled && next.status !== 'pending') {
+          setLiveStatus(next);
+          clearInterval(timer);
+        }
+      } catch {
+        /* transient: try again on the next tick */
+      }
+      // Stop after 5 minutes; the status is still refreshed whenever the document is reloaded.
+      if (Date.now() - startedAt > 5 * 60 * 1000) clearInterval(timer);
+    };
+    const timer = setInterval(tick, 10000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [id, readonly, storedStatus, hasPayableLink, accessToken, documentId]);
+
+  const handleCopyWebhookUrl = () => {
+    if (!providerWebhookUrl) return;
+    navigator.clipboard.writeText(providerWebhookUrl);
+    setIsWebhookCopied(true);
+    setTimeout(() => setIsWebhookCopied(false), 2000);
+  };
+
   const handleCopyUrl = () => {
     if (isHttpsUrl(content.checkoutUrl)) {
       navigator.clipboard.writeText(content.checkoutUrl);
@@ -191,7 +236,9 @@ export function UnifiedPaymentBrick({
     return `${symbol}${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const status = content.status || 'pending';
+  const status = liveStatus && storedStatus === 'pending' ? liveStatus.status : storedStatus;
+  const paidAt = liveStatus && storedStatus === 'pending' ? liveStatus.paidAt : content.paidAt;
+  const payerEmail = liveStatus && storedStatus === 'pending' ? liveStatus.payerEmail : content.payerEmail;
   // Never render a non-https checkout link as clickable.
   const checkoutUrl = isHttpsUrl(content.checkoutUrl) ? content.checkoutUrl.trim() : null;
   const isConfigured = !!(content.amount && content.amount > 0);
@@ -276,6 +323,20 @@ export function UnifiedPaymentBrick({
             <option value="mercadopago">{providerLabels.mercadopago}</option>
           </select>
         </div>
+
+        {providerWebhookUrl && (
+          <div className="space-y-1.5">
+            <p className="text-xs font-medium text-muted-foreground">{t('payment.form.webhookUrl')}</p>
+            <div className="flex items-center gap-2">
+              <Input readOnly value={providerWebhookUrl} onFocus={(e) => e.currentTarget.select()} className="font-mono text-xs" />
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={handleCopyWebhookUrl}>
+                <Copy className="h-3.5 w-3.5 mr-1.5" />
+                {isWebhookCopied ? t('payment.copied') : t('payment.copyLink')}
+              </Button>
+            </div>
+            <p className="text-[10px] text-muted-foreground">{t('payment.form.webhookUrlHint')}</p>
+          </div>
+        )}
 
         <div className="space-y-1.5">
           <p className="text-xs font-medium text-muted-foreground">{t('payment.form.checkoutUrl') || 'URL de pago (opcional)'}</p>
@@ -435,17 +496,17 @@ export function UnifiedPaymentBrick({
           </p>
         </div>
 
-        {status === 'paid' && content.paidAt && (
+        {status === 'paid' && paidAt && (
           <div className="bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/20 rounded-lg p-3">
             <div className="flex items-start gap-2">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 mt-0.5 shrink-0" />
               <div className="text-sm">
                 <p className="font-medium text-emerald-600">{t('payment.state.paidConfirmed') || 'Pago confirmado'}</p>
                 <p className="text-emerald-600/80 text-xs">
-                  {new Date(content.paidAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}
+                  {new Date(paidAt).toLocaleDateString(locale, { year: 'numeric', month: 'long', day: 'numeric' })}
                 </p>
-                {content.payerEmail && (
-                  <p className="text-emerald-600/70 text-xs mt-0.5">{content.payerEmail}</p>
+                {payerEmail && (
+                  <p className="text-emerald-600/70 text-xs mt-0.5">{payerEmail}</p>
                 )}
               </div>
             </div>
@@ -474,7 +535,7 @@ export function UnifiedPaymentBrick({
                   rel="noopener noreferrer"
                   className="w-full px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition font-medium text-sm text-center flex items-center justify-center gap-2 group"
                 >
-                  {t('payment.payNow') || 'Pagar ahora'}
+                  {t('payment.payNow')}
                   <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                 </a>
                 <button

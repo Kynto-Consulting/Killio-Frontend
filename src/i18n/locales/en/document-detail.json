@@ -118,7 +118,36 @@
     "authRequired": "You must be authenticated to connect to the database.",
     "tableSourceError": "Could not determine the table source.",
     "requiredFieldsStep": "Complete all required fields in this step.",
-    "requiredFieldsSubmit": "Complete all required fields before submitting."
+    "requiredFieldsSubmit": "Complete all required fields before submitting.",
+    "fixErrors": "Check the fields marked in the form.",
+    "errors": {
+      "required": "This field is required.",
+      "invalid_email": "Enter a valid email address.",
+      "invalid_url": "Enter a valid URL (http or https).",
+      "invalid_phone": "Enter a valid phone number.",
+      "invalid_number": "Enter a valid number.",
+      "invalid_date": "Enter a valid date.",
+      "invalid_boolean": "Invalid value.",
+      "invalid_option": "Choose an option from the list.",
+      "invalid_type": "Invalid value.",
+      "too_long": "The text is too long."
+    },
+    "fieldTypes": {
+      "groupText": "Text",
+      "groupNumbersDate": "Numbers and date",
+      "groupOptions": "Options",
+      "text": "Short text",
+      "textarea": "Text area",
+      "email": "Email",
+      "url": "URL / Link",
+      "tel": "Phone",
+      "number": "Number",
+      "date": "Date",
+      "select": "Dropdown",
+      "radio": "Single choice",
+      "multi_select": "Multiple choice",
+      "checkbox": "Checkbox"
+    }
   },
   "title": {
     "editHint": "Edit Title"
@@ -757,7 +786,9 @@
       "loadingScripts": "Loading...",
       "noScript": "No notification script",
       "credentialsInfo": "Provider credentials are managed in the workspace Integrations.",
-      "openIntegrations": "Open Integrations"
+      "openIntegrations": "Open Integrations",
+      "webhookUrl": "Webhook URL (paste it in the provider dashboard)",
+      "webhookUrlHint": "Read-only. Paste it in your provider dashboard so payments are confirmed automatically. Payments are marked as paid only when the provider confirms them."
     }
   }
 }

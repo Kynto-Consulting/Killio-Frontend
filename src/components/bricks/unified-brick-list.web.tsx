@@ -406,7 +406,7 @@ export const UnifiedBrickList: React.FC<UnifiedBrickListProps> = ({
           )}
           {enabledKinds.includes('form') && (
             <Button variant="ghost" size="sm" onClick={() => onAddBrick('form')} className="gap-2 text-[11px] font-bold tracking-tight uppercase">
-              <FileText className="w-3.5 h-3.5 text-accent" /> Formulario
+              <FileText className="w-3.5 h-3.5 text-accent" /> {tDetail("slashCommands.formLabel")}
             </Button>
           )}
           {enabledKinds.includes('checklist') && (
