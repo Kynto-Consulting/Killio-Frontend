@@ -39,7 +39,8 @@ import { AgentChatPanel } from "@/components/agent";
 import { listCardTemplates, resolveCardTemplate, type CardTemplate } from "@/lib/api/card-templates";
 import { getBoard as apiGetBoardForLists } from "@/lib/api/contracts";
 import { groupTagsBySection, localDateISO, resolvedToModalState } from "@/lib/card-templates/model";
-import { listTeamTagGroups, type ServerTagGroup } from "@/lib/api/view-settings";
+import { listTeamTagGroups, updateTeamTagGroup, type ServerTagGroup } from "@/lib/api/view-settings";
+import { qualifyTagName, suggestGroups, suggestTagColors } from "@/lib/tags/tag-suggest";
 import { addTagWithRules, groupLimit } from "@/lib/tags/group-rules";
 import { activeWizard, applyWizardAnswers, dayToIso, type WizardAnswers, type WizardBrick } from "@/lib/card-templates/wizard";
 import { CardTemplateWizardDialog } from "./card-template-wizard-dialog";
@@ -225,6 +226,8 @@ export function CardDetailModal({
   const [isTimerSubmitting, setIsTimerSubmitting] = useState(false);
   const [tagSearch, setTagSearch] = useState("");
   const [newTagColor, setNewTagColor] = useState('#3b82f6');
+  /** Group chosen for the tag being created; null = ungrouped, undefined = not chosen yet (the best guess is used). */
+  const [newTagGroupId, setNewTagGroupId] = useState<string | null | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<'details' | 'comments' | 'activity' | 'copilot'>('details');
   const [activities, setActivities] = useState<any[]>([]);
   const [newComment, setNewComment] = useState("");
@@ -1824,8 +1827,10 @@ export function CardDetailModal({
   };
 
   const handleCreateTag = async () => {
-    const name = tagSearch.trim();
-    if (!name || !boardId || !accessToken) return;
+    const typed = tagSearch.trim();
+    if (!typed || !boardId || !accessToken) return;
+    const chosenGroup = tagGroups.find((g) => g.id === effectiveNewTagGroupId) ?? null;
+    const name = qualifyTagName(chosenGroup?.name, typed);
     const already = availableTags.find((t: any) => t.name.toLowerCase() === name.toLowerCase());
     if (already) {
       await handleAddTag(already);
@@ -1837,9 +1842,19 @@ export function CardDetailModal({
     try {
       const created = await createTag({ scopeType: 'board', scopeId: boardId, name, color: newTagColor || pickColorForName(name), tagKind: 'custom' }, accessToken);
       setAvailableTags((prev) => [...prev, created]);
-      await handleAddTag(created);
+      const scopeTeam = teamId || activeTeamId;
+      if (chosenGroup && scopeTeam && !chosenGroup.tags.some((n) => n.trim().toLowerCase() === name.toLowerCase())) {
+        try {
+          const updated = await updateTeamTagGroup(scopeTeam, chosenGroup.id, { tags: [...chosenGroup.tags, name] }, accessToken);
+          setTagGroups((prev) => prev.map((g) => (g.id === chosenGroup.id ? { ...g, ...(updated as object), tags: [...chosenGroup.tags, name] } : g)));
+        } catch (err) {
+          console.error('Failed to add tag to group', err);
+        }
+      }
+      await handleAddTagRuled(created);
       setTagSearch("");
       setNewTagColor('#3b82f6');
+      setNewTagGroupId(undefined);
     } catch (err) {
       console.error('Failed to create tag', err);
       setTagError("Error al crear tag");
@@ -1848,6 +1863,14 @@ export function CardDetailModal({
     }
   };
 
+  const groupSuggestions = suggestGroups(tagSearch.trim(), tagGroups);
+  const effectiveNewTagGroupId = newTagGroupId !== undefined ? newTagGroupId : (groupSuggestions[0]?.group.id ?? null);
+  const colorSuggestions = suggestTagColors(
+    qualifyTagName(tagGroups.find((g) => g.id === effectiveNewTagGroupId)?.name, tagSearch.trim()),
+    [...availableTags, ...localTags],
+    tagGroups,
+    4,
+  );
   const normalizedTagSearch = tagSearch.trim().toLowerCase();
   const filteredAvailableTags = availableTags.filter((t) => {
     const rawName = String(t?.name || '').toLowerCase();
@@ -2262,6 +2285,36 @@ export function CardDetailModal({
                           <div className="pt-2 border-t border-border/40 space-y-3">
                             <div className="px-2 space-y-2">
                               <p className="text-[10px] uppercase font-bold text-muted-foreground/60 tracking-wider">Nuevo tag</p>
+                              {tagGroups.length > 0 && (
+                                <label className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                                  <span className="shrink-0">Grupo</span>
+                                  <select
+                                    value={effectiveNewTagGroupId ?? ''}
+                                    onChange={(e) => setNewTagGroupId(e.target.value || null)}
+                                    className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1 text-xs text-foreground outline-none focus:ring-1 focus:ring-accent"
+                                  >
+                                    <option value="">Sin grupo</option>
+                                    {tagGroups.map((g) => (
+                                      <option key={g.id} value={g.id}>{g.name}</option>
+                                    ))}
+                                  </select>
+                                </label>
+                              )}
+                              {colorSuggestions.length > 0 && (
+                                <div className="flex items-center gap-2">
+                                  <span className="text-[10px] text-muted-foreground">Sugeridos</span>
+                                  {colorSuggestions.map(({ color, reason }) => (
+                                    <button
+                                      key={`s-${color}`}
+                                      type="button"
+                                      title={reason === 'group' ? 'Color del grupo' : reason === 'similar' ? 'Tags parecidos' : 'Por el nombre'}
+                                      onClick={() => setNewTagColor(color)}
+                                      className={`w-5 h-5 rounded-full border-2 ring-1 ring-offset-1 ring-offset-popover ring-primary/40 transition-all ${newTagColor === color ? 'border-primary scale-110 shadow-sm' : 'border-transparent hover:scale-105'}`}
+                                      style={{ backgroundColor: color }}
+                                    />
+                                  ))}
+                                </div>
+                              )}
                               <div className="flex items-center space-x-2">
                                 {tagColorPalette.map(color => (
                                   <button
@@ -2279,7 +2332,7 @@ export function CardDetailModal({
                               className="w-full flex items-center justify-center space-x-2 py-2 bg-accent/10 border border-accent/20 text-accent rounded-md text-xs font-bold hover:bg-accent/20 transition-all active:scale-[0.98] disabled:opacity-50"
                             >
                               {isCreatingTag ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                              <span>Crear "{tagSearch}"</span>
+                              <span>Crear "{qualifyTagName(tagGroups.find((g) => g.id === effectiveNewTagGroupId)?.name, tagSearch.trim())}"</span>
                             </button>
                           </div>
                         )}
