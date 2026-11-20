@@ -56,6 +56,7 @@ import { useI18n } from "@/components/providers/i18n-provider";
 import { useBrandName, useTenant } from "@/components/providers/tenant-provider";
 import { AgentChatPanel } from "@/components/agent";
 import { PaletteAskPanel, type AskPageScope } from "@/components/ui/command-palette-ask";
+import { searchByName, searchCards } from "@/lib/commands/page-search";
 import { resolveEnterAction, resolvePaletteIntent, resolveTabAction } from "@/lib/palette-ask/intent";
 import { fmt, getAskCopy } from "@/lib/palette-ask/copy";
 import { useUiMode } from "@/components/providers/ui-mode-provider";
@@ -113,7 +114,7 @@ const i18n = {
   es: {
     placeholder: {
       global: "Comando global. Ej: teams, board 2, doc create",
-      board: "Comando de tablero. Ej: board share, list add Sprint, card 1 from 2 rename Titulo",
+      board: "Busca tarjetas por título o escribe un comando. Ej: login, list add Sprint, card 1 from 2 rename Titulo",
       cards: "Comando de cards. Ej: cards done all, card done login",
       lists: "Comando de listas. Ej: list add In Review",
       system: "Sistema. Ej: settings, help, logout",
@@ -147,7 +148,7 @@ const i18n = {
   en: {
     placeholder: {
       global: "Global command. Ex: teams, board 2, doc create",
-      board: "Board command. Ex: board share, list add Sprint, card 1 from 2 rename Title",
+      board: "Search cards by title or type a command. Ex: login, board share, list add Sprint, card 1 from 2 rename Title",
       cards: "Cards command. Ex: cards done all, card done login",
       lists: "Lists command. Ex: list add In Review",
       system: "System. Ex: settings, help, logout",
@@ -654,6 +655,20 @@ export function CommandPalette() {
   }, [commandQuery, astQuery, astSuggestions, parseContext]);
 
   const intent = useMemo(() => resolvePaletteIntent(commandQuery, commandMatches), [commandQuery, commandMatches]);
+
+  // Local results: cards of the open board and the team's boards, found by name while typing.
+  const localCardHits = useMemo(
+    () => (boardSnapshot && boardIdFromPath === boardSnapshot.id ? searchCards(boardSnapshot.lists, commandQuery, 8) : []),
+    [boardSnapshot, boardIdFromPath, commandQuery],
+  );
+  const localBoardHits = useMemo(
+    () => searchByName(teamBoards.filter((b) => b.id !== boardIdFromPath), commandQuery, 4),
+    [teamBoards, boardIdFromPath, commandQuery],
+  );
+  const goTo = (href: string) => {
+    setOpen(false);
+    router.push(href);
+  };
 
   const openAsk = (question: string) => {
     setAskSeed(question);
@@ -1590,6 +1605,38 @@ export function CommandPalette() {
                 Sin resultados en el contexto {contextMeta[currentContext].label}.
               </Command.Empty>
             )}
+
+            {localCardHits.length > 0 || localBoardHits.length > 0 ? (
+              <Command.Group forceMount heading="En esta página" className="px-2 text-xs font-semibold text-muted-foreground mt-2 mb-1">
+                {localCardHits.map((hit) => (
+                  <Command.Item
+                    forceMount
+                    key={`card-${hit.id}`}
+                    value={`local-card-${hit.id}`}
+                    onSelect={() => goTo(`/b/${boardIdFromPath}?cardId=${hit.id}`)}
+                    className={itemClassName}
+                  >
+                    <CheckSquare className="h-4 w-4 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{hit.title}</div>
+                      <div className="truncate text-xs text-muted-foreground">
+                        {hit.listName}
+                        {hit.tagNames.length ? ` · ${hit.tagNames.slice(0, 3).join(", ")}` : ""}
+                      </div>
+                    </div>
+                  </Command.Item>
+                ))}
+                {localBoardHits.map((b) => (
+                  <Command.Item forceMount key={`board-${b.id}`} value={`local-board-${b.id}`} onSelect={() => goTo(`/b/${b.id}`)} className={itemClassName}>
+                    <Folders className="h-4 w-4 text-muted-foreground" />
+                    <div className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{b.name}</div>
+                      <div className="truncate text-xs text-muted-foreground">Tablero</div>
+                    </div>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            ) : null}
 
             <Command.Group heading="Context Navigator" className="px-2 text-xs font-semibold text-muted-foreground mt-2 mb-1">
               {availableContexts.map((ctx) => {

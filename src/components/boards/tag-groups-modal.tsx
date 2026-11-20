@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2, X } from "lucide-react";
 
 import { useTranslations } from "@/components/providers/i18n-provider";
@@ -29,7 +29,6 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
   const sync = useViewSyncState();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [newName, setNewName] = useState("");
-  const [newTag, setNewTag] = useState("");
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -161,32 +160,14 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
                 ))}
               </ol>
 
-              <div className="flex flex-wrap items-center gap-2">
-                <select
-                  className={`${inputCls} sm:w-56`}
-                  value=""
-                  onChange={(e) => { addTag(e.target.value); e.target.value = ""; }}
-                  aria-label={t("tagGroups.addExisting")}
-                >
-                  <option value="">{candidates.length ? t("tagGroups.addExisting") : t("tagGroups.noMoreTags")}</option>
-                  {candidates.map((x) => (
-                    <option key={x.name} value={x.name}>{x.name}</option>
-                  ))}
-                </select>
-                <form
-                  className="flex gap-1"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    addTag(newTag);
-                    setNewTag("");
-                  }}
-                >
-                  <input className={`${inputCls} sm:w-40`} value={newTag} onChange={(e) => setNewTag(e.target.value)} placeholder={t("tagGroups.addByName")} maxLength={60} />
-                  <button type="submit" className="h-8 px-2 inline-flex items-center rounded-md border border-border text-foreground hover:bg-muted" aria-label={t("tagGroups.addTag")}>
-                    <Plus className="h-4 w-4" />
-                  </button>
-                </form>
-              </div>
+              <TagCombobox
+                candidates={candidates}
+                groupName={selected.name}
+                tagColor={tagColor}
+                placeholder={candidates.length ? t("tagGroups.addExisting") : t("tagGroups.addByName")}
+                createLabel={(name) => `${t("tagGroups.addTag")} “${name}”`}
+                onPick={(name) => addTag(name)}
+              />
             </div>
           )}
         </div>
@@ -205,5 +186,79 @@ export function TagGroupsModal({ open, onClose, groups, onChange, availableTags 
         variant="danger"
       />
     </ModalShell>
+  );
+}
+
+/** Search box with a short, scrollable list of tags not yet in the group (those named like the group first); typing a new name offers to create it. */
+function TagCombobox({ candidates, groupName, tagColor, placeholder, createLabel, onPick }: {
+  candidates: AvailableTag[];
+  groupName: string;
+  tagColor: (name: string) => string | null | undefined;
+  placeholder: string;
+  createLabel: (name: string) => string;
+  onPick: (name: string) => void;
+}) {
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const box = useRef<HTMLDivElement>(null);
+  const fold = (v: string) => v.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+
+  useEffect(() => {
+    if (!open) return;
+    const close = (e: MouseEvent) => { if (!box.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [open]);
+
+  const matches = useMemo(() => {
+    const words = fold(query).split(/\s+/).filter(Boolean);
+    const prefix = `${fold(groupName)}:`;
+    return candidates
+      .filter((c) => words.every((w) => fold(c.name).includes(w)))
+      .sort((x, y) => Number(fold(y.name).startsWith(prefix)) - Number(fold(x.name).startsWith(prefix)));
+  }, [candidates, query, groupName]);
+  const typed = query.trim();
+  const exists = candidates.some((c) => fold(c.name) === fold(typed));
+  const pick = (name: string) => { onPick(name); setQuery(""); };
+
+  return (
+    <div ref={box} className="relative max-w-sm">
+      <input
+        className={inputCls}
+        value={query}
+        placeholder={placeholder}
+        maxLength={60}
+        onFocus={() => setOpen(true)}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onKeyDown={(e) => {
+          if (e.key === "Escape") setOpen(false);
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (matches[0] && (typed === "" ? false : true)) pick(matches[0].name);
+            else if (typed) pick(typed);
+          }
+        }}
+      />
+      {open && (matches.length > 0 || (typed && !exists)) ? (
+        <ul className="absolute left-0 right-0 z-20 mt-1 max-h-44 overflow-y-auto overscroll-contain rounded-md border border-border bg-popover p-1 text-sm shadow-lg">
+          {matches.slice(0, 40).map((c) => (
+            <li key={c.name}>
+              <button type="button" className="flex w-full items-center gap-2 rounded px-2 py-1 text-left hover:bg-muted" onClick={() => pick(c.name)}>
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full border border-border" style={{ background: tagColor(c.name) ?? "transparent" }} />
+                <span className="truncate">{c.name}</span>
+              </button>
+            </li>
+          ))}
+          {typed && !exists ? (
+            <li>
+              <button type="button" className="flex w-full items-center gap-2 rounded px-2 py-1 text-left text-accent hover:bg-accent/10" onClick={() => pick(typed)}>
+                <Plus className="h-3.5 w-3.5" />
+                <span className="truncate">{createLabel(typed)}</span>
+              </button>
+            </li>
+          ) : null}
+        </ul>
+      ) : null}
+    </div>
   );
 }

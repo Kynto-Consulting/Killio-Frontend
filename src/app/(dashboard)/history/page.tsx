@@ -21,15 +21,18 @@ import {
   listTeamActivity,
   listTeams,
   listTeamBoards,
+  listTeamMembers,
   getBoard,
   getTagsByScope,
   ActivityLogEntry,
 } from "@/lib/api/contracts";
+import { getWorkspaceMemberLabel } from "@/lib/workspace-members";
 import { ActivityLogModal } from "@/components/ui/activity-log-modal";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
 import { ResolverContext } from "@/lib/reference-resolver";
 import { TagBadge } from "@/components/ui/tag-badge";
 import { Fragment } from "react";
+import Link from "next/link";
 
 type TFunc = (key: string, params?: Record<string, string | number>) => string;
 
@@ -48,6 +51,10 @@ type ActivityVisual = {
   cardLabel: string;
   tagLabel: string;
   changedFields: string[];
+  boardId: string;
+  /** Card the event is about, when it is one that still exists in the board. */
+  cardId: string;
+  docId: string;
 };
 
 const GROUP_WINDOW_MS = 3 * 60 * 1000;
@@ -382,6 +389,9 @@ function HistoryPageInner() {
             cardLabel,
             tagLabel,
             changedFields,
+            boardId,
+            cardId: entry.entityType === 'card' || action.startsWith('card.') ? (cardNameById.has(entry.entityId) ? entry.entityId : '') : '',
+            docId: entry.scope === 'document' ? entry.scopeId : (entry.entityType === 'document' ? entry.entityId : ''),
           };
         });
 
@@ -395,6 +405,9 @@ function HistoryPageInner() {
               d.value.board.lists.forEach((l: any) => l.cards.forEach((c: any) => c.assignees?.forEach((u: any) => membersMap.set(u.id, u))));
             }
           });
+          // The real roster first (every actor of the feed is a member, not only people assigned to cards), assignees as a fallback.
+          const roster = await listTeamMembers(activeTeamId, accessToken).catch(() => [] as any[]);
+          for (const m of roster as any[]) membersMap.set(m.id ?? m.userId, { ...membersMap.get(m.id ?? m.userId), ...m });
           setTeamMembers(Array.from(membersMap.values()));
         }
       } catch (error) {
@@ -487,7 +500,7 @@ function HistoryPageInner() {
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <p className="text-sm font-medium leading-relaxed flex flex-wrap items-center gap-1.5">
                         <span className="font-semibold text-foreground">
-                          {isMe ? t("you") : isSystem ? t("system") : t("teamMember")}
+                          {isMe ? t("you") : isSystem ? t("system") : getWorkspaceMemberLabel(teamMembers.find((m) => m.id === head.actorId || m.userId === head.actorId), t("teamMember"))}
                         </span>
                         <span className={`px-2 py-0.5 rounded text-xs border ${head.badgeClass}`}>{head.badge}</span>
                         <span className="font-semibold text-foreground">{renderMessageTokens(summary.message)}</span>
@@ -507,10 +520,27 @@ function HistoryPageInner() {
                     </div>
 
                     <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px]">
-                      <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-muted-foreground">
-                        <CalendarClock className="h-3 w-3" />
-                        {head.boardLabel || teamName || t("teamLabel")}
-                      </span>
+                      {head.boardId ? (
+                        <Link href={`/b/${head.boardId}`} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-muted-foreground transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-foreground">
+                          <CalendarClock className="h-3 w-3" />
+                          {head.boardLabel || teamName || t("teamLabel")}
+                        </Link>
+                      ) : head.docId ? (
+                        <Link href={`/d/${head.docId}`} className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-muted-foreground transition-colors hover:border-accent/50 hover:bg-accent/10 hover:text-foreground">
+                          <CalendarClock className="h-3 w-3" />
+                          {head.boardLabel || teamName || t("teamLabel")}
+                        </Link>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-muted-foreground">
+                          <CalendarClock className="h-3 w-3" />
+                          {head.boardLabel || teamName || t("teamLabel")}
+                        </span>
+                      )}
+                      {head.cardId && head.boardId ? (
+                        <Link href={`/b/${head.boardId}?cardId=${head.cardId}`} className="inline-flex max-w-[22rem] items-center gap-1 truncate rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-accent transition-colors hover:bg-accent/20" title={head.cardLabel}>
+                          <span className="truncate">{head.cardLabel}</span>
+                        </Link>
+                      ) : null}
                       {summary.groupedMeta ? (
                         <div className="flex items-center gap-2">
                           <span className="inline-flex items-center gap-1 rounded-full border border-accent/30 bg-accent/10 px-2 py-0.5 text-accent">
