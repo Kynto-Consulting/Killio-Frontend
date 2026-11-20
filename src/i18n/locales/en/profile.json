@@ -3,7 +3,8 @@
   "subtitle": "Manage your public information.",
   "tabs": {
     "profile": "Profile",
-    "security": "Security"
+    "security": "Security",
+    "notifications": "Notifications"
   },
   "avatar": "Profile image",
   "avatarHint": "JPG, PNG or GIF. Max size 5 MB.",
@@ -30,5 +31,35 @@
     "description": "When enabled, you can use OTP / magic link for sign-in as an extra security layer."
   },
   "saveChanges": "Save changes",
-  "updateError": "An error occurred while updating your profile."
+  "updateError": "An error occurred while updating your profile.",
+  "notifications": {
+    "tab": "Notifications",
+    "installTitle": "Install the app",
+    "installBody": "Add {{app}} to your device to open it like any other app and receive notifications.",
+    "installButton": "Install app",
+    "installed": "{{app}} is installed on this device.",
+    "installIos": "On iPhone or iPad: tap Share, then “Add to Home Screen”. Notifications work once the app is installed.",
+    "installUnavailable": "Your browser will offer to install the app from its menu (Install app / Add to Home Screen) when it is available.",
+    "pushTitle": "Push notifications",
+    "pushBody": "Get notified on this device when something is assigned to you, you are mentioned or a card is due.",
+    "enable": "Turn on notifications",
+    "disable": "Turn off on this device",
+    "stateOn": "Notifications are on for this device.",
+    "stateDenied": "Notifications are blocked. Allow them in your browser's site settings for this page, then come back here.",
+    "stateNeedsInstall": "On iOS, notifications only work from the installed app. Install it first (see above).",
+    "stateUnsupported": "This browser does not support push notifications.",
+    "stateNotConfigured": "Push notifications are not enabled on this server yet.",
+    "failed": "Could not turn on notifications. Try again.",
+    "kindsTitle": "Notify me about",
+    "kinds": {
+      "assignment": "Assignments",
+      "mention": "Mentions",
+      "comment": "Comments",
+      "due": "Due dates",
+      "invite": "Invitations",
+      "digest": "Activity summaries",
+      "message": "Rooms and calls",
+      "other": "Other"
+    }
+  }
 }

@@ -107,14 +107,8 @@ export function usePushSubscription(accessToken: string | null | undefined) {
 
     attemptedRef.current = true;
 
-    // If we already registered this endpoint this session, mark as subscribed
-    const storedEndpoint = localStorage.getItem(LS_KEY);
-    if (storedEndpoint) {
-      setIsSubscribed(true);
-      return;
-    }
-
-    // Otherwise silently subscribe in the background
+    // Always (re-)register once per session: the server upserts by endpoint, and this re-binds the
+    // device to whoever is signed in now (a shared browser, or a user who logged out and in again).
     doSubscribe(accessToken).catch(() => {});
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accessToken]);

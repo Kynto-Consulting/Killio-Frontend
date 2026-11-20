@@ -1,5 +1,6 @@
 import { defaultCache } from "@serwist/next/worker";
 import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
+import { parsePushData, pickWindowToFocus, safeTargetPath, toNotification } from "@/lib/pwa/push-display";
 import {
   Serwist,
   NetworkFirst,
@@ -259,34 +260,32 @@ self.addEventListener("activate", (event: any) => {
   );
 });
 
-// Push notification handler
+// Push notifications. The server sends the tenant's logo as icon/badge, the card/URL to open and a
+// category; the pure mapping lives in lib/pwa/push-display.ts.
 self.addEventListener("push", (event: any) => {
-  if (!event.data) return;
-  let payload: { title?: string; body?: string; tag?: string; url?: string } = {};
-  try { payload = event.data.json(); } catch { payload = { body: event.data.text() }; }
-
-  const title = payload.title ?? "Killio";
-  const options: NotificationOptions = {
-    body: payload.body ?? "",
-    icon: "/icon-192.png",
-    badge: "/icon-192.png",
-    tag: payload.tag,
-    data: { url: payload.url ?? "/rooms" },
-  };
+  const message = parsePushData(event.data ? event.data.text() : null);
+  const { title, options } = toNotification(message);
   event.waitUntil((self as any).registration.showNotification(title, options));
 });
 
-// Notification click — focus or open the app
+// Notification click — focus a window of this app and send it to the event's URL, or open one.
 self.addEventListener("notificationclick", (event: any) => {
   event.notification.close();
-  const url = event.notification.data?.url ?? "/rooms";
+  const target = new URL(safeTargetPath(event.notification.data?.url), (self as any).location.origin).href;
   event.waitUntil(
     (self as any).clients
       .matchAll({ type: "window", includeUncontrolled: true })
-      .then((clients: any[]) => {
-        const existing = clients.find((c) => c.url.includes(url));
-        if (existing) return existing.focus();
-        return (self as any).clients.openWindow(url);
-      })
+      .then(async (clients: any[]) => {
+        const existing = pickWindowToFocus(clients, (self as any).location.origin);
+        if (existing) {
+          try {
+            const navigated = "navigate" in existing ? await existing.navigate(target) : null;
+            return (navigated ?? existing).focus();
+          } catch {
+            return existing.focus();
+          }
+        }
+        return (self as any).clients.openWindow(target);
+      }),
   );
 });
