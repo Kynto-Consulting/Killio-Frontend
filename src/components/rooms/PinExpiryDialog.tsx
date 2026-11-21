@@ -103,7 +103,7 @@ export function PinExpiryDialog({ open, mode, message, summary, caps, onClose, o
   };
 
   const preview = message ? parseAiMarkup(message.content).visibleText || message.content : "";
-  const optionClass = "flex cursor-pointer items-center gap-2 rounded-lg border border-border px-2.5 py-1.5 text-xs has-[:checked]:border-[hsl(var(--accent-ink))] has-[:checked]:bg-muted/60 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-[hsl(var(--accent-ink))]";
+  const optionClass = "flex cursor-pointer items-center gap-2 rounded-xl border border-border px-2.5 py-1.5 text-xs has-[:checked]:border-primary has-[:checked]:bg-primary/10 has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-primary/40";
 
   return (
     <RoomModalShell
@@ -131,12 +131,12 @@ export function PinExpiryDialog({ open, mode, message, summary, caps, onClose, o
           <div className="grid grid-cols-2 gap-1.5">
             {presets.map((p) => (
               <label key={p.id} className={optionClass}>
-                <input type="radio" name="pin-expiry" value={p.id} checked={selected === p.id} onChange={() => { setSelected(p.id); setLocalError(null); }} className="accent-[hsl(var(--accent-ink))]" />
+                <input type="radio" name="pin-expiry" value={p.id} checked={selected === p.id} onChange={() => { setSelected(p.id); setLocalError(null); }} className="accent-primary" />
                 {t(`pins.presets.${p.id}`)}
               </label>
             ))}
             <label className={`${optionClass} col-span-2`}>
-              <input type="radio" name="pin-expiry" value={CUSTOM} checked={selected === CUSTOM} onChange={() => { setSelected(CUSTOM); setLocalError(null); }} className="accent-[hsl(var(--accent-ink))]" />
+              <input type="radio" name="pin-expiry" value={CUSTOM} checked={selected === CUSTOM} onChange={() => { setSelected(CUSTOM); setLocalError(null); }} className="accent-primary" />
               {t("pins.dialog.custom")}
             </label>
           </div>
@@ -155,7 +155,7 @@ export function PinExpiryDialog({ open, mode, message, summary, caps, onClose, o
           <div role="alert" className="space-y-2 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-red-700 dark:text-red-300">
             <p>{apiMessage(apiError)}</p>
             {apiError.kind === "limit" && mode === "pin" && (
-              <button type="button" onClick={() => void submit(true)} disabled={busy} className="rounded-lg border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("pins.errors.replaceOldest")}</button>
+              <button type="button" onClick={() => void submit(true)} disabled={busy} className="rounded-lg border border-destructive/50 bg-background px-3 py-1.5 text-xs font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">{t("pins.errors.replaceOldest")}</button>
             )}
           </div>
         )}

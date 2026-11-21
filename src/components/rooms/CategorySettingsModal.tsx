@@ -123,7 +123,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
       }
     >
       {showPermissions && (
-        <div role="tablist" aria-label={t("category.editTitle")} className="mb-4 flex gap-1 rounded-xl bg-muted/60 p-1">
+        <div role="tablist" aria-label={t("category.editTitle")} className="mb-4 flex gap-1 border-b border-border/60">
           {(["general", "permissions"] as const).map((id) => (
             <button
               key={id}
@@ -131,7 +131,7 @@ export function CategorySettingsModal({ open, onClose, teamId, accessToken, grou
               type="button"
               aria-selected={tab === id}
               onClick={() => setTab(id)}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${tab === id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t(`channel.tabs.${id}`)}
             </button>

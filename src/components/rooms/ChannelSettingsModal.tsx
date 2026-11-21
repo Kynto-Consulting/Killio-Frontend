@@ -214,7 +214,7 @@ export function ChannelSettingsModal({
     const on = channelType === value;
     return (
       <label
-        className={`flex cursor-pointer items-start gap-2 rounded-xl border-2 p-2.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${on ? "border-[var(--memphis-line)] bg-muted" : "border-border hover:bg-muted/50"}`}
+        className={`flex cursor-pointer items-start gap-2 rounded-xl border p-2.5 text-sm transition-colors focus-within:ring-2 focus-within:ring-primary/40 motion-reduce:transition-none ${on ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border hover:bg-muted/50"}`}
       >
         <input type="radio" name="channel-type" className="sr-only" checked={on} onChange={() => setChannelType(value)} />
         <span className="mt-0.5 shrink-0">{icon}</span>
@@ -255,7 +255,7 @@ export function ChannelSettingsModal({
       }
     >
       {canEditPermissions && (
-        <div role="tablist" aria-label={title} className="mb-4 flex gap-1 rounded-xl bg-muted/60 p-1">
+        <div role="tablist" aria-label={title} className="mb-4 flex gap-1 border-b border-border/60">
           {(["general", "permissions", ...(editing && roomSupportsWebhooks(room) ? ["webhooks" as const] : [])] as const).map((id) => (
             <button
               key={id}
@@ -265,7 +265,7 @@ export function ChannelSettingsModal({
               aria-selected={tab === id}
               aria-controls={`channel-panel-${id}`}
               onClick={() => { setTab(id); if (id === "webhooks") setWebhooksOpened(true); }}
-              className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${tab === id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+              className={`-mb-px flex-1 border-b-2 px-3 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${tab === id ? "border-primary text-foreground" : "border-transparent text-muted-foreground hover:text-foreground"}`}
             >
               {t(`channel.tabs.${id}`)}
             </button>
@@ -362,7 +362,7 @@ export function ChannelSettingsModal({
       )}
 
       {editing && confirmDelete && room && (
-        <div role="group" aria-label={t("channel.delete")} className="mt-4 rounded-xl border-2 border-destructive/60 bg-destructive/5 p-3">
+        <div role="group" aria-label={t("channel.delete")} className="mt-4 rounded-xl border border-destructive/40 bg-destructive/5 p-3">
           <p className="text-xs text-destructive">{t("channel.deleteWarning", { name: room.name })}</p>
           <label className="mt-2 block text-xs font-semibold">
             {t("channel.deleteTypeName", { name: room.name })}

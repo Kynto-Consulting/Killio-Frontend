@@ -8,6 +8,7 @@ interface RoomModalShellProps {
   open: boolean;
   onClose: () => void;
   title: string;
+  subtitle?: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
   footer?: React.ReactNode;
@@ -20,9 +21,9 @@ const FOCUSABLE = 'a[href],button:not([disabled]),input:not([disabled]),select:n
 
 /**
  * Dialog used by every rooms form: bottom sheet on phones, centred card elsewhere. Escape closes, Tab stays inside,
- * focus goes to the first field and comes back to the opener. Corporate Memphis: hard line and soft offset shadow.
+ * focus goes to the first field and comes back to the opener. Soft look shared with the document dialogs.
  */
-export function RoomModalShell({ open, onClose, title, icon, children, footer, size = "md", closeLabel }: RoomModalShellProps) {
+export function RoomModalShell({ open, onClose, title, subtitle, icon, children, footer, size = "md", closeLabel }: RoomModalShellProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const titleId = useId();
   const opener = useRef<HTMLElement | null>(null);
@@ -65,41 +66,44 @@ export function RoomModalShell({ open, onClose, title, icon, children, footer, s
 
   return (
     <Portal>
-      <div className="fixed inset-0 z-[260] flex items-end justify-center bg-black/50 sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="fixed inset-0 z-[260] flex items-end justify-center bg-background/80 backdrop-blur-sm sm:items-center sm:p-4" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
         <div
           ref={panelRef}
           role="dialog"
           aria-modal="true"
           aria-labelledby={titleId}
-          className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border-2 border-[var(--memphis-line)] bg-card text-card-foreground shadow-[4px_4px_0_0_var(--memphis-shadow)] sm:rounded-2xl ${width}`}
+          className={`flex max-h-[92vh] w-full flex-col overflow-hidden rounded-t-2xl border border-border bg-card text-card-foreground shadow-2xl sm:rounded-2xl ${width}`}
         >
-          <div className="flex shrink-0 items-center justify-between gap-2 border-b-2 border-[var(--memphis-line)] px-4 py-3">
-            <div className="flex min-w-0 items-center gap-2">
-              {icon}
-              <h2 id={titleId} className="truncate text-sm font-bold">{title}</h2>
+          <div className="flex shrink-0 items-start gap-3 border-b border-border/60 p-5">
+            {icon && <div aria-hidden className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary [&>svg]:h-5 [&>svg]:w-5">{icon}</div>}
+            <div className="min-w-0 flex-1">
+              <h2 id={titleId} className="truncate text-base font-semibold leading-tight text-foreground">{title}</h2>
+              {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
             </div>
             <button
               type="button"
               onClick={onClose}
               aria-label={closeLabel}
-              className="rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+              className="shrink-0 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
             >
               <X className="h-4 w-4" />
             </button>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">{children}</div>
-          {footer ? <div className="shrink-0 border-t-2 border-[var(--memphis-line)] bg-muted/30 px-4 py-3">{footer}</div> : null}
+          <div className="min-h-0 flex-1 overflow-y-auto p-5">{children}</div>
+          {footer ? <div className="shrink-0 border-t border-border/60 px-5 py-4">{footer}</div> : null}
         </div>
       </div>
     </Portal>
   );
 }
 
-/** Shared look of text fields and buttons inside the rooms forms. */
+/** Shared look of text fields and buttons inside the rooms forms (same tokens as roles/ui.tsx). */
 export const roomField =
-  "w-full rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]";
+  "w-full rounded-xl border border-input bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground/60 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 export const roomPrimaryButton =
-  "inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-4 py-2 text-sm font-bold text-[hsl(var(--accent-ink-fg))] shadow-[2px_2px_0_0_var(--memphis-shadow)] transition-[transform,box-shadow] hover:-translate-x-px hover:-translate-y-px hover:shadow-[3px_3px_0_0_var(--memphis-shadow)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none disabled:hover:translate-x-0 disabled:hover:translate-y-0 motion-reduce:transition-none motion-reduce:hover:translate-x-0 motion-reduce:hover:translate-y-0";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-primary px-5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
 export const roomGhostButton =
-  "inline-flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50 motion-reduce:transition-none";
-export const roomLabel = "mb-1 block text-[11px] font-bold uppercase tracking-wider text-muted-foreground";
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-xl border border-input bg-background px-4 text-xs font-medium text-foreground transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
+export const roomDangerButton =
+  "inline-flex h-9 items-center justify-center gap-1.5 rounded-xl bg-red-600 px-5 text-xs font-semibold text-white transition-colors hover:bg-red-600/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 disabled:cursor-not-allowed disabled:opacity-50 motion-reduce:transition-none";
+export const roomLabel = "mb-1 block text-xs font-medium text-muted-foreground";

@@ -172,7 +172,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                 aria-pressed={preset === id}
                 title={t(`${PRESET_LABEL[id]}Hint`)}
                 onClick={() => clickPreset(id)}
-                className={`${roomGhostButton} ${on ? "!border-[var(--memphis-line)] !bg-muted !text-foreground" : ""}`}
+                className={`${roomGhostButton} ${on ? "!border-primary !bg-primary/5 !ring-1 !ring-primary/30 !text-foreground" : ""}`}
               >
                 {PRESET_ICON[id]}
                 {t(PRESET_LABEL[id])}
@@ -182,7 +182,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
         </div>
 
         {panel && (
-          <div className="rounded-xl border-2 border-[var(--memphis-line)] bg-muted/40 p-3">
+          <div className="rounded-xl border border-border bg-muted/40 p-3">
             <p className="mb-2 text-xs font-semibold">
               {pickedNames.length ? t(`perm.${panel}Who`, { names: pickedNames.join(", ") }) : t(`perm.${panel}Pick`)}
             </p>
@@ -196,7 +196,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                   return (
                     <label
                       key={r.id}
-                      className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${on ? "border-[var(--memphis-line)] bg-background font-semibold" : "border-border text-muted-foreground hover:bg-background"}`}
+                      className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors focus-within:ring-2 focus-within:ring-primary/40 motion-reduce:transition-none ${on ? "border-primary bg-primary/5 ring-1 ring-primary/30 font-semibold" : "border-border text-muted-foreground hover:bg-background"}`}
                     >
                       <input type="checkbox" className="sr-only" checked={on} onChange={() => togglePicked(r.id)} />
                       <span className="h-2 w-2 rounded-full" style={{ background: color ?? "currentColor" }} aria-hidden />
@@ -259,7 +259,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                   aria-expanded={open}
                   aria-controls={panelId}
                   onClick={() => setOpenKey(open ? "" : key)}
-                  className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--accent-ink))]"
+                  className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
                 >
                   {open ? <ChevronDown className="h-3.5 w-3.5 shrink-0" aria-hidden /> : <ChevronRight className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                   <span className="flex items-center gap-1.5 truncate" style={info.color ? { color: info.color } : undefined}>
@@ -277,7 +277,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                     onClick={() => onChange(removeSubject(drafts, draft))}
                     aria-label={t("perm.removeSubject", { name: info.label })}
                     title={t("perm.removeSubject", { name: info.label })}
-                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                    className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                   >
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
                   </button>
@@ -299,7 +299,7 @@ export function PermissionOverridesEditor({ drafts, onChange, subjects, isLoadin
                           aria-controls={groupPanelId}
                           disabled={searching}
                           onClick={() => setGroupOpen((prev) => ({ ...prev, [g.id]: !groupIsOpen }))}
-                          className="flex w-full items-center gap-1.5 border-t border-border/60 bg-muted/40 px-3 py-1 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground first:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--accent-ink))]"
+                          className="flex w-full items-center gap-1.5 border-t border-border/60 bg-muted/40 px-3 py-1 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground first:border-t-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40"
                         >
                           {groupIsOpen ? <ChevronDown className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronRight className="h-3 w-3 shrink-0" aria-hidden />}
                           <span className="truncate">{g.label}</span>
