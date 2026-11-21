@@ -706,6 +706,20 @@ export async function reorderRoomGroups(teamId: string, orderedIds: string[], ac
   if (!res.ok) throw await RoomsApiError.from(res, 'Failed to reorder room groups');
 }
 
+/** Places channels in categories in the given order: `PUT /teams/:teamId/rooms/layout` (needs the manage-rooms right). */
+export async function setRoomLayout(
+  teamId: string,
+  items: Array<{ roomId: string; categoryId: string | null }>,
+  accessToken: string,
+): Promise<void> {
+  const res = await fetch(`${API_BASE_URL}/teams/${teamId}/rooms/layout`, {
+    method: 'PUT',
+    headers: authHeader(accessToken),
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw await RoomsApiError.from(res, 'Failed to save the channel layout');
+}
+
 export async function deleteRoomGroup(teamId: string, groupId: string, accessToken: string): Promise<void> {
   const res = await fetch(`${API_BASE_URL}/teams/${teamId}/room-groups/${groupId}`, {
     method: 'DELETE',

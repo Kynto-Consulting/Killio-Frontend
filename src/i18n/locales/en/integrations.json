@@ -584,7 +584,8 @@
       "github": "GitHub",
       "whatsapp": "WhatsApp",
       "slack": "Slack",
-      "meta": "Meta"
+      "meta": "Meta",
+      "rooms": "Rooms and bots"
     },
     "categories": {
       "triggers": "Triggers",
@@ -642,7 +643,10 @@
       "metaSendConversion": "Meta Send Conversion",
       "whatsappIncomingTrigger": "WhatsApp Message Received",
       "aiResponse": "AI Response",
-      "whatsappPersonalSend": "WhatsApp (personal): Send"
+      "whatsappPersonalSend": "WhatsApp (personal): Send",
+      "roomMessageTrigger": "Room: Message received",
+      "roomSendMessage": "Room: Send message",
+      "roomReact": "Room: React"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -752,7 +756,17 @@
       "commitAuthorPath": "Commit author path",
       "staticAssigneeIds": "Static assignee IDs",
       "aiPrompt": "Extra prompt",
-      "toNumber": "To number"
+      "toNumber": "To number",
+      "roomCommandPrefix": "Command prefix",
+      "roomRequireMention": "Only when the bot is mentioned",
+      "roomMatchMode": "Filters must match",
+      "roomMatchAll": "All (default)",
+      "roomMatchAny": "At least one",
+      "roomId": "Room ID (optional)",
+      "roomText": "Message text",
+      "roomEmoji": "Emoji",
+      "roomMessageId": "Message ID (optional)",
+      "roomFilterRoomId": "Only in this room (ID, optional)"
     },
     "placeholders": {
       "repoFullName": "owner/repo",
@@ -847,7 +861,12 @@
       "aiSourcePath": "message",
       "aiOutputPath": "aiResponse",
       "toNumber": "{number}",
-      "whatsappPersonalText": "{aiResponse}"
+      "whatsappPersonalText": "{aiResponse}",
+      "roomCommandPrefix": "/hello",
+      "roomId": "Empty = the room that triggered it",
+      "roomText": "Hello {authorName}",
+      "roomEmoji": "👍",
+      "roomMessageId": "Empty = the message that triggered it"
     },
     "options": {
       "sourceMode": {
@@ -985,6 +1004,15 @@
     },
     "whatsappPersonalSend": {
       "description": "Sends a message via your paired personal WhatsApp. Bind fields like {number} and {aiResponse}."
+    },
+    "roomMessage": {
+      "description": "Starts the bot script when a message is posted in a room. Filters: room, command prefix and mention. Emits text, command, args, roomId, messageId and authorName."
+    },
+    "roomSend": {
+      "description": "Posts a message in a room as the bot that owns the script. Replies in the triggering room by default. Supports {fields} and {{expressions}}."
+    },
+    "roomReact": {
+      "description": "Adds an emoji reaction as the bot, by default on the message that triggered the script."
     }
   },
   "guide": {

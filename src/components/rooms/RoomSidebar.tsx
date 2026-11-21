@@ -13,6 +13,7 @@ import {
   buildSidebarModel, categoryOrder, dmDisplayName, isSectionCollapsed, moveCategory, reorderCategory,
   type LayoutRoom,
 } from "@/lib/rooms/channel-layout";
+import { moveChannel, sameLayout, shiftChannel, toLayoutItems, type ChannelSection, type LayoutItem } from "@/lib/rooms/channel-order";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
@@ -50,6 +51,8 @@ interface RoomSidebarProps {
   onEditGroup?: (group: RoomGroup) => void;
   onDeleteGroup?: (group: RoomGroup) => void;
   onReorderGroups?: (orderedIds: string[]) => void;
+  /** Channels reordered or moved to another category (drag, Alt+Up / Alt+Down): the full layout, in display order. */
+  onReorderChannels?: (items: LayoutItem[]) => void;
   onOpenDirectMessage?: (userId: string) => void;
   onClose?: () => void;
   t: TFn;
@@ -100,6 +103,7 @@ function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title
   return (
     <Link
       href={`/rooms/${room.id}`}
+      data-room-link={room.id}
       aria-current={isActive ? "page" : undefined}
       title={room.description ? `${title} · ${room.description}` : title}
       className={`group/row flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${
@@ -255,7 +259,7 @@ function NewDirectMessage({ members, currentUserId, onPick, t }: { members: Side
 
 export function RoomSidebar({
   rooms, groups, activeRoomId, isLoading, hasError, onRetry, canCreate, canManage: canManageProp, entityTitles = {}, peers = {}, selfNames = [], members = [],
-  currentUserId, onCreateRoom, onCreateGroup, onEditGroup, onDeleteGroup, onReorderGroups, onOpenDirectMessage, onClose, t,
+  currentUserId, onCreateRoom, onCreateGroup, onEditGroup, onDeleteGroup, onReorderGroups, onReorderChannels, onOpenDirectMessage, onClose, t,
 }: RoomSidebarProps) {
   // Callers that do not tell the difference (older pages) get the old rule: whoever can create channels manages categories.
   const canManage = canManageProp ?? canCreate;
@@ -264,6 +268,8 @@ export function RoomSidebar({
   const [dragId, setDragId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [announce, setAnnounce] = useState("");
+  const [dragRoomId, setDragRoomId] = useState<string | null>(null);
+  const [dropTarget, setDropTarget] = useState<string | null>(null); // `room:<id>` or `cat:<id|none>`
 
   useEffect(() => { setCollapsed(loadCollapsed()); }, []);
 
@@ -300,6 +306,28 @@ export function RoomSidebar({
     const next = moveCategory(order, group.id, dir);
     onReorderGroups?.(next);
     setAnnounce(t("category.moved", { name: group.name, position: next.indexOf(group.id) + 1 }));
+  };
+
+  const sections: ChannelSection[] = useMemo(
+    () => model.categories.map((c) => ({ categoryId: c.category?.id ?? null, roomIds: c.rooms.map((r) => r.id) })),
+    [model],
+  );
+  const channelsDraggable = Boolean(canManage && onReorderChannels && !q);
+
+  const commitLayout = useCallback((next: ChannelSection[], roomId: string) => {
+    if (sameLayout(next, sections)) return;
+    onReorderChannels?.(toLayoutItems(next));
+    const section = next.find((s) => s.roomIds.includes(roomId));
+    const name = rooms.find((r) => r.id === roomId)?.name ?? "";
+    const catName = section?.categoryId ? groups.find((g) => g.id === section.categoryId)?.name ?? "" : t("sidebar.channels");
+    setAnnounce(t("sidebar.channelMoved", { name, category: catName, position: (section?.roomIds.indexOf(roomId) ?? 0) + 1 }));
+    // The row may change parent (another category): keep the keyboard focus on it.
+    requestAnimationFrame(() => document.querySelector<HTMLElement>(`[data-room-link="${roomId}"]`)?.focus());
+  }, [sections, onReorderChannels, rooms, groups, t]);
+
+  const dropChannel = (targetCategoryId: string | null, beforeRoomId?: string) => {
+    if (dragRoomId) commitLayout(moveChannel(sections, dragRoomId, targetCategoryId, beforeRoomId), dragRoomId);
+    setDragRoomId(null); setDropTarget(null);
   };
 
   // An entity type with no translation (script, folder, ...) falls under "Other" instead of showing a key.
@@ -389,7 +417,9 @@ export function RoomSidebar({
               return (
                 <section
                   key={key}
-                  className={`mb-1 rounded-lg ${dragOver === group?.id && dragId !== group?.id ? "ring-2 ring-[hsl(var(--accent-ink))]" : ""}`}
+                  className={`mb-1 rounded-lg ${(dragOver === group?.id && dragId !== group?.id) || (dragRoomId && dropTarget === `cat:${group?.id ?? "none"}`) ? "ring-2 ring-[hsl(var(--accent-ink))]" : ""}`}
+                  onDragOverCapture={channelsDraggable ? (e) => { if (dragRoomId && !(e.target as HTMLElement).closest("[data-room-row]")) { e.preventDefault(); setDropTarget(`cat:${group?.id ?? "none"}`); } } : undefined}
+                  onDropCapture={channelsDraggable ? (e) => { if (dragRoomId && !(e.target as HTMLElement).closest("[data-room-row]")) { e.preventDefault(); dropChannel(group?.id ?? null); } } : undefined}
                   onDragOver={draggable ? (e) => { if (dragId) { e.preventDefault(); setDragOver(group!.id); } } : undefined}
                   onDragLeave={draggable ? () => setDragOver((cur) => (cur === group?.id ? null : cur)) : undefined}
                   onDrop={draggable ? (e) => {
@@ -441,7 +471,24 @@ export function RoomSidebar({
                       {section.rooms.length === 0 ? (
                         <li className="px-2 py-1 text-xs italic text-muted-foreground/70">{t("sidebar.noChannels")}</li>
                       ) : section.rooms.map((r) => (
-                        <li key={r.id}><RoomItem room={r} title={r.name} isActive={r.id === activeRoomId} t={t} /></li>
+                        <li
+                          key={r.id}
+                          data-room-row
+                          className={`rounded-lg ${dragRoomId === r.id ? "opacity-40" : ""} ${dragRoomId && dragRoomId !== r.id && dropTarget === `room:${r.id}` ? "border-t-2 border-[hsl(var(--accent-ink))]" : ""}`}
+                          draggable={channelsDraggable}
+                          onDragStart={channelsDraggable ? (e) => { setDragRoomId(r.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", r.id); } : undefined}
+                          onDragEnd={channelsDraggable ? () => { setDragRoomId(null); setDropTarget(null); } : undefined}
+                          onDragOver={channelsDraggable ? (e) => { if (dragRoomId) { e.preventDefault(); e.stopPropagation(); setDropTarget(`room:${r.id}`); } } : undefined}
+                          onDrop={channelsDraggable ? (e) => { if (dragRoomId) { e.preventDefault(); e.stopPropagation(); dropChannel(group?.id ?? null, r.id); } } : undefined}
+                          onKeyDown={channelsDraggable ? (e) => {
+                            if (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                              e.preventDefault();
+                              commitLayout(shiftChannel(sections, r.id, e.key === "ArrowUp" ? -1 : 1), r.id);
+                            }
+                          } : undefined}
+                        >
+                          <RoomItem room={r} title={r.name} isActive={r.id === activeRoomId} t={t} />
+                        </li>
                       ))}
                     </ul>
                   )}

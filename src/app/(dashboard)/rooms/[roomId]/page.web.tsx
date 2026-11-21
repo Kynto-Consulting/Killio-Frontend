@@ -18,10 +18,13 @@ import { useRoomReferences } from "@/hooks/use-room-references";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
 import { useCall } from "@/components/providers/call-provider";
 import {
-  getRoom, listRoomMembers, listRoomMessages, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall,
+  getRoom, listRoomMembers, listRoomMessages, listPinnedMessages, listActiveMutes, deleteRoomGroup, reorderRoomGroups, setRoomLayout, findOrCreateDm, unmuteTeamMember, sendAiRoomMessage, getActiveCall,
   type Room, type RoomCall, type RoomMember, type RoomGroup, RoomMessage,
 } from "@/lib/api/rooms";
-import { dmDisplayName } from "@/lib/rooms/channel-layout";
+import { buildSidebarModel, dmDisplayName } from "@/lib/rooms/channel-layout";
+import { applyLayoutToRooms, nextRoomAfterDelete, removeRoomById, type LayoutItem } from "@/lib/rooms/channel-order";
+import { useRoomDeleted } from "@/hooks/use-room-deleted";
+import { setRoomMutedLocally } from "@/hooks/use-room-unread";
 import { mergePinned, filterMessagesByText, messageActions, splitThreads } from "@/lib/rooms/message-structure";
 import { neutralizeEveryone, toWireMentions } from "@/lib/rooms/mentions";
 import { muteMinutesLeft } from "@/lib/rooms/room-controls";
@@ -657,6 +660,42 @@ Team Context: ${activeTeamId}.`;
     }
   }, [activeTeamId, accessToken, directory, t]);
 
+  const handleReorderChannels = useCallback(async (items: LayoutItem[]) => {
+    if (!activeTeamId || !accessToken) return;
+    const previous = directory.rooms;
+    directory.setRooms(applyLayoutToRooms(previous, items));
+    try {
+      await setRoomLayout(activeTeamId, items, accessToken);
+    } catch {
+      directory.setRooms(previous);
+      setNotice(t("channel.errors.reorderFailed"));
+    }
+  }, [activeTeamId, accessToken, directory, t]);
+
+  // Channels in sidebar order: used to pick where to go when one disappears.
+  const orderedChannelIds = useMemo(
+    () => buildSidebarModel(
+      directory.rooms.map((r) => ({ ...r, position: r.sortOrder ?? null })),
+      groups.map((g) => ({ id: g.id, name: g.name, emoji: g.emoji, sortOrder: g.sortOrder })),
+    ).categories.flatMap((c) => c.rooms.map((r) => r.id)),
+    [directory.rooms, groups],
+  );
+
+  /** A channel is gone (deleted here or by someone else): drop it from the list and leave it if it was open. */
+  const handleRoomRemoved = useCallback((removedId: string, announce = false) => {
+    const next = nextRoomAfterDelete(orderedChannelIds, removedId);
+    directory.setRooms((prev) => removeRoomById(prev, removedId));
+    setRoomMutedLocally(removedId, false);
+    if (removedId === roomId) {
+      if (announce) setNotice(t("channel.deletedByOther"));
+      router.replace(next ? `/rooms/${next}` : "/rooms");
+    }
+  }, [orderedChannelIds, directory, roomId, router, t]);
+
+  useRoomDeleted(activeTeamId, useMemo(() => directory.rooms.filter((r) => r.type === "channel" && !r.linkedEntityType).map((r) => r.id), [directory.rooms]), (id) => {
+    if (directory.rooms.some((r) => r.id === id)) handleRoomRemoved(id, true);
+  });
+
   const handleDeleteGroup = useCallback(async (group: RoomGroup) => {
     if (!activeTeamId || !accessToken) return;
     try {
@@ -831,6 +870,7 @@ Team Context: ${activeTeamId}.`;
       onEditGroup={(g) => { setCategoryDialog({ open: true, group: g }); onClose(); }}
       onDeleteGroup={handleDeleteGroup}
       onReorderGroups={handleReorderGroups}
+      onReorderChannels={handleReorderChannels}
       onOpenDirectMessage={(id) => { void handleOpenDirectMessage(id); onClose(); }}
       onClose={onClose}
       t={t}
@@ -1044,7 +1084,7 @@ Team Context: ${activeTeamId}.`;
             canEditPermissions={controls.showSettings && !isAiRoom}
             showReadReceipts={showReadReceipts}
             onUpdated={(updated) => { setRoom((prev) => (prev ? { ...prev, ...updated } : prev)); directory.refresh(); refreshPermissions(); }}
-            onDeleted={() => { directory.refresh(); router.push("/rooms"); }}
+            onDeleted={(id) => { handleRoomRemoved(id); directory.refresh(); }}
             onReadReceiptsChange={setShowReadReceipts}
             t={t}
           />

@@ -39,6 +39,7 @@
     "createDM": "New direct message",
     "createGroup": "New category",
     "noChannels": "No channels yet",
+    "channelMoved": "{{name}} is now channel {{position}} in {{category}}",
     "noLinked": "No linked threads",
     "noDMs": "No direct messages",
     "openKillioChat": "Chat with Killio",
@@ -372,6 +373,11 @@
     "save": "Save",
     "delete": "Delete channel",
     "confirmDelete": "Confirm: the channel will be deleted",
+    "deletedByOther": "This channel was deleted by someone else.",
+    "deleteWarning": "#{{name}} and all its messages will be deleted. This cannot be undone.",
+    "deleteTypeName": "Type {{name}} to confirm",
+    "deleteConfirmButton": "Delete permanently",
+    "deleteCancel": "Cancel",
     "typeLabel": "Channel type",
     "type": {
       "text": "Text",
@@ -391,7 +397,11 @@
       "forbidden": "You are not allowed to make this change.",
       "unavailable": "This server does not support this action yet.",
       "saveFailed": "The changes could not be saved.",
-      "deleteFailed": "The channel could not be deleted."
+      "deleteFailed": "The channel could not be deleted.",
+      "deleteBadRequest": "This channel cannot be deleted (only text and announcement channels).",
+      "deleteForbidden": "You are not allowed to delete this channel.",
+      "deleteNotFound": "The channel no longer exists.",
+      "reorderFailed": "The channel order could not be saved."
     }
   },
   "perm": {

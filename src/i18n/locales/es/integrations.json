@@ -584,7 +584,8 @@
       "github": "GitHub",
       "whatsapp": "WhatsApp",
       "slack": "Slack",
-      "meta": "Meta"
+      "meta": "Meta",
+      "rooms": "Salas y bots"
     },
     "categories": {
       "triggers": "Triggers",
@@ -642,7 +643,10 @@
       "metaSendConversion": "Enviar conversión a Meta",
       "whatsappIncomingTrigger": "WhatsApp: Mensaje recibido",
       "aiResponse": "Respuesta IA",
-      "whatsappPersonalSend": "WhatsApp (personal): Enviar"
+      "whatsappPersonalSend": "WhatsApp (personal): Enviar",
+      "roomMessageTrigger": "Sala: Mensaje recibido",
+      "roomSendMessage": "Sala: Enviar mensaje",
+      "roomReact": "Sala: Reaccionar"
     },
     "fields": {
       "repoFullName": "Repo (owner/repo)",
@@ -752,7 +756,17 @@
       "commitAuthorPath": "Ruta del autor del commit",
       "staticAssigneeIds": "IDs de asignados estaticos",
       "aiPrompt": "Prompt adicional",
-      "toNumber": "Numero destino"
+      "toNumber": "Numero destino",
+      "roomCommandPrefix": "Prefijo de comando",
+      "roomRequireMention": "Solo si mencionan al bot",
+      "roomMatchMode": "Los filtros deben cumplirse",
+      "roomMatchAll": "Todos (por defecto)",
+      "roomMatchAny": "Al menos uno",
+      "roomId": "ID de sala (opcional)",
+      "roomText": "Texto del mensaje",
+      "roomEmoji": "Emoji",
+      "roomMessageId": "ID del mensaje (opcional)",
+      "roomFilterRoomId": "Solo en esta sala (ID, opcional)"
     },
     "placeholders": {
       "repoFullName": "owner/repo",
@@ -847,7 +861,12 @@
       "aiSourcePath": "message",
       "aiOutputPath": "aiResponse",
       "toNumber": "{number}",
-      "whatsappPersonalText": "{aiResponse}"
+      "whatsappPersonalText": "{aiResponse}",
+      "roomCommandPrefix": "/hola",
+      "roomId": "Vacío = la sala que lo disparó",
+      "roomText": "Hola {authorName}",
+      "roomEmoji": "👍",
+      "roomMessageId": "Vacío = el mensaje que lo disparó"
     },
     "options": {
       "sourceMode": {
@@ -985,6 +1004,15 @@
     },
     "whatsappPersonalSend": {
       "description": "Envia un mensaje por tu WhatsApp personal vinculado. Usa campos como {number} y {aiResponse}."
+    },
+    "roomMessage": {
+      "description": "Inicia el script del bot cuando se publica un mensaje en una sala. Filtros: sala, prefijo de comando y mención. Emite text, command, args, roomId, messageId y authorName."
+    },
+    "roomSend": {
+      "description": "Publica un mensaje en una sala como el bot dueño del script. Por defecto responde en la sala que lo disparó. Admite {campos} y {{expresiones}}."
+    },
+    "roomReact": {
+      "description": "Añade una reacción con emoji como el bot, por defecto al mensaje que disparó el script."
     }
   },
   "guide": {

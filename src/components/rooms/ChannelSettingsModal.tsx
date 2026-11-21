@@ -8,6 +8,7 @@ import {
 } from "@/lib/api/rooms";
 import { useRoomSubjects } from "@/hooks/use-room-subjects";
 import { useRealtimeAccessRenewal } from "@/hooks/use-room-realtime-access";
+import { deleteConfirmationMatches, deleteErrorKind } from "@/lib/rooms/channel-order";
 import { draftsToDtos, normalizeOverridesResponse, type OverrideDraft } from "@/lib/rooms/tristate";
 import { PermissionOverridesEditor } from "./PermissionOverridesEditor";
 import { RoomModalShell, roomField, roomGhostButton, roomLabel, roomPrimaryButton } from "./RoomModalShell";
@@ -60,6 +61,8 @@ export function ChannelSettingsModal({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleteTyped, setDeleteTyped] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Reset whenever the dialog opens.
   useEffect(() => {
@@ -67,6 +70,8 @@ export function ChannelSettingsModal({
     setTab("general");
     setError(null);
     setConfirmDelete(false);
+    setDeleteTyped("");
+    setDeleteError(null);
     setBusy(false);
     setName(room?.name ?? "");
     setTopic(room?.description ?? "");
@@ -167,18 +172,26 @@ export function ChannelSettingsModal({
     }
   };
 
+  const deleteMatches = Boolean(room) && deleteConfirmationMatches(deleteTyped, room?.name ?? "");
+
   const remove = async () => {
-    if (!room) return;
-    if (!confirmDelete) { setConfirmDelete(true); return; }
+    if (!room || !deleteMatches || busy) return;
     setBusy(true);
-    setError(null);
+    setDeleteError(null);
     try {
-      await deleteRoom(room.id, accessToken);
+      await deleteRoom(room.id, accessToken); // 204
       onDeleted?.(room.id);
       onClose();
     } catch (err) {
-      setError(explain(err, "channel.errors.deleteFailed"));
-      setConfirmDelete(false);
+      const status = err instanceof RoomsApiError ? err.status : undefined;
+      const kind = deleteErrorKind(status);
+      if (kind === "notFound") {
+        // Already gone (someone else deleted it): the sidebar must drop it too.
+        onDeleted?.(room.id);
+        onClose();
+        return;
+      }
+      setDeleteError(t(kind === "badRequest" ? "channel.errors.deleteBadRequest" : kind === "forbidden" ? "channel.errors.deleteForbidden" : "channel.errors.deleteFailed"));
     } finally {
       setBusy(false);
     }
@@ -213,9 +226,9 @@ export function ChannelSettingsModal({
       footer={
         <div className="flex items-center gap-2">
           {editing && canEditPermissions && (
-            <button type="button" onClick={remove} disabled={busy} className={`${roomGhostButton} !text-destructive`}>
+            <button type="button" onClick={() => { setConfirmDelete((v) => !v); setDeleteTyped(""); setDeleteError(null); }} disabled={busy} aria-expanded={confirmDelete} className={`${roomGhostButton} !text-destructive`}>
               <Trash2 className="h-3.5 w-3.5" aria-hidden />
-              {confirmDelete ? t("channel.confirmDelete") : t("channel.delete")}
+              {t("channel.delete")}
             </button>
           )}
           <div className="ml-auto flex gap-2">
@@ -328,6 +341,32 @@ export function ChannelSettingsModal({
 
         {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">{error}</p>}
       </form>
+
+      {editing && confirmDelete && room && (
+        <div role="group" aria-label={t("channel.delete")} className="mt-4 rounded-xl border-2 border-destructive/60 bg-destructive/5 p-3">
+          <p className="text-xs text-destructive">{t("channel.deleteWarning", { name: room.name })}</p>
+          <label className="mt-2 block text-xs font-semibold">
+            {t("channel.deleteTypeName", { name: room.name })}
+            <input
+              autoFocus
+              value={deleteTyped}
+              onChange={(e) => setDeleteTyped(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void remove(); } }}
+              autoComplete="off"
+              spellCheck={false}
+              className={`${roomField} mt-1`}
+            />
+          </label>
+          {deleteError && <p role="alert" className="mt-2 text-xs text-destructive">{deleteError}</p>}
+          <div className="mt-2 flex justify-end gap-2">
+            <button type="button" onClick={() => { setConfirmDelete(false); setDeleteTyped(""); setDeleteError(null); }} className={roomGhostButton}>{t("channel.deleteCancel")}</button>
+            <button type="button" onClick={() => void remove()} disabled={!deleteMatches || busy} className={`${roomGhostButton} !border-destructive !bg-destructive !text-destructive-foreground disabled:opacity-40`}>
+              {busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+              {t("channel.deleteConfirmButton")}
+            </button>
+          </div>
+        </div>
+      )}
     </RoomModalShell>
   );
 }

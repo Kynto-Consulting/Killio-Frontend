@@ -39,6 +39,7 @@
     "createDM": "Nuevo mensaje directo",
     "createGroup": "Nueva categoría",
     "noChannels": "Sin canales aún",
+    "channelMoved": "{{name}} es ahora el canal {{position}} de {{category}}",
     "noLinked": "Sin hilos vinculados",
     "noDMs": "Sin mensajes directos",
     "openKillioChat": "Chatear con Killio",
@@ -372,6 +373,11 @@
     "save": "Guardar",
     "delete": "Eliminar canal",
     "confirmDelete": "Confirmar: se eliminará el canal",
+    "deletedByOther": "Este canal fue eliminado por otra persona.",
+    "deleteWarning": "Se eliminará #{{name}} con todos sus mensajes. No se puede deshacer.",
+    "deleteTypeName": "Escribe {{name}} para confirmar",
+    "deleteConfirmButton": "Eliminar definitivamente",
+    "deleteCancel": "Cancelar",
     "typeLabel": "Tipo de canal",
     "type": {
       "text": "Texto",
@@ -391,7 +397,11 @@
       "forbidden": "No tienes permiso para hacer este cambio.",
       "unavailable": "Este servidor aún no admite esta acción.",
       "saveFailed": "No se pudieron guardar los cambios.",
-      "deleteFailed": "No se pudo eliminar el canal."
+      "deleteFailed": "No se pudo eliminar el canal.",
+      "deleteBadRequest": "Este canal no se puede eliminar (solo los canales de texto y anuncios).",
+      "deleteForbidden": "No tienes permiso para eliminar este canal.",
+      "deleteNotFound": "El canal ya no existe.",
+      "reorderFailed": "No se pudo guardar el orden de los canales."
     }
   },
   "perm": {
