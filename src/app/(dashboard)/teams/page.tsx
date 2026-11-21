@@ -2,12 +2,13 @@
 
 import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Gavel, LayoutDashboard, Lock, Mail, ShieldCheck, UserPlus, Users, UsersRound } from "lucide-react";
+import { Bot, Gavel, LayoutDashboard, Lock, Mail, ShieldCheck, UserPlus, Users, UsersRound } from "lucide-react";
 
 import { useSession } from "@/components/providers/session-provider";
 import { useTranslations } from "@/components/providers/i18n-provider";
 import { InviteMemberModal } from "@/components/ui/invite-member-modal";
 import { OfflineRouteFallback } from "@/components/ui/offline-route-fallback";
+import { BotsTab } from "@/components/bots/bots-tab";
 import { AuditTab } from "@/components/roles/audit-tab";
 import { GroupsTab } from "@/components/roles/groups-tab";
 import { InvitesTab } from "@/components/roles/invites-tab";
@@ -21,9 +22,10 @@ import { invalidateTeamPermissions, useTeamPermissions } from "@/hooks/use-team-
 import { invalidateTeamRoles, useTeamRoles } from "@/hooks/use-team-roles";
 import { useTeamRealtime } from "@/hooks/useTeamRealtime";
 import { apiCache, cacheKey, CACHE_TTL } from "@/lib/api-cache";
+import { canManageBots } from "@/lib/bots/model";
 import { listTeamMembers, listTeams, type TeamRole, type TeamView } from "@/lib/api/contracts";
 
-type TabId = "overview" | "members" | "invites" | "roles" | "groups" | "audit";
+type TabId = "overview" | "members" | "invites" | "roles" | "groups" | "audit" | "bots";
 
 export default function TeamsPage() {
   return (
@@ -36,13 +38,14 @@ export default function TeamsPage() {
 }
 
 /**
- * Workspace settings: one tab bar on top (Overview, Members, Invitations, Roles, Groups, Moderation).
+ * Workspace settings: one tab bar on top (Overview, Members, Invitations, Roles, Groups, Moderation, Bots).
  * Tabs a person cannot use are not shown; which ones those are comes from `me/permissions`, not from role names.
  */
 function TeamsPageInner() {
   const { accessToken, activeTeamId, user } = useSession();
   const t = useTranslations("roles");
   const tt = useTranslations("teams");
+  const tb = useTranslations("bots");
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -109,9 +112,10 @@ function TeamsPageInner() {
       if (can("roles.manage") || can("members.manage_roles") || can("members.manage")) ids.push("roles");
       ids.push("groups");
       if (can("audit.view") || can("members.ban") || can("members.kick")) ids.push("audit");
+      if (canManageBots(can, perms.isOwner)) ids.push("bots");
     }
     return ids;
-  }, [can, personal]);
+  }, [can, personal, perms.isOwner]);
 
   const requested = params.get("tab") as TabId | null;
   // While permissions are loading keep the requested tab (no flash to Overview); afterwards fall back if it is not allowed.
@@ -127,8 +131,8 @@ function TeamsPageInner() {
 
   const tabDefs: TabDef[] = available.map((id) => ({
     id,
-    label: t(`tabs.${id}`),
-    icon: { overview: <LayoutDashboard className="h-4 w-4" />, members: <Users className="h-4 w-4" />, invites: <Mail className="h-4 w-4" />, roles: <ShieldCheck className="h-4 w-4" />, groups: <UsersRound className="h-4 w-4" />, audit: <Gavel className="h-4 w-4" /> }[id],
+    label: id === "bots" ? tb("tabLabel") : t(`tabs.${id}`),
+    icon: { overview: <LayoutDashboard className="h-4 w-4" />, members: <Users className="h-4 w-4" />, invites: <Mail className="h-4 w-4" />, roles: <ShieldCheck className="h-4 w-4" />, groups: <UsersRound className="h-4 w-4" />, audit: <Gavel className="h-4 w-4" />, bots: <Bot className="h-4 w-4" /> }[id],
     badge: id === "members" && members.length ? members.length : null,
   }));
 
@@ -190,6 +194,7 @@ function TeamsPageInner() {
             {tab === "roles" && <RolesTab />}
             {tab === "groups" && <GroupsTab />}
             {tab === "audit" && <AuditTab />}
+            {tab === "bots" && <BotsTab />}
           </div>
         </SettingsProvider>
       </div>

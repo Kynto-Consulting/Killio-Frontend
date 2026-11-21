@@ -292,6 +292,17 @@ export function IntegrationsPageView({
     }
   }, [tab, loadScripts, isAdmin]);
 
+  // Deep link `/scripts?script=<id>` (the Bots tab of /teams opens a bot's script here): select it once the list is loaded.
+  useEffect(() => {
+    if (tab !== "scripts" || selectedScript || scripts.length === 0 || typeof window === "undefined") return;
+    const wanted = new URLSearchParams(window.location.search).get("script");
+    const match = wanted ? scripts.find((s) => s.id === wanted) : null;
+    if (match) {
+      setSelectedScript(match);
+      setScriptSubView("canvas");
+    }
+  }, [tab, scripts, selectedScript]);
+
   useEffect(() => {
     if (!accessToken || !activeTeamId || !isAdmin) return;
 

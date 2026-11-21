@@ -1,0 +1,167 @@
+{
+  "tabLabel": "Bots",
+  "title": "Bots del espacio",
+  "subtitle": "Usuarios automáticos que responden en las salas mediante un script. No tienen contraseña ni token.",
+  "create": "Crear bot",
+  "loading": "Cargando…",
+  "loadError": "No se pudieron cargar los bots.",
+  "limitReached": "Límite de {{max}} bots por espacio alcanzado.",
+  "noCommands": "Sin comandos",
+  "pickOne": "Elige un bot para editarlo.",
+  "noAccess": {
+    "title": "No puedes gestionar bots",
+    "body": "Hace falta el permiso «Gestionar bots» (bots.manage). Pídeselo a quien administre el espacio."
+  },
+  "empty": {
+    "title": "Todavía no hay bots",
+    "body": "Crea uno, o abre la ayuda para generar un bot de ejemplo que responde a /hola."
+  },
+  "quota": {
+    "exhausted": "Cuota mensual de scripts agotada: los bots no responden hasta el próximo ciclo.",
+    "unlimited": "Ejecuciones de scripts este mes: {{used}} (sin límite).",
+    "used": "Ejecuciones de scripts este mes: {{used}} de {{limit}}. Cada respuesta de un bot cuenta."
+  },
+  "help": {
+    "toggle": "Cómo crear un bot",
+    "title": "Cómo crear un bot con un script",
+    "step1": "Crea el bot (nombre, avatar y descripción).",
+    "step2": "En la pestaña Script, crea el script desde la plantilla o vincula uno que tenga el disparador «Mensaje de sala».",
+    "step3": "En el script, el disparador filtra qué mensajes lo activan (por ejemplo el prefijo /hola) y el nodo «Enviar mensaje» responde en la sala.",
+    "step4": "En la pestaña Comandos, registra /hola para que aparezca en el autocompletado del compositor.",
+    "step5": "En la pestaña Salas, decide dónde puede ver, escribir y reaccionar el bot.",
+    "limits": "Un bot solo reacciona a otros bots si lo activas expresamente, y las cadenas de bots se cortan a profundidad {{depth}}.",
+    "exampleTitle": "Plantilla: responder {{command}}",
+    "exampleScript": "Disparador: Mensaje de sala\n  prefijo de comando = /hola\n        |\n        v\nAcción: Enviar mensaje (como bot)\n  texto = Hola, {authorName}!\n  (sala = la que disparó el script)"
+  },
+  "example": {
+    "button": "Crear bot de ejemplo (/hola)",
+    "creating": "Creando…",
+    "created": "Bot de ejemplo creado. Pruébalo escribiendo /hola en una sala.",
+    "botName": "Hola",
+    "botDescription": "Bot de ejemplo: saluda cuando alguien escribe /hola.",
+    "scriptName": "Bot {{name}}",
+    "scriptDescription": "Responde a /hola en la sala donde se escribe.",
+    "reply": "Hola, {authorName}!",
+    "commandDescription": "Saluda a quien lo escribe",
+    "failedAt": {
+      "bot": "No se pudo crear el bot.",
+      "script": "El bot se creó, pero no se pudo crear su script.",
+      "bind": "El script se creó, pero no se pudo vincular al bot (hace falta scripts.manage).",
+      "commands": "El bot funciona, pero no se pudo registrar el comando."
+    }
+  },
+  "status": {
+    "active": "Activo",
+    "paused": "Pausado",
+    "script_missing": "Sin script",
+    "script_inactive": "Script pausado"
+  },
+  "toast": {
+    "error": "No se pudo completar la acción.",
+    "created": "Bot creado.",
+    "saved": "Cambios guardados.",
+    "deleted": "Bot eliminado.",
+    "activated": "Bot activado.",
+    "paused": "Bot pausado."
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "saving": "Guardando…",
+    "save": "Guardar"
+  },
+  "form": {
+    "name": "Nombre",
+    "namePlaceholder": "Ayuda, Recordatorios…",
+    "avatarUrl": "URL del avatar (https)",
+    "avatarHelp": "Sin imagen se muestra la inicial sobre un color propio del bot.",
+    "description": "Descripción",
+    "descriptionPlaceholder": "Qué hace este bot",
+    "errors": {
+      "name_required": "El nombre es obligatorio.",
+      "name_long": "El nombre admite hasta 80 caracteres.",
+      "description_long": "La descripción admite hasta 500 caracteres.",
+      "avatar_invalid": "El avatar debe ser una URL https."
+    }
+  },
+  "tabs": {
+    "label": "Secciones del bot",
+    "general": "General",
+    "commands": "Comandos",
+    "script": "Script",
+    "rooms": "Salas"
+  },
+  "detail": {
+    "hint": "Un bot solo responde mientras él y su script están activos."
+  },
+  "general": {
+    "active": "Bot activo",
+    "activeHint": "Pausarlo lo quita del autocompletado y detiene sus respuestas.",
+    "roles": "Roles del bot",
+    "rolesHint": "Sus permisos base salen de estos roles; no puede tener más que tú.",
+    "allowBots": "Reaccionar a mensajes de otros bots",
+    "allowBotsHint": "Desactivado: solo las personas lo disparan. Las cadenas se cortan a profundidad {{depth}}."
+  },
+  "delete": {
+    "button": "Eliminar bot",
+    "title": "Eliminar bot",
+    "description": "Se elimina el bot y deja de responder. Sus mensajes anteriores se conservan con su nombre y avatar."
+  },
+  "commands": {
+    "intro": "Comandos /nombre que aparecen en el autocompletado del compositor. Registrarlos no los ejecuta: lo hace el script del bot.",
+    "noScript": "Este bot no tiene script: los comandos se mostrarán pero nadie responderá.",
+    "empty": "Sin comandos registrados",
+    "name": "Nombre del comando",
+    "description": "Descripción",
+    "usage": "Uso",
+    "namePlaceholder": "hola",
+    "descriptionPlaceholder": "Qué hace el comando",
+    "usagePlaceholder": "Uso, p. ej. /hola [nombre]",
+    "remove": "Quitar comando",
+    "add": "Añadir comando",
+    "saved": "Comandos guardados.",
+    "scriptNote": "El backend asocia un único script a cada bot: todos los comandos los atiende ese script, que decide qué hacer según el prefijo del mensaje.",
+    "errors": {
+      "invalid": "Usa de 1 a 32 letras minúsculas, números, «-» o «_».",
+      "duplicate": "Comando repetido.",
+      "limit": "Máximo 50 comandos por bot."
+    }
+  },
+  "script": {
+    "noPermission": "Necesitas el permiso de gestionar scripts",
+    "noPermissionBody": "Vincular o crear el script de un bot requiere scripts.manage además de bots.manage.",
+    "intro": "El script se ejecuta como el bot. Solo admite nodos de datos, de sala, HTTP, JS e IA, con exactamente un disparador «Mensaje de sala».",
+    "unknown": "Script vinculado",
+    "trigger": "Disparador",
+    "lastRun": "última ejecución: {{status}}",
+    "active": "Script activo",
+    "activated": "Script activado.",
+    "paused": "Script pausado.",
+    "open": "Abrir en el editor de scripts",
+    "unbind": "Desvincular",
+    "unbound": "Script desvinculado.",
+    "editorNote": "El editor todavía no tiene nodos propios para las salas: se muestran con el aspecto genérico y se guardan tal cual.",
+    "none": "Este bot no tiene script",
+    "noneBody": "Crea uno desde la plantilla (responde a /hola) o vincula un script existente con disparador de mensaje de sala.",
+    "fromTemplate": "Crear script desde la plantilla",
+    "pick": "Elegir un script existente",
+    "bind": "Vincular",
+    "bound": "Script vinculado.",
+    "created": "Script creado, vinculado y activado."
+  },
+  "rooms": {
+    "intro": "Por sala: ✓ permite, – hereda y ✗ deniega. «Hereda» usa lo que dan los roles del bot y la categoría.",
+    "room": "Sala",
+    "keys": {
+      "room": {
+        "view": "Ver",
+        "post": "Escribir",
+        "react": "Reaccionar"
+      }
+    },
+    "saved": "Permisos del bot guardados en {{room}}.",
+    "loadError": "No se pudieron cargar las salas.",
+    "empty": "No hay salas de texto en este espacio.",
+    "noAccess": "sin acceso a sus permisos",
+    "inheritNote": "Los cambios se guardan por sala y requieren poder gestionar esa sala."
+  }
+}

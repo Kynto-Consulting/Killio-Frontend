@@ -51,7 +51,10 @@ export type NodeKind =
   | 'core.action.http_request'
   | 'core.action.whatsapp_personal_send'
   | 'core.action.ai_response'
-  | 'core.action.js_code';
+  | 'core.action.js_code'
+  | 'killio.trigger.room_message'
+  | 'killio.room.send_message'
+  | 'killio.room.react';
 
 export interface ScriptNodeData {
   id: string;

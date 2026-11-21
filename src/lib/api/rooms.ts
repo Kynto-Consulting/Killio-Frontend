@@ -1,3 +1,5 @@
+import { normalizeComposerCommands } from '@/lib/bots/model';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
 export type RoomType = 'channel' | 'thread' | 'dm';
@@ -824,10 +826,20 @@ export interface BotCommand {
 }
 
 /**
- * Slash commands the team bots registered (agent F). Read from `GET /teams/:teamId/bots`, each bot with a `commands`
- * list `{ name, description, usage }`. Missing endpoint or empty answer: no commands, only the built-in ones show.
+ * Slash commands the team bots registered. Read from `GET /teams/:teamId/bots/commands`, or (backup) from `GET /teams/:teamId/bots`,
+ * each bot with a `commands` list `{ name, description, usage }`. Missing endpoint or empty answer: no commands, only the built-in ones show.
  */
 export async function listBotCommands(teamId: string, accessToken: string): Promise<BotCommand[]> {
+  // Preferred: the flat `GET /teams/:id/bots/commands` (active bots only, readable by any member). The list below is the backup.
+  try {
+    const flat = await fetch(`${API_BASE_URL}/teams/${teamId}/bots/commands`, { headers: authHeader(accessToken) });
+    if (flat.ok) {
+      const rows = normalizeComposerCommands(await flat.json());
+      return rows.map((c) => ({ botId: c.botId, botName: c.botName, botAvatarUrl: c.botAvatarUrl, name: c.name, description: c.description, usage: c.usage }));
+    }
+  } catch {
+    // fall through to the bot list
+  }
   try {
     const res = await fetch(`${API_BASE_URL}/teams/${teamId}/bots`, { headers: authHeader(accessToken) });
     if (!res.ok) return [];

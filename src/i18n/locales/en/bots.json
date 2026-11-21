@@ -1,0 +1,167 @@
+{
+  "tabLabel": "Bots",
+  "title": "Workspace bots",
+  "subtitle": "Automatic users that answer in rooms through a script. They have no password or token.",
+  "create": "Create bot",
+  "loading": "Loading…",
+  "loadError": "Could not load the bots.",
+  "limitReached": "Limit of {{max}} bots per workspace reached.",
+  "noCommands": "No commands",
+  "pickOne": "Pick a bot to edit it.",
+  "noAccess": {
+    "title": "You cannot manage bots",
+    "body": "The \"Manage bots\" permission (bots.manage) is required. Ask whoever administers the workspace."
+  },
+  "empty": {
+    "title": "No bots yet",
+    "body": "Create one, or open the help to generate an example bot that answers /hola."
+  },
+  "quota": {
+    "exhausted": "Monthly script quota used up: bots will not answer until the next cycle.",
+    "unlimited": "Script runs this month: {{used}} (no limit).",
+    "used": "Script runs this month: {{used}} of {{limit}}. Every bot reply counts."
+  },
+  "help": {
+    "toggle": "How to create a bot",
+    "title": "How to create a bot with a script",
+    "step1": "Create the bot (name, avatar and description).",
+    "step2": "In the Script tab, create the script from the template or bind one that has the \"Room message\" trigger.",
+    "step3": "In the script, the trigger filters which messages start it (for example the /hola prefix) and the \"Send message\" node answers in the room.",
+    "step4": "In the Commands tab, register /hola so it shows in the composer autocomplete.",
+    "step5": "In the Rooms tab, choose where the bot can view, post and react.",
+    "limits": "A bot only reacts to other bots if you turn that on, and bot chains stop at depth {{depth}}.",
+    "exampleTitle": "Template: answer {{command}}",
+    "exampleScript": "Trigger: Room message\n  command prefix = /hola\n        |\n        v\nAction: Send message (as bot)\n  text = Hello, {authorName}!\n  (room = the one that fired the script)"
+  },
+  "example": {
+    "button": "Create example bot (/hola)",
+    "creating": "Creating…",
+    "created": "Example bot created. Try it by typing /hola in a room.",
+    "botName": "Hello",
+    "botDescription": "Example bot: greets whoever types /hola.",
+    "scriptName": "Bot {{name}}",
+    "scriptDescription": "Answers /hola in the room where it is typed.",
+    "reply": "Hello, {authorName}!",
+    "commandDescription": "Greets whoever types it",
+    "failedAt": {
+      "bot": "Could not create the bot.",
+      "script": "The bot was created, but its script could not be created.",
+      "bind": "The script was created, but it could not be bound to the bot (scripts.manage is required).",
+      "commands": "The bot works, but the command could not be registered."
+    }
+  },
+  "status": {
+    "active": "Active",
+    "paused": "Paused",
+    "script_missing": "No script",
+    "script_inactive": "Script paused"
+  },
+  "toast": {
+    "error": "The action could not be completed.",
+    "created": "Bot created.",
+    "saved": "Changes saved.",
+    "deleted": "Bot deleted.",
+    "activated": "Bot activated.",
+    "paused": "Bot paused."
+  },
+  "common": {
+    "cancel": "Cancel",
+    "saving": "Saving…",
+    "save": "Save"
+  },
+  "form": {
+    "name": "Name",
+    "namePlaceholder": "Help, Reminders…",
+    "avatarUrl": "Avatar URL (https)",
+    "avatarHelp": "Without an image the initial is shown on a colour of its own.",
+    "description": "Description",
+    "descriptionPlaceholder": "What this bot does",
+    "errors": {
+      "name_required": "The name is required.",
+      "name_long": "The name can have up to 80 characters.",
+      "description_long": "The description can have up to 500 characters.",
+      "avatar_invalid": "The avatar must be an https URL."
+    }
+  },
+  "tabs": {
+    "label": "Bot sections",
+    "general": "General",
+    "commands": "Commands",
+    "script": "Script",
+    "rooms": "Rooms"
+  },
+  "detail": {
+    "hint": "A bot only answers while both it and its script are active."
+  },
+  "general": {
+    "active": "Bot active",
+    "activeHint": "Pausing it removes it from autocomplete and stops its replies.",
+    "roles": "Bot roles",
+    "rolesHint": "Its base permissions come from these roles; it cannot have more than you.",
+    "allowBots": "React to messages from other bots",
+    "allowBotsHint": "Off: only people trigger it. Chains stop at depth {{depth}}."
+  },
+  "delete": {
+    "button": "Delete bot",
+    "title": "Delete bot",
+    "description": "The bot is removed and stops answering. Its earlier messages are kept with its name and avatar."
+  },
+  "commands": {
+    "intro": "/name commands shown in the composer autocomplete. Registering them does not run them: the bot's script does.",
+    "noScript": "This bot has no script: the commands will show but nobody will answer.",
+    "empty": "No commands registered",
+    "name": "Command name",
+    "description": "Description",
+    "usage": "Usage",
+    "namePlaceholder": "hola",
+    "descriptionPlaceholder": "What the command does",
+    "usagePlaceholder": "Usage, e.g. /hola [name]",
+    "remove": "Remove command",
+    "add": "Add command",
+    "saved": "Commands saved.",
+    "scriptNote": "The backend binds a single script to each bot: that script handles every command and decides what to do from the message prefix.",
+    "errors": {
+      "invalid": "Use 1 to 32 lower-case letters, digits, \"-\" or \"_\".",
+      "duplicate": "Duplicate command.",
+      "limit": "At most 50 commands per bot."
+    }
+  },
+  "script": {
+    "noPermission": "You need the permission to manage scripts",
+    "noPermissionBody": "Binding or creating a bot's script requires scripts.manage in addition to bots.manage.",
+    "intro": "The script runs as the bot. It only accepts data, room, HTTP, JS and AI nodes, with exactly one \"Room message\" trigger.",
+    "unknown": "Bound script",
+    "trigger": "Trigger",
+    "lastRun": "last run: {{status}}",
+    "active": "Script active",
+    "activated": "Script activated.",
+    "paused": "Script paused.",
+    "open": "Open in the script editor",
+    "unbind": "Unbind",
+    "unbound": "Script unbound.",
+    "editorNote": "The editor has no dedicated room nodes yet: they show with the generic look and are saved as they are.",
+    "none": "This bot has no script",
+    "noneBody": "Create one from the template (answers /hola) or bind an existing script with a room message trigger.",
+    "fromTemplate": "Create script from the template",
+    "pick": "Pick an existing script",
+    "bind": "Bind",
+    "bound": "Script bound.",
+    "created": "Script created, bound and activated."
+  },
+  "rooms": {
+    "intro": "Per room: ✓ allows, – inherits and ✗ denies. \"Inherit\" uses what the bot's roles and the category give.",
+    "room": "Room",
+    "keys": {
+      "room": {
+        "view": "View",
+        "post": "Post",
+        "react": "React"
+      }
+    },
+    "saved": "Bot permissions saved in {{room}}.",
+    "loadError": "Could not load the rooms.",
+    "empty": "There are no text rooms in this workspace.",
+    "noAccess": "cannot read its permissions",
+    "inheritNote": "Changes are saved per room and require being able to manage that room."
+  }
+}
