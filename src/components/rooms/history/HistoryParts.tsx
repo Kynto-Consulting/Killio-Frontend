@@ -34,7 +34,7 @@ export interface RoomHistoryView {
   onJumpToUnread: () => void;
 }
 
-const btn = "rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+const btn = "rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none";
 
 function sinceLabel(iso: string | null): string | null {
   if (!iso) return null;
@@ -112,7 +112,7 @@ export function JumpToLatestButton({ count, busy, onClick, t }: { count: number;
       onClick={onClick}
       disabled={busy}
       aria-label={label}
-      className="absolute bottom-3 right-4 z-10 inline-flex items-center gap-1.5 rounded-full border-2 border-[var(--memphis-line)] bg-card px-3 py-1.5 text-xs font-bold shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-60 motion-reduce:transition-none"
+      className="absolute bottom-3 right-4 z-10 inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-3 py-1.5 text-xs font-bold shadow-md transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-60 motion-reduce:transition-none"
     >
       {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none" aria-hidden /> : count > 0 ? <ChevronsDown className="h-3.5 w-3.5 text-rose-600 dark:text-rose-400" aria-hidden /> : <ArrowDown className="h-3.5 w-3.5" aria-hidden />}
       <span>{label}</span>

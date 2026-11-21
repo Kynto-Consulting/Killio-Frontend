@@ -147,7 +147,7 @@ export interface ThreadPaging {
 }
 
 function ThreadEdge({ edge, loading, error, onLoad, t }: { edge: "before" | "after"; loading: boolean; error: boolean; onLoad: () => void; t: TFn }) {
-  const cls = "rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]";
+  const cls = "rounded-md px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
   if (loading) {
     return (
       <div role="status" className="flex items-center justify-center gap-2 py-1.5 text-[11px] text-muted-foreground">
@@ -246,7 +246,7 @@ export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, on
             {paging?.error && (
               <div role="alert" className="mx-2 my-2 flex items-center justify-between gap-2 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
                 <span>{t("thread.loadFailed")}</span>
-                <button type="button" onClick={paging.onRetry} className="rounded-md border border-destructive/40 px-2 py-0.5 font-semibold hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>
+                <button type="button" onClick={paging.onRetry} className="rounded-md border border-destructive/40 px-2 py-0.5 font-semibold hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("errors.retry")}</button>
               </div>
             )}
             {paging?.hasBefore && (

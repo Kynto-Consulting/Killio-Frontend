@@ -44,7 +44,7 @@ function writeRecent(list: string[]) {
   }
 }
 
-const seg = "px-2.5 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+const seg = "px-2.5 py-1 text-[11px] font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 motion-reduce:transition-none";
 
 /**
  * Advanced search of the rooms: operators as chips with suggestions, room / whole team scope, order, paged results and
@@ -220,30 +220,30 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
   };
 
   return (
-    <section role="search" aria-label={t("search.title")} className="absolute inset-x-1 top-1 z-30 flex max-h-[min(36rem,calc(100vh-8rem))] flex-col overflow-hidden rounded-2xl border-2 border-[var(--memphis-line)] bg-card text-card-foreground shadow-xl md:inset-x-auto md:right-2 md:w-[32rem]">
+    <section role="search" aria-label={t("search.title")} className="absolute inset-x-1 top-1 z-30 flex max-h-[min(36rem,calc(100vh-8rem))] flex-col overflow-hidden rounded-2xl border border-border bg-card text-card-foreground shadow-xl md:inset-x-auto md:right-2 md:w-[32rem]">
       <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-2.5 py-2">
         <div role="group" aria-label={t("search.scopeLabel")} className="inline-flex overflow-hidden rounded-lg border border-border">
-          <button type="button" aria-pressed={scope === "room"} onClick={() => setScope("room")} className={`${seg} ${scope === "room" ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))]" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <button type="button" aria-pressed={scope === "room"} onClick={() => setScope("room")} className={`${seg} ${scope === "room" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
             <span className="inline-block max-w-[9rem] truncate align-bottom" title={roomName}>{t("search.scopeRoom")}</span>
           </button>
-          <button type="button" aria-pressed={scope === "team"} onClick={() => setScope("team")} disabled={!teamId} className={`${seg} border-l border-border disabled:opacity-50 ${scope === "team" ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))]" : "bg-background text-muted-foreground hover:bg-muted"}`}>
+          <button type="button" aria-pressed={scope === "team"} onClick={() => setScope("team")} disabled={!teamId} className={`${seg} border-l border-border disabled:opacity-50 ${scope === "team" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}>
             {t("search.scopeTeam")}
           </button>
         </div>
         <label className="ml-auto flex items-center gap-1 text-[11px] text-muted-foreground">
           <span className="sr-only sm:not-sr-only">{t("search.sortLabel")}</span>
-          <select value={sort} onChange={(e) => setSort(e.target.value as SearchSort)} className="rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+          <select value={sort} onChange={(e) => setSort(e.target.value as SearchSort)} className="rounded-md border border-border bg-background px-1.5 py-1 text-[11px] font-semibold text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
             <option value="relevance">{t("search.sortRelevance")}</option>
             <option value="recent">{t("search.sortRecent")}</option>
           </select>
         </label>
-        <button type="button" onClick={onClose} aria-label={t("search.close")} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+        <button type="button" onClick={onClose} aria-label={t("search.close")} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
           <X className="h-4 w-4" aria-hidden />
         </button>
       </div>
 
       <div className="relative shrink-0 border-b border-border px-2.5 py-2">
-        <div className="flex min-h-[2.25rem] flex-wrap items-center gap-1 rounded-xl border border-border bg-background px-2 py-1 focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))]">
+        <div className="flex min-h-[2.25rem] flex-wrap items-center gap-1 rounded-xl border border-border bg-background px-2 py-1 focus-within:ring-2 focus-within:ring-primary/40">
           <SearchIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
           {statuses.map(({ chip, problem }, i) => {
             const why = problemText(problem, chip);
@@ -251,21 +251,21 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
             return (
               <span
                 key={`${chipLabel(chip)}-${i}`}
-                className={`inline-flex items-center overflow-hidden rounded-md border text-[11px] font-mono ${problem ? "border-amber-500/70 bg-amber-100 text-amber-950 dark:bg-amber-500/15 dark:text-amber-100" : chip.negated ? "border-rose-500/50 bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-100" : "border-[hsl(var(--accent-ink))]/40 bg-[hsl(var(--accent-ink))]/10 text-foreground"}`}
+                className={`inline-flex items-center overflow-hidden rounded-md border text-[11px] font-mono ${problem ? "border-amber-500/70 bg-amber-100 text-amber-950 dark:bg-amber-500/15 dark:text-amber-100" : chip.negated ? "border-rose-500/50 bg-rose-50 text-rose-900 dark:bg-rose-500/10 dark:text-rose-100" : "border-primary/40 bg-primary/10 text-foreground"}`}
               >
                 <button
                   type="button"
                   disabled={!negatable}
                   onClick={() => setChips((c) => toggleNegation({ text: "", chips: c }, i).chips)}
                   title={negatable ? t("search.toggleExclude") : undefined}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--accent-ink))] enabled:hover:bg-black/5 dark:enabled:hover:bg-white/10"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 enabled:hover:bg-black/5 dark:enabled:hover:bg-white/10"
                 >
                   {problem && <AlertTriangle className="h-3 w-3 shrink-0" aria-hidden />}
                   <span>{chipLabel(chip)}</span>
                   {chip.negated && <span className="sr-only">{t("search.excluded")}</span>}
                   {why && <span className="sr-only">{why}</span>}
                 </button>
-                <button type="button" onClick={() => setChips((c) => removeChip({ text: "", chips: c }, i).chips)} aria-label={t("search.removeFilter", { filter: chipLabel(chip) })} className="px-1 py-0.5 hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--accent-ink))] dark:hover:bg-white/10">
+                <button type="button" onClick={() => setChips((c) => removeChip({ text: "", chips: c }, i).chips)} aria-label={t("search.removeFilter", { filter: chipLabel(chip) })} className="px-1 py-0.5 hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/40 dark:hover:bg-white/10">
                   <X className="h-3 w-3" aria-hidden />
                 </button>
               </span>
@@ -307,7 +307,7 @@ export function RoomSearchPanel({ roomId, roomName, teamId, accessToken, members
                   aria-selected={i === active}
                   onMouseDown={(e) => { e.preventDefault(); accept(s); }}
                   onMouseEnter={() => setActive(i)}
-                  className={`flex cursor-pointer items-baseline gap-2 rounded-lg px-2 py-1.5 text-xs ${i === active ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))]" : "hover:bg-muted"}`}
+                  className={`flex cursor-pointer items-baseline gap-2 rounded-lg px-2 py-1.5 text-xs ${i === active ? "bg-primary text-primary-foreground" : "hover:bg-muted"}`}
                 >
                   <span className="font-mono font-semibold">{l.main}</span>
                   {l.hint && <span className={`min-w-0 flex-1 truncate ${i === active ? "opacity-90" : "text-muted-foreground"}`}>{l.hint}</span>}

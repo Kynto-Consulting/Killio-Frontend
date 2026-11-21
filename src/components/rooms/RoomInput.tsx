@@ -282,7 +282,7 @@ export function RoomInput({
       {uploadError && <p role="alert" className="mb-2 px-1 text-xs text-destructive">{uploadError}</p>}
 
       {argProblem && (
-        <div role="alert" className="mb-2 rounded-xl border-2 border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+        <div role="alert" className="mb-2 rounded-xl border border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-foreground">
           <p className="font-bold text-destructive">{t("composer.args.invalid", { command: argProblem.command })}</p>
           <ul className="mt-1 list-disc space-y-0.5 pl-4">
             {argProblem.errors.map((e, i) => (
@@ -357,7 +357,7 @@ export function RoomInput({
             </ul>
           )}
           {argOpen && analysis && (
-            <div className="absolute bottom-full left-0 z-40 mb-2 w-full max-w-sm overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+            <div className="absolute bottom-full left-0 z-40 mb-2 w-full max-w-sm overflow-hidden rounded-xl border border-border bg-popover shadow-lg">
               <p className="border-b border-border px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
                 {analysis.usage}
                 {analysis.expecting && (

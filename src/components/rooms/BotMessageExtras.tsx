@@ -59,7 +59,7 @@ export function BotReplyRef({ messageId, name, excerpt }: { messageId: string; n
         setTimeout(() => el?.classList.remove("animate-pulse-accent"), 2000);
       }}
       aria-label={t("bot.replyTo.goTo", { name: name ?? t("bot.replyTo.unknown") })}
-      className="mb-1 block max-w-[280px] overflow-hidden rounded-lg border-l-4 border-[var(--memphis-line)] bg-black/5 p-2 text-left text-[11px] opacity-80 transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] dark:bg-white/5 dark:hover:bg-white/10 motion-reduce:transition-none"
+      className="mb-1 block max-w-[280px] overflow-hidden rounded-lg border-l-4 border-border bg-black/5 p-2 text-left text-[11px] opacity-80 transition-colors hover:bg-black/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 dark:bg-white/5 dark:hover:bg-white/10 motion-reduce:transition-none"
     >
       <span className="mb-0.5 block truncate text-[10px] font-bold text-foreground">{name ?? t("bot.replyTo.unknown")}</span>
       <span className="line-clamp-1 italic text-muted-foreground">{excerpt}</span>
@@ -77,7 +77,7 @@ export function EphemeralList({ items, onDismiss }: { items: readonly EphemeralM
   return (
     <ul className="mt-2 space-y-2" aria-label={t("bot.ephemeral.listLabel")}>
       {items.map((e) => (
-        <li key={e.id} data-testid="ephemeral-message" className="group relative flex gap-2.5 rounded-lg border-2 border-dashed border-[var(--memphis-line)] bg-muted/30 px-2.5 py-2">
+        <li key={e.id} data-testid="ephemeral-message" className="group relative flex gap-2.5 rounded-lg border border-dashed border-border bg-muted/30 px-2.5 py-2">
           <span className="mt-0.5 h-7 w-7 shrink-0 overflow-hidden rounded-full border border-border bg-muted/50">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={getUserAvatarUrl(e.botAvatarUrl, `${e.botName}@bot.killio.local`, 28)} alt="" className="h-full w-full object-cover" />
@@ -102,7 +102,7 @@ export function EphemeralList({ items, onDismiss }: { items: readonly EphemeralM
             onClick={() => onDismiss(e.id)}
             aria-label={t("bot.ephemeral.dismiss")}
             title={t("bot.ephemeral.dismiss")}
-            className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+            className="absolute right-1.5 top-1.5 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           >
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>

@@ -58,7 +58,7 @@ export function OptionsEditor({ value, onChange, issues, commandName }: Props) {
 function OptionList({ list, at, root, onChange, issues, depth }: { list: readonly CommandOption[]; at: number[]; root: CommandOption[]; onChange: (next: CommandOption[]) => void; issues: readonly OptionIssue[]; depth: 0 | 1 | 2 }) {
   if (list.length === 0) return null;
   return (
-    <ol className={cx("space-y-2", depth > 0 && "border-l-2 border-[var(--memphis-line)] pl-2")}>
+    <ol className={cx("space-y-2", depth > 0 && "border-l-2 border-border pl-2")}>
       {list.map((opt, i) => (
         <OptionRow key={i} opt={opt} at={[...at, i]} index={i} count={list.length} root={root} onChange={onChange} issues={issues} depth={depth} />
       ))}
@@ -211,7 +211,7 @@ export function CommandPreview({ name, options, description, botName }: { name: 
               <Slash className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
               <span className="font-semibold">{line.path.slice(1)}</span>
               {line.args.map((a) => (
-                <span key={a.name} className={cx("rounded px-1 font-mono text-[11px]", a.required ? "bg-[hsl(var(--accent-ink))]/15 text-foreground" : "bg-muted text-muted-foreground")}>
+                <span key={a.name} className={cx("rounded px-1 font-mono text-[11px]", a.required ? "bg-primary/15 text-foreground" : "bg-muted text-muted-foreground")}>
                   {a.required ? `<${a.name}>` : `[${a.name}]`}
                 </span>
               ))}

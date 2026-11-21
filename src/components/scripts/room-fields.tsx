@@ -257,7 +257,7 @@ export function EmojiField({ id, value, onChange, placeholder, ariaDescribedBy }
       <input id={id} type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} aria-describedby={ariaDescribedBy} className={fieldCls} />
       <div className="mt-1 flex flex-wrap gap-1" role="group" aria-label={t("canvas.room.emoji.quick")}>
         {QUICK_EMOJI.map((e) => (
-          <button key={e} type="button" onClick={() => onChange(e)} aria-pressed={value === e} aria-label={e} className={cx("h-7 w-7 rounded-md border text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value === e ? "border-[var(--memphis-line)] bg-muted" : "border-border bg-background hover:bg-muted")}>{e}</button>
+          <button key={e} type="button" onClick={() => onChange(e)} aria-pressed={value === e} aria-label={e} className={cx("h-7 w-7 rounded-md border text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", value === e ? "border-primary bg-primary/5 ring-1 ring-primary/30" : "border-border bg-background hover:bg-muted")}>{e}</button>
         ))}
       </div>
     </div>
@@ -281,7 +281,7 @@ export function WeekdaysField({ value, onChange, legend }: { value: number[] | u
       <legend className="sr-only">{legend}</legend>
       <div className="flex flex-wrap gap-1">
         {days.map((d) => (
-          <button key={d} type="button" aria-pressed={selected.has(d)} onClick={() => toggle(d)} className={cx("h-7 min-w-[2.25rem] rounded-md border px-1.5 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", selected.has(d) ? "border-[var(--memphis-line)] bg-muted text-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted")}>
+          <button key={d} type="button" aria-pressed={selected.has(d)} onClick={() => toggle(d)} className={cx("h-7 min-w-[2.25rem] rounded-md border px-1.5 text-[11px] font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", selected.has(d) ? "border-primary bg-primary/5 ring-1 ring-primary/30 text-foreground" : "border-border bg-background text-muted-foreground hover:bg-muted")}>
             {t(`canvas.room.weekdays.${d}`)}
           </button>
         ))}

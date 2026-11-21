@@ -1115,7 +1115,7 @@ Team Context: ${activeTeamId}.`;
                   {jumpNotice && (
                     <div role="alert" className="flex shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/5 px-3 py-1.5 text-xs text-destructive">
                       <span className="flex-1">{t(`history.jump.${jumpNotice}`)}</span>
-                      <button type="button" onClick={() => setJumpNotice(null)} aria-label={t("members.close")} className="rounded-md p-0.5 hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"><X className="h-3.5 w-3.5" aria-hidden /></button>
+                      <button type="button" onClick={() => setJumpNotice(null)} aria-label={t("members.close")} className="rounded-md p-0.5 hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"><X className="h-3.5 w-3.5" aria-hidden /></button>
                     </div>
                   )}
 

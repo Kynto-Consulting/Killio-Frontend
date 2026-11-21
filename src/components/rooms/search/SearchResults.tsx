@@ -8,7 +8,7 @@ import type { SearchFailure } from "@/hooks/use-room-search";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
-const ghost = "rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+const ghost = "rounded-md px-2 py-1 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none";
 
 /** The snippet as React text nodes: the matches in <mark>, everything else untouched text (never HTML). */
 export function Snippet({ text }: { text: string }) {
@@ -43,7 +43,7 @@ function ResultItem({ r, showRoom, onOpen, t }: { r: SearchResult; showRoom: boo
         data-result
         onClick={() => onOpen(r)}
         title={plainSnippet(r.snippet)}
-        className="group flex w-full flex-col gap-0.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-muted/70 focus-visible:border-[hsl(var(--accent-ink))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+        className="group flex w-full flex-col gap-0.5 rounded-xl border border-transparent px-2.5 py-2 text-left transition-colors hover:border-border hover:bg-muted/70 focus-visible:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
       >
         <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
           {showRoom && (
@@ -55,7 +55,7 @@ function ResultItem({ r, showRoom, onOpen, t }: { r: SearchResult; showRoom: boo
           <span className="inline-flex min-w-0 items-center gap-1 font-medium text-foreground/80">
             <span className="truncate">{author}</span>
             {r.author?.isBot && (
-              <span className="inline-flex items-center gap-0.5 rounded bg-[hsl(var(--accent-ink))] px-1 text-[9px] font-bold uppercase text-[hsl(var(--accent-ink-fg))]"><Bot className="h-2.5 w-2.5" aria-hidden />{t("search.bot")}</span>
+              <span className="inline-flex items-center gap-0.5 rounded bg-primary px-1 text-[9px] font-bold uppercase text-primary-foreground"><Bot className="h-2.5 w-2.5" aria-hidden />{t("search.bot")}</span>
             )}
           </span>
           {when && <time dateTime={r.createdAt} className="inline-flex items-center gap-0.5"><Clock className="h-3 w-3" aria-hidden />{when}</time>}
@@ -126,11 +126,11 @@ export function SearchResults(p: SearchResultsProps) {
             <ul className="space-y-0.5">
               {p.recent.map((q) => (
                 <li key={q} className="flex items-center gap-1">
-                  <button type="button" onClick={() => p.onPickRecent(q)} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                  <button type="button" onClick={() => p.onPickRecent(q)} className="flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                     <Clock className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
                     <span className="truncate font-mono">{q}</span>
                   </button>
-                  <button type="button" onClick={() => p.onRemoveRecent(q)} aria-label={t("search.recent.remove", { query: q })} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                  <button type="button" onClick={() => p.onRemoveRecent(q)} aria-label={t("search.recent.remove", { query: q })} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                     <X className="h-3.5 w-3.5" aria-hidden />
                   </button>
                 </li>

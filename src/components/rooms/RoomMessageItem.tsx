@@ -528,7 +528,7 @@ export function RoomMessageItem({
                 {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </time>
               {message.pinnedAt && <PinBadge message={message} t={t} />}
-              {bookmarked && <span title={t("msg.bookmarked")} className="inline-flex items-center self-center text-[hsl(var(--accent-ink))]"><BookmarkCheck className="h-3 w-3" aria-hidden /><span className="sr-only">{t("msg.bookmarked")}</span></span>}
+              {bookmarked && <span title={t("msg.bookmarked")} className="inline-flex items-center self-center text-primary"><BookmarkCheck className="h-3 w-3" aria-hidden /><span className="sr-only">{t("msg.bookmarked")}</span></span>}
             </div>
           )}
 
@@ -1094,7 +1094,7 @@ export function RoomMessageItem({
                     title={bookmarked ? t("msg.unbookmark") : t("msg.bookmark")}
                     className={toolButton}
                   >
-                    {bookmarked ? <BookmarkCheck className="h-3.5 w-3.5 text-[hsl(var(--accent-ink))]" aria-hidden /> : <Bookmark className="h-3.5 w-3.5" aria-hidden />}
+                    {bookmarked ? <BookmarkCheck className="h-3.5 w-3.5 text-primary" aria-hidden /> : <Bookmark className="h-3.5 w-3.5" aria-hidden />}
                   </button>
                 )}
                 <button type="button" onClick={() => setIsInfoOpen(true)} aria-label={t("msg.info")} title={t("msg.info")} className={toolButton}>

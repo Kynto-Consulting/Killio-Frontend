@@ -25,7 +25,7 @@ const str = (v: unknown) => (typeof v === "string" ? v : typeof v === "number" ?
 function ExternalLinkText({ href, children, className }: { href: string; children: React.ReactNode; className?: string }) {
   const t = useTranslations("rooms");
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className={cx("inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]", className)}>
+    <a href={href} target="_blank" rel="noopener noreferrer nofollow" className={cx("inline-flex items-center gap-1 underline underline-offset-2 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40", className)}>
       {children}
       <ExternalLink className="h-3 w-3 shrink-0" aria-hidden />
       <span className="sr-only">{t("bot.blocks.opensNewTab")}</span>
@@ -101,7 +101,7 @@ function Block({ block }: { block: RichBlock }) {
       if (!url) return null;
       return (
         <div className="max-w-md rounded-lg border border-border bg-muted/30 px-3 py-2">
-          <ExternalLinkText href={url} className="text-sm font-bold text-[hsl(var(--accent-ink))]">{str(block.title) || url}</ExternalLinkText>
+          <ExternalLinkText href={url} className="text-sm font-bold text-primary">{str(block.title) || url}</ExternalLinkText>
           {str(block.description) && <p className="mt-0.5 break-words text-xs text-muted-foreground">{str(block.description)}</p>}
         </div>
       );
@@ -114,7 +114,7 @@ function Block({ block }: { block: RichBlock }) {
         </figure>
       );
     case "quote":
-      return <blockquote className="whitespace-pre-wrap break-words border-l-4 border-[var(--memphis-line)] pl-3 text-sm italic text-muted-foreground">{str(block.text)}</blockquote>;
+      return <blockquote className="whitespace-pre-wrap break-words border-l-4 border-border pl-3 text-sm italic text-muted-foreground">{str(block.text)}</blockquote>;
     case "divider":
       return <hr className="border-border" />;
     case "embed": {
@@ -125,10 +125,10 @@ function Block({ block }: { block: RichBlock }) {
       const fields: Array<{ name: string; value: string; inline: boolean }> = (Array.isArray(block.fields) ? block.fields : []).map((f: any) => ({ name: str(f?.name), value: str(f?.value), inline: f?.inline === true }));
       const stamp = str(block.timestamp) ? new Date(str(block.timestamp)) : null;
       return (
-        <section aria-label={str(block.title) || t("bot.blocks.card")} className="max-w-md overflow-hidden rounded-lg border border-border border-l-4 bg-muted/30 p-3" style={{ borderLeftColor: color ?? "var(--memphis-line)" }}>
+        <section aria-label={str(block.title) || t("bot.blocks.card")} className="max-w-md overflow-hidden rounded-lg border border-border border-l-4 bg-muted/30 p-3" style={{ borderLeftColor: color ?? "hsl(var(--border))" }}>
           <div className="flex items-start gap-3">
             <div className="min-w-0 flex-1 space-y-1">
-              {str(block.title) && (url ? <ExternalLinkText href={url} className="text-sm font-extrabold text-[hsl(var(--accent-ink))]">{str(block.title)}</ExternalLinkText> : <p className="break-words text-sm font-extrabold">{str(block.title)}</p>)}
+              {str(block.title) && (url ? <ExternalLinkText href={url} className="text-sm font-extrabold text-primary">{str(block.title)}</ExternalLinkText> : <p className="break-words text-sm font-extrabold">{str(block.title)}</p>)}
               {str(block.description) && <p className="whitespace-pre-wrap break-words text-xs">{str(block.description)}</p>}
               {fields.length > 0 && (
                 <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 pt-1">
@@ -177,13 +177,13 @@ export function RichBlocks({ blocks, className }: { blocks: readonly RichBlock[]
 /* ───────────── interactive components ───────────── */
 
 const BUTTON_TONE: Record<ButtonComponent["style"], string> = {
-  primary: "border-transparent bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))] hover:opacity-90",
+  primary: "border-transparent bg-primary text-primary-foreground hover:opacity-90",
   secondary: "border-border bg-muted text-foreground hover:bg-muted/70",
   success: "border-transparent bg-emerald-700 text-white hover:bg-emerald-800",
   danger: "border-transparent bg-rose-700 text-white hover:bg-rose-800",
   link: "border-border bg-card text-foreground hover:bg-muted",
 };
-const BUTTON_BASE = "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 motion-reduce:transition-none";
+const BUTTON_BASE = "inline-flex min-h-8 max-w-full items-center gap-1.5 rounded-md border px-3 py-1 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50 aria-disabled:cursor-not-allowed aria-disabled:opacity-60 motion-reduce:transition-none";
 
 export type InteractFn = (customId: string, values?: string[]) => Promise<unknown>;
 
@@ -303,7 +303,7 @@ function SelectView({ s, id, locked, busy, loading, preview, onSend }: { s: Sele
   const [chosen, setChosen] = useState<string[]>(initial);
   const disabled = Boolean(s.disabled) || (!preview && (locked || busy));
   const placeholder = s.placeholder || t("bot.components.selectPlaceholder");
-  const fieldCls = "h-8 max-w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:cursor-not-allowed disabled:opacity-50";
+  const fieldCls = "h-8 max-w-full rounded-md border border-border bg-background px-2 text-xs text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-not-allowed disabled:opacity-50";
 
   if (!multiple) {
     return (

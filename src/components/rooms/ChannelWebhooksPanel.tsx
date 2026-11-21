@@ -139,7 +139,7 @@ export function ChannelWebhooksPanel({ roomId, accessToken }: { roomId: string; 
 
   return (
     <div className="space-y-4" data-testid="webhooks-panel">
-      <div role="note" className="flex gap-2 rounded-xl border-2 border-amber-500/60 bg-amber-500/10 p-3 text-xs text-foreground">
+      <div role="note" className="flex gap-2 rounded-xl border border-amber-500/60 bg-amber-500/10 p-3 text-xs text-foreground">
         <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" aria-hidden />
         <div className="space-y-1">
           <p className="font-bold">{t("webhooks.security.title")}</p>
@@ -153,7 +153,7 @@ export function ChannelWebhooksPanel({ roomId, accessToken }: { roomId: string; 
       </div>
 
       {secret && (
-        <section aria-label={t("webhooks.reveal.title")} className="space-y-2 rounded-xl border-2 border-[var(--memphis-line)] bg-muted/40 p-3">
+        <section aria-label={t("webhooks.reveal.title")} className="space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <p className="flex items-center gap-1.5 text-xs font-bold"><KeyRound className="h-4 w-4" aria-hidden />{t("webhooks.reveal.title", { name: secret.webhook.name })}</p>
           <p className="text-[11px] text-muted-foreground">{t("webhooks.reveal.body")}</p>
           {secret.oldStillActive && <p role="alert" className="rounded-lg border border-amber-500/60 bg-amber-500/10 px-2 py-1.5 text-[11px] text-foreground">{t("webhooks.reveal.oldStillActive")}</p>}
@@ -177,7 +177,7 @@ export function ChannelWebhooksPanel({ roomId, accessToken }: { roomId: string; 
         </section>
       )}
 
-      <form onSubmit={create} className="space-y-2 rounded-xl border-2 border-[var(--memphis-line)] p-3" aria-label={t("webhooks.new.title")} noValidate>
+      <form onSubmit={create} className="space-y-2 rounded-xl border border-border p-3" aria-label={t("webhooks.new.title")} noValidate>
         <p className="text-xs font-bold">{t("webhooks.new.title")}</p>
         <div className="grid gap-2 sm:grid-cols-2">
           <div>
@@ -224,7 +224,7 @@ export function ChannelWebhooksPanel({ roomId, accessToken }: { roomId: string; 
             const asking = confirm?.id === w.id ? confirm.kind : null;
             const working = busy === w.id;
             return (
-              <li key={w.id} className="rounded-xl border-2 border-border p-2.5">
+              <li key={w.id} className="rounded-xl border border-border p-2.5">
                 <div className="flex items-center gap-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={getUserAvatarUrl(w.avatarUrl ?? undefined, `${w.id}@webhook.killio.local`, 28)} alt="" referrerPolicy="no-referrer" className="h-7 w-7 shrink-0 rounded-full border border-border object-cover" />
@@ -248,7 +248,7 @@ export function ChannelWebhooksPanel({ roomId, accessToken }: { roomId: string; 
                   )}
                 </div>
                 {asking && (
-                  <div role="alertdialog" aria-label={t(`webhooks.confirm.${asking}Title`, { name: w.name })} className="mt-2 rounded-lg border-2 border-[var(--memphis-line)] bg-muted/50 p-2.5 text-xs">
+                  <div role="alertdialog" aria-label={t(`webhooks.confirm.${asking}Title`, { name: w.name })} className="mt-2 rounded-lg border border-border bg-muted/50 p-2.5 text-xs">
                     <p className="font-semibold">{t(`webhooks.confirm.${asking}Title`, { name: w.name })}</p>
                     <p className="mt-0.5 text-[11px] text-muted-foreground">{t(`webhooks.confirm.${asking}Body`)}</p>
                     <div className="mt-2 flex justify-end gap-2">
