@@ -92,7 +92,8 @@
     "online": "{{count}} online",
     "membersCount": "Members ({{count}})",
     "callInProgress": "Call in progress",
-    "joinCall": "Join"
+    "joinCall": "Join",
+    "bookmarks": "My bookmarks"
   },
   "chat": {
     "inputPlaceholder": "Message {{roomName}}... (#AI for copilot)",
@@ -429,7 +430,8 @@
     "readReceiptsHint": "Shows who has read each message.",
     "tabs": {
       "general": "General",
-      "permissions": "Permissions"
+      "permissions": "Permissions",
+      "webhooks": "Webhooks"
     },
     "errors": {
       "forbidden": "You are not allowed to make this change.",
@@ -577,7 +579,10 @@
     "errors": {
       "failed": "The action could not be completed.",
       "forbidden": "You are not allowed to do that."
-    }
+    },
+    "bookmark": "Bookmark",
+    "unbookmark": "Remove bookmark",
+    "bookmarked": "Bookmarked"
   },
   "thread": {
     "title": "Thread",
@@ -665,6 +670,43 @@
     "builtin": {
       "poll": "Create a single-answer poll",
       "survey": "Create a multiple-answer poll"
+    },
+    "args": {
+      "invalid": "/{{command}}: check the arguments",
+      "usage": "Usage: {{usage}}",
+      "required": "required",
+      "suggestions": "Suggestions for the argument",
+      "kinds": {
+        "subcommand": "subcommand",
+        "option": "argument",
+        "choice": "value",
+        "boolean": "yes/no",
+        "user": "person",
+        "role": "role",
+        "channel": "channel"
+      },
+      "errors": {
+        "required": "is required.",
+        "unknown_option": "is not an argument of this command.",
+        "given_twice": "was given twice.",
+        "extra_argument": "unexpected extra text \"{{value}}\".",
+        "too_many": "Too many arguments.",
+        "unclosed_quote": "A quote was opened and not closed.",
+        "choose_one": "choose one of: {{list}}.",
+        "min_length": "must have at least {{min}} characters.",
+        "max_length": "must have at most {{max}} characters.",
+        "integer": "must be a whole number.",
+        "number": "must be a number.",
+        "min": "must be at least {{min}}.",
+        "max": "must be at most {{max}}.",
+        "boolean": "must be yes or no (true / false).",
+        "user": "must be a mention of a person (@name).",
+        "user_kind": "must be a person, not a role or @everyone.",
+        "role": "must be a mention of a role.",
+        "channel": "must be a channel (#[name](id)) or a room id.",
+        "attachment": "must be an https link or an attachment reference.",
+        "choice": "must be one of: {{list}}."
+      }
     }
   },
   "mention": {
@@ -804,6 +846,131 @@
       "too_many_terms": "Too many words: the first ones were used.",
       "conflicting_dates": "The before: and after: dates contradict each other.",
       "generic": "The server reported a problem with {{operator}}:{{value}}."
+    }
+  },
+  "bookmarks": {
+    "title": "My bookmarks",
+    "search": "Search bookmarks",
+    "private": "Only you see this list. {{count}} of {{max}} saved.",
+    "loading": "Loading bookmarks",
+    "errors": {
+      "forbidden": "You no longer have access to that room.",
+      "generic": "That did not work. Try again.",
+      "load": "Could not load your bookmarks."
+    },
+    "emptyTitle": "No bookmarks yet",
+    "emptyHint": "Use the bookmark button in a message's tools to save it here.",
+    "noMatches": "No bookmark matches your search.",
+    "unknownRoom": "Room",
+    "thisRoom": "this room",
+    "noText": "(message without text)",
+    "noteLabel": "Note",
+    "notePlaceholder": "Why you saved it (optional)",
+    "savedOn": "saved {{when}}",
+    "open": "Go to message",
+    "editNote": "Edit note of: {{text}}",
+    "editNoteShort": "Edit note",
+    "addNote": "Add note",
+    "removeLabel": "Remove bookmark: {{text}}",
+    "remove": "Remove"
+  },
+  "bot": {
+    "blocks": {
+      "opensNewTab": "(opens in a new tab)",
+      "done": "done",
+      "todo": "pending",
+      "card": "Card"
+    },
+    "components": {
+      "group": "Bot controls, row {{n}}",
+      "selectPlaceholder": "Choose an option",
+      "pickRange": "Choose {{min}} to {{max}}",
+      "confirm": "Confirm"
+    },
+    "interact": {
+      "sending": "Sending…",
+      "sent": "Sent",
+      "expired": "These controls have expired.",
+      "inert": "These controls cannot be used here.",
+      "errors": {
+        "forbidden": "You are not allowed to use bot controls in this room.",
+        "notFound": "That control no longer exists.",
+        "notListening": "The bot is not listening to this right now.",
+        "expired": "These controls have expired.",
+        "tooMany": "Too many presses. Wait a moment and try again.",
+        "invalid": "That choice is not valid.",
+        "generic": "The bot could not take that. Try again."
+      }
+    },
+    "ephemeral": {
+      "listLabel": "Private answers from bots",
+      "onlyYou": "Only you see this",
+      "dismiss": "Dismiss"
+    },
+    "replyTo": {
+      "goTo": "Go to the message {{name}} wrote",
+      "unknown": "Message"
+    }
+  },
+  "webhooks": {
+    "security": {
+      "title": "Handle the URL like a password",
+      "secret": "Anyone with the URL can post in this channel as the webhook, with no sign-in.",
+      "once": "The URL is shown only once, when it is created. It cannot be read again.",
+      "rotate": "If it leaks, rotate it (new URL, old one revoked) or revoke it.",
+      "limits": "Each webhook can post {{rate}} messages per minute. Bots never react to webhook messages."
+    },
+    "reveal": {
+      "title": "URL of \"{{name}}\" (shown only now)",
+      "body": "Copy it now and store it where only the system that posts can read it. If you close this, you cannot see it again.",
+      "oldStillActive": "The new webhook was created but the old one could not be revoked, so the old URL still works. Revoke it from the list below.",
+      "url": "Webhook URL",
+      "copy": "Copy",
+      "copied": "Copied",
+      "example": "Example call",
+      "payload": "Body: { \"text\": \"...\" } and/or { \"blocks\": [...] } with the same blocks as bot messages.",
+      "done": "I have copied it"
+    },
+    "new": {
+      "title": "New webhook",
+      "name": "Name (shown as the author)",
+      "namePlaceholder": "Deploys",
+      "avatar": "Avatar link (https, optional)",
+      "count": "{{count}} of {{max}} webhooks",
+      "submit": "Create webhook",
+      "errors": {
+        "name_required": "Give it a name.",
+        "name_long": "At most {{max}} characters.",
+        "avatar_invalid": "Use an https link."
+      }
+    },
+    "list": {
+      "title": "Active webhooks",
+      "loading": "Loading webhooks",
+      "emptyTitle": "No webhooks",
+      "emptyHint": "Create one to let an external system post here.",
+      "lastUsed": "last used {{when}}",
+      "neverUsed": "never used",
+      "created": "created {{when}}",
+      "urlHidden": "The URL is hidden: it was only shown at creation",
+      "rotate": "Rotate",
+      "revoke": "Revoke"
+    },
+    "confirm": {
+      "rotateTitle": "Rotate \"{{name}}\"?",
+      "rotateBody": "A new webhook with the same name is created and the current URL stops working right away.",
+      "rotateButton": "Rotate",
+      "revokeTitle": "Revoke \"{{name}}\"?",
+      "revokeBody": "Its URL stops working for good. Messages it already posted stay.",
+      "revokeButton": "Revoke",
+      "cancel": "Cancel"
+    },
+    "errors": {
+      "forbidden": "You do not have permission to manage webhooks in this channel.",
+      "forbiddenList": "You need the permission to manage webhooks in this channel to see them.",
+      "limit": "A channel can have at most {{max}} webhooks.",
+      "generic": "That did not work. Try again.",
+      "load": "Could not load the webhooks."
     }
   }
 }

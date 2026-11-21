@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 import {
   Bell, BellOff, Bot, Captions, Check, FileText, GitBranch, Hash, Layout, Megaphone, Menu, MessageSquare, MoreHorizontal, Phone, PhoneOff,
-  Pin, Search, Settings, Users, List, StickyNote,
+  Pin, Search, Settings, Users, List, StickyNote, Bookmark,
 } from "lucide-react";
 import { getUserAvatarUrl } from "@/lib/gravatar";
 import type { Room, RoomNotificationPref } from "@/lib/api/rooms";
@@ -26,6 +26,7 @@ interface RoomHeaderProps {
   isAiPanelOpen: boolean;
   isMembersPanelOpen: boolean;
   isPinsOpen: boolean;
+  isBookmarksOpen?: boolean;
   isSearchOpen: boolean;
   pinCount: number;
   controls: RoomControls;
@@ -39,6 +40,7 @@ interface RoomHeaderProps {
   onToggleAiPanel: () => void;
   onToggleMembersPanel: () => void;
   onTogglePins: () => void;
+  onToggleBookmarks?: () => void;
   onToggleSearch: () => void;
   onOpenSettings: () => void;
   t: TFn;
@@ -142,8 +144,8 @@ function Overflow({ children, label }: { children: (close: () => void) => React.
 const menuItem = "flex w-full items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted focus-visible:bg-muted focus-visible:outline-none";
 
 export function RoomHeader({
-  room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isSearchOpen, pinCount, controls, isAiRoom = false,
-  onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleSearch, onOpenSettings, t,
+  room, title, presenceMembers, memberCount, isInCall, isAiPanelOpen, isMembersPanelOpen, isPinsOpen, isBookmarksOpen = false, isSearchOpen, pinCount, controls, isAiRoom = false,
+  onOpenSidebar, onStartCall, callBlockedReason, onLeaveCall, onToggleAiPanel, onToggleMembersPanel, onTogglePins, onToggleBookmarks, onToggleSearch, onOpenSettings, t,
 }: RoomHeaderProps) {
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -214,6 +216,11 @@ export function RoomHeader({
                 <Pin className="h-4 w-4" aria-hidden />
                 {pinCount > 0 && <span className="absolute -right-0.5 -top-0.5 min-w-[14px] rounded-full bg-foreground px-1 text-[9px] font-bold leading-[14px] text-background">{pinCount}</span>}
               </IconButton>
+              {onToggleBookmarks && (
+                <IconButton label={t("header.bookmarks")} pressed={isBookmarksOpen} onClick={onToggleBookmarks}>
+                  <Bookmark className="h-4 w-4" aria-hidden />
+                </IconButton>
+              )}
               {controls.showTranscripts && (
                 <Link href={`/rooms/${room.id}/transcripts`} aria-label={t("header.transcripts")} title={t("header.transcripts")} className={btn}>
                   <Captions className="h-4 w-4" aria-hidden />
@@ -239,6 +246,7 @@ export function RoomHeader({
               {(close) => (
                 <>
                   <button role="menuitem" className={menuItem} onClick={() => { close(); onTogglePins(); }}><Pin className="h-3.5 w-3.5" aria-hidden />{pinCount > 0 ? t("header.pinsCount", { count: pinCount }) : t("header.pins")}</button>
+                  {onToggleBookmarks && <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleBookmarks(); }}><Bookmark className="h-3.5 w-3.5" aria-hidden />{t("header.bookmarks")}</button>}
                   <button role="menuitem" className={menuItem} onClick={() => { close(); onToggleAiPanel(); }}><Bot className="h-3.5 w-3.5" aria-hidden />{t("header.copilot")}</button>
                   {controls.showTranscripts && (
                     <Link role="menuitem" href={`/rooms/${room.id}/transcripts`} className={menuItem} onClick={close}><Captions className="h-3.5 w-3.5" aria-hidden />{t("header.transcripts")}</Link>

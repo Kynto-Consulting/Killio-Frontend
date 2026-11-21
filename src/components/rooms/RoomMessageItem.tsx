@@ -6,7 +6,7 @@ import {
   Check, CheckCheck, Clock, AlertCircle, Loader2, Bot, CornerUpLeft,
   ChevronDown, ChevronUp, Info, Wrench, Copy, ListChecks, FileCode,
   Terminal, FileText, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ArrowRight, Maximize2, MessageSquare, Play,
-  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download, User, Phone, Pin, PinOff, Pencil, Trash2, MessagesSquare,
+  ShieldAlert, X, Brain, ShieldCheck, Lightbulb, HelpCircle, Download, User, Phone, Pin, PinOff, Pencil, Trash2, MessagesSquare, Bookmark, BookmarkCheck,
 } from "lucide-react";
 import { ToolCallChip, BatchToolChip, BuildingToolCallChip } from "@/components/agent/tool-call-chip";
 import { SubAgentActivity } from "@/components/agent/sub-agent-activity";
@@ -15,6 +15,8 @@ import { RichText } from "@/components/ui/rich-text";
 import type { RoomMessage, MessageStatus } from "@/lib/api/rooms";
 import type { MessageActions } from "@/lib/rooms/message-structure";
 import { fromWireMentions, mentionsMe as mentionsMeFn } from "@/lib/rooms/mentions";
+import { readMessageExtras } from "@/lib/bots/rich";
+import { BotMessageExtras, BotReplyRef, hidesFallbackText } from "./BotMessageExtras";
 import type { ResolverContext } from "@/lib/reference-resolver";
 import { getAiMarkupLabel, parseAiMarkup, parseContactBlock, parsePreThinkSections, splitAtPartialToolTag } from "@/lib/ai-markup";
 import { RoomCallHistoryCard } from "./RoomCallHistoryCard";
@@ -229,6 +231,9 @@ interface RoomMessageItemProps {
   /** Pin rights (who may unpin what), from the pin summary. */
   pinCaps?: Pick<PinCaps, "canUnpinOthers">;
   onOpenThread?: () => void;
+  /** Personal bookmark of this message (private to the person). */
+  bookmarked?: boolean;
+  onToggleBookmark?: () => Promise<void> | void;
   /** Replies in this message's thread. */
   threadCount?: number;
   /** Roles / groups of the current user, to highlight messages that mention them. */
@@ -332,6 +337,8 @@ export function RoomMessageItem({
   onTogglePin,
   pinCaps,
   onOpenThread,
+  bookmarked = false,
+  onToggleBookmark,
   threadCount = 0,
   myRoleIds,
   myGroupIds,
@@ -433,6 +440,14 @@ export function RoomMessageItem({
 
   const isAi = message.type === "ai" || message.type === "ai_response";
   const isBot = Boolean(message.user?.isBot);
+  // What a bot adds to a message (rich blocks, buttons, a reply reference); people's messages carry none of it.
+  const botExtras = readMessageExtras(message.metadata);
+  const hideFallbackText = hidesFallbackText(message);
+  const botReplyName = botExtras.replyTo?.userId
+    ? (resolverContext?.users as Array<Record<string, any>> | undefined)?.find((u) => u?.id === botExtras.replyTo?.userId)
+    : undefined;
+  const botReplyAuthor: string | null = botReplyName ? (botReplyName.workspaceAlias || botReplyName.displayName || botReplyName.name || null) : null;
+  const canBookmark = Boolean(onToggleBookmark) && !message.id.startsWith("temp-") && !message.id.startsWith("bot-") && message.status !== "sending" && message.status !== "failed";
   const mentionsMe = Boolean(currentUserId) && !isOwn && mentionsMeFn(message.content, { userId: currentUserId, roleIds: myRoleIds, groupIds: myGroupIds });
   const avatarUrl = message.user?.avatarUrl;
   const email = message.user?.email;
@@ -513,6 +528,7 @@ export function RoomMessageItem({
                 {new Date(message.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
               </time>
               {message.pinnedAt && <PinBadge message={message} t={t} />}
+              {bookmarked && <span title={t("msg.bookmarked")} className="inline-flex items-center self-center text-[hsl(var(--accent-ink))]"><BookmarkCheck className="h-3 w-3" aria-hidden /><span className="sr-only">{t("msg.bookmarked")}</span></span>}
             </div>
           )}
 
@@ -520,7 +536,8 @@ export function RoomMessageItem({
             className="relative w-full min-w-0 text-sm leading-relaxed text-foreground [&_a]:underline"
           >
             {/* Quoted Message (Reply) */}
-            {message.metadata?.replyTo && (
+            {botExtras.replyTo && <BotReplyRef messageId={botExtras.replyTo.messageId} name={botReplyAuthor} excerpt={botExtras.replyTo.excerpt} />}
+            {!botExtras.replyTo && message.metadata?.replyTo && (
               <button
                 onClick={() => {
                   const el = document.getElementById(`msg-${message.metadata.replyTo.id}`);
@@ -563,7 +580,7 @@ export function RoomMessageItem({
               </div>
             ) : (
             <div className="flex flex-col gap-1.5 min-w-0">
-              {markupBlocks.map((block, index) => {
+              {!hideFallbackText && markupBlocks.map((block, index) => {
                 const key = `${block.tag}-${index}`;
                 const isExpanded = expandedMarkup.has(key);
 
@@ -1018,6 +1035,8 @@ export function RoomMessageItem({
             </div>
             )}
 
+            {!isEditing && <BotMessageExtras message={message} />}
+
             {message.editedAt && !isEditing && <span className="text-[10px] text-muted-foreground" title={new Date(message.editedAt).toLocaleString()}>{t("msg.edited")}</span>}
 
             {/* Message tools: hover / focus on desktop, tap on phones. Only what the permissions allow. */}
@@ -1063,6 +1082,19 @@ export function RoomMessageItem({
                 {actions?.canDelete && onDelete && (
                   <button type="button" onClick={() => { setActionError(null); setConfirmingDelete(true); }} aria-label={t("msg.delete")} title={t("msg.delete")} className={`${toolButton} hover:!text-destructive`}>
                     <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                  </button>
+                )}
+                {canBookmark && (
+                  <button
+                    type="button"
+                    onClick={() => void runAction(async () => { await onToggleBookmark?.(); })}
+                    disabled={isBusy}
+                    aria-pressed={bookmarked}
+                    aria-label={bookmarked ? t("msg.unbookmark") : t("msg.bookmark")}
+                    title={bookmarked ? t("msg.unbookmark") : t("msg.bookmark")}
+                    className={toolButton}
+                  >
+                    {bookmarked ? <BookmarkCheck className="h-3.5 w-3.5 text-[hsl(var(--accent-ink))]" aria-hidden /> : <Bookmark className="h-3.5 w-3.5" aria-hidden />}
                   </button>
                 )}
                 <button type="button" onClick={() => setIsInfoOpen(true)} aria-label={t("msg.info")} title={t("msg.info")} className={toolButton}>

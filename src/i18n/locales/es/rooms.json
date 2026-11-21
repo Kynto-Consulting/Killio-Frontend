@@ -92,7 +92,8 @@
     "online": "{{count}} conectados",
     "membersCount": "Miembros ({{count}})",
     "callInProgress": "Llamada en curso",
-    "joinCall": "Unirse"
+    "joinCall": "Unirse",
+    "bookmarks": "Mis marcadores"
   },
   "chat": {
     "inputPlaceholder": "Mensaje en {{roomName}}... (#AI para copiloto)",
@@ -429,7 +430,8 @@
     "readReceiptsHint": "Muestra quién ha leído cada mensaje.",
     "tabs": {
       "general": "General",
-      "permissions": "Permisos"
+      "permissions": "Permisos",
+      "webhooks": "Webhooks"
     },
     "errors": {
       "forbidden": "No tienes permiso para hacer este cambio.",
@@ -577,7 +579,10 @@
     "errors": {
       "failed": "No se pudo completar la acción.",
       "forbidden": "No tienes permiso para hacerlo."
-    }
+    },
+    "bookmark": "Guardar marcador",
+    "unbookmark": "Quitar marcador",
+    "bookmarked": "Con marcador"
   },
   "thread": {
     "title": "Hilo",
@@ -665,6 +670,43 @@
     "builtin": {
       "poll": "Crea una encuesta de una sola respuesta",
       "survey": "Crea una encuesta de respuesta múltiple"
+    },
+    "args": {
+      "invalid": "/{{command}}: revisa los argumentos",
+      "usage": "Uso: {{usage}}",
+      "required": "obligatorio",
+      "suggestions": "Sugerencias para el argumento",
+      "kinds": {
+        "subcommand": "subcomando",
+        "option": "argumento",
+        "choice": "valor",
+        "boolean": "sí/no",
+        "user": "persona",
+        "role": "rol",
+        "channel": "canal"
+      },
+      "errors": {
+        "required": "es obligatorio.",
+        "unknown_option": "no es un argumento de este comando.",
+        "given_twice": "se indicó dos veces.",
+        "extra_argument": "texto sobrante \"{{value}}\".",
+        "too_many": "Demasiados argumentos.",
+        "unclosed_quote": "Se abrió una comilla y no se cerró.",
+        "choose_one": "elige uno de: {{list}}.",
+        "min_length": "debe tener al menos {{min}} caracteres.",
+        "max_length": "debe tener como máximo {{max}} caracteres.",
+        "integer": "debe ser un número entero.",
+        "number": "debe ser un número.",
+        "min": "debe ser al menos {{min}}.",
+        "max": "debe ser como máximo {{max}}.",
+        "boolean": "debe ser sí o no (true / false).",
+        "user": "debe ser una mención de una persona (@nombre).",
+        "user_kind": "debe ser una persona, no un rol ni @everyone.",
+        "role": "debe ser una mención de un rol.",
+        "channel": "debe ser un canal (#[nombre](id)) o un id de sala.",
+        "attachment": "debe ser un enlace https o una referencia de adjunto.",
+        "choice": "debe ser uno de: {{list}}."
+      }
     }
   },
   "mention": {
@@ -804,6 +846,131 @@
       "too_many_terms": "Demasiadas palabras: se usaron las primeras.",
       "conflicting_dates": "Las fechas antes: y después: se contradicen.",
       "generic": "El servidor avisó de un problema con {{operator}}:{{value}}."
+    }
+  },
+  "bookmarks": {
+    "title": "Mis marcadores",
+    "search": "Buscar en los marcadores",
+    "private": "Solo tú ves esta lista. {{count}} de {{max}} guardados.",
+    "loading": "Cargando marcadores",
+    "errors": {
+      "forbidden": "Ya no tienes acceso a esa sala.",
+      "generic": "No funcionó. Inténtalo de nuevo.",
+      "load": "No se pudieron cargar tus marcadores."
+    },
+    "emptyTitle": "Aún no tienes marcadores",
+    "emptyHint": "Usa el botón de marcador en las herramientas de un mensaje para guardarlo aquí.",
+    "noMatches": "Ningún marcador coincide con tu búsqueda.",
+    "unknownRoom": "Sala",
+    "thisRoom": "esta sala",
+    "noText": "(mensaje sin texto)",
+    "noteLabel": "Nota",
+    "notePlaceholder": "Por qué lo guardaste (opcional)",
+    "savedOn": "guardado {{when}}",
+    "open": "Ir al mensaje",
+    "editNote": "Editar la nota de: {{text}}",
+    "editNoteShort": "Editar nota",
+    "addNote": "Añadir nota",
+    "removeLabel": "Quitar marcador: {{text}}",
+    "remove": "Quitar"
+  },
+  "bot": {
+    "blocks": {
+      "opensNewTab": "(se abre en una pestaña nueva)",
+      "done": "hecho",
+      "todo": "pendiente",
+      "card": "Tarjeta"
+    },
+    "components": {
+      "group": "Controles del bot, fila {{n}}",
+      "selectPlaceholder": "Elige una opción",
+      "pickRange": "Elige de {{min}} a {{max}}",
+      "confirm": "Confirmar"
+    },
+    "interact": {
+      "sending": "Enviando…",
+      "sent": "Enviado",
+      "expired": "Estos controles han caducado.",
+      "inert": "Estos controles no se pueden usar aquí.",
+      "errors": {
+        "forbidden": "No tienes permiso para usar los controles de bots en esta sala.",
+        "notFound": "Ese control ya no existe.",
+        "notListening": "El bot no está escuchando esto ahora mismo.",
+        "expired": "Estos controles han caducado.",
+        "tooMany": "Demasiadas pulsaciones. Espera un momento e inténtalo de nuevo.",
+        "invalid": "Esa elección no es válida.",
+        "generic": "El bot no pudo recibirlo. Inténtalo de nuevo."
+      }
+    },
+    "ephemeral": {
+      "listLabel": "Respuestas privadas de bots",
+      "onlyYou": "Solo tú ves esto",
+      "dismiss": "Descartar"
+    },
+    "replyTo": {
+      "goTo": "Ir al mensaje que escribió {{name}}",
+      "unknown": "Mensaje"
+    }
+  },
+  "webhooks": {
+    "security": {
+      "title": "Trata la URL como una contraseña",
+      "secret": "Quien tenga la URL puede publicar en este canal como el webhook, sin iniciar sesión.",
+      "once": "La URL se muestra una sola vez, al crearla. No se puede volver a leer.",
+      "rotate": "Si se filtra, róterala (URL nueva, la anterior se revoca) o revócala.",
+      "limits": "Cada webhook puede publicar {{rate}} mensajes por minuto. Los bots nunca reaccionan a mensajes de webhooks."
+    },
+    "reveal": {
+      "title": "URL de «{{name}}» (se muestra solo ahora)",
+      "body": "Cópiala ahora y guárdala donde solo pueda leerla el sistema que publica. Si cierras esto, no podrás volver a verla.",
+      "oldStillActive": "Se creó el webhook nuevo pero no se pudo revocar el anterior, así que la URL antigua sigue funcionando. Revócala desde la lista de abajo.",
+      "url": "URL del webhook",
+      "copy": "Copiar",
+      "copied": "Copiada",
+      "example": "Ejemplo de llamada",
+      "payload": "Cuerpo: { \"text\": \"...\" } y/o { \"blocks\": [...] } con los mismos bloques que los mensajes de bots.",
+      "done": "Ya la copié"
+    },
+    "new": {
+      "title": "Webhook nuevo",
+      "name": "Nombre (se muestra como autor)",
+      "namePlaceholder": "Despliegues",
+      "avatar": "Enlace del avatar (https, opcional)",
+      "count": "{{count}} de {{max}} webhooks",
+      "submit": "Crear webhook",
+      "errors": {
+        "name_required": "Ponle un nombre.",
+        "name_long": "Máximo {{max}} caracteres.",
+        "avatar_invalid": "Usa un enlace https."
+      }
+    },
+    "list": {
+      "title": "Webhooks activos",
+      "loading": "Cargando webhooks",
+      "emptyTitle": "Sin webhooks",
+      "emptyHint": "Crea uno para que un sistema externo publique aquí.",
+      "lastUsed": "último uso {{when}}",
+      "neverUsed": "sin uso todavía",
+      "created": "creado {{when}}",
+      "urlHidden": "La URL está oculta: solo se mostró al crearlo",
+      "rotate": "Rotar",
+      "revoke": "Revocar"
+    },
+    "confirm": {
+      "rotateTitle": "¿Rotar «{{name}}»?",
+      "rotateBody": "Se crea un webhook nuevo con el mismo nombre y la URL actual deja de funcionar de inmediato.",
+      "rotateButton": "Rotar",
+      "revokeTitle": "¿Revocar «{{name}}»?",
+      "revokeBody": "Su URL deja de funcionar para siempre. Los mensajes que ya publicó se quedan.",
+      "revokeButton": "Revocar",
+      "cancel": "Cancelar"
+    },
+    "errors": {
+      "forbidden": "No tienes permiso para gestionar webhooks en este canal.",
+      "forbiddenList": "Necesitas el permiso de gestionar webhooks en este canal para verlos.",
+      "limit": "Un canal puede tener como máximo {{max}} webhooks.",
+      "generic": "No funcionó. Inténtalo de nuevo.",
+      "load": "No se pudieron cargar los webhooks."
     }
   }
 }

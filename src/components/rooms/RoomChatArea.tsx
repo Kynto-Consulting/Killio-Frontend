@@ -8,6 +8,8 @@ import type { ResolverContext } from "@/lib/reference-resolver";
 import type { DocumentSummary } from "@/lib/api/documents";
 import { RoomMessageItem } from "./RoomMessageItem";
 import { RoomInput } from "./RoomInput";
+import { EphemeralList } from "./BotMessageExtras";
+import type { EphemeralMessage } from "@/lib/rooms/ephemeral";
 import { parseAiMarkup } from "@/lib/ai-markup";
 import { getProactiveSuggestion } from "@/lib/api/agent";
 import { useSession } from "@/components/providers/session-provider";
@@ -54,6 +56,14 @@ interface RoomChatAreaProps {
   users?: any[];
   roles?: TeamRoleLite[];
   commands?: SlashCommand[];
+  /** Channels of the workspace (for `channel` arguments of bot commands in the composer). */
+  rooms?: Array<{ id: string; name: string }>;
+  /** Private answers of bots for this person in this room (never part of `messages`). */
+  ephemeral?: readonly EphemeralMessage[];
+  onDismissEphemeral?: (id: string) => void;
+  /** Ids of the messages the person bookmarked, and the toggle. */
+  bookmarkedIds?: ReadonlySet<string>;
+  onToggleBookmark?: (message: RoomMessage) => Promise<void> | void;
   myRoleIds?: readonly string[];
   myGroupIds?: readonly string[];
   /** Users that are bots (from the team member list), for rooms whose messages do not say it themselves. */
@@ -145,7 +155,7 @@ const FALLBACK_CONTROLS: RoomControls = {
 export function RoomChatArea({
   messages, callsById, isLoading, hasMore, typingUsers, inputValue, onInputChange, onSend, onLoadMore, onReact, onMarkRead, onTyping, onViewTranscript,
   onAiTrigger, currentUserId, teamId, canPost, controls: controlsProp, channelType, muteMinutesLeft, muteReason, isAiRoom, showReadReceipts, roomName,
-  documents, boards, users, roles, commands, myRoleIds, myGroupIds, botUserIds, transcripts, activeCallId, resolverContext, availableTags, onOpenCopilot, onToolApproval,
+  documents, boards, users, roles, commands, rooms, ephemeral, onDismissEphemeral, bookmarkedIds, onToggleBookmark, myRoleIds, myGroupIds, botUserIds, transcripts, activeCallId, resolverContext, availableTags, onOpenCopilot, onToolApproval,
   replyTo, onReply, modelSelector, isCheckingAccess, loadError, onReload, searchQuery, onEditMessage, onDeleteMessage, onTogglePin, pinCaps, onOpenThread, threadReplies, jumpToMessageId,
   onJumped, history, t,
 }: RoomChatAreaProps) {
@@ -179,7 +189,7 @@ export function RoomChatArea({
     if (isAtBottomRef.current && !searching) {
       bottomRef.current?.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth" });
     }
-  }, [messages.length, reducedMotion, searching, history]);
+  }, [messages.length, ephemeral?.length, reducedMotion, searching, history]);
 
   const messageIds = useMemo(() => messages.map((m) => m.id), [messages]);
   const hs = useRoomHistoryScroll({
@@ -362,6 +372,8 @@ export function RoomChatArea({
                   onTogglePin={onTogglePin ? (action) => onTogglePin(msg.id, action) : undefined}
                   pinCaps={pinCaps}
                   onOpenThread={onOpenThread ? () => onOpenThread(msg.id) : undefined}
+                  bookmarked={bookmarkedIds?.has(msg.id) ?? false}
+                  onToggleBookmark={onToggleBookmark ? () => onToggleBookmark(msg) : undefined}
                   threadCount={replyTotal}
                   myRoleIds={myRoleIds}
                   myGroupIds={myGroupIds}
@@ -370,6 +382,7 @@ export function RoomChatArea({
               );
             })}
 
+            {ephemeral && ephemeral.length > 0 && onDismissEphemeral && <EphemeralList items={ephemeral} onDismiss={onDismissEphemeral} />}
             {history && !searching && history.hasMoreAfter && (
               <>
                 <div ref={hs.bottomSentinel} aria-hidden className="h-px" />
@@ -435,6 +448,7 @@ export function RoomChatArea({
         roles={roles}
         canMentionEveryone={controls.canMentionEveryone}
         commands={commands}
+        rooms={rooms}
         transcripts={transcripts}
         activeCallId={activeCallId}
         onAiTrigger={onAiTrigger}

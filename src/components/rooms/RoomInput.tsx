@@ -11,7 +11,8 @@ import type { DocumentSummary } from "@/lib/api/documents";
 import { API_BASE_URL } from "@/lib/api/client";
 import type { ComposerMode } from "@/lib/rooms/room-controls";
 import { activeSlashQuery, buildSlashCandidates, BUILTIN_COMMANDS, type SlashCommand } from "@/lib/rooms/message-structure";
-import { EVERYONE_TOKEN, roleMentionToken } from "@/lib/rooms/mentions";
+import { EVERYONE_TOKEN, fromWireMentions, roleMentionToken, toWireMentions } from "@/lib/rooms/mentions";
+import { analyzeArgs, checkSlashInput, type ArgSuggestion } from "@/lib/bots/command-args";
 
 const resolveAssetUrl = (url: string) => {
   if (!url) return "";
@@ -48,6 +49,8 @@ interface RoomInputProps {
   canMentionEveryone?: boolean;
   /** Slash commands registered by the team bots (the built-in /poll and /survey are always offered). */
   commands?: SlashCommand[];
+  /** Channels of the workspace, offered for `channel` arguments of bot commands. */
+  rooms?: Array<{ id: string; name: string }>;
   transcripts?: Array<{ callId: string; roomId: string; roomName: string; startedAt: string }>;
   activeCallId?: string;
   onAiTrigger?: (content: string) => void;
@@ -60,7 +63,7 @@ const AI_PREFIXES = ["#ai ", "#AI "];
 
 export function RoomInput({
   value, onChange, onSend, onTyping, disabled = false, readOnly = false, composer, muteMinutesLeft, muteReason, isAiRoom = false, roomName = "",
-  documents, boards, users, roles, canMentionEveryone = false, commands, transcripts, activeCallId, replyTo, teamId, t,
+  documents, boards, users, roles, canMentionEveryone = false, commands, rooms, transcripts, activeCallId, replyTo, teamId, t,
 }: RoomInputProps) {
   const { accessToken } = useSession();
   const [isUploading, setIsUploading] = useState(false);
@@ -70,6 +73,10 @@ export function RoomInput({
   const [slashIndex, setSlashIndex] = useState(0);
   const [slashDismissed, setSlashDismissed] = useState(false);
   const [inputKey, setInputKey] = useState(0);
+  const [argIndex, setArgIndex] = useState(0);
+  const [argDismissed, setArgDismissed] = useState(false);
+  /** Problems the backend's own parser found in the arguments just typed (shown instead of sending a call that would be refused). */
+  const [argProblem, setArgProblem] = useState<ReturnType<typeof checkSlashInput>>(null);
 
   const platform = usePlatform();
   const isMobile = platform === "mobile";
@@ -93,11 +100,49 @@ export function RoomInput({
   const slashOpen = slashCandidates.length > 0;
   const slashActive = Math.min(slashIndex, Math.max(0, slashCandidates.length - 1));
 
+  // Bot commands that declare typed options: autocomplete of the next argument and validation before sending.
+  const commandDefs = useMemo(() => (commands ?? []).filter((c) => c.source !== "builtin").map((c) => ({ name: c.name, options: c.options ?? [] })), [commands]);
+  const wireValue = useMemo(() => toWireMentions(value), [value]);
+  const argSources = useMemo(
+    () => ({
+      users: (users ?? []).map((u: any) => ({ id: String(u.id), name: String(u.name ?? u.displayName ?? "") })).filter((u) => u.id && u.name),
+      roles: (roles ?? []).filter((r) => r.mentionable).map((r) => ({ id: r.id, name: r.name })),
+      rooms: rooms ?? [],
+    }),
+    [users, roles, rooms],
+  );
+  const analysis = useMemo(() => {
+    const m = /^\/([a-z0-9_-]{1,32})\s([\s\S]*)$/i.exec(wireValue);
+    if (!m) return null;
+    const def = commandDefs.find((d) => d.name.toLowerCase() === m[1].toLowerCase() && d.options.length > 0);
+    if (!def) return null;
+    const a = analyzeArgs(def.name, def.options, m[2], argSources);
+    // A mention token the editor already turned into a chip, or an @ being typed (the editor's own picker handles it): nothing to add here.
+    const tail = m[2].slice(m[2].length - a.partialLength);
+    return { ...a, command: def.name, suggestions: tail.includes("](") || tail.startsWith("@") ? [] : a.suggestions };
+  }, [wireValue, commandDefs, argSources]);
+  // While the problem banner is up the list stays closed (they would overlap); typing again clears the banner and brings the list back.
+  const argSuggestions = argDismissed || argProblem || !analysis ? [] : analysis.suggestions;
+  const argOpen = argSuggestions.length > 0;
+  const argActive = Math.min(argIndex, Math.max(0, argSuggestions.length - 1));
+
   const handleChange = (v: string) => {
     setSlashDismissed(false);
     setSlashIndex(0);
+    setArgDismissed(false);
+    setArgIndex(0);
+    setArgProblem(null);
     onChange(v);
     onTyping?.();
+  };
+
+  const pickArg = (s: ArgSuggestion) => {
+    if (!analysis) return;
+    const base = value.slice(0, value.length - analysis.partialLength);
+    onChange(`${base}${fromWireMentions(s.insert)}${s.kind === "option" ? "" : " "}`);
+    setArgDismissed(false);
+    setArgIndex(0);
+    setInputKey((k) => k + 1);
   };
 
   const pickSlash = (c: SlashCommand) => {
@@ -108,6 +153,12 @@ export function RoomInput({
 
   const handleSubmit = () => {
     if (!value.trim() && attachments.length === 0) return;
+
+    const problem = checkSlashInput(wireValue, commandDefs);
+    if (problem) {
+      setArgProblem(problem);
+      return;
+    }
 
     let finalContent = value;
     if (attachments.length > 0) {
@@ -230,6 +281,21 @@ export function RoomInput({
 
       {uploadError && <p role="alert" className="mb-2 px-1 text-xs text-destructive">{uploadError}</p>}
 
+      {argProblem && (
+        <div role="alert" className="mb-2 rounded-xl border-2 border-destructive/50 bg-destructive/10 px-3 py-2 text-xs text-foreground">
+          <p className="font-bold text-destructive">{t("composer.args.invalid", { command: argProblem.command })}</p>
+          <ul className="mt-1 list-disc space-y-0.5 pl-4">
+            {argProblem.errors.map((e, i) => (
+              <li key={i}>
+                {e.option && <span className="font-mono font-semibold">{e.option}: </span>}
+                {t(`composer.args.errors.${e.code}`, e.params ?? {})}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-1 font-mono text-[11px] text-muted-foreground">{t("composer.args.usage", { usage: argProblem.usage })}</p>
+        </div>
+      )}
+
       {isAiQuery && (
         <div className="mb-1 flex items-center gap-1 px-1 text-[10px] font-medium text-violet-500">
           <Bot className="h-3 w-3" aria-hidden />
@@ -290,6 +356,34 @@ export function RoomInput({
               ))}
             </ul>
           )}
+          {argOpen && analysis && (
+            <div className="absolute bottom-full left-0 z-40 mb-2 w-full max-w-sm overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+              <p className="border-b border-border px-3 py-1.5 font-mono text-[11px] text-muted-foreground">
+                {analysis.usage}
+                {analysis.expecting && (
+                  <span className="mt-0.5 block font-sans">
+                    <span className="font-semibold text-foreground">{analysis.expecting.name}</span>
+                    {analysis.expecting.required ? ` (${t("composer.args.required")})` : ""}
+                    {analysis.expecting.description ? ` - ${analysis.expecting.description}` : ""}
+                  </span>
+                )}
+              </p>
+              <ul role="listbox" aria-label={t("composer.args.suggestions")} className="max-h-48 overflow-y-auto py-1">
+                {argSuggestions.map((s, i) => (
+                  <li key={`${s.kind}:${s.insert}`} role="option" aria-selected={i === argActive}>
+                    <button type="button" tabIndex={-1} onMouseDown={(e) => { e.preventDefault(); pickArg(s); }} className={`flex w-full items-baseline gap-2 px-3 py-1.5 text-left text-xs ${i === argActive ? "bg-muted" : "hover:bg-muted/60"}`}>
+                      <span className="font-semibold">{s.label}</span>
+                      <span className="rounded bg-muted px-1 text-[9px] font-bold uppercase text-muted-foreground">{t(`composer.args.kinds.${s.kind}`)}</span>
+                      {s.hint && <span className="min-w-0 truncate text-[11px] text-muted-foreground">{s.hint}</span>}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {!argOpen && !argProblem && analysis && !analysis.suggestions.length && analysis.expecting && (
+            <p className="absolute bottom-full left-0 mb-1.5 max-w-full truncate rounded-md border border-border bg-popover px-2 py-0.5 font-mono text-[10px] text-muted-foreground shadow-sm">{analysis.usage}</p>
+          )}
           <ReferenceTokenInput
             key={inputKey}
             value={value}
@@ -304,6 +398,14 @@ export function RoomInput({
             activeCallId={activeCallId}
             onSubmit={handleSubmit}
             onKeyDown={(e) => {
+              if (argOpen) {
+                if (e.key === "ArrowDown") { e.preventDefault(); setArgIndex((argActive + 1) % argSuggestions.length); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setArgIndex((argActive - 1 + argSuggestions.length) % argSuggestions.length); }
+                // Enter only completes real values (choices, people...); when the list only offers "name:" shortcuts, Enter sends and Tab completes.
+                else if (e.key === "Tab" || (e.key === "Enter" && argSuggestions.some((s) => s.kind !== "option"))) { e.preventDefault(); pickArg(argSuggestions[argActive]); }
+                else if (e.key === "Escape") { e.preventDefault(); setArgDismissed(true); }
+                return;
+              }
               if (!slashOpen) return;
               if (e.key === "ArrowDown") { e.preventDefault(); setSlashIndex((slashActive + 1) % slashCandidates.length); }
               else if (e.key === "ArrowUp") { e.preventDefault(); setSlashIndex((slashActive - 1 + slashCandidates.length) % slashCandidates.length); }

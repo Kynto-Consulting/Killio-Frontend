@@ -47,6 +47,9 @@ import { RoomChatArea } from "@/components/rooms/RoomChatArea";
 import { RoomMembersPanel } from "@/components/rooms/RoomMembersPanel";
 import { RoomMessageItem } from "@/components/rooms/RoomMessageItem";
 import { PinnedPanel, ThreadPanel } from "@/components/rooms/SidePanels";
+import { BookmarksPanel } from "@/components/rooms/BookmarksPanel";
+import { useMyBookmarks } from "@/hooks/use-my-bookmarks";
+import { useRoomEphemeral } from "@/hooks/use-room-ephemeral";
 import { PinExpiryDialog } from "@/components/rooms/PinExpiryDialog";
 import { usePinExpiry } from "@/hooks/use-pin-expiry";
 import { applyPinPatch, resolvePinCaps, syncServerClock, type PinBody, type PinPatch, type PinSummary } from "@/lib/rooms/pins";
@@ -129,6 +132,7 @@ export default function RoomDetailWeb() {
   const [isAiPanelOpen, setIsAiPanelOpen] = useState(false);
   const [isMembersPanelOpen, setIsMembersPanelOpen] = useState(false);
   const [isPinsOpen, setIsPinsOpen] = useState(false);
+  const [isBookmarksOpen, setIsBookmarksOpen] = useState(false);
   const [threadRootId, setThreadRootId] = useState<string | null>(null);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -147,6 +151,9 @@ export default function RoomDetailWeb() {
   const [activeMutes, setActiveMutes] = useState<Record<string, string | null>>({});
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  // Personal bookmarks and the private ("only you see this") answers of bots.
+  const bookmarks = useMyBookmarks(accessToken);
+  const ephemeral = useRoomEphemeral(roomId, user?.id, accessToken);
   const [createInitialGroupId, setCreateInitialGroupId] = useState<string | undefined>();
   const [categoryDialog, setCategoryDialog] = useState<{ open: boolean; group: RoomGroup | null }>({ open: false, group: null });
   const [chatInput, setChatInput] = useState("");
@@ -630,16 +637,22 @@ Team Context: ${activeTeamId}.`;
 
 
   // Only one right-hand panel at a time: copilot, members, pinned messages or a thread.
-  const openPanel = useCallback((panel: "ai" | "members" | "pins" | "thread" | null) => {
+  const openPanel = useCallback((panel: "ai" | "members" | "pins" | "thread" | "bookmarks" | null) => {
     setIsAiPanelOpen(panel === "ai");
     setIsMembersPanelOpen(panel === "members");
     setIsPinsOpen(panel === "pins");
+    setIsBookmarksOpen(panel === "bookmarks");
     if (panel !== "thread") setThreadRootId(null);
   }, []);
 
   const handleToggleAiPanel = useCallback(() => openPanel(isAiPanelOpen ? null : "ai"), [openPanel, isAiPanelOpen]);
   const handleToggleMembersPanel = useCallback(() => openPanel(isMembersPanelOpen ? null : "members"), [openPanel, isMembersPanelOpen]);
   const handleTogglePins = useCallback(() => openPanel(isPinsOpen ? null : "pins"), [openPanel, isPinsOpen]);
+  const handleToggleBookmarks = useCallback(() => {
+    if (!isBookmarksOpen) void bookmarks.reload();
+    openPanel(isBookmarksOpen ? null : "bookmarks");
+  }, [openPanel, isBookmarksOpen, bookmarks]);
+  const handleToggleBookmark = useCallback((m: RoomMessage) => bookmarks.toggle(m, room?.name ?? ""), [bookmarks, room?.name]);
   const handleOpenThread = useCallback((rootId: string) => {
     openPanel("thread");
     setThreadRootId(rootId);
@@ -887,6 +900,8 @@ Team Context: ${activeTeamId}.`;
       onDelete={() => handleDelete(m.id)}
       onTogglePin={(a) => handlePin(m.id, a)}
       pinCaps={pinCaps}
+      bookmarked={bookmarks.ids.has(m.id)}
+      onToggleBookmark={() => handleToggleBookmark(m)}
       myRoleIds={myRoleIds}
       myGroupIds={myGroupIds}
       t={t}
@@ -948,6 +963,25 @@ Team Context: ${activeTeamId}.`;
         />
       );
     }
+    if (isBookmarksOpen) {
+      return (
+        <BookmarksPanel
+          bookmarks={bookmarks.list}
+          state={bookmarks.state}
+          currentRoomId={roomId}
+          roomNameOf={(id) => directory.rooms.find((r) => r.id === id)?.name ?? null}
+          onJump={(b) => {
+            if (b.roomId === roomId) { setSearchQuery(""); setIsSearchOpen(false); setJumpToMessageId(b.messageId); if (isMobileView) closePanels(); }
+            else router.push(`/rooms/${b.roomId}`);
+          }}
+          onRemove={(b) => bookmarks.remove(b)}
+          onSaveNote={(b, note) => bookmarks.setNote(b, note)}
+          onReload={() => void bookmarks.reload()}
+          onClose={closePanels}
+          t={t}
+        />
+      );
+    }
     if (isMembersPanelOpen) {
       return (
         <RoomMembersPanel
@@ -969,8 +1003,9 @@ Team Context: ${activeTeamId}.`;
     return null;
   };
 
-  const anyPanelOpen = isAiPanelOpen || isMembersPanelOpen || isPinsOpen || Boolean(threadRootId);
-  const panelTitle = isAiPanelOpen ? t("header.copilot") : threadRootId ? t("thread.title") : isPinsOpen ? t("pins.title") : t("members.title");
+  const anyPanelOpen = isAiPanelOpen || isMembersPanelOpen || isPinsOpen || isBookmarksOpen || Boolean(threadRootId);
+  const panelTitle = isAiPanelOpen ? t("header.copilot") : threadRootId ? t("thread.title") : isPinsOpen ? t("pins.title") : isBookmarksOpen ? t("bookmarks.title") : t("members.title");
+  const channelRooms = useMemo(() => directory.rooms.filter((r) => r.type === "channel").map((r) => ({ id: r.id, name: r.name })), [directory.rooms]);
 
   const sidebarNode = (onClose: () => void) => (
     <RoomSidebar
@@ -1042,6 +1077,7 @@ Team Context: ${activeTeamId}.`;
                     isAiPanelOpen={isAiPanelOpen}
                     isMembersPanelOpen={isMembersPanelOpen}
                     isPinsOpen={isPinsOpen}
+                    isBookmarksOpen={isBookmarksOpen}
                     isSearchOpen={isSearchOpen}
                     pinCount={pins.length}
                     controls={pageControls}
@@ -1053,6 +1089,7 @@ Team Context: ${activeTeamId}.`;
                     onToggleAiPanel={handleToggleAiPanel}
                     onToggleMembersPanel={handleToggleMembersPanel}
                     onTogglePins={handleTogglePins}
+                    onToggleBookmarks={handleToggleBookmarks}
                     onToggleSearch={() => setIsSearchOpen((v) => !v)}
                     onOpenSettings={() => setIsSettingsOpen(true)}
                     t={t}
@@ -1135,6 +1172,11 @@ Team Context: ${activeTeamId}.`;
                     users={references.users}
                     roles={teamRoles}
                     commands={references.commands}
+                    rooms={channelRooms}
+                    ephemeral={ephemeral.items}
+                    onDismissEphemeral={ephemeral.dismiss}
+                    bookmarkedIds={bookmarks.ids}
+                    onToggleBookmark={handleToggleBookmark}
                     myRoleIds={myRoleIds}
                     myGroupIds={myGroupIds}
                     botUserIds={references.botIds}

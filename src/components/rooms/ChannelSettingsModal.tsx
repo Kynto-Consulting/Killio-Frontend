@@ -13,6 +13,8 @@ import { draftsToDtos, normalizeOverridesResponse, type OverrideDraft } from "@/
 import { buildRoomCatalog } from "@/lib/rooms/permission-catalog";
 import { useRoomPermissionCatalog } from "@/hooks/use-room-permission-catalog";
 import { PermissionOverridesEditor } from "./PermissionOverridesEditor";
+import { ChannelWebhooksPanel } from "./ChannelWebhooksPanel";
+import { roomSupportsWebhooks } from "@/lib/bots/webhooks";
 import { RoomModalShell, roomField, roomGhostButton, roomLabel, roomPrimaryButton } from "./RoomModalShell";
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -41,7 +43,7 @@ interface ChannelSettingsModalProps {
 /** Same normalisation the API applies, so the duplicate check matches what the server stores. */
 const normalizeRoomName = (raw: string) => raw.trim().toLowerCase().replace(/\s+/g, "-");
 
-type Tab = "general" | "permissions";
+type Tab = "general" | "permissions" | "webhooks";
 
 export function ChannelSettingsModal({
   open, onClose, teamId, accessToken, groups, rooms, room, initialGroupId, canEditPermissions, showReadReceipts, onCreated, onUpdated, onDeleted, onReadReceiptsChange, t,
@@ -51,6 +53,8 @@ export function ChannelSettingsModal({
   const { subjects, isLoading: isLoadingSubjects } = useRoomSubjects(teamId, accessToken, open && canEditPermissions);
 
   const [tab, setTab] = useState<Tab>("general");
+  // The webhooks tab stays mounted once opened, so switching tabs never throws away a secret URL the person has not copied yet.
+  const [webhooksOpened, setWebhooksOpened] = useState(false);
   const [name, setName] = useState("");
   const [topic, setTopic] = useState("");
   const [channelType, setChannelType] = useState<ChannelType>("text");
@@ -73,6 +77,7 @@ export function ChannelSettingsModal({
   useEffect(() => {
     if (!open) return;
     setTab("general");
+    setWebhooksOpened(false);
     setError(null);
     setConfirmDelete(false);
     setDeleteTyped("");
@@ -251,7 +256,7 @@ export function ChannelSettingsModal({
     >
       {canEditPermissions && (
         <div role="tablist" aria-label={title} className="mb-4 flex gap-1 rounded-xl bg-muted/60 p-1">
-          {(["general", "permissions"] as const).map((id) => (
+          {(["general", "permissions", ...(editing && roomSupportsWebhooks(room) ? ["webhooks" as const] : [])] as const).map((id) => (
             <button
               key={id}
               role="tab"
@@ -259,7 +264,7 @@ export function ChannelSettingsModal({
               id={`channel-tab-${id}`}
               aria-selected={tab === id}
               aria-controls={`channel-panel-${id}`}
-              onClick={() => setTab(id)}
+              onClick={() => { setTab(id); if (id === "webhooks") setWebhooksOpened(true); }}
               className={`flex-1 rounded-lg px-3 py-1.5 text-xs font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${tab === id ? "bg-background shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
             >
               {t(`channel.tabs.${id}`)}
@@ -349,6 +354,12 @@ export function ChannelSettingsModal({
 
         {error && <p role="alert" className="mt-4 rounded-xl border border-destructive/40 bg-destructive/10 p-2.5 text-xs text-destructive">{error}</p>}
       </form>
+
+      {editing && canEditPermissions && room && roomSupportsWebhooks(room) && webhooksOpened && (
+        <div id="channel-panel-webhooks" role="tabpanel" aria-labelledby="channel-tab-webhooks" hidden={tab !== "webhooks"}>
+          <ChannelWebhooksPanel roomId={room.id} accessToken={accessToken} />
+        </div>
+      )}
 
       {editing && confirmDelete && room && (
         <div role="group" aria-label={t("channel.delete")} className="mt-4 rounded-xl border-2 border-destructive/60 bg-destructive/5 p-3">
