@@ -61,7 +61,7 @@ const ENTITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> 
 };
 
 const btn =
-  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+  "relative flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none";
 const btnOn = "bg-muted text-foreground";
 
 function IconButton({ label, pressed, onClick, children, tone, disabledReason }: { label: string; pressed?: boolean; onClick: () => void; children: React.ReactNode; tone?: "danger"; disabledReason?: string | null }) {
@@ -103,7 +103,7 @@ function NotificationPrefButton({ pref, setPref, t }: { pref: RoomNotificationPr
         {pref === "none" ? <BellOff className="h-4 w-4" aria-hidden /> : <Bell className="h-4 w-4" aria-hidden />}
       </button>
       {open && (
-        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
           {NOTIF_OPTIONS.map((opt) => (
             <button
               key={opt.pref}
@@ -133,7 +133,7 @@ function Overflow({ children, label }: { children: (close: () => void) => React.
         <MoreHorizontal className="h-4 w-4" aria-hidden />
       </button>
       {open && (
-        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
           {children(() => setOpen(false))}
         </div>
       )}
@@ -168,7 +168,7 @@ export function RoomHeader({
   ) : null;
 
   return (
-    <header className="shrink-0 border-b-2 border-[var(--memphis-line)] bg-background/70 backdrop-blur">
+    <header className="shrink-0 border-b border-border/50 bg-background/70 backdrop-blur">
       <div className="flex min-h-[48px] items-center justify-between gap-2 px-3 py-1.5 md:px-4">
         {/* Left: channel identity */}
         <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -189,7 +189,7 @@ export function RoomHeader({
             </>
           )}
           {entityHref && !isMobile && (
-            <Link href={entityHref} className="hidden shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] md:flex">
+            <Link href={entityHref} className="hidden shrink-0 items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[10px] font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:flex">
               {EntityIcon && <EntityIcon className="h-2.5 w-2.5" />}
               {t("header.linkedTo")}
             </Link>

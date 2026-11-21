@@ -60,7 +60,7 @@ export function RoomsLayout({ sidebar, children, drawerLabel = "Channels" }: Roo
                 type="button"
                 onClick={open}
                 aria-label={drawerLabel}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
               >
                 <Menu className="h-4 w-4" aria-hidden />
               </button>

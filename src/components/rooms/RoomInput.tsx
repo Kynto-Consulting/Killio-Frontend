@@ -225,8 +225,8 @@ export function RoomInput({
           ? muteMinutesLeft ? t("composer.mutedFor", { time: muteMinutesLeft < 60 ? t("mod.duration.minutes", { count: muteMinutesLeft }) : muteMinutesLeft < 1440 ? t("mod.duration.hours", { count: Math.ceil(muteMinutesLeft / 60) }) : t("mod.duration.days", { count: Math.ceil(muteMinutesLeft / 1440) }) }) : t("composer.muted")
           : t("chat.readOnly");
     return (
-      <div className={`shrink-0 border-t-2 border-[var(--memphis-line)] bg-background/50 ${pad}`}>
-        <div role="status" className="flex items-start gap-2 rounded-xl border-2 border-dashed border-[var(--memphis-line)] bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+      <div className={`shrink-0 border-t border-border/50 bg-background/50 ${pad}`}>
+        <div role="status" className="flex items-start gap-2 rounded-xl border border-dashed border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
           <Icon className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
           <div>
             <p>{text}</p>
@@ -239,7 +239,7 @@ export function RoomInput({
 
   return (
     <div
-      className={`${isMobile ? "sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm" : "bg-background/40"} shrink-0 border-t-2 border-[var(--memphis-line)] ${pad}`}
+      className={`${isMobile ? "sticky bottom-0 z-30 bg-background/95 backdrop-blur-sm" : "bg-background/40"} shrink-0 border-t border-border/50 ${pad}`}
       onPaste={handlePaste}
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
@@ -249,11 +249,11 @@ export function RoomInput({
           {attachments.map((att, idx) => (
             <li key={`${att.url}-${idx}`} className="group/att relative">
               {att.type === "img" ? (
-                <div className="h-16 w-16 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-muted/30">
+                <div className="h-16 w-16 overflow-hidden rounded-xl border border-border bg-muted/30">
                   <img src={resolveAssetUrl(att.url)} alt={att.name} className="h-full w-full object-cover" />
                 </div>
               ) : (
-                <div className="flex h-16 max-w-[180px] items-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-muted/30 px-3 text-[11px]">
+                <div className="flex h-16 max-w-[180px] items-center gap-2 rounded-xl border border-border bg-muted/30 px-3 text-[11px]">
                   <FileText className="h-5 w-5 shrink-0 text-violet-500" aria-hidden />
                   <span className="min-w-0">
                     <span className="block truncate font-semibold">{att.name}</span>
@@ -265,14 +265,14 @@ export function RoomInput({
                 type="button"
                 onClick={() => setAttachments((prev) => prev.filter((_, i) => i !== idx))}
                 aria-label={t("composer.removeAttachment", { name: att.name })}
-                className="absolute -right-1.5 -top-1.5 rounded-full bg-rose-600 p-1 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] md:opacity-0 md:group-hover/att:opacity-100 md:focus-visible:opacity-100"
+                className="absolute -right-1.5 -top-1.5 rounded-full bg-rose-600 p-1 text-white shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:opacity-0 md:group-hover/att:opacity-100 md:focus-visible:opacity-100"
               >
                 <X className="h-2.5 w-2.5" aria-hidden />
               </button>
             </li>
           ))}
           {isUploading && (
-            <li className="flex h-16 w-16 items-center justify-center rounded-xl border-2 border-dashed border-border" role="status" aria-label={t("composer.uploading")}>
+            <li className="flex h-16 w-16 items-center justify-center rounded-xl border border-dashed border-border" role="status" aria-label={t("composer.uploading")}>
               <Loader2 className="h-4 w-4 animate-spin text-violet-400 motion-reduce:animate-none" aria-hidden />
             </li>
           )}
@@ -309,7 +309,7 @@ export function RoomInput({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50 motion-reduce:transition-none"
+          className="shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none"
           aria-label={t("chat.attachFile")}
           title={t("chat.attachFile")}
         >
@@ -319,7 +319,7 @@ export function RoomInput({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
-          className="hidden shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50 motion-reduce:transition-none sm:block"
+          className="hidden shrink-0 rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none sm:block"
           aria-label={t("chat.attachImage")}
           title={t("chat.attachImage")}
         >
@@ -331,7 +331,7 @@ export function RoomInput({
             <ul
               role="listbox"
               aria-label={t("composer.commands")}
-              className="absolute bottom-full left-0 z-40 mb-2 max-h-56 w-full max-w-sm overflow-y-auto rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]"
+              className="absolute bottom-full left-0 z-40 mb-2 max-h-56 w-full max-w-sm overflow-y-auto rounded-xl border border-border bg-popover py-1 shadow-lg"
             >
               {slashCandidates.map((c, i) => (
                 <li key={`${c.source}:${c.name}`} role="option" aria-selected={i === slashActive}>
@@ -423,8 +423,8 @@ export function RoomInput({
             onClick={handleSubmit}
             disabled={disabled || isUploading || (!value.trim() && attachments.length === 0)}
             aria-label={t("chat.send")}
-            className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-2 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-40 motion-reduce:transition-none ${
-              isAiQuery ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))] hover:opacity-90"
+            className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded-full p-2 shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40 motion-reduce:transition-none ${
+              isAiQuery ? "bg-violet-600 text-white hover:bg-violet-700" : "bg-primary text-primary-foreground hover:bg-primary/90"
             }`}
           >
             {isAiQuery ? <Bot className="h-4 w-4" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}

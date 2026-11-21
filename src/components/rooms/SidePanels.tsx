@@ -15,7 +15,7 @@ function PanelHeader({ title, onClose, closeLabel }: { title: string; onClose: (
   return (
     <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
       <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{title}</h2>
-      <button type="button" onClick={onClose} aria-label={closeLabel} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+      <button type="button" onClick={onClose} aria-label={closeLabel} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
         <X className="h-4 w-4" aria-hidden />
       </button>
     </div>
@@ -80,7 +80,7 @@ export function PinnedPanel({ messages, isLoading, error: loadError, limit, curr
             const pinner = m.pinnedBy ? (m.pinnedBy === currentUserId ? t("pins.pinnedByYou") : nameOf(m.pinnedBy) ? t("pins.pinnedBy", { name: nameOf(m.pinnedBy) as string }) : t("pins.pinnedByUnknown")) : t("pins.pinnedByUnknown");
             const mayUnpin = canUnpinMessage(m, currentUserId, caps);
             return (
-              <li key={m.id} className="rounded-xl border-2 border-[var(--memphis-line)] bg-background p-2.5">
+              <li key={m.id} className="rounded-xl border border-border bg-background p-2.5">
                 <div className="mb-1 flex items-center gap-2">
                   <img src={getUserAvatarUrl(m.user?.avatarUrl, m.user?.email, 20)} alt="" className="h-5 w-5 rounded-full border border-border object-cover" />
                   <span className="truncate text-xs font-bold">{m.user?.displayName ?? t("ai.unknown")}</span>
@@ -97,14 +97,14 @@ export function PinnedPanel({ messages, isLoading, error: loadError, limit, curr
                   </span>
                 </p>
                 <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                  <button type="button" onClick={() => onJump(m.id)} className="rounded-md border border-border px-2 py-0.5 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("pins.jump")}</button>
+                  <button type="button" onClick={() => onJump(m.id)} className="rounded-md border border-border px-2 py-0.5 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("pins.jump")}</button>
                   {caps.canPin && (
-                    <button type="button" onClick={() => onChangeExpiry(m.id)} aria-label={t("pins.changeLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                    <button type="button" onClick={() => onChangeExpiry(m.id)} aria-label={t("pins.changeLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">
                       <Clock className="h-3 w-3" aria-hidden />{t("msg.changeExpiry")}
                     </button>
                   )}
                   {mayUnpin && (
-                    <button type="button" onClick={() => void unpin(m.id)} disabled={busyId === m.id} aria-label={t("pins.unpinLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">
+                    <button type="button" onClick={() => void unpin(m.id)} disabled={busyId === m.id} aria-label={t("pins.unpinLabel", { text: snippet(m) })} className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">
                       <PinOff className="h-3 w-3" aria-hidden />{t("msg.unpin")}
                     </button>
                   )}
@@ -262,7 +262,7 @@ export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, on
         )}
       </div>
       {root && (
-        <div className="shrink-0 border-t-2 border-[var(--memphis-line)] p-2">
+        <div className="shrink-0 border-t border-border/50 p-2">
           {canReply ? (
             <>
               <div className="flex items-end gap-1.5">
@@ -275,9 +275,9 @@ export function ThreadPanel({ root, replies, canReply, onSend, renderMessage, on
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder={t("thread.inputPlaceholder")}
                   disabled={busy}
-                  className="min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                  className="min-w-0 flex-1 resize-none rounded-xl border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
-                <button type="button" onClick={() => void send()} disabled={busy || !text.trim()} aria-label={t("chat.send")} className="rounded-full bg-[hsl(var(--accent-ink))] p-2 text-[hsl(var(--accent-ink-fg))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2 disabled:opacity-40">
+                <button type="button" onClick={() => void send()} disabled={busy || !text.trim()} aria-label={t("chat.send")} className="rounded-full bg-primary p-2 text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40">
                   {busy ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
                 </button>
               </div>

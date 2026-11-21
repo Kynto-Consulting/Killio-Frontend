@@ -80,12 +80,12 @@ function MemberRow({ member, isOnline, isInCall, isYou, canModerate, isMuted, on
             aria-expanded={open}
             aria-controls={open ? menuId : undefined}
             aria-label={t("members.actions", { name: member.displayName })}
-            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-100 hover:bg-background hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] md:opacity-0 md:group-hover/member:opacity-100"
+            className="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground opacity-100 hover:bg-background hover:text-foreground focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:opacity-0 md:group-hover/member:opacity-100"
           >
             <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
           </button>
           {open && (
-            <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+            <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-44 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
               {onOpenDm && <button role="menuitem" className={item} onClick={() => { setOpen(false); onOpenDm(member); }}><MessageSquare className="h-3.5 w-3.5" aria-hidden />{t("members.message")}</button>}
               {canModerate && (isMuted
                 ? <button role="menuitem" className={item} onClick={() => { setOpen(false); onUnmute(member); }}><Volume2 className="h-3.5 w-3.5" aria-hidden />{t("mod.unmute")}</button>
@@ -139,7 +139,7 @@ export function RoomMembersPanel({
       <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("members.title")} — {roomMembers.length}</h2>
         {onClose && (
-          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]" aria-label={t("members.close")}>
+          <button type="button" onClick={onClose} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("members.close")}>
             <X className="h-4 w-4" aria-hidden />
           </button>
         )}
@@ -150,9 +150,9 @@ export function RoomMembersPanel({
             {[0, 1, 2, 3].map((i) => <div key={i} className="flex items-center gap-2"><div className="h-7 w-7 animate-pulse rounded-full bg-muted motion-reduce:animate-none" /><div className="h-3 w-24 animate-pulse rounded bg-muted motion-reduce:animate-none" /></div>)}
           </div>
         ) : hasError ? (
-          <div role="alert" className="rounded-xl border-2 border-[var(--memphis-line)] p-3 text-center text-xs">
+          <div role="alert" className="rounded-xl border border-border p-3 text-center text-xs">
             <p className="mb-2 text-muted-foreground">{t("members.loadError")}</p>
-            {onRetry && <button type="button" onClick={onRetry} className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>}
+            {onRetry && <button type="button" onClick={onRetry} className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("errors.retry")}</button>}
           </div>
         ) : sections.length === 0 ? (
           <p className="px-2 py-4 text-center text-xs text-muted-foreground">{t("members.empty")}</p>

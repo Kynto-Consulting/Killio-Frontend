@@ -106,7 +106,7 @@ function RoomItem({ room, title, isActive, peer, t }: { room: SidebarRoom; title
       data-room-link={room.id}
       aria-current={isActive ? "page" : undefined}
       title={room.description ? `${title} · ${room.description}` : title}
-      className={`group/row flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none ${
+      className={`group/row flex min-h-[30px] items-center gap-2 rounded-lg px-2 py-1 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none ${
         isActive ? "bg-muted font-semibold text-foreground" : bold ? "font-semibold text-foreground hover:bg-muted/60" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
       } ${room.muted && !isActive ? "opacity-55" : ""}`}
     >
@@ -147,7 +147,7 @@ function SectionHeader({ id, label, collapsed, onToggle, unread = 0, mentions = 
         onKeyDown={onKeyDown}
         aria-expanded={!collapsed}
         aria-controls={id}
-        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none"
+        className="flex min-w-0 flex-1 items-center gap-1 rounded-md px-1 py-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none"
       >
         {collapsed ? <ChevronRight className="h-3 w-3 shrink-0" aria-hidden /> : <ChevronDown className="h-3 w-3 shrink-0" aria-hidden />}
         <span className="truncate">{label}</span>
@@ -160,7 +160,7 @@ function SectionHeader({ id, label, collapsed, onToggle, unread = 0, mentions = 
 }
 
 const iconButton =
-  "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none";
+  "flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none";
 
 function CategoryMenu({ group, index, total, onMove, onEdit, onDelete, t }: {
   group: RoomGroup; index: number; total: number;
@@ -188,7 +188,7 @@ function CategoryMenu({ group, index, total, onMove, onEdit, onDelete, t }: {
         <MoreHorizontal className="h-3.5 w-3.5" aria-hidden />
       </button>
       {open && (
-        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border-2 border-[var(--memphis-line)] bg-popover py-1 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+        <div id={menuId} role="menu" className="absolute right-0 top-full z-50 mt-1 w-48 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
           <button role="menuitem" className={item} onClick={() => { setOpen(false); onEdit(); }}><Pencil className="h-3.5 w-3.5" aria-hidden />{t("category.edit")}</button>
           <button role="menuitem" className={item} disabled={index === 0} onClick={() => { onMove(-1); setOpen(false); }}><ArrowUp className="h-3.5 w-3.5" aria-hidden />{t("category.moveUp")}</button>
           <button role="menuitem" className={item} disabled={index === total - 1} onClick={() => { onMove(1); setOpen(false); }}><ArrowDown className="h-3.5 w-3.5" aria-hidden />{t("category.moveDown")}</button>
@@ -231,14 +231,14 @@ function NewDirectMessage({ members, currentUserId, onPick, t }: { members: Side
         <Plus className="h-3.5 w-3.5" aria-hidden />
       </button>
       {open && (
-        <div id={panelId} role="dialog" aria-label={t("sidebar.createDM")} className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border-2 border-[var(--memphis-line)] bg-popover p-2 shadow-[3px_3px_0_0_var(--memphis-shadow)]">
+        <div id={panelId} role="dialog" aria-label={t("sidebar.createDM")} className="absolute right-0 top-full z-50 mt-1 w-56 rounded-xl border border-border bg-popover p-2 shadow-lg">
           <input
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("sidebar.dmSearch")}
             aria-label={t("sidebar.dmSearch")}
-            className="mb-1 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+            className="mb-1 w-full rounded-lg border border-border bg-background px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
           />
           <ul className="max-h-56 overflow-y-auto">
             {list.length === 0 && <li className="px-2 py-2 text-xs text-muted-foreground">{t("sidebar.dmNobody")}</li>}
@@ -342,7 +342,7 @@ export function RoomSidebar({
   const nothingMatches = filtering && model.categories.every((c) => c.rooms.length === 0) && model.entityGroups.length === 0 && model.directMessages.length === 0;
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r-2 border-[var(--memphis-line)] bg-card md:w-60" aria-label={t("title")}>
+    <aside className="flex h-full w-64 shrink-0 flex-col overflow-hidden border-r border-border/50 bg-card md:w-60" aria-label={t("title")}>
       <div className="flex shrink-0 items-center justify-between gap-1 border-b border-border px-3 py-2.5">
         <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">{t("title")}</h2>
         <div className="flex items-center gap-0.5">
@@ -374,7 +374,7 @@ export function RoomSidebar({
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               placeholder={t("sidebar.filter")}
-              className="w-full rounded-lg border border-border bg-background py-1 pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+              className="w-full rounded-lg border border-border bg-background py-1 pl-7 pr-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             />
           </label>
         </div>
@@ -388,14 +388,14 @@ export function RoomSidebar({
             {[0, 1, 2, 3, 4].map((i) => <div key={i} className="h-6 animate-pulse rounded-lg bg-muted motion-reduce:animate-none" style={{ width: `${60 + ((i * 13) % 35)}%` }} />)}
           </div>
         ) : hasError ? (
-          <div role="alert" className="m-1 rounded-xl border-2 border-[var(--memphis-line)] p-3 text-center text-xs">
+          <div role="alert" className="m-1 rounded-xl border border-border p-3 text-center text-xs">
             <p className="mb-2 text-muted-foreground">{t("sidebar.loadError")}</p>
-            {onRetry && <button type="button" onClick={onRetry} className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>}
+            {onRetry && <button type="button" onClick={onRetry} className="rounded-lg border border-border px-3 py-1 font-semibold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("errors.retry")}</button>}
           </div>
         ) : (
           <>
             {!hasAnyRoom && (
-              <div className="m-1 rounded-xl border-2 border-dashed border-border p-3 text-center text-xs text-muted-foreground">
+              <div className="m-1 rounded-xl border border-dashed border-border p-3 text-center text-xs text-muted-foreground">
                 <p className="font-semibold text-foreground">{t("emptyState.title")}</p>
                 <p className="mt-1">{canCreate ? t("sidebar.emptyCanCreate") : t("sidebar.emptyNoCreate")}</p>
               </div>
@@ -417,7 +417,7 @@ export function RoomSidebar({
               return (
                 <section
                   key={key}
-                  className={`mb-1 rounded-lg ${(dragOver === group?.id && dragId !== group?.id) || (dragRoomId && dropTarget === `cat:${group?.id ?? "none"}`) ? "ring-2 ring-[hsl(var(--accent-ink))]" : ""}`}
+                  className={`mb-1 rounded-lg ${(dragOver === group?.id && dragId !== group?.id) || (dragRoomId && dropTarget === `cat:${group?.id ?? "none"}`) ? "ring-2 ring-primary" : ""}`}
                   onDragOverCapture={channelsDraggable ? (e) => { if (dragRoomId && !(e.target as HTMLElement).closest("[data-room-row]")) { e.preventDefault(); setDropTarget(`cat:${group?.id ?? "none"}`); } } : undefined}
                   onDropCapture={channelsDraggable ? (e) => { if (dragRoomId && !(e.target as HTMLElement).closest("[data-room-row]")) { e.preventDefault(); dropChannel(group?.id ?? null); } } : undefined}
                   onDragOver={draggable ? (e) => { if (dragId) { e.preventDefault(); setDragOver(group!.id); } } : undefined}
@@ -474,7 +474,7 @@ export function RoomSidebar({
                         <li
                           key={r.id}
                           data-room-row
-                          className={`rounded-lg ${dragRoomId === r.id ? "opacity-40" : ""} ${dragRoomId && dragRoomId !== r.id && dropTarget === `room:${r.id}` ? "border-t-2 border-[hsl(var(--accent-ink))]" : ""}`}
+                          className={`rounded-lg ${dragRoomId === r.id ? "opacity-40" : ""} ${dragRoomId && dragRoomId !== r.id && dropTarget === `room:${r.id}` ? "border-t-2 border-primary" : ""}`}
                           draggable={channelsDraggable}
                           onDragStart={channelsDraggable ? (e) => { setDragRoomId(r.id); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", r.id); } : undefined}
                           onDragEnd={channelsDraggable ? () => { setDragRoomId(null); setDropTarget(null); } : undefined}

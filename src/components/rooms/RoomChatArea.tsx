@@ -292,12 +292,12 @@ export function RoomChatArea({
         className={`min-h-0 flex-1 overflow-y-auto overflow-x-hidden ${pad}`}
       >
         {loadError ? (
-          <div role="alert" className="mx-auto mt-10 flex max-w-sm flex-col items-center gap-3 rounded-2xl border-2 border-[var(--memphis-line)] p-6 text-center">
+          <div role="alert" className="mx-auto mt-10 flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-border p-6 text-center">
             {loadError === "forbidden" ? <ShieldOff className="h-8 w-8 text-muted-foreground" aria-hidden /> : <RefreshCw className="h-8 w-8 text-muted-foreground" aria-hidden />}
             <p className="text-sm font-semibold">{loadError === "forbidden" ? t("errors.noAccessTitle") : t("errors.messagesFailed")}</p>
             <p className="text-xs text-muted-foreground">{loadError === "forbidden" ? t("errors.noAccessHint") : t("errors.messagesFailedHint")}</p>
             {loadError === "failed" && onReload && (
-              <button type="button" onClick={onReload} className="rounded-lg border-2 border-[var(--memphis-line)] px-3 py-1.5 text-xs font-bold hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("errors.retry")}</button>
+              <button type="button" onClick={onReload} className="rounded-xl border border-input bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("errors.retry")}</button>
             )}
           </div>
         ) : (
@@ -320,7 +320,7 @@ export function RoomChatArea({
 
             {!history && !isLoading && hasMore && !searching && (
               <div className="flex justify-center py-2">
-                <button type="button" onClick={onLoadMore} className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none">
+                <button type="button" onClick={onLoadMore} className="rounded-md px-3 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none">
                   {t("chat.loadMore")}
                 </button>
               </div>
@@ -404,14 +404,14 @@ export function RoomChatArea({
       </div>
 
       {replyTo && controls.composer === "input" && (
-        <div className={`${isMobile ? "mx-2" : "mx-4"} mb-2 flex items-center gap-3 rounded-xl border-2 border-[var(--memphis-line)] bg-muted/60 p-2 animate-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none`}>
+        <div className={`${isMobile ? "mx-2" : "mx-4"} mb-2 flex items-center gap-3 rounded-xl border border-border bg-muted/60 p-2 animate-in slide-in-from-bottom-2 duration-200 motion-reduce:animate-none`}>
           <div className="min-w-0 flex-1">
             <div className="mb-0.5 truncate text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
               {t("chat.replyingTo", { name: replyTo.type === "ai" || replyTo.type === "ai_response" ? "AI Copilot" : (replyTo.user?.displayName || "User") })}
             </div>
             <div className="line-clamp-1 text-[11px] italic text-muted-foreground">{parseAiMarkup(replyTo.content).visibleText}</div>
           </div>
-          <button type="button" onClick={() => onReply?.(null)} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]" aria-label={t("chat.cancelReply")} title={t("chat.cancelReply")}>
+          <button type="button" onClick={() => onReply?.(null)} className="rounded-md p-1 text-muted-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40" aria-label={t("chat.cancelReply")} title={t("chat.cancelReply")}>
             <X className="h-3.5 w-3.5" aria-hidden />
           </button>
         </div>
@@ -421,7 +421,7 @@ export function RoomChatArea({
         <div className={`${isMobile ? "mx-2" : "mx-4"} group/ghost mb-2 flex items-center gap-2 rounded-xl border border-violet-500/20 bg-violet-500/5 px-3 py-2`}>
           <Sparkles className="h-3 w-3 text-violet-500" aria-hidden />
           <div className="min-w-0 flex-1 truncate text-[11px] font-medium italic text-violet-700/80 dark:text-violet-300/80">{proactiveSuggestion}</div>
-          <button type="button" onClick={() => setProactiveSuggestion("")} className="rounded-md p-1 text-violet-400 hover:bg-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] md:opacity-0 md:group-hover/ghost:opacity-100 md:focus-visible:opacity-100" aria-label={t("chat.dismissSuggestion")}>
+          <button type="button" onClick={() => setProactiveSuggestion("")} className="rounded-md p-1 text-violet-400 hover:bg-violet-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 md:opacity-0 md:group-hover/ghost:opacity-100 md:focus-visible:opacity-100" aria-label={t("chat.dismissSuggestion")}>
             <X className="h-3 w-3" aria-hidden />
           </button>
         </div>

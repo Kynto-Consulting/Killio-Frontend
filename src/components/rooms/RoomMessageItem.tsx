@@ -203,7 +203,7 @@ const PollRenderer = ({
 type TFn = (key: string, params?: Record<string, string | number>) => string;
 
 const toolButton =
-  "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50 motion-reduce:transition-none";
+  "rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50 motion-reduce:transition-none";
 
 interface RoomMessageItemProps {
   message: RoomMessage;
@@ -479,7 +479,7 @@ export function RoomMessageItem({
       <div
         id={`msg-${message.id}`}
         onClick={isMobile ? (e) => { if (!(e.target as HTMLElement).closest("a,button,textarea,input,[role=toolbar]")) setToolsOpen((v) => !v); } : undefined}
-        className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_var(--memphis-line)]" : ""}`}
+        className={`group relative flex gap-2.5 rounded-lg px-2 py-0.5 transition-colors hover:bg-muted/30 motion-reduce:transition-none ${showAvatar ? "mt-2.5" : ""} ${mentionsMe ? "bg-amber-500/10 hover:bg-amber-500/15 shadow-[inset_2px_0_0_0_rgb(245_158_11)]" : ""} ${message.pinnedAt ? "shadow-[inset_2px_0_0_0_hsl(var(--primary))]" : ""}`}
       >
         {/* Avatar */}
         {showAvatar ? (
@@ -570,12 +570,12 @@ export function RoomMessageItem({
                     else if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void saveEdit(); }
                   }}
                   disabled={isBusy}
-                  className="w-full resize-none rounded-lg border-2 border-[var(--memphis-line)] bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
                 />
                 <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   <span>{t("msg.editHint")}</span>
-                  <button type="button" onClick={() => void saveEdit()} disabled={isBusy || !draft.trim()} className="rounded-md border border-border px-2 py-0.5 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("msg.save")}</button>
-                  <button type="button" onClick={() => setIsEditing(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("createRoom.cancel")}</button>
+                  <button type="button" onClick={() => void saveEdit()} disabled={isBusy || !draft.trim()} className="rounded-md border border-border px-2 py-0.5 font-semibold text-foreground hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">{t("msg.save")}</button>
+                  <button type="button" onClick={() => setIsEditing(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("createRoom.cancel")}</button>
                 </div>
               </div>
             ) : (
@@ -1105,17 +1105,17 @@ export function RoomMessageItem({
           </div>
 
           {confirmingDelete && (
-            <div role="alertdialog" aria-label={t("msg.deleteTitle")} className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border-2 border-[var(--memphis-line)] bg-muted/50 px-3 py-1.5 text-xs">
+            <div role="alertdialog" aria-label={t("msg.deleteTitle")} className="mt-1 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/50 px-3 py-1.5 text-xs">
               <span className="font-medium">{message.userId === currentUserId ? t("msg.deleteOwn") : t("msg.deleteOther")}</span>
-              <button type="button" onClick={() => void confirmDelete()} disabled={isBusy} className="rounded-md bg-rose-600 px-2 py-0.5 font-semibold text-white hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:opacity-50">{t("msg.delete")}</button>
-              <button type="button" onClick={() => setConfirmingDelete(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">{t("createRoom.cancel")}</button>
+              <button type="button" onClick={() => void confirmDelete()} disabled={isBusy} className="rounded-md bg-rose-600 px-2 py-0.5 font-semibold text-white hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50">{t("msg.delete")}</button>
+              <button type="button" onClick={() => setConfirmingDelete(false)} disabled={isBusy} className="rounded-md px-2 py-0.5 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40">{t("createRoom.cancel")}</button>
             </div>
           )}
           {actionError && <p role="alert" className="mt-1 text-[11px] text-destructive">{actionError}</p>}
 
           {/* Thread chip */}
           {!inThread && threadCount > 0 && onOpenThread && (
-            <button type="button" onClick={onOpenThread} className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:border-[var(--memphis-line)] hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] motion-reduce:transition-none">
+            <button type="button" onClick={onOpenThread} className="mt-1 inline-flex items-center gap-1.5 rounded-lg border border-border px-2 py-0.5 text-[11px] font-semibold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 motion-reduce:transition-none">
               <MessagesSquare className="h-3 w-3" aria-hidden />
               {t("thread.replies", { count: threadCount })}
             </button>
@@ -1136,8 +1136,8 @@ export function RoomMessageItem({
                     disabled={!canToggle}
                     aria-pressed={mine}
                     aria-label={t("msg.reactionCount", { emoji, count: new Set(list).size })}
-                    className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] disabled:cursor-default motion-reduce:transition-none ${
-                      mine ? "border-[var(--memphis-line)] bg-muted font-semibold" : "border-border/60 bg-muted/40 hover:bg-muted"
+                    className={`flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:cursor-default motion-reduce:transition-none ${
+                      mine ? "border-primary bg-primary/5 ring-1 ring-primary/30 font-semibold" : "border-border/60 bg-muted/40 hover:bg-muted"
                     }`}
                   >
                     <span aria-hidden>{emoji}</span>
