@@ -226,6 +226,9 @@ body.has-inline-powered-by [data-floating-powered-by] { display: none; }
   --cover-bg-otra: #FFC2B8;
   --cover-badge-free: #8FE3BC;
   --cover-badge-paid: #F5B82E;
+  --cover-stroke: #1B1B2F;
+  --memphis-line: #1B1B2F;
+  --memphis-shadow: #1B1B2F;
 }
 .dark {
   --cover-ink: #F8F3E6;
@@ -238,4 +241,8 @@ body.has-inline-powered-by [data-floating-powered-by] { display: none; }
   --cover-bg-otra: #5E2A22;
   --cover-badge-free: #1F6B50;
   --cover-badge-paid: #7A5A06;
+  /* soft greys instead of white lines: comfortable in dark mode */
+  --cover-stroke: #0B0B14;
+  --memphis-line: #3A3A46;
+  --memphis-shadow: #2A2A33;
 }

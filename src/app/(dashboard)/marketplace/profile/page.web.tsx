@@ -978,7 +978,7 @@ export function MarketplaceSellerProfilePageView({ compact = false }: { compact?
                       <button
                         type="button"
                         onClick={() => setPresentationPack(pack)}
-                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-4 py-2 text-[13px] font-bold text-foreground transition-[transform,box-shadow] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_hsl(var(--foreground))] motion-reduce:transition-none motion-reduce:hover:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
+                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-background px-4 py-2 text-[13px] font-bold text-foreground transition-[transform,box-shadow] hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[3px_3px_0_0_var(--memphis-shadow)] motion-reduce:transition-none motion-reduce:hover:transform-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]"
                       >
                         <ImageIcon className="h-4 w-4" aria-hidden="true" />
                         {t("profile.presentation")}

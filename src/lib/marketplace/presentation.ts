@@ -51,6 +51,7 @@ export function prettifyCategory(slug: string): string {
 export const COVER_TOKENS = {
   light: {
     "--cover-ink": "#1B1B2F",
+    "--cover-stroke": "#1B1B2F",
     "--cover-sticker": "#FFF4E0",
     "--cover-bg-finanzas": "#BDEFD8",
     "--cover-bg-comunidad": "#FFC9DC",
@@ -63,6 +64,7 @@ export const COVER_TOKENS = {
   },
   dark: {
     "--cover-ink": "#F8F3E6",
+    "--cover-stroke": "#0B0B14",
     "--cover-sticker": "#2A2640",
     "--cover-bg-finanzas": "#14473D",
     "--cover-bg-comunidad": "#5A1F3A",
@@ -83,6 +85,7 @@ export const COVER_PALETTE = {
   mint: "#8FE3BC",
   pink: "#FF8FB8",
   ink: "var(--cover-ink)",
+  stroke: "var(--cover-stroke)",
   cream: "var(--cover-sticker)",
 } as const;
 
@@ -194,7 +197,7 @@ export function generateCover(seed: string, category: string | null | undefined)
     const dr = (((r >> 16) & 0xff) / 255 - 0.5) * 24;
     return { ...shape, x: Math.round(clamp(shape.x + dx, 6, COVER_W - 6)), y: Math.round(clamp(shape.y + dy, 6, COVER_H - 6)), rotation: Math.round(shape.rotation + dr) };
   });
-  return { family, background: base.background, stroke: P.ink, icon: base.icon, shapes };
+  return { family, background: base.background, stroke: P.stroke, icon: base.icon, shapes };
 }
 
 /* ── filtering and sorting ── */

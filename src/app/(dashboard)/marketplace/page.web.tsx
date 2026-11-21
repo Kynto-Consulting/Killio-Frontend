@@ -139,8 +139,8 @@ function PlaceholderField({
 /* ══════════════════════════════════════════════════════════
    MAIN COMPONENT
 ══════════════════════════════════════════════════════════ */
-const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-none`;
-const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-3 py-2 text-[13px] font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
+const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-none`;
+const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-background px-3 py-2 text-[13px] font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
 
 export function MarketplacePageView({ compact = false }: { compact?: boolean } = {}) {
   const { locale } = useI18n();
@@ -346,13 +346,13 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   const clearFilters = () => { setCategory("all"); setQuery(""); };
   const required = useMemo(() => (importModal?.detail?.placeholders ?? []).filter((p) => p.isRequired), [importModal]);
   const optional = useMemo(() => (importModal?.detail?.placeholders ?? []).filter((p) => !p.isRequired), [importModal]);
-  const chipBase = `inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-foreground px-3.5 py-1.5 text-[13px] font-bold transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ${FOCUS_RING}`;
+  const chipBase = `inline-flex shrink-0 items-center gap-1.5 rounded-full border-2 border-[var(--memphis-line)] px-3.5 py-1.5 text-[13px] font-bold transition-[transform,box-shadow] duration-150 motion-reduce:transition-none ${FOCUS_RING}`;
 
   return (
     <>
       <div className="mx-auto w-full max-w-7xl px-4 pb-10 sm:px-6 lg:px-8">
         {/* ── COMPACT HEADER: one row on desktop, sticky search on mobile ── */}
-        <header className="sticky top-0 z-20 -mx-4 border-b-2 border-foreground bg-background px-4 py-3 sm:static sm:mx-0 sm:border-b-0 sm:px-0 sm:pb-2 sm:pt-5">
+        <header className="sticky top-0 z-20 -mx-4 border-b-2 border-[var(--memphis-line)] bg-background px-4 py-3 sm:static sm:mx-0 sm:border-b-0 sm:px-0 sm:pb-2 sm:pt-5">
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2.5">
             <div className="min-w-0 sm:mr-2">
               <h1 className="text-2xl font-black leading-none tracking-tight text-foreground">{t("title")}</h1>
@@ -366,7 +366,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                 onChange={(e) => setQuery(e.target.value)}
                 aria-label={t("publicPacks.search")}
                 placeholder={t("gallery.searchPlaceholder")}
-                className={`w-full rounded-xl border-2 border-foreground bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-foreground/55 ${FOCUS_RING}`}
+                className={`w-full rounded-xl border-2 border-[var(--memphis-line)] bg-background py-2 pl-9 pr-3 text-sm text-foreground placeholder:text-foreground/55 ${FOCUS_RING}`}
               />
             </div>
             <label className="ml-auto flex items-center gap-1.5 text-[12px] font-bold text-foreground/70 sm:ml-0">
@@ -375,7 +375,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as SortMode)}
-                className={`rounded-xl border-2 border-foreground bg-background px-2 py-1.5 text-[13px] font-bold text-foreground ${FOCUS_RING}`}
+                className={`rounded-xl border-2 border-[var(--memphis-line)] bg-background px-2 py-1.5 text-[13px] font-bold text-foreground ${FOCUS_RING}`}
               >
                 {SORT_MODES.map((mode) => <option key={mode} value={mode}>{t(`gallery.sort.${mode}`)}</option>)}
               </select>
@@ -395,7 +395,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             type="button"
             aria-pressed={category === "all"}
             onClick={() => setCategory("all")}
-            className={`${chipBase} ${category === "all" ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))] shadow-[3px_3px_0_0_hsl(var(--foreground))]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_hsl(var(--foreground))]"}`}
+            className={`${chipBase} ${category === "all" ? "bg-[hsl(var(--accent-ink))] text-[hsl(var(--accent-ink-fg))] shadow-[3px_3px_0_0_var(--memphis-shadow)]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_var(--memphis-shadow)]"}`}
           >
             {t("gallery.all")}
           </button>
@@ -407,10 +407,10 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                 type="button"
                 aria-pressed={active}
                 onClick={() => setCategory(active ? "all" : c.slug)}
-                className={`${chipBase} ${active ? "shadow-[3px_3px_0_0_hsl(var(--foreground))]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_hsl(var(--foreground))]"}`}
+                className={`${chipBase} ${active ? "shadow-[3px_3px_0_0_var(--memphis-shadow)]" : "bg-background text-foreground hover:shadow-[3px_3px_0_0_var(--memphis-shadow)]"}`}
                 style={active ? { background: coverBgVar(coverFamily(c.slug)), color: "var(--cover-ink)" } : undefined}
               >
-                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-foreground" style={{ background: coverBgVar(coverFamily(c.slug)) }} />
+                <span aria-hidden="true" className="h-2.5 w-2.5 rounded-full border-2 border-[var(--memphis-line)]" style={{ background: coverBgVar(coverFamily(c.slug)) }} />
                 {categoryLabel(c.slug)}
                 <span className="text-[11px] font-semibold opacity-70">{c.count}</span>
               </button>
@@ -420,13 +420,13 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
 
         {/* ── NOTICES ── */}
         {purchaseReturn ? (
-          <div role="status" className={`mt-3 rounded-2xl border-2 px-4 py-3 text-sm font-semibold ${purchaseReturn.status === "failed" ? "border-red-500 bg-red-500/10 text-red-700 dark:text-red-300" : "border-foreground bg-[var(--cover-badge-free)] text-[var(--cover-ink)]"}`}>
+          <div role="status" className={`mt-3 rounded-2xl border-2 px-4 py-3 text-sm font-semibold ${purchaseReturn.status === "failed" ? "border-red-500 bg-red-500/10 text-red-700 dark:text-red-300" : "border-[var(--memphis-line)] bg-[var(--cover-badge-free)] text-[var(--cover-ink)]"}`}>
             {t(`hub.return.${purchaseReturn.status}`)}
           </div>
         ) : null}
 
         {isTenant && hubConnected === false ? (
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-foreground bg-[var(--cover-badge-paid)] px-4 py-3 text-sm text-[var(--cover-ink)]">
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl border-2 border-[var(--memphis-line)] bg-[var(--cover-badge-paid)] px-4 py-3 text-sm text-[var(--cover-ink)]">
             <div>
               <p className="font-extrabold">{t("hub.connectTitle")}</p>
               <p className="text-xs font-medium">{t("hub.connectBody")}</p>
@@ -445,7 +445,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
             </p>
             <div className="flex items-center gap-2">
               {filtersActive && !loading ? (
-                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-full border-2 border-foreground px-3 py-1 text-[12px] font-bold text-foreground hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
+                <button type="button" onClick={clearFilters} className="inline-flex items-center gap-1 rounded-full border-2 border-[var(--memphis-line)] px-3 py-1 text-[12px] font-bold text-foreground hover:bg-foreground/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))]">
                   <X className="h-3.5 w-3.5" aria-hidden="true" />
                   {t("gallery.clearFilters")}
                 </button>
@@ -490,7 +490,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                   footer={
                     <>
                       {messageByPack[pack.id] ? (
-                        <p role="status" className="mb-2 rounded-lg border-2 border-foreground bg-[var(--cover-badge-free)] px-3 py-1.5 text-xs font-bold text-[var(--cover-ink)]">{messageByPack[pack.id]}</p>
+                        <p role="status" className="mb-2 rounded-lg border-2 border-[var(--memphis-line)] bg-[var(--cover-badge-free)] px-3 py-1.5 text-xs font-bold text-[var(--cover-ink)]">{messageByPack[pack.id]}</p>
                       ) : null}
                       <button type="button" onClick={() => openImportModal(pack)} disabled={!accessToken} aria-label={t("gallery.installAria", { title: pack.title })} className={`${PRIMARY_BTN} w-full`}>
                         <Upload className="h-4 w-4" aria-hidden="true" />

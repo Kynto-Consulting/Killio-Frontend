@@ -14,7 +14,7 @@ import {
 /* Corporate Memphis building blocks: flat shapes, thick ink strokes, hard offset shadows. No gradients. */
 
 export const HARD_SHADOW_HOVER =
-  "transition-[transform,box-shadow] duration-150 motion-reduce:transition-none hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_hsl(var(--foreground))] motion-reduce:hover:translate-x-0 motion-reduce:hover:translate-y-0 focus-visible:-translate-x-0.5 focus-visible:-translate-y-0.5 focus-visible:shadow-[5px_5px_0_0_hsl(var(--foreground))] motion-reduce:focus-visible:translate-x-0 motion-reduce:focus-visible:translate-y-0";
+  "transition-[transform,box-shadow] duration-150 motion-reduce:transition-none hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-[5px_5px_0_0_var(--memphis-shadow)] motion-reduce:hover:translate-x-0 motion-reduce:hover:translate-y-0 focus-visible:-translate-x-0.5 focus-visible:-translate-y-0.5 focus-visible:shadow-[5px_5px_0_0_var(--memphis-shadow)] motion-reduce:focus-visible:translate-x-0 motion-reduce:focus-visible:translate-y-0";
 export const FOCUS_RING = "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--accent-ink))] focus-visible:ring-offset-2 focus-visible:ring-offset-background";
 
 const ICONS: Record<string, React.ElementType> = { Wallet, Users, LayoutGrid, Code, Building2, Sparkles };
@@ -84,7 +84,7 @@ export function PackCover({ pack, className = "", showIcon = true }: {
         {spec.shapes.map((shape, i) => <Shape key={i} shape={shape} ink={spec.stroke} />)}
       </svg>
       {showIcon ? (
-        <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-2 shadow-[3px_3px_0_0_var(--cover-ink)] sm:h-16 sm:w-16" style={{ background: COVER_PALETTE.cream, borderColor: spec.stroke, color: spec.stroke }}>
+        <div className="absolute left-1/2 top-1/2 flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-2xl border-2 shadow-[3px_3px_0_0_var(--memphis-shadow)] sm:h-16 sm:w-16" style={{ background: COVER_PALETTE.cream, borderColor: spec.stroke, color: spec.stroke }}>
           <Icon className="h-7 w-7 sm:h-8 sm:w-8" strokeWidth={2.4} />
         </div>
       ) : null}
@@ -100,7 +100,7 @@ export function PriceBadge({ pack, className = "" }: { pack: Pick<MarketplacePac
   return (
     <span
       className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-[12px] font-extrabold ${className}`}
-      style={{ background: price.kind === "free" ? "var(--cover-badge-free)" : "var(--cover-badge-paid)", color: "var(--cover-ink)", borderColor: "var(--cover-ink)" }}
+      style={{ background: price.kind === "free" ? "var(--cover-badge-free)" : "var(--cover-badge-paid)", color: "var(--cover-ink)", borderColor: "var(--memphis-line)" }}
     >
       {price.kind === "free" ? t("hub.free") : price.label}
     </span>
@@ -110,7 +110,7 @@ export function PriceBadge({ pack, className = "" }: { pack: Pick<MarketplacePac
 export function CategoryChip({ slug, className = "" }: { slug: string; className?: string }) {
   const label = useCategoryLabel();
   return (
-    <span className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-[11px] font-bold ${className}`} style={{ background: coverBgVar(coverFamily(slug)), color: "var(--cover-ink)", borderColor: "var(--cover-ink)" }}>
+    <span className={`inline-flex items-center rounded-full border-2 px-2.5 py-0.5 text-[11px] font-bold ${className}`} style={{ background: coverBgVar(coverFamily(slug)), color: "var(--cover-ink)", borderColor: "var(--memphis-line)" }}>
       {label(slug)}
     </span>
   );
@@ -120,15 +120,15 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
   const t = useTranslations("marketplace");
   const tags = (pack.tags ?? []).slice(0, 3);
   return (
-    <article className={`group relative flex flex-col overflow-hidden rounded-3xl border-2 border-foreground bg-background ${HARD_SHADOW_HOVER} focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))]`}>
+    <article className={`group relative flex flex-col overflow-hidden rounded-3xl border-2 border-[var(--memphis-line)] bg-background ${HARD_SHADOW_HOVER} focus-within:ring-2 focus-within:ring-[hsl(var(--accent-ink))]`}>
       <Link
         href={`/marketplace/${encodeURIComponent(pack.id)}`}
         aria-label={t("gallery.openPack", { title: pack.title })}
         className="flex flex-1 flex-col focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
       >
-        <div className="relative border-b-2 border-foreground">
+        <div className="relative border-b-2 border-[var(--memphis-line)]">
           <PackCover pack={pack} />
-          <PriceBadge pack={pack} className="absolute right-3 top-3 shadow-[2px_2px_0_0_var(--cover-ink)]" />
+          <PriceBadge pack={pack} className="absolute right-3 top-3 shadow-[2px_2px_0_0_var(--memphis-shadow)]" />
         </div>
         <div className="flex flex-1 flex-col gap-2 p-4">
           <h3 className="line-clamp-2 text-[17px] font-black leading-tight tracking-tight text-foreground">{pack.title}</h3>
@@ -145,7 +145,7 @@ export function PackCard({ pack, footer }: { pack: MarketplacePack; footer?: Rea
           ) : null}
         </div>
       </Link>
-      {footer ? <div className="relative z-10 border-t-2 border-foreground p-3">{footer}</div> : null}
+      {footer ? <div className="relative z-10 border-t-2 border-[var(--memphis-line)] p-3">{footer}</div> : null}
     </article>
   );
 }

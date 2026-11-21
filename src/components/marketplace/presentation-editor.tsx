@@ -13,10 +13,10 @@ import {
 } from "@/lib/marketplace/presentation";
 
 const OTHER = "__other";
-const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40`;
-const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-foreground bg-background px-4 py-2 text-sm font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
-const FIELD = `w-full rounded-xl border-2 border-foreground bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground/55 ${FOCUS_RING}`;
-const ICON_BTN = `flex h-8 w-8 items-center justify-center rounded-lg border-2 border-foreground bg-background text-foreground ${FOCUS_RING} disabled:opacity-30`;
+const PRIMARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-[hsl(var(--accent-ink))] px-5 py-2 text-sm font-extrabold text-[hsl(var(--accent-ink-fg))] ${HARD_SHADOW_HOVER} ${FOCUS_RING} disabled:cursor-not-allowed disabled:opacity-40`;
+const SECONDARY_BTN = `inline-flex items-center justify-center gap-2 rounded-xl border-2 border-[var(--memphis-line)] bg-background px-4 py-2 text-sm font-bold text-foreground ${HARD_SHADOW_HOVER} ${FOCUS_RING}`;
+const FIELD = `w-full rounded-xl border-2 border-[var(--memphis-line)] bg-background px-3 py-2 text-sm text-foreground placeholder:text-foreground/55 ${FOCUS_RING}`;
+const ICON_BTN = `flex h-8 w-8 items-center justify-center rounded-lg border-2 border-[var(--memphis-line)] bg-background text-foreground ${FOCUS_RING} disabled:opacity-30`;
 
 type GalleryRow = MarketplaceGalleryImage & { key: string };
 let rowCounter = 0;
@@ -144,8 +144,8 @@ export function PresentationEditor({ pack, accessToken, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 z-[180] flex items-end justify-center bg-black/70 p-0 backdrop-blur-sm sm:items-center sm:p-4" onClick={(e) => { if (e.target === e.currentTarget && !saving) onClose(); }}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="presentation-title" className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border-2 border-foreground bg-background shadow-[6px_6px_0_0_hsl(var(--foreground))] focus-visible:outline-none sm:rounded-3xl">
-        <div className="flex shrink-0 items-start justify-between gap-4 border-b-2 border-foreground px-5 py-4">
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="presentation-title" className="flex max-h-[92vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl border-2 border-[var(--memphis-line)] bg-background shadow-[6px_6px_0_0_var(--memphis-shadow)] focus-visible:outline-none sm:rounded-3xl">
+        <div className="flex shrink-0 items-start justify-between gap-4 border-b-2 border-[var(--memphis-line)] px-5 py-4">
           <div className="min-w-0">
             <h2 id="presentation-title" className="text-lg font-black tracking-tight text-foreground">{t("presentation.title")}</h2>
             <p className="truncate text-[13px] text-foreground/70">{pack.title}</p>
@@ -162,7 +162,7 @@ export function PresentationEditor({ pack, accessToken, onClose, onSaved }: {
               onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
               onDragLeave={() => setDragging(false)}
               onDrop={(e) => { e.preventDefault(); setDragging(false); handleCoverFile(e.dataTransfer.files?.[0]).catch(() => undefined); }}
-              className={`overflow-hidden rounded-2xl border-2 ${dragging ? "border-[hsl(var(--accent-ink))] border-dashed" : "border-foreground"}`}
+              className={`overflow-hidden rounded-2xl border-2 ${dragging ? "border-[hsl(var(--accent-ink))] border-dashed" : "border-[var(--memphis-line)]"}`}
             >
               <div className="relative">
                 {coverPreview ? (
@@ -173,7 +173,7 @@ export function PresentationEditor({ pack, accessToken, onClose, onSaved }: {
                 )}
                 {coverBusy ? <div className="absolute inset-0 flex items-center justify-center bg-background/60" role="status"><Loader2 className="h-6 w-6 animate-spin motion-reduce:animate-none" aria-label={t("presentation.uploading")} /></div> : null}
               </div>
-              <div className="flex flex-wrap items-center gap-2 border-t-2 border-foreground bg-background p-3">
+              <div className="flex flex-wrap items-center gap-2 border-t-2 border-[var(--memphis-line)] bg-background p-3">
                 <button type="button" onClick={() => fileRef.current?.click()} disabled={coverBusy} className={SECONDARY_BTN}><ImagePlus className="h-4 w-4" aria-hidden="true" />{cover ? t("presentation.coverChange") : t("presentation.coverUpload")}</button>
                 {cover ? <button type="button" onClick={() => setCover(null)} className={SECONDARY_BTN}><Trash2 className="h-4 w-4" aria-hidden="true" />{t("presentation.coverRemove")}</button> : null}
                 <span className="text-[12px] text-foreground/70">{t("presentation.dropHint")}</span>
@@ -241,7 +241,7 @@ export function PresentationEditor({ pack, accessToken, onClose, onSaved }: {
             {tags.length > 0 ? (
               <ul className="mb-2 flex flex-wrap gap-1.5">
                 {tags.map((tag) => (
-                  <li key={tag} className="inline-flex items-center gap-1 rounded-full border-2 border-foreground py-0.5 pl-3 pr-1 text-[13px] font-bold text-foreground">
+                  <li key={tag} className="inline-flex items-center gap-1 rounded-full border-2 border-[var(--memphis-line)] py-0.5 pl-3 pr-1 text-[13px] font-bold text-foreground">
                     #{tag}
                     <button type="button" onClick={() => setTags((cur) => cur.filter((x) => x !== tag))} aria-label={t("presentation.tagRemove", { tag })} className={`flex h-5 w-5 items-center justify-center rounded-full hover:bg-foreground/10 ${FOCUS_RING}`}><X className="h-3 w-3" /></button>
                   </li>
@@ -269,7 +269,7 @@ export function PresentationEditor({ pack, accessToken, onClose, onSaved }: {
           ) : null}
         </div>
 
-        <div className="flex shrink-0 items-center justify-end gap-3 border-t-2 border-foreground px-5 py-4">
+        <div className="flex shrink-0 items-center justify-end gap-3 border-t-2 border-[var(--memphis-line)] px-5 py-4">
           <button type="button" onClick={onClose} disabled={saving} className={SECONDARY_BTN}>{t("actions.cancel")}</button>
           <button type="button" onClick={save} disabled={saving || coverBusy || galleryBusy > 0} className={PRIMARY_BTN}>
             {saving ? t("presentation.saving") : t("presentation.save")}
