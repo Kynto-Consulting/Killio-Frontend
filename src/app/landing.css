@@ -237,6 +237,10 @@
 .kl-root .features-strip { padding:0 0 100px; }
 
 @media(max-width:768px) {
+  .kl-root .nav-inner { padding:0 14px; gap:8px; }
+  .kl-root .nav-actions { gap:6px; }
+  .kl-root .nav-actions .btn-ghost, .kl-root .nav-actions .btn-lime { white-space:nowrap; padding:0 12px; height:34px; font-size:12px; }
+  .kl-root .nav-actions a[href="/download/vault"] { display:none; }
   .kl-root .bento-grid,.kl-root .pricing-grid,.kl-root .ai-grid { grid-template-columns:1fr; }
   .kl-root .bento-card.span-2 { grid-column:1; }
   .kl-root .nav-links { display:none; }

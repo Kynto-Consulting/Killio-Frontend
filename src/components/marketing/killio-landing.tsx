@@ -71,6 +71,7 @@ function Nav({ t }: { t: T }) {
           <a href="#ai">{t("kl.nav.ai")}</a>
           <a href="/vault">{t("kl.nav.vault")}</a>
           <a href="#integrations">{t("kl.nav.integrations")}</a>
+          <a href="/marketplace">{t("kl.nav.marketplace")}</a>
           <a href="#pricing">{t("kl.nav.pricing")}</a>
         </div>
         <div className="nav-actions">
