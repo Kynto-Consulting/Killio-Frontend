@@ -111,7 +111,7 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
     if (!isPathVisibleInMode(item.href, uiMode.mode)) return false;
     // The Scripts group lives under /integrations: it stays while either of its modules is on.
     if (item.href === "/integrations" && !isScriptsGroupEnabled(tenant.features)) return false;
-    if (item.href !== "/integrations" && !isPathEnabled(item.href, tenant.features)) return false;
+    if (item.href !== "/integrations" && !isPathEnabled(item.href, tenant.features, tenant.mode)) return false;
     if (item.href === "/metrics" || item.href === "/integrations") return canAccessScripts;
     return true;
   });
@@ -762,12 +762,14 @@ function LayoutWebInner({ children }: { children: React.ReactNode }) {
                           >
                             {tDashboard("nav.marketplaceHome")}
                           </Link>
-                          <Link
+                          {tenant.mode === "public" && (
+                            <Link
                             href="/marketplace/profile"
                             className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${pathname === "/marketplace/profile" ? "bg-accent/10 text-foreground" : "text-foreground/75 hover:bg-accent/10 hover:text-foreground"}`}
                           >
                             {tDashboard("nav.marketplaceSellerProfile")}
                           </Link>
+                          )}
                         </div>
                       </div>
                     )}

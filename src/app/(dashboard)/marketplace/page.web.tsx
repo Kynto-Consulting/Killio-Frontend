@@ -20,9 +20,18 @@ import {
 
 import { useI18n, useTranslations } from "@/components/providers/i18n-provider";
 import { useSession } from "@/components/providers/session-provider";
+import { useTenant } from "@/components/providers/tenant-provider";
+import { formatPackPrice, newIdempotencyKey, nextHubAction } from "@/lib/marketplace/pricing";
 import {
   getMarketplacePackDetail,
   importMarketplacePack,
+  checkoutHubPack,
+  getHubPackDetail,
+  getHubStatus,
+  importHubPack,
+  listHubPacks,
+  listHubPurchases,
+  startHubConnect,
   listPublicMarketplacePacks,
   MarketplacePack,
   MarketplacePackDetail,
@@ -156,6 +165,11 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   const { locale } = useI18n();
   const t = useTranslations("marketplace");
   const { accessToken, activeTeamId } = useSession();
+  // In a tenant workspace the marketplace is the killio.dev hub: browse, buy and download only.
+  const isTenant = useTenant().mode === "tenant";
+  const [hubConnected, setHubConnected] = useState<boolean | null>(null);
+  const [hubPurchases, setHubPurchases] = useState<Record<string, "free" | "paid">>({});
+  const [hubBusy, setHubBusy] = useState(false);
 
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -167,7 +181,8 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   const loadPublicPacks = useCallback(async () => {
     setLoading(true);
     try {
-      const items = await listPublicMarketplacePacks({ locale, query: query.trim() || undefined, limit: 60 });
+      const params = { locale, query: query.trim() || undefined, limit: 60 };
+      const items = isTenant ? await listHubPacks(params) : await listPublicMarketplacePacks(params);
       setPublicPacks(items);
       setError(null);
     } catch (e) {
@@ -175,9 +190,37 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     } finally {
       setLoading(false);
     }
-  }, [locale, query, t]);
+  }, [isTenant, locale, query, t]);
 
   useEffect(() => { loadPublicPacks().catch(() => undefined); }, [loadPublicPacks]);
+
+  const refreshHub = useCallback(async () => {
+    if (!isTenant || !accessToken) return;
+    try {
+      const { connected } = await getHubStatus(accessToken);
+      setHubConnected(connected);
+      if (connected) {
+        const purchases = await listHubPurchases(accessToken);
+        setHubPurchases(Object.fromEntries(purchases.map((p) => [p.packId, p.status === "paid" ? "paid" : "free"])));
+      }
+    } catch {
+      setHubConnected(false);
+    }
+  }, [accessToken, isTenant]);
+
+  useEffect(() => { refreshHub().catch(() => undefined); }, [refreshHub]);
+
+  const connectHub = useCallback(async () => {
+    if (!accessToken) return;
+    setHubBusy(true);
+    try {
+      const { authorizationUrl } = await startHubConnect(accessToken);
+      window.location.href = authorizationUrl;
+    } catch (e) {
+      setError(e instanceof Error ? e.message : t("errors.import"));
+      setHubBusy(false);
+    }
+  }, [accessToken, t]);
 
   useEffect(() => {
     if (!importModal || !activeTeamId || importModal.destinationTeamId) return;
@@ -189,7 +232,10 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
   ) => {
     setImportModal((cur) => cur ? { ...cur, loading: true, error: null } : cur);
     try {
-      const detail = await getMarketplacePackDetail(pack.id, { selector: selector || undefined, locale: reqLocale || undefined }, accessToken || undefined);
+      const detailInput = { selector: selector || undefined, locale: reqLocale || undefined };
+      const detail = isTenant && accessToken
+        ? await getHubPackDetail(pack.id, detailInput, accessToken)
+        : await getMarketplacePackDetail(pack.id, detailInput, accessToken || undefined);
       const placeholders = sortPlaceholders(detail.placeholders ?? []);
       setImportModal((cur) => {
         if (!cur || cur.pack.id !== pack.id) return cur;
@@ -198,7 +244,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     } catch (e) {
       setImportModal((cur) => cur ? { ...cur, loading: false, error: e instanceof Error ? e.message : t("errors.loadPackDetail") } : cur);
     }
-  }, [accessToken, locale, t]);
+  }, [accessToken, isTenant, locale, t]);
 
   const openImportModal = useCallback((pack: MarketplacePack) => {
     const dst = activeTeamId ?? "";
@@ -226,13 +272,42 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
     }
     setImportModal((cur) => cur ? { ...cur, submitting: true, error: null } : cur);
     try {
-      const result = await importMarketplacePack(importModal.pack.id, { destinationTeamId: importModal.destinationTeamId, selector: importModal.selector || undefined, locale: importModal.locale || undefined, placeholderValues: values }, accessToken);
+      const importInput = { destinationTeamId: importModal.destinationTeamId, selector: importModal.selector || undefined, locale: importModal.locale || undefined, placeholderValues: values };
+      let result;
+      if (isTenant) {
+        const packId = importModal.pack.id;
+        const action = nextHubAction({ connected: hubConnected === true, purchaseStatus: hubPurchases[packId] ?? null });
+        if (action === "connect") {
+          await connectHub();
+          return;
+        }
+        if (action === "checkout") {
+          // The key makes a retry of this same click safe: the hub never opens a second purchase or charge.
+          const bought = await checkoutHubPack(packId, accessToken, newIdempotencyKey(packId));
+          if (bought.checkoutUrl && bought.purchase.status === "pending") {
+            window.location.href = bought.checkoutUrl;
+            return;
+          }
+          setHubPurchases((cur) => ({ ...cur, [packId]: bought.purchase.status === "paid" ? "paid" : "free" }));
+        }
+        result = await importHubPack(packId, importInput, accessToken);
+      } else {
+        result = await importMarketplacePack(importModal.pack.id, importInput, accessToken);
+      }
       setMessageByPack((prev) => ({ ...prev, [importModal.pack.id]: t("feedback.importOk", { count: Object.keys(result.entityIdMap ?? {}).length }) }));
       setImportModal(null);
     } catch (e) {
       setImportModal((cur) => cur ? { ...cur, submitting: false, error: e instanceof Error ? e.message : t("errors.import") } : cur);
     }
-  }, [accessToken, importModal, t]);
+  }, [accessToken, connectHub, hubConnected, hubPurchases, importModal, isTenant, t]);
+
+  const hubButtonLabel = (pack: MarketplacePack) => {
+    const action = nextHubAction({ connected: hubConnected === true, purchaseStatus: hubPurchases[pack.id] ?? null });
+    if (action === "connect") return t("hub.connect");
+    if (action === "import") return t("hub.import");
+    const price = formatPackPrice(pack, locale);
+    return price.kind === "paid" ? t("hub.buy", { price: price.label }) : t("hub.getFree");
+  };
 
   const sorted = useMemo(() => [...publicPacks].sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))), [publicPacks]);
   const required = useMemo(() => (importModal?.detail?.placeholders ?? []).filter((p) => p.isRequired), [importModal]);
@@ -338,6 +413,18 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
           </div>
         ) : null}
 
+        {isTenant && hubConnected === false ? (
+          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[hsl(var(--accent-ink))]/25 bg-[hsl(var(--accent-ink))]/10 px-4 py-3 text-sm text-foreground dark:text-white">
+            <div>
+              <p className="font-semibold">{t("hub.connectTitle")}</p>
+              <p className="text-xs text-foreground/60 dark:text-white/60">{t("hub.connectBody")}</p>
+            </div>
+            <button type="button" disabled={hubBusy} onClick={() => connectHub().catch(() => undefined)} className="rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] disabled:opacity-50">
+              {hubBusy ? t("hub.connecting") : t("hub.connect")}
+            </button>
+          </div>
+        ) : null}
+
         {/* ── PACKS GRID ── */}
         <section className="mt-6">
           <div className="mb-4 flex items-center justify-between gap-3">
@@ -387,6 +474,14 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                       <span className="shrink-0 rounded-full border border-foreground/10 dark:border-white/10 bg-foreground/5 dark:bg-white/5 px-2.5 py-0.5 text-[11px] font-medium text-foreground/40 dark:text-white/40">
                         {pack.defaultLocale}
                       </span>
+                      {(() => {
+                        const price = formatPackPrice(pack, locale);
+                        return (
+                          <span className="shrink-0 rounded-full border border-[hsl(var(--accent-ink))]/30 bg-[hsl(var(--accent-ink))]/10 px-2.5 py-0.5 text-[11px] font-bold text-[hsl(var(--accent-ink))]">
+                            {price.kind === "free" ? t("hub.free") : price.label}
+                          </span>
+                        );
+                      })()}
                     </div>
                     <p className="mt-3 line-clamp-2 text-[13px] leading-relaxed text-foreground/50 dark:text-white/50">
                       {pack.summary ?? t("empty.noSummary")}
@@ -407,7 +502,7 @@ export function MarketplacePageView({ compact = false }: { compact?: boolean } =
                       className="flex w-full items-center justify-center gap-2 rounded-xl bg-[hsl(var(--accent-ink))] px-4 py-2.5 text-[13px] font-bold text-[hsl(var(--accent-ink-fg))] transition-all hover:bg-[#c8ef60] disabled:cursor-not-allowed disabled:opacity-40"
                     >
                       <Upload className="h-4 w-4" />
-                      {t("actions.configureImport")}
+                      {isTenant ? hubButtonLabel(pack) : t("actions.configureImport")}
                     </button>
                   </div>
                 </article>

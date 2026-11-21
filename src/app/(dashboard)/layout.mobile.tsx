@@ -4,6 +4,7 @@ import Link from "next/link";
 import { BrandLogo, BrandName } from "@/components/marketing/brand-logo";
 import Image from "next/image";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useTenant } from "@/components/providers/tenant-provider";
 import { LayoutDashboard, Layout, Settings, UserCircle, History, Search, Plus, Loader2, Check, ChevronsUpDown, Users, LogOut, ArrowRightLeft, FileText, Zap, BarChart3, ChevronRight, GitBranch, Sparkles, MessageSquare, Workflow } from "lucide-react";
 import { MobileNavSheet } from "@/components/ui/mobile-nav-sheet";
 import { CommandPalette } from "@/components/ui/command-palette";
@@ -37,6 +38,7 @@ export function LayoutMobile({ children }: { children: React.ReactNode }) {
 
 function LayoutMobileInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const tenant = useTenant();
   const searchParams = useSearchParams();
   const layoutParam = (searchParams.get("layout") ?? "").toLowerCase();
   const isLayoutDisabled = layoutParam === "false" || layoutParam === "0" || layoutParam === "off";
@@ -385,7 +387,8 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
                       >
                         {tDashboard("nav.marketplaceHome")}
                       </Link>
-                      <Link
+                      {tenant.mode === "public" && (
+                        <Link
                         href="/marketplace/profile"
                         className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
                           pathname === "/marketplace/profile"
@@ -395,6 +398,7 @@ function LayoutMobileInner({ children }: { children: React.ReactNode }) {
                       >
                         {tDashboard("nav.marketplaceSellerProfile")}
                       </Link>
+                      )}
                     </div>
                   )}
                 </div>

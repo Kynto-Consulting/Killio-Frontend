@@ -143,5 +143,16 @@
     "noSummary": "Sin resumen",
     "noTeamPacks": "Aun no hay packs. Crea el primero.",
     "noPublicPacks": "Aun no hay packs publicos."
+  },
+  "hub": {
+    "connectTitle": "Conecta tu cuenta de killio.dev",
+    "connectBody": "Los packs se compran y descargan desde killio.dev. Conecta tu cuenta para continuar.",
+    "connect": "Conectar con killio.dev",
+    "getFree": "Obtener e importar",
+    "buy": "Comprar {price}",
+    "import": "Importar",
+    "free": "Gratis",
+    "redirectingPay": "Redirigiendo a la página de pago...",
+    "connecting": "Conectando..."
   }
 }

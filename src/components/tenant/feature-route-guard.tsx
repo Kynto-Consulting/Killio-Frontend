@@ -9,8 +9,8 @@ import { isPathEnabled } from "@/lib/tenant/features";
 export function FeatureRouteGuard({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { features } = useTenant();
-  const allowed = isPathEnabled(pathname, features);
+  const { features, mode } = useTenant();
+  const allowed = isPathEnabled(pathname, features, mode);
 
   useEffect(() => {
     if (!allowed) router.replace("/");

@@ -16,8 +16,20 @@ export type MarketplacePack = {
   summary: string | null;
   currentVersionId: string | null;
   latestPublishedVersionId: string | null;
+  pricingType?: "free" | "paid";
+  priceAmountMinor?: number | null;
+  currency?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type MarketplacePurchase = {
+  id: string;
+  packId: string;
+  status: "pending" | "paid" | "free" | "failed" | "refunded";
+  amountMinor: number;
+  currency: string | null;
+  createdAt: string;
 };
 
 export type MarketplaceCreatePackInput = {
@@ -304,4 +316,59 @@ export async function listMarketplaceAssetSuggestions(
       body: JSON.stringify(input),
     },
   );
+}
+
+/** Acquires a pack (free packs are granted immediately). Retrying with the same key never creates a second purchase. */
+export async function checkoutMarketplacePack(packId: string, accessToken: string, idempotencyKey?: string) {
+  return fetchApi<{ purchase: MarketplacePurchase; created: boolean }>(`/marketplace/packs/${encodeURIComponent(packId)}/checkout`, {
+    method: "POST",
+    accessToken,
+    headers: idempotencyKey ? { "Idempotency-Key": idempotencyKey } : undefined,
+  });
+}
+
+export async function listMyMarketplacePurchases(accessToken: string) {
+  return fetchApi<MarketplacePurchase[]>(`/marketplace/purchases/me`, { accessToken });
+}
+
+/* ── Tenant mode: everything goes through this workspace's backend to the killio.dev hub. Buy and download only. ── */
+export type HubCheckoutResult = { purchase: MarketplacePurchase; created: boolean; checkoutUrl?: string | null };
+
+export async function getHubStatus(accessToken: string) {
+  return fetchApi<{ connected: boolean }>(`/marketplace/hub/status`, { accessToken });
+}
+
+export async function listHubPacks(input: { query?: string; locale?: string; limit?: number; offset?: number }) {
+  const query = buildQuery({ q: input.query, locale: input.locale, limit: input.limit, offset: input.offset });
+  return fetchApi<MarketplacePack[]>(`/marketplace/hub/packs${query}`);
+}
+
+export async function getHubPackDetail(packId: string, input: { selector?: string; locale?: string } = {}, accessToken: string) {
+  const query = buildQuery({ selector: input.selector, locale: input.locale });
+  return fetchApi<MarketplacePackDetail>(`/marketplace/hub/packs/${encodeURIComponent(packId)}${query}`, { accessToken });
+}
+
+export async function checkoutHubPack(packId: string, accessToken: string, idempotencyKey: string) {
+  return fetchApi<HubCheckoutResult>(`/marketplace/hub/packs/${encodeURIComponent(packId)}/checkout`, {
+    method: "POST",
+    accessToken,
+    headers: { "Idempotency-Key": idempotencyKey },
+  });
+}
+
+export async function listHubPurchases(accessToken: string) {
+  return fetchApi<MarketplacePurchase[]>(`/marketplace/hub/purchases`, { accessToken });
+}
+
+export async function importHubPack(packId: string, input: MarketplaceImportInput, accessToken: string) {
+  return fetchApi<MarketplaceImportResult>(`/marketplace/hub/packs/${encodeURIComponent(packId)}/import`, {
+    method: "POST",
+    accessToken,
+    body: JSON.stringify(input),
+  });
+}
+
+/** Starts "connect with killio.dev"; the browser must then go to `authorizationUrl`. */
+export async function startHubConnect(accessToken: string) {
+  return fetchApi<{ authorizationUrl: string }>(`/oauth/connect/start`, { method: "POST", accessToken });
 }

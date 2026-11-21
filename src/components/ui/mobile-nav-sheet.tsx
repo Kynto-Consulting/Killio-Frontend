@@ -55,7 +55,7 @@ export function MobileNavSheet({
   const uiMode = useUiMode();
   const visibleNavigation = navigation.filter((item) =>
     isPathVisibleInMode(item.href, uiMode.mode) &&
-    (item.href === "/integrations" ? isScriptsGroupEnabled(tenant.features) : isPathEnabled(item.href, tenant.features)),
+    (item.href === "/integrations" ? isScriptsGroupEnabled(tenant.features) : isPathEnabled(item.href, tenant.features, tenant.mode)),
   );
   const tCommon = useTranslations("common");
   const tIntegrations = useTranslations("integrations");
@@ -349,7 +349,8 @@ export function MobileNavSheet({
                         >
                           {tDashboard("nav.marketplaceHome")}
                         </Link>
-                        <Link
+                        {tenant.mode === "public" && (
+                          <Link
                           href="/marketplace/profile"
                           onClick={() => setIsOpen(false)}
                           className={`flex items-center rounded-md px-3 py-1.5 text-sm transition-colors ${
@@ -360,6 +361,7 @@ export function MobileNavSheet({
                         >
                           {tDashboard("nav.marketplaceSellerProfile")}
                         </Link>
+                        )}
                       </div>
                     )}
                   </div>
