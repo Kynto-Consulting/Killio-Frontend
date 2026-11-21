@@ -922,6 +922,7 @@ Team Context: ${activeTeamId}.`;
           entityType="team"
           entityId={activeTeamId ?? ""}
           onClose={closePanels}
+          showCloseButton
           className={isMobileView ? "h-full" : undefined}
         />
       );

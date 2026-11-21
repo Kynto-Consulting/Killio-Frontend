@@ -8,7 +8,7 @@ import {
   ArrowRight, Edit2, LayoutDashboard, Grid3X3, Sparkles, Check,
   Clock, MessageSquare, Tag, AlertCircle, Info,
   ListChecks, FileCode, ExternalLink, Columns, Layers, Code2, Image as ImageIcon, Database, ShieldAlert,
-  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download, User, Phone
+  Brain, ShieldCheck, Lightbulb, HelpCircle, Maximize2, Download, User, Phone, Paperclip, SquarePen
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -35,6 +35,7 @@ import { AssetView, resolveAssetUrl } from "@/components/agent/assistant-message
 import { assetToBlock, dropOrphanAssetOpenTags, stripPartialAssistantTags } from "@/lib/agent-render";
 import { uploadFile } from "@/lib/api/uploads";
 import { API_BASE_URL } from "@/lib/api/client";
+import { composerMaxHeightPx, shouldShowComposerHint } from "@/lib/agent-composer";
 
 
 type TFn = (key: string, params?: Record<string, string | number>) => string;
@@ -44,6 +45,8 @@ interface AgentChatPanelProps {
   entityType?: AgentEntityScope;
   entityId?: string;
   onClose?: () => void;
+  /** Render the panel's own compact header with a close (X) button. Off by default: most containers already draw their own. Needs `onClose`. */
+  showCloseButton?: boolean;
   className?: string;
   initialMessage?: string;
   autoSendInitial?: boolean;
@@ -184,6 +187,7 @@ export function AgentChatPanel({
   entityType,
   entityId,
   onClose,
+  showCloseButton = false,
   className = "",
   initialMessage,
   autoSendInitial = false,
@@ -250,6 +254,8 @@ export function AgentChatPanel({
   const [isUploading, setIsUploading] = useState(false);
   const [aiUsage, setAiUsage] = useState<TeamAiUsage | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [composerFocused, setComposerFocused] = useState(false);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -405,9 +411,51 @@ export function AgentChatPanel({
     [messages],
   );
 
-  return (
-    <div className={`flex flex-col min-w-0 bg-card text-foreground relative overflow-hidden ${className || 'h-full'}`}>
+  const closable = showCloseButton && !!onClose;
 
+  // Esc closes the history overlay first, then (only with the built-in X) the
+  // panel. Events bubbling through the @-picker portal are ignored.
+  const handleRootKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "Escape" || e.defaultPrevented) return;
+    if (!rootRef.current?.contains(e.target as Node)) return;
+    if (showHistory) {
+      e.stopPropagation();
+      setShowHistory(false);
+      return;
+    }
+    if (closable) {
+      e.stopPropagation();
+      onClose?.();
+    }
+  };
+
+  const hintVisible = shouldShowComposerHint({ focused: composerFocused, text: inputValue, busy: isLoading });
+
+  return (
+    <div
+      ref={rootRef}
+      onKeyDown={handleRootKeyDown}
+      className={`flex flex-col min-w-0 bg-card text-foreground relative overflow-hidden ${className || 'h-full'}`}
+    >
+
+      {closable && (
+        <div className="flex h-10 shrink-0 items-center justify-between gap-2 border-b border-border/40 pl-3 pr-1.5">
+          <div className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-foreground">
+            <Sparkles className="h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
+            <span className="truncate">{t("agent.name")}</span>
+            {entityCfg && <span className="truncate font-normal text-muted-foreground">· {entityCfg.label}</span>}
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("actions.close")}
+            title={t("actions.close")}
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+        </div>
+      )}
 
       {/* ── History overlay ───────────────────────────────────────────────── */}
       {showHistory && (
@@ -423,6 +471,7 @@ export function AgentChatPanel({
               onClick={() => setShowHistory(false)}
               className="p-1.5 rounded hover:bg-muted/60 text-muted-foreground transition-colors"
               title={t("actions.close")}
+              aria-label={t("actions.close")}
             >
               <X className="w-4 h-4" />
             </button>
@@ -551,72 +600,54 @@ export function AgentChatPanel({
         <div ref={bottomRef} />
       </div>
 
-      {/* ── Input area ───────────────────────────────────────────────────── */}
-      <div className="shrink-0 border-t border-border/40 px-4 pb-4 pt-3">
+      {/* ── Input area (compact single card) ─────────────────────────────── */}
+      <div
+        className="shrink-0 px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+        onFocus={() => setComposerFocused(true)}
+        onBlur={(e) => {
+          if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setComposerFocused(false);
+        }}
+      >
         {attachments.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3 px-1 animate-in slide-in-from-bottom-2 duration-300">
+          <div className="flex flex-wrap gap-2 mb-2 px-1 animate-in slide-in-from-bottom-2 duration-300">
             {attachments.map((att, idx) => (
               <div key={idx} className="relative group/att">
                 {att.type === 'img' ? (
-                  <div className="w-14 h-14 rounded-xl border border-border/60 overflow-hidden bg-muted/50">
+                  <div className="w-12 h-12 rounded-xl border border-border/60 overflow-hidden bg-muted/50">
                     <img src={resolveAssetUrl(att.url)} alt="preview" className="w-full h-full object-cover" />
                   </div>
                 ) : (
-                  <div className="h-14 px-3 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/50 text-[10px] font-medium text-muted-foreground">
+                  <div className="h-12 px-3 flex items-center gap-2 rounded-xl border border-border/60 bg-muted/50 text-[10px] font-medium text-muted-foreground">
                     <FileText className="w-3.5 h-3.5 text-primary" />
                     <span className="max-w-[70px] truncate">{att.name}</span>
                   </div>
                 )}
                 <button
                   onClick={() => setAttachments(prev => prev.filter((_, i) => i !== idx))}
-                  className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover/att:opacity-100 transition-opacity shadow-sm"
+                  aria-label={t("actions.close")}
+                  className="absolute -top-1.5 -right-1.5 p-1 rounded-full bg-red-500 text-white opacity-0 group-hover/att:opacity-100 focus-visible:opacity-100 transition-opacity shadow-sm"
                 >
                   <X className="w-2.5 h-2.5" />
                 </button>
               </div>
             ))}
             {isUploading && (
-              <div className="w-14 h-14 rounded-xl border border-dashed border-border/60 flex items-center justify-center bg-muted/30">
+              <div className="w-12 h-12 rounded-xl border border-dashed border-border/60 flex items-center justify-center bg-muted/30">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-primary" />
               </div>
             )}
           </div>
         )}
 
-        {/* Model selector — rides along on the next message as `model`. */}
-        <div className="flex items-center justify-end mb-1.5 opacity-70 hover:opacity-100 focus-within:opacity-100 transition-opacity">
-          <ModelSelector
-            teamId={teamId}
-            conversationId={conversationId}
-            value={selectedModel}
-            onChange={setSelectedModelState}
-            variant="compact"
-          />
-        </div>
+        <input
+          type="file"
+          accept="image/*,application/pdf,text/markdown,.md"
+          className="hidden"
+          ref={fileInputRef}
+          onChange={handleFileChange}
+        />
 
-        <div className="flex items-end gap-2">
-          <input
-            type="file"
-            accept="image/*,application/pdf,text/markdown,.md"
-            className="hidden"
-            ref={fileInputRef}
-            onChange={handleFileChange}
-          />
-          <div className="flex flex-col gap-1 mb-0.5">
-            <button
-              type="button"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading || isLoading}
-              className="p-2 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-              title={t("agent.attach")}
-            >
-              <div className="relative">
-                <FileText className="w-4 h-4" />
-                <div className="absolute -top-1 -right-1 bg-primary text-primary-foreground rounded-full w-2.5 h-2.5 flex items-center justify-center text-[7px] font-bold">+</div>
-              </div>
-            </button>
-          </div>
-
+        <div className="rounded-2xl border border-border/60 bg-background transition-colors focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/25">
           <ReferenceTokenInput
             value={inputValue}
             onChange={setInputValue}
@@ -627,28 +658,83 @@ export function AgentChatPanel({
             cards={cards}
             onSubmit={() => handleAgentSend()}
             disabled={isLoading}
-            className="flex-1"
-            inputClassName="text-sm bg-background border-border/60 rounded-xl placeholder:text-muted-foreground/60 focus:ring-1 focus:ring-primary/30 min-h-[38px]"
+            inputStyle={{ maxHeight: composerMaxHeightPx() }}
+            inputClassName="border-0 bg-transparent rounded-2xl px-3 pt-2 pb-1 text-sm leading-5 min-h-[36px] focus:ring-0 placeholder:text-muted-foreground/60"
+            placeholderClassName="left-3 top-2 leading-5"
           />
-          {isLoading ? (
+          <div className="flex items-center gap-0.5 px-1.5 pb-1.5">
             <button
-              onClick={cancel}
-              className="shrink-0 p-2.5 rounded-xl bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
-              title={t("actions.cancel")}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading || isLoading}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              title={t("agent.attach")}
+              aria-label={t("agent.attach")}
             >
-              <X className="w-4 h-4" />
+              <Paperclip className="h-4 w-4" aria-hidden />
             </button>
-          ) : (
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={clearConversation}
+                disabled={isLoading}
+                className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+                title={t("agent.header.newConversation")}
+                aria-label={t("agent.header.newConversation")}
+              >
+                <SquarePen className="h-4 w-4" aria-hidden />
+              </button>
+            )}
             <button
-              onClick={() => handleAgentSend()}
-              disabled={(!inputValue.trim() && attachments.length === 0) || !aiUsage || aiUsage.remaining <= 0}
-              className="shrink-0 p-2.5 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              type="button"
+              onClick={openHistory}
+              className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+              title={t("agent.header.historyButton")}
+              aria-label={t("agent.header.historyButton")}
             >
-              <Send className="w-4 h-4" />
+              <History className="h-4 w-4" aria-hidden />
             </button>
-          )}
+            <div className="ml-auto flex min-w-0 items-center gap-1.5">
+              {/* Model chip: rides along on the next message as `model`. */}
+              <div className="min-w-0 max-w-[9.5rem] [&_button]:max-w-full">
+                <ModelSelector
+                  teamId={teamId}
+                  conversationId={conversationId}
+                  value={selectedModel}
+                  onChange={setSelectedModelState}
+                  variant="compact"
+                />
+              </div>
+              {isLoading ? (
+                <button
+                  type="button"
+                  onClick={cancel}
+                  className="shrink-0 rounded-xl bg-destructive/10 p-1.5 text-destructive transition-colors hover:bg-destructive/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-destructive/40"
+                  title={t("actions.cancel")}
+                  aria-label={t("actions.cancel")}
+                >
+                  <X className="h-4 w-4" aria-hidden />
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => handleAgentSend()}
+                  disabled={(!inputValue.trim() && attachments.length === 0) || !aiUsage || aiUsage.remaining <= 0}
+                  className="shrink-0 rounded-xl bg-primary p-1.5 text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-1"
+                  title={t("agent.input.hint")}
+                  aria-label={t("agent.input.send")}
+                >
+                  <Send className="h-4 w-4" aria-hidden />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
-        <p className="mt-1.5 text-[10px] text-muted-foreground/70 text-center">{t("agent.input.hint")}</p>
+        {hintVisible && (
+          <p className="mt-1 hidden truncate px-1 text-[10px] text-muted-foreground/70 sm:block" title={t("agent.input.hint")}>
+            {t("agent.input.hint")}
+          </p>
+        )}
         {aiUsage && aiUsage.remaining <= 0 && (
           <p className="mt-1 text-[10px] text-red-500 font-medium text-center">{t("agent.errors.noCredits")}</p>
         )}

@@ -348,8 +348,9 @@
       "stepDoneNoSlot": "Step done"
     },
     "input": {
-      "placeholder": "Ask something or request an action…",
-      "hint": "Enter to send · Shift+Enter for new line · @ to mention"
+      "placeholder": "Ask anything…",
+      "hint": "Enter sends · Shift+Enter new line · @ mentions",
+      "send": "Send"
     },
     "model": {
       "select": "Model",

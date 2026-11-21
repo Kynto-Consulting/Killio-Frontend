@@ -348,8 +348,9 @@
       "stepDoneNoSlot": "Paso completado"
     },
     "input": {
-      "placeholder": "Pregunta algo o pide una acción…",
-      "hint": "Enter para enviar · Shift+Enter para nueva línea · @ para mencionar"
+      "placeholder": "Pregunta algo…",
+      "hint": "Enter envía · Shift+Enter nueva línea · @ menciona",
+      "send": "Enviar"
     },
     "model": {
       "select": "Modelo",

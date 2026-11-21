@@ -48,6 +48,8 @@ interface ReferenceTokenInputProps {
   disabled?: boolean;
   className?: string;
   inputClassName?: string;
+  inputStyle?: React.CSSProperties;
+  placeholderClassName?: string;
   documents?: any[];
   boards?: any[];
   folders?: any[];
@@ -88,6 +90,8 @@ export function ReferenceTokenInput({
   disabled,
   className,
   inputClassName,
+  inputStyle,
+  placeholderClassName,
   documents = [],
   boards = [],
   folders = [],
@@ -723,6 +727,7 @@ export function ReferenceTokenInput({
         ref={editorRef}
         contentEditable={!disabled}
         suppressContentEditableWarning
+        style={inputStyle}
         onInput={handleInput}
         onPaste={handlePaste}
         onKeyDown={handleKeyDown}
@@ -740,7 +745,7 @@ export function ReferenceTokenInput({
       />
 
       {displayPlaceholder && (
-        <div className="pointer-events-none absolute left-4 top-3 text-sm text-muted-foreground/70">
+        <div className={cn("pointer-events-none absolute left-4 top-3 text-sm text-muted-foreground/70", placeholderClassName)}>
           {placeholder || t("typeHere")}
         </div>
       )}

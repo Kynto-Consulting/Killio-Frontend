@@ -1434,6 +1434,7 @@ export function CommandPalette() {
         entityId={fullChat.scope?.id}
         initialConversationId={fullChat.conversationId}
         onClose={() => setFullChat(null)}
+        showCloseButton
         className="flex-1 border-l border-border"
       />
     </div>
